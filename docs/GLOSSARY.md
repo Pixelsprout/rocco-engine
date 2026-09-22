@@ -120,7 +120,7 @@ A light with a direction and a colour but **no position** — the sun, near enou
 
 ## Edge (input) {#edge-input}
 
-An input transition — the moment a key went down or came up. Events are edges. Derived as `down && !prev` (rising) or `!down && prev` (falling). Read edges once per frame, never inside the fixed-step loop.
+An input transition — the moment a key went down or came up. Events are edges. Derived as `down && !prev` (rising) or `!down && prev` (falling). The host derives them once per fixed step, against the `prev` snapshot from the previous step, and hands them to `step` as `Input.pressed`. An edge appears in exactly one `Input`; a frame that runs two steps must not report it twice. Contrast [level](#level-input), which is `Input.held`.
 
 ## Euler angles {#euler-angles}
 
@@ -188,11 +188,11 @@ The OS re-sending `.KEY_DOWN` for a held key after a delay. Flagged by `Event.ke
 
 ## Level arena {#level-arena}
 
-Our name for the arena reset when a level or scene unloads. Holds meshes, textures, and entity storage for the currently loaded world.
+Our name for the arena reset when a level unloads. Holds what was loaded from disk for the current world: meshes and textures. It never holds entities, which live in the game's `Model` on the Roc heap. Not a [`Scene`](#platform-seam), which is one step's render description and lives for two steps.
 
 ## Level (input) {#level-input}
 
-An input condition that holds over time — "is this key down right now". Safe to read inside the fixed-step loop, because asking twice gives the same answer. Contrast [[Edge (input)]].
+An input condition that holds over time — "is this key down right now". Safe to read inside the fixed-step loop, because asking twice gives the same answer. In the vocabulary it is `Input.held`; say *held* rather than *level* where the [level arena](#level-arena) could be meant. Contrast [edge](#edge-input).
 
 ## Lifetime {#lifetime}
 
@@ -296,7 +296,7 @@ A library that owns the entry point. A Roc application is built on exactly one p
 
 ## Host {#host}
 
-The compiled, non-Roc half of a platform. It defines `main`, six `roc_*` runtime hooks (allocate, deallocate, reallocate, dbg, expect-failed, crashed), and one symbol per `provides` entry. It is handed to Roc's linker as a static library. In this engine, `engine/script.odin` plus everything else in `engine/`, built to `libhost.a`.
+The compiled, non-Roc half of a platform. It defines `main`, six `roc_*` runtime hooks (allocate, deallocate, reallocate, dbg, expect-failed, crashed), and one symbol per `provides` entry. It is handed to Roc's linker as a static library. In this engine, everything in `engine/`, built to `libhost.a`. "Host" and "engine" name the same code; say *host* when the sentence is about the seam.
 
 ## Static library, and what it does not contain {#static-library-link}
 
@@ -368,11 +368,11 @@ What an Odin slice actually is: two words — a pointer and a length — describ
 
 ## Render state {#render-state}
 
-What the renderer reads this frame, *derived* from simulation state and stored nowhere that outlives the frame. The distinction that matters: simulation state advances only in whole `FIXED_DT` steps and is the authority; render state is recomputed at the display rate from the simulation plus [alpha](#alpha). Anything the renderer draws by interpolation therefore needs the simulation to keep *two* copies — before and after the last step. Values that are closed-form functions of time need no pair: ask for them at `game_time + accumulator` instead. **This name is mine, not Gregory's** — if the book has one it wins.
+What the renderer reads this frame, *derived* from simulation state and stored nowhere that outlives the frame. The distinction that matters: simulation state advances only in whole `FIXED_DT` steps and is the authority; render state is recomputed at the display rate from the simulation plus [alpha](#alpha). Anything the renderer draws by interpolation therefore needs *two* copies — before and after the last step. In this engine those copies are the previous and current `Scene`, kept by the host; the simulation keeps one `Model` and no history. Values that are closed-form functions of time need no pair: ask for them at `game_time + accumulator` instead. **This name is mine, not Gregory's** — if the book has one it wins.
 
 ## Render interpolation {#render-interpolation}
 
-Drawing `lerp(previous, current, alpha)` instead of `current`, so the picture moves at the display rate rather than in simulation-sized jumps. Costs latency: the drawn state is up to one whole step behind the simulated one — measured here at 3.62 ms average, 7.25 ms worst, with `FIXED_DT = 1/120` on a 144 Hz display. The previous-state copy belongs wherever the *step* happens, because there may be any number of steps in a frame. Assumes the two ends are joined, so a teleport must be flagged and snapped rather than blended. Contrast *extrapolation*, which runs velocity forward past the current state and must then correct itself visibly.
+Drawing `lerp(previous, current, alpha)` instead of `current`, so the picture moves at the display rate rather than in simulation-sized jumps. Costs latency: the drawn state is up to one whole step behind the simulated one — measured here at 3.62 ms average, 7.25 ms worst, with `FIXED_DT = 1/120` on a 144 Hz display. The previous-state copy must be taken once per *step*, not once per frame, because there may be any number of steps in a frame. Here the host takes it: `view` runs after every step and the host keeps the last two `Scene`s, pairing draws by id. Roc never sees a previous `Model` or an alpha. Assumes the two ends are joined, so a teleport must be flagged and snapped rather than blended. Contrast *extrapolation*, which runs velocity forward past the current state and must then correct itself visibly.
 
 ## Sokol {#sokol}
 
@@ -488,7 +488,7 @@ Naming a generated type after the route that reaches it from a `provides` entry 
 
 ## Platform seam {#platform-seam}
 
-The boundary between the Roc game and the Odin engine, drawn as three pure functions: `init`, `step` and `view`. Facts cross it inward as plain values; decisions and a scene description cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
+The boundary between the Roc game and the Odin engine, drawn as three pure functions: `init`, `step` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
 
 ## Mesh manifest {#mesh-manifest}
 
@@ -500,11 +500,11 @@ The `[Model: model] for init : …` form in a Roc platform's `requires` block. I
 
 ## Description vs command {#description-vs-command}
 
-Two ways for a pure function to ask for an effect. A *description* says what should exist now, every frame, and the host reconciles: a `Scene` is one. A *command* says do this once: `Spawn`, `Destroy`, play a sound. Descriptions suit things with no host-side lifetime; commands suit things that have one. Start with descriptions.
+Two ways for a pure function to ask for an effect. A *description* says what should exist now, every step, and the host reconciles: a `Scene` is one. A *command* says do this once: `Spawn`, `Destroy`, play a sound. Descriptions suit things with no host-side lifetime; commands suit things that have one. Start with descriptions.
 
 ## Extract {#extract}
 
-Bevy's name for the phase that copies render-relevant data out of the game world into the renderer's own layout, once per frame. In this engine it is the Odin loop that turns a `Scene` into model matrices and GPU buffers. Measured at about 110 µs per 100,000 entities in the spike.
+Bevy's name for the phase that copies render-relevant data out of the game world into the renderer's own layout, once per frame. In this engine that copy is `view`, written in Roc and run once per step: the `Scene` is the extract. The Odin loop that then turns a `Scene` into model matrices and GPU buffers is the renderer's own work, not the extract; the figure below is for that Odin loop. Measured at about 110 µs per 100,000 entities in the spike.
 
 ## Schedule as composition {#schedule-as-composition}
 
