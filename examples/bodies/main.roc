@@ -1,4 +1,4 @@
-app [init, step] { roc: "nightly-2026-09-12-220fd47", pf: platform "platform/main.roc" }
+app [init, step] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../platform/main.roc" }
 
 Body : { v : F32, x : F32, x_prev : F32, mass : F64 }
 State : { bodies : List(Body), frame : U64 }

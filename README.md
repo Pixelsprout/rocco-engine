@@ -10,8 +10,8 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 ## Requirements
 
 - Odin `dev-2026-08:251d8eb0b` at `~/tools/Odin`.
-- Roc `nightly-2026-09-12-220fd47`. The pin lives in `game/main.roc` and
-  `game/platform/main.roc`. A different compiler warns and builds anyway.
+- Roc `nightly-2026-09-12-220fd47`. The pin lives in `platform/main.roc` and
+  in every app under `examples/`. A different compiler warns and builds anyway.
   Fix the `PATH`, never the pin.
 - macOS on Apple silicon. The renderer is Metal through sokol.
 - Xcode command line tools, for the SDK stubs the sysroot script copies.
@@ -23,31 +23,34 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 ## Build
 
 ```sh
-export PATH="$HOME/playground/roc-odin-game-engine-platform/toolchain/\
-roc_nightly-macos_apple_silicon-2026-09-12-220fd47:$PATH"
+# Set these paths for your local toolchain and glue checkout.
+export PATH="/path/to/Odin:/path/to/Roc:$PATH"
+GLUE_DIR="/path/to/roc-odin-glue"
+SOKOL_DIR="./sokol"
+TARGET_DIR="platform/targets/arm64mac"
 
 # 0. Once, and again after an Xcode update. Prints 17 frameworks.
-./scripts/make-macos-sysroot.sh game/platform/targets/macos-sysroot
+./scripts/make-macos-sysroot.sh platform/targets/macos-sysroot
 
 # 1. Copy the sokol archives and compiler-rt into the link inputs. Once.
-cp sokol/{app,gfx,glue,log}/sokol_*_macos_arm64_metal_debug.a game/platform/targets/arm64mac/
-cp "$(find "$(xcode-select -p)" -name libclang_rt.osx.a | head -1)" game/platform/targets/arm64mac/
+cp "$SOKOL_DIR"/{app,gfx,glue,log}/sokol_*_macos_arm64_metal_debug.a "$TARGET_DIR"/
+cp "$(find "$(xcode-select -p)" -name libclang_rt.osx.a | head -1)" "$TARGET_DIR"/
 
 # 2. Whenever the platform header changes: regenerate the Odin ABI.
-roc glue ../roc-odin-glue/OdinGlue.roc ./engine game/platform/main.roc
+roc glue "$GLUE_DIR/OdinGlue.roc" ./engine platform/main.roc
 
 # 3. Whenever engine/ changes: engine -> static library.
 odin build engine -build-mode:static \
-  -out:game/platform/targets/arm64mac/libhost.a -debug -vet -strict-style
+  -out:"$TARGET_DIR/libhost.a" -debug -vet -strict-style
 
-# 4. Whenever anything changes: Roc links the game.
-cd game && roc build --output=./engine.bin main.roc && ./engine.bin
+# 4. Whenever anything changes: Roc links a game against the platform.
+cd examples/bodies && roc build --output=./bodies.bin main.roc && ./bodies.bin
 ```
 
 Run steps 2, 3 and 4 as one chain with `&&`. Each tool consumes the previous
 one's output and cannot tell whether that output is stale.
 
-Hot reload: `cd game && roc run --watch main.roc`. Edit `main.roc`. The
+Hot reload: `cd examples/bodies && roc run --watch main.roc`. Edit `main.roc`. The
 running game picks up the new code and keeps its state. Requires the dev
 backend, which is `roc run`'s default.
 
@@ -57,14 +60,27 @@ backend, which is `roc run`'s default.
 |---|---|
 | `engine/` | The Odin engine. Builds to `libhost.a`. |
 | `engine/roc_platform_abi.odin` | Generated. Do not edit. |
-| `game/main.roc` | The game. |
-| `game/platform/main.roc` | The platform header and the host wrappers. |
-| `game/platform/targets/` | Link inputs. Not committed. |
+| `platform/main.roc` | The platform: the header every game links against, and the host wrappers. |
+| `platform/targets/` | Link inputs: `libhost.a`, sokol archives, compiler-rt, sysroot. Not committed. |
+| `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
 | `scripts/` | The sysroot generator. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
-| `docs/examples/` | Two games and the generic platform from the design. They check and test. They do not link yet; see roadmap milestone 1. |
+| `docs/examples/` | The generic platform from the design and two games for it. They check and test. They do not link yet; roadmap milestone 1 promotes them to `platform/` and `examples/`. |
+
+## A game outside this repo
+
+A game is a Roc app whose header names this platform. Point `pf` at a
+checkout of this repo:
+
+```roc
+app [init, step] { roc: "nightly-2026-09-12-220fd47", pf: platform "../rocco-engine/platform/main.roc" }
+```
+
+The game author needs Roc and the Xcode command line tools, and runs step 0
+once. They do not need Odin, sokol or the glue. Publishing the platform as a
+Roc package URL is not set up yet.
 
 ## Status
 

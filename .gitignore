@@ -10,12 +10,12 @@ build/
 sokol/
 
 # Roc platform link inputs. Built from engine/ or copied from sokol/.
-game/platform/targets/*/libhost.a
-game/platform/targets/*/sokol_*.a
-game/platform/targets/*/libclang_rt*.a
+platform/targets/*/libhost.a
+platform/targets/*/sokol_*.a
+platform/targets/*/libclang_rt*.a
 # Generated from the installed SDK by scripts/make-macos-sysroot.sh.
-game/platform/targets/macos-sysroot/
+platform/targets/macos-sysroot/
 # Roc's linker output.
-game/*.bin
+examples/*/*.bin
 
 .DS_Store

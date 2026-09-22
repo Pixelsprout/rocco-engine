@@ -21,12 +21,12 @@ Built and running:
   `../roc-odin-glue`.
 
 Not built: the generic platform in `docs/DESIGN.md`. The current
-`game/platform/main.roc` names a concrete `Body` record. It is the last
+`platform/main.roc` names a concrete `Body` record. It is the last
 game-specific header.
 
 ## Milestone 1: the platform stops naming the game
 
-Done when `game/platform/main.roc` is the header in `docs/DESIGN.md` section
+Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
 4 and both games in `docs/examples/` link and run against it.
 
 1. Extend the glue spec in `../roc-odin-glue` with `Str`, `Box` as
@@ -41,8 +41,9 @@ Done when `game/platform/main.roc` is the header in `docs/DESIGN.md` section
 5. Implement the call protocol in `docs/DESIGN.md` section 5. Count
    allocations with the tracking allocator. Expect one box shell alloc and
    free per step and no list copy.
-6. Run both example games. Switch between them by changing one line in
-   `game/main.roc`. `libhost.a` must not rebuild.
+6. Move the two games from `docs/examples/` to `examples/entity-game/` and
+   `examples/cards/`, pointing at `../../platform/main.roc`. Build each with
+   `roc build`. `libhost.a` must not rebuild between them.
 
 Check: the allocator counters show in-place mutation. A change to either
 game's `Model` does not touch `engine/`.
