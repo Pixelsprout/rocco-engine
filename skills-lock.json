@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "dex": {
+      "source": "dcramer/dex",
+      "sourceType": "github",
+      "skillPath": "plugins/dex/skills/dex/SKILL.md",
+      "computedHash": "2f83595ac5616137a66109de802c94a90ce02714a8913be19e096cff730bbe45"
+    },
+    "dex-plan": {
+      "source": "dcramer/dex",
+      "sourceType": "github",
+      "skillPath": "plugins/dex/skills/dex-plan/SKILL.md",
+      "computedHash": "5278f94539dabf497619b1334a3f38b1cfc57ea39cdf9ab59a077bbc171c077c"
+    }
+  }
+}
