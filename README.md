@@ -67,7 +67,7 @@ backend, which is `roc run`'s default.
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
-| `docs/examples/` | The generic platform from the design and two games for it. They check and test. They do not link yet; roadmap milestone 1 promotes them to `platform/` and `examples/`. |
+| `docs/examples/` | The generic platform from the design and two games for it. They check and test. They do not link yet; roadmap milestone 2 promotes them to `platform/` and `examples/`. |
 
 ## A game outside this repo
 
@@ -86,5 +86,6 @@ Roc package URL is not set up yet.
 
 The engine renders three cubes, flies a camera, and runs a Roc script per
 fixed step with the host honouring `roc_dealloc`. The platform header still
-names a concrete state record. Roadmap milestone 1 replaces it with the
-generic header in the design.
+names a concrete state record. Roadmap milestone 2 replaces it with the
+generic header in the design. Milestone 1 comes first: the same tree
+building for macOS, Linux and Windows.

@@ -24,7 +24,65 @@ Not built: the generic platform in `docs/DESIGN.md`. The current
 `platform/main.roc` names a concrete `Body` record. It is the last
 game-specific header.
 
-## Milestone 1: the platform stops naming the game
+macOS only, today. Three things pin it there: the vertex and fragment shader
+is a Metal Shading Language string in `render.odin`; the link inputs are the
+Metal debug archives; and the sysroot script reads the Xcode SDK. Everything
+else already goes through sokol, which has GL, D3D11 and Metal backends.
+
+## Milestone 1: one source tree, three desktop targets
+
+Cross-platform comes first, while the engine is small. Every line written
+after this milestone lands in a file that already has a home per platform.
+Doing it later means porting the host code that milestones 2 to 4 add.
+
+Done when `examples/bodies` builds and runs on macOS arm64, Linux x64 and
+Windows x64 from one checkout, with one `libhost.a` per target.
+
+The pattern is karl2d's, adapted to an engine that keeps sokol as the floor:
+
+- One file per platform, selected by `#+build darwin`, `#+build linux`,
+  `#+build windows`. No `when ODIN_OS` inside shared files.
+- Where a subsystem has more than one implementation, a struct of procedures
+  per implementation and one constant chosen at compile time, with a
+  `#config` override. karl2d does this for its render and audio backends and
+  panics at compile time on an invalid name. rocco needs it first for the
+  audio backend and the file system; rendering stays behind sokol.
+- Shaders are compiled from one source to every backend at build time.
+  karl2d lists a cross-API shader compiler as future work. sokol ships one,
+  `sokol-shdc`, which emits an Odin file with MSL, GLSL and HLSL from one
+  `.glsl` source. Use it.
+
+1. Spike the link first, because it is the unknown. Write a `targets:` entry
+   for `x64linux` in `platform/main.roc`. Find out how Roc's linker receives
+   the system libraries sokol needs on Linux: X11, GL, dl, pthread, m. Roc's
+   own platforms link on Linux, so the mechanism exists. Record what works
+   in the README build section. Do the same for `x64win`: user32, gdi32, d3d11, dxgi.
+   If either has no answer, stop and redesign before step 2.
+2. Replace the MSL string with a `sokol-shdc` build step. Check the generated
+   Odin file in, with the command that made it in a comment at the top.
+3. Move every Darwin-specific line into `engine/platform_darwin.odin`. Add
+   `platform_linux.odin` and `platform_windows.odin`. Expect the sysroot to
+   be the only macOS-only piece left.
+4. Build the sokol archives for Linux (`SOKOL_GLCORE`) and Windows
+   (`SOKOL_D3D11`) with the scripts already in `sokol/`. Add
+   `platform/targets/x64linux/` and `platform/targets/x64win/` input lists.
+5. Try cross-compiling from macOS: `odin build -target:linux_amd64` for
+   `libhost.a`, then `roc build` for the Linux target. Roc links with its own
+   `lld`, so this may work from one machine. If it does, one machine builds
+   all three. If it does not, step 6 needs a runner per OS.
+6. CI on GitHub Actions: a matrix over the three targets that builds
+   `libhost.a`, links `examples/bodies`, and runs `roc check` and `roc test`
+   on every app under `examples/` and `docs/examples/`.
+
+Check: three binaries from one tree. `git grep "when ODIN_OS"` returns only
+the chooser files. `git grep "SOKOL_METAL\|MTL"` returns nothing outside
+`platform_darwin.odin`.
+
+Not in this milestone: web. sokol builds for wasm with GLES3 and Odin has a
+JS target, but the pinned Roc nightly has no wasm32 target. Web stays out of
+scope until Roc grows one.
+
+## Milestone 2: the platform stops naming the game
 
 Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
 4 and both games in `docs/examples/` link and run against it.
@@ -48,7 +106,7 @@ Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
 Check: the allocator counters show in-place mutation. A change to either
 game's `Model` does not touch `engine/`.
 
-## Milestone 2: mesh handles and the manifest
+## Milestone 3: mesh handles and the manifest
 
 Done when `Scene` draws by id resolve to more than one mesh.
 
@@ -60,7 +118,7 @@ Done when `Scene` draws by id resolve to more than one mesh.
 Check: the entity game shows a cube player, sphere pickups and a slab door.
 A misspelt mesh name draws magenta and logs once.
 
-## Milestone 3: geometry from disk
+## Milestone 4: geometry from disk
 
 Done when a Blender export appears in the manifest without an engine change.
 
@@ -73,7 +131,7 @@ Done when a Blender export appears in the manifest without an engine change.
 Check: drop a new `.glb` into the directory, restart, name it from Roc, see
 it. No rebuild of `libhost.a`.
 
-## Milestone 4: entities in Roc
+## Milestone 5: entities in Roc
 
 Done when the engine has no fixed scene array.
 
@@ -86,7 +144,7 @@ Done when the engine has no fixed scene array.
 Check: the entity game creates and destroys entities at runtime. The renderer
 never allocates per frame.
 
-## Milestone 5: collision as data
+## Milestone 6: collision as data
 
 Done when contacts cross the seam as a list.
 
@@ -99,7 +157,7 @@ Done when contacts cross the seam as a list.
 
 Check: the player stops at the door while it is closed.
 
-## Milestone 6: one gameplay verb
+## Milestone 7: one gameplay verb
 
 Done when the entity game is playable start to finish.
 
@@ -117,7 +175,9 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Audio.** `saudio` calls back on another thread against a deadline. The
   game returns what should be heard as data. The first command with a
   duration probably arrives here.
-- **Shader loading and reload.** The shader is a string constant today.
+- **Shader loading and reload.** After milestone 1 the shader is a
+  `sokol-shdc` output. Reload means re-running the compiler and swapping the
+  pipeline; the platform files decide how each OS watches the file.
 - **The allocation pool.** A fixed region reserved once at startup with a
   free list behind `roc_alloc` and `roc_dealloc`. Removes the system heap
   from the step path. Satisfies static allocation. Measure before and after
@@ -131,6 +191,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - Networking.
 - An editor.
 - Dynamics beyond simple collision until milestone 4 is done.
-- Web builds until the desktop engine runs.
+- Web builds until Roc has a wasm32 target and the three desktop targets
+  build from one tree.
 - A scripting API where Roc calls the engine. Roc returns descriptions. The
   engine acts on them.

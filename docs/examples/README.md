@@ -3,7 +3,7 @@
 The generic platform from `docs/DESIGN.md` and two games that run on it
 unchanged. They check and test with no engine. They do not link yet: the glue
 spec must learn `Str`, `Box` and `List(U16)` first. That is roadmap
-milestone 1.
+milestone 2.
 
 ```sh
 roc check entity-game.roc && roc test entity-game.roc
