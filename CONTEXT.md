@@ -38,7 +38,7 @@ _Avoid_: API, FFI boundary, scripting API, bridge
 
 **Glue**:
 The generated Odin bindings for the vocabulary, produced by `roc glue` from
-the spec in `../roc-odin-glue`. Never written by hand.
+the spec in the `glue/` submodule. Never written by hand.
 _Avoid_: bindings, FFI header, ABI file
 
 ## The three calls

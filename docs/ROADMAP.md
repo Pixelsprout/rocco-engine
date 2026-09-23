@@ -17,8 +17,8 @@ Built and running:
 - Camera with mouse look and quaternion orientation.
 - The engine links as `libhost.a` into a Roc platform. Roc owns the script
   state. The host honours `roc_dealloc`. Hot reload works under `roc run`.
-- The generated Odin ABI comes from `roc glue` with the spec in
-  `../roc-odin-glue`.
+- The generated Odin ABI comes from `roc glue` with the spec in the
+  `glue/` submodule (roc-odin-glue).
 
 Not built: the generic platform in `docs/DESIGN.md`. The current
 `platform/main.roc` names a concrete `Body` record. It is the last
@@ -122,7 +122,7 @@ work. See "Beside the milestones".
 Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
 4 and both games in `docs/examples/` link and run against it.
 
-1. Extend the glue spec in `../roc-odin-glue` with `Str`, `Box` as
+1. Extend the glue spec in the `glue/` submodule with `Str`, `Box` as
    `rawptr`, and `List(U16)`. Check the output against the Zig glue for the
    same platform.
 2. Write the host side of `Input`: fill `held` and `pressed` from the

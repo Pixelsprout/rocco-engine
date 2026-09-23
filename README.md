@@ -19,7 +19,8 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 - `sokol/`: a clone of `floooh/sokol-odin` with the macOS archives built.
   It is not committed. Clone it to `sokol/` and run its
   `build_clibs_macos.sh`.
-- `../roc-odin-glue`: the glue spec that generates `engine/roc_platform_abi.odin`.
+- `glue/`: the roc-odin-glue submodule that generates `engine/roc_platform_abi.odin`.
+  Clone with `--recurse-submodules`, or run `git submodule update --init`.
 - `sokol-shdc`, only to change the shader. A clone of `floooh/sokol-tools-bin`
   at `~/tools/sokol-tools-bin`, commit `11d0cf6`. The generated
   `engine/shader_basic.odin` is committed, so building needs no shdc.
@@ -29,7 +30,6 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 ```sh
 # Set these paths for your local toolchain and glue checkout.
 export PATH="/path/to/Odin:/path/to/Roc:$PATH"
-GLUE_DIR="/path/to/roc-odin-glue"
 SOKOL_DIR="./sokol"
 TARGET_DIR="platform/targets/arm64mac"
 
@@ -41,7 +41,7 @@ cp "$SOKOL_DIR"/{app,gfx,glue,log}/sokol_*_macos_arm64_metal_debug.a "$TARGET_DI
 cp "$(find "$(xcode-select -p)" -name libclang_rt.osx.a | head -1)" "$TARGET_DIR"/
 
 # 2. Whenever the platform header changes: regenerate the Odin ABI.
-roc glue "$GLUE_DIR/OdinGlue.roc" ./engine platform/main.roc
+roc glue glue/OdinGlue.roc ./engine platform/main.roc
 
 # 3. Whenever engine/ changes: engine -> static library.
 odin build engine -build-mode:static \
@@ -86,6 +86,7 @@ backend, which is `roc run`'s default.
 | `platform/targets/` | Link inputs per target: `libhost.a`, sokol archives, compiler-rt and sysroot on macOS, CRT objects and shared libraries on Linux. Not committed. |
 | `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
 | `scripts/` | The sysroot generator and the Linux image with its check script. |
+| `glue/` | Submodule: the roc-odin-glue spec. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
