@@ -27,7 +27,7 @@ Target : {
 	host_lib : Str,
 	sokol_suffix : Str,
 	exe : Str,
-	extra_inputs : [MacSdk, WindowsSdk, BuiltInDocker],
+	extra_inputs : [MacSdk, WindowsSdk, LinuxSystem],
 }
 
 Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WINDOWS, OTHER(Str)] }
@@ -35,12 +35,12 @@ Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WIN
 target_for : Machine -> Try(Target, [UnsupportedMachine])
 target_for = |machine| match (machine.os, machine.arch) {
 	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", "macos_arm64_metal_debug.a", ".bin", MacSdk))
-	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl_debug.a", ".bin", BuiltInDocker))
+	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl_debug.a", "_linux.bin", LinuxSystem))
 	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", "windows_x64_d3d11_debug.lib", ".exe", WindowsSdk))
 	_ => Err(UnsupportedMachine)
 }
 
-make_target : Str, Str, Str, Str, [MacSdk, WindowsSdk, BuiltInDocker] -> Target
+make_target : Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxSystem] -> Target
 make_target = |roc_target, host_lib, sokol_suffix, exe, extra_inputs| {
 	roc_target,
 	dir: "platform/targets/${roc_target}",
@@ -95,6 +95,16 @@ windows_sdk_libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "o
 
 windows_sdk_copies : Str, Target -> List(Copy)
 windows_sdk_copies = |sdk_dir, target| windows_sdk_libs.map(|lib| { from: "${sdk_dir}/um/x64/${lib}", to: "${target.dir}/${lib}" })
+
+linux_lib_dir : Str
+linux_lib_dir = "/usr/lib/x86_64-linux-gnu"
+
+# lld records the soname as DT_NEEDED, so copy the versioned files, not the dev symlinks.
+linux_libs : List(Str)
+linux_libs = ["Scrt1.o", "crti.o", "crtn.o", "libc.so.6", "libm.so.6", "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1"]
+
+linux_copies : Str, Target -> List(Copy)
+linux_copies = |lib_dir, target| linux_libs.map(|lib| { from: "${lib_dir}/${lib}", to: "${target.dir}/${lib}" })
 
 # Same rule as basic-cli's find_windows_sdk_lib_dir: the highest version wins.
 newest_sdk : List(Str) -> Try(Str, [NoSdk])
@@ -223,7 +233,12 @@ inputs! = |target| {
 			}
 			Ok({})
 		}
-		BuiltInDocker => Err(Failed("Linux inputs are built in Docker. Run ./scripts/linux/check.sh."))
+		LinuxSystem => {
+			for file in linux_copies(linux_lib_dir, target) {
+				copy!(file) ? |_| Failed("${file.from} is missing. Install the packages in scripts/linux/Dockerfile.")
+			}
+			Ok({})
+		}
 	}
 }
 
@@ -291,8 +306,34 @@ expect {
 expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"]
 
 expect target_for(mac).map_ok(|target| target.extra_inputs) == Ok(MacSdk)
-expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(BuiltInDocker)
+expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(LinuxSystem)
 expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsSdk)
+
+expect {
+	# The Linux image mounts the checkout, so the Mac binary must survive a Linux build.
+	out = target_for(linux).map_ok(|target| game_run(target, "bodies").args.get(2))
+	out == Ok(Ok("--output=./bodies_linux.bin"))
+}
+
+expect {
+	names = target_for(linux).map_ok(|target| linux_copies("/usr/lib/x86_64-linux-gnu", target).map(|file| file.to))
+	names == Ok([
+		"platform/targets/x64glibc/Scrt1.o",
+		"platform/targets/x64glibc/crti.o",
+		"platform/targets/x64glibc/crtn.o",
+		"platform/targets/x64glibc/libc.so.6",
+		"platform/targets/x64glibc/libm.so.6",
+		"platform/targets/x64glibc/libX11.so.6",
+		"platform/targets/x64glibc/libXi.so.6",
+		"platform/targets/x64glibc/libXcursor.so.1",
+		"platform/targets/x64glibc/libGL.so.1",
+	])
+}
+
+expect {
+	copies = target_for(linux).map_ok(|target| linux_copies("/usr/lib/x86_64-linux-gnu", target))
+	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "/usr/lib/x86_64-linux-gnu/Scrt1.o", to: "platform/targets/x64glibc/Scrt1.o" }))
+}
 
 expect newest_sdk(["10.0.19041.0", "10.0.22621.0", "10.0.20348.0"]) == Ok("10.0.22621.0")
 expect newest_sdk(["10.0.9.0", "10.0.10.0"]) == Ok("10.0.10.0")

@@ -46,7 +46,7 @@ The steps one at a time:
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
-| `inputs` | Once, and after an Xcode or sokol update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Windows, copies the SDK import libraries. |
+| `inputs` | Once, and after an Xcode or sokol update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
 | `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 
@@ -56,13 +56,15 @@ and cannot tell whether that output is stale.
 
 `roc test scripts/build.roc` runs the script's tests.
 
-Linux x64: run `./scripts/linux/check.sh`. It builds the Docker image in
-`scripts/linux/`. Inside the image it builds the sokol GLCORE archives,
-`libhost.a` and the `x64glibc` link inputs, then links `examples/bodies`.
-The Roc linker takes only files from `platform/targets/x64glibc/`, so the
-script copies the CRT objects and shared libraries from the image. Roc
-refuses `x64glibc` from a non-Linux machine, which is why the link runs in
-Docker.
+Linux x64: run `./scripts/linux/check.sh`. The script builds the Docker image
+in `scripts/linux/`. In the Docker image, it builds the sokol GLCORE archives.
+Then it runs `roc scripts/build.roc all` to link
+`examples/bodies/bodies_linux.bin`. Then it runs the game under `xvfb-run`
+with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`. The check passes on exit
+code 0 and one `Frame Count: 120` line. Roc refuses `x64glibc` from a
+non-Linux machine, so the link runs in the Docker image. The Linux binary has
+a different name because the Docker image writes into the same checkout as
+the Mac build.
 
 Hot reload: `cd examples/bodies && roc run --watch main.roc`. Edit `main.roc`. The
 running game picks up the new code and keeps its state. Requires the dev

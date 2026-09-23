@@ -3,9 +3,8 @@
 set -eu
 cd /work
 
-TARGET_DIR=platform/targets/x64glibc
 SOKOL_DIR=sokol
-LIBDIR=/usr/lib/x86_64-linux-gnu
+FRAMES=120
 
 echo "== toolchain"
 odin version
@@ -15,35 +14,27 @@ roc version
 # also builds five unused modules, release variants and .so files, and needs
 # ALSA headers, so only the four archives the engine links are built here.
 echo "== sokol GLCORE archives"
-mkdir -p "$TARGET_DIR"
 for m in log gfx app glue; do
 	cc -pthread -c -g -DIMPL -DSOKOL_GLCORE "$SOKOL_DIR/c/sokol_$m.c" -o "/tmp/sokol_$m.o"
 	ar rcs "$SOKOL_DIR/$m/sokol_${m}_linux_x64_gl_debug.a" "/tmp/sokol_$m.o"
-	cp "$SOKOL_DIR/$m/sokol_${m}_linux_x64_gl_debug.a" "$TARGET_DIR/"
 done
 
-echo "== libhost.a"
-odin build engine -build-mode:static -out:"$TARGET_DIR/libhost.a" -debug -vet -strict-style
+roc scripts/build.roc all
 
-echo "== CRT objects and shared libraries"
-cp "$LIBDIR/Scrt1.o" "$LIBDIR/crti.o" "$LIBDIR/crtn.o" "$TARGET_DIR/"
-cp "$LIBDIR/libc.so.6" "$LIBDIR/libm.so.6" "$TARGET_DIR/"
-cp "$LIBDIR/libX11.so.6" "$LIBDIR/libXi.so.6" "$LIBDIR/libXcursor.so.1" "$LIBDIR/libGL.so.1" "$TARGET_DIR/"
-ls -la "$TARGET_DIR"
-
-echo "== roc build x64glibc"
+echo "== run bodies for $FRAMES frames under xvfb"
 cd examples/bodies
-roc build --target=x64glibc --output=./bodies_linux.bin main.roc
-readelf -d ./bodies_linux.bin | grep NEEDED || true
-
-echo "== start under xvfb"
+RUN_LOG=/tmp/run.log
+EXPECTED="Frame Count: $FRAMES"
 set +e
-timeout 15 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ./bodies_linux.bin
+# The timeout turns a hang into a failure instead of a stuck container.
+timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ROCCO_EXIT_AFTER_FRAMES=$FRAMES ./bodies_linux.bin > "$RUN_LOG" 2>&1
 code=$?
 set -e
-echo "process exit=$code"
-# 124 means the process was still running at the timeout.
-case $code in
-	0 | 124) echo "started and ran" ;;
-	*) echo "did not start cleanly" >&2; exit 1 ;;
-esac
+frame_count_lines=$(grep -c '^Frame Count: ' "$RUN_LOG" || true)
+if [ "$code" -ne 0 ] || [ "$frame_count_lines" -ne 1 ] || ! grep -qx "$EXPECTED" "$RUN_LOG"; then
+	tail -40 "$RUN_LOG" >&2
+	echo "FAIL: exit=$code, frame count lines=$frame_count_lines, expected '$EXPECTED'" >&2
+	exit 1
+fi
+echo "$EXPECTED"
+echo "PASS: exit=0"
