@@ -42,10 +42,8 @@ timeout 15 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ./bodies_linux.bin
 code=$?
 set -e
 echo "process exit=$code"
-# 124 means the process was still running at the timeout. 134 is sokol's
-# abort at shader validation, expected until the shader comes from sokol-shdc.
+# 124 means the process was still running at the timeout.
 case $code in
 	0 | 124) echo "started and ran" ;;
-	134) echo "started; aborted at shader validation (expected before sokol-shdc)" ;;
 	*) echo "did not start cleanly" >&2; exit 1 ;;
 esac
