@@ -37,6 +37,21 @@ platform ""
             "libm.so.6",
             "crtn.o",
         ] },
+        x64win: { inputs: [
+            "host.lib",
+            "sokol_app_windows_x64_d3d11_debug.lib",
+            "sokol_gfx_windows_x64_d3d11_debug.lib",
+            "sokol_glue_windows_x64_d3d11_debug.lib",
+            "sokol_log_windows_x64_d3d11_debug.lib",
+            app,
+            "kernel32.lib",
+            "user32.lib",
+            "gdi32.lib",
+            "shell32.lib",
+            "ole32.lib",
+            "d3d11.lib",
+            "dxgi.lib",
+        ] },
     }
 
 Body : { v : F32, x : F32, x_prev : F32, mass: F64 }
