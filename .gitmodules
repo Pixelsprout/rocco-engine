@@ -1,3 +1,7 @@
 [submodule "glue"]
 	path = glue
 	url = https://github.com/Pixelsprout/roc-odin-glue.git
+[submodule "sokol-odin"]
+	path = sokol-odin
+	url = https://github.com/floooh/sokol-odin.git
+	ignore = untracked

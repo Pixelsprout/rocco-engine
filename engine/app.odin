@@ -1,9 +1,9 @@
 package engine
 
-import sapp "../sokol/app"
-import sg "../sokol/gfx"
-import sglue "../sokol/glue"
-import slog "../sokol/log"
+import sapp "../sokol-odin/sokol/app"
+import sg "../sokol-odin/sokol/gfx"
+import sglue "../sokol-odin/sokol/glue"
+import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:math"
 import "core:mem"

@@ -16,11 +16,14 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 - macOS on Apple silicon for the native build. The renderer goes through
   sokol: Metal on macOS, OpenGL on Linux. Linux builds in Docker, see below.
 - Xcode command line tools, for the SDK stubs the sysroot script copies.
-- `sokol/`: a clone of `floooh/sokol-odin` with the macOS archives built.
-  It is not committed. Clone it to `sokol/` and run its
-  `build_clibs_macos.sh`.
+- `sokol-odin/`: the floooh/sokol-odin submodule. The engine imports its
+  `sokol/` folder. Before the first macOS build, run
+  `sh build_clibs_macos.sh` in `sokol-odin/sokol/`. On Windows, run
+  `build_clibs_windows.cmd` in the same folder. The Linux check builds its own
+  archives.
 - `glue/`: the roc-odin-glue submodule that generates `engine/roc_platform_abi.odin`.
-  Clone with `--recurse-submodules`, or run `git submodule update --init`.
+  Clone with `--recurse-submodules`, or run `git submodule update --init`, to
+  get both submodules.
 - `sokol-shdc`, only to change the shader. A clone of `floooh/sokol-tools-bin`
   at `~/tools/sokol-tools-bin`, commit `11d0cf6`, with
   `~/tools/sokol-tools-bin/bin/osx_arm64` on `PATH`. The generated
@@ -82,6 +85,7 @@ backend, which is `roc run`'s default.
 | `platform/targets/` | Link inputs per target: `libhost.a`, sokol archives, compiler-rt and sysroot on macOS, CRT objects and shared libraries on Linux. Not committed. |
 | `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
 | `scripts/` | The build script, the sysroot generator, and the Linux image with its check script. |
+| `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |

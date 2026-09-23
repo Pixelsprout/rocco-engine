@@ -1,6 +1,6 @@
 package engine
 
-import sapp "../sokol/app"
+import sapp "../sokol-odin/sokol/app"
 
 Input :: struct {
 	down: #sparse [sapp.Keycode]bool,

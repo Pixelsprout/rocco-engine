@@ -81,7 +81,7 @@ Copy : { from : Str, to : Str }
 sokol_copies : Target -> List(Copy)
 sokol_copies = |target| ["app", "gfx", "glue", "log"].map(|part| {
 	name = "sokol_${part}_${target.sokol_suffix}"
-	{ from: "sokol/${part}/${name}", to: "${target.dir}/${name}" }
+	{ from: "sokol-odin/sokol/${part}/${name}", to: "${target.dir}/${name}" }
 })
 
 compiler_rt_copy : Str, Target -> Copy
@@ -288,7 +288,7 @@ expect {
 
 expect {
 	copies = target_for(mac).map_ok(sokol_copies)
-	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol/app/sokol_app_macos_arm64_metal_debug.a", to: "platform/targets/arm64mac/sokol_app_macos_arm64_metal_debug.a" }))
+	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_macos_arm64_metal_debug.a", to: "platform/targets/arm64mac/sokol_app_macos_arm64_metal_debug.a" }))
 }
 
 expect target_for(mac).map_ok(|target| sokol_copies(target).len()) == Ok(4)

@@ -3,16 +3,17 @@
 set -eu
 cd /work
 
-SOKOL_DIR=sokol
+SOKOL_DIR=sokol-odin/sokol
 FRAMES=120
 
 echo "== toolchain"
 odin version
 roc version
 
-# Same flags as build_lib_x64_debug in sokol/build_clibs_linux.sh. That script
-# also builds five unused modules, release variants and .so files, and needs
-# ALSA headers, so only the four archives the engine links are built here.
+# Same flags as build_lib_x64_debug in sokol-odin/sokol/build_clibs_linux.sh.
+# That script also builds five unused modules, release variants and .so files,
+# and needs ALSA headers, so only the four archives the engine links are built
+# here.
 echo "== sokol GLCORE archives"
 for m in log gfx app glue; do
 	cc -pthread -c -g -DIMPL -DSOKOL_GLCORE "$SOKOL_DIR/c/sokol_$m.c" -o "/tmp/sokol_$m.o"

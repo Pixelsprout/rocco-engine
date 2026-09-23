@@ -2,7 +2,7 @@
 // GLSL and HLSL; see engine/shader_basic.odin for the command. shdc comes
 // from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
-@header import sg "../sokol/gfx"
+@header import sg "../sokol-odin/sokol/gfx"
 @ctype mat4 Mat4
 
 @vs vs

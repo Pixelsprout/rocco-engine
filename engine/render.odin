@@ -1,6 +1,6 @@
 package engine
 
-import sg "../sokol/gfx"
+import sg "../sokol-odin/sokol/gfx"
 
 Vertex :: struct {
 	pos:   [3]f32,
