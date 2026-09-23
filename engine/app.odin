@@ -39,6 +39,7 @@ State :: struct {
 	toggled_pipeline: bool,
 	scene:            [3]Transform,
 	script:			  Script,
+	exit_after_frames: int, // 0 runs forever
 }
 
 
@@ -52,6 +53,8 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	memory_init(&g_state.mem) or_return
 
 	g_state.ctx = context
+
+	g_state.exit_after_frames = exit_after_frames_from_env()
 
 	g_state.scene = SCENE
 
@@ -175,6 +178,10 @@ frame_cb :: proc "c" () {
 	sg.commit()
 	g_state.frame_count += 1
 
+	if g_state.exit_after_frames > 0 && g_state.frame_count >= g_state.exit_after_frames {
+		sapp.request_quit()
+	}
+
 	// ======================================================
 	// Handle input events
 	// ======================================================
@@ -207,11 +214,6 @@ frame_cb :: proc "c" () {
 	frame_end(&g_state.mem)
 
 	input_end_frame(&g_state.input)
-
-	// ** Uncomment to exit early **
-	// 	if g_state.frame_count >= 120 {
-	// 		sapp.request_quit() // exit after 120 frames
-	// 	}
 }
 
 cleanup_cb :: proc "c" () {
