@@ -50,6 +50,14 @@ cd examples/bodies && roc build --output=./bodies.bin main.roc && ./bodies.bin
 Run steps 2, 3 and 4 as one chain with `&&`. Each tool consumes the previous
 one's output and cannot tell whether that output is stale.
 
+Linux x64: run `./scripts/linux/check.sh`. It builds the Docker image in
+`scripts/linux/`. Inside the image it builds the sokol GLCORE archives,
+`libhost.a` and the `x64glibc` link inputs, then links `examples/bodies`.
+The Roc linker takes only files from `platform/targets/x64glibc/`, so the
+script copies the CRT objects and shared libraries from the image. Roc
+refuses `x64glibc` from a non-Linux machine, which is why the link runs in
+Docker.
+
 Hot reload: `cd examples/bodies && roc run --watch main.roc`. Edit `main.roc`. The
 running game picks up the new code and keeps its state. Requires the dev
 backend, which is `roc run`'s default.
@@ -61,9 +69,9 @@ backend, which is `roc run`'s default.
 | `engine/` | The Odin engine. Builds to `libhost.a`. |
 | `engine/roc_platform_abi.odin` | Generated. Do not edit. |
 | `platform/main.roc` | The platform: the header every game links against, and the host wrappers. |
-| `platform/targets/` | Link inputs: `libhost.a`, sokol archives, compiler-rt, sysroot. Not committed. |
+| `platform/targets/` | Link inputs per target: `libhost.a`, sokol archives, compiler-rt and sysroot on macOS, CRT objects and shared libraries on Linux. Not committed. |
 | `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
-| `scripts/` | The sysroot generator. |
+| `scripts/` | The sysroot generator and the Linux image with its check script. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |

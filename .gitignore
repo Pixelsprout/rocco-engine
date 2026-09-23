@@ -13,6 +13,9 @@ sokol/
 platform/targets/*/libhost.a
 platform/targets/*/sokol_*.a
 platform/targets/*/libclang_rt*.a
+# CRT objects and shared libraries copied from the Linux image.
+platform/targets/*/*.o
+platform/targets/*/*.so*
 # Generated from the installed SDK by scripts/make-macos-sysroot.sh.
 platform/targets/macos-sysroot/
 # Roc's linker output.

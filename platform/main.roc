@@ -20,6 +20,23 @@ platform ""
             "libclang_rt.osx.a",
             app,
         ] },
+        x64glibc: { inputs: [
+            "Scrt1.o",
+            "crti.o",
+            "libhost.a",
+            "sokol_app_linux_x64_gl_debug.a",
+            "sokol_gfx_linux_x64_gl_debug.a",
+            "sokol_glue_linux_x64_gl_debug.a",
+            "sokol_log_linux_x64_gl_debug.a",
+            app,
+            "libX11.so.6",
+            "libXi.so.6",
+            "libXcursor.so.1",
+            "libGL.so.1",
+            "libc.so.6",
+            "libm.so.6",
+            "crtn.o",
+        ] },
     }
 
 Body : { v : F32, x : F32, x_prev : F32, mass: F64 }
