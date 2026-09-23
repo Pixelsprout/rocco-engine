@@ -6,6 +6,8 @@
 @ctype mat4 Mat4
 
 @vs vs
+// GL clips z to -w..w. Remap from the 0..w range the reversed-Z projection writes.
+@glsl_options fixup_clipspace
 layout(binding = 0) uniform vs_params {
     mat4 mvp;
     mat4 model;
