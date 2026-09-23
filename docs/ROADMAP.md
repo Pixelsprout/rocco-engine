@@ -35,52 +35,87 @@ Cross-platform comes first, while the engine is small. Every line written
 after this milestone lands in a file that already has a home per platform.
 Doing it later means porting the host code that milestones 2 to 4 add.
 
-Done when `examples/bodies` builds and runs on macOS arm64, Linux x64 and
-Windows x64 from one checkout, with one `libhost.a` per target.
+Done when `examples/bodies` builds and runs on three hosts from one checkout,
+with one host library per target:
+
+- macOS arm64, natively, target `arm64mac`.
+- Linux x64, inside the committed Docker image, target `x64glibc`, under
+  `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES` set. Pass is exit
+  code 0 and one printed frame count line.
+- Windows x64, by hand on a Windows machine with Visual Studio Build Tools and
+  a Windows SDK, target `x64win`.
 
 The pattern is karl2d's, adapted to an engine that keeps sokol as the floor:
 
 - One file per platform, selected by `#+build darwin`, `#+build linux`,
-  `#+build windows`. No `when ODIN_OS` inside shared files.
+  `#+build windows`. No `when ODIN_OS` inside shared files. Each file holds
+  the one real per-OS constant that exists today: the expected sokol backend,
+  checked at init.
 - Where a subsystem has more than one implementation, a struct of procedures
   per implementation and one constant chosen at compile time, with a
   `#config` override. karl2d does this for its render and audio backends and
-  panics at compile time on an invalid name. rocco needs it first for the
-  audio backend and the file system; rendering stays behind sokol.
+  panics at compile time on an invalid name. rocco adds it when the audio
+  backend or the file system arrives. Nothing has two implementations yet, so
+  this milestone does not build the chooser.
 - Shaders are compiled from one source to every backend at build time.
-  karl2d lists a cross-API shader compiler as future work. sokol ships one,
-  `sokol-shdc`, which emits an Odin file with MSL, GLSL and HLSL from one
-  `.glsl` source. Use it.
+  sokol ships `sokol-shdc`, which emits an Odin file with MSL, GLSL and HLSL
+  from one `.glsl` source. The generated file is committed. shdc is a
+  dev-only tool.
 
-1. Spike the link first, because it is the unknown. Write a `targets:` entry
-   for `x64linux` in `platform/main.roc`. Find out how Roc's linker receives
-   the system libraries sokol needs on Linux: X11, GL, dl, pthread, m. Roc's
-   own platforms link on Linux, so the mechanism exists. Record what works
-   in the README build section. Do the same for `x64win`: user32, gdi32, d3d11, dxgi.
-   If either has no answer, stop and redesign before step 2.
-2. Replace the MSL string with a `sokol-shdc` build step. Check the generated
-   Odin file in, with the command that made it in a comment at the top.
-3. Move every Darwin-specific line into `engine/platform_darwin.odin`. Add
-   `platform_linux.odin` and `platform_windows.odin`. Expect the sysroot to
-   be the only macOS-only piece left.
-4. Build the sokol archives for Linux (`SOKOL_GLCORE`) and Windows
-   (`SOKOL_D3D11`) with the scripts already in `sokol/`. Add
-   `platform/targets/x64linux/` and `platform/targets/x64win/` input lists.
-5. Try cross-compiling from macOS: `odin build -target:linux_amd64` for
-   `libhost.a`, then `roc build` for the Linux target. Roc links with its own
-   `lld`, so this may work from one machine. If it does, one machine builds
-   all three. If it does not, step 6 needs a runner per OS.
-6. CI on GitHub Actions: a matrix over the three targets that builds
-   `libhost.a`, links `examples/bodies`, and runs `roc check` and `roc test`
-   on every app under `examples/` and `docs/examples/`.
+What the Roc linker needs, found before the work started:
+
+- A `targets:` input is only ever a file in `targets/<target>/`. There is no
+  library-name syntax. Roc links with `-nostdlib`, so the platform lists
+  every CRT object and library as a file, and the validator rejects
+  undeclared files in that directory. Each OS gets a script that populates
+  its directory. The macOS sysroot script is one of them.
+- `x64glibc` refuses to link from a non-Linux host. `x64musl` cross-links
+  from macOS but forces `-static`, and sokol needs shared X11 and GL. So the
+  Linux binary is linked on a Linux host, in Docker.
+- `x64win` needs a Windows SDK on the host. sokol's own Windows script needs
+  `cl`. So the Windows binary is linked on Windows.
+- No cross-compiling from one machine, then. Each host builds its own target.
+
+1. Linux link spike in Docker. Write `scripts/linux/Dockerfile` with the
+   pinned Odin and Roc Linux releases, the X11 and GL headers, Mesa and xvfb.
+   Build the sokol `SOKOL_GLCORE` archives and the host library inside it.
+   Copy the CRT objects and the shared libraries sokol needs into
+   `platform/targets/x64glibc/`. Add the `x64glibc` entry to
+   `platform/main.roc`. Link `examples/bodies` and see the process start. The
+   shader fails on GL at this point, and that is expected. This step gates
+   every other step. If it has no answer, stop and redesign.
+2. Replace the MSL string with `sokol-shdc` output. Source in
+   `engine/shaders/basic.glsl`, generated `engine/shader_basic.odin` with the
+   command that made it in a comment at the top.
+3. Add `engine/platform_darwin.odin`, `platform_linux.odin` and
+   `platform_windows.odin`.
+4. Write `scripts/build.roc` on basic-cli with the commands `inputs`, `glue`,
+   `host`, `game <example>`, `shaders` and `all`. The target defaults to the
+   host. A game author runs only `inputs` and `game`. Add the Windows input
+   command that copies the SDK import libraries into
+   `platform/targets/x64win/`. If Roc scripting blocks the milestone, fall
+   back to a shell script.
+5. Read `ROCCO_EXIT_AFTER_FRAMES` once at startup in the host. Set means quit
+   cleanly after that many frames and print the count. Unset means run
+   forever.
+6. Run `examples/bodies` on Linux in Docker under `xvfb-run` with the exit
+   switch. One wrapper command on the Mac builds the image and runs the check.
+7. Build and run `examples/bodies` on Windows by hand. Add the `x64win` entry
+   to `platform/main.roc`. Record the input list and the components installed.
+8. Rewrite this section and the README with the results.
+
+Steps 2 to 5 run in parallel after step 1. Step 6 needs all of them.
 
 Check: three binaries from one tree. `git grep "when ODIN_OS"` returns only
-the chooser files. `git grep "SOKOL_METAL\|MTL"` returns nothing outside
-`platform_darwin.odin`.
+the platform files. `git grep "SOKOL_METAL\|MTL"` returns nothing outside
+`platform_darwin.odin` and the generated shader file.
 
-Not in this milestone: web. sokol builds for wasm with GLES3 and Odin has a
-JS target, but the pinned Roc nightly has no wasm32 target. Web stays out of
-scope until Roc grows one.
+Not in this milestone: web. The pinned Roc nightly has a `wasm32` target, but
+Odin's JavaScript target and sokol's Emscripten path are separate work. Web
+stays out of scope until the three desktop targets build from one tree.
+
+Not in this milestone: CI and a published platform bundle. Both are alpha
+work. See "Beside the milestones".
 
 ## Milestone 2: the platform stops naming the game
 
@@ -102,6 +137,11 @@ Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
 6. Move the two games from `docs/examples/` to `examples/entity-game/` and
    `examples/cards/`, pointing at `../../platform/main.roc`. Build each with
    `roc build`. `libhost.a` must not rebuild between them.
+
+Expect a `drop_model_for_host` export that frees the `Box(Model)` at shutdown
+until `roc glue` emits box refcount helpers (roc issue 9536). roc-ray does the
+same, and its `update_for_host!` unboxes the only reference so `update!` sees
+uniquely referenced lists. That matches `docs/DESIGN.md` section 5.
 
 Check: the allocator counters show in-place mutation. A change to either
 game's `Model` does not touch `engine/`.
@@ -185,13 +225,30 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Debug and speed parity.** Run the allocator counters under both
   `--opt=dev` and `--opt=speed` after every memory change.
 
+Alpha work, once the experiment earns it and not before milestone 2 is done:
+
+- **CI.** GitHub Actions with one runner per OS. Roc refuses `x64glibc` from
+  a non-Linux host and `x64win` needs a Windows SDK, so no single runner
+  builds all three. Each job runs the build script for its host, runs
+  `examples/bodies` under a virtual display with `ROCCO_EXIT_AFTER_FRAMES`,
+  and runs `roc check` and `roc test` on every app under `examples/` and
+  `docs/examples/`. The Linux job reuses `scripts/linux/Dockerfile`.
+- **A published platform bundle.** `roc bundle` into a release asset holding
+  every target directory with prebuilt host libraries, as roc-ray does. A
+  game header points at the URL and the author runs `roc main.roc` with
+  nothing but Roc installed. Needs committable Linux inputs: checked-in CRT
+  objects and assembly stubs for libc, libm and the X11 libraries instead of
+  copies from a container. Windows import libraries can come from MinGW
+  `.def` files through `zig dlltool`, so no SDK at bundle time.
+
 ## Out of scope
 
 - A Vulkan or Metal backend by hand. sokol is the floor.
 - Networking.
 - An editor.
 - Dynamics beyond simple collision until milestone 4 is done.
-- Web builds until Roc has a wasm32 target and the three desktop targets
-  build from one tree.
+- Web builds until the three desktop targets build from one tree and Odin
+  and sokol have a shared web path.
+- CI and a published platform bundle until alpha.
 - A scripting API where Roc calls the engine. Roc returns descriptions. The
   engine acts on them.
