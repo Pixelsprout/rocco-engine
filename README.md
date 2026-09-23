@@ -22,45 +22,39 @@ goes and why. `docs/ROADMAP.md` says what is built next.
 - `glue/`: the roc-odin-glue submodule that generates `engine/roc_platform_abi.odin`.
   Clone with `--recurse-submodules`, or run `git submodule update --init`.
 - `sokol-shdc`, only to change the shader. A clone of `floooh/sokol-tools-bin`
-  at `~/tools/sokol-tools-bin`, commit `11d0cf6`. The generated
+  at `~/tools/sokol-tools-bin`, commit `11d0cf6`, with
+  `~/tools/sokol-tools-bin/bin/osx_arm64` on `PATH`. The generated
   `engine/shader_basic.odin` is committed, so building needs no shdc.
 
 ## Build
 
+`scripts/build.roc` runs every build step. Run it from the repository root.
+The target is the machine it runs on. Odin and Roc come from `PATH`. On macOS,
+the script also calls `xcrun`.
+
 ```sh
-# Set these paths for your local toolchain and glue checkout.
 export PATH="/path/to/Odin:/path/to/Roc:$PATH"
-SOKOL_DIR="./sokol"
-TARGET_DIR="platform/targets/arm64mac"
 
-# 0. Once, and again after an Xcode update. Prints 17 frameworks.
-./scripts/make-macos-sysroot.sh platform/targets/macos-sysroot
-
-# 1. Copy the sokol archives and compiler-rt into the link inputs. Once.
-cp "$SOKOL_DIR"/{app,gfx,glue,log}/sokol_*_macos_arm64_metal_debug.a "$TARGET_DIR"/
-cp "$(find "$(xcode-select -p)" -name libclang_rt.osx.a | head -1)" "$TARGET_DIR"/
-
-# 2. Whenever the platform header changes: regenerate the Odin ABI.
-roc glue glue/OdinGlue.roc ./engine platform/main.roc
-
-# 3. Whenever engine/ changes: engine -> static library.
-odin build engine -build-mode:static \
-  -out:"$TARGET_DIR/libhost.a" -debug -vet -strict-style
-
-# 4. Whenever anything changes: Roc links a game against the platform.
-cd examples/bodies && roc build --output=./bodies.bin main.roc && ./bodies.bin
+# Everything, from a fresh checkout: glue, host, inputs, game bodies.
+roc scripts/build.roc -- all
+./examples/bodies/bodies.bin
 ```
 
-Whenever `engine/shaders/basic.glsl` changes, regenerate the Odin shader file.
-The command is also in the header of the generated file:
+The steps one at a time:
 
-```sh
-~/tools/sokol-tools-bin/bin/osx_arm64/sokol-shdc -i engine/shaders/basic.glsl \
-  -o engine/shader_basic.odin -l metal_macos:glsl430:hlsl5 -f sokol_odin
-```
+| Command | When | What it runs |
+|---|---|---|
+| `glue` | When `platform/main.roc` changes. | `roc glue glue/OdinGlue.roc ./engine platform/main.roc` |
+| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
+| `inputs` | Once, and after an Xcode or sokol update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Windows, copies the SDK import libraries. |
+| `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |
+| `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 
-Run steps 2, 3 and 4 as one chain with `&&`. Each tool consumes the previous
-one's output and cannot tell whether that output is stale.
+The script stops at the first step that fails. Run `glue`, `host` and `game`
+in that order after a change. Each tool consumes the previous one's output
+and cannot tell whether that output is stale.
+
+`roc test scripts/build.roc` runs the script's tests.
 
 Linux x64: run `./scripts/linux/check.sh`. It builds the Docker image in
 `scripts/linux/`. Inside the image it builds the sokol GLCORE archives,
@@ -85,7 +79,7 @@ backend, which is `roc run`'s default.
 | `platform/main.roc` | The platform: the header every game links against, and the host wrappers. |
 | `platform/targets/` | Link inputs per target: `libhost.a`, sokol archives, compiler-rt and sysroot on macOS, CRT objects and shared libraries on Linux. Not committed. |
 | `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
-| `scripts/` | The sysroot generator and the Linux image with its check script. |
+| `scripts/` | The build script, the sysroot generator, and the Linux image with its check script. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
@@ -101,9 +95,10 @@ checkout of this repo:
 app [init, step] { roc: "nightly-2026-09-12-220fd47", pf: platform "../rocco-engine/platform/main.roc" }
 ```
 
-The game author needs Roc and the Xcode command line tools, and runs step 0
-once. They do not need Odin, sokol or the glue. Publishing the platform as a
-Roc package URL is not set up yet.
+Publishing the platform as a Roc package URL is not set up yet. Until then,
+build this checkout once with `roc scripts/build.roc -- all`. That first build
+needs the tools under Requirements. After it, a game author runs only
+`inputs` and `game`, and needs only Roc and the Xcode command line tools.
 
 ## Status
 
