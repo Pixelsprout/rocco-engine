@@ -10,7 +10,6 @@ Vertex :: struct {
 
 Renderer :: struct {
 	pip:  sg.Pipeline,
-	alt_pip: sg.Pipeline,
 	bind: sg.Bindings,
 }
 
@@ -50,26 +49,13 @@ renderer_init :: proc(r: ^Renderer) {
 	}
 	r.pip = sg.make_pipeline(desc)
 
-	desc.cull_mode = .NONE
-	r.alt_pip = sg.make_pipeline(desc)
-
 	r.bind.vertex_buffers[0] = buf_vertices
 	r.bind.index_buffer = buf_indices
 }
 
 renderer_draw :: proc(r: ^Renderer, vs_params: Vs_Params, fs_params: Fs_Params) {
-
-	// if Cn is pressed toggle between the two pipelines
-	chosen_pip := r.pip
-	if g_state.toggled_pipeline {
-		chosen_pip = r.alt_pip
-	}
-
-	sg.apply_pipeline(chosen_pip)
-
-
+	sg.apply_pipeline(r.pip)
 	sg.apply_bindings(r.bind)
-
 
 	vs := vs_params
 	fs := fs_params

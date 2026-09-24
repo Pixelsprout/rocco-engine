@@ -1,22 +1,20 @@
 package engine
 
 import "core:fmt"
-import "core:math"
 import "core:mem"
 import "core:os"
-
-Roc_Body :: Roc_Init_Bodies
-Script_State :: Roc_Init
 
 roc_alloc_count: uint
 roc_dealloc_count: uint
 roc_realloc_count: uint
 
-// Memory allocation given to the scripting language
+// The tracking allocator is load-bearing: roc_realloc gets no old size, and
+// the allocation map is the only record of it.
 Script :: struct {
 	track: mem.Tracking_Allocator,
 	heap:  mem.Allocator,
-	state: Script_State,
+	model: rawptr,
+	scene: Scene,
 }
 
 @(export, link_name = "roc_alloc")
@@ -95,41 +93,42 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 	os.exit(1) // prevents undefined behavior
 }
 
-script_init :: proc(s: ^Script, count: u64) -> (err: mem.Allocator_Error) {
-
+// Owns the one reference to the Model and the current Scene. See the call
+// protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
+script_init :: proc(s: ^Script, seed: u64) {
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
 
-	s.state = roc_init(count)
-	return
+	s.model = roc_init(config_make(seed))
+	s.scene = script_view(s)
 }
 
-script_step :: proc(s: ^Script, dt: f32) {
-	s.state = roc_step(s.state, dt)
-
-	fmt.printfln("live=%d blocks=%d, bad_frees=%d",
-		s.track.current_memory_allocated,
-		len(s.track.allocation_map),
-		len(s.track.bad_free_array),
-	)
-}
-
-script_body :: proc(s: ^Script, i: int) -> Roc_Body {
-	// returning a still body when out of range
-	if i < 0 || i >= int(s.state.bodies.length) {
-		return Roc_Body{}
+script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
+	input := Input {
+		held    = roc_list_from_slice(keys.held),
+		pressed = roc_list_from_slice(keys.pressed),
+		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
-	return s.state.bodies.elements[i]
+	// roc_step frees the old box. Never touch the old pointer again.
+	s.model = roc_step(s.model, input, dt)
+	roc_decref(s.scene)
+	s.scene = script_view(s)
 }
 
-// x_prev and x are both script-owned. alpha is host-owned. The script
-// simulates; the host presents.
-script_render_x :: proc(s: ^Script, i: int, alpha: f32) -> f32 {
-	b := script_body(s, i)
-	return math.lerp(b.x_prev, b.x, alpha)
+// roc_view consumes one reference, so give it one and keep ours.
+@(private = "file")
+script_view :: proc(s: ^Script) -> Scene {
+	roc_incref_box(s.model)
+	return roc_view(s.model)
 }
 
 script_shutdown :: proc(s: ^Script) {
+	roc_decref(s.scene)
+	roc_drop_model(s.model)
+
+	if len(s.track.allocation_map) > 0 {
+		fmt.eprintfln("roc leaked %v blocks, %v bytes", len(s.track.allocation_map), s.track.current_memory_allocated)
+	}
 	for ptr in s.track.allocation_map {
 		mem.free(ptr, s.track.backing)
 	}

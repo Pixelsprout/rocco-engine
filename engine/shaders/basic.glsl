@@ -1,4 +1,4 @@
-// One directional light over vertex colours. Compiled by sokol-shdc to MSL,
+// One directional light over vertex colours, times a per-draw tint. Compiled by sokol-shdc to MSL,
 // GLSL and HLSL; see engine/shader_basic.odin for the command. shdc comes
 // from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -33,6 +33,7 @@ layout(binding = 1) uniform fs_params {
     vec4 light_dir;
     vec4 light_color;
     vec4 ambient;
+    vec4 tint;
 };
 
 in vec4 v_col;
@@ -44,7 +45,7 @@ void main() {
     vec3 n = normalize(v_nrm);
     float diffuse = max(dot(n, normalize(light_dir.xyz)), 0.0);
     vec3 lighting = ambient.rgb + light_color.rgb * diffuse;
-    frag_color = vec4(v_col.rgb * lighting, v_col.a);
+    frag_color = vec4(v_col.rgb * tint.rgb * lighting, v_col.a);
 }
 @end
 

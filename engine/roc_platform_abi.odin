@@ -122,68 +122,242 @@ roc_list_decref_elements :: proc(list: Roc_List($T), release: proc(value: T)) {
 	roc_free(data, align_of(T), true)
 }
 
-Roc_Init :: struct {
-	frame: u64,
-	bodies: Roc_List(Roc_Init_Bodies),
+Roc_Str :: struct {
+	bytes:                 [^]u8,
+	capacity_or_alloc_ptr: uint,
+	length:                uint,
 }
 
-#assert(size_of(Roc_Init) == 32)
-#assert(align_of(Roc_Init) == 8)
-#assert(offset_of(Roc_Init, frame) == 0)
-#assert(size_of(type_of(Roc_Init{}.frame)) == 8)
-#assert(offset_of(Roc_Init, bodies) == 8)
-#assert(size_of(type_of(Roc_Init{}.bodies)) == 24)
+#assert(size_of(Roc_Str) == 24)
+#assert(align_of(Roc_Str) == 8)
 
-Roc_Init_Bodies :: struct {
-	mass: f64,
-	v: f32,
+// A string shorter than Roc_Str lives inline. Its last byte holds the
+// length with the top bit set.
+roc_str_from_slice :: proc(s: string) -> Roc_Str {
+	out: Roc_Str
+	n := len(s)
+	if n < size_of(Roc_Str) {
+		raw := ([^]u8)(&out)
+		copy(raw[:n], s)
+		raw[size_of(Roc_Str) - 1] = u8(n) | 0x80
+		return out
+	}
+	data := ([^]u8)(roc_alloc_refcounted(uint(n), 1, false, 0))
+	copy(data[:n], s)
+	return {bytes = data, capacity_or_alloc_ptr = uint(n) << 1, length = uint(n)}
+}
+
+roc_str_decref :: proc(s: Roc_Str) {
+	if int(s.length) < 0 {
+		return
+	}
+	data := rawptr(s.bytes)
+	if s.capacity_or_alloc_ptr & 1 != 0 {
+		data = rawptr(uintptr(s.capacity_or_alloc_ptr &~ 1))
+	}
+	if roc_release(data) {
+		roc_free(data, 1, false)
+	}
+}
+
+roc_incref_box :: proc(box: rawptr) {
+	if box == nil {
+		return
+	}
+	rc := roc_refcount(box)
+	if rc^ != 0 {
+		rc^ += 1
+	}
+}
+
+Roc_Init_Arg0 :: struct {
+	seed: u64,
+	meshes: Roc_List(Roc_Init_Arg0_Meshes),
+}
+
+#assert(size_of(Roc_Init_Arg0) == 32)
+#assert(align_of(Roc_Init_Arg0) == 8)
+#assert(offset_of(Roc_Init_Arg0, seed) == 0)
+#assert(size_of(type_of(Roc_Init_Arg0{}.seed)) == 8)
+#assert(offset_of(Roc_Init_Arg0, meshes) == 8)
+#assert(size_of(type_of(Roc_Init_Arg0{}.meshes)) == 24)
+
+Roc_Init_Arg0_Meshes :: struct {
+	name: Roc_Str,
+	id: u32,
+}
+
+#assert(size_of(Roc_Init_Arg0_Meshes) == 32)
+#assert(align_of(Roc_Init_Arg0_Meshes) == 8)
+#assert(offset_of(Roc_Init_Arg0_Meshes, name) == 0)
+#assert(size_of(type_of(Roc_Init_Arg0_Meshes{}.name)) == 24)
+#assert(offset_of(Roc_Init_Arg0_Meshes, id) == 24)
+#assert(size_of(type_of(Roc_Init_Arg0_Meshes{}.id)) == 4)
+
+Roc_Step_Arg1 :: struct {
+	held: Roc_List(u16),
+	pressed: Roc_List(u16),
+	mouse: Roc_Step_Arg1_Mouse,
+}
+
+#assert(size_of(Roc_Step_Arg1) == 56)
+#assert(align_of(Roc_Step_Arg1) == 8)
+#assert(offset_of(Roc_Step_Arg1, held) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1{}.held)) == 24)
+#assert(offset_of(Roc_Step_Arg1, pressed) == 24)
+#assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == 24)
+#assert(offset_of(Roc_Step_Arg1, mouse) == 48)
+#assert(size_of(type_of(Roc_Step_Arg1{}.mouse)) == 8)
+
+Roc_Step_Arg1_Mouse :: struct {
+	dx: f32,
+	dy: f32,
+}
+
+#assert(size_of(Roc_Step_Arg1_Mouse) == 8)
+#assert(align_of(Roc_Step_Arg1_Mouse) == 4)
+#assert(offset_of(Roc_Step_Arg1_Mouse, dx) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dx)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Mouse, dy) == 4)
+#assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dy)) == 4)
+
+Roc_View :: struct {
+	draws: Roc_List(Roc_View_Draws),
+	camera: Roc_View_Camera,
+}
+
+#assert(size_of(Roc_View) == 56)
+#assert(align_of(Roc_View) == 8)
+#assert(offset_of(Roc_View, draws) == 0)
+#assert(size_of(type_of(Roc_View{}.draws)) == 24)
+#assert(offset_of(Roc_View, camera) == 24)
+#assert(size_of(type_of(Roc_View{}.camera)) == 28)
+
+Roc_View_Draws :: struct {
+	id: u64,
+	mesh: u32,
+	pos: Roc_View_Draws_Pos,
+	scale: Roc_View_Draws_Pos,
+	tint: Roc_View_Draws_Pos,
+	yaw: f32,
+}
+
+#assert(size_of(Roc_View_Draws) == 56)
+#assert(align_of(Roc_View_Draws) == 8)
+#assert(offset_of(Roc_View_Draws, id) == 0)
+#assert(size_of(type_of(Roc_View_Draws{}.id)) == 8)
+#assert(offset_of(Roc_View_Draws, mesh) == 8)
+#assert(size_of(type_of(Roc_View_Draws{}.mesh)) == 4)
+#assert(offset_of(Roc_View_Draws, pos) == 12)
+#assert(size_of(type_of(Roc_View_Draws{}.pos)) == 12)
+#assert(offset_of(Roc_View_Draws, scale) == 24)
+#assert(size_of(type_of(Roc_View_Draws{}.scale)) == 12)
+#assert(offset_of(Roc_View_Draws, tint) == 36)
+#assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
+#assert(offset_of(Roc_View_Draws, yaw) == 48)
+#assert(size_of(type_of(Roc_View_Draws{}.yaw)) == 4)
+
+Roc_View_Draws_Pos :: struct {
 	x: f32,
-	x_prev: f32,
+	y: f32,
+	z: f32,
 }
 
-#assert(size_of(Roc_Init_Bodies) == 24)
-#assert(align_of(Roc_Init_Bodies) == 8)
-#assert(offset_of(Roc_Init_Bodies, mass) == 0)
-#assert(size_of(type_of(Roc_Init_Bodies{}.mass)) == 8)
-#assert(offset_of(Roc_Init_Bodies, v) == 8)
-#assert(size_of(type_of(Roc_Init_Bodies{}.v)) == 4)
-#assert(offset_of(Roc_Init_Bodies, x) == 12)
-#assert(size_of(type_of(Roc_Init_Bodies{}.x)) == 4)
-#assert(offset_of(Roc_Init_Bodies, x_prev) == 16)
-#assert(size_of(type_of(Roc_Init_Bodies{}.x_prev)) == 4)
+#assert(size_of(Roc_View_Draws_Pos) == 12)
+#assert(align_of(Roc_View_Draws_Pos) == 4)
+#assert(offset_of(Roc_View_Draws_Pos, x) == 0)
+#assert(size_of(type_of(Roc_View_Draws_Pos{}.x)) == 4)
+#assert(offset_of(Roc_View_Draws_Pos, y) == 4)
+#assert(size_of(type_of(Roc_View_Draws_Pos{}.y)) == 4)
+#assert(offset_of(Roc_View_Draws_Pos, z) == 8)
+#assert(size_of(type_of(Roc_View_Draws_Pos{}.z)) == 4)
 
-Roc_Step_Arg0 :: Roc_Init
-Roc_Step_Arg0_Bodies :: Roc_Init_Bodies
-Roc_Step :: Roc_Init
-Roc_Step_Bodies :: Roc_Init_Bodies
-
-roc_init_decref :: proc(value: Roc_Init) {
-	roc_list_decref_roc_init_bodies(value.bodies)
+Roc_View_Draws_Scale :: Roc_View_Draws_Pos
+Roc_View_Draws_Tint :: Roc_View_Draws_Pos
+Roc_View_Camera :: struct {
+	eye: Roc_View_Draws_Pos,
+	fov_y: f32,
+	target: Roc_View_Draws_Pos,
 }
 
-roc_list_decref_roc_init_bodies :: proc(list: Roc_List(Roc_Init_Bodies)) {
+#assert(size_of(Roc_View_Camera) == 28)
+#assert(align_of(Roc_View_Camera) == 4)
+#assert(offset_of(Roc_View_Camera, eye) == 0)
+#assert(size_of(type_of(Roc_View_Camera{}.eye)) == 12)
+#assert(offset_of(Roc_View_Camera, fov_y) == 12)
+#assert(size_of(type_of(Roc_View_Camera{}.fov_y)) == 4)
+#assert(offset_of(Roc_View_Camera, target) == 16)
+#assert(size_of(type_of(Roc_View_Camera{}.target)) == 12)
+
+Roc_View_Camera_Eye :: Roc_View_Draws_Pos
+Roc_View_Camera_Target :: Roc_View_Draws_Pos
+
+roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
+	roc_list_decref_roc_init_arg0_meshes(value.meshes)
+}
+
+roc_init_arg0_meshes_decref :: proc(value: Roc_Init_Arg0_Meshes) {
+	roc_str_decref(value.name)
+}
+
+roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
+	roc_list_decref_u16(value.held)
+	roc_list_decref_u16(value.pressed)
+}
+
+roc_view_decref :: proc(value: Roc_View) {
+	roc_list_decref_roc_view_draws(value.draws)
+}
+
+roc_list_decref_roc_init_arg0_meshes :: proc(list: Roc_List(Roc_Init_Arg0_Meshes)) {
+	roc_list_decref_elements(list, roc_init_arg0_meshes_decref)
+}
+
+roc_list_from_slice_roc_init_arg0_meshes :: proc(elems: []Roc_Init_Arg0_Meshes) -> Roc_List(Roc_Init_Arg0_Meshes) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_u16 :: proc(list: Roc_List(u16)) {
 	roc_list_decref_flat(list)
 }
 
-roc_list_from_slice_roc_init_bodies :: proc(elems: []Roc_Init_Bodies) -> Roc_List(Roc_Init_Bodies) {
+roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_view_draws :: proc(list: Roc_List(Roc_View_Draws)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_draws :: proc(elems: []Roc_View_Draws) -> Roc_List(Roc_View_Draws) {
 	return roc_list_from_slice_with(elems, false)
 }
 
 roc_decref :: proc {
-	roc_init_decref,
+	roc_str_decref,
+	roc_init_arg0_decref,
+	roc_init_arg0_meshes_decref,
+	roc_step_arg1_decref,
+	roc_view_decref,
 }
 
 roc_list_decref :: proc {
-	roc_list_decref_roc_init_bodies,
+	roc_list_decref_roc_init_arg0_meshes,
+	roc_list_decref_u16,
+	roc_list_decref_roc_view_draws,
 }
 
 roc_list_from_slice :: proc {
-	roc_list_from_slice_roc_init_bodies,
+	roc_list_from_slice_roc_init_arg0_meshes,
+	roc_list_from_slice_u16,
+	roc_list_from_slice_roc_view_draws,
 }
 
 // The Roc app defines these symbols at the final link.
 @(default_calling_convention = "c")
 foreign {
-	roc_init :: proc(arg0: u64) -> Roc_Init ---
-	roc_step :: proc(arg0: Roc_Init, arg1: f32) -> Roc_Init ---
+	roc_init :: proc(arg0: Roc_Init_Arg0) -> rawptr ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: f32) -> rawptr ---
+	roc_view :: proc(arg0: rawptr) -> Roc_View ---
+	roc_drop_model :: proc(arg0: rawptr) ---
 }
