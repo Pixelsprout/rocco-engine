@@ -8,8 +8,8 @@ Vec3 : { x : F32, y : F32, z : F32 }
 
 Rgb : { r : F32, g : F32, b : F32 }
 
-# The host builds one Input per fixed step: held keys as levels, pressed
-# keys as edges (lesson 4), and the mouse delta. Roc never asks the host
+# The host builds one Input per fixed step: the held keys, the keys pressed
+# since the previous step, and the mouse delta. Roc never asks the host
 # anything. Which key means what is this game's decision, below.
 Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 
@@ -21,7 +21,7 @@ Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
 
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 
-# What the host renders. Rebuilt every step, never stored. Derived, not authored.
+# What the host draws. Rebuilt every step, never stored. Derived, not authored.
 Scene : { camera : Cam.View, draws : List(Draw) }
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
@@ -31,10 +31,10 @@ Kind : [Player, Pickup, Door({ open : Bool })]
 Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
 
 # The ids this game resolved from the manifest at init. Resolved once, kept
-# in the Model, never looked up per frame.
+# in the Model, never looked up per step.
 Meshes : { cube : U32, sphere : U32, slab : U32 }
 
-Model : { tick : U64, score : U64, meshes : Meshes, entities : List(Entity) }
+Model : { steps : U64, score : U64, meshes : Meshes, entities : List(Entity) }
 
 # ---- init : Config -> Model ---------------------------------------------
 #
@@ -73,13 +73,13 @@ new_game = |meshes, pickups| {
 		$i = $i + 1
 	}
 
-	{ tick: 0, score: 0, meshes, entities: List.concat([player, door], $pickups) }
+	{ steps: 0, score: 0, meshes, entities: List.concat([player, door], $pickups) }
 }
 
 # ---- step : Model, Input, F32 -> Model ---------------------------------
 #
 # The schedule is function composition. Each stage is Model -> Model and
-# testable alone. Reorder the pipeline and you reorder the systems.
+# testable alone. Reorder the pipeline and you reorder the stages.
 
 step : Model, Input, F32 -> Model
 step = |model, input, dt|
@@ -90,7 +90,7 @@ step = |model, input, dt|
 		|> collect
 		|> open_door
 		|> sweep
-		|> tick
+		|> count_step
 
 speed : F32
 speed = 6.0
@@ -195,14 +195,14 @@ sweep = |m|
 		{ ..m, entities: List.keep_if(m.entities, |e| e.alive) }
 	}
 
-tick : Model -> Model
-tick = |m| { ..m, tick: m.tick + 1 }
+count_step : Model -> Model
+count_step = |m| { ..m, steps: m.steps + 1 }
 
 # ---- view : Model -> Scene -------------------------------------------------
 #
 # Runs once per fixed step, after step. It sees one Model and no alpha. The
 # host holds this Scene and the previous one and interpolates between draws
-# with the same id at render time. That keeps the Model's refcount at one,
+# with the same id when it draws a frame. That keeps the Model's refcount at one,
 # so step mutates in place and nothing is copied to remember the past.
 
 floor_id : U64
@@ -352,12 +352,12 @@ expect {
 }
 
 expect {
-	# step is pure. The same Model and Input give the same tick and score,
+	# step is pure. The same Model and Input give the same step count and score,
 	# which is what makes a recorded input log a replay.
 	m = new_game(test_meshes, 4)
 	a = step(m, right, 0.5)
 	b = step(m, right, 0.5)
-	a.tick == b.tick and a.score == b.score
+	a.steps == b.steps and a.score == b.score
 }
 
 expect {

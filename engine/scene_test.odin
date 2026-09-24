@@ -69,7 +69,7 @@ test_camera_interpolates_eye_and_target_and_takes_the_new_fov :: proc(t: ^testin
 	prev := Scene_Camera{eye = {0, 8, 8}, target = {0, 0, 0}, fov_y = 1}
 	curr := Scene_Camera{eye = {2, 8, 8}, target = {2, 0, 0}, fov_y = 2}
 	c := camera_lerp(prev, curr, 0.5)
-	testing.expect_value(t, c.eye, Vec3{1, 8, 8})
-	testing.expect_value(t, c.target, Vec3{1, 0, 0})
+	testing.expect_value(t, c.eye, [3]f32{1, 8, 8})
+	testing.expect_value(t, c.target, [3]f32{1, 0, 0})
 	testing.expect_value(t, c.fov_y, 2)
 }

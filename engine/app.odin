@@ -24,7 +24,7 @@ State :: struct {
 	renderer:          Renderer,
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
-	script:            Script,
+	seam:              Seam,
 	exit_after_frames: int, // 0 runs forever
 }
 
@@ -35,7 +35,6 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	memory_init(&g_state.mem) or_return
 
 	g_state.ctx = context
-	// Map the frame allocator to the temp allocator
 	g_state.ctx.temp_allocator = g_state.mem.frame_allocator
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
@@ -45,7 +44,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	script_init(&g_state.script, seed_from_env(), g_state.mem.perm_allocator, alloc_report_from_env())
+	seam_init(&g_state.seam, seed_from_env(), g_state.mem.perm_allocator, alloc_report_from_env())
 
 	sapp.run(
 		sapp.Desc {
@@ -85,14 +84,14 @@ frame_cb :: proc "c" () {
 
 	clock_add_frame(&g_state.clock, sapp.frame_duration())
 	for dt in clock_next_step(&g_state.clock) {
-		script_step(&g_state.script, input_take(&g_state.input, &g_state.keys), dt)
+		seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
 	}
 
 	sg.begin_pass({action = g_state.pass_action, swapchain = sglue.swapchain()})
 
 	alpha := clock_alpha(&g_state.clock)
-	prev := script_prev(&g_state.script)
-	curr := g_state.script.curr
+	prev := seam_prev(&g_state.seam)
+	curr := g_state.seam.curr
 	aspect := f32(sapp.width()) / f32(sapp.height())
 	view_proj: Mat4
 	if g_state.use_debug_camera {
@@ -106,7 +105,7 @@ frame_cb :: proc "c" () {
 		view_proj = scene_view_proj(camera_lerp(prev.camera, curr.camera, alpha), aspect)
 	}
 
-	draw_scene(&g_state.renderer, prev, curr, &g_state.script.pairing, alpha, view_proj)
+	draw_scene(&g_state.renderer, prev, curr, &g_state.seam.pairing, alpha, view_proj)
 
 	sg.end_pass()
 	sg.commit()
@@ -120,10 +119,8 @@ frame_cb :: proc "c" () {
 	input_end_frame(&g_state.input)
 }
 
-scene_view_proj :: proc(camera: Scene_Camera, aspect: f32) -> Mat4 {
-	eye := [3]f32{camera.eye.x, camera.eye.y, camera.eye.z}
-	target := [3]f32{camera.target.x, camera.target.y, camera.target.z}
-	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(eye, target, UP)
+scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
+	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
 }
 
 // Every mesh id draws as the cube until the mesh table exists.
@@ -151,7 +148,7 @@ cleanup_cb :: proc "c" () {
 	context = g_state.ctx
 
 	renderer_shutdown(&g_state.renderer)
-	script_shutdown(&g_state.script)
+	seam_shutdown(&g_state.seam)
 
 	sg.shutdown()
 	memory_shutdown(&g_state.mem)

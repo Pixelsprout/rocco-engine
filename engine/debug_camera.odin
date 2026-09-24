@@ -15,7 +15,6 @@ Debug_Camera :: struct {
 }
 
 camera_init :: proc(c: ^Debug_Camera) {
-	// prefill camera with default values
 	c.eye = [3]f32{2, 1.5, 5}
 	c.up = [3]f32{0, 1, 0}
 	c.fovy = 1.0471976
@@ -50,11 +49,8 @@ camera_view :: proc(c: ^Debug_Camera) -> Mat4 {
 	return mat4_look_at(c.eye, camera_target(c), c.up)
 }
 
-/**
-* Use an infinate far plane with reversed depth buffer
-* This evens out the step distribution
-* https://www.reedbeta.com/blog/depth-precision-visualized/
-*/
+// Reversed-Z with an infinite far plane spreads depth precision evenly.
+// See https://www.reedbeta.com/blog/depth-precision-visualized/
 camera_proj :: proc(c: ^Debug_Camera, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(c.fovy, aspect, c.near)
 }
@@ -64,9 +60,6 @@ camera_move :: proc(c: ^Debug_Camera, delta: [3]f32) {
 }
 
 camera_fly :: proc(c: ^Debug_Camera, latch: ^Input_Latch, dt: f32) {
-	// Read input down for w,a,s,d held
-	// accumulate a step vector from camera basis
-
 	forward, right, up := camera_basis(c)
 
 	if (forward != [3]f32{0, 0, 0}) {
@@ -80,19 +73,15 @@ camera_fly :: proc(c: ^Debug_Camera, latch: ^Input_Latch, dt: f32) {
 	}
 
 	if latch.held[.W] {
-		// forward fly
 		camera_move(c, forward * dt)
 	}
 	if latch.held[.S] {
-		// backward fly
 		camera_move(c, -forward * dt)
 	}
 	if latch.held[.A] {
-		// left fly
 		camera_move(c, -right * dt)
 	}
 	if latch.held[.D] {
-		// right fly
 		camera_move(c, right * dt)
 	}
 }

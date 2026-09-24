@@ -2,12 +2,12 @@ package engine
 
 import sapp "../sokol-odin/sokol/app"
 
-// Holds key and mouse events until a fixed step takes them. Events arrive
-// between frames, so only the first step of a frame sees pressed keys and
-// the mouse delta. Later steps in that frame get none.
+// Holds pressed keys and the mouse delta until a fixed step takes them.
+// Events arrive between frames, so the first step of a frame takes them, and
+// a frame with no step leaves them for the next step. See DESIGN section 3.
 Input_Latch :: struct {
 	held:        #sparse[sapp.Keycode]bool,
-	pending:     #sparse[sapp.Keycode]bool,
+	pressed:     #sparse[sapp.Keycode]bool,
 	mouse:       [2]f32,
 	// The debug camera reads the mouse per frame, not per step.
 	frame_mouse: [2]f32,
@@ -34,10 +34,13 @@ input_on_event :: proc(latch: ^Input_Latch, e: ^sapp.Event) {
 		}
 		latch.held[e.key_code] = true
 		if !e.key_repeat {
-			latch.pending[e.key_code] = true
+			latch.pressed[e.key_code] = true
 		}
 	case .KEY_UP:
 		latch.held[e.key_code] = false
+	case .UNFOCUSED:
+		// The key-up events of held keys go to the window that took focus.
+		latch.held = {}
 	case .MOUSE_MOVE:
 		latch.mouse += {e.mouse_dx, e.mouse_dy}
 		latch.frame_mouse += {e.mouse_dx, e.mouse_dy}
@@ -45,23 +48,23 @@ input_on_event :: proc(latch: ^Input_Latch, e: ^sapp.Event) {
 }
 
 input_take :: proc(latch: ^Input_Latch, buf: ^Key_Buffers) -> Step_Keys {
-	held, pressed := 0, 0
+	n_held, n_pressed := 0, 0
 	for k in sapp.Keycode {
 		if latch.held[k] {
-			buf.held[held] = u16(k)
-			held += 1
+			buf.held[n_held] = u16(k)
+			n_held += 1
 		}
-		if latch.pending[k] {
-			buf.pressed[pressed] = u16(k)
-			pressed += 1
+		if latch.pressed[k] {
+			buf.pressed[n_pressed] = u16(k)
+			n_pressed += 1
 		}
 	}
 	keys := Step_Keys {
-		held    = buf.held[:held],
-		pressed = buf.pressed[:pressed],
+		held    = buf.held[:n_held],
+		pressed = buf.pressed[:n_pressed],
 		mouse   = latch.mouse,
 	}
-	latch.pending = {}
+	latch.pressed = {}
 	latch.mouse = {}
 	return keys
 }

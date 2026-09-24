@@ -2,7 +2,7 @@ app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../
 
 import cam.Camera as Cam
 
-# A second game on the same platform. No entities, no positions in the state.
+# A second game on the same platform. No entities and no positions in the Model.
 Vec3 : { x : F32, y : F32, z : F32 }
 Rgb : { r : F32, g : F32, b : F32 }
 Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }

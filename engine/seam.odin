@@ -11,7 +11,7 @@ roc_realloc_count: uint
 
 // The tracking allocator is load-bearing: roc_realloc gets no old size, and
 // the allocation map is the only record of it.
-Script :: struct {
+Seam :: struct {
 	track: mem.Tracking_Allocator,
 	heap:  mem.Allocator,
 	model: rawptr,
@@ -32,7 +32,7 @@ roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
 	bytes, err := mem.alloc_bytes_non_zeroed(
 		int(length),
 		int(alignment),
-		g_state.script.heap,
+		g_state.seam.heap,
 	)
 
 	if err != nil {
@@ -48,7 +48,7 @@ roc_dealloc :: proc "c" (ptr: rawptr, alignment: uint) {
 	context = g_state.ctx
 	roc_dealloc_count += 1
 
-	mem.free(ptr, g_state.script.heap)
+	mem.free(ptr, g_state.seam.heap)
 }
 
 @(export, link_name = "roc_realloc")
@@ -57,11 +57,11 @@ roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawp
 	roc_realloc_count += 1
 
 	old_size := 0
-	if entry, ok := g_state.script.track.allocation_map[ptr]; ok {
+	if entry, ok := g_state.seam.track.allocation_map[ptr]; ok {
 		old_size = entry.size
 	}
 
-	new_bytes, err := mem.alloc_bytes_non_zeroed(int(new_length), int(alignment), g_state.script.heap)
+	new_bytes, err := mem.alloc_bytes_non_zeroed(int(new_length), int(alignment), g_state.seam.heap)
 	if err != nil {
 		fmt.printfln("roc_realloc failed: %v", err)
 		return nil
@@ -69,7 +69,7 @@ roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawp
 	new_ptr := raw_data(new_bytes)
 
 	mem.copy(new_ptr, ptr, min(old_size, int(new_length)))
-	mem.free(ptr, g_state.script.heap)
+	mem.free(ptr, g_state.seam.heap)
 	return new_ptr
 }
 
@@ -104,17 +104,17 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 
 // Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-script_init :: proc(s: ^Script, seed: u64, perm: mem.Allocator, report: bool) {
+seam_init :: proc(s: ^Seam, seed: u64, perm: mem.Allocator, report: bool) {
 	s.report = report
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
 	pairing_init(&s.pairing, perm)
 
 	s.model = roc_init(config_make(seed))
-	s.curr = script_view(s)
+	s.curr = seam_view(s)
 }
 
-script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
+seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) {
 	allocs, deallocs, reallocs := roc_alloc_count, roc_dealloc_count, roc_realloc_count
 	start := time.tick_now()
 
@@ -131,7 +131,7 @@ script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
 	}
 	s.prev = s.curr
 	s.has_prev = true
-	s.curr = script_view(s)
+	s.curr = seam_view(s)
 	viewed := time.tick_now()
 	pairing_build(&s.pairing, s.prev.draws.elements[:s.prev.draws.length])
 
@@ -152,18 +152,18 @@ script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
 }
 
 // Before the first step there is one Scene, and it pairs with itself.
-script_prev :: proc(s: ^Script) -> Scene {
+seam_prev :: proc(s: ^Seam) -> Scene {
 	return s.prev if s.has_prev else s.curr
 }
 
 // roc_view consumes one reference, so give it one and keep ours.
 @(private = "file")
-script_view :: proc(s: ^Script) -> Scene {
+seam_view :: proc(s: ^Seam) -> Scene {
 	roc_incref_box(s.model)
 	return roc_view(s.model)
 }
 
-script_shutdown :: proc(s: ^Script) {
+seam_shutdown :: proc(s: ^Seam) {
 	if s.has_prev {
 		roc_decref(s.prev)
 	}

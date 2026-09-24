@@ -59,10 +59,14 @@ draw_model_matrix :: proc(x: Draw_Transform) -> Mat4 {
 	return transform_to_mat4({position = x.position, rotation = quat_from_axis_angle(UP, x.yaw), scale = x.scale})
 }
 
-camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Scene_Camera {
-	eye := v3_lerp(prev.eye, curr.eye, alpha)
-	target := v3_lerp(prev.target, curr.target, alpha)
-	return {eye = {eye.x, eye.y, eye.z}, target = {target.x, target.y, target.z}, fov_y = curr.fov_y}
+// The camera the host draws a frame with.
+Camera_Pose :: struct {
+	eye, target: [3]f32,
+	fov_y:       f32,
+}
+
+camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Camera_Pose {
+	return {eye = v3_lerp(prev.eye, curr.eye, alpha), target = v3_lerp(prev.target, curr.target, alpha), fov_y = curr.fov_y}
 }
 
 // Turns through the shorter arc, so -3 to 3 radians passes through pi.
@@ -75,5 +79,9 @@ yaw_lerp :: proc(a, b, t: f32) -> f32 {
 }
 
 v3_lerp :: proc(a, b: Vec3, t: f32) -> [3]f32 {
-	return {math.lerp(a.x, b.x, t), math.lerp(a.y, b.y, t), math.lerp(a.z, b.z, t)}
+	return math.lerp(vec3_array(a), vec3_array(b), t)
+}
+
+vec3_array :: proc(v: Vec3) -> [3]f32 {
+	return {v.x, v.y, v.z}
 }
