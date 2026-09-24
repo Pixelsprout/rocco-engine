@@ -86,6 +86,14 @@ Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. The game binds keys
 to intent. The engine does not. The host filters no key out of `held` or
 `pressed`, including the keys it reacts to itself.
 
+The host latches input between fixed steps. A key press waits in a pending
+set until a step takes it as `pressed`. The mouse delta waits the same way.
+So the first step of a frame gets them, and later steps in that frame get an
+empty `pressed` and a zero delta. If a frame runs no step, the next step that
+runs gets them. `held` is the key state when the step runs. When the
+window loses focus, the host releases every held key, because their key-up
+events go to the other window. Decision.
+
 A tint is an `Rgb`, not a `Vec3`. Roc records are structural, so the two
 names keep a position from passing as a colour. Each channel runs from 0 to
 1. The host multiplies the mesh colour by the tint. Decision.
@@ -127,6 +135,13 @@ The host pairs draws across two `Scene`s by `id` and interpolates position
 and yaw between them. A draw whose id has no partner in the previous `Scene`
 is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
 entities never reach.
+
+Draw ids must be unique in a `Scene`. The host pairs each current draw with
+the previous `Scene`. If the previous `Scene` has two draws with one id, the
+first one pairs, and the host logs the id once per run. If the current
+`Scene` has two draws with one id, each one draws and interpolates from the
+same previous draw. The log then comes one step later, when that `Scene`
+becomes the previous one.
 
 ## 4. The platform does not know the game
 
@@ -305,10 +320,10 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 
 ## 10. Verified and not verified
 
-Verified in milestone 2 on `arm64mac` and `x64glibc`,
-`nightly-2026-09-12-220fd47`, with `scripts/alloc-check.sh`: each game runs
-240 frames with no input under `--opt=dev` and `--opt=speed`, and every fixed
-step after the first 10 is checked. On `x64glibc` the Docker image runs it
+Milestone 2 verified these items on `arm64mac` and `x64glibc`, with
+`nightly-2026-09-12-220fd47`. `scripts/alloc-check.sh` runs each game for 240
+frames with no input, under `--opt=dev` and `--opt=speed`. It checks every
+fixed step after the first 10. On `x64glibc`, the Docker image runs the check
 under `xvfb-run` with software GL.
 
 - Both games run against the engine: `examples/cards` and
@@ -333,10 +348,10 @@ under `xvfb-run` with software GL.
   These are `arm64mac` numbers. On `x64glibc` in the Docker image, under
   x86_64 emulation, entity-game takes 62.7 and 13.0 microseconds for `step`
   under dev and speed. One fixed step is 8,333 microseconds.
-- Hot reload keeps the state when the `Model` type does not change. Checked
-  by hand on macOS with entity-game.
+- Hot reload keeps the state when the `Model` type does not change. The
+  user checked this by hand on macOS with entity-game.
 
-What the measurement found in game code. Section 9 lists the costs.
+The measurement found these costs in game code. Section 9 lists them.
 
 - `List.map` copies the list under `--opt=dev`. Under `--opt=speed` it
   mutates in place. entity-game uses a `List.set` loop for this reason.

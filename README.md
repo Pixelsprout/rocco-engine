@@ -194,6 +194,7 @@ a change to the `Model` type, restart the game.
 | `scripts/build.roc` | The build script. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
+| `scripts/target.sh` | The Roc target, binary suffix and host library for this machine. The check scripts source it. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
