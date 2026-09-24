@@ -45,7 +45,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	script_init(&g_state.script, seed_from_env())
+	script_init(&g_state.script, seed_from_env(), g_state.mem.perm_allocator)
 
 	sapp.run(
 		sapp.Desc {
@@ -90,6 +90,9 @@ frame_cb :: proc "c" () {
 
 	sg.begin_pass({action = g_state.pass_action, swapchain = sglue.swapchain()})
 
+	alpha := clock_alpha(&g_state.clock)
+	prev := script_prev(&g_state.script)
+	curr := g_state.script.curr
 	aspect := f32(sapp.width()) / f32(sapp.height())
 	view_proj: Mat4
 	if g_state.use_debug_camera {
@@ -100,10 +103,10 @@ frame_cb :: proc "c" () {
 			sapp.lock_mouse(true)
 		}
 	} else {
-		view_proj = scene_view_proj(g_state.script.scene.camera, aspect)
+		view_proj = scene_view_proj(camera_lerp(prev.camera, curr.camera, alpha), aspect)
 	}
 
-	draw_scene(&g_state.renderer, g_state.script.scene, view_proj)
+	draw_scene(&g_state.renderer, prev, curr, &g_state.script.pairing, alpha, view_proj)
 
 	sg.end_pass()
 	sg.commit()
@@ -124,15 +127,13 @@ scene_view_proj :: proc(camera: Scene_Camera, aspect: f32) -> Mat4 {
 }
 
 // Every mesh id draws as the cube until the mesh table exists.
-draw_scene :: proc(r: ^Renderer, scene: Scene, view_proj: Mat4) {
-	for d in scene.draws.elements[:scene.draws.length] {
-		model := transform_to_mat4(
-			{
-				position = {d.pos.x, d.pos.y, d.pos.z},
-				rotation = quat_from_axis_angle(UP, d.yaw),
-				scale = {d.scale.x, d.scale.y, d.scale.z},
-			},
-		)
+draw_scene :: proc(r: ^Renderer, prev, curr: Scene, pairing: ^Pairing, alpha: f32, view_proj: Mat4) {
+	for d in curr.draws.elements[:curr.draws.length] {
+		from := d
+		if i, ok := pairing_find(pairing, d.id); ok {
+			from = prev.draws.elements[i]
+		}
+		model := draw_model_matrix(draw_transform(from, d, alpha))
 		renderer_draw(
 			r,
 			vs_params = {mvp = view_proj * model, model = model},

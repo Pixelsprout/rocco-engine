@@ -14,7 +14,11 @@ Script :: struct {
 	track: mem.Tracking_Allocator,
 	heap:  mem.Allocator,
 	model: rawptr,
-	scene: Scene,
+	// prev is the Scene before curr. The host interpolates between them.
+	prev:     Scene,
+	curr:     Scene,
+	has_prev: bool,
+	pairing:  Pairing,
 }
 
 @(export, link_name = "roc_alloc")
@@ -93,14 +97,15 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 	os.exit(1) // prevents undefined behavior
 }
 
-// Owns the one reference to the Model and the current Scene. See the call
+// Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-script_init :: proc(s: ^Script, seed: u64) {
+script_init :: proc(s: ^Script, seed: u64, perm: mem.Allocator) {
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
+	pairing_init(&s.pairing, perm)
 
 	s.model = roc_init(config_make(seed))
-	s.scene = script_view(s)
+	s.curr = script_view(s)
 }
 
 script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
@@ -111,8 +116,18 @@ script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
 	}
 	// roc_step frees the old box. Never touch the old pointer again.
 	s.model = roc_step(s.model, input, dt)
-	roc_decref(s.scene)
-	s.scene = script_view(s)
+	if s.has_prev {
+		roc_decref(s.prev)
+	}
+	s.prev = s.curr
+	s.has_prev = true
+	s.curr = script_view(s)
+	pairing_build(&s.pairing, s.prev.draws.elements[:s.prev.draws.length])
+}
+
+// Before the first step there is one Scene, and it pairs with itself.
+script_prev :: proc(s: ^Script) -> Scene {
+	return s.prev if s.has_prev else s.curr
 }
 
 // roc_view consumes one reference, so give it one and keep ours.
@@ -123,7 +138,10 @@ script_view :: proc(s: ^Script) -> Scene {
 }
 
 script_shutdown :: proc(s: ^Script) {
-	roc_decref(s.scene)
+	if s.has_prev {
+		roc_decref(s.prev)
+	}
+	roc_decref(s.curr)
 	roc_drop_model(s.model)
 
 	if len(s.track.allocation_map) > 0 {
