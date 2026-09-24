@@ -10,11 +10,7 @@ cd "$(dirname "$0")/.."
 
 FRAMES=240
 SKIP=10
-case "$(uname -s)" in
-	Darwin) target=arm64mac; suffix=.bin ;;
-	Linux) target=x64glibc; suffix=_linux.bin ;;
-	*) echo "alloc-check: no rocco target for $(uname -s)" >&2; exit 2 ;;
-esac
+. scripts/target.sh
 
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
@@ -55,7 +51,7 @@ for game in cards entity-game; do
 		' "$log"; then
 			echo "PASS: $game --opt=$opt"
 		else
-			echo "FAIL: $game --opt=$opt" >&2
+			echo "FAIL: $game --opt=$opt. Each extra alloc and dealloc pair is usually a held or pressed key: keep your hands off the game window." >&2
 			failed=1
 		fi
 	done

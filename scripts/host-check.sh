@@ -6,11 +6,8 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-case "$(uname -s)" in
-	Darwin) lib=platform/targets/arm64mac/libhost.a ;;
-	Linux) lib=platform/targets/x64glibc/libhost.a ;;
-	*) echo "host-check: no rocco target for $(uname -s)" >&2; exit 2 ;;
-esac
+. scripts/target.sh
+lib=$host_lib
 if [ ! -f "$lib" ]; then
 	echo "host-check: $lib is missing. Run roc scripts/build.roc -- host first." >&2
 	exit 2
