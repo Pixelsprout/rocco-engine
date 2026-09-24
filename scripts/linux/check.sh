@@ -1,5 +1,6 @@
 #!/bin/sh
-# Build the Linux image, then build and run examples/bodies for x64glibc inside it.
+# Build the Linux image, then build both games for x64glibc inside it, run
+# each one, and run the alloc check and the host check.
 # Needs Docker.
 set -eu
 cd "$(dirname "$0")/../.."

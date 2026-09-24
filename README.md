@@ -16,7 +16,7 @@ backend per OS.
 | Roc target | `arm64mac` | `x64glibc` | `x64win` |
 | sokol backend | Metal | GL core | D3D11 |
 | Host library | `libhost.a` | `libhost.a` | `host.lib` |
-| Game binary | `examples/bodies/bodies.bin` | `examples/bodies/bodies_linux.bin` | `examples/bodies/bodies.exe` |
+| Game binary | `examples/<game>/<game>.bin` | `examples/<game>/<game>_linux.bin` | `examples/<game>/<game>.exe` |
 | Tested | Natively | In the Docker image, under `xvfb-run` | Natively, by hand |
 
 ## Requirements
@@ -68,7 +68,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `inputs` | Once, and after a sokol or SDK update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
 | `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
-| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game bodies` |
+| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game` |
 
 The script stops at the first step that fails. After a change, run `glue`,
 `host` and `game` in that order. Each tool consumes the previous one's output
@@ -93,14 +93,18 @@ The other variables the engine reads:
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: 2 allocs, 2 deallocs, 0 reallocs and a constant live block count. Build
-the host library first.
+the host library first. Each game opens a window. Do not type into it during the
+check, because a key press allocates the `Input` lists.
+
+`./scripts/host-check.sh` regenerates the glue and links both games, then
+checks that the host library and the glue did not change.
 
 ### macOS
 
 ```sh
 cd sokol-odin/sokol && sh build_clibs_macos.sh && cd ../..
 roc scripts/build.roc -- all
-./examples/bodies/bodies.bin
+./examples/entity-game/entity-game.bin
 ```
 
 On macOS, the script also calls `xcrun` to find compiler-rt and the SDK.
@@ -114,8 +118,9 @@ On macOS, the script also calls `xcrun` to find compiler-rt and the SDK.
 The script needs Docker and runs on any machine that has it. It builds the
 Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
 archives. Then it runs the `all` command of the build script. Then it runs
-the game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
-The check passes on exit code 0 and one `Frame Count: 120` line.
+each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
+Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
+the alloc check and the host check.
 
 The first run builds the Docker image. On Apple silicon, Docker emulates
 x86_64, so that first run takes several minutes. Later runs take about 15
@@ -125,7 +130,7 @@ The Docker image writes into the same checkout as the macOS build. That is
 why the Linux binary has its own name.
 
 The check runs the game with no screen. To see the picture, run
-`examples/bodies/bodies_linux.bin` on a Linux x64 desktop with X11 and glibc
+`examples/entity-game/entity-game_linux.bin` on a Linux x64 desktop with X11 and glibc
 2.39 or newer. Nobody has tested this yet.
 
 ### Windows
@@ -139,7 +144,7 @@ cd sokol-odin\sokol
 build_clibs_windows.cmd
 cd ..\..
 roc scripts\build.roc -- all
-examples\bodies\bodies.exe
+examples\entity-game\entity-game.exe
 ```
 
 `lib.exe` prints warning LNK4044 for the `/PDB` and `/DEBUG` options. The
@@ -161,9 +166,13 @@ OS of the machine.
 
 ### Hot reload
 
-`cd examples/bodies && roc run --watch main.roc`. Edit `main.roc`. The
+`cd examples/entity-game && roc run main.roc`. Edit `main.roc`. The
 running game picks up the new code and keeps its state. Hot reload needs the
-dev backend, which is `roc run`'s default. It is tested on macOS.
+dev backend, which is `roc run`'s default. `roc build` defaults to
+`--opt=speed`. It is tested on macOS.
+
+Hot reload keeps the state only when the `Model` type does not change. After
+a change to the `Model` type, restart the game.
 
 ## Layout
 
@@ -179,8 +188,12 @@ dev backend, which is `roc run`'s default. It is tested on macOS.
 | `platform/targets/macos-sysroot/` | The SDK stubs from `scripts/make-macos-sysroot.sh`. Not committed. |
 | `platform/targets/x64glibc/` | `libhost.a`, the sokol GL archives, the CRT objects and the shared libraries from the Docker image. Not committed. |
 | `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and the SDK import libraries. Not committed. |
-| `examples/bodies/` | The game that links today: three bodies on a track. Points at `../../platform/main.roc`. |
+| `examples/cards/` | A game with no entities: SPACE deals a card. |
+| `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. |
+| `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `scripts/build.roc` | The build script. |
+| `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
+| `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
@@ -188,7 +201,6 @@ dev backend, which is `roc run`'s default. It is tested on macOS.
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
-| `docs/examples/` | The generic platform from the design and two games for it. They check and test. They do not link yet; roadmap milestone 2 promotes them to `platform/` and `examples/`. |
 
 ## A game outside this repo
 
@@ -196,7 +208,7 @@ A game is a Roc app whose header names this platform. Point `pf` at a
 checkout of this repo:
 
 ```roc
-app [init, step] { roc: "nightly-2026-09-12-220fd47", pf: platform "../rocco-engine/platform/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../rocco-engine/platform/main.roc" }
 ```
 
 The platform is not published as a Roc package URL yet. Until then, the

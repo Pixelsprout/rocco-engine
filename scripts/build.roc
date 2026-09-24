@@ -16,7 +16,7 @@ parse = |args| match args {
 	["host"] => Ok([Host])
 	["game", example] => Ok([Game(example)])
 	["shaders"] => Ok([Shaders])
-	["all"] => Ok([Glue, Host, Inputs, Game("bodies")])
+	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game")])
 	_ => Err(Usage)
 }
 
@@ -141,7 +141,7 @@ usage =
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <example>  link examples/<example> against the platform
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
-	\\  all             glue, host, inputs, game bodies
+	\\  all             glue, host, inputs, game cards, game entity-game
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 
@@ -245,9 +245,9 @@ inputs! = |target| {
 expect parse(["inputs"]) == Ok([Inputs])
 expect parse(["glue"]) == Ok([Glue])
 expect parse(["host"]) == Ok([Host])
-expect parse(["game", "bodies"]) == Ok([Game("bodies")])
+expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("bodies")])
+expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game")])
 expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
@@ -277,13 +277,13 @@ expect {
 }
 
 expect {
-	run = target_for(mac).map_ok(|target| game_run(target, "bodies"))
-	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./bodies.bin", "main.roc"], cwd: "examples/bodies" })
+	run = target_for(mac).map_ok(|target| game_run(target, "cards"))
+	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./cards.bin", "main.roc"], cwd: "examples/cards" })
 }
 
 expect {
-	out = target_for(windows).map_ok(|target| game_run(target, "bodies").args.get(2))
-	out == Ok(Ok("--output=./bodies.exe"))
+	out = target_for(windows).map_ok(|target| game_run(target, "cards").args.get(2))
+	out == Ok(Ok("--output=./cards.exe"))
 }
 
 expect {
@@ -311,8 +311,8 @@ expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsSdk
 
 expect {
 	# The Linux image mounts the checkout, so the Mac binary must survive a Linux build.
-	out = target_for(linux).map_ok(|target| game_run(target, "bodies").args.get(2))
-	out == Ok(Ok("--output=./bodies_linux.bin"))
+	out = target_for(linux).map_ok(|target| game_run(target, "entity-game").args.get(2))
+	out == Ok(Ok("--output=./entity-game_linux.bin"))
 }
 
 expect {

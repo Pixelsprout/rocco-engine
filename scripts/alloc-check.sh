@@ -2,7 +2,8 @@
 # Build each game under --opt=dev and --opt=speed, run it with no input and
 # ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10:
 # 2 allocs, 2 deallocs, 0 reallocs and a constant live block count.
-# The host library must already be built for this machine.
+# The host library must already be built for this machine. Each game opens a
+# window. Do not type into it: a key press allocates the Input lists.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
 set -eu
 cd "$(dirname "$0")/.."

@@ -17,19 +17,21 @@ Built and running:
   Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
   source in `engine/shaders/basic.glsl` compiles to all three with
   `sokol-shdc`.
-- Camera with mouse look and quaternion orientation.
+- The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
+  game. The host holds the `Model` as one boxed pointer, keeps two `Scene`s,
+  pairs draws by id and interpolates them. Every draw is a cube for now.
+- The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
+  camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
   game owns its state. The host honours `roc_dealloc`. Hot reload works
-  under `roc run` on macOS.
-- The generated Odin ABI comes from `roc glue` with the spec in the
-  `glue/` submodule (roc-odin-glue).
-- `examples/bodies` builds and runs from one checkout on three targets:
-  `arm64mac`, `x64glibc` and `x64win`. `scripts/build.roc` runs every step.
-  `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
-
-Not built: the generic platform in `docs/DESIGN.md`. The current
-`platform/main.roc` names a concrete `Body` record. It is the last
-game-specific header. Milestone 2 replaces it.
+  under `roc run` on macOS when the `Model` type does not change.
+- The generated Odin ABI and its refcount helpers come from `roc glue` with
+  the spec in the `glue/` submodule (roc-odin-glue).
+- `examples/cards` and `examples/entity-game` build and run from one checkout
+  on `arm64mac` and `x64glibc`. `x64win` is not checked yet.
+  `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes a run
+  end cleanly for checks. `scripts/alloc-check.sh` and
+  `scripts/host-check.sh` check the seam.
 
 ## Milestone 1: one source tree, three desktop targets (done)
 
@@ -280,7 +282,7 @@ Alpha work, once the experiment earns it and not before milestone 2 is done:
 - **CI.** GitHub Actions with one runner per OS. Roc refuses `x64glibc` from
   a machine that does not run Linux, and `x64win` needs a Windows SDK. So no
   single runner builds all three. Each job runs the build script for its
-  runner OS, runs `examples/bodies` under a virtual display with
+  runner OS, runs both games under a virtual display with
   `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check` and `roc test` on every
   app under `examples/`. The Linux job reuses
   `scripts/linux/Dockerfile`.

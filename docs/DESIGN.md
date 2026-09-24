@@ -171,9 +171,11 @@ Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
 only when `Config`, `Input` or `Scene` change. Those three types are the
 engine's public API.
 
-Evidence: two unrelated games check and test against one platform on
-`nightly-2026-09-12-220fd47`. See `docs/examples/`. The Zig glue output for
-that platform contains no game word.
+Evidence: two unrelated games link and run against one host library on
+`nightly-2026-09-12-220fd47`. See `examples/cards` and `examples/entity-game`.
+`scripts/host-check.sh` links both and checks that the host library and the
+glue do not change. The Zig glue output for that platform contains no game
+word.
 
 ## 5. Memory: one reference, mutated in place
 
@@ -303,10 +305,11 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 
 ## 10. Verified and not verified
 
-Verified in milestone 2 on `arm64mac`, `nightly-2026-09-12-220fd47`, with
-`scripts/alloc-check.sh`: each game runs 240 frames with no input under
-`--opt=dev` and `--opt=speed`, and every fixed step after the first 10 is
-checked.
+Verified in milestone 2 on `arm64mac` and `x64glibc`,
+`nightly-2026-09-12-220fd47`, with `scripts/alloc-check.sh`: each game runs
+240 frames with no input under `--opt=dev` and `--opt=speed`, and every fixed
+step after the first 10 is checked. On `x64glibc` the Docker image runs it
+under `xvfb-run` with software GL.
 
 - Both games run against the engine: `examples/cards` and
   `examples/entity-game`.
@@ -327,7 +330,9 @@ checked.
   | entity-game | dev | 27.0 | 10.2 |
   | entity-game | speed | 7.9 | 5.7 |
 
-  One fixed step is 8,333 microseconds.
+  These are `arm64mac` numbers. On `x64glibc` in the Docker image, under
+  x86_64 emulation, entity-game takes 62.7 and 13.0 microseconds for `step`
+  under dev and speed. One fixed step is 8,333 microseconds.
 - Hot reload keeps the state when the `Model` type does not change. Checked
   by hand on macOS with entity-game.
 
@@ -346,4 +351,4 @@ Not verified:
 - The allocation counts with input. A pressed key adds one allocation and
   one free for each non-empty `Input` list, and a stage that changes the
   entity list may allocate. The check runs with no input.
-- `x64glibc` and `x64win`. The check has run on `arm64mac` only.
+- `x64win`. The check has run on `arm64mac` and `x64glibc` only.

@@ -22,20 +22,27 @@ done
 
 roc scripts/build.roc all
 
-echo "== run bodies for $FRAMES frames under xvfb"
-cd examples/bodies
-RUN_LOG=/tmp/run.log
-EXPECTED="Frame Count: $FRAMES"
-set +e
 # The timeout turns a hang into a failure instead of a stuck container.
-timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ROCCO_EXIT_AFTER_FRAMES=$FRAMES ./bodies_linux.bin > "$RUN_LOG" 2>&1
-code=$?
-set -e
-frame_count_lines=$(grep -c '^Frame Count: ' "$RUN_LOG" || true)
-if [ "$code" -ne 0 ] || [ "$frame_count_lines" -ne 1 ] || ! grep -qx "$EXPECTED" "$RUN_LOG"; then
-	tail -40 "$RUN_LOG" >&2
-	echo "FAIL: exit=$code, frame count lines=$frame_count_lines, expected '$EXPECTED'" >&2
-	exit 1
-fi
-echo "$EXPECTED"
-echo "PASS: exit=0"
+RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
+EXPECTED="Frame Count: $FRAMES"
+for game in cards entity-game; do
+	echo "== run $game for $FRAMES frames under xvfb"
+	RUN_LOG=/tmp/$game.log
+	set +e
+	(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES $RUN "./${game}_linux.bin") > "$RUN_LOG" 2>&1
+	code=$?
+	set -e
+	frame_count_lines=$(grep -c '^Frame Count: ' "$RUN_LOG" || true)
+	if [ "$code" -ne 0 ] || [ "$frame_count_lines" -ne 1 ] || ! grep -qx "$EXPECTED" "$RUN_LOG"; then
+		tail -40 "$RUN_LOG" >&2
+		echo "FAIL: $game exit=$code, frame count lines=$frame_count_lines, expected '$EXPECTED'" >&2
+		exit 1
+	fi
+	echo "PASS: $game exit=0, $EXPECTED"
+done
+
+echo "== alloc check"
+RUN_PREFIX="$RUN" sh scripts/alloc-check.sh
+
+echo "== host check"
+sh scripts/host-check.sh
