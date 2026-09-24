@@ -65,10 +65,44 @@ See `lukewilliamboswell/roc-gui`, in `dependencies/macos-interfaces/` and
    evidence for each symbol.
 3. Write a generator that writes TBD v4 files into
    `platform/targets/macos-sysroot` from the catalog. It must not read the SDK.
-4. Link `examples/bodies` against the generated sysroot and run it.
+4. Link `examples/cards` against the generated sysroot and run it.
    `otool -L` must list the same system libraries as the SDK-copy build.
 5. Add a check that lists archive symbols the catalog does not cover. A sokol
    or engine change must then fail loudly.
 
 Keep `scripts/make-macos-sysroot.sh` for local development until the
 generated stubs link and run.
+
+## Hot reload after a Model type change
+
+Recorded 2026-09-24. Milestone 2 supports hot reload only when the `Model`
+type does not change. A changed type is undefined, because the host cannot
+see the layout.
+
+The follow-up: the platform wrappers export a layout fingerprint of `Model`,
+for example `model_version_for_host`. After a reload the host compares it
+with the old one. If it differs, the host drops the old box and calls `init`
+again. The state is lost, but the run does not crash.
+
+## Findings from the milestone 2 grilling
+
+Recorded 2026-09-24, on `nightly-2026-09-12-220fd47`.
+
+- OdinGlue fails on `U32` before it reaches `Str` or `Box`:
+  `OdinGlue: no Odin spelling for u32 (type id 4)`.
+- The Zig glue emits `RocStr` (24 bytes, up to 23 bytes inline, small when
+  the last byte has its top bit set), `RocBox` as an opaque pointer, and
+  `decref` and `incref` for every struct. A list of records that hold a `Str`
+  has a 16-byte header in front of the data. Other lists and strings have an
+  8-byte header. The refcount is the `isize` just before the data.
+- A local package works as the camera library. `camera/main.roc` is
+  `package [Camera] {}` with `import Camera`. `Camera.roc` must hold a
+  nominal type: `Camera := [].{ View : {...}, look_at = ..., follow = ... }`.
+  A structural alias nested in the nominal type, such as `Cam.View`, unifies
+  with the platform's inline camera record. The app header adds
+  `cam: "../../packages/camera/main.roc"`.
+- An exposed platform module also works, but it needs `exposes [Camera]` and
+  `import Camera` in the platform body. `import pf.Camera` then clashes with
+  a local alias named `Camera`.
+- When `roc check` fails, `roc test` still prints "All (N) tests passed" and
+  exits 1. Scripts must read the exit code.

@@ -78,6 +78,12 @@ _Avoid_: breaking change, API change
 What the host gives `init` once: a seed and the manifest.
 _Avoid_: settings, options, init args, environment
 
+**Seed**:
+The number in Config that starts the game's randomness. The game keeps a
+generator state in its Model; the same seed and the same Inputs give the same
+run. The host reads it from `ROCCO_SEED`, default 0.
+_Avoid_: random seed, RNG, salt
+
 **Input**:
 What the host gives `step` each fixed step: the keys held, the keys pressed
 since the previous step, and the mouse delta. Key codes are sokol's; which
@@ -91,11 +97,12 @@ _Avoid_: down, level, pressed
 
 **Pressed**:
 A key in Input that went down since the previous fixed step. An edge: it
-appears in exactly one Input.
+appears in exactly one Input, the first fixed step after the key event. A
+key tapped between two steps is pressed but not held.
 _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
-What `view` returns each fixed step: a camera target and a list of Draws. It
+What `view` returns each fixed step: a Camera and a list of Draws. It
 describes what should be on screen now. Derived from the Model, rebuilt every
 step, stored by the host and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
@@ -104,6 +111,12 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 One entry in a Scene: a draw id, a mesh id, a position, scale, yaw and tint.
 It is a description, not a command.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
+
+**Camera**:
+The field of a Scene that says where the eye is, what it looks at and the
+vertical field of view. The game decides it; the host interpolates it. The
+camera package in `packages/camera/` builds one.
+_Avoid_: view (the call), viewport, camera target
 
 **Model**:
 The one value that is the game. The game declares its type; the host holds
@@ -180,7 +193,8 @@ _Avoid_: command, request, event, intent
 
 **Command**:
 A value that says do this once: spawn, destroy, play a sound. Reserved for
-things with host-side lifetime. Not in the vocabulary yet.
+things with host-side lifetime. Not in the vocabulary yet. Quit becomes the
+first command; until then the host quits on `ESC`.
 _Avoid_: description, effect, action, message, event
 
 **Contact**:

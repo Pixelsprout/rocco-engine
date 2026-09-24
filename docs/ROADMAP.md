@@ -29,7 +29,7 @@ Built and running:
 
 Not built: the generic platform in `docs/DESIGN.md`. The current
 `platform/main.roc` names a concrete `Body` record. It is the last
-game-specific header.
+game-specific header. Milestone 2 replaces it.
 
 ## Milestone 1: one source tree, three desktop targets (done)
 
@@ -110,32 +110,87 @@ work. See "Beside the milestones".
 
 ## Milestone 2: the platform stops naming the game
 
-Done when `platform/main.roc` is the header in `docs/DESIGN.md` section
-4 and both games in `docs/examples/` link and run against it.
+Done when `platform/main.roc` is the header in `docs/DESIGN.md` section 4 and
+`examples/cards` and `examples/entity-game` link and run against it on three
+targets.
 
-1. Extend the glue spec in the `glue/` submodule with `Str`, `Box` as
-   `rawptr`, and `List(U16)`. Check the output against the Zig glue for the
-   same platform.
-2. Write the host side of `Input`: fill `held` and `pressed` from the
-   `down` and `prev` arrays each fixed step. Fill the mouse delta.
-3. Write the host side of `Config`: a seed and a manifest with the three
-   primitives, ids 1 to 3. Id 0 is the fallback.
-4. Write the host side of `Scene`: keep two, pair draws by id, interpolate at
-   render time, write one model matrix per draw.
-5. Implement the call protocol in `docs/DESIGN.md` section 5. Count
-   allocations with the tracking allocator. Expect one box shell alloc and
-   free per step and no list copy.
-6. Move the two games from `docs/examples/` to `examples/entity-game/` and
-   `examples/cards/`, pointing at `../../platform/main.roc`. Build each with
-   `roc build`. The host library must not rebuild between them.
+Decisions for this milestone, agreed 2026-09-24. `docs/DESIGN.md` records the
+ones that change the design.
 
-Expect a `drop_model_for_host` export that frees the `Box(Model)` at shutdown
-until `roc glue` emits box refcount helpers (roc issue 9536). roc-ray does the
-same, and its `update_for_host!` unboxes the only reference so `update!` sees
-uniquely referenced lists. That matches `docs/DESIGN.md` section 5.
+- The vocabulary is `Config`, `Input` and `Scene` in `docs/DESIGN.md` section
+  3. `Scene` carries a `camera` record with `eye`, `target` and `fov_y`, not a
+  `camera_target`.
+- The engine demo goes: the fixed `SCENE` array, the spin, the probes, the `C`
+  pipeline toggle and the `SPACE` pause. The `Scene` from `view` is the only
+  source of draws.
+- `ESC` quits. The host filters no key out of `held` or `pressed`. Quit and
+  cursor mode stay host policy until the first command arrives.
+- `ROCCO_SEED` gives `Config.seed`. The default is 0.
+- `ROCCO_DEBUG_CAMERA=1` turns on the fly camera and the mouse lock. Then the
+  host ignores `Scene.camera`. The game still gets all input.
+- Every mesh id draws as the cube, with the draw's scale. The fallback colour
+  arrives in milestone 3. `tint` is a fragment shader uniform.
+- Hot reload keeps working when the `Model` type does not change.
 
-Check: the allocator counters show in-place mutation. A change to either
-game's `Model` does not touch `engine/`.
+Steps, in order. Each step ends with something that runs.
+
+1. Audit the glue. Run the `glue/` spec against the new header and add every
+   type it rejects: `U32` first, then `Str`, `Box` as `rawptr` and
+   `List(U16)`. Add the refcount helpers the host needs:
+   `Roc_Str.from_slice` and `decref`, list `decref` for flat lists and for
+   lists of records that hold a `Str`, one `decref` per struct, and
+   `incref_box`. Add the platform as a second glue example with a committed
+   expected file. Compare its sizes and offsets with the Zig glue output.
+2. Write the camera package in `packages/camera/`: a nominal `Camera` type
+   with `View`, `look_at` and `follow`. It does not depend on the platform.
+   Games import it as `import cam.Camera as Cam`.
+3. Link `examples/cards` end to end. Write the new `platform/main.roc`, the
+   `drop_model_for_host` export, the call protocol in `docs/DESIGN.md`
+   section 5, `Config` from the glue helpers, the input latch for `pressed`,
+   and the camera from `Scene.camera` without interpolation. Delete the
+   engine demo. Call `view` once after `init`, so the first frame has a
+   `Scene`.
+4. Write the host side of `Scene`: keep two, pair draws by id, interpolate,
+   write one model matrix per draw. Then link `examples/entity-game` with
+   `held` and the mouse delta.
+5. Add `ROCCO_ALLOC_REPORT=1` and `scripts/alloc-check.sh`. The report prints
+   allocs, deallocs, reallocs, live blocks, and step and view time for each
+   fixed step.
+6. Update `scripts/build.roc` so `all` builds both games. Point
+   `scripts/linux/check.sh` at `cards`. Delete `examples/bodies` and
+   `docs/examples/`. Point the evidence line in `docs/DESIGN.md` section 4
+   and the README at `examples/`. Add a check that the host library does not
+   rebuild between the two games.
+7. Check `x64win` by hand with both games.
+
+The input latch: a key down event adds the key to a pending set. The first
+fixed step of a frame takes the pending set as `pressed` and takes the mouse
+delta of the frame. Later steps in the same frame get an empty `pressed` and a
+zero delta. `held` is the key state when the step runs.
+
+Pairing: the host builds a map from draw id to index once per fixed step. The
+map lives in permanent memory and keeps its capacity. If two draws share an
+id, the first wins and the host logs the id once. `pos`, `scale` and the
+camera `eye` and `target` interpolate linearly. `yaw` takes the shortest arc.
+`tint` and `fov_y` take the new value.
+
+The `drop_model_for_host` export frees the `Box(Model)` at shutdown, because
+the host cannot know the payload layout. roc-ray does the same. Roc issue
+9536 is closed, but the glue at `nightly-2026-09-12-220fd47` still emits only
+generic box helpers. Remove the export when the glue can drop the payload.
+
+Check:
+
+- `scripts/alloc-check.sh` runs each game with `ROCCO_EXIT_AFTER_FRAMES` and
+  no input. It skips the first 10 steps. Each later step must show 2 allocs,
+  2 deallocs, 0 reallocs and a constant live block count. It runs under
+  `--opt=dev` and `--opt=speed`. It reads exit codes, not text: `roc test`
+  prints "All tests passed" and exits 1 when `roc check` fails.
+- A change to either game's `Model` does not touch `engine/` and does not
+  rebuild the host library.
+- Both games pass on `arm64mac` and `x64glibc` in every session and on
+  `x64win` once, by hand.
+- Hot reload keeps the state on macOS when the `Model` type is unchanged.
 
 ## Milestone 3: mesh handles and the manifest
 
@@ -164,12 +219,13 @@ it. No rebuild of the host library.
 
 ## Milestone 5: entities in Roc
 
-Done when the engine has no fixed scene array.
+Done when the entity game creates and destroys entities at runtime.
 
-1. Delete the fixed `scene` array from the engine. The `Scene` from `view`
-   is the only source of draws.
-2. Entities live in the game's `Model` as a `List(Entity)` with explicit ids.
-3. Parenting is a `parent : U64` field and a fold over the list. No pointer
+Milestone 2 deleted the fixed scene array. The `Scene` from `view` is already
+the only source of draws.
+
+1. Entities live in the game's `Model` as a `List(Entity)` with explicit ids.
+2. Parenting is a `parent : U64` field and a fold over the list. No pointer
    tree.
 
 Check: the entity game creates and destroys entities at runtime. The renderer
@@ -206,6 +262,9 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Audio.** `saudio` calls back on another thread against a deadline. The
   game returns what should be heard as data. The first command with a
   duration probably arrives here.
+- **Commands.** When the first command arrives, quit becomes a command and
+  cursor mode becomes a field in `Scene`. Until then, `ESC` quits and the
+  host sets the cursor.
 - **Shader loading and reload.** The shader is a `sokol-shdc` output.
   Reload means re-running the compiler and swapping the pipeline; the
   platform files decide how each OS watches the file.
@@ -223,7 +282,7 @@ Alpha work, once the experiment earns it and not before milestone 2 is done:
   single runner builds all three. Each job runs the build script for its
   runner OS, runs `examples/bodies` under a virtual display with
   `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check` and `roc test` on every
-  app under `examples/` and `docs/examples/`. The Linux job reuses
+  app under `examples/`. The Linux job reuses
   `scripts/linux/Dockerfile`.
 - **A published platform bundle.** `roc bundle` into a release asset holding
   every target directory with prebuilt host libraries, as roc-ray does. A

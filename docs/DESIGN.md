@@ -71,17 +71,36 @@ Vec3   : { x : F32, y : F32, z : F32 }
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 Input  : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Draw   : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 }
-Scene  : { camera_target : Vec3, draws : List(Draw) }
+Camera : { eye : Vec3, target : Vec3, fov_y : F32 }
+Scene  : { camera : Camera, draws : List(Draw) }
 ```
 
 | Type | Carries | Does not carry |
 |---|---|---|
 | `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
-| `Scene` | draws by mesh id with a stable draw id; a camera target | an entity kind; a score; a mesh catalogue |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view | an entity kind; a score; a mesh catalogue; quit; cursor mode |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. The game binds keys
-to intent. The engine does not.
+to intent. The engine does not. The host filters no key out of `held` or
+`pressed`, including the keys it reacts to itself.
+
+The seed is the start value for any randomness in the game. Roc has no random
+effect, so a game keeps a generator state in its `Model` and advances it in
+`step`. The same seed and the same `(Input, dt)` log give the same run. The
+host reads the seed from `ROCCO_SEED`. The default is 0. Decision.
+
+### The camera is a description
+
+The game decides the camera. `Scene.camera` says where the eye is, what it
+looks at and the vertical field of view. The up vector is +Y. The host
+interpolates `eye` and `target` like a draw. Pure helpers such as `look_at`
+and `follow` live in the camera package in `packages/camera/`. The package
+does not depend on the platform: Roc records are structural, so its `View`
+record fits `Scene.camera`. Decision.
+
+`ROCCO_DEBUG_CAMERA=1` gives the host a fly camera for debugging. The host
+then ignores `Scene.camera`, and the game still gets all input.
 
 ### Meshes are ids
 
@@ -153,6 +172,12 @@ that platform contains no game word.
 
 ## 5. Memory: one reference, mutated in place
 
+Axiom: every Roc value the host holds or passes has a refcount of 1. The one
+exception is the increment before `roc_view`, and `roc_view` consumes that
+reference before it returns. The host never passes static (refcount 0) data
+into Roc. A static list would make Roc copy it on write, and a game that kept
+it would hold a pointer into a host buffer.
+
 The host keeps exactly one reference to the `Model`. This is a decision with
 consequences, and it answers a question from the Roc community: how do you
 provide a previous `Model` for interpolation without cloning?
@@ -180,6 +205,18 @@ Call protocol, per fixed step:
 4. Store the `Scene` as current. Free the `Scene` that was previous. The one
    that was current becomes previous.
 
+After `init`, the host runs steps 3 and 4 once. The first frame then has a
+`Scene` to draw.
+
+The host allocates the `Input` lists and the `Config` manifest with
+`roc_alloc` at refcount 1, through glue helpers. An empty list allocates
+nothing. The glue helpers also free each `Scene` the host drops. The host
+never computes a header offset itself.
+
+At shutdown the host calls the `drop_model_for_host` export. Roc frees the
+box, because only the compiler knows the layout of the `Model` inside it.
+The glue at `nightly-2026-09-12-220fd47` emits only generic box helpers.
+
 The refcount is an `isize` eight bytes before the data pointer. Zero marks
 static data.
 
@@ -203,6 +240,9 @@ in the roadmap removes the system heap from that path.
   a refcount to get wrong.
 - **No game type in the platform header.** See section 3.
 - **No previous `Model` across the seam.** See section 5.
+- **No quit or cursor field in `Scene` yet.** Until the first command
+  arrives, `ESC` quits and the host sets the cursor. Then quit becomes a
+  command, and cursor mode becomes a field in `Scene`, because it is a state.
 - **No hosted function until a pure value cannot express the need.** A sound
   with a duration or a physics body with a warm-start cache has host-side
   lifetime. When the first one arrives, Roc returns a `List Command` with
@@ -244,9 +284,11 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   seam is where to fix it if it ever matters.
 - One `Scene` allocation per step. It is the extract; it would exist anyway.
 - One box shell allocation and free per step. The pool removes it.
+- One allocation and one free per step for each non-empty `Input` list. The
+  refcount-1 axiom costs this. The pool removes it.
 - Functional entities need explicit ids. Put `id : U64` on the entity record.
-- The glue must learn `Str`, `Box` and `List(U16)` before this platform
-  links. The Zig glue emits all three and is the reference.
+- The glue must learn `U32`, `Str`, `Box` and `List(U16)` before this
+  platform links. The Zig glue emits all four and is the reference.
 - `roc check` on `nightly-2026-09-12-220fd47` segfaults for some
   platform-module alias shapes. Write wrapper signatures inline when it does.
   Minimal reproduction is recorded in the old course notes.
@@ -262,4 +304,8 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   mutation of a bare record. `Box.unbox` on a unique box should not copy.
   One run with the allocator counters settles it.
 - `view` at step rate plus up to two `step` calls per frame, under budget.
-  The spike timed `step` alone.
+  The spike timed `step` alone. Milestone 2 records the step and view time
+  of both games here.
+- Hot reload after a change to the `Model` type. The host cannot see the
+  layout, so the new code reads the old bytes. This is undefined. Hot reload
+  with an unchanged `Model` type must keep the state.
