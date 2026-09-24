@@ -4,8 +4,9 @@ import cam.Camera as Cam
 
 # A second game on the same platform. No entities, no positions in the state.
 Vec3 : { x : F32, y : F32, z : F32 }
+Rgb : { r : F32, g : F32, b : F32 }
 Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 }
+Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
 Scene : { camera : Cam.View, draws : List(Draw) }
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 
@@ -37,9 +38,9 @@ view : Model -> Scene
 view = |m| {
     draws = List.map_with_index(m.hand, |card, i| {
         tint = match card {
-            Ace => { x: 1.0, y: 0.9, z: 0.2 }
-            King => { x: 0.8, y: 0.2, z: 0.2 }
-            Number(_) => { x: 0.9, y: 0.9, z: 0.9 }
+            Ace => { r: 1.0, g: 0.9, b: 0.2 }
+            King => { r: 0.8, g: 0.2, b: 0.2 }
+            Number(_) => { r: 0.9, g: 0.9, b: 0.9 }
         }
         # The slot index is the draw id: a card slides to its slot when dealt.
         { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 0.05, z: 1.4 }, yaw: 0.0, tint }

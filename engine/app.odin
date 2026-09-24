@@ -141,7 +141,7 @@ draw_scene :: proc(r: ^Renderer, prev, curr: Scene, pairing: ^Pairing, alpha: f3
 				light_dir = LIGHT_DIR,
 				light_color = [4]f32{1, 1, 1, 1},
 				ambient = [4]f32{0.1, 0.1, 0.1, 1},
-				tint = [4]f32{d.tint.x, d.tint.y, d.tint.z, 1},
+				tint = [4]f32{d.tint.r, d.tint.g, d.tint.b, 1},
 			},
 		)
 	}

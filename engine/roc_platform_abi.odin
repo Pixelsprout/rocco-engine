@@ -238,7 +238,7 @@ Roc_View_Draws :: struct {
 	mesh: u32,
 	pos: Roc_View_Draws_Pos,
 	scale: Roc_View_Draws_Pos,
-	tint: Roc_View_Draws_Pos,
+	tint: Roc_View_Draws_Tint,
 	yaw: f32,
 }
 
@@ -273,7 +273,21 @@ Roc_View_Draws_Pos :: struct {
 #assert(size_of(type_of(Roc_View_Draws_Pos{}.z)) == 4)
 
 Roc_View_Draws_Scale :: Roc_View_Draws_Pos
-Roc_View_Draws_Tint :: Roc_View_Draws_Pos
+Roc_View_Draws_Tint :: struct {
+	b: f32,
+	g: f32,
+	r: f32,
+}
+
+#assert(size_of(Roc_View_Draws_Tint) == 12)
+#assert(align_of(Roc_View_Draws_Tint) == 4)
+#assert(offset_of(Roc_View_Draws_Tint, b) == 0)
+#assert(size_of(type_of(Roc_View_Draws_Tint{}.b)) == 4)
+#assert(offset_of(Roc_View_Draws_Tint, g) == 4)
+#assert(size_of(type_of(Roc_View_Draws_Tint{}.g)) == 4)
+#assert(offset_of(Roc_View_Draws_Tint, r) == 8)
+#assert(size_of(type_of(Roc_View_Draws_Tint{}.r)) == 4)
+
 Roc_View_Camera :: struct {
 	eye: Roc_View_Draws_Pos,
 	fov_y: f32,

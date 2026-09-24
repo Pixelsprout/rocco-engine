@@ -5,6 +5,7 @@ import cam.Camera as Cam
 # ---- Types the host reads. The glue emits their Odin layout. -------------
 
 Vec3 : { x : F32, y : F32, z : F32 }
+Rgb : { r : F32, g : F32, b : F32 }
 
 # The host builds one Input per fixed step: held keys as levels, pressed
 # keys as edges (lesson 4), and the mouse delta. Roc never asks the host
@@ -15,7 +16,7 @@ Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } 
 # The draw id is stable across steps so the host can pair this step's draw
 # with the last one and interpolate. Entities use their own id; fixed scenery
 # uses ids the entities never reach.
-Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 }
+Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 
 # What the host renders. Rebuilt every step, never stored. Derived, not authored.
@@ -172,7 +173,7 @@ camera_offset = { x: 0.0, y: 8.0, z: 8.0 }
 
 view : Model -> Scene
 view = |curr| {
-    floor = { id: floor_id, mesh: curr.meshes.slab, pos: { x: 0.0, y: -0.05, z: 0.0 }, scale: { x: 20.0, y: 0.1, z: 20.0 }, yaw: 0.0, tint: { x: 0.25, y: 0.25, z: 0.28 } }
+    floor = { id: floor_id, mesh: curr.meshes.slab, pos: { x: 0.0, y: -0.05, z: 0.0 }, scale: { x: 20.0, y: 0.1, z: 20.0 }, yaw: 0.0, tint: { r: 0.25, g: 0.25, b: 0.28 } }
 
     draws = List.map(curr.entities, |e| draw(curr.meshes, e))
 
@@ -189,11 +190,11 @@ draw = |meshes, e| {
     pos = e.pos
     yaw = e.yaw
     match e.kind {
-    Player => { id: e.id, mesh: meshes.cube, pos, scale: one, yaw, tint: { x: 0.9, y: 0.6, z: 0.2 } }
-    Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { x: 0.2, y: 0.9, z: 0.4 } }
+    Player => { id: e.id, mesh: meshes.cube, pos, scale: one, yaw, tint: { r: 0.9, g: 0.6, b: 0.2 } }
+    Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.2, g: 0.9, b: 0.4 } }
     Door({ open }) => {
         lifted = if open { { ..pos, y: pos.y + 3.0 } } else { pos }
-        { id: e.id, mesh: meshes.slab, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { x: 0.5, y: 0.3, z: 0.8 } }
+        { id: e.id, mesh: meshes.slab, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.5, g: 0.3, b: 0.8 } }
     }
     }
 }
