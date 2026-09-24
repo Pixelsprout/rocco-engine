@@ -291,6 +291,9 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - One box shell allocation and free per step. The pool removes it.
 - One allocation and one free per step for each non-empty `Input` list. The
   refcount-1 axiom costs this. The pool removes it.
+- `List.map`, `List.keep_if` and `List.concat` can allocate where a
+  `List.set` loop does not. Under `--opt=dev`, `List.map` always copies.
+  See section 10.
 - Functional entities need explicit ids. Put `id : U64` on the entity record.
 - The glue must learn `U32`, `Str`, `Box` and `List(U16)` before this
   platform links. The Zig glue emits all four and is the reference.
@@ -298,19 +301,49 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   platform-module alias shapes. Write wrapper signatures inline when it does.
   Minimal reproduction is recorded in the old course notes.
 
-## 10. Not verified
+## 10. Verified and not verified
 
-- Neither example game has run against the engine. `roc check`, `roc test`
-  and `roc glue` only.
-- The increment before `roc_view` and the double-free hazard on `roc_step`
-  are stated from the spike's retain rule and the refcount ABI. Not measured
-  against a running host.
-- In-place mutation with a boxed `Model`. The spike measured in-place
-  mutation of a bare record. `Box.unbox` on a unique box should not copy.
-  One run with the allocator counters settles it.
-- `view` at step rate plus up to two `step` calls per frame, under budget.
-  The spike timed `step` alone. Milestone 2 records the step and view time
-  of both games here.
+Verified in milestone 2 on `arm64mac`, `nightly-2026-09-12-220fd47`, with
+`scripts/alloc-check.sh`: each game runs 240 frames with no input under
+`--opt=dev` and `--opt=speed`, and every fixed step after the first 10 is
+checked.
+
+- Both games run against the engine: `examples/cards` and
+  `examples/entity-game`.
+- The call protocol in section 5 holds. Each step makes 2 allocations and 2
+  frees: the new box shell and the new `Scene` draws list, then the old box
+  and the dropped `Scene`. No step reallocates. The live block count stays
+  constant: 3 for cards, 4 for entity-game. Shutdown leaves no Roc block.
+- In-place mutation with a boxed `Model`. `Box.unbox` on a unique box does
+  not copy the `Model`, and a `List.set` loop over the entity list mutates
+  in place on both backends.
+- `view` at step rate is under budget. Mean time per fixed step, in
+  microseconds, including the host's `Input` lists and `Scene` drop:
+
+  | Game | Backend | `step` | `view` |
+  |---|---|---|---|
+  | cards | dev | 7.1 | 4.9 |
+  | cards | speed | 8.5 | 5.2 |
+  | entity-game | dev | 27.0 | 10.2 |
+  | entity-game | speed | 7.9 | 5.7 |
+
+  One fixed step is 8,333 microseconds.
+- Hot reload keeps the state when the `Model` type does not change. Checked
+  by hand on macOS with entity-game.
+
+What the measurement found in game code. Section 9 lists the costs.
+
+- `List.map` copies the list under `--opt=dev`. Under `--opt=speed` it
+  mutates in place. entity-game uses a `List.set` loop for this reason.
+- `List.keep_if` allocates even when it keeps every element.
+  `List.concat([x], list)` allocates twice. entity-game skips the first on a
+  quiet step and builds its draws with `List.with_capacity`.
+
+Not verified:
+
 - Hot reload after a change to the `Model` type. The host cannot see the
-  layout, so the new code reads the old bytes. This is undefined. Hot reload
-  with an unchanged `Model` type must keep the state.
+  layout, so the new code reads the old bytes. This is undefined.
+- The allocation counts with input. A pressed key adds one allocation and
+  one free for each non-empty `Input` list, and a stage that changes the
+  entity list may allocate. The check runs with no input.
+- `x64glibc` and `x64win`. The check has run on `arm64mac` only.

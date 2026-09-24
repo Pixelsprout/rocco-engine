@@ -82,6 +82,19 @@ game then prints `Frame Count: N` and exits with code 0. Without the variable,
 the game runs until you press Escape. A value that is not a positive integer
 stops the game at startup with exit code 1.
 
+The other variables the engine reads:
+
+| Variable | Effect |
+|---|---|
+| `ROCCO_SEED=N` | The seed in `Config`. The default is 0. A value that is not an unsigned 64-bit integer stops the game with exit code 1. |
+| `ROCCO_DEBUG_CAMERA=1` | A fly camera on WASD and the mouse, with the mouse locked. The host ignores `Scene.camera`. The game still gets all input. |
+| `ROCCO_ALLOC_REPORT=1` | One line per fixed step: Roc allocs, deallocs, reallocs, live blocks, and `step` and `view` time in microseconds. |
+
+`./scripts/alloc-check.sh` builds each game under `--opt=dev` and
+`--opt=speed`, runs it with no input, and checks every step after the first
+10: 2 allocs, 2 deallocs, 0 reallocs and a constant live block count. Build
+the host library first.
+
 ### macOS
 
 ```sh
