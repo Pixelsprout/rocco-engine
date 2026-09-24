@@ -129,7 +129,7 @@ ones that change the design.
 - `ROCCO_DEBUG_CAMERA=1` turns on the fly camera and the mouse lock. Then the
   host ignores `Scene.camera`. The game still gets all input.
 - Every mesh id draws as the cube, with the draw's scale. The fallback colour
-  arrives in milestone 3. `tint` is a fragment shader uniform.
+  arrives in milestone 3. `tint` is an `Rgb` and a fragment shader uniform.
 - Hot reload keeps working when the `Model` type does not change.
 
 Steps, in order. Each step ends with something that runs.

@@ -112,6 +112,11 @@ One entry in a Scene: a draw id, a mesh id, a position, scale, yaw and tint.
 It is a description, not a command.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
+**Tint**:
+The colour of a Draw, as an `Rgb` record with channels from 0 to 1. The host
+multiplies the mesh colour by it.
+_Avoid_: colour (for the field), albedo, Vec3 colour
+
 **Camera**:
 The field of a Scene that says where the eye is, what it looks at and the
 vertical field of view. The game decides it; the host interpolates it. The

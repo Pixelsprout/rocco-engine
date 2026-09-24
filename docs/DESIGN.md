@@ -68,9 +68,10 @@ in the app.
 
 ```roc
 Vec3   : { x : F32, y : F32, z : F32 }
+Rgb    : { r : F32, g : F32, b : F32 }
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 Input  : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw   : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 }
+Draw   : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
 Camera : { eye : Vec3, target : Vec3, fov_y : F32 }
 Scene  : { camera : Camera, draws : List(Draw) }
 ```
@@ -84,6 +85,10 @@ Scene  : { camera : Camera, draws : List(Draw) }
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. The game binds keys
 to intent. The engine does not. The host filters no key out of `held` or
 `pressed`, including the keys it reacts to itself.
+
+A tint is an `Rgb`, not a `Vec3`. Roc records are structural, so the two
+names keep a position from passing as a colour. Each channel runs from 0 to
+1. The host multiplies the mesh colour by the tint. Decision.
 
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in
