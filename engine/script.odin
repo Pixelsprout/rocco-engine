@@ -3,6 +3,7 @@ package engine
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:time"
 
 roc_alloc_count: uint
 roc_dealloc_count: uint
@@ -19,6 +20,8 @@ Script :: struct {
 	curr:     Scene,
 	has_prev: bool,
 	pairing:  Pairing,
+	report:   bool,
+	steps:    u64,
 }
 
 @(export, link_name = "roc_alloc")
@@ -58,10 +61,12 @@ roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawp
 		old_size = entry.size
 	}
 
-	new_ptr := roc_alloc(new_length, alignment)
-	if new_ptr == nil {
+	new_bytes, err := mem.alloc_bytes_non_zeroed(int(new_length), int(alignment), g_state.script.heap)
+	if err != nil {
+		fmt.printfln("roc_realloc failed: %v", err)
 		return nil
 	}
+	new_ptr := raw_data(new_bytes)
 
 	mem.copy(new_ptr, ptr, min(old_size, int(new_length)))
 	mem.free(ptr, g_state.script.heap)
@@ -99,7 +104,8 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 
 // Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-script_init :: proc(s: ^Script, seed: u64, perm: mem.Allocator) {
+script_init :: proc(s: ^Script, seed: u64, perm: mem.Allocator, report: bool) {
+	s.report = report
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
 	pairing_init(&s.pairing, perm)
@@ -109,6 +115,9 @@ script_init :: proc(s: ^Script, seed: u64, perm: mem.Allocator) {
 }
 
 script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
+	allocs, deallocs, reallocs := roc_alloc_count, roc_dealloc_count, roc_realloc_count
+	start := time.tick_now()
+
 	input := Input {
 		held    = roc_list_from_slice(keys.held),
 		pressed = roc_list_from_slice(keys.pressed),
@@ -116,13 +125,30 @@ script_step :: proc(s: ^Script, keys: Step_Keys, dt: f32) {
 	}
 	// roc_step frees the old box. Never touch the old pointer again.
 	s.model = roc_step(s.model, input, dt)
+	stepped := time.tick_now()
 	if s.has_prev {
 		roc_decref(s.prev)
 	}
 	s.prev = s.curr
 	s.has_prev = true
 	s.curr = script_view(s)
+	viewed := time.tick_now()
 	pairing_build(&s.pairing, s.prev.draws.elements[:s.prev.draws.length])
+
+	s.steps += 1
+	if s.report {
+		// scripts/alloc-check.sh parses this line.
+		fmt.printfln(
+			"alloc step=%v allocs=%v deallocs=%v reallocs=%v live=%v step_us=%.1f view_us=%.1f",
+			s.steps,
+			roc_alloc_count - allocs,
+			roc_dealloc_count - deallocs,
+			roc_realloc_count - reallocs,
+			len(s.track.allocation_map),
+			time.duration_microseconds(time.tick_diff(start, stepped)),
+			time.duration_microseconds(time.tick_diff(stepped, viewed)),
+		)
+	}
 }
 
 // Before the first step there is one Scene, and it pairs with itself.

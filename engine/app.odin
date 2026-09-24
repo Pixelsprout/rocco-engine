@@ -45,7 +45,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	script_init(&g_state.script, seed_from_env(), g_state.mem.perm_allocator)
+	script_init(&g_state.script, seed_from_env(), g_state.mem.perm_allocator, alloc_report_from_env())
 
 	sapp.run(
 		sapp.Desc {

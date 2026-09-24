@@ -6,6 +6,7 @@ import "core:strconv"
 
 SEED_ENV :: "ROCCO_SEED"
 DEBUG_CAMERA_ENV :: "ROCCO_DEBUG_CAMERA"
+ALLOC_REPORT_ENV :: "ROCCO_ALLOC_REPORT"
 
 // The engine's own meshes. Id 0 stays free for the fallback mesh.
 PRIMITIVE_MESHES :: [?]struct {
@@ -36,6 +37,10 @@ seed_parse :: proc(value: string) -> (seed: u64, ok: bool) {
 
 debug_camera_from_env :: proc() -> bool {
 	return os.get_env(DEBUG_CAMERA_ENV, context.temp_allocator) == "1"
+}
+
+alloc_report_from_env :: proc() -> bool {
+	return os.get_env(ALLOC_REPORT_ENV, context.temp_allocator) == "1"
 }
 
 // Every string and list is a fresh roc_alloc at refcount 1; roc_init consumes them.

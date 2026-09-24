@@ -155,6 +155,9 @@ collect = |m| match player(m) {
 	Ok(p) => {
 		touched = |e| is_pickup(e) and e.alive and dist2(e.pos, p.pos) < 1.0
 		gained = List.count_if(m.entities, touched)
+		if gained == 0 {
+			return m
+		}
 		entities = List.map(
 			m.entities,
 			|e| if touched(e) {
@@ -183,8 +186,14 @@ open_door = |m| {
 	}
 }
 
+# keep_if allocates even when it keeps everything, so skip it on a quiet step.
 sweep : Model -> Model
-sweep = |m| { ..m, entities: List.keep_if(m.entities, |e| e.alive) }
+sweep = |m|
+	if List.all(m.entities, |e| e.alive) {
+		m
+	} else {
+		{ ..m, entities: List.keep_if(m.entities, |e| e.alive) }
+	}
 
 tick : Model -> Model
 tick = |m| { ..m, tick: m.tick + 1 }
@@ -206,14 +215,16 @@ view : Model -> Scene
 view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.slab, pos: { x: 0.0, y: -0.05, z: 0.0 }, scale: { x: 20.0, y: 0.1, z: 20.0 }, yaw: 0.0, tint: { r: 0.25, g: 0.25, b: 0.28 } }
 
-	draws = List.map(curr.entities, |e| draw(curr.meshes, e))
+	# One allocation for every draw. List.concat would allocate twice.
+	first = List.with_capacity(List.len(curr.entities) + 1).append(floor)
+	draws = List.fold(curr.entities, first, |acc, e| acc.append(draw(curr.meshes, e)))
 
 	target = match player(curr) {
 		Ok(p) => p.pos
 		Err(NotFound) => origin
 	}
 
-	{ camera: Cam.follow(target, camera_offset), draws: List.concat([floor], draws) }
+	{ camera: Cam.follow(target, camera_offset), draws }
 }
 
 draw : Meshes, Entity -> Draw
@@ -236,8 +247,21 @@ draw = |meshes, e| {
 
 # ---- helpers -------------------------------------------------------------
 
+# A List.set loop, because List.map copies the list under --opt=dev on
+# nightly-2026-09-12-220fd47. --opt=speed mutates in place either way.
 map_entities : Model, (Entity -> Entity) -> Model
-map_entities = |m, f| { ..m, entities: List.map(m.entities, f) }
+map_entities = |m, f| {
+	var $entities = m.entities
+	var $i = 0
+	while $i < List.len($entities) {
+		$entities = match List.get($entities, $i) {
+			Ok(e) => List.set($entities, $i, f(e)) ?? $entities
+			Err(_) => $entities
+		}
+		$i = $i + 1
+	}
+	{ ..m, entities: $entities }
+}
 
 player : Model -> Try(Entity, [NotFound])
 player = |m| List.find_first(
