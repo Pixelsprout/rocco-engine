@@ -1,10 +1,12 @@
-app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "platform/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "platform/main.roc", cam: "../../packages/camera/main.roc" }
+
+import cam.Camera as Cam
 
 # A second game on the same platform. No entities, no positions in the state.
 Vec3 : { x : F32, y : F32, z : F32 }
 Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 }
-Scene : { camera_target : Vec3, draws : List(Draw) }
+Scene : { camera : Cam.View, draws : List(Draw) }
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 
 Card : [Ace, King, Number(U8)]
@@ -42,7 +44,7 @@ view = |m| {
         # The slot index is the draw id: a card slides to its slot when dealt.
         { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 0.05, z: 1.4 }, yaw: 0.0, tint }
     })
-    { camera_target: { x: 0.0, y: 0.0, z: 0.0 }, draws }
+    { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws }
 }
 
 expect {

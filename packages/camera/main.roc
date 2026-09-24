@@ -1,0 +1,3 @@
+package [Camera] {}
+
+import Camera

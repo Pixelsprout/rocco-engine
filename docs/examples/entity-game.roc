@@ -1,4 +1,6 @@
-app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "platform/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "platform/main.roc", cam: "../../packages/camera/main.roc" }
+
+import cam.Camera as Cam
 
 # ---- Types the host reads. The glue emits their Odin layout. -------------
 
@@ -17,7 +19,7 @@ Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Vec3 
 Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 
 # What the host renders. Rebuilt every step, never stored. Derived, not authored.
-Scene : { camera_target : Vec3, draws : List(Draw) }
+Scene : { camera : Cam.View, draws : List(Draw) }
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
@@ -165,18 +167,21 @@ tick = |m| { ..m, tick: m.tick + 1 }
 floor_id : U64
 floor_id = 1_000_000
 
+camera_offset : Vec3
+camera_offset = { x: 0.0, y: 8.0, z: 8.0 }
+
 view : Model -> Scene
 view = |curr| {
     floor = { id: floor_id, mesh: curr.meshes.slab, pos: { x: 0.0, y: -0.05, z: 0.0 }, scale: { x: 20.0, y: 0.1, z: 20.0 }, yaw: 0.0, tint: { x: 0.25, y: 0.25, z: 0.28 } }
 
     draws = List.map(curr.entities, |e| draw(curr.meshes, e))
 
-    camera_target = match player(curr) {
+    target = match player(curr) {
         Ok(p) => p.pos
         Err(NotFound) => origin
     }
 
-    { camera_target, draws: List.concat([floor], draws) }
+    { camera: Cam.follow(target, camera_offset), draws: List.concat([floor], draws) }
 }
 
 draw : Meshes, Entity -> Draw
@@ -284,4 +289,10 @@ expect {
         Ok(d) => d.pos.x == 6.0 and ids_unique
         Err(_) => Bool.False
     }
+}
+
+expect {
+    # The camera follows the player from a fixed offset.
+    scene = view(step(new_game(test_meshes, 1), right, 1.0))
+    scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 8.0
 }
