@@ -105,7 +105,6 @@ roc_list_decref_flat :: proc(list: Roc_List($T)) {
 	}
 }
 
-// Releases the elements only when this call dropped the last reference.
 @(private = "file")
 roc_list_decref_elements :: proc(list: Roc_List($T), release: proc(value: T)) {
 	data := roc_list_data(list)
@@ -130,6 +129,8 @@ Roc_Str :: struct {
 
 #assert(size_of(Roc_Str) == 24)
 #assert(align_of(Roc_Str) == 8)
+// The inline length byte is the last byte, so the layout assumes little-endian.
+#assert(ODIN_ENDIAN == .Little)
 
 // A string shorter than Roc_Str lives inline. Its last byte holds the
 // length with the top bit set.
