@@ -201,6 +201,7 @@ Results, 2026-09-25:
 | macOS arm64 | `arm64mac` | Both games with `ROCCO_EXIT_AFTER_FRAMES=120`, `scripts/alloc-check.sh`, `scripts/host-check.sh`, hot reload by hand | Pass. 2 allocs, 2 deallocs, 0 reallocs per step. No Roc block left at shutdown. |
 | Linux x64 | `x64glibc` | `./scripts/linux/check.sh`: both games, the alloc check and the host check in the Docker image | Pass, in about 50 seconds with the image built |
 | Windows x64 | `x64win` | By hand: both games, then a look at the picture | Both games run and draw correctly |
+| Arch Linux x64 desktop | `x64glibc` | By hand on Omarchy, Hyprland through XWayland: `build all`, then the game | Builds and runs. System libraries come from `/usr/lib`. |
 
 What the work found:
 

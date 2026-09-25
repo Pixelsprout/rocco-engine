@@ -140,7 +140,7 @@ X11, Xi, Xcursor and GL libraries with their headers.
 | Distro | Packages |
 |---|---|
 | Ubuntu, Debian | `build-essential libx11-dev libxi-dev libxcursor-dev libgl-dev libglx-mesa0` |
-| Arch | `base-devel libx11 libxi libxcursor libglvnd mesa` |
+| Arch, tested on Omarchy through XWayland | `base-devel libx11 libxi libxcursor libglvnd mesa`. Omarchy has them all by default. |
 
 ```sh
 cd sokol-odin/sokol && sh build_clibs_linux.sh && cd ../..
