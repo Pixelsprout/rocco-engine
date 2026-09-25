@@ -366,4 +366,5 @@ Not verified:
 - The allocation counts with input. A pressed key adds one allocation and
   one free for each non-empty `Input` list, and a stage that changes the
   entity list may allocate. The check runs with no input.
-- `x64win`. The check has run on `arm64mac` and `x64glibc` only.
+- The allocation counts on `x64win`. Both games run there, checked by hand,
+  but the alloc check is a shell script and has not run on Windows.

@@ -28,7 +28,7 @@ Built and running:
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
 - `examples/cards` and `examples/entity-game` build and run from one checkout
-  on `arm64mac` and `x64glibc`. `x64win` is not checked yet.
+  on `arm64mac`, `x64glibc` and `x64win`.
   `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes a run
   end cleanly for checks. `scripts/alloc-check.sh` and
   `scripts/host-check.sh` check the seam.
@@ -110,7 +110,7 @@ Odin's JavaScript target and sokol's Emscripten path are separate work.
 Not in this milestone: CI and a published platform bundle. Both are alpha
 work. See "Beside the milestones".
 
-## Milestone 2: the platform stops naming the game
+## Milestone 2: the platform stops naming the game (done)
 
 Done when `platform/main.roc` is the header in `docs/DESIGN.md` section 4 and
 `examples/cards` and `examples/entity-game` link and run against it on three
@@ -193,6 +193,29 @@ Check:
 - Both games pass on `arm64mac` and `x64glibc` in every session and on
   `x64win` once, by hand.
 - Hot reload keeps the state on macOS when the `Model` type is unchanged.
+
+Results, 2026-09-25:
+
+| Host | Target | How it was checked | Result |
+|---|---|---|---|
+| macOS arm64 | `arm64mac` | Both games with `ROCCO_EXIT_AFTER_FRAMES=120`, `scripts/alloc-check.sh`, `scripts/host-check.sh`, hot reload by hand | Pass. 2 allocs, 2 deallocs, 0 reallocs per step. No Roc block left at shutdown. |
+| Linux x64 | `x64glibc` | `./scripts/linux/check.sh`: both games, the alloc check and the host check in the Docker image | Pass, in about 50 seconds with the image built |
+| Windows x64 | `x64win` | By hand: both games, then a look at the picture | Both games run and draw correctly |
+
+What the work found:
+
+- The glue pointer in a pushed rocco commit must be on the glue remote. A
+  Windows clone could not fetch an unpushed glue commit, and an agent then
+  rebuilt the glue from an old version. Push the glue first, and check it
+  with `git branch -r --contains <sha>`.
+- `roc build` defaults to `--opt=speed`. Only `roc run` uses the dev backend.
+  Under dev, `List.map` copies the list. See `docs/DESIGN.md` section 10.
+- Git for Windows checks files out with CRLF. `.gitattributes` keeps the
+  generated files at LF, so a regenerated file matches the committed one.
+- The Windows build links the sokol debug libraries. They ask D3D11 for its
+  debug layer. Without the Windows Graphics Tools feature, sokol logs
+  `WIN32_D3D11_CREATE_DEVICE_AND_SWAPCHAIN_WITH_DEBUG_FAILED` and retries
+  without it. The game then runs normally.
 
 ## Milestone 3: mesh handles and the manifest
 
