@@ -129,9 +129,30 @@ seconds.
 The Docker image writes into the same checkout as the macOS build. That is
 why the Linux binary has its own name.
 
-The check runs the game with no screen. To see the picture, run
-`examples/entity-game/entity-game_linux.bin` on a Linux x64 desktop with X11 and glibc
-2.39 or newer. Nobody has tested this yet.
+The check runs the game with no screen. To see the picture, build on a Linux
+x64 desktop.
+
+### Linux, on the machine
+
+You need Odin and Roc on `PATH`, a C compiler, glibc 2.39 or newer, and the
+X11, Xi, Xcursor and GL libraries with their headers.
+
+| Distro | Packages |
+|---|---|
+| Ubuntu, Debian | `build-essential libx11-dev libxi-dev libxcursor-dev libgl-dev libglx-mesa0` |
+| Arch | `base-devel libx11 libxi libxcursor libglvnd mesa` |
+
+```sh
+cd sokol-odin/sokol && sh build_clibs_linux.sh && cd ../..
+roc scripts/build.roc -- all
+./examples/entity-game/entity-game_linux.bin
+```
+
+The `inputs` step copies the CRT objects and the shared libraries from the
+first of `/usr/lib/x86_64-linux-gnu`, `/usr/lib64` and `/usr/lib` that holds
+`Scrt1.o`. `build_clibs_linux.sh` also builds modules the engine does not
+use, and it needs the ALSA headers. `scripts/linux/in-container.sh` shows how
+to build only the four archives the engine links.
 
 ### Windows
 

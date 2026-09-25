@@ -96,8 +96,17 @@ windows_sdk_libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "o
 windows_sdk_copies : Str, Target -> List(Copy)
 windows_sdk_copies = |sdk_dir, target| windows_sdk_libs.map(|lib| { from: "${sdk_dir}/um/x64/${lib}", to: "${target.dir}/${lib}" })
 
-linux_lib_dir : Str
-linux_lib_dir = "/usr/lib/x86_64-linux-gnu"
+# Debian and Ubuntu, then Fedora, then Arch. Each keeps Scrt1.o, the CRT
+# objects and the shared libraries in one directory.
+linux_lib_dirs : List(Str)
+linux_lib_dirs = ["/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib"]
+
+# found holds the candidates that contain Scrt1.o. The first in linux_lib_dirs wins.
+linux_lib_dir_from : List(Str) -> Try(Str, [NoLibDir])
+linux_lib_dir_from = |found| match linux_lib_dirs.keep_if(|dir| found.contains(dir)).first() {
+	Ok(dir) => Ok(dir)
+	Err(_) => Err(NoLibDir)
+}
 
 # lld records the soname as DT_NEEDED, so copy the versioned files, not the dev symlinks.
 linux_libs : List(Str)
@@ -234,8 +243,16 @@ inputs! = |target| {
 			Ok({})
 		}
 		LinuxSystem => {
-			for file in linux_copies(linux_lib_dir, target) {
-				copy!(file) ? |_| Failed("${file.from} is missing. Install the packages in scripts/linux/Dockerfile.")
+			var $found = []
+			for dir in linux_lib_dirs {
+				if Path.utf8("${dir}/Scrt1.o").is_file!() ?? Bool.False {
+					$found = $found.append(dir)
+				}
+			}
+			lib_dir = linux_lib_dir_from($found) ? |_| Failed("No Scrt1.o in ${Str.join_with(linux_lib_dirs, ", ")}. Install the C development package, for example libc6-dev or glibc.")
+			Stdout.line!("== system libraries from ${lib_dir}")?
+			for file in linux_copies(lib_dir, target) {
+				copy!(file) ? |_| Failed("${file.from} is missing. Install the X11, Xi, Xcursor and GL libraries. scripts/linux/Dockerfile lists the Ubuntu packages.")
 			}
 			Ok({})
 		}
@@ -350,3 +367,8 @@ expect {
 	copy = target_for(mac).map_ok(|target| compiler_rt_copy("/Xcode/usr/lib/clang/21", target))
 	copy == Ok({ from: "/Xcode/usr/lib/clang/21/lib/darwin/libclang_rt.osx.a", to: "platform/targets/arm64mac/libclang_rt.osx.a" })
 }
+
+expect linux_lib_dir_from(["/usr/lib/x86_64-linux-gnu", "/usr/lib"]) == Ok("/usr/lib/x86_64-linux-gnu")
+expect linux_lib_dir_from(["/usr/lib"]) == Ok("/usr/lib")
+expect linux_lib_dir_from(["/usr/lib64", "/usr/lib"]) == Ok("/usr/lib64")
+expect linux_lib_dir_from([]) == Err(NoLibDir)
