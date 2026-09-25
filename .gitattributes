@@ -1,0 +1,4 @@
+# The generators write LF on every OS. Check the files out as LF too, so a
+# regenerated file on Windows matches the committed one.
+engine/roc_platform_abi.odin text eol=lf
+engine/shader_basic.odin text eol=lf
