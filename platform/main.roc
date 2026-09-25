@@ -87,4 +87,4 @@ view_for_host = |boxed| view(Box.unbox(boxed))
 # Dropping the box here frees it and everything inside. Remove this export
 # when the glue can emit a payload drop for Box(Model).
 drop_model_for_host : Box(Model) -> {}
-drop_model_for_host = |_boxed| {}
+drop_model_for_host = |boxed| { _ = Box.unbox(boxed) }

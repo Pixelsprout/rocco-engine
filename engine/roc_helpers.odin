@@ -53,15 +53,15 @@ roc_release_box :: proc(data: rawptr) -> bool {
 
 // -------------------------------------------------------------------- lists
 
-// Roc list allocation headers.
-// Flat elements (no owned pointers): one word before data (refcount).
-// Refcounted elements:               two words before data (element-count, refcount).
-// On 64-bit, size_of(uint) == 8, so the flat header is always 8 and the
-// refcounted header is always 16 (before accounting for element alignment).
+// Roc always allocates lists with `allocateWithRefcount`, which reserves two
+// words before the data pointer: [element_count][refcount]. This is true even
+// for flat element types. The "flat" vs "rc" distinction only affects whether
+// Roc iterates elements during drop, not the header layout.
+//
+// header = max(2 * size_of(uint), align_of(T)).
+// On 64-bit with align <= 16, header is always 16.
 @(private = "file")
-LIST_HEADER_FLAT :: size_of(uint)
-@(private = "file")
-LIST_HEADER_RC :: 2 * size_of(uint)
+LIST_HEADER :: 2 * size_of(uint)
 
 // Allocate a new Roc_List by copying elems. The list starts at refcount 1.
 // Use for flat element types (scalars, plain structs without owned pointers).
@@ -71,23 +71,21 @@ roc_list_from_slice :: proc {
 }
 
 @(private = "file")
-roc_list_alloc :: proc($T: typeid, n: uint, rc_elems: bool) -> Roc_List(T) {
+roc_list_alloc :: proc($T: typeid, n: uint) -> Roc_List(T) {
 	if n == 0 {
 		return {}
 	}
 	alignment := uint(align_of(T))
-	raw_header := uint(LIST_HEADER_RC) if rc_elems else uint(LIST_HEADER_FLAT)
+	raw_header := uint(LIST_HEADER)
 	header := max(raw_header, alignment)
 	base := roc_alloc(header + n * size_of(T), alignment)
 	if base == nil {
 		panic("roc_alloc returned nil")
 	}
 	data := rawptr(uintptr(base) + uintptr(header))
-	if rc_elems {
-		// Two-word header: [element_count][refcount] immediately before data.
-		(^uint)(uintptr(data) - 2 * size_of(uint))^ = n  // element count
-	}
-	(^int)(uintptr(data) - size_of(int))^ = 1 // refcount = 1
+	// Two-word header: [element_count][refcount] immediately before data.
+	(^uint)(uintptr(data) - 2 * size_of(uint))^ = n  // element count
+	(^int)(uintptr(data) - size_of(int))^ = 1        // refcount = 1
 	return Roc_List(T){
 		elements              = ([^]T)(data),
 		length                = n,
@@ -96,8 +94,7 @@ roc_list_alloc :: proc($T: typeid, n: uint, rc_elems: bool) -> Roc_List(T) {
 }
 
 roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
-	// u16 is a flat scalar: one-word header.
-	list := roc_list_alloc(u16, uint(len(elems)), false)
+	list := roc_list_alloc(u16, uint(len(elems)))
 	if list.length > 0 {
 		mem.copy(list.elements, raw_data(elems), len(elems) * size_of(u16))
 	}
@@ -105,8 +102,7 @@ roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
 }
 
 roc_list_from_slice_mesh_entry :: proc(elems: []Mesh_Entry) -> Roc_List(Mesh_Entry) {
-	// Mesh_Entry contains Roc_Str (refcounted): two-word header.
-	list := roc_list_alloc(Mesh_Entry, uint(len(elems)), true)
+	list := roc_list_alloc(Mesh_Entry, uint(len(elems)))
 	if list.length > 0 {
 		mem.copy(list.elements, raw_data(elems), len(elems) * size_of(Mesh_Entry))
 	}
@@ -133,7 +129,7 @@ roc_list_decref_flat :: proc($T: typeid, list: Roc_List(T)) {
 	rc^ -= 1
 	if rc^ == 0 {
 		alignment := uint(align_of(T))
-		header := max(uint(LIST_HEADER_FLAT), alignment)
+		header := max(uint(LIST_HEADER), alignment)
 		roc_dealloc(rawptr(uintptr(data) - uintptr(header)), alignment)
 	}
 }
@@ -162,7 +158,7 @@ roc_str_from_slice :: proc(s: string) -> Roc_Str {
 		return {}
 	}
 	alignment := uint(align_of(u8))
-	header := max(uint(LIST_HEADER_FLAT), alignment)
+	header := max(uint(LIST_HEADER), alignment)
 	base := roc_alloc(header + n, alignment)
 	if base == nil {
 		panic("roc_alloc returned nil")
