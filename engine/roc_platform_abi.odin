@@ -8,13 +8,61 @@ package engine
 // width, so the host must be a 64-bit target.
 #assert(size_of(uintptr) == 8)
 
-Roc_Str :: struct {
-	bytes:    [^]u8,
-	length:   uint,
-	capacity: uint,
+// The helpers below allocate and free through roc_alloc and roc_dealloc.
+// The host defines both in this package, because the Roc app calls them.
+//
+// A refcounted allocation keeps a header in front of its data. The
+// refcount is the int just before the data, and 0 marks static data,
+// which is never freed. A list whose elements hold refcounted values also
+// keeps its element count in the int before the refcount.
+
+@(private = "file")
+roc_refcount :: proc(data: rawptr) -> ^int {
+	return (^int)(uintptr(data) - size_of(int))
 }
-#assert(size_of(Roc_Str) == 24)
-#assert(align_of(Roc_Str) == 8)
+
+@(private = "file")
+roc_header :: proc(elem_align: uint, elements_refcounted: bool) -> (header, alignment: uint) {
+	header = max(2 * size_of(uint) if elements_refcounted else size_of(uint), elem_align)
+	alignment = max(size_of(uint), elem_align)
+	return
+}
+
+// Returns the data pointer of a new allocation with refcount 1.
+@(private = "file")
+roc_alloc_refcounted :: proc(data_bytes, elem_align: uint, elements_refcounted: bool, count: uint) -> rawptr {
+	header, alignment := roc_header(elem_align, elements_refcounted)
+	base := roc_alloc(header + data_bytes, alignment)
+	if base == nil {
+		panic("roc_alloc returned nil")
+	}
+	data := rawptr(uintptr(base) + uintptr(header))
+	roc_refcount(data)^ = 1
+	if elements_refcounted {
+		(^uint)(uintptr(data) - 2 * size_of(uint))^ = count
+	}
+	return data
+}
+
+// Returns true when this call dropped the last reference.
+@(private = "file")
+roc_release :: proc(data: rawptr) -> bool {
+	if data == nil {
+		return false
+	}
+	rc := roc_refcount(data)
+	if rc^ == 0 {
+		return false
+	}
+	rc^ -= 1
+	return rc^ == 0
+}
+
+@(private = "file")
+roc_free :: proc(data: rawptr, elem_align: uint, elements_refcounted: bool) {
+	header, alignment := roc_header(elem_align, elements_refcounted)
+	roc_dealloc(rawptr(uintptr(data) - uintptr(header)), alignment)
+}
 
 Roc_List :: struct($T: typeid) {
 	elements:              [^]T,
@@ -24,6 +72,103 @@ Roc_List :: struct($T: typeid) {
 
 #assert(size_of(Roc_List(u8)) == 24)
 #assert(align_of(Roc_List(u8)) == 8)
+
+// A seamless slice tags the low bit of capacity_or_alloc_ptr and keeps
+// the data pointer of the allocation it shares there.
+@(private = "file")
+roc_list_data :: proc(list: Roc_List($T)) -> rawptr {
+	if list.capacity_or_alloc_ptr & 1 != 0 {
+		return rawptr(uintptr(list.capacity_or_alloc_ptr &~ 1))
+	}
+	return list.elements
+}
+
+// The list takes over the references the elements hold. An empty slice
+// allocates nothing.
+@(private = "file")
+roc_list_from_slice_with :: proc(elems: []$T, elements_refcounted: bool) -> Roc_List(T) {
+	if len(elems) == 0 {
+		return {}
+	}
+	n := uint(len(elems))
+	data := roc_alloc_refcounted(n * size_of(T), align_of(T), elements_refcounted, n)
+	list := Roc_List(T){elements = ([^]T)(data), length = n, capacity_or_alloc_ptr = n << 1}
+	copy(list.elements[:n], elems)
+	return list
+}
+
+@(private = "file")
+roc_list_decref_flat :: proc(list: Roc_List($T)) {
+	data := roc_list_data(list)
+	if roc_release(data) {
+		roc_free(data, align_of(T), false)
+	}
+}
+
+// Releases the elements only when this call dropped the last reference.
+@(private = "file")
+roc_list_decref_elements :: proc(list: Roc_List($T), release: proc(value: T)) {
+	data := roc_list_data(list)
+	if !roc_release(data) {
+		return
+	}
+	count := list.length
+	if list.capacity_or_alloc_ptr & 1 != 0 {
+		count = (^uint)(uintptr(data) - 2 * size_of(uint))^
+	}
+	for elem in ([^]T)(data)[:count] {
+		release(elem)
+	}
+	roc_free(data, align_of(T), true)
+}
+
+Roc_Str :: struct {
+	bytes:                 [^]u8,
+	capacity_or_alloc_ptr: uint,
+	length:                uint,
+}
+
+#assert(size_of(Roc_Str) == 24)
+#assert(align_of(Roc_Str) == 8)
+
+// A string shorter than Roc_Str lives inline. Its last byte holds the
+// length with the top bit set.
+roc_str_from_slice :: proc(s: string) -> Roc_Str {
+	out: Roc_Str
+	n := len(s)
+	if n < size_of(Roc_Str) {
+		raw := ([^]u8)(&out)
+		copy(raw[:n], s)
+		raw[size_of(Roc_Str) - 1] = u8(n) | 0x80
+		return out
+	}
+	data := ([^]u8)(roc_alloc_refcounted(uint(n), 1, false, 0))
+	copy(data[:n], s)
+	return {bytes = data, capacity_or_alloc_ptr = uint(n) << 1, length = uint(n)}
+}
+
+roc_str_decref :: proc(s: Roc_Str) {
+	if int(s.length) < 0 {
+		return
+	}
+	data := rawptr(s.bytes)
+	if s.capacity_or_alloc_ptr & 1 != 0 {
+		data = rawptr(uintptr(s.capacity_or_alloc_ptr &~ 1))
+	}
+	if roc_release(data) {
+		roc_free(data, 1, false)
+	}
+}
+
+roc_incref_box :: proc(box: rawptr) {
+	if box == nil {
+		return
+	}
+	rc := roc_refcount(box)
+	if rc^ != 0 {
+		rc^ += 1
+	}
+}
 
 Roc_Init_Arg0 :: struct {
 	seed: u64,
@@ -161,11 +306,72 @@ Roc_View_Camera :: struct {
 Roc_View_Camera_Eye :: Roc_View_Draws_Pos
 Roc_View_Camera_Target :: Roc_View_Draws_Pos
 
+roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
+	roc_list_decref_roc_init_arg0_meshes(value.meshes)
+}
+
+roc_init_arg0_meshes_decref :: proc(value: Roc_Init_Arg0_Meshes) {
+	roc_str_decref(value.name)
+}
+
+roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
+	roc_list_decref_u16(value.held)
+	roc_list_decref_u16(value.pressed)
+}
+
+roc_view_decref :: proc(value: Roc_View) {
+	roc_list_decref_roc_view_draws(value.draws)
+}
+
+roc_list_decref_roc_init_arg0_meshes :: proc(list: Roc_List(Roc_Init_Arg0_Meshes)) {
+	roc_list_decref_elements(list, roc_init_arg0_meshes_decref)
+}
+
+roc_list_from_slice_roc_init_arg0_meshes :: proc(elems: []Roc_Init_Arg0_Meshes) -> Roc_List(Roc_Init_Arg0_Meshes) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_u16 :: proc(list: Roc_List(u16)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_view_draws :: proc(list: Roc_List(Roc_View_Draws)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_draws :: proc(elems: []Roc_View_Draws) -> Roc_List(Roc_View_Draws) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_decref :: proc {
+	roc_str_decref,
+	roc_init_arg0_decref,
+	roc_init_arg0_meshes_decref,
+	roc_step_arg1_decref,
+	roc_view_decref,
+}
+
+roc_list_decref :: proc {
+	roc_list_decref_roc_init_arg0_meshes,
+	roc_list_decref_u16,
+	roc_list_decref_roc_view_draws,
+}
+
+roc_list_from_slice :: proc {
+	roc_list_from_slice_roc_init_arg0_meshes,
+	roc_list_from_slice_u16,
+	roc_list_from_slice_roc_view_draws,
+}
+
 // The Roc app defines these symbols at the final link.
 @(default_calling_convention = "c")
 foreign {
 	roc_init :: proc(arg0: Roc_Init_Arg0) -> rawptr ---
 	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: f32) -> rawptr ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---
-	roc_drop_model :: proc(arg0: rawptr) -> struct{} ---
+	roc_drop_model :: proc(arg0: rawptr) ---
 }
