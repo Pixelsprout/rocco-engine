@@ -53,15 +53,19 @@ roc_release_box :: proc(data: rawptr) -> bool {
 
 // -------------------------------------------------------------------- lists
 
-// Roc always allocates lists with `allocateWithRefcount`, which reserves two
-// words before the data pointer: [element_count][refcount]. This is true even
-// for flat element types. The "flat" vs "rc" distinction only affects whether
-// Roc iterates elements during drop, not the header layout.
+// Roc allocation headers on 64-bit:
 //
-// header = max(2 * size_of(uint), align_of(T)).
-// On 64-bit with align <= 16, header is always 16.
+// Strings: one word (8 bytes) before the bytes pointer — just the refcount.
+//   roc_dealloc receives (bytes_ptr - 8).
+//
+// Lists: two words (16 bytes) before the elements pointer —
+//   [element_count][refcount]. roc_dealloc receives (elements_ptr - 16).
+//   This is true for all list element types; the two-word layout comes from
+//   Roc's `allocateWithRefcount` which always reserves the element count slot.
 @(private = "file")
-LIST_HEADER :: 2 * size_of(uint)
+STR_HEADER :: size_of(uint)       // 8 bytes
+@(private = "file")
+LIST_HEADER :: 2 * size_of(uint)  // 16 bytes
 
 // Allocate a new Roc_List by copying elems. The list starts at refcount 1.
 // Use for flat element types (scalars, plain structs without owned pointers).
@@ -157,8 +161,8 @@ roc_str_from_slice :: proc(s: string) -> Roc_Str {
 	if n == 0 {
 		return {}
 	}
-	alignment := uint(align_of(u8))
-	header := max(uint(LIST_HEADER), alignment)
+	alignment := uint(align_of(uintptr)) // strings always align to pointer width
+	header := uint(STR_HEADER)
 	base := roc_alloc(header + n, alignment)
 	if base == nil {
 		panic("roc_alloc returned nil")
@@ -166,5 +170,6 @@ roc_str_from_slice :: proc(s: string) -> Roc_Str {
 	data := rawptr(uintptr(base) + uintptr(header))
 	(^int)(uintptr(data) - size_of(int))^ = 1 // refcount = 1
 	mem.copy(data, raw_data(s), int(n))
-	return Roc_Str{bytes = ([^]u8)(data), length = n, capacity = n << 1}
+	// capacity_or_alloc_ptr: capacity stored as n<<1 (low bit clear = heap, not seamless slice).
+	return Roc_Str{bytes = ([^]u8)(data), capacity_or_alloc_ptr = n << 1, length = n}
 }
