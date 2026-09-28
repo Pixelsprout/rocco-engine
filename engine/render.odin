@@ -9,26 +9,12 @@ Vertex :: struct {
 }
 
 Renderer :: struct {
-	pip:  sg.Pipeline,
-	bind: sg.Bindings,
+	pip:    sg.Pipeline,
+	meshes: Mesh_Table,
 }
 
 renderer_init :: proc(r: ^Renderer) {
-
-	buf_vertices := sg.make_buffer(
-		{
-			label = "cube-vertices",
-			data = {ptr = raw_data(CUBE_VERTICES[:]), size = len(CUBE_VERTICES) * size_of(Vertex)},
-		},
-	)
-
-	buf_indices := sg.make_buffer(
-		{
-			label = "cube-indices",
-			data = {ptr = raw_data(CUBE_INDICES[:]), size = len(CUBE_INDICES) * size_of(u16)},
-			usage = {index_buffer = true},
-		},
-	)
+	mesh_table_upload(&r.meshes)
 
 	shader := sg.make_shader(basic_shader_desc(sg.query_backend()))
 
@@ -48,23 +34,21 @@ renderer_init :: proc(r: ^Renderer) {
 		},
 	}
 	r.pip = sg.make_pipeline(desc)
-
-	r.bind.vertex_buffers[0] = buf_vertices
-	r.bind.index_buffer = buf_indices
 }
 
-renderer_draw :: proc(r: ^Renderer, vs_params: Vs_Params, fs_params: Fs_Params) {
+renderer_draw :: proc(r: ^Renderer, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	sg.apply_pipeline(r.pip)
-	sg.apply_bindings(r.bind)
+	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
 
 	vs := vs_params
 	fs := fs_params
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
 	sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
 
-	sg.draw(0, len(CUBE_INDICES), 1)
+	sg.draw(0, mesh.index_count, 1)
 }
 
 renderer_shutdown :: proc(r: ^Renderer) {
 	// sg.shutdown destroys every pooled resource, later we would add a per mesh teardown.
+	mesh_table_destroy(&r.meshes)
 }

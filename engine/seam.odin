@@ -79,7 +79,8 @@ roc_dbg :: proc "c" (bytes: [^]u8, length: uint) {
 
 	msg := string(bytes[:length])
 
-	fmt.printfln("dbg: %v", msg)
+	// stderr, so the checks that read Frame Count from stdout never see it.
+	fmt.eprintfln("dbg: %v", msg)
 }
 
 @(export, link_name = "roc_expect_failed")
@@ -104,13 +105,13 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 
 // Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-seam_init :: proc(s: ^Seam, seed: u64, perm: mem.Allocator, report: bool) {
+seam_init :: proc(s: ^Seam, seed: u64, table: ^Mesh_Table, perm: mem.Allocator, report: bool) {
 	s.report = report
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
 	pairing_init(&s.pairing, perm)
 
-	s.model = roc_init(config_make(seed))
+	s.model = roc_init(config_make(seed, table))
 	s.curr = seam_view(s)
 }
 

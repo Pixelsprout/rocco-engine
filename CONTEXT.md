@@ -148,9 +148,9 @@ and carried on Draws. Id 0 is the fallback mesh.
 _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 
 **Manifest**:
-The name-to-mesh-id list in Config: every asset loaded from disk plus the
-primitives. The game resolves the names it needs once, in `init`, and keeps
-the ids in its Model.
+The name-to-mesh-id list in Config: the fallback mesh, the primitives and
+every asset loaded from disk. The game resolves the names it needs once, in
+`init`, and keeps the ids in its Model.
 _Avoid_: mesh table, catalogue, registry, asset list
 
 **Mesh table**:
@@ -165,7 +165,7 @@ _Avoid_: default mesh, error mesh, placeholder, missing mesh
 
 **Primitive**:
 A mesh the engine builds itself rather than loads: the cube, the sphere and
-the slab. They sit in the manifest beside loaded assets.
+the plane. They sit in the manifest beside loaded assets.
 _Avoid_: built-in, shape, basic mesh
 
 ## Time

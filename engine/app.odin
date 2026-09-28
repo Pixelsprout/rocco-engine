@@ -44,7 +44,9 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	seam_init(&g_state.seam, seed_from_env(), g_state.mem.perm_allocator, alloc_report_from_env())
+	// Name the meshes before sokol starts, so the manifest does not wait on the GPU.
+	mesh_table_init(&g_state.renderer.meshes, g_state.mem.perm_allocator)
+	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes, g_state.mem.perm_allocator, alloc_report_from_env())
 
 	sapp.run(
 		sapp.Desc {
@@ -123,7 +125,7 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
 }
 
-// Every mesh id draws as the cube until the mesh table exists.
+// The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
 draw_scene :: proc(r: ^Renderer, prev, curr: Scene, pairing: ^Pairing, alpha: f32, view_proj: Mat4) {
 	for d in curr.draws.elements[:curr.draws.length] {
 		from := d
@@ -131,14 +133,17 @@ draw_scene :: proc(r: ^Renderer, prev, curr: Scene, pairing: ^Pairing, alpha: f3
 			from = prev.draws.elements[i]
 		}
 		model := draw_model_matrix(draw_transform(from, d, alpha))
+		mesh, fallback := mesh_resolve(&r.meshes, d.mesh, d.id)
+		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
 		renderer_draw(
 			r,
+			mesh,
 			vs_params = {mvp = view_proj * model, model = model},
 			fs_params = {
 				light_dir = LIGHT_DIR,
 				light_color = [4]f32{1, 1, 1, 1},
 				ambient = [4]f32{0.1, 0.1, 0.1, 1},
-				tint = [4]f32{d.tint.r, d.tint.g, d.tint.b, 1},
+				tint = tint,
 			},
 		)
 	}
