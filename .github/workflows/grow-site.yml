@@ -1,0 +1,27 @@
+name: Grow the site
+
+on:
+  push:
+    branches: [main]
+    paths: ['.dex/tasks.jsonl']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: grow-site
+  cancel-in-progress: true
+
+jobs:
+  deploy-hook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask Vercel to rebuild pixelsprout.dev
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK is not set. Skipping."
+            exit 0
+          fi
+          curl --fail-with-body -sS -X POST "$HOOK"
