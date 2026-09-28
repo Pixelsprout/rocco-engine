@@ -2,13 +2,8 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
+import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
 
-Vec3 : { x : F32, y : F32, z : F32 }
-Rgb : { r : F32, g : F32, b : F32 }
-Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
-Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
-Scene : { camera : Cam.View, draws : List(Draw) }
 Ball : { id : U64, x : F32, z : F32, vx : F32, vz : F32 }
 Score : { left : U64, right : U64 }
 GameState : [Running, Paused, EndGame]

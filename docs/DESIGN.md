@@ -158,10 +158,11 @@ The platform header binds `Model` with a for-clause:
 ```roc
 platform ""
     requires {} {
-        [Model: model] for init : Config -> model,
-        step : Model, Input, F32 -> Model,
-        view : Model -> Scene,
+        [Model: model] for init : Vocabulary.Config -> model,
+        step : Model, Vocabulary.Input, F32 -> Model,
+        view : Model -> Vocabulary.Scene,
     }
+    exposes [Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -193,6 +194,18 @@ roc_view(ptr)                -> Scene
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
 only when `Config`, `Input` or `Scene` change. Those three types are the
 engine's public API.
+
+The vocabulary lives in `platform/Vocabulary.roc`. The header must use
+qualified names such as `Vocabulary.Config`, because it does not see the
+body's `import`. Games import the vocabulary and declare none of it:
+
+```roc
+import pf.Vocabulary exposing [Config, Input, Scene]
+```
+
+Packages declare the types they need by shape and never import the platform,
+so they stay publishable. The aliases are structural, so a package's
+`{ x : F32, y : F32, z : F32 }` and the vocabulary's `Vec3` are one type.
 
 Evidence: two unrelated games link and run against one host library on
 `nightly-2026-09-12-220fd47`. See `examples/cards` and `examples/entity-game`.

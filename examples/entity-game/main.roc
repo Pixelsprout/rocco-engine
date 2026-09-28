@@ -2,28 +2,7 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
-
-# ---- Types the host reads. The glue emits their Odin layout. -------------
-
-Vec3 : { x : F32, y : F32, z : F32 }
-
-Rgb : { r : F32, g : F32, b : F32 }
-
-# The host builds one Input per fixed step: the held keys, the keys pressed
-# since the previous step, and the mouse delta. Roc never asks the host
-# anything. Which key means what is this game's decision, below.
-Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-
-# A mesh is an id the engine assigned. Config carries the name-to-id manifest.
-# The draw id is stable across steps so the host can pair this step's draw
-# with the last one and interpolate. Entities use their own id; fixed scenery
-# uses ids the entities never reach.
-Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
-
-Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
-
-# What the host draws. Rebuilt every step, never stored. Derived, not authored.
-Scene : { camera : Cam.View, draws : List(Draw) }
+import pf.Vocabulary exposing [Config, Draw, Input, Scene, Vec3]
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 

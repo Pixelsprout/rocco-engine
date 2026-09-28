@@ -66,7 +66,8 @@ _Avoid_: system, pass, phase
 
 **Vocabulary**:
 The three types that cross the seam: Config, Input and Scene. They are the
-engine's public API. Nothing in them names a game.
+engine's public API. Nothing in them names a game. Games import them, and the
+records inside them, from `pf.Vocabulary`.
 _Avoid_: protocol, schema, contract, ABI
 
 **Vocabulary change**:

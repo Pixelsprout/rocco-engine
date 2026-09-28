@@ -2,15 +2,9 @@ app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../
 
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
+import pf.Vocabulary exposing [Config, Input, Scene]
 
 # A second game on the same platform. No entities and no positions in the Model.
-Vec3 : { x : F32, y : F32, z : F32 }
-Rgb : { r : F32, g : F32, b : F32 }
-Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
-Scene : { camera : Cam.View, draws : List(Draw) }
-Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
-
 Card : [Ace, King, Number(U8)]
 Model : { hand : List(Card), turns : U64, name : Str, card_mesh : U32 }
 
