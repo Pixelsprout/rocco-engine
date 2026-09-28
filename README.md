@@ -256,3 +256,7 @@ once per fixed step. The host honours `roc_dealloc`. It builds and runs on
 macOS, Linux and Windows from one checkout. The platform header still names a
 concrete state record. Roadmap milestone 2 replaces it with the generic header
 in the design.
+
+## Licence
+
+UPL-1.0. See `LICENSE`.
