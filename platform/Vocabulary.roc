@@ -1,6 +1,6 @@
 # The types that cross the seam; see CONTEXT.md. Nothing in them names a game.
-# Key codes are sokol's: SPACE = 32, A = 65, W = 87. Mesh ids come from the
-# manifest in Config. An id the engine does not know draws the fallback mesh.
+# Key codes are sokol's; pf.Key names them. Mesh ids come from the manifest
+# in Config. An id the engine does not know draws the fallback mesh.
 Vocabulary := [].{
     Vec3 : { x : F32, y : F32, z : F32 }
     Rgb : { r : F32, g : F32, b : F32 }

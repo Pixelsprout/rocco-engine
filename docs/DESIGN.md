@@ -82,9 +82,10 @@ Scene  : { camera : Camera, draws : List(Draw) }
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view | an entity kind; a score; a mesh catalogue; quit; cursor mode |
 
-Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. The game binds keys
-to intent. The engine does not. The host filters no key out of `held` or
-`pressed`, including the keys it reacts to itself.
+Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
+`pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
+The game binds keys to intent. The engine does not. The host filters no key
+out of `held` or `pressed`, including the keys it reacts to itself.
 
 The host latches input between fixed steps. A key press waits in a pending
 set until a step takes it as `pressed`. The mouse delta waits the same way.
@@ -162,7 +163,7 @@ platform ""
         step : Model, Vocabulary.Input, F32 -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary]
+    exposes [Vocabulary, Key]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest

@@ -3,6 +3,7 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
 import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
+import pf.Key
 
 Ball : { id : U64, x : F32, z : F32, vx : F32, vz : F32 }
 Score : { left : U64, right : U64 }
@@ -34,13 +35,6 @@ wall_limit = half_depth - ball_half
 serve_speed : F32
 serve_speed = 8.0
 max_score = 7
-
-# key codes (sokol mapping)
-key_w = 87
-key_s = 83
-key_up = 265
-key_down = 264
-key_space = 32
 
 manifest : Config
 manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }] }
@@ -130,7 +124,7 @@ view = |m| {
 
 game_state : Model, Input -> Model
 game_state = |m, input| {
-	if List.contains(input.pressed, key_space) {
+	if Key.pressed(input, Space) {
 		match m.state {
 			Paused => { ..m, state: Running }
 			EndGame => reset(m)
@@ -188,8 +182,8 @@ score_point = |m| {
 
 move_paddles : Model, Input, F32 -> Model
 move_paddles = |m, input, dt| {
-	left = clamp(-paddle_limit, paddle_limit, m.left + axis(input, key_w, key_s) * paddle_speed * dt)
-	right = clamp(-paddle_limit, paddle_limit, m.right + axis(input, key_up, key_down) * paddle_speed * dt)
+	left = clamp(-paddle_limit, paddle_limit, m.left + Key.axis(input, W, S) * paddle_speed * dt)
+	right = clamp(-paddle_limit, paddle_limit, m.right + Key.axis(input, Up, Down) * paddle_speed * dt)
 	{ ..m, left, right }
 }
 
@@ -234,21 +228,6 @@ hit_paddles = |m| {
 	}
 }
 
-axis : Input, U16, U16 -> F32
-axis = |input, neg, pos| {
-	n = if List.contains(input.held, neg) {
-		1.0
-	} else {
-		0.0
-	}
-	p = if List.contains(input.held, pos) {
-		1.0
-	} else {
-		0.0
-	}
-	p - n
-}
-
 clamp : F32, F32, F32 -> F32
 clamp = |lo, hi, v| {
 	v.max(lo).min(hi)
@@ -277,7 +256,7 @@ expect clamp(1.0, 2.0, 0.5) == 1.0
 
 # Holding W for a long step drives the left paddle to its limit, the right stays put.
 expect {
-	m = step(init(manifest), { ..idle, held: [key_w] }, 10.0)
+	m = step(init(manifest), { ..idle, held: [Key.code(W)] }, 10.0)
 	m.left == -paddle_limit and m.right == 0.0
 }
 
@@ -333,7 +312,7 @@ expect {
 # Space pauses a running game and resumes it without touching the score.
 expect {
 	m = init(manifest)
-	press = { ..idle, pressed: [key_space] }
+	press = { ..idle, pressed: [Key.code(Space)] }
 	paused = game_state(m, press)
 	resumed = game_state(paused, press)
 	paused.state == Paused and resumed.state == Running and resumed.score == m.score
@@ -343,7 +322,7 @@ expect {
 expect {
 	m = init(manifest)
 	ended = { ..m, score: { left: max_score, right: 0 } }
-	after = step(ended, { ..idle, held: [key_w] }, 1.0)
+	after = step(ended, { ..idle, held: [Key.code(W)] }, 1.0)
 	after.state == EndGame and after.left == ended.left and after.ball.x == ended.ball.x
 }
 
@@ -351,7 +330,7 @@ expect {
 expect {
 	m = init(manifest)
 	ended = { ..m, state: EndGame, score: { left: max_score, right: 0 } }
-	after = game_state(ended, { ..idle, pressed: [key_space] })
+	after = game_state(ended, { ..idle, pressed: [Key.code(Space)] })
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
 }
 

@@ -91,6 +91,12 @@ since the previous step, and the mouse delta. Key codes are sokol's; which
 key means what is the game's decision.
 _Avoid_: events, controls, actions, commands
 
+**Key**:
+A named sokol key code, such as `W` or `Space`, from `pf.Key`. Input still
+carries the code; the game decides what the key means. `roc scripts/build.roc
+-- keys` writes `platform/Key.roc` from sokol, so the names cannot drift.
+_Avoid_: keycode, button, action
+
 **Held**:
 A key in Input that is down at this step. A level: asking twice gives the
 same answer.

@@ -3,6 +3,7 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
 import pf.Vocabulary exposing [Config, Draw, Input, Scene, Vec3]
+import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
@@ -69,35 +70,8 @@ speed : F32
 speed = 6.0
 
 # The binding from keys to intent lives in the game, not the engine.
-key_w : U16
-key_w = 87
-
-key_a : U16
-key_a = 65
-
-key_s : U16
-key_s = 83
-
-key_d : U16
-key_d = 68
-
-axis : Input, U16, U16 -> F32
-axis = |input, neg, pos| {
-	n = if List.contains(input.held, neg) {
-		1.0
-	} else {
-		0.0
-	}
-	p = if List.contains(input.held, pos) {
-		1.0
-	} else {
-		0.0
-	}
-	p - n
-}
-
 move_dir : Input -> Vec3
-move_dir = |input| { x: axis(input, key_a, key_d), y: 0.0, z: axis(input, key_w, key_s) }
+move_dir = |input| { x: Key.axis(input, A, D), y: 0.0, z: Key.axis(input, W, S) }
 
 steer : Model, Input -> Model
 steer = |m, input| map_entities(
@@ -291,7 +265,7 @@ idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
 right : Input
-right = { ..idle, held: [key_d] }
+right = { ..idle, held: [Key.code(D)] }
 
 expect {
 	m = new_game(test_meshes, 3)

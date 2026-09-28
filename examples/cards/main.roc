@@ -3,13 +3,11 @@ app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
 import pf.Vocabulary exposing [Config, Input, Scene]
+import pf.Key
 
 # A second game on the same platform. No entities and no positions in the Model.
 Card : [Ace, King, Number(U8)]
 Model : { hand : List(Card), turns : U64, name : Str, card_mesh : U32 }
-
-key_space : U16
-key_space = 32
 
 init : Config -> Model
 init = |config| {
@@ -19,7 +17,7 @@ init = |config| {
 
 step : Model, Input, F32 -> Model
 step = |m, input, _dt|
-    if List.contains(input.pressed, key_space) {
+    if Key.pressed(input, Space) {
         { ..m, hand: List.append(m.hand, King), turns: m.turns + 1 }
     } else {
         m
@@ -40,7 +38,7 @@ view = |m| {
 }
 
 expect {
-    press = { held: [], pressed: [key_space], mouse: { dx: 0.0, dy: 0.0 } }
+    press = { held: [], pressed: [Key.code(Space)], mouse: { dx: 0.0, dy: 0.0 } }
     after = step(init({ seed: 0, meshes: [{ name: "plane", id: 7 }] }), press, 0.1)
     List.len(after.hand) == 3 and after.turns == 1 and after.card_mesh == 7
 }

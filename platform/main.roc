@@ -4,7 +4,7 @@ platform ""
         step : Model, Vocabulary.Input, F32 -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary]
+    exposes [Vocabulary, Key]
     packages { roc: "nightly-2026-09-12-220fd47" }
     provides {
         "roc_init": init_for_host,
@@ -58,6 +58,9 @@ platform ""
     }
 
 import Vocabulary exposing [Config, Input, Scene]
+
+# Only here because every exposes entry needs a matching import.
+import Key
 
 # Model is whatever the app declares under that name. The host holds it as
 # one pointer and never reads inside. The host keeps exactly one reference,
