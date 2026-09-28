@@ -1,5 +1,7 @@
 # rocco
 
+Project page: <https://pixelsprout.dev/projects/rocco/>
+
 A 3D game engine in Odin that runs games written in Roc.
 
 Odin owns the systems: window, clock, input, GPU, memory, audio, collision.
@@ -214,7 +216,9 @@ a change to the `Model` type, restart the game.
 | `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and the SDK import libraries. Not committed. |
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. |
+| `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
+| `packages/meshes/` | The meshes package: `primitive` and `named` resolve mesh ids from the manifest. Games import it as `import meshes.Meshes as Meshes`. |
 | `scripts/build.roc` | The build script. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
@@ -251,11 +255,12 @@ the Docker image, and the image sees only this checkout.
 
 ## Status
 
-The engine renders three cubes, flies a camera, and calls the game's `step`
-once per fixed step. The host honours `roc_dealloc`. It builds and runs on
-macOS, Linux and Windows from one checkout. The platform header still names a
-concrete state record. Roadmap milestone 2 replaces it with the generic header
-in the design.
+Milestones 1 to 3 of `docs/ROADMAP.md` are done. The engine builds and runs
+on macOS, Linux and Windows from one checkout. The platform names no game:
+three games (`cards`, `entity-game`, `pong`) link against one host library.
+Each draw carries a mesh id from the manifest, and an unknown id draws the
+magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
+name keys with `pf.Key`. Milestone 4, geometry from disk, is next.
 
 ## Licence
 

@@ -12,14 +12,19 @@ Built and running:
 - Fixed-timestep loop with an accumulator and interpolation.
 - Three arenas by lifetime: permanent, level, frame. The level arena has no
   caller yet.
-- Rendering through sokol: one pipeline, one cube mesh, index buffers,
+- Rendering through sokol: one pipeline, a mesh table, index buffers,
   back-face culling, reversed-Z depth, one directional light. The backend is
   Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
   source in `engine/shaders/basic.glsl` compiles to all three with
   `sokol-shdc`.
 - The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
   game. The host holds the `Model` as one boxed pointer, keeps two `Scene`s,
-  pairs draws by id and interpolates them. Every draw is a cube for now.
+  pairs draws by id and interpolates them.
+- The mesh table holds the magenta fallback mesh at id 0 and the cube,
+  sphere and plane primitives. `init` gets it as the manifest. Each draw
+  names its mesh by id, and an unknown id draws the fallback mesh.
+- Games import the seam types from `pf.Vocabulary` and name keys with
+  `pf.Key`, which `scripts/build.roc` generates from sokol.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
@@ -28,7 +33,8 @@ Built and running:
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
 - `examples/cards` and `examples/entity-game` build and run from one checkout
-  on `arm64mac`, `x64glibc` and `x64win`.
+  on `arm64mac`, `x64glibc` and `x64win`. `examples/pong` builds and runs on
+  `arm64mac`; the checks do not build it yet.
   `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes a run
   end cleanly for checks. `scripts/alloc-check.sh` and
   `scripts/host-check.sh` check the seam.
@@ -218,7 +224,7 @@ What the work found:
   `WIN32_D3D11_CREATE_DEVICE_AND_SWAPCHAIN_WITH_DEBUG_FAILED` and retries
   without it. The game then runs normally.
 
-## Milestone 3: mesh handles and the manifest
+## Milestone 3: mesh handles and the manifest (done)
 
 Done when `Scene` draws by id resolve to more than one mesh.
 
