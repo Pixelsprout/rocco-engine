@@ -1,6 +1,7 @@
-app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
 
 import cam.Camera as Cam
+import meshes.Meshes as Meshes
 
 # A second game on the same platform. No entities and no positions in the Model.
 Vec3 : { x : F32, y : F32, z : F32 }
@@ -18,12 +19,8 @@ key_space = 32
 
 init : Config -> Model
 init = |config| {
-    # A Blender export would be named here exactly like a primitive.
-    card_mesh = match List.find_first(config.meshes, |m| m.name == "card") {
-        Ok(m) => m.id
-        Err(NotFound) => 0
-    }
-    { hand: [Ace, Number(7)], turns: 0, name: "solitaire", card_mesh }
+    # A plane until a card mesh is loaded from disk. Then Meshes.named(config, "card").
+    { hand: [Ace, Number(7)], turns: 0, name: "solitaire", card_mesh: Meshes.primitive(config, Plane) }
 }
 
 step : Model, Input, F32 -> Model
@@ -43,13 +40,13 @@ view = |m| {
             Number(_) => { r: 0.9, g: 0.9, b: 0.9 }
         }
         # The slot index is the draw id: a card slides to its slot when dealt.
-        { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 0.05, z: 1.4 }, yaw: 0.0, tint }
+        { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, yaw: 0.0, tint }
     })
     { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws }
 }
 
 expect {
     press = { held: [], pressed: [key_space], mouse: { dx: 0.0, dy: 0.0 } }
-    after = step(init({ seed: 0, meshes: [{ name: "card", id: 7 }] }), press, 0.1)
+    after = step(init({ seed: 0, meshes: [{ name: "plane", id: 7 }] }), press, 0.1)
     List.len(after.hand) == 3 and after.turns == 1 and after.card_mesh == 7
 }

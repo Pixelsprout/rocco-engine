@@ -227,8 +227,8 @@ Done when `Scene` draws by id resolve to more than one mesh.
 2. Publish the table to `init` as the manifest.
 3. Draw every entry in a `Scene` with its own mesh and transform.
 
-Check: the entity game shows a cube player, sphere pickups and a slab door.
-A misspelt mesh name draws magenta and logs once.
+Check: the entity game shows a cube player, sphere pickups, a plane floor and
+a cube door. A misspelt mesh name draws magenta and logs once.
 
 ## Milestone 4: geometry from disk
 

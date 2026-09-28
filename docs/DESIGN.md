@@ -126,6 +126,14 @@ The engine draws id 0 as the fallback mesh. A typo is visible, not fatal.
 A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 `libhost.a` for every new asset.
 
+Games treat mesh ids as opaque. A game never hard-codes an id and never does
+maths on one. It gets each id from the manifest in `init`.
+
+The primitives have type-safe tags in the meshes package:
+`Meshes.primitive(config, Cube)`. `Meshes.named(config, "name")` resolves a
+loaded file. Both return 0 and print a `dbg` line on a miss. The tags live in
+the package only. The vocabulary still carries only a `U32`.
+
 The manifest is the one place a refcounted type (`Str`) enters the
 vocabulary. `init` reads it once. The cost is glue coverage, not time.
 

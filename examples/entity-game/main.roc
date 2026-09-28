@@ -1,6 +1,7 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-12-220fd47", cam: "../../packages/camera/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-12-220fd47", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
 
 import cam.Camera as Cam
+import meshes.Meshes as Meshes
 
 # ---- Types the host reads. The glue emits their Odin layout. -------------
 
@@ -32,9 +33,9 @@ Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Boo
 
 # The ids this game resolved from the manifest at init. Resolved once, kept
 # in the Model, never looked up per step.
-Meshes : { cube : U32, sphere : U32, slab : U32 }
+MeshIds : { cube : U32, sphere : U32, plane : U32 }
 
-Model : { steps : U64, score : U64, meshes : Meshes, entities : List(Entity) }
+Model : { steps : U64, score : U64, meshes : MeshIds, entities : List(Entity) }
 
 # ---- init : Config -> Model ---------------------------------------------
 #
@@ -45,21 +46,14 @@ Model : { steps : U64, score : U64, meshes : Meshes, entities : List(Entity) }
 init : Config -> Model
 init = |config| new_game(resolve_meshes(config), 8)
 
-# 0 is the engine's fallback mesh, so a misspelt name is visible, not fatal.
-mesh_id : Config, Str -> U32
-mesh_id = |config, name| match List.find_first(config.meshes, |m| m.name == name) {
-	Ok(m) => m.id
-	Err(NotFound) => 0
-}
-
-resolve_meshes : Config -> Meshes
+resolve_meshes : Config -> MeshIds
 resolve_meshes = |config| {
-	cube: mesh_id(config, "cube"),
-	sphere: mesh_id(config, "sphere"),
-	slab: mesh_id(config, "slab"),
+	cube: Meshes.primitive(config, Cube),
+	sphere: Meshes.primitive(config, Sphere),
+	plane: Meshes.primitive(config, Plane),
 }
 
-new_game : Meshes, U64 -> Model
+new_game : MeshIds, U64 -> Model
 new_game = |meshes, pickups| {
 	player = { id: 0, kind: Player, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
 	door = { id: 1, kind: Door({ open: Bool.False }), pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
@@ -213,7 +207,7 @@ camera_offset = { x: 0.0, y: 8.0, z: 8.0 }
 
 view : Model -> Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.slab, pos: { x: 0.0, y: -0.05, z: 0.0 }, scale: { x: 20.0, y: 0.1, z: 20.0 }, yaw: 0.0, tint: { r: 0.25, g: 0.25, b: 0.28 } }
+	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.25, g: 0.25, b: 0.28 } }
 
 	# One allocation for every draw. List.concat would allocate twice.
 	first = List.with_capacity(List.len(curr.entities) + 1).append(floor)
@@ -227,7 +221,7 @@ view = |curr| {
 	{ camera: Cam.follow(target, camera_offset), draws }
 }
 
-draw : Meshes, Entity -> Draw
+draw : MeshIds, Entity -> Draw
 draw = |meshes, e| {
 	pos = e.pos
 	yaw = e.yaw
@@ -240,7 +234,7 @@ draw = |meshes, e| {
 			} else {
 				pos
 			}
-			{ id: e.id, mesh: meshes.slab, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.5, g: 0.3, b: 0.8 } }
+			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.5, g: 0.3, b: 0.8 } }
 		}
 	}
 }
@@ -309,9 +303,9 @@ dist2 = |a, b| {
 
 # What the engine would hand init on this machine.
 manifest : Config
-manifest = { seed: 0, meshes: [{ name: "cube", id: 1 }, { name: "sphere", id: 2 }, { name: "slab", id: 3 }] }
+manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }, { name: "sphere", id: 2 }, { name: "plane", id: 3 }] }
 
-test_meshes : Meshes
+test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
 
 idle : Input
@@ -326,8 +320,10 @@ expect {
 }
 
 expect {
-	# A name the engine did not load resolves to the fallback id, never crashes.
-	mesh_id(manifest, "sphere") == 2 and mesh_id(manifest, "dragon") == 0
+	# A plane floor, a cube player and door, and sphere pickups.
+	scene = view(new_game(test_meshes, 1))
+	mesh_of = |id| List.find_first(scene.draws, |d| d.id == id).map_ok(|d| d.mesh) ?? 0
+	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.cube and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.sphere
 }
 
 expect {

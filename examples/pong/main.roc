@@ -1,6 +1,7 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-12-220fd47", cam: "../../packages/camera/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-12-220fd47", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
 
 import cam.Camera as Cam
+import meshes.Meshes as Meshes
 
 Vec3 : { x : F32, y : F32, z : F32 }
 Rgb : { r : F32, g : F32, b : F32 }
@@ -47,22 +48,16 @@ key_down = 264
 key_space = 32
 
 manifest : Config
-manifest = { seed: 0, meshes: [{ name: "cube", id: 1 }] }
+manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }] }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
 init : Config -> Model
 init = |config| {
-	# Resolve cube from the manifest
-	mesh = match List.find_first(config.meshes, |m| m.name == "cube") {
-		Ok(m) => m.id
-		Err(NotFound) => 0
-	}
-
 	model = {
     	state: Running,
-		cube: mesh,
+		cube: Meshes.primitive(config, Cube),
 		left: 0.0,
 		right: 0.0,
 		ball: { id: ball_id_base, x: 0.0, z: 0.0, vx: 0.0, vz: 0.0 },

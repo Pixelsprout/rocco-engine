@@ -194,7 +194,9 @@ run_step! = |step, target| match step {
 		Path.utf8(target.dir).create_all!()?
 		exec!(host_run(target))
 	}
-	Game(example) => exec!(game_run(target, example))
+	# roc build exits 2 when it wrote the binary with warnings and no errors.
+	# The dbg in packages/meshes is such a warning, and roc has no flag to hide it.
+	Game(example) => exec_allowing!(game_run(target, example), [2])
 	Shaders =>
 		if Cmd.check_available!(shaders_run.program) {
 			exec!(shaders_run)
@@ -204,12 +206,20 @@ run_step! = |step, target| match step {
 }
 
 exec! : Run => Try({}, _)
-exec! = |run| {
+exec! = |run| exec_allowing!(run, [])
+
+exec_allowing! : Run, List(I32) => Try({}, _)
+exec_allowing! = |run, ok_codes| {
 	Stdout.line!("== ${run.program} ${Str.join_with(run.args, " ")}")?
 	cmd = Cmd.new_str(run.program).args(run.args.map(OsStr.from_str)).cwd(Path.utf8(run.cwd))
 	match cmd.exec_cmd!() {
 		Ok({}) => Ok({})
-		Err(ExecCmdFailed({ exit_code, .. })) => Err(Failed("${run.program} exited with ${exit_code.to_str()}"))
+		Err(ExecCmdFailed({ exit_code, .. })) =>
+			if List.contains(ok_codes, exit_code) {
+				Ok({})
+			} else {
+				Err(Failed("${run.program} exited with ${exit_code.to_str()}"))
+			}
 		Err(other) => Err(other)
 	}
 }

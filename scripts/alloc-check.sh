@@ -19,7 +19,16 @@ failed=0
 for game in cards entity-game; do
 	for opt in dev speed; do
 		bin="./${game}_alloc_${opt}${suffix}"
-		(cd "examples/$game" && roc build --target="$target" --opt="$opt" --output="$bin" main.roc > /dev/null)
+		# Exit 2 is warnings only, such as the dbg in packages/meshes. build.roc allows it too.
+		set +e
+		(cd "examples/$game" && roc build --target="$target" --opt="$opt" --output="$bin" main.roc) > "$log" 2>&1
+		code=$?
+		set -e
+		if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+			cat "$log" >&2
+			echo "FAIL: roc build for $game --opt=$opt exited with $code" >&2
+			exit 1
+		fi
 		set +e
 		(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES ROCCO_ALLOC_REPORT=1 ${RUN_PREFIX:-} "$bin") > "$log" 2>&1
 		code=$?
