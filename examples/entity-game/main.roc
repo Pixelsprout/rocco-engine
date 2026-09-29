@@ -7,7 +7,7 @@ import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
-Kind : [Player, Pickup, Door({ open : Bool })]
+Kind : [Player, Pickup, Door({ open : Bool, lift : F32 })]
 
 Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
 
@@ -37,7 +37,7 @@ resolve_meshes = |config| {
 new_game : MeshIds, U64 -> Model
 new_game = |meshes, pickups| {
 	player = { id: 0, kind: Player, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
-	door = { id: 1, kind: Door({ open: Bool.False }), pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
+	door = { id: 1, kind: Door({ open: Bool.False, lift: 0.0 }), pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
 
 	var $pickups = List.with_capacity(pickups)
 	var $i = 0
@@ -65,6 +65,7 @@ step = |model, input, dt|
 		|> spin(dt)
 		|> collect
 		|> open_door
+		|> raise_door(dt)
 		|> sweep
 		|> count_step
 
@@ -166,12 +167,28 @@ open_door = |m| {
 		map_entities(
 			m,
 			|e| match e.kind {
-				Door(_) => { ..e, kind: Door({ open: Bool.True }) }
+				Door(d) => { ..e, kind: Door({ ..d, open: Bool.True }) }
 				_ => e
 			},
 		)
 	}
 }
+
+# Units per second, and how far the door rises.
+door_speed : F32
+door_speed = 3.0
+
+door_height : F32
+door_height = 3.0
+
+raise_door : Model, F32 -> Model
+raise_door = |m, dt| map_entities(
+	m,
+	|e| match e.kind {
+		Door(d) if d.open and d.lift < door_height => { ..e, kind: Door({ ..d, lift: F32.min(d.lift + door_speed * dt, door_height) }) }
+		_ => e
+	},
+)
 
 # keep_if allocates even when it keeps everything, so skip it on a quiet step.
 sweep : Model -> Model
@@ -196,7 +213,7 @@ floor_id : U64
 floor_id = 1_000_000
 
 camera_offset : Vec3
-camera_offset = { x: 0.0, y: 8.0, z: 8.0 }
+camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
 view : Model -> Scene
 view = |curr| {
@@ -221,12 +238,8 @@ draw = |meshes, e| {
 	match e.kind {
 		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Door({ open }) => {
-			lifted = if open {
-				{ ..pos, y: pos.y + 3.0 }
-			} else {
-				pos
-			}
+		Door(d) => {
+			lifted = { ..pos, y: pos.y + d.lift }
 			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
@@ -267,7 +280,7 @@ door_open : Model -> Bool
 door_open = |m| List.any(
 	m.entities,
 	|e| match e.kind {
-		Door({ open }) => open
+		Door(d) => d.open
 		_ => Bool.False
 	},
 )
@@ -391,6 +404,47 @@ expect {
 	after.score == 2 and door_open(after) and List.len(after.entities) == 2
 }
 
+door_lift : Model -> F32
+door_lift = |m| List.fold(
+	m.entities,
+	-1.0,
+	|acc, e| match e.kind {
+		Door(d) => d.lift
+		_ => acc
+	},
+)
+
+door_draw_y : Model -> F32
+door_draw_y = |m| List.find_first(view(m).draws, |d| d.id == 1).map_ok(|d| d.pos.y) ?? -1.0
+
+on_every_pickup : Model -> Model
+on_every_pickup = |m| map_entities(
+	m,
+	|e| if is_pickup(e) {
+		{ ..e, pos: origin }
+	} else {
+		e
+	},
+)
+
+expect {
+	# The door starts to rise on the step it opens, at door_speed.
+	after = step(on_every_pickup(new_game(test_meshes, 2)), idle, 0.1)
+	near(door_lift(after), door_speed * 0.1) and near(door_draw_y(after), 1.5 + door_speed * 0.1)
+}
+
+expect {
+	# Given time, the door stops at door_height.
+	after = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 30, 0.1)
+	near(door_lift(after), door_height) and near(door_draw_y(after), 1.5 + door_height)
+}
+
+expect {
+	# A shut door does not rise.
+	after = run_steps(new_game(test_meshes, 2), idle, 30, 0.1)
+	door_lift(after) == 0.0 and near(door_draw_y(after), 1.5)
+}
+
 expect {
 	# Nothing touched: the door stays shut and nothing is swept.
 	after = step(new_game(test_meshes, 4), idle, 1.0 / 120.0)
@@ -422,5 +476,5 @@ expect {
 expect {
 	# The camera follows the player from a fixed offset.
 	scene = view(step(new_game(test_meshes, 1), right, 1.0))
-	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 8.0
+	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 1.5
 }
