@@ -60,7 +60,7 @@ step : Model, Input, F32 -> Model
 step = |model, input, dt|
 	model
 		|> steer(input)
-		|> face
+		|> face(dt)
 		|> integrate(dt)
 		|> spin(dt)
 		|> collect
@@ -84,15 +84,43 @@ steer = |m, input| map_entities(
 	},
 )
 
+# Radians per second.
+turn_speed : F32
+turn_speed = 12.0
+
 # The sprout's front is +z, and a yaw of atan2(x, z) turns +z to face (x, z).
-face : Model -> Model
-face = |m| map_entities(
+face : Model, F32 -> Model
+face = |m, dt| map_entities(
 	m,
 	|e| match e.kind {
-		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: atan2(e.vel.x, e.vel.z) }
+		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: turn_toward(e.yaw, atan2(e.vel.x, e.vel.z), turn_speed * dt) }
 		_ => e
 	},
 )
+
+# Both angles stay in (-pi, pi], so one wrap of the difference picks the short way.
+turn_toward : F32, F32, F32 -> F32
+turn_toward = |from, to, max_turn| {
+	diff = wrap_angle(to - from)
+	turn = if diff > max_turn {
+		max_turn
+	} else if diff < -max_turn {
+		-max_turn
+	} else {
+		diff
+	}
+	wrap_angle(from + turn)
+}
+
+wrap_angle : F32 -> F32
+wrap_angle = |a|
+	if a > pi {
+		a - 2.0 * pi
+	} else if a <= -pi {
+		a + 2.0 * pi
+	} else {
+		a
+	}
 
 integrate : Model, F32 -> Model
 integrate = |m, dt| map_entities(m, |e| { ..e, pos: add(e.pos, scale(e.vel, dt)) })
@@ -318,14 +346,51 @@ expect {
 	}
 }
 
+yaw_of : Model -> F32
+yaw_of = |m| player(m).map_ok(|p| p.yaw) ?? -100.0
+
+near : F32, F32 -> Bool
+near = |a, b| (a - b).abs() < 0.0001
+
+run_steps : Model, Input, U64, F32 -> Model
+run_steps = |m, input, n, dt| {
+	var $m = m
+	var $i = 0
+	while $i < n {
+		$m = step($m, input, dt)
+		$i = $i + 1
+	}
+	$m
+}
+
+facing : Model, F32 -> Model
+facing = |m, yaw| map_entities(
+	m,
+	|e| match e.kind {
+		Player => { ..e, yaw }
+		_ => e
+	},
+)
+
 expect {
-	# The player turns to face where it moves and keeps that yaw when it stops.
-	yaw_of = |m| player(m).map_ok(|p| p.yaw) ?? -100.0
-	near = |a, b| (a - b).abs() < 0.0001
-	moved = step(new_game(test_meshes, 0), right, 0.1)
-	stopped = step(moved, idle, 0.1)
-	back = step(stopped, { ..idle, held: [Key.code(W)] }, 0.1)
-	near(yaw_of(moved), 1.5707963) and near(yaw_of(stopped), 1.5707963) and near(yaw_of(back), 3.1415927)
+	# One short step turns the player part of the way, at turn_speed.
+	moved = step(new_game(test_meshes, 0), right, 0.05)
+	near(yaw_of(moved), turn_speed * 0.05)
+}
+
+expect {
+	# Given time, the player faces where it moves, and keeps that yaw when it stops.
+	moved = run_steps(new_game(test_meshes, 0), right, 20, 0.05)
+	stopped = run_steps(moved, idle, 5, 0.05)
+	back = run_steps(stopped, { ..idle, held: [Key.code(W)] }, 20, 0.05)
+	near(yaw_of(moved), pi / 2.0) and near(yaw_of(stopped), pi / 2.0) and near(yaw_of(back), pi)
+}
+
+expect {
+	# From 3/4 pi toward -3/4 pi, the short way is up through pi.
+	m = facing(new_game(test_meshes, 0), 0.75 * pi)
+	turned = step(m, { ..idle, held: [Key.code(W), Key.code(A)] }, 0.05)
+	yaw_of(turned) > 0.75 * pi
 }
 
 expect {
