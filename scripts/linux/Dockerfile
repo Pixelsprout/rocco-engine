@@ -4,7 +4,7 @@
 FROM ubuntu:24.04
 
 ARG ODIN_RELEASE=dev-2026-08
-ARG ROC_NIGHTLY=2026-09-12-220fd47
+ARG ROC_NIGHTLY=2026-09-27-a3ce7f1
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

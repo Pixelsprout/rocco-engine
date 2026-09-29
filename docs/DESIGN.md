@@ -223,7 +223,7 @@ so they stay publishable. The aliases are structural, so a package's
 `{ x : F32, y : F32, z : F32 }` and the vocabulary's `Vec3` are one type.
 
 Evidence: two unrelated games link and run against one host library on
-`nightly-2026-09-12-220fd47`. See `examples/cards` and `examples/entity-game`.
+`nightly-2026-09-27-a3ce7f1`. See `examples/cards` and `examples/entity-game`.
 `scripts/host-check.sh` links both and checks that the host library and the
 glue do not change. The Zig glue output for that platform contains no game
 word.
@@ -345,7 +345,7 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - One allocation and one free per step for each non-empty `Input` list. The
   refcount-1 axiom costs this. The pool removes it.
 - `List.map`, `List.keep_if` and `List.concat` can allocate where a
-  `List.set` loop does not. Under `--opt=dev`, `List.map` always copies.
+  `List.update` loop does not. Under `--opt=dev`, `List.map` always copies.
   See section 10.
 - Functional entities need explicit ids. Put `id : U64` on the entity record.
 - The glue must learn `U32`, `Str`, `Box` and `List(U16)` before this
@@ -369,8 +369,8 @@ under `xvfb-run` with software GL.
   and the dropped `Scene`. No step reallocates. The live block count stays
   constant: 3 for cards, 4 for entity-game. Shutdown leaves no Roc block.
 - In-place mutation with a boxed `Model`. `Box.unbox` on a unique box does
-  not copy the `Model`, and a `List.set` loop over the entity list mutates
-  in place on both backends.
+  not copy the `Model`, and a `List.update` loop over the entity list
+  mutates in place on both backends.
 - `view` at step rate is under budget. Mean time per fixed step, in
   microseconds, including the host's `Input` lists and `Scene` drop:
 
@@ -390,7 +390,10 @@ under `xvfb-run` with software GL.
 The measurement found these costs in game code. Section 9 lists them.
 
 - `List.map` copies the list under `--opt=dev`. Under `--opt=speed` it
-  mutates in place. entity-game uses a `List.set` loop for this reason.
+  mutates in place. entity-game uses a `List.update` loop for this reason.
+- On `nightly-2026-09-27-a3ce7f1`, the loop copies the list on every update
+  under `--opt=dev` if the fallback of `??` names the list. A fallback that
+  holds the list is a second reference. entity-game uses `?? []`.
 - `List.keep_if` allocates even when it keeps every element.
   `List.concat([x], list)` allocates twice. entity-game skips the first on a
   quiet step and builds its draws with `List.with_capacity`.

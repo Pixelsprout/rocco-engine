@@ -34,7 +34,7 @@ In an existing clone, run `git submodule update --init`.
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
 | Odin | `dev-2026-08`, on `PATH` | In the Docker image | `dev-2026-08` windows-amd64 release, on `PATH` |
-| Roc | `nightly-2026-09-12-220fd47`, on `PATH` | In the Docker image | `nightly-2026-09-12-220fd47` windows_x86_64 zip, on `PATH` |
+| Roc | `nightly-2026-09-27-a3ce7f1`, on `PATH` | In the Docker image | `nightly-2026-09-27-a3ce7f1` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload, and a Windows SDK |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `build_clibs_windows.cmd` in `sokol-odin/sokol/`, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
@@ -237,7 +237,7 @@ A game is a Roc app whose header names this platform. Point `pf` at a
 checkout of this repo:
 
 ```roc
-app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../rocco-engine/platform/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../rocco-engine/platform/main.roc" }
 ```
 
 The platform is not published as a Roc package URL yet. Until then, the

@@ -1,4 +1,4 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-12-220fd47", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
 
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
@@ -88,12 +88,12 @@ steer = |m, input| map_entities(
 turn_speed : F32
 turn_speed = 12.0
 
-# The sprout's front is +z, and a yaw of atan2(x, z) turns +z to face (x, z).
+# The sprout's front is +z, so the yaw that faces (x, z) is the angle of (z, x).
 face : Model, F32 -> Model
 face = |m, dt| map_entities(
 	m,
 	|e| match e.kind {
-		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: turn_toward(e.yaw, atan2(e.vel.x, e.vel.z), turn_speed * dt) }
+		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: turn_toward(e.yaw, F32.atan2({ x: e.vel.z, y: e.vel.x }), turn_speed * dt) }
 		_ => e
 	},
 )
@@ -234,17 +234,15 @@ draw = |meshes, e| {
 
 # ---- helpers -------------------------------------------------------------
 
-# A List.set loop, because List.map copies the list under --opt=dev on
-# nightly-2026-09-12-220fd47. --opt=speed mutates in place either way.
+# A List.update loop, because List.map copies the list under --opt=dev.
+# The fallback must not name $entities: a second reference makes each update
+# copy the list. The index is always in range, so [] is never used.
 map_entities : Model, (Entity -> Entity) -> Model
 map_entities = |m, f| {
 	var $entities = m.entities
 	var $i = 0
 	while $i < List.len($entities) {
-		$entities = match List.get($entities, $i) {
-			Ok(e) => List.set($entities, $i, f(e)) ?? $entities
-			Err(_) => $entities
-		}
+		$entities = List.update($entities, $i, f) ?? []
 		$i = $i + 1
 	}
 	{ ..m, entities: $entities }
@@ -288,21 +286,6 @@ scale = |v, s| { x: v.x * s, y: v.y * s, z: v.z * s }
 
 pi : F32
 pi = 3.1415927
-
-# The builtins have atan but no atan2 on nightly-2026-09-12-220fd47.
-atan2 : F32, F32 -> F32
-atan2 = |y, x|
-	if x > 0.0 {
-		(y / x).atan()
-	} else if x < 0.0 {
-		if y >= 0.0 { (y / x).atan() + pi } else { (y / x).atan() - pi }
-	} else if y > 0.0 {
-		pi / 2.0
-	} else if y < 0.0 {
-		-pi / 2.0
-	} else {
-		0.0
-	}
 
 dist2 : Vec3, Vec3 -> F32
 dist2 = |a, b| {

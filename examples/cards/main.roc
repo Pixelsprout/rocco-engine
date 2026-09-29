@@ -1,4 +1,4 @@
-app [init, step, view] { roc: "nightly-2026-09-12-220fd47", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
 
 import cam.Camera as Cam
 import meshes.Meshes as Meshes
