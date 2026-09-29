@@ -74,16 +74,16 @@ step = |m, input, dt| {
 }
 
 white : Rgb
-white = { r: 0.95, g: 0.95, b: 0.95 }
+white = { r: 0.89, g: 0.89, b: 0.89 }
 
 gray : Rgb
-gray = { r: 0.6, g: 0.6, b: 0.6 }
+gray = { r: 0.319, g: 0.319, b: 0.319 }
 
 green : Rgb
-green = { r: 0.2, g: 0.9, b: 0.3 }
+green = { r: 0.033, g: 0.787, b: 0.073 }
 
 red : Rgb
-red = { r: 0.9, g: 0.2, b: 0.2 }
+red = { r: 0.787, g: 0.033, b: 0.033 }
 
 # The winning side's pips turn green and the loser's red, but only once the
 # game has ended. Otherwise both sides stay gray.
@@ -107,11 +107,11 @@ view : Model -> Scene
 view = |m| {
 	c = m.cube
 	fixed = [
-		box(c, 10, { x: 0.0, y: -0.1, z: 0.0 }, { x: 2.0 * half_width, y: 0.1, z: 2.0 * half_depth }, { r: 0.1, g: 0.12, b: 0.15 }),
+		box(c, 10, { x: 0.0, y: -0.1, z: 0.0 }, { x: 2.0 * half_width, y: 0.1, z: 2.0 * half_depth }, { r: 0.01, g: 0.013, b: 0.02 }),
 		box(c, 11, { x: 0.0, y: 0.1, z: -half_depth - 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white),
 		box(c, 12, { x: 0.0, y: 0.1, z: half_depth + 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white),
-		box(c, 0, { x: -paddle_x, y: 0.2, z: m.left }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 0.3, g: 0.7, b: 1.0 }),
-		box(c, 1, { x: paddle_x, y: 0.2, z: m.right }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 1.0, g: 0.5, b: 0.3 }),
+		box(c, 0, { x: -paddle_x, y: 0.2, z: m.left }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 0.073, g: 0.448, b: 1.0 }),
+		box(c, 1, { x: paddle_x, y: 0.2, z: m.right }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 1.0, g: 0.214, b: 0.073 }),
 		box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white),
 	]
 

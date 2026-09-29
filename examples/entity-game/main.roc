@@ -172,7 +172,7 @@ camera_offset = { x: 0.0, y: 8.0, z: 8.0 }
 
 view : Model -> Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.25, g: 0.25, b: 0.28 } }
+	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation for every draw. List.concat would allocate twice.
 	first = List.with_capacity(List.len(curr.entities) + 1).append(floor)
@@ -192,14 +192,14 @@ draw = |meshes, e| {
 	yaw = e.yaw
 	match e.kind {
 		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.2, g: 0.9, b: 0.4 } }
+		Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
 		Door({ open }) => {
 			lifted = if open {
 				{ ..pos, y: pos.y + 3.0 }
 			} else {
 				pos
 			}
-			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.5, g: 0.3, b: 0.8 } }
+			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
 }

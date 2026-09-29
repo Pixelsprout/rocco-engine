@@ -297,6 +297,10 @@ ones that change the design.
   tint `(1, 1, 1)`. `step` turns the player to face its velocity and keeps
   the last yaw when it stops. Until `sprout.glb` exists, the player draws
   magenta.
+- Colours and tints are linear, like glTF. The fragment shader lights in
+  linear and encodes the result to sRGB, because the swapchain is not sRGB on
+  every backend. The game tints were converted once to keep their look.
+  Agreed 2026-09-29, after the sprout drew redder than in Blender.
 - No ADR.
 
 ### The sprout asset contract

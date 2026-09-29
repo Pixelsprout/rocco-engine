@@ -41,11 +41,18 @@ in vec3 v_nrm;
 
 out vec4 frag_color;
 
+// The swapchain is not sRGB on every backend, so the shader encodes. Colours
+// and tints are linear, like glTF, and the lighting runs in linear.
+vec3 linear_to_srgb(vec3 c) {
+    c = clamp(c, 0.0, 1.0);
+    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+
 void main() {
     vec3 n = normalize(v_nrm);
     float diffuse = max(dot(n, normalize(light_dir.xyz)), 0.0);
     vec3 lighting = ambient.rgb + light_color.rgb * diffuse;
-    frag_color = vec4(v_col.rgb * tint.rgb * lighting, v_col.a);
+    frag_color = vec4(linear_to_srgb(v_col.rgb * tint.rgb * lighting), v_col.a);
 }
 @end
 

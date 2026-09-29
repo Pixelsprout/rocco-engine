@@ -120,8 +120,8 @@ It is a description, not a command.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
 **Tint**:
-The colour of a Draw, as an `Rgb` record with channels from 0 to 1. The host
-multiplies the mesh colour by it.
+The colour of a Draw, as an `Rgb` record with linear channels from 0 to 1.
+The host multiplies the mesh colour by it.
 _Avoid_: colour (for the field), albedo, Vec3 colour
 
 **Camera**:

@@ -27,9 +27,9 @@ view : Model -> Scene
 view = |m| {
     draws = List.map_with_index(m.hand, |card, i| {
         tint = match card {
-            Ace => { r: 1.0, g: 0.9, b: 0.2 }
-            King => { r: 0.8, g: 0.2, b: 0.2 }
-            Number(_) => { r: 0.9, g: 0.9, b: 0.9 }
+            Ace => { r: 1.0, g: 0.787, b: 0.033 }
+            King => { r: 0.604, g: 0.033, b: 0.033 }
+            Number(_) => { r: 0.787, g: 0.787, b: 0.787 }
         }
         # The slot index is the draw id: a card slides to its slot when dealt.
         { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, yaw: 0.0, tint }

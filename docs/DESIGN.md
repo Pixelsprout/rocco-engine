@@ -97,7 +97,9 @@ events go to the other window. Decision.
 
 A tint is an `Rgb`, not a `Vec3`. Roc records are structural, so the two
 names keep a position from passing as a colour. Each channel runs from 0 to
-1. The host multiplies the mesh colour by the tint. Decision.
+1 and is linear, like a glTF colour. The host multiplies the mesh colour by
+the tint, lights the result in linear, and the shader encodes it to sRGB for
+the screen. Decision.
 
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in
