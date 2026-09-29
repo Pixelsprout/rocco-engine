@@ -8,7 +8,7 @@ LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 
-// The sokol adapter is renderer_draw. Tests record the calls instead.
+// Lets tests run without sokol.
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 
 Frame_Render :: struct {

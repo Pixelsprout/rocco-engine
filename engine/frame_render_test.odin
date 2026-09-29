@@ -171,9 +171,8 @@ test_frame_render_draws_every_draw_at_itself_when_the_scenes_are_one :: proc(t: 
 	got := frame_fixture_draw(&f, scene, scene, 0.5)
 
 	testing.expect_value(t, len(got), 2)
-	for d, i in draws {
-		expect_mat4_near(t, got[i].model, draw_model_matrix(draw_transform(d, d, 0)))
-	}
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}}))
+	expect_mat4_near(t, got[1].model, draw_model_matrix({position = {0, 2, 0}, scale = {2, 2, 2}, yaw = 3}))
 }
 
 @(test)
@@ -182,7 +181,7 @@ test_frame_render_submits_the_fallback_with_a_white_tint :: proc(t: ^testing.T) 
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	draws := []Draw{{id = 1, mesh = 0, tint = {r = 1}}, {id = 2, mesh = MESH_CAPACITY + 1, tint = {g = 1}}}
+	draws := []Draw{{id = 1, mesh = 0, tint = {r = 1}}, {id = 2, mesh = u32(f.meshes.count), tint = {g = 1}}}
 	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
 
 	testing.expect_value(t, len(got), 2)
