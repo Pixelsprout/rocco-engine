@@ -13,7 +13,7 @@ Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Boo
 
 # The ids this game resolved from the manifest at init. Resolved once, kept
 # in the Model, never looked up per step.
-MeshIds : { cube : U32, sphere : U32, plane : U32 }
+MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32 }
 
 Model : { steps : U64, score : U64, meshes : MeshIds, entities : List(Entity) }
 
@@ -31,6 +31,7 @@ resolve_meshes = |config| {
 	cube: Meshes.primitive(config, Cube),
 	sphere: Meshes.primitive(config, Sphere),
 	plane: Meshes.primitive(config, Plane),
+	sprout: Meshes.named(config, "sprout"),
 }
 
 new_game : MeshIds, U64 -> Model
@@ -59,6 +60,7 @@ step : Model, Input, F32 -> Model
 step = |model, input, dt|
 	model
 		|> steer(input)
+		|> face
 		|> integrate(dt)
 		|> spin(dt)
 		|> collect
@@ -78,6 +80,16 @@ steer = |m, input| map_entities(
 	m,
 	|e| match e.kind {
 		Player => { ..e, vel: scale(move_dir(input), speed) }
+		_ => e
+	},
+)
+
+# The sprout's front is +z, and a yaw of atan2(x, z) turns +z to face (x, z).
+face : Model -> Model
+face = |m| map_entities(
+	m,
+	|e| match e.kind {
+		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: atan2(e.vel.x, e.vel.z) }
 		_ => e
 	},
 )
@@ -179,7 +191,7 @@ draw = |meshes, e| {
 	pos = e.pos
 	yaw = e.yaw
 	match e.kind {
-		Player => { id: e.id, mesh: meshes.cube, pos, scale: one, yaw, tint: { r: 0.9, g: 0.6, b: 0.2 } }
+		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.2, g: 0.9, b: 0.4 } }
 		Door({ open }) => {
 			lifted = if open {
@@ -246,6 +258,24 @@ add = |a, b| { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
 scale : Vec3, F32 -> Vec3
 scale = |v, s| { x: v.x * s, y: v.y * s, z: v.z * s }
 
+pi : F32
+pi = 3.1415927
+
+# The builtins have atan but no atan2 on nightly-2026-09-12-220fd47.
+atan2 : F32, F32 -> F32
+atan2 = |y, x|
+	if x > 0.0 {
+		(y / x).atan()
+	} else if x < 0.0 {
+		if y >= 0.0 { (y / x).atan() + pi } else { (y / x).atan() - pi }
+	} else if y > 0.0 {
+		pi / 2.0
+	} else if y < 0.0 {
+		-pi / 2.0
+	} else {
+		0.0
+	}
+
 dist2 : Vec3, Vec3 -> F32
 dist2 = |a, b| {
 	d = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }
@@ -256,7 +286,7 @@ dist2 = |a, b| {
 
 # What the engine would hand init on this machine.
 manifest : Config
-manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }] }
+manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }, { name: "sprout", id: 4 }] }
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
@@ -273,10 +303,29 @@ expect {
 }
 
 expect {
-	# A plane floor, a cube player and door, and sphere pickups.
+	# A plane floor, a sprout player, a cube door and sphere pickups.
 	scene = view(new_game(test_meshes, 1))
 	mesh_of = |id| List.find_first(scene.draws, |d| d.id == id).map_ok(|d| d.mesh) ?? 0
-	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.cube and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.sphere
+	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.sphere
+}
+
+expect {
+	# The sprout carries its own colours, so its tint is white.
+	scene = view(new_game(test_meshes, 1))
+	match List.find_first(scene.draws, |d| d.id == 0) {
+		Ok(d) => d.tint == { r: 1.0, g: 1.0, b: 1.0 }
+		Err(_) => Bool.False
+	}
+}
+
+expect {
+	# The player turns to face where it moves and keeps that yaw when it stops.
+	yaw_of = |m| player(m).map_ok(|p| p.yaw) ?? -100.0
+	near = |a, b| (a - b).abs() < 0.0001
+	moved = step(new_game(test_meshes, 0), right, 0.1)
+	stopped = step(moved, idle, 0.1)
+	back = step(stopped, { ..idle, held: [Key.code(W)] }, 0.1)
+	near(yaw_of(moved), 1.5707963) and near(yaw_of(stopped), 1.5707963) and near(yaw_of(back), 3.1415927)
 }
 
 expect {
