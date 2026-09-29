@@ -44,8 +44,9 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	// Name the meshes before sokol starts, so the manifest does not wait on the GPU.
+	// Name and load the meshes before sokol starts, so the manifest does not wait on the GPU.
 	mesh_table_init(&g_state.renderer.meshes, g_state.mem.perm_allocator)
+	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
 	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes, g_state.mem.perm_allocator, alloc_report_from_env())
 
 	sapp.run(

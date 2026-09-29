@@ -29,6 +29,7 @@ MAGENTA :: [4]f32{1, 0, 1, 1}
 
 Mesh :: struct {
 	name:        string,
+	data:        Mesh_Data, // Loaded files only. Primitives build theirs at upload.
 	vertices:    sg.Buffer,
 	indices:     sg.Buffer,
 	index_count: int,
@@ -59,10 +60,13 @@ mesh_table_destroy :: proc(t: ^Mesh_Table) {
 	delete(t.logged)
 }
 
-// Needs sokol set up. The vertex data is scratch and dies with the frame.
+// Needs sokol set up. The primitive vertex data is scratch and dies with the frame.
 mesh_table_upload :: proc(t: ^Mesh_Table) {
 	for p in Primitive {
 		mesh_upload(&t.meshes[p], primitive_build(p, context.temp_allocator))
+	}
+	for &m in t.meshes[len(Primitive):t.count] {
+		mesh_upload(&m, m.data)
 	}
 }
 
