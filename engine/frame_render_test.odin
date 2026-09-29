@@ -73,3 +73,158 @@ test_camera_interpolates_eye_and_target_and_takes_the_new_fov :: proc(t: ^testin
 	testing.expect_value(t, c.target, [3]f32{1, 0, 0})
 	testing.expect_value(t, c.fov_y, 2)
 }
+
+Submitted :: struct {
+	mesh:  ^Mesh,
+	model: Mat4,
+	tint:  [4]f32,
+}
+
+Recorder :: struct {
+	submits: [dynamic]Submitted,
+}
+
+record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
+	r := (^Recorder)(ctx)
+	append(&r.submits, Submitted{mesh = mesh, model = vs_params.model, tint = fs_params.tint})
+}
+
+// The table is never uploaded, so the tests need no sokol setup.
+Frame_Fixture :: struct {
+	fr:     Frame_Render,
+	meshes: Mesh_Table,
+	rec:    Recorder,
+}
+
+frame_fixture_init :: proc(f: ^Frame_Fixture) {
+	frame_render_init(&f.fr, context.allocator)
+	mesh_table_init(&f.meshes, context.allocator)
+	f.rec.submits = make([dynamic]Submitted, context.allocator)
+	f.fr.submit = record_submit
+	f.fr.submit_ctx = &f.rec
+}
+
+frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
+	delete(f.rec.submits)
+	mesh_table_destroy(&f.meshes)
+	frame_render_destroy(&f.fr)
+}
+
+frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32) -> []Submitted {
+	clear(&f.rec.submits)
+	frame_render_draw(&f.fr, prev, curr, alpha, 1, &f.meshes)
+	return f.rec.submits[:]
+}
+
+// The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
+scene_of :: proc(draws: []Draw) -> Scene {
+	return {draws = {elements = raw_data(draws), length = uint(len(draws))}}
+}
+
+expect_mat4_near :: proc(t: ^testing.T, got, want: Mat4, loc := #caller_location) {
+	for c in 0 ..< 4 {
+		for r in 0 ..< 4 {
+			if abs(got[r, c] - want[r, c]) > EPS {
+				testing.expectf(t, false, "got %v, want %v", got, want, loc = loc)
+				return
+			}
+		}
+	}
+}
+
+@(test)
+test_frame_render_interpolates_a_draw_with_a_partner :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 1, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}, yaw = 0}}
+	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.25)
+
+	testing.expect_value(t, len(got), 1)
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}, yaw = 0.25}))
+}
+
+@(test)
+test_frame_render_draws_a_draw_with_no_partner_at_itself :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 2, mesh = 1, pos = {9, 9, 9}, scale = {1, 1, 1}}}
+	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.25)
+
+	testing.expect_value(t, len(got), 1)
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}))
+}
+
+@(test)
+test_frame_render_draws_every_draw_at_itself_when_the_scenes_are_one :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = 1, pos = {1, 0, 0}, scale = {1, 1, 1}}, {id = 2, mesh = 2, pos = {0, 2, 0}, scale = {2, 2, 2}, yaw = 3}}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0.5)
+
+	testing.expect_value(t, len(got), 2)
+	for d, i in draws {
+		expect_mat4_near(t, got[i].model, draw_model_matrix(draw_transform(d, d, 0)))
+	}
+}
+
+@(test)
+test_frame_render_submits_the_fallback_with_a_white_tint :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = 0, tint = {r = 1}}, {id = 2, mesh = MESH_CAPACITY + 1, tint = {g = 1}}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	testing.expect_value(t, len(got), 2)
+	for s in got {
+		testing.expect(t, s.mesh == &f.meshes.meshes[Primitive.Fallback])
+		testing.expect_value(t, s.tint, [4]f32{1, 1, 1, 1})
+	}
+}
+
+@(test)
+test_frame_render_submits_a_known_mesh_with_its_tint :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere), tint = {r = 0.2, g = 0.4, b = 0.6}}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	testing.expect_value(t, len(got), 1)
+	testing.expect(t, got[0].mesh == &f.meshes.meshes[Primitive.Sphere])
+	testing.expect_value(t, got[0].tint, [4]f32{0.2, 0.4, 0.6, 1})
+}
+
+@(test)
+test_frame_render_pairs_a_shared_id_with_the_first_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 5, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}}, {id = 5, mesh = 1, pos = {10, 0, 0}, scale = {1, 1, 1}}}
+	curr := []Draw{{id = 5, mesh = 1, pos = {2, 0, 0}, scale = {1, 1, 1}}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.5)
+
+	testing.expect_value(t, len(got), 1)
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}}))
+}
+
+@(test)
+test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t: ^testing.T) {
+	prev := Scene{camera = {eye = {0, 8, 8}, target = {0, 0, 0}, fov_y = 1}}
+	curr := Scene{camera = {eye = {2, 8, 8}, target = {2, 0, 0}, fov_y = 2}}
+	got := frame_render_camera(prev, curr, 0.5, 16.0 / 9.0)
+	want := scene_view_proj({eye = {1, 8, 8}, target = {1, 0, 0}, fov_y = 2}, 16.0 / 9.0)
+	expect_mat4_near(t, got, want)
+}

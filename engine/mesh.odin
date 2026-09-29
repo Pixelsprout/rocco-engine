@@ -28,6 +28,12 @@ PRIMITIVE_NAMES := [Primitive]string {
 GREY :: [4]f32{0.8, 0.8, 0.8, 1}
 MAGENTA :: [4]f32{1, 0, 1, 1}
 
+Vertex :: struct {
+	pos:   [3]f32,
+	color: [4]f32,
+	normal: [3]f32,
+}
+
 Mesh :: struct {
 	name:        string,
 	data:        Mesh_Data, // Loaded files only. Primitives build theirs at upload.

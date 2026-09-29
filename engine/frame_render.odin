@@ -8,8 +8,13 @@ LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 
+// The sokol adapter is renderer_draw. Tests record the calls instead.
+Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
+
 Frame_Render :: struct {
-	pairing: Pairing,
+	pairing:    Pairing,
+	submit:     Submit,
+	submit_ctx: rawptr,
 }
 
 frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
@@ -25,7 +30,7 @@ frame_render_camera :: proc(prev, curr: Scene, alpha, aspect: f32) -> Mat4 {
 }
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
-frame_render_draw :: proc(fr: ^Frame_Render, r: ^Renderer, prev, curr: Scene, alpha: f32, view_proj: Mat4, meshes: ^Mesh_Table) {
+frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, meshes: ^Mesh_Table) {
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	for d in curr.draws.elements[:curr.draws.length] {
 		from := d
@@ -35,8 +40,8 @@ frame_render_draw :: proc(fr: ^Frame_Render, r: ^Renderer, prev, curr: Scene, al
 		model := draw_model_matrix(draw_transform(from, d, alpha))
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
 		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
-		renderer_draw(
-			r,
+		fr.submit(
+			fr.submit_ctx,
 			mesh,
 			vs_params = {mvp = view_proj * model, model = model},
 			fs_params = {

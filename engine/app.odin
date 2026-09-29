@@ -78,6 +78,8 @@ init_cb :: proc "c" () {
 	}
 
 	renderer_init(&g_state.renderer)
+	g_state.frame_render.submit = renderer_draw
+	g_state.frame_render.submit_ctx = &g_state.renderer
 }
 
 frame_cb :: proc "c" () {
@@ -105,7 +107,7 @@ frame_cb :: proc "c" () {
 		view_proj = frame_render_camera(prev, curr, alpha, aspect)
 	}
 
-	frame_render_draw(&g_state.frame_render, &g_state.renderer, prev, curr, alpha, view_proj, &g_state.renderer.meshes)
+	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, &g_state.renderer.meshes)
 
 	sg.end_pass()
 	sg.commit()

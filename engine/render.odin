@@ -2,12 +2,6 @@ package engine
 
 import sg "../sokol-odin/sokol/gfx"
 
-Vertex :: struct {
-	pos:   [3]f32,
-	color: [4]f32,
-	normal: [3]f32,
-}
-
 Renderer :: struct {
 	pip:    sg.Pipeline,
 	meshes: Mesh_Table,
@@ -36,7 +30,8 @@ renderer_init :: proc(r: ^Renderer) {
 	r.pip = sg.make_pipeline(desc)
 }
 
-renderer_draw :: proc(r: ^Renderer, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
+renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
+	r := (^Renderer)(ctx)
 	sg.apply_pipeline(r.pip)
 	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
 
