@@ -6,17 +6,13 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-DEFAULT_ASSETS :: "assets"
-
 // A forward slash works on all three targets.
 mesh_dir_from_assets :: proc(assets: string, allocator: mem.Allocator) -> string {
 	return fmt.aprintf("%v/meshes", assets if assets != "" else DEFAULT_ASSETS, allocator = allocator)
 }
 
-// Loads each .glb at the top level of dir into the next free slot, in sorted
-// order so mesh ids are stable across runs. File bytes are frame scratch; the
-// names and mesh data live in level. A file that fails is skipped and logged,
-// so its name resolves to the fallback.
+// Sorted, so mesh ids are stable across runs. A file that fails is skipped
+// and logged, so its name resolves to the fallback.
 mesh_table_load_dir :: proc(t: ^Mesh_Table, dir: string, level: mem.Allocator) {
 	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil {

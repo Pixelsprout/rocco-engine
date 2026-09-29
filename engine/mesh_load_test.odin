@@ -3,8 +3,6 @@ package engine
 import "core:os"
 import "core:testing"
 
-TRIANGLE_PRIMITIVES :: `[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`
-
 // Each file path is relative to the new directory. Remove it with os.remove_all.
 temp_mesh_dir :: proc(t: ^testing.T, files: map[string][]byte) -> string {
 	dir, err := os.make_directory_temp("", "rocco-meshes-*", context.temp_allocator)

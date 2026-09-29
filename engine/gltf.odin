@@ -7,8 +7,8 @@ import "core:mem"
 import "core:slice"
 
 GLB_MAGIC :: 0x46546C67 // "glTF"
-GLB_CHUNK_JSON :: 0x4E4F534A
-GLB_CHUNK_BIN :: 0x004E4942
+GLB_CHUNK_JSON :: 0x4E4F534A // "JSON"
+GLB_CHUNK_BIN :: 0x004E4942 // "BIN\0"
 GLB_MAX_VERTICES :: 65_535
 
 GLTF_MODE_TRIANGLES :: 4
@@ -48,7 +48,7 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 	.Not_Triangles     = "a primitive is not triangles",
 	.No_Positions      = "a primitive has no POSITION",
 	.No_Normals        = "a primitive has no NORMAL",
-	.Bad_Accessor      = "an accessor has the wrong type or reads past its buffer",
+	.Bad_Accessor      = "an accessor has the wrong type, is sparse or reads past its buffer",
 	.Bad_Index         = "an index is out of range or the index count is not a multiple of 3",
 	.Too_Many_Vertices = "the mesh has more than 65,535 vertices",
 }
@@ -94,6 +94,7 @@ Gltf_Accessor :: struct {
 	component_type: int `json:"componentType"`,
 	count:          int,
 	type:           string,
+	sparse:         json.Value,
 }
 
 Gltf_Buffer_View :: struct {
@@ -110,9 +111,9 @@ Glb_Loader :: struct {
 	indices:  [dynamic]u16,
 }
 
-// Merges every triangle primitive of every mesh node in the scene into one
-// mesh. Scratch goes to the temp allocator, so a rejected file leaves nothing
-// in allocator.
+// Merges every triangle primitive of every mesh node in the glTF scene into
+// one mesh. Scratch is frame memory, so a rejected file leaves nothing in
+// allocator.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, err: Glb_Error) {
 	json_chunk, bin := glb_chunks(bytes) or_return
 
@@ -145,7 +146,7 @@ glb_chunks :: proc(bytes: []byte) -> (json_chunk, bin: []byte, err: Glb_Error) {
 		return nil, nil, .Bad_Version
 	}
 	total, _ := endian.get_u32(bytes[8:], .Little)
-	if int(total) > len(bytes) {
+	if total < 12 || int(total) > len(bytes) {
 		return nil, nil, .Bad_Chunks
 	}
 
@@ -246,8 +247,8 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 	if !has_nrm {
 		return .No_Normals
 	}
-	positions := glb_accessor(l, pos_index, GLTF_F32, "VEC3") or_return
-	normals := glb_accessor(l, nrm_index, GLTF_F32, "VEC3") or_return
+	positions := glb_vec3_accessor(l, pos_index) or_return
+	normals := glb_vec3_accessor(l, nrm_index) or_return
 	count := positions.count
 	if normals.count != count {
 		return .Bad_Accessor
@@ -265,7 +266,10 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 		color = l.gltf.materials[m].pbr.base_color_factor.? or_else {1, 1, 1, 1}
 	}
 
-	normal_matrix := linalg.matrix3_inverse_transpose_f32(linalg.matrix3_from_matrix4_f32(world))
+	basis := linalg.matrix3_from_matrix4_f32(world)
+	normal_matrix := linalg.matrix3_inverse_transpose_f32(basis)
+	// glTF reverses the winding under a mirroring transform.
+	mirrored := linalg.determinant(basis) < 0
 	for i in 0 ..< count {
 		pos := glb_read_vec3(positions, i)
 		nrm := glb_read_vec3(normals, i)
@@ -283,16 +287,21 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 	indices: Glb_View
 	index_accessor, indexed := p.indices.?
 	if indexed {
-		indices = glb_accessor(l, index_accessor, -1, "SCALAR") or_return
+		indices = glb_index_accessor(l, index_accessor) or_return
 		index_count = indices.count
 	}
 	if index_count % 3 != 0 {
 		return .Bad_Index
 	}
 	for i in 0 ..< index_count {
-		index := i
+		// A mirrored triangle swaps its last two corners.
+		corner := i
+		if mirrored && i % 3 != 0 {
+			corner = i + 1 if i % 3 == 1 else i - 1
+		}
+		index := corner
 		if indexed {
-			index = glb_read_index(indices, i)
+			index = glb_read_index(indices, corner)
 		}
 		if index < 0 || index >= count {
 			return .Bad_Index
@@ -310,13 +319,23 @@ Glb_View :: struct {
 	component_type: int,
 }
 
-// component_type -1 takes any index type.
-glb_accessor :: proc(l: ^Glb_Loader, index: int, component_type: int, type: string) -> (view: Glb_View, err: Glb_Error) {
+glb_vec3_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {
+	view = glb_accessor(l, index, "VEC3") or_return
+	return view, .None if view.component_type == GLTF_F32 else .Bad_Accessor
+}
+
+glb_index_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {
+	view = glb_accessor(l, index, "SCALAR") or_return
+	return view, .None if view.component_type != GLTF_F32 else .Bad_Accessor
+}
+
+// Every bounds check is written so a hostile int in the JSON cannot overflow it.
+glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_View, err: Glb_Error) {
 	if index < 0 || index >= len(l.gltf.accessors) {
 		return {}, .Bad_Accessor
 	}
 	a := &l.gltf.accessors[index]
-	if a.type != type {
+	if a.type != type || a.sparse != nil {
 		return {}, .Bad_Accessor
 	}
 	size: int
@@ -330,9 +349,6 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, component_type: int, type: stri
 	case:
 		return {}, .Bad_Accessor
 	}
-	if component_type == -1 ? a.component_type == GLTF_F32 : a.component_type != component_type {
-		return {}, .Bad_Accessor
-	}
 	if type == "VEC3" {
 		size *= 3
 	}
@@ -343,14 +359,15 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, component_type: int, type: stri
 		return {}, .Bad_Accessor
 	}
 	bv := &l.gltf.buffer_views[view_index]
+	if bv.buffer != 0 || bv.byte_offset < 0 || bv.byte_offset > len(l.bin) || bv.byte_length < 0 || bv.byte_length > len(l.bin) - bv.byte_offset {
+		return {}, .Bad_Accessor
+	}
 	stride := bv.byte_stride if bv.byte_stride != 0 else size
-	if bv.buffer != 0 || bv.byte_offset < 0 || bv.byte_length < 0 || bv.byte_offset + bv.byte_length > len(l.bin) {
+	if a.count < 0 || stride < size || a.byte_offset < 0 || a.byte_offset > bv.byte_length {
 		return {}, .Bad_Accessor
 	}
-	if a.count < 0 || stride < size || a.byte_offset < 0 {
-		return {}, .Bad_Accessor
-	}
-	if a.count > 0 && a.byte_offset + stride * (a.count - 1) + size > bv.byte_length {
+	room := bv.byte_length - a.byte_offset
+	if a.count > 0 && (room < size || a.count - 1 > (room - size) / stride) {
 		return {}, .Bad_Accessor
 	}
 	data := l.bin[bv.byte_offset:][:bv.byte_length][a.byte_offset:]

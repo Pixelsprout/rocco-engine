@@ -8,6 +8,7 @@ SEED_ENV :: "ROCCO_SEED"
 DEBUG_CAMERA_ENV :: "ROCCO_DEBUG_CAMERA"
 ALLOC_REPORT_ENV :: "ROCCO_ALLOC_REPORT"
 ASSETS_ENV :: "ROCCO_ASSETS"
+DEFAULT_ASSETS :: "assets"
 
 // Exits the process on a bad value, so a typo cannot change the run silently.
 seed_from_env :: proc() -> u64 {

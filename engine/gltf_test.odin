@@ -5,6 +5,8 @@ import "core:fmt"
 import "core:math/linalg"
 import "core:testing"
 
+TRIANGLE_PRIMITIVES :: `[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`
+
 // One triangle in x-y facing +z, then its indices as u16, u32 and u8.
 // Accessors: 0 POSITION, 1 NORMAL, 2 u16 indices, 3 u32 indices, 4 u8 indices.
 TRIANGLE_BUFFERS :: `"buffers":[{"byteLength":96}],
@@ -123,8 +125,7 @@ test_glb_rejects_a_primitive_that_is_not_triangles :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, Glb_Error.Not_Triangles)
 }
 
-// The parent moves up 2 with a column-major matrix. The child scales by 2,
-// then turns 90 degrees about +y, which takes +x to -z and +z to +x.
+// The parent's matrix is column-major, so its translation is the last four numbers.
 @(test)
 test_glb_bakes_each_node_world_transform_into_positions_and_normals :: proc(t: ^testing.T) {
 	nodes := `[
@@ -175,4 +176,55 @@ test_glb_rejects_a_mesh_with_more_than_65535_vertices :: proc(t: ^testing.T) {
 	)
 	_, err := glb_parse(glb_make(json, make([]byte, COUNT * 12, context.temp_allocator)), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Too_Many_Vertices)
+}
+
+@(test)
+test_glb_rejects_a_header_length_shorter_than_the_header :: proc(t: ^testing.T) {
+	bytes := triangle_glb(TRIANGLE_PRIMITIVES)
+	endian.put_u32(bytes[8:], .Little, 4)
+	_, err := glb_parse(bytes, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Bad_Chunks)
+}
+
+@(test)
+test_glb_rejects_an_accessor_offset_past_its_buffer_view :: proc(t: ^testing.T) {
+	Case :: struct {
+		accessor: string,
+		view:     string,
+	}
+	cases := []Case {
+		{`{"bufferView":0,"byteOffset":1000,"componentType":5126,"count":0,"type":"VEC3"}`, `{"buffer":0,"byteLength":36}`},
+		{`{"bufferView":0,"componentType":5126,"count":4611686018427387904,"type":"VEC3"}`, `{"buffer":0,"byteLength":36}`},
+		{`{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}`, `{"buffer":0,"byteOffset":9223372036854775000,"byteLength":9223372036854775000}`},
+	}
+	for c in cases {
+		json := fmt.tprintf(
+			`{{"nodes":[{{"mesh":0}}],"meshes":[{{"primitives":[{{"attributes":{{"POSITION":0,"NORMAL":0}}}}]}}],"bufferViews":[%s],"accessors":[%s]}}`,
+			c.view,
+			c.accessor,
+		)
+		_, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
+		testing.expectf(t, err == .Bad_Accessor, "%v gave %v, want Bad_Accessor", c.accessor, err)
+	}
+}
+
+@(test)
+test_glb_rejects_a_sparse_accessor :: proc(t: ^testing.T) {
+	json := `{"nodes":[{"mesh":0}],"meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":0}}]}],
+	"bufferViews":[{"buffer":0,"byteLength":36}],
+	"accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","sparse":{"count":1}}]}`
+	_, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Bad_Accessor)
+}
+
+// glTF reverses the winding of a node whose transform mirrors it.
+@(test)
+test_glb_keeps_a_mirrored_node_ccw_from_outside :: proc(t: ^testing.T) {
+	data, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES, `[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	a := data.vertices[data.indices[0]]
+	b := data.vertices[data.indices[1]]
+	c := data.vertices[data.indices[2]]
+	face := v3_cross(b.pos - a.pos, c.pos - a.pos)
+	testing.expectf(t, v3_dot(face, a.normal) > 0, "mirrored triangle winds clockwise from outside")
 }
