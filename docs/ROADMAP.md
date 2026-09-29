@@ -239,10 +239,13 @@ Done when `Scene` draws by id resolve to more than one mesh.
 Check: the entity game shows a cube player, sphere pickups, a plane floor and
 a cube door. A misspelt mesh name draws magenta and logs once.
 
-## Milestone 4: geometry from disk (engine work done)
+## Milestone 4: geometry from disk (done)
 
-Status: the loader, the manifest names and the entity game changes are in.
-The milestone is done when the user commits `sprout.glb` and sees it.
+Results, 2026-09-29: the entity game draws `sprout.glb` from
+`examples/entity-game/assets/meshes/` with no host library rebuild. The
+Odin tests, the Roc tests, `scripts/alloc-check.sh` and `scripts/host-check.sh`
+pass on `arm64mac`. `scripts/linux/check.sh` passes on `x64glibc`. `x64win`
+was not checked.
 
 Done when a Blender export appears in the manifest without an engine change.
 

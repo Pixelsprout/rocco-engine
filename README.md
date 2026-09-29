@@ -255,20 +255,18 @@ the Docker image, and the image sees only this checkout.
 
 ## Status
 
-Milestones 1 to 3 of `docs/ROADMAP.md` are done. The engine builds and runs
+Milestones 1 to 4 of `docs/ROADMAP.md` are done. The engine builds and runs
 on macOS, Linux and Windows from one checkout. The platform names no game:
 three games (`cards`, `entity-game`, `pong`) link against one host library.
 Each draw carries a mesh id from the manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.
 
-Milestone 4, geometry from disk, has its engine work in place. At startup the
-engine loads every `.glb` in `assets/meshes/`, relative to the working
-directory, and adds each one to the manifest under its file stem.
+At startup the engine loads every `.glb` in `assets/meshes/`, relative to the
+working directory, and adds each one to the manifest under its file stem.
 `ROCCO_ASSETS` replaces the `assets` path. The entity game draws its player
-with the `sprout` mesh. Until `examples/entity-game/assets/meshes/sprout.glb`
-is committed, the player draws as the magenta fallback. The milestone is done
-when that file is committed and the sprout shows.
+as the sprout model. Colours and tints are linear, and the shader encodes to
+sRGB. Milestone 5, entities in Roc, is next.
 
 ## Licence
 
