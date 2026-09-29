@@ -1,7 +1,7 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
 
 import cam.Camera as Cam
-import meshes.Meshes as Meshes
+import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Config, Draw, Input, Scene, Vec3]
 import pf.Key
 
@@ -28,10 +28,10 @@ init = |config| new_game(resolve_meshes(config), 8)
 
 resolve_meshes : Config -> MeshIds
 resolve_meshes = |config| {
-	cube: Meshes.primitive(config, Cube),
-	sphere: Meshes.primitive(config, Sphere),
-	plane: Meshes.primitive(config, Plane),
-	sprout: Meshes.named(config, "sprout"),
+	cube: Mesh.primitive(config, Cube),
+	sphere: Mesh.primitive(config, Sphere),
+	plane: Mesh.primitive(config, Plane),
+	sprout: Mesh.resolve(config, "sprout"),
 }
 
 new_game : MeshIds, U64 -> Model

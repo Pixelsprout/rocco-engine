@@ -1,3 +1,0 @@
-package [Meshes] {}
-
-import Meshes

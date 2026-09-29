@@ -197,7 +197,7 @@ run_step! = |step, target| match step {
 		exec!(host_run(target))
 	}
 	# roc build exits 2 when it wrote the binary with warnings and no errors.
-	# The dbg in packages/meshes is such a warning, and roc has no flag to hide it.
+	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
 	Game(example) => exec_allowing!(game_run(target, example), [2])
 	Shaders =>
 		if Cmd.check_available!(shaders_run.program) {

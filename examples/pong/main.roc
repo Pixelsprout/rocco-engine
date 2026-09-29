@@ -1,7 +1,7 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
 
 import cam.Camera as Cam
-import meshes.Meshes as Meshes
+import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
 import pf.Key
 
@@ -46,7 +46,7 @@ init : Config -> Model
 init = |config| {
 	model = {
     	state: Running,
-		cube: Meshes.primitive(config, Cube),
+		cube: Mesh.primitive(config, Cube),
 		left: 0.0,
 		right: 0.0,
 		ball: { id: ball_id_base, x: 0.0, z: 0.0, vx: 0.0, vz: 0.0 },

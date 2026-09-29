@@ -218,7 +218,7 @@ a change to the `Model` type, restart the game.
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
-| `packages/meshes/` | The meshes package: `primitive` and `named` resolve mesh ids from the manifest. Games import it as `import meshes.Meshes as Meshes`. |
+| `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `scripts/build.roc` | The build script. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |

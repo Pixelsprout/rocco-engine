@@ -292,14 +292,14 @@ ones that change the design.
 - The primitives go into the manifest as `primitive/fallback`,
   `primitive/cube`, `primitive/sphere` and `primitive/plane`. Files go in
   under the bare stem. A file stem cannot contain `/`, so the two never
-  collide. `primitive_name` in `packages/meshes/` changes. The vocabulary
+  collide. `primitive_name` in `packages/mesh/` changes. The vocabulary
   and the glue do not change.
 - Parser tests build GLB bytes in Odin test code. There are no committed
   fixtures.
 - The checks find each game's assets with no `ROCCO_ASSETS`.
 - The mesh id generation moves out of this milestone. It must land before
   the first caller of `level_unload`.
-- The entity game draws the player with `Meshes.named(config, "sprout")` and
+- The entity game draws the player with `Mesh.resolve(config, "sprout")` and
   tint `(1, 1, 1)`. `step` turns the player to face its velocity and keeps
   the last yaw when it stops. Until `sprout.glb` exists, the player draws
   magenta.

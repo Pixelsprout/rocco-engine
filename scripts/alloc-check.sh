@@ -19,7 +19,7 @@ failed=0
 for game in cards entity-game; do
 	for opt in dev speed; do
 		bin="./${game}_alloc_${opt}${suffix}"
-		# Exit 2 is warnings only, such as the dbg in packages/meshes. build.roc allows it too.
+		# Exit 2 is warnings only, such as the dbg in packages/mesh. build.roc allows it too.
 		set +e
 		(cd "examples/$game" && roc build --target="$target" --opt="$opt" --output="$bin" main.roc) > "$log" 2>&1
 		code=$?

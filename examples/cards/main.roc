@@ -1,7 +1,7 @@
-app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", meshes: "../../packages/meshes/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
 
 import cam.Camera as Cam
-import meshes.Meshes as Meshes
+import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Config, Input, Scene]
 import pf.Key
 
@@ -11,8 +11,8 @@ Model : { hand : List(Card), turns : U64, name : Str, card_mesh : U32 }
 
 init : Config -> Model
 init = |config| {
-    # A plane until a card mesh is loaded from disk. Then Meshes.named(config, "card").
-    { hand: [Ace, Number(7)], turns: 0, name: "solitaire", card_mesh: Meshes.primitive(config, Plane) }
+    # A plane until a card mesh is loaded from disk. Then Mesh.resolve(config, "card").
+    { hand: [Ace, Number(7)], turns: 0, name: "solitaire", card_mesh: Mesh.primitive(config, Plane) }
 }
 
 step : Model, Input, F32 -> Model

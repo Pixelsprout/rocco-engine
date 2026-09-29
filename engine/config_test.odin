@@ -22,7 +22,7 @@ test_seed_reads_any_u64 :: proc(t: ^testing.T) {
 	}
 }
 
-// packages/meshes/Meshes.roc checks the same literal manifest.
+// packages/mesh/Mesh.roc checks the same literal manifest.
 @(test)
 test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(t: ^testing.T) {
 	table: Mesh_Table

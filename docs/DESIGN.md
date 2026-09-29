@@ -148,10 +148,11 @@ and `primitive/plane`. A file stem cannot contain `/`, so a file never takes
 the name of a primitive. A file that does not load is skipped and logged, and
 its name resolves to id 0.
 
-The primitives have type-safe tags in the meshes package:
-`Meshes.primitive(config, Cube)`. `Meshes.named(config, "name")` resolves a
-loaded file. Both return 0 and print a `dbg` line on a miss. The tags live in
-the package only. The vocabulary still carries only a `U32`.
+The primitives have type-safe tags in the mesh package:
+`Mesh.primitive(config, Cube)`. `Mesh.resolve(config, "name")` resolves the
+name of a loaded file to its mesh id. Both return 0 and print a `dbg` line on
+a miss. The tags live in the package only. The vocabulary still carries only
+a `U32`.
 
 The manifest is the one place a refcounted type (`Str`) enters the
 vocabulary. `init` reads it once. The cost is glue coverage, not time.

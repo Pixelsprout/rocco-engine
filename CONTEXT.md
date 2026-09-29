@@ -178,8 +178,8 @@ file stem.
 _Avoid_: built-in, shape, basic mesh
 
 **Primitive tag**:
-A tag of `Primitive : [Cube, Sphere, Plane]` in the meshes package
-(`packages/meshes/`). `Meshes.primitive` resolves one to its mesh id through
+A tag of `Primitive : [Cube, Sphere, Plane]` in the mesh package
+(`packages/mesh/`). `Mesh.primitive` resolves one to its mesh id through
 the manifest. It belongs to the package, not the vocabulary: Draws still carry
 a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
