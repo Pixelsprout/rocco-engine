@@ -4,8 +4,57 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 
-// Maps each draw id of the previous Scene to its index. Rebuilt every fixed
-// step with clear, so the map keeps its capacity and stops allocating.
+LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |L| = 1 exactly
+SCENE_NEAR :: f32(0.1)
+UP :: [3]f32{0, 1, 0}
+
+Frame_Render :: struct {
+	pairing: Pairing,
+}
+
+frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
+	pairing_init(&fr.pairing, perm)
+}
+
+frame_render_destroy :: proc(fr: ^Frame_Render) {
+	pairing_destroy(&fr.pairing)
+}
+
+frame_render_camera :: proc(prev, curr: Scene, alpha, aspect: f32) -> Mat4 {
+	return scene_view_proj(camera_lerp(prev.camera, curr.camera, alpha), aspect)
+}
+
+// The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
+frame_render_draw :: proc(fr: ^Frame_Render, r: ^Renderer, prev, curr: Scene, alpha: f32, view_proj: Mat4, meshes: ^Mesh_Table) {
+	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
+	for d in curr.draws.elements[:curr.draws.length] {
+		from := d
+		if i, ok := pairing_find(&fr.pairing, d.id); ok {
+			from = prev.draws.elements[i]
+		}
+		model := draw_model_matrix(draw_transform(from, d, alpha))
+		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
+		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
+		renderer_draw(
+			r,
+			mesh,
+			vs_params = {mvp = view_proj * model, model = model},
+			fs_params = {
+				light_dir = LIGHT_DIR,
+				light_color = [4]f32{1, 1, 1, 1},
+				ambient = [4]f32{0.1, 0.1, 0.1, 1},
+				tint = tint,
+			},
+		)
+	}
+}
+
+scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
+	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
+}
+
+// Maps each draw id of the previous Scene to its index. Rebuilt every Frame
+// with clear, so the map keeps its capacity and stops allocating.
 Pairing :: struct {
 	index:  map[u64]int,
 	logged: map[u64]struct {},

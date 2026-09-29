@@ -196,6 +196,11 @@ One display refresh: one sokol frame callback, zero or more fixed steps, one
 render.
 _Avoid_: step, tick, render pass
 
+**Frame render**:
+The host module that turns the previous Scene, the current Scene and the
+Alpha into one submitted draw per Draw. It owns the Pairing.
+_Avoid_: renderer, draw loop, presenter, scene renderer
+
 **dt**:
 The third argument to `step`: the length of this fixed step in seconds.
 _Avoid_: delta, elapsed, frame time

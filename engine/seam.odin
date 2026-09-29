@@ -19,7 +19,6 @@ Seam :: struct {
 	prev:     Scene,
 	curr:     Scene,
 	has_prev: bool,
-	pairing:  Pairing,
 	report:   bool,
 	steps:    u64,
 }
@@ -105,11 +104,10 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 
 // Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-seam_init :: proc(s: ^Seam, seed: u64, table: ^Mesh_Table, perm: mem.Allocator, report: bool) {
+seam_init :: proc(s: ^Seam, seed: u64, table: ^Mesh_Table, report: bool) {
 	s.report = report
 	mem.tracking_allocator_init(&s.track, context.allocator)
 	s.heap = mem.tracking_allocator(&s.track)
-	pairing_init(&s.pairing, perm)
 
 	s.model = roc_init(config_make(seed, table))
 	s.curr = seam_view(s)
@@ -134,7 +132,6 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) {
 	s.has_prev = true
 	s.curr = seam_view(s)
 	viewed := time.tick_now()
-	pairing_build(&s.pairing, s.prev.draws.elements[:s.prev.draws.length])
 
 	s.steps += 1
 	if s.report {
@@ -153,8 +150,8 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) {
 }
 
 // Before the first step there is one Scene, and it pairs with itself.
-seam_prev :: proc(s: ^Seam) -> Scene {
-	return s.prev if s.has_prev else s.curr
+seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
+	return s.prev if s.has_prev else s.curr, s.curr
 }
 
 // roc_view consumes one reference, so give it one and keep ours.

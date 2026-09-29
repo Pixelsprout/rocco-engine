@@ -9,10 +9,6 @@ import "core:mem"
 
 import "base:runtime"
 
-LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |L| = 1 exactly
-SCENE_NEAR :: f32(0.1)
-UP :: [3]f32{0, 1, 0}
-
 State :: struct {
 	mem:               Memory,
 	ctx:               runtime.Context,
@@ -25,6 +21,7 @@ State :: struct {
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
 	seam:              Seam,
+	frame_render:      Frame_Render,
 	exit_after_frames: int, // 0 runs forever
 }
 
@@ -47,7 +44,8 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	// Name and load the meshes before sokol starts, so the manifest does not wait on the GPU.
 	mesh_table_init(&g_state.renderer.meshes, g_state.mem.perm_allocator)
 	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
-	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes, g_state.mem.perm_allocator, alloc_report_from_env())
+	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
+	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes, alloc_report_from_env())
 
 	sapp.run(
 		sapp.Desc {
@@ -93,8 +91,7 @@ frame_cb :: proc "c" () {
 	sg.begin_pass({action = g_state.pass_action, swapchain = sglue.swapchain()})
 
 	alpha := clock_alpha(&g_state.clock)
-	prev := seam_prev(&g_state.seam)
-	curr := g_state.seam.curr
+	prev, curr := seam_scenes(&g_state.seam)
 	aspect := f32(sapp.width()) / f32(sapp.height())
 	view_proj: Mat4
 	if g_state.use_debug_camera {
@@ -105,10 +102,10 @@ frame_cb :: proc "c" () {
 			sapp.lock_mouse(true)
 		}
 	} else {
-		view_proj = scene_view_proj(camera_lerp(prev.camera, curr.camera, alpha), aspect)
+		view_proj = frame_render_camera(prev, curr, alpha, aspect)
 	}
 
-	draw_scene(&g_state.renderer, prev, curr, &g_state.seam.pairing, alpha, view_proj)
+	frame_render_draw(&g_state.frame_render, &g_state.renderer, prev, curr, alpha, view_proj, &g_state.renderer.meshes)
 
 	sg.end_pass()
 	sg.commit()
@@ -122,39 +119,12 @@ frame_cb :: proc "c" () {
 	input_end_frame(&g_state.input)
 }
 
-scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
-	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
-}
-
-// The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
-draw_scene :: proc(r: ^Renderer, prev, curr: Scene, pairing: ^Pairing, alpha: f32, view_proj: Mat4) {
-	for d in curr.draws.elements[:curr.draws.length] {
-		from := d
-		if i, ok := pairing_find(pairing, d.id); ok {
-			from = prev.draws.elements[i]
-		}
-		model := draw_model_matrix(draw_transform(from, d, alpha))
-		mesh, fallback := mesh_resolve(&r.meshes, d.mesh, d.id)
-		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
-		renderer_draw(
-			r,
-			mesh,
-			vs_params = {mvp = view_proj * model, model = model},
-			fs_params = {
-				light_dir = LIGHT_DIR,
-				light_color = [4]f32{1, 1, 1, 1},
-				ambient = [4]f32{0.1, 0.1, 0.1, 1},
-				tint = tint,
-			},
-		)
-	}
-}
-
 cleanup_cb :: proc "c" () {
 	context = g_state.ctx
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
+	frame_render_destroy(&g_state.frame_render)
 
 	sg.shutdown()
 	memory_shutdown(&g_state.mem)

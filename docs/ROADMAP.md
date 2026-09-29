@@ -179,11 +179,11 @@ fixed step of a frame takes the pending set as `pressed` and takes the mouse
 delta of the frame. Later steps in the same frame get an empty `pressed` and a
 zero delta. `held` is the key state when the step runs.
 
-Pairing: the host builds a map from draw id to index once per fixed step. The
-map lives in permanent memory and keeps its capacity. If two draws share an
-id, the first wins and the host logs the id once. `pos`, `scale` and the
-camera `eye` and `target` interpolate linearly. `yaw` takes the shortest arc.
-`tint` and `fov_y` take the new value.
+Pairing: the host builds a map from draw id to index once per frame, from
+the previous Scene. The map lives in permanent memory and keeps its capacity.
+If two draws share an id, the first wins and the host logs the id once.
+`pos`, `scale` and the camera `eye` and `target` interpolate linearly. `yaw`
+takes the shortest arc. `tint` and `fov_y` take the new value.
 
 The `drop_model_for_host` export frees the `Box(Model)` at shutdown, because
 the host cannot know the payload layout. roc-ray does the same. Roc issue
