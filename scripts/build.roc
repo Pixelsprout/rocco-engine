@@ -1,4 +1,4 @@
-app [main!] { roc: "nightly-2026-09-12-220fd47", pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0-rc1/3hT3SoHZ6qbEsa9qVFLUW3547U5LeoNd1KbpqLpz4r1i.tar.zst" }
+app [main!] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst" }
 
 import pf.Cmd
 import pf.Env
@@ -156,9 +156,9 @@ usage =
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 
-main! : List(OsStr) => Try({}, [Exit(I32), ..])
+main! : List(OsStr) => Try({}, [Exit(I32)])
 main! = |args| {
-	steps = match parse(args.drop_first(1).map(OsStr.display)) {
+	steps = match parse(args.map(OsStr.display)) {
 		Ok(found) => found
 		Err(Usage) => {
 			Stderr.line!(usage) ?? {}
@@ -182,7 +182,7 @@ main! = |args| {
 	Ok({})
 }
 
-fail! : Str => Try(a, [Exit(I32), ..])
+fail! : Str => Try(a, [Exit(I32)])
 fail! = |message| {
 	Stderr.line!("build: ${message}") ?? {}
 	Err(Exit(1))
