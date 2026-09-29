@@ -60,6 +60,10 @@ previous `Model` and never sees an alpha.
   └───────────────────────────────────┘
 ```
 
+The Frame render is the host module on the render frame side. Once per
+frame it builds the Pairing from the previous `Scene`, then interpolates each
+draw at the Alpha and submits it.
+
 ## 3. The vocabulary
 
 The platform header names three types. Nothing in them names a game. The
