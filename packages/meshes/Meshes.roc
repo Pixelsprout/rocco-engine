@@ -20,19 +20,20 @@ Meshes := [].{
 
     primitive_name : Primitive -> Str
     primitive_name = |p| match p {
-        Cube => "cube"
-        Sphere => "sphere"
-        Plane => "plane"
+        Cube => "primitive/cube"
+        Sphere => "primitive/sphere"
+        Plane => "primitive/plane"
     }
 }
 
 # engine/config_test.odin checks the same literal manifest against config_make.
 manifest : Meshes.Config
-manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }, { name: "sphere", id: 2 }, { name: "plane", id: 3 }] }
+manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }, { name: "sprout", id: 4 }] }
 
 expect Meshes.primitive(manifest, Cube) == 1
 expect Meshes.primitive(manifest, Sphere) == 2
 expect Meshes.primitive(manifest, Plane) == 3
-expect Meshes.named(manifest, "plane") == 3
-expect Meshes.named(manifest, "plnae") == 0
+expect Meshes.named(manifest, "sprout") == 4
+expect Meshes.named(manifest, "sprotu") == 0
+expect Meshes.named(manifest, "plane") == 0
 expect Meshes.primitive({ seed: 0, meshes: [] }, Cube) == 0

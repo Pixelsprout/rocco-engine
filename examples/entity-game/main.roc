@@ -256,7 +256,7 @@ dist2 = |a, b| {
 
 # What the engine would hand init on this machine.
 manifest : Config
-manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }, { name: "sphere", id: 2 }, { name: "plane", id: 3 }] }
+manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }] }
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)

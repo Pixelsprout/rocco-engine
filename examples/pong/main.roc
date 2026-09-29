@@ -37,7 +37,7 @@ serve_speed = 8.0
 max_score = 7
 
 manifest : Config
-manifest = { seed: 0, meshes: [{ name: "fallback", id: 0 }, { name: "cube", id: 1 }] }
+manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }] }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }

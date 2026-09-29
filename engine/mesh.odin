@@ -17,11 +17,12 @@ Primitive :: enum u32 {
 	Plane,
 }
 
+// A file stem cannot contain "/", so a loaded file never takes a primitive's name.
 PRIMITIVE_NAMES := [Primitive]string {
-	.Fallback = "fallback",
-	.Cube     = "cube",
-	.Sphere   = "sphere",
-	.Plane    = "plane",
+	.Fallback = "primitive/fallback",
+	.Cube     = "primitive/cube",
+	.Sphere   = "primitive/sphere",
+	.Plane    = "primitive/plane",
 }
 
 GREY :: [4]f32{0.8, 0.8, 0.8, 1}

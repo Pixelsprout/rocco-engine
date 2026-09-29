@@ -39,6 +39,6 @@ view = |m| {
 
 expect {
     press = { held: [], pressed: [Key.code(Space)], mouse: { dx: 0.0, dy: 0.0 } }
-    after = step(init({ seed: 0, meshes: [{ name: "plane", id: 7 }] }), press, 0.1)
+    after = step(init({ seed: 0, meshes: [{ name: "primitive/plane", id: 7 }] }), press, 0.1)
     List.len(after.hand) == 3 and after.turns == 1 and after.card_mesh == 7
 }

@@ -28,6 +28,8 @@ test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(
 	table: Mesh_Table
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
+	table.meshes[table.count].name = "sprout"
+	table.count += 1
 
 	// roc_alloc reads g_state.seam.heap.
 	g_state.seam.heap = context.allocator
@@ -39,7 +41,7 @@ test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(
 		name: string,
 		id:   u32,
 	}
-	want := []Entry{{"fallback", 0}, {"cube", 1}, {"sphere", 2}, {"plane", 3}}
+	want := []Entry{{"primitive/fallback", 0}, {"primitive/cube", 1}, {"primitive/sphere", 2}, {"primitive/plane", 3}, {"sprout", 4}}
 	testing.expect_value(t, config.seed, 42)
 	testing.expect_value(t, int(config.meshes.length), len(want))
 	for &e, i in config.meshes.elements[:config.meshes.length] {
@@ -47,7 +49,7 @@ test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(
 	}
 }
 
-// Every primitive name is short enough to live inside the Roc_Str.
+// Every name in the test is short enough to live inside the Roc_Str.
 roc_str_inline :: proc(s: ^Roc_Str) -> string {
 	raw := ([^]u8)(s)
 	n := int(raw[size_of(Roc_Str) - 1] & 0x7f)
