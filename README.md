@@ -215,7 +215,7 @@ a change to the `Model` type, restart the game.
 | `platform/targets/x64glibc/` | `libhost.a`, the sokol GL archives, the CRT objects and the shared libraries from the Docker image. Not committed. |
 | `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and the SDK import libraries. Not committed. |
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
-| `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. |
+| `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/meshes/` | The meshes package: `primitive` and `named` resolve mesh ids from the manifest. Games import it as `import meshes.Meshes as Meshes`. |
@@ -260,7 +260,15 @@ on macOS, Linux and Windows from one checkout. The platform names no game:
 three games (`cards`, `entity-game`, `pong`) link against one host library.
 Each draw carries a mesh id from the manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
-name keys with `pf.Key`. Milestone 4, geometry from disk, is next.
+name keys with `pf.Key`.
+
+Milestone 4, geometry from disk, has its engine work in place. At startup the
+engine loads every `.glb` in `assets/meshes/`, relative to the working
+directory, and adds each one to the manifest under its file stem.
+`ROCCO_ASSETS` replaces the `assets` path. The entity game draws its player
+with the `sprout` mesh. Until `examples/entity-game/assets/meshes/sprout.glb`
+is committed, the player draws as the magenta fallback. The milestone is done
+when that file is committed and the sprout shows.
 
 ## Licence
 

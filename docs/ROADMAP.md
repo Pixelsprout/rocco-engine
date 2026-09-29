@@ -10,8 +10,8 @@ the design first.
 Built and running:
 
 - Fixed-timestep loop with an accumulator and interpolation.
-- Three arenas by lifetime: permanent, level, frame. The level arena has no
-  caller yet.
+- Three arenas by lifetime: permanent, level, frame. The level arena holds
+  the meshes loaded from disk.
 - Rendering through sokol: one pipeline, a mesh table, index buffers,
   back-face culling, reversed-Z depth, one directional light. The backend is
   Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
@@ -21,8 +21,11 @@ Built and running:
   game. The host holds the `Model` as one boxed pointer, keeps two `Scene`s,
   pairs draws by id and interpolates them.
 - The mesh table holds the magenta fallback mesh at id 0 and the cube,
-  sphere and plane primitives. `init` gets it as the manifest. Each draw
-  names its mesh by id, and an unknown id draws the fallback mesh.
+  sphere and plane primitives, named `primitive/<name>`. After them come the
+  `.glb` files in `assets/meshes/`, loaded at startup by an Odin parser and
+  named by file stem. `ROCCO_ASSETS` replaces the `assets` path. `init` gets
+  the table as the manifest. Each draw names its mesh by id, and an unknown
+  id draws the fallback mesh.
 - Games import the seam types from `pf.Vocabulary` and name keys with
   `pf.Key`, which `scripts/build.roc` generates from sokol.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
@@ -236,7 +239,10 @@ Done when `Scene` draws by id resolve to more than one mesh.
 Check: the entity game shows a cube player, sphere pickups, a plane floor and
 a cube door. A misspelt mesh name draws magenta and logs once.
 
-## Milestone 4: geometry from disk
+## Milestone 4: geometry from disk (engine work done)
+
+Status: the loader, the manifest names and the entity game changes are in.
+The milestone is done when the user commits `sprout.glb` and sees it.
 
 Done when a Blender export appears in the manifest without an engine change.
 
