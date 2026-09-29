@@ -275,8 +275,11 @@ ones that change the design.
   normals. A primitive whose mode is not triangles is rejected.
 - The engine does not flip winding. The pipeline is `face_winding = .CCW`,
   the same as glTF.
-- The engine scans `assets/meshes/` relative to the working directory. The
-  `ROCCO_ASSETS` environment variable replaces the `assets` path.
+- The engine scans `assets/meshes/` in the directory of `argv[0]`. `roc run`
+  sets `argv[0]` to the game's `main.roc`, so the game finds its assets from
+  any working directory. The `ROCCO_ASSETS` environment variable replaces the
+  `assets` path. Changed on 2026-09-29 from "relative to the working
+  directory", because `roc run` from the repo root drew the fallback.
 - The scan reads the top level only, in sorted order, so ids are stable
   across runs. Names are case-sensitive.
 - File bytes go into the frame arena. Names and the decoded vertex and index
@@ -292,8 +295,7 @@ ones that change the design.
   and the glue do not change.
 - Parser tests build GLB bytes in Odin test code. There are no committed
   fixtures.
-- The games run from `examples/<game>/`, so the checks find each game's
-  assets with no `ROCCO_ASSETS`.
+- The checks find each game's assets with no `ROCCO_ASSETS`.
 - The mesh id generation moves out of this milestone. It must land before
   the first caller of `level_unload`.
 - The entity game draws the player with `Meshes.named(config, "sprout")` and

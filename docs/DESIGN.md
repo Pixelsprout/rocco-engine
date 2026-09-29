@@ -132,8 +132,11 @@ A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 Games treat mesh ids as opaque. A game never hard-codes an id and never does
 maths on one. It gets each id from the manifest in `init`.
 
-Assets are `.glb` files in `assets/meshes/`, relative to the working
-directory. `ROCCO_ASSETS` replaces the `assets` path. The engine reads the top
+Assets are `.glb` files in `assets/meshes/`, in the directory of the
+program path (`argv[0]`). `roc run` sets `argv[0]` to the game's `main.roc`,
+and a built game has its binary in the game directory, so both find the
+game's assets from any working directory. `ROCCO_ASSETS` replaces the
+`assets` path. The engine reads the top
 level only, in sorted order, so ids are stable across runs. A file goes into
 the manifest under its stem, such as `sprout`. Names are case-sensitive. The
 primitives go in as `primitive/fallback`, `primitive/cube`, `primitive/sphere`

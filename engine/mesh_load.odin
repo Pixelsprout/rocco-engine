@@ -6,9 +6,18 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
+// ROCCO_ASSETS wins; otherwise the assets sit beside the program. roc run sets
+// argv[0] to the game's main.roc, so a game finds its assets from any directory.
 // A forward slash works on all three targets.
-mesh_dir_from_assets :: proc(assets: string, allocator: mem.Allocator) -> string {
-	return fmt.aprintf("%v/meshes", assets if assets != "" else DEFAULT_ASSETS, allocator = allocator)
+mesh_dir_from :: proc(assets, program: string, allocator: mem.Allocator) -> string {
+	if assets != "" {
+		return fmt.aprintf("%v/meshes", assets, allocator = allocator)
+	}
+	dir, _ := os.split_path(program)
+	if dir == "" {
+		return fmt.aprintf("%v/meshes", DEFAULT_ASSETS, allocator = allocator)
+	}
+	return fmt.aprintf("%v/%v/meshes", dir, DEFAULT_ASSETS, allocator = allocator)
 }
 
 // Sorted, so mesh ids are stable across runs. A file that fails is skipped

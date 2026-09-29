@@ -262,8 +262,9 @@ Each draw carries a mesh id from the manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.
 
-At startup the engine loads every `.glb` in `assets/meshes/`, relative to the
-working directory, and adds each one to the manifest under its file stem.
+At startup the engine loads every `.glb` in `assets/meshes/` beside the game,
+and adds each one to the manifest under its file stem. `roc run` and the
+built binary both find it from any working directory.
 `ROCCO_ASSETS` replaces the `assets` path. The entity game draws its player
 as the sprout model. Colours and tints are linear, and the shader encodes to
 sRGB. Milestone 5, entities in Roc, is next.

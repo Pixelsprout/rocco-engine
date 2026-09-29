@@ -85,7 +85,19 @@ test_mesh_dir_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_mesh_dir_is_meshes_under_the_assets_path :: proc(t: ^testing.T) {
-	testing.expect_value(t, mesh_dir_from_assets("", context.temp_allocator), "assets/meshes")
-	testing.expect_value(t, mesh_dir_from_assets("/games/sprout", context.temp_allocator), "/games/sprout/meshes")
+test_mesh_dir_is_meshes_under_rocco_assets_or_beside_the_program :: proc(t: ^testing.T) {
+	Case :: struct {
+		assets, program, want: string,
+	}
+	cases := []Case {
+		{"/games/sprout", "./examples/entity-game/main.roc", "/games/sprout/meshes"},
+		{"", "./examples/entity-game/main.roc", "./examples/entity-game/assets/meshes"},
+		{"", "/opt/game/entity-game.bin", "/opt/game/assets/meshes"},
+		{"", "./entity-game.bin", "./assets/meshes"},
+		{"", "entity-game.bin", "assets/meshes"},
+		{"", "", "assets/meshes"},
+	}
+	for c in cases {
+		testing.expect_value(t, mesh_dir_from(c.assets, c.program, context.temp_allocator), c.want)
+	}
 }

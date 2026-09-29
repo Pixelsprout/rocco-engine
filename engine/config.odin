@@ -40,7 +40,8 @@ alloc_report_from_env :: proc() -> bool {
 }
 
 mesh_dir_from_env :: proc() -> string {
-	return mesh_dir_from_assets(os.get_env(ASSETS_ENV, context.temp_allocator), context.temp_allocator)
+	program := os.args[0] if len(os.args) > 0 else ""
+	return mesh_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
 }
 
 // Every string and list is a fresh roc_alloc at refcount 1; roc_init consumes them.
