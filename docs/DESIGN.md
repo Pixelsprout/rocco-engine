@@ -130,6 +130,15 @@ A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 Games treat mesh ids as opaque. A game never hard-codes an id and never does
 maths on one. It gets each id from the manifest in `init`.
 
+Assets are `.glb` files in `assets/meshes/`, relative to the working
+directory. `ROCCO_ASSETS` replaces the `assets` path. The engine reads the top
+level only, in sorted order, so ids are stable across runs. A file goes into
+the manifest under its stem, such as `sprout`. Names are case-sensitive. The
+primitives go in as `primitive/fallback`, `primitive/cube`, `primitive/sphere`
+and `primitive/plane`. A file stem cannot contain `/`, so a file never takes
+the name of a primitive. A file that does not load is skipped and logged, and
+its name resolves to id 0.
+
 The primitives have type-safe tags in the meshes package:
 `Meshes.primitive(config, Cube)`. `Meshes.named(config, "name")` resolves a
 loaded file. Both return 0 and print a `dbg` line on a miss. The tags live in

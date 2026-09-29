@@ -172,7 +172,9 @@ _Avoid_: default mesh, error mesh, placeholder, missing mesh
 
 **Primitive**:
 A mesh the engine builds itself rather than loads: the cube, the sphere and
-the plane. They sit in the manifest beside loaded assets.
+the plane. They sit in the manifest beside loaded assets, named with a
+`primitive/` prefix, such as `primitive/cube`. A loaded asset takes its bare
+file stem.
 _Avoid_: built-in, shape, basic mesh
 
 **Primitive tag**:

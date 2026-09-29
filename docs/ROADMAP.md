@@ -249,6 +249,68 @@ Done when a Blender export appears in the manifest without an engine change.
 Check: drop a new `.glb` into the directory, restart, name it from Roc, see
 it. No rebuild of the host library.
 
+Decisions for this milestone, agreed 2026-09-29. `docs/DESIGN.md` records the
+ones that change the design.
+
+- The engine accepts `.glb` only. The parser is Odin: the GLB header, the JSON
+  chunk through `core:encoding/json`, the BIN chunk and the accessors. It does
+  not use `vendor:cgltf`, because that adds link inputs on three targets.
+- The engine loads positions, normals, indices and the
+  `pbrMetallicRoughness.baseColorFactor` of each primitive's material. That
+  colour goes into the vertex `color` of the primitive. A primitive with no
+  material is grey 0.8. The shader multiplies the vertex colour by `tint`.
+- Index accessors can be `u8`, `u16` or `u32`. The engine converts them to
+  `u16`. A mesh with more than 65,535 vertices is rejected.
+- One file is one mesh. The engine merges every triangle primitive of every
+  mesh node and bakes each node's world transform into the positions and
+  normals. A primitive whose mode is not triangles is rejected.
+- The engine does not flip winding. The pipeline is `face_winding = .CCW`,
+  the same as glTF.
+- The engine scans `assets/meshes/` relative to the working directory. The
+  `ROCCO_ASSETS` environment variable replaces the `assets` path.
+- The scan reads the top level only, in sorted order, so ids are stable
+  across runs. Names are case-sensitive.
+- File bytes go into the frame arena. Names and the decoded vertex and index
+  slices go into the level arena.
+- A file that fails is skipped with one log line that gives the reason. The
+  reasons are a bad file, no normals, too many vertices and a full table at
+  `MESH_CAPACITY` (64). The engine does not exit. The name then resolves to
+  the fallback mesh.
+- The primitives go into the manifest as `primitive/fallback`,
+  `primitive/cube`, `primitive/sphere` and `primitive/plane`. Files go in
+  under the bare stem. A file stem cannot contain `/`, so the two never
+  collide. `primitive_name` in `packages/meshes/` changes. The vocabulary
+  and the glue do not change.
+- Parser tests build GLB bytes in Odin test code. There are no committed
+  fixtures.
+- The games run from `examples/<game>/`, so the checks find each game's
+  assets with no `ROCCO_ASSETS`.
+- The mesh id generation moves out of this milestone. It must land before
+  the first caller of `level_unload`.
+- The entity game draws the player with `Meshes.named(config, "sprout")` and
+  tint `(1, 1, 1)`. `step` turns the player to face its velocity and keeps
+  the last yaw when it stops. Until `sprout.glb` exists, the player draws
+  magenta.
+- No ADR.
+
+### The sprout asset contract
+
+The model is a 3D version of the pixel-art "pixelsprout" character: an orange
+flower pot with a cute face, green leaves on top, small arms and feet. Smooth
+low-poly style.
+
+- File: `examples/entity-game/assets/meshes/sprout.glb`, exported from
+  Blender as glTF Binary with the default "+Y Up".
+- Origin at the bottom centre, between the feet. It stands on `y = 0`.
+- About 1 unit tall.
+- Front faces glTF +Z (Blender -Y).
+- Triangles, or triangulated on export.
+- No textures, UVs, vertex colours, armatures or animations.
+- One material per colour, flat Base Color: orange pot, dark soil, green
+  leaves, near-black eyes and mouth, pink blush, orange arms and feet.
+- Fewer than 65,535 vertices in total. Smooth shading is allowed.
+- Node transforms do not need to be applied.
+
 ## Milestone 5: entities in Roc
 
 Done when the entity game creates and destroys entities at runtime.
