@@ -163,12 +163,15 @@ and yaw between them. A draw whose id has no partner in the previous `Scene`
 is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
 entities never reach.
 
-Draw ids must be unique in a `Scene`. The host pairs each current draw with
-the previous `Scene`. If the previous `Scene` has two draws with one id, the
-first one pairs, and the host logs the id once per run. If the current
-`Scene` has two draws with one id, each one draws and interpolates from the
-same previous draw. The log then comes one step later, when that `Scene`
-becomes the previous one.
+Draw ids must be unique in a `Scene`. The Frame render pairs each current
+draw with the previous `Scene`. If the previous `Scene` has two draws with
+one id, the first one pairs, and the Frame render logs the id once per run.
+If the current `Scene` has two draws with one id, each one draws and
+interpolates from the same previous draw. The log then comes at the next
+frame, if that `Scene` is the previous one when the frame renders. The
+Pairing is built once per frame, so a `Scene` that is previous only between
+two steps inside one frame is never checked. A duplicate that persists is
+still logged.
 
 ## 4. The platform does not know the game
 
