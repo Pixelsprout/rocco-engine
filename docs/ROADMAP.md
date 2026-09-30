@@ -32,8 +32,10 @@ Built and running:
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
-  game owns its state. The host honours `roc_dealloc`. Hot reload works
-  under `roc run` on macOS when the `Model` type does not change.
+  game owns its state. The host honours `roc_dealloc`. The game calls sit
+  behind a struct of procedures, with a fake game in the Odin tests, so the
+  call protocol has a test without a Roc app. Hot reload works under
+  `roc run` on macOS when the `Model` type does not change.
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
 - `examples/cards` and `examples/entity-game` build and run from one checkout

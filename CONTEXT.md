@@ -36,6 +36,12 @@ through `init` and `step`, decisions and a Scene come out. Nothing effectful
 crosses in either direction.
 _Avoid_: API, FFI boundary, scripting API, bridge
 
+**Game calls**:
+The four calls the host makes into the game: `init`, `step`, `view` and
+`drop_model`. The Seam reaches them through a struct of procedures, so a fake
+game can stand in for the Roc app in tests.
+_Avoid_: callbacks, vtable, bindings
+
 **Glue**:
 The generated Odin bindings for the vocabulary, produced by `roc glue` from
 the spec in the `glue/` submodule. Never written by hand.

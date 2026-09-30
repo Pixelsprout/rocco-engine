@@ -287,12 +287,14 @@ The refcount is an `isize` eight bytes before the data pointer. Zero marks
 static data.
 
 The host honours `roc_dealloc`. Every allocation Roc frees goes back to the
-host heap the same frame. There is no arena and no harvest. Evidence: one live
+Roc heap the same frame. There is no arena and no harvest. Evidence: one live
 block at steady state over 888 steps, zero bad frees over 899.
 
 `roc_realloc` carries no old size. The copy length must come from the
 allocator's own record. The tracking allocator is load-bearing for this
-reason, not for observability.
+reason, not for observability. The Roc heap in `engine/roc_runtime.odin`
+owns the tracking allocator, the alloc counters and the six hooks; the Seam in
+`engine/seam.odin` owns only the game calls and the call protocol above.
 
 The box shell costs one allocation and one free per step. The pool described
 in the roadmap removes the system heap from that path.
