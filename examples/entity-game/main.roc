@@ -7,7 +7,7 @@ import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
-Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Spark({ age : F32, phase : F32 })]
+Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Drop({ age : F32, phase : F32 })]
 
 # pos and yaw are local to the parent. A parent precedes its children in the
 # entity list: a child spawns later and append places it later. Reparenting to
@@ -70,7 +70,7 @@ step = |model, input, dt|
 		|> spin(dt)
 		|> expire(dt)
 		|> collect
-		|> orbit
+		|> fall
 		|> open_door
 		|> raise_door(dt)
 		|> sweep
@@ -162,62 +162,70 @@ collect = |m| match player(m) {
 				e
 			},
 		)
-		spawn_sparks({ ..m, score: m.score + gained, entities }, p.id, gained * sparks_per_pickup)
+		spawn_drops({ ..m, score: m.score + gained, entities }, p.id, gained * drops_per_pickup)
 	}
 }
 
-sparks_per_pickup : U64
-sparks_per_pickup = 6
+drops_per_pickup : U64
+drops_per_pickup = 6
 
 # Seconds.
-spark_life : F32
-spark_life = 1.0
+drop_life : F32
+drop_life = 1.0
 
-spawn_sparks : Model, U64, U64 -> Model
-spawn_sparks = |m, parent, count| {
+spawn_drops : Model, U64, U64 -> Model
+spawn_drops = |m, parent, count| {
 	var $entities = List.reserve(m.entities, count)
 	var $i = 0
 	while $i < count {
-		phase = ($i % sparks_per_pickup).to_f32() * 2.0 * pi / sparks_per_pickup.to_f32()
-		$entities = List.append($entities, { id: m.next_id + $i, kind: Spark({ age: 0.0, phase }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True })
+		phase = ($i % drops_per_pickup).to_f32() * 2.0 * pi / drops_per_pickup.to_f32()
+		$entities = List.append($entities, { id: m.next_id + $i, kind: Drop({ age: 0.0, phase }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 	{ ..m, next_id: m.next_id + count, entities: $entities }
 }
 
 # A block arm that set age and alive together allocated on every step under
-# --opt=dev, even with no sparks. The guard does not.
+# --opt=dev, even with no drops. The guard does not.
 expire : Model, F32 -> Model
 expire = |m, dt| map_entities(
 	m,
 	|e| match e.kind {
-		Spark(s) if s.age + dt >= spark_life => { ..e, alive: Bool.False }
-		Spark(s) => { ..e, kind: Spark({ ..s, age: s.age + dt }) }
+		Drop(s) if s.age + dt >= drop_life => { ..e, alive: Bool.False }
+		Drop(s) => { ..e, kind: Drop({ ..s, age: s.age + dt }) }
 		_ => e
 	},
 )
 
-orbit_radius : F32
-orbit_radius = 0.8
+# Drops start in a ring above the sprout's crown and land on the soil in its pot.
+drop_start_radius : F32
+drop_start_radius = 0.35
 
-orbit_height : F32
-orbit_height = 0.9
+drop_start_height : F32
+drop_start_height = 1.6
 
-# Radians per second.
-orbit_speed : F32
-orbit_speed = 4.0
+drop_land_radius : F32
+drop_land_radius = 0.1
 
-orbit : Model -> Model
-orbit = |m| map_entities(
+drop_land_height : F32
+drop_land_height = 0.52
+
+fall : Model -> Model
+fall = |m| map_entities(
 	m,
 	|e| match e.kind {
-		Spark(s) => {
-			angle = s.phase + orbit_speed * s.age
-			{ ..e, pos: { x: orbit_radius * angle.cos(), y: orbit_height, z: orbit_radius * angle.sin() } }
-		}
+		Drop(d) => { ..e, pos: drop_offset(d.phase, d.age) }
 		_ => e
 	},
 )
+
+# The height falls with the square of time, as under gravity.
+drop_offset : F32, F32 -> Vec3
+drop_offset = |phase, age| {
+	t = age / drop_life
+	radius = drop_start_radius + (drop_land_radius - drop_start_radius) * t
+	{ x: radius * phase.cos(), y: drop_start_height - (drop_start_height - drop_land_height) * t * t, z: radius * phase.sin() }
+}
 
 open_door : Model -> Model
 open_door = |m| {
@@ -358,7 +366,7 @@ draw = |meshes, e, world| {
 	match e.kind {
 		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Spark(_) => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.12), yaw, tint: { r: 1.0, g: 0.527, b: 0.051 } }
+		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, yaw, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
 			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
@@ -530,20 +538,20 @@ expect {
 		},
 	)
 	after = step(on_top, idle, 1.0 / 120.0)
-	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * sparks_per_pickup
+	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * drops_per_pickup
 }
 
-is_spark : Entity -> Bool
-is_spark = |e| match e.kind {
-	Spark(_) => Bool.True
+is_drop : Entity -> Bool
+is_drop = |e| match e.kind {
+	Drop(_) => Bool.True
 	_ => Bool.False
 }
 
-spark_count : Model -> U64
-spark_count = |m| List.count_if(m.entities, is_spark)
+drop_count : Model -> U64
+drop_count = |m| List.count_if(m.entities, is_drop)
 
 expect {
-	# Each collected pickup spawns its sparks, and the pickup is swept.
+	# Each collected pickup spawns its drops, and the pickup is swept.
 	m = new_game(test_meshes, 3)
 	on_one = map_entities(
 		m,
@@ -554,34 +562,34 @@ expect {
 		},
 	)
 	after = step(on_one, idle, 1.0 / 120.0)
-	spark_count(after) == sparks_per_pickup and List.count_if(after.entities, is_pickup) == 2
+	drop_count(after) == drops_per_pickup and List.count_if(after.entities, is_pickup) == 2
 }
 
 expect {
 	# New ids start past the last pickup, only grow, and are never reused.
 	m = new_game(test_meshes, 2)
 	after = step(on_every_pickup(m), idle, 1.0 / 120.0)
-	spark_ids = List.keep_if(after.entities, is_spark).map(|e| e.id)
-	fresh = List.all(spark_ids, |id| id >= m.next_id and id < after.next_id)
-	distinct = List.all(spark_ids, |id| List.count_if(spark_ids, |other| other == id) == 1)
-	m.next_id == 4 and after.next_id == m.next_id + 2 * sparks_per_pickup and fresh and distinct
+	drop_ids = List.keep_if(after.entities, is_drop).map(|e| e.id)
+	fresh = List.all(drop_ids, |id| id >= m.next_id and id < after.next_id)
+	distinct = List.all(drop_ids, |id| List.count_if(drop_ids, |other| other == id) == 1)
+	m.next_id == 4 and after.next_id == m.next_id + 2 * drops_per_pickup and fresh and distinct
 }
 
 expect {
-	# A spark lives for spark_life seconds, then sweep drops it.
-	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 0.1)
-	before = run_steps(sparked, idle, 8, 0.1)
+	# A drop lives for drop_life seconds, then sweep drops it.
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 0.1)
+	before = run_steps(watered, idle, 8, 0.1)
 	after = run_steps(before, idle, 3, 0.1)
-	spark_count(sparked) == sparks_per_pickup and spark_count(before) == sparks_per_pickup and spark_count(after) == 0
+	drop_count(watered) == drops_per_pickup and drop_count(before) == drops_per_pickup and drop_count(after) == 0
 }
 
 expect {
-	# Pickups are cubes so the spin shows. Sparks are small spheres.
-	sparked = step(on_every_pickup(new_game(test_meshes, 2)), idle, 1.0 / 120.0)
-	scene = view(sparked)
+	# Pickups are cubes so the spin shows. Drops are small spheres.
+	watered = step(on_every_pickup(new_game(test_meshes, 2)), idle, 1.0 / 120.0)
+	scene = view(watered)
 	pickup_mesh = List.find_first(view(new_game(test_meshes, 1)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
-	spark_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < sparked.next_id)
-	pickup_mesh == test_meshes.cube and List.len(spark_draws) == 2 * sparks_per_pickup and List.all(spark_draws, |d| d.mesh == test_meshes.sphere)
+	drop_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < watered.next_id)
+	pickup_mesh == test_meshes.cube and List.len(drop_draws) == 2 * drops_per_pickup and List.all(drop_draws, |d| d.mesh == test_meshes.sphere)
 }
 
 door_lift : Model -> F32
@@ -751,24 +759,26 @@ expect {
 }
 
 expect {
-	# Sparks orbit the player at orbit_radius and orbit_height, and turn with it.
-	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	# Drops start in a ring above the plant, and follow and turn with it.
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
 	offsets = |m| {
 		scene = view(m)
 		p = draw_of(scene, 0).map_ok(|d| d.pos) ?? origin
 		List.keep_if(scene.draws, |d| d.id >= 3 and d.id < m.next_id).map(|d| { x: d.pos.x - p.x, y: d.pos.y - p.y, z: d.pos.z - p.z })
 	}
-	on_orbit = |o| near(o.x * o.x + o.z * o.z, orbit_radius * orbit_radius) and near(o.y, orbit_height)
-	still = offsets(sparked)
-	turned = offsets(facing(sparked, pi / 2.0))
+	on_ring = |o| near(o.x * o.x + o.z * o.z, drop_start_radius * drop_start_radius) and near(o.y, drop_start_height)
+	still = offsets(watered)
+	turned = offsets(facing(watered, pi / 2.0))
 	rotated = List.map2(still, turned, |a, b| near_vec(b, { x: a.z, y: a.y, z: -a.x }))
-	List.len(still) == sparks_per_pickup and List.all(still, on_orbit) and List.all(rotated, |ok| ok)
+	List.len(still) == drops_per_pickup and List.all(still, on_ring) and List.all(rotated, |ok| ok)
 }
 
 expect {
-	# A spark moves round its orbit at orbit_speed.
-	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
-	later = step(sparked, idle, 0.1)
-	angle_of = |m| List.find_first(m.entities, |e| e.id == 3).map_ok(|e| F32.atan2({ x: e.pos.x, y: e.pos.z })) ?? -100.0
-	near(wrap_angle(angle_of(later) - angle_of(sparked)), orbit_speed * 0.1)
+	# A drop falls faster as it goes, and draws in to land on the soil at the end of its life.
+	start = drop_offset(0.0, 0.0)
+	half = drop_offset(0.0, drop_life / 2.0)
+	end = drop_offset(0.0, drop_life)
+	first_half = start.y - half.y
+	second_half = half.y - end.y
+	half.x < start.x and second_half > first_half and near_vec(end, { x: drop_land_radius, y: drop_land_height, z: 0.0 })
 }

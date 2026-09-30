@@ -369,12 +369,14 @@ change, except for the pairing map capacity below.
   values and `dbg` logs its id once per run. A test covers it.
 - Sweep is one fold over the same order. An entity is dropped if it is dead
   or its parent was dropped earlier in the same pass.
-- Collecting a pickup spawns 6 sparks as children of the player, kind
-  `Spark({ age : F32, phase : F32 })`. They orbit at radius 0.8, height 0.9,
-  4 radians per second, spread by phase. Sphere mesh, scale 0.12, warm yellow
-  tint in linear. An `expire` stage marks a spark dead after 1 second and
-  sweep drops it.
-- Pickups become cubes at scale 0.4 so the spin shows. Sparks are the
+- Collecting a pickup spawns 6 water drops as children of the player, kind
+  `Drop({ age : F32, phase : F32 })`. The player is a plant, so the drops
+  water it. Each drop starts on a ring of radius 0.35 at height 1.6, spread
+  by phase. It falls with the square of its age and draws in to land on the
+  soil, at radius 0.1 and height 0.52. Sphere mesh, scale 0.07 by 0.1, blue
+  tint in linear. An `expire` stage marks a drop dead after 1 second and
+  sweep drops it. Changed from orbiting sparks on 2026-10-01.
+- Pickups become cubes at scale 0.4 so the spin shows. Drops are the
   spheres.
 - Roc tests prove spawn, expiry, id growth, composition, the sweep cascade
   and the missing-parent case. A hand run confirms it on screen.
