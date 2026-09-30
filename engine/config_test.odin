@@ -31,9 +31,8 @@ test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(
 	table.meshes[table.count].name = "sprout"
 	table.count += 1
 
-	// roc_alloc reads g_state.seam.heap.
-	g_state.seam.heap = context.allocator
-	defer g_state.seam.heap = {}
+	roc_heap_init(context.allocator)
+	defer roc_heap_shutdown()
 	config := config_make(42, &table)
 	defer roc_decref(config)
 

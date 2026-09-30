@@ -6,6 +6,7 @@ import sglue "../sokol-odin/sokol/glue"
 import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
+import "core:time"
 
 import "base:runtime"
 
@@ -21,6 +22,8 @@ State :: struct {
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
 	seam:              Seam,
+	alloc_report:      bool,
+	steps:             u64,
 	frame_render:      Frame_Render,
 	exit_after_frames: int, // 0 runs forever
 }
@@ -36,6 +39,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
 	g_state.use_debug_camera = debug_camera_from_env()
+	g_state.alloc_report = alloc_report_from_env()
 
 	clock_init(&g_state.clock)
 	camera_init(&g_state.debug_camera)
@@ -45,7 +49,8 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	mesh_table_init(&g_state.renderer.meshes, g_state.mem.perm_allocator)
 	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
-	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes, alloc_report_from_env())
+	roc_heap_init(context.allocator)
+	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes)
 
 	sapp.run(
 		sapp.Desc {
@@ -87,7 +92,12 @@ frame_cb :: proc "c" () {
 
 	clock_add_frame(&g_state.clock, sapp.frame_duration())
 	for dt in clock_next_step(&g_state.clock) {
-		seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
+		before := roc_heap_counters()
+		step, view := seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
+		g_state.steps += 1
+		if g_state.alloc_report {
+			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step), time.duration_microseconds(view))
+		}
 	}
 
 	sg.begin_pass({action = g_state.pass_action, swapchain = sglue.swapchain()})
@@ -126,6 +136,7 @@ cleanup_cb :: proc "c" () {
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
+	roc_heap_shutdown()
 	frame_render_destroy(&g_state.frame_render)
 
 	sg.shutdown()

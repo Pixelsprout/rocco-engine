@@ -248,3 +248,9 @@ held)
 **Frame**:
 The lifetime of one frame: scratch that dies when the frame ends.
 _Avoid_: temp, transient, per-tick
+
+**Roc heap**:
+The host allocator behind roc_alloc, roc_dealloc and roc_realloc. Its
+tracking allocator records every size, because roc_realloc carries no old
+size.
+_Avoid_: Roc allocator, host heap, seam heap
