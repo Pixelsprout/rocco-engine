@@ -14,8 +14,8 @@ _Avoid_: runtime, backend, native side, C side
 
 **Host**:
 The engine seen from the seam: the party that calls `init`, `step` and
-`view` and owns the one pointer to the Model. Same code as the engine; say
-"host" when the sentence is about the seam.
+`view`, owns the one pointer to the Model, and drops it at shutdown. Same
+code as the engine; say "host" when the sentence is about the seam.
 _Avoid_: script host, runtime
 
 **Platform**:
@@ -37,9 +37,10 @@ crosses in either direction.
 _Avoid_: API, FFI boundary, scripting API, bridge
 
 **Game calls**:
-The four calls the host makes into the game: `init`, `step`, `view` and
-`drop_model`. The Seam reaches them through a struct of procedures, so a fake
-game can stand in for the Roc app in tests.
+What the host calls on the game: the three calls, and `drop_model`, the
+platform export that frees the Model at shutdown. The Seam reaches them
+through a struct of procedures, so a fake game can stand in for the Roc app
+in tests.
 _Avoid_: callbacks, vtable, bindings
 
 **Glue**:
