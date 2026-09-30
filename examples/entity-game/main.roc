@@ -278,8 +278,7 @@ sweep = |m|
 		{ ..m, entities: swept.kept }
 	}
 
-# view cannot remember what it logged, so this stage finds the children that
-# view will draw at their local values, and logs each id once per run.
+# view cannot remember what it logged, so this stage logs each orphan once.
 log_orphans : Model -> Model
 log_orphans = |m| {
 	found = List.fold(
@@ -289,7 +288,7 @@ log_orphans = |m| {
 			orphan = match e.parent {
 				Root => Bool.False
 				Child(parent) => match List.find_first_index(m.entities, |p| p.id == parent) {
-					Ok(j) => j > acc.index
+					Ok(j) => j >= acc.index
 					Err(_) => Bool.True
 				}
 			}
@@ -660,9 +659,9 @@ expect {
 	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 1.5
 }
 
-# A Pickup draws at its world values unchanged, so it shows composition plainly.
-node : U64, [Root, Child(U64)], Vec3, F32 -> Entity
-node = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: origin, yaw, alive: Bool.True }
+# A Pickup draws at its world pos and yaw with no offset.
+entity_at : U64, [Root, Child(U64)], Vec3, F32 -> Entity
+entity_at = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: origin, yaw, alive: Bool.True }
 
 with_entities : List(Entity) -> Model
 with_entities = |entities| { ..new_game(test_meshes, 0), entities }
@@ -679,9 +678,9 @@ expect {
 	scene = view(
 		with_entities(
 			[
-				node(10, Root, { x: 1.0, y: 0.0, z: 0.0 }, pi / 2.0),
-				node(11, Child(10), { x: 0.0, y: 2.0, z: 1.0 }, 0.5),
-				node(12, Child(11), { x: 0.0, y: 0.0, z: 1.0 }, 0.0),
+				entity_at(10, Root, { x: 1.0, y: 0.0, z: 0.0 }, pi / 2.0),
+				entity_at(11, Child(10), { x: 0.0, y: 2.0, z: 1.0 }, 0.5),
+				entity_at(12, Child(11), { x: 0.0, y: 0.0, z: 1.0 }, 0.0),
 			],
 		),
 	)
@@ -697,7 +696,7 @@ expect {
 
 expect {
 	# Scale is not inherited.
-	scene = view(with_entities([node(10, Root, origin, 0.0), node(11, Child(10), origin, 0.0)]))
+	scene = view(with_entities([entity_at(10, Root, origin, 0.0), entity_at(11, Child(10), origin, 0.0)]))
 	match (draw_of(scene, 10), draw_of(scene, 11)) {
 		(Ok(parent), Ok(child)) => parent.scale == child.scale
 		_ => Bool.False
@@ -710,9 +709,9 @@ expect {
 	scene = view(
 		with_entities(
 			[
-				node(10, Child(99), local, 0.25),
-				node(11, Child(12), local, 0.25),
-				node(12, Root, { x: 5.0, y: 0.0, z: 0.0 }, 1.0),
+				entity_at(10, Child(99), local, 0.25),
+				entity_at(11, Child(12), local, 0.25),
+				entity_at(12, Root, { x: 5.0, y: 0.0, z: 0.0 }, 1.0),
 			],
 		),
 	)
@@ -722,22 +721,29 @@ expect {
 
 expect {
 	# log_orphans records each orphan id once, however many steps it lives.
-	m = with_entities([node(10, Child(99), origin, 0.0), node(11, Child(12), origin, 0.0), node(12, Root, origin, 0.0)])
+	m = with_entities([entity_at(10, Child(99), origin, 0.0), entity_at(11, Child(12), origin, 0.0), entity_at(12, Root, origin, 0.0), entity_at(13, Child(13), origin, 0.0)])
 	after = run_steps(m, idle, 3, 0.1)
-	List.len(after.orphans_logged) == 2 and List.contains(after.orphans_logged, 10) and List.contains(after.orphans_logged, 11)
+	after.orphans_logged == [10, 11, 13]
+}
+
+expect {
+	# A child of the door lifts with the slab, because it composes from the door's Draw.
+	opened = run_steps(on_every_pickup(new_game(test_meshes, 1)), idle, 30, 0.1)
+	with_child = { ..opened, entities: List.append(opened.entities, entity_at(50, Child(1), { x: 0.0, y: 2.0, z: 0.0 }, 0.0)) }
+	draw_of(view(with_child), 50).map_ok(|d| near(d.pos.y, 1.5 + door_height + 2.0)) ?? Bool.False
 }
 
 expect {
 	# Sweep drops a dead entity, then every descendant of it in the same pass.
-	dead = { ..node(10, Root, origin, 0.0), alive: Bool.False }
+	dead = { ..entity_at(10, Root, origin, 0.0), alive: Bool.False }
 	swept = sweep(
 		with_entities(
 			[
 				dead,
-				node(11, Child(10), origin, 0.0),
-				node(12, Child(11), origin, 0.0),
-				node(13, Root, origin, 0.0),
-				node(14, Child(13), origin, 0.0),
+				entity_at(11, Child(10), origin, 0.0),
+				entity_at(12, Child(11), origin, 0.0),
+				entity_at(13, Root, origin, 0.0),
+				entity_at(14, Child(13), origin, 0.0),
 			],
 		),
 	)
