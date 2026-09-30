@@ -1,25 +1,7 @@
 package engine
 
 import "core:slice"
-import "core:sync"
 import "core:testing"
-
-// The test runner uses several threads, and the Roc heap and the fake game
-// records are package globals. Every test that allocates through roc_alloc
-// holds this lock.
-@(private = "file")
-g_roc_heap_test_lock: sync.Mutex
-
-roc_heap_test_begin :: proc() {
-	sync.mutex_lock(&g_roc_heap_test_lock)
-	roc_heap_init(context.allocator)
-	g_fake = {}
-}
-
-roc_heap_test_end :: proc() {
-	roc_heap_shutdown()
-	sync.mutex_unlock(&g_roc_heap_test_lock)
-}
 
 FAKE_KEYS_MAX :: 8
 
@@ -43,6 +25,7 @@ Fake_Game :: struct {
 	drop_rc:     int,
 }
 
+// Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
 g_fake: Fake_Game
 
 FAKE_GAME :: Game_Calls {
@@ -106,6 +89,7 @@ fake_drop_model :: proc(model: rawptr) {
 }
 
 fake_seam_init :: proc(s: ^Seam, seed: u64 = 0) {
+	g_fake = {}
 	seam_init(s, FAKE_GAME, Config{seed = seed})
 }
 
@@ -146,7 +130,7 @@ test_seam_step_rotates_the_scenes_and_hands_the_new_box_to_view :: proc(t: ^test
 	testing.expect_value(t, g_fake.step_in_rc, 1)
 	testing.expect_value(t, g_fake.view_box, g_fake.step_out)
 	testing.expect_value(t, g_fake.view_rc, 2)
-	testing.expect_value(t, fake_refcount(s.model)^, 1)
+	testing.expect_value(t, fake_refcount(g_fake.step_out)^, 1)
 }
 
 @(test)
@@ -158,13 +142,13 @@ test_seam_step_never_passes_a_consumed_box :: proc(t: ^testing.T) {
 	fake_seam_init(&s)
 	defer seam_shutdown(&s)
 
+	last := g_fake.init_box
 	for i in 0 ..< 5 {
-		last := s.model
 		seam_step(&s, {}, 1.0 / 60)
-		testing.expectf(t, g_fake.step_in == last, "step %v got %v, the Seam held %v", i, g_fake.step_in, last)
+		testing.expectf(t, g_fake.step_in == last, "step %v got %v, the game last returned %v", i, g_fake.step_in, last)
 		testing.expect_value(t, g_fake.step_in_rc, 1)
-		testing.expect_value(t, s.model, g_fake.step_out)
-		testing.expect_value(t, fake_refcount(s.model)^, 1)
+		testing.expect_value(t, fake_refcount(g_fake.step_out)^, 1)
+		last = g_fake.step_out
 	}
 }
 
@@ -228,12 +212,10 @@ test_seam_shutdown_drops_the_model_once_and_leaves_no_live_block :: proc(t: ^tes
 	fake_seam_init(&s)
 	seam_step(&s, {}, 1.0 / 60)
 	seam_step(&s, {}, 1.0 / 60)
-	model := s.model
-
 	seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.drops, 1)
-	testing.expect_value(t, g_fake.drop_box, model)
+	testing.expect_value(t, g_fake.drop_box, g_fake.step_out)
 	testing.expect_value(t, g_fake.drop_rc, 1)
 	testing.expect_value(t, roc_heap_counters().live, 0)
 }
@@ -247,7 +229,7 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 	fake_seam_init(&s)
 	defer seam_shutdown(&s)
 
-	step, view := seam_step(&s, {}, 1.0 / 60)
-	testing.expect(t, step >= 0)
-	testing.expect(t, view >= 0)
+	step_time, view_time := seam_step(&s, {}, 1.0 / 60)
+	testing.expect(t, step_time >= 0)
+	testing.expect(t, view_time >= 0)
 }

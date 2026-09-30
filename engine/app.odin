@@ -93,10 +93,10 @@ frame_cb :: proc "c" () {
 	clock_add_frame(&g_state.clock, sapp.frame_duration())
 	for dt in clock_next_step(&g_state.clock) {
 		before := roc_heap_counters()
-		step, view := seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
+		step_time, view_time := seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
 		g_state.steps += 1
 		if g_state.alloc_report {
-			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step), time.duration_microseconds(view))
+			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
 		}
 	}
 

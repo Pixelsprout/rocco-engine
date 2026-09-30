@@ -26,7 +26,7 @@ seam_init :: proc(s: ^Seam, calls: Game_Calls, config: Config) {
 	s.curr = seam_view(s)
 }
 
-seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step, view: time.Duration) {
+seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: time.Duration) {
 	start := time.tick_now()
 
 	input := Input {
