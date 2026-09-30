@@ -7,7 +7,7 @@ import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
-Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Drop({ age : F32, phase : F32 })]
+Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Drop({ age : F32, phase : F32, delay : F32 })]
 
 # pos and yaw are local to the parent. A parent precedes its children in the
 # entity list: a child spawns later and append places it later. Reparenting to
@@ -173,13 +173,20 @@ drops_per_pickup = 6
 drop_life : F32
 drop_life = 1.0
 
+# Seconds each drop waits before it falls, out of ring order so the drops do
+# not fall round the ring in turn.
+drop_delays : List(F32)
+drop_delays = [0.0, 0.32, 0.12, 0.45, 0.22, 0.38]
+
 spawn_drops : Model, U64, U64 -> Model
 spawn_drops = |m, parent, count| {
 	var $entities = List.reserve(m.entities, count)
 	var $i = 0
 	while $i < count {
-		phase = ($i % drops_per_pickup).to_f32() * 2.0 * pi / drops_per_pickup.to_f32()
-		$entities = List.append($entities, { id: m.next_id + $i, kind: Drop({ age: 0.0, phase }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True })
+		slot = $i % drops_per_pickup
+		phase = slot.to_f32() * 2.0 * pi / drops_per_pickup.to_f32()
+		delay = List.get(drop_delays, slot) ?? 0.0
+		$entities = List.append($entities, { id: m.next_id + $i, kind: Drop({ age: 0.0, phase, delay }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 	{ ..m, next_id: m.next_id + count, entities: $entities }
@@ -191,7 +198,7 @@ expire : Model, F32 -> Model
 expire = |m, dt| map_entities(
 	m,
 	|e| match e.kind {
-		Drop(s) if s.age + dt >= drop_life => { ..e, alive: Bool.False }
+		Drop(s) if s.age + dt >= s.delay + drop_life => { ..e, alive: Bool.False }
 		Drop(s) => { ..e, kind: Drop({ ..s, age: s.age + dt }) }
 		_ => e
 	},
@@ -214,7 +221,7 @@ fall : Model -> Model
 fall = |m| map_entities(
 	m,
 	|e| match e.kind {
-		Drop(d) => { ..e, pos: drop_offset(d.phase, d.age) }
+		Drop(d) => { ..e, pos: drop_offset(d.phase, F32.max(d.age - d.delay, 0.0)) }
 		_ => e
 	},
 )
@@ -347,7 +354,11 @@ view = |curr| {
 					Err(NotFound) => { pos: e.pos, yaw: e.yaw }
 				}
 			}
-			acc.append(draw(curr.meshes, e, world))
+			if waiting(e) {
+				acc
+			} else {
+				acc.append(draw(curr.meshes, e, world))
+			}
 		},
 	)
 
@@ -398,6 +409,13 @@ player = |m| List.find_first(
 		_ => Bool.False
 	},
 )
+
+# A drop is not drawn until its delay ends.
+waiting : Entity -> Bool
+waiting = |e| match e.kind {
+	Drop(d) => d.age < d.delay
+	_ => Bool.False
+}
 
 is_pickup : Entity -> Bool
 is_pickup = |e| match e.kind {
@@ -576,16 +594,30 @@ expect {
 }
 
 expect {
-	# A drop lives for drop_life seconds, then sweep drops it.
+	# A drop lives for its delay plus drop_life, then sweep drops it. The
+	# delays differ, so the drops die one after another.
 	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 0.1)
 	before = run_steps(watered, idle, 8, 0.1)
-	after = run_steps(before, idle, 3, 0.1)
-	drop_count(watered) == drops_per_pickup and drop_count(before) == drops_per_pickup and drop_count(after) == 0
+	some = run_steps(before, idle, 3, 0.1)
+	after = run_steps(some, idle, 5, 0.1)
+	partly = drop_count(some) > 0 and drop_count(some) < drops_per_pickup
+	drop_count(watered) == drops_per_pickup and drop_count(before) == drops_per_pickup and partly and drop_count(after) == 0
+}
+
+drawn_drops : Model -> U64
+drawn_drops = |m| List.count_if(view(m).draws, |d| d.id >= 3 and d.id < m.next_id)
+
+expect {
+	# Drops wait for their delays, so they appear one after another.
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	soon = run_steps(watered, idle, 2, 0.1)
+	later = run_steps(soon, idle, 3, 0.1)
+	drawn_drops(watered) == 1 and drawn_drops(soon) > 1 and drawn_drops(soon) < drops_per_pickup and drawn_drops(later) == drops_per_pickup
 }
 
 expect {
 	# Pickups are cubes so the spin shows. Drops are small spheres.
-	watered = step(on_every_pickup(new_game(test_meshes, 2)), idle, 1.0 / 120.0)
+	watered = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 6, 0.1)
 	scene = view(watered)
 	pickup_mesh = List.find_first(view(new_game(test_meshes, 1)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
 	drop_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < watered.next_id)
@@ -759,7 +791,7 @@ expect {
 }
 
 expect {
-	# Drops start in a ring above the plant, and follow and turn with it.
+	# A drop with no delay starts in a ring above the plant, and follows and turns with it.
 	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
 	offsets = |m| {
 		scene = view(m)
@@ -770,7 +802,7 @@ expect {
 	still = offsets(watered)
 	turned = offsets(facing(watered, pi / 2.0))
 	rotated = List.map2(still, turned, |a, b| near_vec(b, { x: a.z, y: a.y, z: -a.x }))
-	List.len(still) == drops_per_pickup and List.all(still, on_ring) and List.all(rotated, |ok| ok)
+	List.len(still) == 1 and List.all(still, on_ring) and List.all(rotated, |ok| ok)
 }
 
 expect {
