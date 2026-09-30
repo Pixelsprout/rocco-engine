@@ -1,7 +1,8 @@
 #!/bin/sh
 # Check that the games do not rebuild the host library. Records the host
 # library's hash and mtime and the hashes of the generated glue and
-# platform/Key.roc, regenerates both and links both games, then compares.
+# platform/Key.roc, regenerates both, runs the tests in platform/Key.roc and
+# links both games, then compares.
 # A Model change in either game must pass this check, because the platform
 # never names the game.
 set -eu
@@ -24,6 +25,7 @@ key_hash=$(hash platform/Key.roc)
 
 roc scripts/build.roc -- glue > /dev/null
 roc scripts/build.roc -- keys > /dev/null
+roc test platform/Key.roc > /dev/null
 roc scripts/build.roc -- game cards > /dev/null
 roc scripts/build.roc -- game entity-game > /dev/null
 

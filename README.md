@@ -77,8 +77,10 @@ The script stops at the first step that fails. After a change, run `glue`,
 `host` and `game` in that order. Each tool consumes the previous one's output
 and cannot tell whether that output is stale.
 
-`roc test scripts/build.roc` runs the script's tests. `odin test engine
--debug` runs the engine's tests.
+`roc test scripts/build.roc` runs the script's tests. `roc test
+scripts/Keys.roc` runs only the tests of the Key generator.
+`./scripts/host-check.sh` runs the tests inside `platform/Key.roc`. `odin test
+engine -debug` runs the engine's tests.
 
 `ROCCO_EXIT_AFTER_FRAMES=N` makes the game quit after N rendered frames. The
 game then prints `Frame Count: N` and exits with code 0. Without the variable,
@@ -222,6 +224,7 @@ a change to the `Model` type, restart the game.
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `scripts/build.roc` | The build script. |
+| `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
 | `scripts/target.sh` | The Roc target, binary suffix and host library for this machine. The check scripts source it. |
