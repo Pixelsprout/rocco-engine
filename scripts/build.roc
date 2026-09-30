@@ -8,7 +8,7 @@ import pf.Stderr
 import pf.Stdout
 import Keys
 
-Step : [Inputs, Glue, Host, Game(Str), Shaders, Keys]
+Step : [Inputs, Glue, Host, Game(Str), Shaders, Keys, Target]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -18,6 +18,7 @@ parse = |args| match args {
 	["game", example] => Ok([Game(example)])
 	["shaders"] => Ok([Shaders])
 	["keys"] => Ok([Keys])
+	["target"] => Ok([Target])
 	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game")])
 	_ => Err(Usage)
 }
@@ -51,6 +52,10 @@ make_target = |roc_target, host_lib, sokol_suffix, exe, extra_inputs| {
 	exe,
 	extra_inputs,
 }
+
+# The check scripts eval these lines, so they must stay shell-safe.
+target_lines : Target -> Str
+target_lines = |target| "target=${target.roc_target}\nsuffix=${target.exe}\nhost_lib=${target.dir}/${target.host_lib}"
 
 Run : { program : Str, args : List(Str), cwd : Str }
 
@@ -153,6 +158,7 @@ usage =
 	\\  game <example>  link examples/<example> against the platform
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
+	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  all             glue, host, inputs, game cards, game entity-game
 	\\
 	\\Run from the repository root. The target is the machine running the script.
@@ -207,6 +213,7 @@ run_step! = |step, target| match step {
 			Stdout.line!("== shaders: sokol-shdc is not on PATH, keeping the committed engine/shader_basic.odin")
 		}
 	Keys => keys!()
+	Target => Stdout.line!(target_lines(target))
 }
 
 exec! : Run => Try({}, _)
@@ -403,3 +410,8 @@ expect linux_lib_dir_from(["/usr/lib64", "/usr/lib"]) == Ok("/usr/lib64")
 expect linux_lib_dir_from([]) == Err(NoLibDir)
 
 expect parse(["keys"]) == Ok([Keys])
+
+expect parse(["target"]) == Ok([Target])
+expect target_for(mac).map_ok(target_lines) == Ok("target=arm64mac\nsuffix=.bin\nhost_lib=platform/targets/arm64mac/libhost.a")
+expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_linux.bin\nhost_lib=platform/targets/x64glibc/libhost.a")
+expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib")

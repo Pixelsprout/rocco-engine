@@ -10,7 +10,9 @@ cd "$(dirname "$0")/.."
 
 FRAMES=240
 SKIP=10
-. scripts/target.sh
+# eval "$(...)" would hide a build.roc failure from set -e.
+target_lines=$(roc scripts/build.roc -- target)
+eval "$target_lines"
 
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT

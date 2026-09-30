@@ -8,7 +8,9 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-. scripts/target.sh
+# eval "$(...)" would hide a build.roc failure from set -e.
+target_lines=$(roc scripts/build.roc -- target)
+eval "$target_lines"
 lib=$host_lib
 if [ ! -f "$lib" ]; then
 	echo "host-check: $lib is missing. Run roc scripts/build.roc -- host first." >&2

@@ -71,6 +71,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
+| `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game` |
 
 The script stops at the first step that fails. After a change, run `glue`,
@@ -223,11 +224,10 @@ a change to the `Model` type, restart the game.
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
-| `scripts/build.roc` | The build script. |
+| `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
-| `scripts/target.sh` | The Roc target, binary suffix and host library for this machine. The check scripts source it. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
