@@ -50,7 +50,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	seam_init(&g_state.seam, seed_from_env(), &g_state.renderer.meshes)
+	seam_init(&g_state.seam, ROC_GAME, config_make(seed_from_env(), &g_state.renderer.meshes))
 
 	sapp.run(
 		sapp.Desc {

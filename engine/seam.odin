@@ -2,7 +2,15 @@ package engine
 
 import "core:time"
 
+Game_Calls :: struct {
+	init:       proc(config: Config) -> rawptr,
+	step:       proc(model: rawptr, input: Input, dt: f32) -> rawptr,
+	view:       proc(model: rawptr) -> Scene,
+	drop_model: proc(model: rawptr),
+}
+
 Seam :: struct {
+	calls: Game_Calls,
 	model: rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
@@ -12,8 +20,9 @@ Seam :: struct {
 
 // Owns the one reference to the Model and the last two Scenes. See the call
 // protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
-seam_init :: proc(s: ^Seam, seed: u64, table: ^Mesh_Table) {
-	s.model = roc_init(config_make(seed, table))
+seam_init :: proc(s: ^Seam, calls: Game_Calls, config: Config) {
+	s.calls = calls
+	s.model = s.calls.init(config)
 	s.curr = seam_view(s)
 }
 
@@ -25,8 +34,8 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step, view: time.Durat
 		pressed = roc_list_from_slice(keys.pressed),
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
-	// roc_step frees the old box. Never touch the old pointer again.
-	s.model = roc_step(s.model, input, dt)
+	// step frees the old box. Never touch the old pointer again.
+	s.model = s.calls.step(s.model, input, dt)
 	stepped := time.tick_now()
 	if s.has_prev {
 		roc_decref(s.prev)
@@ -44,11 +53,11 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
 }
 
-// roc_view consumes one reference, so give it one and keep ours.
+// view consumes one reference, so give it one and keep ours.
 @(private = "file")
 seam_view :: proc(s: ^Seam) -> Scene {
 	roc_incref_box(s.model)
-	return roc_view(s.model)
+	return s.calls.view(s.model)
 }
 
 seam_shutdown :: proc(s: ^Seam) {
@@ -56,5 +65,5 @@ seam_shutdown :: proc(s: ^Seam) {
 		roc_decref(s.prev)
 	}
 	roc_decref(s.curr)
-	roc_drop_model(s.model)
+	s.calls.drop_model(s.model)
 }

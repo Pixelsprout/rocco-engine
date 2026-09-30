@@ -67,6 +67,25 @@ roc_heap_report_line :: proc(step: u64, before: Roc_Heap_Counters, step_us, view
 	)
 }
 
+ROC_GAME :: Game_Calls {
+	init       = roc_game_init,
+	step       = roc_game_step,
+	view       = roc_game_view,
+	drop_model = roc_game_drop_model,
+}
+
+@(private = "file")
+roc_game_init :: proc(config: Config) -> rawptr {return roc_init(config)}
+
+@(private = "file")
+roc_game_step :: proc(model: rawptr, input: Input, dt: f32) -> rawptr {return roc_step(model, input, dt)}
+
+@(private = "file")
+roc_game_view :: proc(model: rawptr) -> Scene {return roc_view(model)}
+
+@(private = "file")
+roc_game_drop_model :: proc(model: rawptr) {roc_drop_model(model)}
+
 @(export, link_name = "roc_alloc")
 roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
 	context = g_state.ctx

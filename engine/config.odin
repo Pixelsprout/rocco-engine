@@ -44,7 +44,7 @@ mesh_dir_from_env :: proc() -> string {
 	return mesh_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
 }
 
-// Every string and list is a fresh roc_alloc at refcount 1; roc_init consumes them.
+// Every string and list is a fresh roc_alloc at refcount 1; the game init call consumes them.
 config_make :: proc(seed: u64, table: ^Mesh_Table) -> Config {
 	entries := make([]Mesh_Entry, table.count, context.temp_allocator)
 	for mesh, id in table.meshes[:table.count] {
