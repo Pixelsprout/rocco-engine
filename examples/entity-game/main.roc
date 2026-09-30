@@ -9,7 +9,10 @@ import pf.Key
 
 Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Spark({ age : F32, phase : F32 })]
 
-Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
+# pos and yaw are local to the parent. A parent precedes its children in the
+# entity list: a child spawns later and append places it later. Reparenting to
+# a younger entity is the one way to break that.
+Entity : { id : U64, kind : Kind, parent : [Root, Child(U64)], pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
 
 # The ids this game resolved from the manifest at init. Resolved once, kept
 # in the Model, never looked up per step.
@@ -17,7 +20,7 @@ MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32 }
 
 # next_id only grows, so an id is never reused and the host never pairs a
 # new entity with a dead one.
-Model : { steps : U64, score : U64, next_id : U64, meshes : MeshIds, entities : List(Entity) }
+Model : { steps : U64, score : U64, next_id : U64, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64) }
 
 # ---- init : Config -> Model ---------------------------------------------
 #
@@ -38,19 +41,19 @@ resolve_meshes = |config| {
 
 new_game : MeshIds, U64 -> Model
 new_game = |meshes, pickups| {
-	player = { id: 0, kind: Player, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
-	door = { id: 1, kind: Door({ open: Bool.False, lift: 0.0 }), pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
+	player = { id: 0, kind: Player, parent: Root, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
+	door = { id: 1, kind: Door({ open: Bool.False, lift: 0.0 }), parent: Root, pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
 
 	var $pickups = List.with_capacity(pickups)
 	var $i = 0
 	while $i < pickups {
 		angle = ($i.to_f32()) * 6.2832 / (pickups.to_f32())
 		pos = { x: 4.0 * angle.cos(), y: 0.5, z: 4.0 * angle.sin() }
-		$pickups = List.append($pickups, { id: 2 + $i, kind: Pickup, pos, vel: origin, yaw: 0.0, alive: Bool.True })
+		$pickups = List.append($pickups, { id: 2 + $i, kind: Pickup, parent: Root, pos, vel: origin, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 
-	{ steps: 0, score: 0, next_id: 2 + pickups, meshes, entities: List.concat([player, door], $pickups) }
+	{ steps: 0, score: 0, next_id: 2 + pickups, meshes, entities: List.concat([player, door], $pickups), orphans_logged: [] }
 }
 
 # ---- step : Model, Input, F32 -> Model ---------------------------------
@@ -67,9 +70,11 @@ step = |model, input, dt|
 		|> spin(dt)
 		|> expire(dt)
 		|> collect
+		|> orbit
 		|> open_door
 		|> raise_door(dt)
 		|> sweep
+		|> log_orphans
 		|> count_step
 
 speed : F32
@@ -157,7 +162,7 @@ collect = |m| match player(m) {
 				e
 			},
 		)
-		spawn_sparks({ ..m, score: m.score + gained, entities }, p.pos, gained * sparks_per_pickup)
+		spawn_sparks({ ..m, score: m.score + gained, entities }, p.id, gained * sparks_per_pickup)
 	}
 }
 
@@ -168,13 +173,13 @@ sparks_per_pickup = 6
 spark_life : F32
 spark_life = 1.0
 
-spawn_sparks : Model, Vec3, U64 -> Model
-spawn_sparks = |m, at, count| {
+spawn_sparks : Model, U64, U64 -> Model
+spawn_sparks = |m, parent, count| {
 	var $entities = List.reserve(m.entities, count)
 	var $i = 0
 	while $i < count {
 		phase = ($i % sparks_per_pickup).to_f32() * 2.0 * pi / sparks_per_pickup.to_f32()
-		$entities = List.append($entities, { id: m.next_id + $i, kind: Spark({ age: 0.0, phase }), pos: at, vel: origin, yaw: 0.0, alive: Bool.True })
+		$entities = List.append($entities, { id: m.next_id + $i, kind: Spark({ age: 0.0, phase }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 	{ ..m, next_id: m.next_id + count, entities: $entities }
@@ -188,6 +193,28 @@ expire = |m, dt| map_entities(
 	|e| match e.kind {
 		Spark(s) if s.age + dt >= spark_life => { ..e, alive: Bool.False }
 		Spark(s) => { ..e, kind: Spark({ ..s, age: s.age + dt }) }
+		_ => e
+	},
+)
+
+orbit_radius : F32
+orbit_radius = 0.8
+
+orbit_height : F32
+orbit_height = 0.9
+
+# Radians per second.
+orbit_speed : F32
+orbit_speed = 4.0
+
+orbit : Model -> Model
+orbit = |m| map_entities(
+	m,
+	|e| match e.kind {
+		Spark(s) => {
+			angle = s.phase + orbit_speed * s.age
+			{ ..e, pos: { x: orbit_radius * angle.cos(), y: orbit_height, z: orbit_radius * angle.sin() } }
+		}
 		_ => e
 	},
 )
@@ -224,14 +251,59 @@ raise_door = |m, dt| map_entities(
 	},
 )
 
-# keep_if allocates even when it keeps everything, so skip it on a quiet step.
+# The fold allocates even when it keeps everything, so skip it on a quiet step.
+# A parent precedes its children, so one pass in list order drops every
+# descendant of a dead entity.
 sweep : Model -> Model
 sweep = |m|
 	if List.all(m.entities, |e| e.alive) {
 		m
 	} else {
-		{ ..m, entities: List.keep_if(m.entities, |e| e.alive) }
+		start = { kept: List.with_capacity(List.len(m.entities)), dropped: [] }
+		swept = List.fold(
+			m.entities,
+			start,
+			|acc, e| {
+				orphaned = match e.parent {
+					Root => Bool.False
+					Child(parent) => List.contains(acc.dropped, parent)
+				}
+				if e.alive and !orphaned {
+					{ ..acc, kept: acc.kept.append(e) }
+				} else {
+					{ ..acc, dropped: acc.dropped.append(e.id) }
+				}
+			},
+		)
+		{ ..m, entities: swept.kept }
 	}
+
+# view cannot remember what it logged, so this stage finds the children that
+# view will draw at their local values, and logs each id once per run.
+log_orphans : Model -> Model
+log_orphans = |m| {
+	found = List.fold(
+		m.entities,
+		{ index: 0, logged: m.orphans_logged },
+		|acc, e| {
+			orphan = match e.parent {
+				Root => Bool.False
+				Child(parent) => match List.find_first_index(m.entities, |p| p.id == parent) {
+					Ok(j) => j > acc.index
+					Err(_) => Bool.True
+				}
+			}
+			logged = if orphan and !List.contains(acc.logged, e.id) {
+				dbg e.id
+				acc.logged.append(e.id)
+			} else {
+				acc.logged
+			}
+			{ index: acc.index + 1, logged }
+		},
+	)
+	{ ..m, orphans_logged: found.logged }
+}
 
 count_step : Model -> Model
 count_step = |m| { ..m, steps: m.steps + 1 }
@@ -255,8 +327,22 @@ view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation for every draw. List.concat would allocate twice.
+	# A parent precedes its child, so the parent's Draw is already in acc.
 	first = List.with_capacity(List.len(curr.entities) + 1).append(floor)
-	draws = List.fold(curr.entities, first, |acc, e| acc.append(draw(curr.meshes, e)))
+	draws = List.fold(
+		curr.entities,
+		first,
+		|acc, e| {
+			world = match e.parent {
+				Root => { pos: e.pos, yaw: e.yaw }
+				Child(parent) => match List.find_first(acc, |d| d.id == parent) {
+					Ok(p) => { pos: add(p.pos, rotate_y(e.pos, p.yaw)), yaw: p.yaw + e.yaw }
+					Err(NotFound) => { pos: e.pos, yaw: e.yaw }
+				}
+			}
+			acc.append(draw(curr.meshes, e, world))
+		},
+	)
 
 	target = match player(curr) {
 		Ok(p) => p.pos
@@ -266,10 +352,10 @@ view = |curr| {
 	{ camera: Cam.follow(target, camera_offset), draws }
 }
 
-draw : MeshIds, Entity -> Draw
-draw = |meshes, e| {
-	pos = e.pos
-	yaw = e.yaw
+draw : MeshIds, Entity, { pos : Vec3, yaw : F32 } -> Draw
+draw = |meshes, e, world| {
+	pos = world.pos
+	yaw = world.yaw
 	match e.kind {
 		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
@@ -329,6 +415,14 @@ one = { x: 1.0, y: 1.0, z: 1.0 }
 
 add : Vec3, Vec3 -> Vec3
 add = |a, b| { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
+
+# Turns v about +y by yaw, the way the host turns a Draw, so +z goes to (sin, 0, cos).
+rotate_y : Vec3, F32 -> Vec3
+rotate_y = |v, yaw| {
+	c = yaw.cos()
+	s = yaw.sin()
+	{ x: v.x * c + v.z * s, y: v.y, z: v.z * c - v.x * s }
+}
 
 scale : Vec3, F32 -> Vec3
 scale = |v, s| { x: v.x * s, y: v.y * s, z: v.z * s }
@@ -564,4 +658,111 @@ expect {
 	# The camera follows the player from a fixed offset.
 	scene = view(step(new_game(test_meshes, 1), right, 1.0))
 	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 1.5
+}
+
+# A Pickup draws at its world values unchanged, so it shows composition plainly.
+node : U64, [Root, Child(U64)], Vec3, F32 -> Entity
+node = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: origin, yaw, alive: Bool.True }
+
+with_entities : List(Entity) -> Model
+with_entities = |entities| { ..new_game(test_meshes, 0), entities }
+
+draw_of : Scene, U64 -> Try(Draw, [NotFound])
+draw_of = |scene, id| List.find_first(scene.draws, |d| d.id == id)
+
+near_vec : Vec3, Vec3 -> Bool
+near_vec = |a, b| near(a.x, b.x) and near(a.y, b.y) and near(a.z, b.z)
+
+expect {
+	# A child's world pos is its local pos turned by the parent yaw, plus the
+	# parent pos. Yaws add. Depth is unbounded.
+	scene = view(
+		with_entities(
+			[
+				node(10, Root, { x: 1.0, y: 0.0, z: 0.0 }, pi / 2.0),
+				node(11, Child(10), { x: 0.0, y: 2.0, z: 1.0 }, 0.5),
+				node(12, Child(11), { x: 0.0, y: 0.0, z: 1.0 }, 0.0),
+			],
+		),
+	)
+	match (draw_of(scene, 11), draw_of(scene, 12)) {
+		(Ok(child), Ok(grandchild)) => {
+			turned = pi / 2.0 + 0.5
+			want = { x: 2.0 + turned.sin(), y: 2.0, z: turned.cos() }
+			near_vec(child.pos, { x: 2.0, y: 2.0, z: 0.0 }) and near(child.yaw, turned) and near_vec(grandchild.pos, want)
+		}
+		_ => Bool.False
+	}
+}
+
+expect {
+	# Scale is not inherited.
+	scene = view(with_entities([node(10, Root, origin, 0.0), node(11, Child(10), origin, 0.0)]))
+	match (draw_of(scene, 10), draw_of(scene, 11)) {
+		(Ok(parent), Ok(child)) => parent.scale == child.scale
+		_ => Bool.False
+	}
+}
+
+expect {
+	# A child whose parent is missing, or later in the list, draws at its local values.
+	local = { x: 3.0, y: 1.0, z: 2.0 }
+	scene = view(
+		with_entities(
+			[
+				node(10, Child(99), local, 0.25),
+				node(11, Child(12), local, 0.25),
+				node(12, Root, { x: 5.0, y: 0.0, z: 0.0 }, 1.0),
+			],
+		),
+	)
+	at_local = |id| draw_of(scene, id).map_ok(|d| d.pos == local and d.yaw == 0.25) ?? Bool.False
+	at_local(10) and at_local(11)
+}
+
+expect {
+	# log_orphans records each orphan id once, however many steps it lives.
+	m = with_entities([node(10, Child(99), origin, 0.0), node(11, Child(12), origin, 0.0), node(12, Root, origin, 0.0)])
+	after = run_steps(m, idle, 3, 0.1)
+	List.len(after.orphans_logged) == 2 and List.contains(after.orphans_logged, 10) and List.contains(after.orphans_logged, 11)
+}
+
+expect {
+	# Sweep drops a dead entity, then every descendant of it in the same pass.
+	dead = { ..node(10, Root, origin, 0.0), alive: Bool.False }
+	swept = sweep(
+		with_entities(
+			[
+				dead,
+				node(11, Child(10), origin, 0.0),
+				node(12, Child(11), origin, 0.0),
+				node(13, Root, origin, 0.0),
+				node(14, Child(13), origin, 0.0),
+			],
+		),
+	)
+	swept.entities.map(|e| e.id) == [13, 14]
+}
+
+expect {
+	# Sparks orbit the player at orbit_radius and orbit_height, and turn with it.
+	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	offsets = |m| {
+		scene = view(m)
+		p = draw_of(scene, 0).map_ok(|d| d.pos) ?? origin
+		List.keep_if(scene.draws, |d| d.id >= 3 and d.id < m.next_id).map(|d| { x: d.pos.x - p.x, y: d.pos.y - p.y, z: d.pos.z - p.z })
+	}
+	on_orbit = |o| near(o.x * o.x + o.z * o.z, orbit_radius * orbit_radius) and near(o.y, orbit_height)
+	still = offsets(sparked)
+	turned = offsets(facing(sparked, pi / 2.0))
+	rotated = List.map2(still, turned, |a, b| near_vec(b, { x: a.z, y: a.y, z: -a.x }))
+	List.len(still) == sparks_per_pickup and List.all(still, on_orbit) and List.all(rotated, |ok| ok)
+}
+
+expect {
+	# A spark moves round its orbit at orbit_speed.
+	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	later = step(sparked, idle, 0.1)
+	angle_of = |m| List.find_first(m.entities, |e| e.id == 3).map_ok(|e| F32.atan2({ x: e.pos.x, y: e.pos.z })) ?? -100.0
+	near(wrap_angle(angle_of(later) - angle_of(sparked)), orbit_speed * 0.1)
 }
