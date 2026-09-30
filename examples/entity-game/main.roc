@@ -7,7 +7,7 @@ import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
-Kind : [Player, Pickup, Door({ open : Bool, lift : F32 })]
+Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Spark({ age : F32, phase : F32 })]
 
 Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
 
@@ -15,7 +15,9 @@ Entity : { id : U64, kind : Kind, pos : Vec3, vel : Vec3, yaw : F32, alive : Boo
 # in the Model, never looked up per step.
 MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32 }
 
-Model : { steps : U64, score : U64, meshes : MeshIds, entities : List(Entity) }
+# next_id only grows, so an id is never reused and the host never pairs a
+# new entity with a dead one.
+Model : { steps : U64, score : U64, next_id : U64, meshes : MeshIds, entities : List(Entity) }
 
 # ---- init : Config -> Model ---------------------------------------------
 #
@@ -48,7 +50,7 @@ new_game = |meshes, pickups| {
 		$i = $i + 1
 	}
 
-	{ steps: 0, score: 0, meshes, entities: List.concat([player, door], $pickups) }
+	{ steps: 0, score: 0, next_id: 2 + pickups, meshes, entities: List.concat([player, door], $pickups) }
 }
 
 # ---- step : Model, Input, F32 -> Model ---------------------------------
@@ -63,6 +65,7 @@ step = |model, input, dt|
 		|> face(dt)
 		|> integrate(dt)
 		|> spin(dt)
+		|> expire(dt)
 		|> collect
 		|> open_door
 		|> raise_door(dt)
@@ -154,9 +157,40 @@ collect = |m| match player(m) {
 				e
 			},
 		)
-		{ ..m, score: m.score + gained, entities }
+		spawn_sparks({ ..m, score: m.score + gained, entities }, p.pos, gained * sparks_per_pickup)
 	}
 }
+
+sparks_per_pickup : U64
+sparks_per_pickup = 6
+
+# Seconds.
+spark_life : F32
+spark_life = 1.0
+
+spawn_sparks : Model, Vec3, U64 -> Model
+spawn_sparks = |m, at, count| {
+	var $entities = List.reserve(m.entities, count)
+	var $i = 0
+	while $i < count {
+		phase = ($i % sparks_per_pickup).to_f32() * 2.0 * pi / sparks_per_pickup.to_f32()
+		$entities = List.append($entities, { id: m.next_id + $i, kind: Spark({ age: 0.0, phase }), pos: at, vel: origin, yaw: 0.0, alive: Bool.True })
+		$i = $i + 1
+	}
+	{ ..m, next_id: m.next_id + count, entities: $entities }
+}
+
+# A block arm that set age and alive together allocated on every step under
+# --opt=dev, even with no sparks. The guard does not.
+expire : Model, F32 -> Model
+expire = |m, dt| map_entities(
+	m,
+	|e| match e.kind {
+		Spark(s) if s.age + dt >= spark_life => { ..e, alive: Bool.False }
+		Spark(s) => { ..e, kind: Spark({ ..s, age: s.age + dt }) }
+		_ => e
+	},
+)
 
 open_door : Model -> Model
 open_door = |m| {
@@ -209,8 +243,9 @@ count_step = |m| { ..m, steps: m.steps + 1 }
 # with the same id when it draws a frame. That keeps the Model's refcount at one,
 # so step mutates in place and nothing is copied to remember the past.
 
+# Scenery ids count down from the top, so next_id never reaches them.
 floor_id : U64
-floor_id = 1_000_000
+floor_id = U64.highest
 
 camera_offset : Vec3
 camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
@@ -237,7 +272,8 @@ draw = |meshes, e| {
 	yaw = e.yaw
 	match e.kind {
 		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Spark(_) => { id: e.id, mesh: meshes.sphere, pos, scale: scale(one, 0.12), yaw, tint: { r: 1.0, g: 0.527, b: 0.051 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
 			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
@@ -327,10 +363,10 @@ expect {
 }
 
 expect {
-	# A plane floor, a sprout player, a cube door and sphere pickups.
+	# A plane floor, a sprout player, a cube door and cube pickups.
 	scene = view(new_game(test_meshes, 1))
 	mesh_of = |id| List.find_first(scene.draws, |d| d.id == id).map_ok(|d| d.mesh) ?? 0
-	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.sphere
+	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.cube
 }
 
 expect {
@@ -401,7 +437,58 @@ expect {
 		},
 	)
 	after = step(on_top, idle, 1.0 / 120.0)
-	after.score == 2 and door_open(after) and List.len(after.entities) == 2
+	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * sparks_per_pickup
+}
+
+is_spark : Entity -> Bool
+is_spark = |e| match e.kind {
+	Spark(_) => Bool.True
+	_ => Bool.False
+}
+
+spark_count : Model -> U64
+spark_count = |m| List.count_if(m.entities, is_spark)
+
+expect {
+	# Each collected pickup spawns its sparks, and the pickup is swept.
+	m = new_game(test_meshes, 3)
+	on_one = map_entities(
+		m,
+		|e| if e.id == 2 {
+			{ ..e, pos: origin }
+		} else {
+			e
+		},
+	)
+	after = step(on_one, idle, 1.0 / 120.0)
+	spark_count(after) == sparks_per_pickup and List.count_if(after.entities, is_pickup) == 2
+}
+
+expect {
+	# New ids start past the last pickup, only grow, and are never reused.
+	m = new_game(test_meshes, 2)
+	after = step(on_every_pickup(m), idle, 1.0 / 120.0)
+	spark_ids = List.keep_if(after.entities, is_spark).map(|e| e.id)
+	fresh = List.all(spark_ids, |id| id >= m.next_id and id < after.next_id)
+	distinct = List.all(spark_ids, |id| List.count_if(spark_ids, |other| other == id) == 1)
+	m.next_id == 4 and after.next_id == m.next_id + 2 * sparks_per_pickup and fresh and distinct
+}
+
+expect {
+	# A spark lives for spark_life seconds, then sweep drops it.
+	sparked = step(on_every_pickup(new_game(test_meshes, 1)), idle, 0.1)
+	before = run_steps(sparked, idle, 8, 0.1)
+	after = run_steps(before, idle, 3, 0.1)
+	spark_count(sparked) == sparks_per_pickup and spark_count(before) == sparks_per_pickup and spark_count(after) == 0
+}
+
+expect {
+	# Pickups are cubes so the spin shows. Sparks are small spheres.
+	sparked = step(on_every_pickup(new_game(test_meshes, 2)), idle, 1.0 / 120.0)
+	scene = view(sparked)
+	pickup_mesh = List.find_first(view(new_game(test_meshes, 1)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
+	spark_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < sparked.next_id)
+	pickup_mesh == test_meshes.cube and List.len(spark_draws) == 2 * sparks_per_pickup and List.all(spark_draws, |d| d.mesh == test_meshes.sphere)
 }
 
 door_lift : Model -> F32
