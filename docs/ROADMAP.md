@@ -337,11 +337,57 @@ Milestone 2 deleted the fixed scene array. The `Scene` from `view` is already
 the only source of draws.
 
 1. Entities live in the game's `Model` as a `List(Entity)` with explicit ids.
-2. Parenting is a `parent : U64` field and a fold over the list. No pointer
-   tree.
+   The game hands out new ids at runtime.
+2. Parenting is a `parent : [Root, Child(U64)]` field and one fold over the
+   list. No pointer tree.
 
 Check: the entity game creates and destroys entities at runtime. The renderer
 never allocates per frame.
+
+Decisions for this milestone, agreed 2026-09-30. All of it lands in
+`examples/entity-game`. The vocabulary, the glue and the host library do not
+change, except for the pairing map capacity below.
+
+- No package. Parenting stays in the game until a second game copies it.
+- `Model` gains `next_id : U64`. It only grows and an id is never reused.
+  `new_game` sets it past the last pickup.
+- Scenery ids count down from the top of `U64`, so no counter reaches them.
+  The floor moves off `1_000_000`.
+- `Entity` gains `parent : [Root, Child(U64)]`. A tag, not a sentinel id.
+- Ordering invariant: a parent precedes its child in the entity list. A child
+  spawns after its parent and `append` places it later, and `keep_if` keeps
+  the order. Depth is unbounded and a cycle cannot exist. This is the flat
+  array of Bitsquid and Our Machinery, where a parent index is always lower
+  than its child's. The one way to break it is to reparent an entity to a
+  younger one.
+- An entity stores `pos` and `yaw` local to its parent. `view` composes the
+  world values inside the one fold that builds `draws`. A child finds its
+  parent's Draw in the accumulator by id, so a child of the door lifts with
+  the slab. World pos is parent pos plus the local pos rotated about y by the
+  parent yaw. World yaw is the sum. Scale is not inherited.
+- A child whose parent is missing, or later in the list, draws at its local
+  values and `dbg` logs its id once per run. A test covers it.
+- Sweep is one fold over the same order. An entity is dropped if it is dead
+  or its parent was dropped earlier in the same pass.
+- Collecting a pickup spawns 6 sparks as children of the player, kind
+  `Spark({ age : F32, phase : F32 })`. They orbit at radius 0.8, height 0.9,
+  4 radians per second, spread by phase. Sphere mesh, scale 0.12, warm yellow
+  tint in linear. An `expire` stage marks a spark dead after 1 second and
+  sweep drops it.
+- Pickups become cubes at scale 0.4 so the spin shows. Sparks are the
+  spheres.
+- Roc tests prove spawn, expiry, id growth, composition, the sweep cascade
+  and the missing-parent case. A hand run confirms it on screen.
+- `scripts/alloc-check.sh` does not change. Spawn happens only on input, so
+  the no-input run keeps 2 allocs and 2 frees per step.
+- The host reserves the pairing map for 4096 draws at init and logs once if
+  a Scene exceeds it. "Never allocates per frame" then holds by construction
+  up to that count.
+- The `Model` type changes, so a hot reload across this change loses state.
+  That is the documented limit from milestone 2.
+- Two follow-ups are in `docs/NOTES.md`: a scripted input switch for the
+  alloc check, and a host allocation count on the report line.
+- No ADR.
 
 ## Milestone 6: collision as data
 
