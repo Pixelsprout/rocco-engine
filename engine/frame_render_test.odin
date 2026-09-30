@@ -1,6 +1,7 @@
 package engine
 
 import "core:math"
+import "core:mem"
 import "core:testing"
 
 EPS :: f32(1e-5)
@@ -52,6 +53,46 @@ test_pairing_keeps_the_first_of_a_duplicate_id_and_logs_it_once :: proc(t: ^test
 	i, _ := pairing_find(&p, 5)
 	testing.expect_value(t, i, 0)
 	testing.expect_value(t, len(p.logged), 1)
+}
+
+@(test)
+test_pairing_builds_its_capacity_of_draws_without_allocating :: proc(t: ^testing.T) {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+	p: Pairing
+	pairing_init(&p, mem.tracking_allocator(&track))
+	defer pairing_destroy(&p)
+
+	draws := make([]Draw, PAIRING_CAPACITY)
+	defer delete(draws)
+	for &d, i in draws {
+		d.id = u64(i)
+	}
+	after_init := track.total_allocation_count
+	pairing_build(&p, draws)
+	testing.expect_value(t, track.total_allocation_count, after_init)
+	testing.expect(t, !p.over_capacity_logged)
+}
+
+@(test)
+test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, context.allocator)
+	defer pairing_destroy(&p)
+
+	draws := make([]Draw, PAIRING_CAPACITY + 1)
+	defer delete(draws)
+	for &d, i in draws {
+		d.id = u64(i)
+	}
+	pairing_build(&p, draws[:PAIRING_CAPACITY])
+	testing.expect(t, !p.over_capacity_logged)
+	pairing_build(&p, draws)
+	testing.expect(t, p.over_capacity_logged)
+	i, ok := pairing_find(&p, PAIRING_CAPACITY)
+	testing.expect(t, ok)
+	testing.expect_value(t, i, PAIRING_CAPACITY)
 }
 
 @(test)

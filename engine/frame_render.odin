@@ -1,5 +1,6 @@
 package engine
 
+import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:mem"
@@ -58,15 +59,21 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
 }
 
+// The pairing map holds this many draws without allocating.
+PAIRING_CAPACITY :: 4096
+
 // Maps each draw id of the previous Scene to its index. Rebuilt every Frame
-// with clear, so the map keeps its capacity and stops allocating.
+// with clear, so the map keeps the capacity init reserved.
 Pairing :: struct {
-	index:  map[u64]int,
-	logged: map[u64]struct {},
+	index:                map[u64]int,
+	logged:               map[u64]struct {},
+	over_capacity_logged: bool,
 }
 
 pairing_init :: proc(p: ^Pairing, allocator: mem.Allocator) {
 	p.index = make(map[u64]int, allocator)
+	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
+	reserve(&p.index, PAIRING_CAPACITY * 100 / runtime.MAP_LOAD_FACTOR + 1)
 	p.logged = make(map[u64]struct {}, allocator)
 }
 
@@ -77,6 +84,10 @@ pairing_destroy :: proc(p: ^Pairing) {
 
 // On a duplicate id the first draw wins. Each duplicate id is logged once per run.
 pairing_build :: proc(p: ^Pairing, draws: []Draw) {
+	if len(draws) > PAIRING_CAPACITY && !p.over_capacity_logged {
+		p.over_capacity_logged = true
+		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", len(draws), PAIRING_CAPACITY)
+	}
 	clear(&p.index)
 	for d, i in draws {
 		if d.id in p.index {
