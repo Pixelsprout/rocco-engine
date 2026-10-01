@@ -11,6 +11,15 @@ We use matt-pocock skills to work through tasks:
 - `/teach` - Use when the human needs to be taught something, don't commit learning documents, place them in a temp directory.
 - `/wait-what` - The human uses when confused by the AI.
 
+# Odin file layout
+Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
+1. Imports.
+2. Constants.
+3. Types: structs, enums, unions and `#type` proc types.
+4. Procedures.
+
+Move a declaration's comment with it. The generated files `engine/roc_platform_abi.odin` and `engine/shader_basic.odin` keep their generator's order.
+
 # Writing commits
 - Use conventional commits, eg: `feat(scripting): Updated dealloc logic...(Add list of changes, max 5 lines)`
 - Keep the language simple and avoid any hyperbole.
