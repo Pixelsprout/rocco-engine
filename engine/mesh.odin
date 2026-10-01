@@ -9,14 +9,6 @@ MESH_CAPACITY :: 64
 SPHERE_RINGS :: 16
 SPHERE_SEGMENTS :: 32
 
-// The primitives are the first slots of the mesh table, so each value is its mesh id.
-Primitive :: enum u32 {
-	Fallback,
-	Cube,
-	Sphere,
-	Plane,
-}
-
 // A file stem cannot contain "/", so a loaded file never takes a primitive's name.
 PRIMITIVE_NAMES := [Primitive]string {
 	.Fallback = "primitive/fallback",
@@ -27,6 +19,76 @@ PRIMITIVE_NAMES := [Primitive]string {
 
 GREY :: [4]f32{0.8, 0.8, 0.8, 1}
 MAGENTA :: [4]f32{1, 0, 1, 1}
+
+// A 1 x 1 quad in x-z, facing +y. One-sided: back-face culling hides it from below.
+@(rodata)
+PLANE_VERTICES := [4]Vertex {
+	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
+	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
+	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
+	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
+}
+
+@(rodata)
+PLANE_INDICES := [6]u16{0, 1, 2, 0, 2, 3}
+
+// Positions and normals of a unit cube. cube_build sets the colour.
+@(rodata)
+CUBE_VERTICES := [24]Vertex{
+	// -z face
+	{pos = {-0.5, -0.5, -0.5}, normal = {0, 0, -1}},
+	{pos = {-0.5, 0.5, -0.5}, normal = {0, 0, -1}},
+	{pos = {0.5, -0.5, -0.5}, normal = {0, 0, -1}},
+	{pos = {0.5, 0.5, -0.5}, normal = {0, 0, -1}},
+
+	// +z face
+	{pos = {-0.5, -0.5, 0.5}, normal = {0, 0, 1}},
+	{pos = {0.5, -0.5, 0.5}, normal = {0, 0, 1}},
+	{pos = {-0.5, 0.5, 0.5}, normal = {0, 0, 1}},
+	{pos = {0.5, 0.5, 0.5}, normal = {0, 0, 1}},
+
+	// -y face
+	{pos = {-0.5, -0.5, -0.5}, normal = {0, -1, 0}},
+	{pos = {0.5, -0.5, -0.5}, normal = {0, -1, 0}},
+	{pos = {0.5, -0.5, 0.5}, normal = {0, -1, 0}},
+	{pos = {-0.5, -0.5, 0.5}, normal = {0, -1, 0}},
+
+	// +y face
+	{pos = {-0.5, 0.5, -0.5}, normal = {0, 1, 0}},
+	{pos = {-0.5, 0.5, 0.5}, normal = {0, 1, 0}},
+	{pos = {0.5, 0.5, 0.5}, normal = {0, 1, 0}},
+	{pos = {0.5, 0.5, -0.5}, normal = {0, 1, 0}},
+
+	// +x face
+	{pos = {0.5, -0.5, -0.5}, normal = {1, 0, 0}},
+	{pos = {0.5, 0.5, -0.5}, normal = {1, 0, 0}},
+	{pos = {0.5, 0.5, 0.5}, normal = {1, 0, 0}},
+	{pos = {0.5, -0.5, 0.5}, normal = {1, 0, 0}},
+
+	// -x face
+	{pos = {-0.5, -0.5, -0.5}, normal = {-1, 0, 0}},
+	{pos = {-0.5, -0.5, 0.5}, normal = {-1, 0, 0}},
+	{pos = {-0.5, 0.5, 0.5}, normal = {-1, 0, 0}},
+	{pos = {-0.5, 0.5, -0.5}, normal = {-1, 0, 0}},
+}
+
+@(rodata)
+CUBE_INDICES := [36]u16{
+	0, 1, 2, 2, 1, 3, // -z
+	4, 5, 6, 5, 7, 6, // +z
+	8, 9, 10, 8, 10, 11, // -y
+	12, 13, 14, 12, 14, 15, // +y
+	16, 17, 18, 16, 18, 19, // +x
+	20, 21, 22, 20, 22, 23, // -x
+}
+
+// The primitives are the first slots of the mesh table, so each value is its mesh id.
+Primitive :: enum u32 {
+	Fallback,
+	Cube,
+	Sphere,
+	Plane,
+}
 
 Vertex :: struct {
 	pos:   [3]f32,
@@ -157,66 +219,4 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 		}
 	}
 	return {vertices = vertices, indices = indices[:]}
-}
-
-// A 1 x 1 quad in x-z, facing +y. One-sided: back-face culling hides it from below.
-@(rodata)
-PLANE_VERTICES := [4]Vertex {
-	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
-}
-
-@(rodata)
-PLANE_INDICES := [6]u16{0, 1, 2, 0, 2, 3}
-
-// Positions and normals of a unit cube. cube_build sets the colour.
-@(rodata)
-CUBE_VERTICES := [24]Vertex{
-	// -z face
-	{pos = {-0.5, -0.5, -0.5}, normal = {0, 0, -1}},
-	{pos = {-0.5, 0.5, -0.5}, normal = {0, 0, -1}},
-	{pos = {0.5, -0.5, -0.5}, normal = {0, 0, -1}},
-	{pos = {0.5, 0.5, -0.5}, normal = {0, 0, -1}},
-
-	// +z face
-	{pos = {-0.5, -0.5, 0.5}, normal = {0, 0, 1}},
-	{pos = {0.5, -0.5, 0.5}, normal = {0, 0, 1}},
-	{pos = {-0.5, 0.5, 0.5}, normal = {0, 0, 1}},
-	{pos = {0.5, 0.5, 0.5}, normal = {0, 0, 1}},
-
-	// -y face
-	{pos = {-0.5, -0.5, -0.5}, normal = {0, -1, 0}},
-	{pos = {0.5, -0.5, -0.5}, normal = {0, -1, 0}},
-	{pos = {0.5, -0.5, 0.5}, normal = {0, -1, 0}},
-	{pos = {-0.5, -0.5, 0.5}, normal = {0, -1, 0}},
-
-	// +y face
-	{pos = {-0.5, 0.5, -0.5}, normal = {0, 1, 0}},
-	{pos = {-0.5, 0.5, 0.5}, normal = {0, 1, 0}},
-	{pos = {0.5, 0.5, 0.5}, normal = {0, 1, 0}},
-	{pos = {0.5, 0.5, -0.5}, normal = {0, 1, 0}},
-
-	// +x face
-	{pos = {0.5, -0.5, -0.5}, normal = {1, 0, 0}},
-	{pos = {0.5, 0.5, -0.5}, normal = {1, 0, 0}},
-	{pos = {0.5, 0.5, 0.5}, normal = {1, 0, 0}},
-	{pos = {0.5, -0.5, 0.5}, normal = {1, 0, 0}},
-
-	// -x face
-	{pos = {-0.5, -0.5, -0.5}, normal = {-1, 0, 0}},
-	{pos = {-0.5, -0.5, 0.5}, normal = {-1, 0, 0}},
-	{pos = {-0.5, 0.5, 0.5}, normal = {-1, 0, 0}},
-	{pos = {-0.5, 0.5, -0.5}, normal = {-1, 0, 0}},
-}
-
-@(rodata)
-CUBE_INDICES := [36]u16{
-	0, 1, 2, 2, 1, 3, // -z
-	4, 5, 6, 5, 7, 6, // +z
-	8, 9, 10, 8, 10, 11, // -y
-	12, 13, 14, 12, 14, 15, // +y
-	16, 17, 18, 16, 18, 19, // +x
-	20, 21, 22, 20, 22, 23, // -x
 }

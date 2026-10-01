@@ -6,6 +6,23 @@ import "core:testing"
 
 EPS :: f32(1e-5)
 
+Submitted :: struct {
+	mesh:  ^Mesh,
+	model: Mat4,
+	tint:  [4]f32,
+}
+
+Recorder :: struct {
+	submits: [dynamic]Submitted,
+}
+
+// The table is never uploaded, so the tests need no sokol setup.
+Frame_Fixture :: struct {
+	fr:     Frame_Render,
+	meshes: Mesh_Table,
+	rec:    Recorder,
+}
+
 @(test)
 test_yaw_takes_the_short_way_across_pi :: proc(t: ^testing.T) {
 	testing.expect(t, abs(yaw_lerp(3.0, -3.0, 0.5) - math.PI) < EPS)
@@ -115,26 +132,9 @@ test_camera_interpolates_eye_and_target_and_takes_the_new_fov :: proc(t: ^testin
 	testing.expect_value(t, c.fov_y, 2)
 }
 
-Submitted :: struct {
-	mesh:  ^Mesh,
-	model: Mat4,
-	tint:  [4]f32,
-}
-
-Recorder :: struct {
-	submits: [dynamic]Submitted,
-}
-
 record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	r := (^Recorder)(ctx)
 	append(&r.submits, Submitted{mesh = mesh, model = vs_params.model, tint = fs_params.tint})
-}
-
-// The table is never uploaded, so the tests need no sokol setup.
-Frame_Fixture :: struct {
-	fr:     Frame_Render,
-	meshes: Mesh_Table,
-	rec:    Recorder,
 }
 
 frame_fixture_init :: proc(f: ^Frame_Fixture) {

@@ -17,24 +17,6 @@ GLTF_U16 :: 5123
 GLTF_U32 :: 5125
 GLTF_F32 :: 5126
 
-Glb_Error :: enum {
-	None,
-	Too_Short,
-	Bad_Magic,
-	Bad_Version,
-	Bad_Chunks,
-	Bad_Json,
-	No_Mesh,
-	Bad_Node,
-	Bad_Material,
-	Not_Triangles,
-	No_Positions,
-	No_Normals,
-	Bad_Accessor,
-	Bad_Index,
-	Too_Many_Vertices,
-}
-
 GLB_ERROR_REASONS := [Glb_Error]string {
 	.None              = "no error",
 	.Too_Short         = "the file is too short to be a .glb",
@@ -51,6 +33,24 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 	.Bad_Accessor      = "an accessor has the wrong type, is sparse or reads past its buffer",
 	.Bad_Index         = "an index is out of range or the index count is not a multiple of 3",
 	.Too_Many_Vertices = "the mesh has more than 65,535 vertices",
+}
+
+Glb_Error :: enum {
+	None,
+	Too_Short,
+	Bad_Magic,
+	Bad_Version,
+	Bad_Chunks,
+	Bad_Json,
+	No_Mesh,
+	Bad_Node,
+	Bad_Material,
+	Not_Triangles,
+	No_Positions,
+	No_Normals,
+	Bad_Accessor,
+	Bad_Index,
+	Too_Many_Vertices,
 }
 
 // Only the fields the engine reads. json.unmarshal skips the rest.
@@ -109,6 +109,14 @@ Glb_Loader :: struct {
 	bin:      []byte,
 	vertices: [dynamic]Vertex,
 	indices:  [dynamic]u16,
+}
+
+// One accessor's elements in the BIN chunk. data starts at element 0.
+Glb_View :: struct {
+	data:           []byte,
+	count:          int,
+	stride:         int,
+	component_type: int,
 }
 
 // Merges every triangle primitive of every mesh node in the glTF scene into
@@ -309,14 +317,6 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 		append(&l.indices, u16(base + index))
 	}
 	return .None
-}
-
-// One accessor's elements in the BIN chunk. data starts at element 0.
-Glb_View :: struct {
-	data:           []byte,
-	count:          int,
-	stride:         int,
-	component_type: int,
 }
 
 glb_vec3_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {

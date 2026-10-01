@@ -14,11 +14,11 @@ We use matt-pocock skills to work through tasks:
 # Odin file layout
 Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
 1. Imports.
-2. Constants.
-3. Types: structs, enums, unions and `#type` proc types.
+2. Constants, including upper-case tables declared with `:=`, such as `@(rodata)` vertex data.
+3. Types: structs, enums, unions and `#type` proc types. Package variables such as `g_roc_heap` follow the types.
 4. Procedures.
 
-Move a declaration's comment with it. The generated files `engine/roc_platform_abi.odin` and `engine/shader_basic.odin` keep their generator's order.
+Move a declaration's comment and attributes with it. The generated files `engine/roc_platform_abi.odin` and `engine/shader_basic.odin` keep their generator's order.
 
 # Writing commits
 - Use conventional commits, eg: `feat(scripting): Updated dealloc logic...(Add list of changes, max 5 lines)`

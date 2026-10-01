@@ -5,6 +5,13 @@ import "core:testing"
 
 FAKE_KEYS_MAX :: 8
 
+FAKE_GAME :: Game_Calls {
+	init       = fake_init,
+	step       = fake_step,
+	view       = fake_view,
+	drop_model = fake_drop_model,
+}
+
 Fake_Game :: struct {
 	inits:       int,
 	seed:        u64,
@@ -27,13 +34,6 @@ Fake_Game :: struct {
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
 g_fake: Fake_Game
-
-FAKE_GAME :: Game_Calls {
-	init       = fake_init,
-	step       = fake_step,
-	view       = fake_view,
-	drop_model = fake_drop_model,
-}
 
 fake_refcount :: proc(box: rawptr) -> ^int {
 	return (^int)(uintptr(box) - size_of(int))

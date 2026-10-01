@@ -4,6 +4,13 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 
+ROC_GAME :: Game_Calls {
+	init       = roc_game_init,
+	step       = roc_game_step,
+	view       = roc_game_view,
+	drop_model = roc_game_drop_model,
+}
+
 Roc_Heap_Counters :: struct {
 	allocs:   uint,
 	deallocs: uint,
@@ -65,13 +72,6 @@ roc_heap_report_line :: proc(step: u64, before: Roc_Heap_Counters, step_us, view
 		step_us,
 		view_us,
 	)
-}
-
-ROC_GAME :: Game_Calls {
-	init       = roc_game_init,
-	step       = roc_game_step,
-	view       = roc_game_view,
-	drop_model = roc_game_drop_model,
 }
 
 @(private = "file")
