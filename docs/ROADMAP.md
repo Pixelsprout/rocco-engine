@@ -32,7 +32,7 @@ Built and running:
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
-  game owns its state. The host honours `roc_dealloc`. The game calls sit
+  game manages its state. The host honours `roc_dealloc`. The game calls sit
   behind a struct of procedures, with a fake game in the Odin tests, so the
   call protocol has a test without a Roc app. Hot reload works under
   `roc run` on macOS when the `Model` type does not change.

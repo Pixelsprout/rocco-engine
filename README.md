@@ -4,9 +4,9 @@ Project page: <https://pixelsprout.dev/projects/rocco/>
 
 A 3D game engine in Odin that runs games written in Roc.
 
-Odin owns the systems: window, clock, input, GPU, memory, audio, collision.
-Roc owns the game: its state and its rules, as pure functions. The engine is
-a Roc platform. The game is a Roc app. `docs/DESIGN.md` says where the line
+Odin manages the systems: window, clock, input, GPU, memory, audio, collision.
+Roc manages the game: its state and its rules, as pure functions. The engine
+is a Roc platform. The game is a Roc app. `docs/DESIGN.md` says where the line
 goes and why. `docs/ROADMAP.md` says what is built next.
 
 rocco builds for three desktop targets from one checkout. Each machine

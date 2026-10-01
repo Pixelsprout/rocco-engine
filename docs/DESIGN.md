@@ -4,15 +4,15 @@ This document says where the line between Roc and Odin goes, and why. It is
 the guiding document for the engine. A change that contradicts it needs a
 change to this document first.
 
-Roc authors the game. Odin owns the systems beneath the game. The engine is a
-Roc platform. The game is a Roc app.
+Roc authors the game. Odin manages the systems beneath the game. The engine is
+a Roc platform. The game is a Roc app.
 
 Written 2026-09-22. Verified claims name their evidence. Claims without
 evidence are marked as decisions.
 
 ## 1. The seam in one table
 
-| Odin owns | Roc owns |
+| Odin manages | Roc manages |
 |---|---|
 | the window, the clock, the accumulator | the `Model`: the one value that is the game |
 | input, and turning it into levels and edges | the rules, as `step` |
@@ -293,8 +293,9 @@ block at steady state over 888 steps, zero bad frees over 899.
 `roc_realloc` carries no old size. The copy length must come from the
 allocator's own record. The tracking allocator is load-bearing for this
 reason, not for observability. The Roc heap in `engine/roc_runtime.odin`
-owns the tracking allocator, the alloc counters and the six hooks; the Seam in
-`engine/seam.odin` owns only the game calls and the call protocol above.
+manages the tracking allocator, the alloc counters and the six hooks; the
+Seam in `engine/seam.odin` manages only the game calls and the call protocol
+above.
 
 The box shell costs one allocation and one free per step. The pool described
 in the roadmap removes the system heap from that path.

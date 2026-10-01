@@ -176,7 +176,7 @@ A GPU buffer whose contents are supplied once, at creation, and never updated. S
 
 ## Inversion of control {#inversion-of-control}
 
-You supply procedures; the framework decides when to call them. Sokol owns the loop, so `sapp.run` does not return until the window closes. The OS owns the event loop and only lends it out.
+You supply procedures; the framework decides when to call them. Sokol manages the loop, so `sapp.run` does not return until the window closes. The OS manages the event loop and only lends it out.
 
 ## Iterator procedure {#iterator-procedure}
 
@@ -196,7 +196,7 @@ An input condition that holds over time — "is this key down right now". Safe t
 
 ## Lifetime {#lifetime}
 
-How long an allocation must stay valid. Three lifetimes are arenas this process owns — *permanent*, *level*, *frame* — and the arena holding an allocation is chosen by that answer alone.
+How long an allocation must stay valid. Three lifetimes are arenas this process manages — *permanent*, *level*, *frame* — and the arena holding an allocation is chosen by that answer alone.
 
 ## Light direction {#light-dir}
 
@@ -292,7 +292,7 @@ An orientation as a unit axis and an angle turned about it (Dunn & Parberry §8.
 
 ## Platform (Roc) {#platform-roc}
 
-A library that owns the entry point. A Roc application is built on exactly one platform, and gets every I/O primitive from it rather than from Roc's standard library. The *host* is the platform's lower-level half — here, the whole engine. Roc's own reference uses a game engine as its running analogy: "a very large C++ game which serves as a platform for a small amount of Roc application code". See [inversion of control](#inversion-of-control), which is the same idea at the frame boundary rather than the build.
+A library that manages the entry point. A Roc application is built on exactly one platform, and gets every I/O primitive from it rather than from Roc's standard library. The *host* is the platform's lower-level half — here, the whole engine. Roc's own reference uses a game engine as its running analogy: "a very large C++ game which serves as a platform for a small amount of Roc application code". See [inversion of control](#inversion-of-control), which is the same idea at the frame boundary rather than the build.
 
 ## Host {#host}
 

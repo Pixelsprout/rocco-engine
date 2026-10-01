@@ -8,8 +8,8 @@ explains the general graphics and memory concepts the engine is built from.
 ## The two sides
 
 **Engine**:
-The Odin code that owns the window, the clock, input, the GPU and memory. It
-is the whole of the non-Roc half.
+The Odin code that manages the window, the clock, input, the GPU and memory.
+It is the whole of the non-Roc half.
 _Avoid_: runtime, backend, native side, C side
 
 **Host**:
@@ -205,7 +205,7 @@ _Avoid_: step, tick, render pass
 
 **Frame render**:
 The host module that turns the previous Scene, the current Scene and the
-Alpha into one submitted draw per Draw. It owns the Pairing.
+Alpha into one submitted draw per Draw. It manages the Pairing.
 _Avoid_: renderer, draw loop, presenter, scene renderer
 
 **dt**:
