@@ -9,6 +9,9 @@ LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 
+// The pairing map holds this many draws without allocating.
+PAIRING_CAPACITY :: 4096
+
 // Lets tests run without sokol.
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 
@@ -16,6 +19,26 @@ Frame_Render :: struct {
 	pairing:    Pairing,
 	submit:     Submit,
 	submit_ctx: rawptr,
+}
+
+Draw_Transform :: struct {
+	position: [3]f32,
+	scale:    [3]f32,
+	yaw:      f32,
+}
+
+// Maps each draw id of the previous Scene to its index. Rebuilt every Frame
+// with clear, so the map keeps the capacity init reserved.
+Pairing :: struct {
+	index:                map[u64]int,
+	logged:               map[u64]struct {},
+	over_capacity_logged: bool,
+}
+
+// The camera the host draws a frame with.
+Camera_Pose :: struct {
+	eye, target: [3]f32,
+	fov_y:       f32,
 }
 
 frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
@@ -59,17 +82,6 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
 }
 
-// The pairing map holds this many draws without allocating.
-PAIRING_CAPACITY :: 4096
-
-// Maps each draw id of the previous Scene to its index. Rebuilt every Frame
-// with clear, so the map keeps the capacity init reserved.
-Pairing :: struct {
-	index:                map[u64]int,
-	logged:               map[u64]struct {},
-	over_capacity_logged: bool,
-}
-
 pairing_init :: proc(p: ^Pairing, allocator: mem.Allocator) {
 	p.index = make(map[u64]int, allocator)
 	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
@@ -105,12 +117,6 @@ pairing_find :: proc(p: ^Pairing, id: u64) -> (int, bool) {
 	return p.index[id]
 }
 
-Draw_Transform :: struct {
-	position: [3]f32,
-	scale:    [3]f32,
-	yaw:      f32,
-}
-
 // A draw with no partner passes itself as prev.
 draw_transform :: proc(prev, curr: Draw, alpha: f32) -> Draw_Transform {
 	return {
@@ -122,12 +128,6 @@ draw_transform :: proc(prev, curr: Draw, alpha: f32) -> Draw_Transform {
 
 draw_model_matrix :: proc(x: Draw_Transform) -> Mat4 {
 	return transform_to_mat4({position = x.position, rotation = quat_from_axis_angle(UP, x.yaw), scale = x.scale})
-}
-
-// The camera the host draws a frame with.
-Camera_Pose :: struct {
-	eye, target: [3]f32,
-	fov_y:       f32,
 }
 
 camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Camera_Pose {
