@@ -222,23 +222,82 @@ Roc_Step_Arg1_Mouse :: struct {
 #assert(offset_of(Roc_Step_Arg1_Mouse, dy) == 4)
 #assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dy)) == 4)
 
+Roc_Step_Arg2 :: struct {
+	a: u64,
+	b: u64,
+	depth: f32,
+	normal: Roc_Step_Arg2_Normal,
+}
+
+#assert(size_of(Roc_Step_Arg2) == 32)
+#assert(align_of(Roc_Step_Arg2) == 8)
+#assert(offset_of(Roc_Step_Arg2, a) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2{}.a)) == 8)
+#assert(offset_of(Roc_Step_Arg2, b) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2{}.b)) == 8)
+#assert(offset_of(Roc_Step_Arg2, depth) == 16)
+#assert(size_of(type_of(Roc_Step_Arg2{}.depth)) == 4)
+#assert(offset_of(Roc_Step_Arg2, normal) == 20)
+#assert(size_of(type_of(Roc_Step_Arg2{}.normal)) == 12)
+
+Roc_Step_Arg2_Normal :: struct {
+	x: f32,
+	y: f32,
+	z: f32,
+}
+
+#assert(size_of(Roc_Step_Arg2_Normal) == 12)
+#assert(align_of(Roc_Step_Arg2_Normal) == 4)
+#assert(offset_of(Roc_Step_Arg2_Normal, x) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.x)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Normal, y) == 4)
+#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.y)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Normal, z) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.z)) == 4)
+
 Roc_View :: struct {
+	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
 	camera: Roc_View_Camera,
 }
 
-#assert(size_of(Roc_View) == 56)
+#assert(size_of(Roc_View) == 80)
 #assert(align_of(Roc_View) == 8)
-#assert(offset_of(Roc_View, draws) == 0)
+#assert(offset_of(Roc_View, colliders) == 0)
+#assert(size_of(type_of(Roc_View{}.colliders)) == 24)
+#assert(offset_of(Roc_View, draws) == 24)
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
-#assert(offset_of(Roc_View, camera) == 24)
+#assert(offset_of(Roc_View, camera) == 48)
 #assert(size_of(type_of(Roc_View{}.camera)) == 28)
 
+Roc_View_Colliders :: struct {
+	id: u64,
+	extent: Roc_Step_Arg2_Normal,
+	pos: Roc_Step_Arg2_Normal,
+	yaw: f32,
+	kind: u8,
+}
+
+#assert(size_of(Roc_View_Colliders) == 40)
+#assert(align_of(Roc_View_Colliders) == 8)
+#assert(offset_of(Roc_View_Colliders, id) == 0)
+#assert(size_of(type_of(Roc_View_Colliders{}.id)) == 8)
+#assert(offset_of(Roc_View_Colliders, extent) == 8)
+#assert(size_of(type_of(Roc_View_Colliders{}.extent)) == 12)
+#assert(offset_of(Roc_View_Colliders, pos) == 20)
+#assert(size_of(type_of(Roc_View_Colliders{}.pos)) == 12)
+#assert(offset_of(Roc_View_Colliders, yaw) == 32)
+#assert(size_of(type_of(Roc_View_Colliders{}.yaw)) == 4)
+#assert(offset_of(Roc_View_Colliders, kind) == 36)
+#assert(size_of(type_of(Roc_View_Colliders{}.kind)) == 1)
+
+Roc_View_Colliders_Extent :: Roc_Step_Arg2_Normal
+Roc_View_Colliders_Pos :: Roc_Step_Arg2_Normal
 Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,
-	pos: Roc_View_Draws_Pos,
-	scale: Roc_View_Draws_Pos,
+	pos: Roc_Step_Arg2_Normal,
+	scale: Roc_Step_Arg2_Normal,
 	tint: Roc_View_Draws_Tint,
 	yaw: f32,
 }
@@ -258,22 +317,8 @@ Roc_View_Draws :: struct {
 #assert(offset_of(Roc_View_Draws, yaw) == 48)
 #assert(size_of(type_of(Roc_View_Draws{}.yaw)) == 4)
 
-Roc_View_Draws_Pos :: struct {
-	x: f32,
-	y: f32,
-	z: f32,
-}
-
-#assert(size_of(Roc_View_Draws_Pos) == 12)
-#assert(align_of(Roc_View_Draws_Pos) == 4)
-#assert(offset_of(Roc_View_Draws_Pos, x) == 0)
-#assert(size_of(type_of(Roc_View_Draws_Pos{}.x)) == 4)
-#assert(offset_of(Roc_View_Draws_Pos, y) == 4)
-#assert(size_of(type_of(Roc_View_Draws_Pos{}.y)) == 4)
-#assert(offset_of(Roc_View_Draws_Pos, z) == 8)
-#assert(size_of(type_of(Roc_View_Draws_Pos{}.z)) == 4)
-
-Roc_View_Draws_Scale :: Roc_View_Draws_Pos
+Roc_View_Draws_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Draws_Scale :: Roc_Step_Arg2_Normal
 Roc_View_Draws_Tint :: struct {
 	b: f32,
 	g: f32,
@@ -290,9 +335,9 @@ Roc_View_Draws_Tint :: struct {
 #assert(size_of(type_of(Roc_View_Draws_Tint{}.r)) == 4)
 
 Roc_View_Camera :: struct {
-	eye: Roc_View_Draws_Pos,
+	eye: Roc_Step_Arg2_Normal,
 	fov_y: f32,
-	target: Roc_View_Draws_Pos,
+	target: Roc_Step_Arg2_Normal,
 }
 
 #assert(size_of(Roc_View_Camera) == 28)
@@ -304,8 +349,8 @@ Roc_View_Camera :: struct {
 #assert(offset_of(Roc_View_Camera, target) == 16)
 #assert(size_of(type_of(Roc_View_Camera{}.target)) == 12)
 
-Roc_View_Camera_Eye :: Roc_View_Draws_Pos
-Roc_View_Camera_Target :: Roc_View_Draws_Pos
+Roc_View_Camera_Eye :: Roc_Step_Arg2_Normal
+Roc_View_Camera_Target :: Roc_Step_Arg2_Normal
 
 roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
 	roc_list_decref_roc_init_arg0_meshes(value.meshes)
@@ -321,6 +366,7 @@ roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 }
 
 roc_view_decref :: proc(value: Roc_View) {
+	roc_list_decref_roc_view_colliders(value.colliders)
 	roc_list_decref_roc_view_draws(value.draws)
 }
 
@@ -337,6 +383,22 @@ roc_list_decref_u16 :: proc(list: Roc_List(u16)) {
 }
 
 roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_step_arg2 :: proc(list: Roc_List(Roc_Step_Arg2)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_step_arg2 :: proc(elems: []Roc_Step_Arg2) -> Roc_List(Roc_Step_Arg2) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_view_colliders :: proc(list: Roc_List(Roc_View_Colliders)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_colliders :: proc(elems: []Roc_View_Colliders) -> Roc_List(Roc_View_Colliders) {
 	return roc_list_from_slice_with(elems, false)
 }
 
@@ -359,12 +421,16 @@ roc_decref :: proc {
 roc_list_decref :: proc {
 	roc_list_decref_roc_init_arg0_meshes,
 	roc_list_decref_u16,
+	roc_list_decref_roc_step_arg2,
+	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 }
 
 roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_init_arg0_meshes,
 	roc_list_from_slice_u16,
+	roc_list_from_slice_roc_step_arg2,
+	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 }
 
@@ -372,7 +438,7 @@ roc_list_from_slice :: proc {
 @(default_calling_convention = "c")
 foreign {
 	roc_init :: proc(arg0: Roc_Init_Arg0) -> rawptr ---
-	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: f32) -> rawptr ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> rawptr ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 	roc_drop_model :: proc(arg0: rawptr) ---
 }

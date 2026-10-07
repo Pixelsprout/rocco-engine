@@ -4,7 +4,7 @@ import "core:time"
 
 Game_Calls :: struct {
 	init:       proc(config: Config) -> rawptr,
-	step:       proc(model: rawptr, input: Input, dt: f32) -> rawptr,
+	step:       proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> rawptr,
 	view:       proc(model: rawptr) -> Scene,
 	drop_model: proc(model: rawptr),
 }
@@ -16,10 +16,13 @@ Seam :: struct {
 	prev:     Scene,
 	curr:     Scene,
 	has_prev: bool,
+	// The next step takes these. Empty until the host computes contacts.
+	contacts: Roc_List(Contact),
 }
 
-// Owns the one reference to the Model and the last two Scenes. See the call
-// protocol in docs/DESIGN.md section 5: Roc consumes every argument it gets.
+// Owns the one reference to the Model, the last two Scenes and the contacts.
+// See the call protocol in docs/DESIGN.md section 5: Roc consumes every
+// argument it gets.
 seam_init :: proc(s: ^Seam, calls: Game_Calls, config: Config) {
 	s.calls = calls
 	s.model = s.calls.init(config)
@@ -34,8 +37,9 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 		pressed = roc_list_from_slice(keys.pressed),
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
-	// step frees the old box. Never touch the old pointer again.
-	s.model = s.calls.step(s.model, input, dt)
+	// step frees the old box and consumes the contacts. Never touch either again.
+	s.model = s.calls.step(s.model, input, s.contacts, dt)
+	s.contacts = {}
 	stepped := time.tick_now()
 	if s.has_prev {
 		roc_decref(s.prev)
@@ -65,5 +69,6 @@ seam_shutdown :: proc(s: ^Seam) {
 		roc_decref(s.prev)
 	}
 	roc_decref(s.curr)
+	roc_list_decref(s.contacts)
 	s.calls.drop_model(s.model)
 }

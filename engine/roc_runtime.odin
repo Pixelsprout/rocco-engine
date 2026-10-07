@@ -78,7 +78,9 @@ roc_heap_report_line :: proc(step: u64, before: Roc_Heap_Counters, step_us, view
 roc_game_init :: proc(config: Config) -> rawptr {return roc_init(config)}
 
 @(private = "file")
-roc_game_step :: proc(model: rawptr, input: Input, dt: f32) -> rawptr {return roc_step(model, input, dt)}
+roc_game_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> rawptr {
+	return roc_step(model, input, contacts, dt)
+}
 
 @(private = "file")
 roc_game_view :: proc(model: rawptr) -> Scene {return roc_view(model)}

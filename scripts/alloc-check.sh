@@ -1,7 +1,9 @@
 #!/bin/sh
 # Build each game under --opt=dev and --opt=speed, run it with no input and
-# ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10:
-# 2 allocs, 2 deallocs, 0 reallocs and a constant live block count.
+# ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10: the
+# game's expected allocs and as many deallocs, 0 reallocs and a constant live
+# block count. cards expects 2: the box shell and the draws list. entity-game
+# expects 3, because it also returns a colliders list.
 # The host library must already be built for this machine. Each game opens a
 # window. Do not type into it: a key press allocates the Input lists.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
@@ -18,7 +20,9 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for game in cards entity-game; do
+for entry in cards:2 entity-game:3; do
+	game=${entry%%:*}
+	want=${entry##*:}
 	for opt in dev speed; do
 		bin="./${game}_alloc_${opt}${suffix}"
 		# Exit 2 is warnings only, such as the dbg in packages/mesh. build.roc allows it too.
@@ -42,15 +46,15 @@ for game in cards entity-game; do
 			continue
 		fi
 		# Fields: alloc step=N allocs=N deallocs=N reallocs=N live=N step_us=F view_us=F
-		if awk -v skip=$SKIP '
+		if awk -v skip=$SKIP -v want="$want" '
 			$1 != "alloc" { next }
 			{ for (i = 2; i <= NF; i++) { split($i, kv, "="); v[kv[1]] = kv[2] } }
 			v["step"] <= skip { next }
 			{
 				checked++
 				if (live == "") live = v["live"]
-				if (v["allocs"] != 2 || v["deallocs"] != 2 || v["reallocs"] != 0 || v["live"] != live) {
-					if (++bad <= 5) print "step " v["step"] ": allocs=" v["allocs"] " deallocs=" v["deallocs"] " reallocs=" v["reallocs"] " live=" v["live"] ", expected 2 2 0 " live > "/dev/stderr"
+				if (v["allocs"] != want || v["deallocs"] != want || v["reallocs"] != 0 || v["live"] != live) {
+					if (++bad <= 5) print "step " v["step"] ": allocs=" v["allocs"] " deallocs=" v["deallocs"] " reallocs=" v["reallocs"] " live=" v["live"] ", expected " want " " want " 0 " live > "/dev/stderr"
 				}
 				step_us += v["step_us"]; view_us += v["view_us"]
 			}

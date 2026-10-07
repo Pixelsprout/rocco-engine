@@ -2,7 +2,8 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
-import pf.Vocabulary exposing [Config, Draw, Input, Scene, Vec3]
+import pf.Vocabulary exposing [Config, Contact, Draw, Input, Scene, Vec3]
+import pf.Collider
 import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
@@ -56,13 +57,13 @@ new_game = |meshes, pickups| {
 	{ steps: 0, score: 0, next_id: 2 + pickups, meshes, entities: List.concat([player, door], $pickups), orphans_logged: [] }
 }
 
-# ---- step : Model, Input, F32 -> Model ---------------------------------
+# ---- step : Model, Input, List(Contact), F32 -> Model -------------------
 #
 # The schedule is function composition. Each stage is Model -> Model and
 # testable alone. Reorder the pipeline and you reorder the stages.
 
-step : Model, Input, F32 -> Model
-step = |model, input, dt|
+step : Model, Input, List(Contact), F32 -> Model
+step = |model, input, _contacts, dt|
 	model
 		|> steer(input)
 		|> face(dt)
@@ -340,16 +341,19 @@ view : Model -> Scene
 view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
-	# One allocation for every draw. List.concat would allocate twice.
-	# A parent precedes its child, so the parent's Draw is already in acc.
-	first = List.with_capacity(List.len(curr.entities) + 1).append(floor)
-	draws = List.fold(
+	# One allocation for the draws and one for the colliders. A parent
+	# precedes its child, so the parent's Draw is already in acc.
+	first = {
+		draws: List.with_capacity(List.len(curr.entities) + 1).append(floor),
+		colliders: List.with_capacity(List.len(curr.entities)),
+	}
+	built = List.fold(
 		curr.entities,
 		first,
 		|acc, e| {
 			world = match e.parent {
 				Root => { pos: e.pos, yaw: e.yaw }
-				Child(parent) => match List.find_first(acc, |d| d.id == parent) {
+				Child(parent) => match List.find_first(acc.draws, |d| d.id == parent) {
 					Ok(p) => { pos: add(p.pos, rotate_y(e.pos, p.yaw)), yaw: p.yaw + e.yaw }
 					Err(NotFound) => { pos: e.pos, yaw: e.yaw }
 				}
@@ -357,7 +361,7 @@ view = |curr| {
 			if waiting(e) {
 				acc
 			} else {
-				acc.append(draw(curr.meshes, e, world))
+				{ draws: acc.draws.append(draw(curr.meshes, e, world)), colliders: with_collider(acc.colliders, e, world) }
 			}
 		},
 	)
@@ -367,7 +371,7 @@ view = |curr| {
 		Err(NotFound) => origin
 	}
 
-	{ camera: Cam.follow(target, camera_offset), draws }
+	{ camera: Cam.follow(target, camera_offset), draws: built.draws, colliders: built.colliders }
 }
 
 draw : MeshIds, Entity, { pos : Vec3, yaw : F32 } -> Draw
@@ -383,6 +387,25 @@ draw = |meshes, e, world| {
 			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
+}
+
+# The player's box sits on its feet.
+player_half : Vec3
+player_half = { x: 0.3, y: 0.5, z: 0.3 }
+
+door_half : Vec3
+door_half = { x: 1.5, y: 1.5, z: 0.15 }
+
+pickup_radius : F32
+pickup_radius = 0.4
+
+# Floor and drops touch nothing.
+with_collider : List(Vocabulary.Collider), Entity, { pos : Vec3, yaw : F32 } -> List(Vocabulary.Collider)
+with_collider = |colliders, e, world| match e.kind {
+	Player => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
+	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
+	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
+	Drop(_) => colliders
 }
 
 # ---- helpers -------------------------------------------------------------
@@ -508,7 +531,7 @@ run_steps = |m, input, n, dt| {
 	var $m = m
 	var $i = 0
 	while $i < n {
-		$m = step($m, input, dt)
+		$m = step($m, input, [], dt)
 		$i = $i + 1
 	}
 	$m
@@ -525,7 +548,7 @@ facing = |m, yaw| map_entities(
 
 expect {
 	# One short step turns the player part of the way, at turn_speed.
-	moved = step(new_game(test_meshes, 0), right, 0.05)
+	moved = step(new_game(test_meshes, 0), right, [], 0.05)
 	near(yaw_of(moved), turn_speed * 0.05)
 }
 
@@ -540,7 +563,7 @@ expect {
 expect {
 	# From 3/4 pi toward -3/4 pi, the short way is up through pi.
 	m = facing(new_game(test_meshes, 0), 0.75 * pi)
-	turned = step(m, { ..idle, held: [Key.code(W), Key.code(A)] }, 0.05)
+	turned = step(m, { ..idle, held: [Key.code(W), Key.code(A)] }, [], 0.05)
 	yaw_of(turned) > 0.75 * pi
 }
 
@@ -555,7 +578,7 @@ expect {
 			e
 		},
 	)
-	after = step(on_top, idle, 1.0 / 120.0)
+	after = step(on_top, idle, [], 1.0 / 120.0)
 	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * drops_per_pickup
 }
 
@@ -579,14 +602,14 @@ expect {
 			e
 		},
 	)
-	after = step(on_one, idle, 1.0 / 120.0)
+	after = step(on_one, idle, [], 1.0 / 120.0)
 	drop_count(after) == drops_per_pickup and List.count_if(after.entities, is_pickup) == 2
 }
 
 expect {
 	# New ids start past the last pickup, only grow, and are never reused.
 	m = new_game(test_meshes, 2)
-	after = step(on_every_pickup(m), idle, 1.0 / 120.0)
+	after = step(on_every_pickup(m), idle, [], 1.0 / 120.0)
 	drop_ids = List.keep_if(after.entities, is_drop).map(|e| e.id)
 	fresh = List.all(drop_ids, |id| id >= m.next_id and id < after.next_id)
 	distinct = List.all(drop_ids, |id| List.count_if(drop_ids, |other| other == id) == 1)
@@ -596,7 +619,7 @@ expect {
 expect {
 	# A drop lives for its delay plus drop_life, then sweep drops it. The
 	# delays differ, so the drops die one after another.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 0.1)
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 0.1)
 	before = run_steps(watered, idle, 8, 0.1)
 	some = run_steps(before, idle, 3, 0.1)
 	after = run_steps(some, idle, 5, 0.1)
@@ -609,7 +632,7 @@ drawn_drops = |m| List.count_if(view(m).draws, |d| d.id >= 3 and d.id < m.next_i
 
 expect {
 	# Drops wait for their delays, so they appear one after another.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 1.0 / 120.0)
 	soon = run_steps(watered, idle, 2, 0.1)
 	later = run_steps(soon, idle, 3, 0.1)
 	drawn_drops(watered) == 1 and drawn_drops(soon) > 1 and drawn_drops(soon) < drops_per_pickup and drawn_drops(later) == drops_per_pickup
@@ -649,7 +672,7 @@ on_every_pickup = |m| map_entities(
 
 expect {
 	# The door starts to rise on the step it opens, at door_speed.
-	after = step(on_every_pickup(new_game(test_meshes, 2)), idle, 0.1)
+	after = step(on_every_pickup(new_game(test_meshes, 2)), idle, [], 0.1)
 	near(door_lift(after), door_speed * 0.1) and near(door_draw_y(after), 1.5 + door_speed * 0.1)
 }
 
@@ -667,7 +690,7 @@ expect {
 
 expect {
 	# Nothing touched: the door stays shut and nothing is swept.
-	after = step(new_game(test_meshes, 4), idle, 1.0 / 120.0)
+	after = step(new_game(test_meshes, 4), idle, [], 1.0 / 120.0)
 	after.score == 0 and !door_open(after) and List.len(after.entities) == 6
 }
 
@@ -675,8 +698,8 @@ expect {
 	# step is pure. The same Model and Input give the same step count and score,
 	# which is what makes a recorded input log a replay.
 	m = new_game(test_meshes, 4)
-	a = step(m, right, 0.5)
-	b = step(m, right, 0.5)
+	a = step(m, right, [], 0.5)
+	b = step(m, right, [], 0.5)
 	a.steps == b.steps and a.score == b.score
 }
 
@@ -684,7 +707,7 @@ expect {
 	# view carries the entity id onto its draw, so the host can pair this
 	# step's draw with the last one. The floor's id never collides.
 	m = new_game(test_meshes, 1)
-	scene = view(step(m, right, 1.0))
+	scene = view(step(m, right, [], 1.0))
 	player_draw = List.find_first(scene.draws, |d| d.id == 0)
 	ids_unique = List.len(scene.draws) == 4 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
 	match player_draw {
@@ -693,9 +716,41 @@ expect {
 	}
 }
 
+collider_of : Scene, U64 -> Try(Vocabulary.Collider, [NotFound])
+collider_of = |scene, id| List.find_first(scene.colliders, |c| c.id == id)
+
+expect {
+	# The player stands on a box, the door is a thin box and a pickup is a sphere.
+	# The floor has no collider.
+	scene = view(new_game(test_meshes, 1))
+	player_box = collider_of(scene, 0) == Ok(Collider.box(0, { x: 0.0, y: 0.5, z: 0.0 }, 0.0, player_half))
+	door_box = collider_of(scene, 1) == Ok(Collider.box(1, { x: 0.0, y: 1.5, z: -8.0 }, 0.0, door_half))
+	pickup_sphere = collider_of(scene, 2) == Ok(Collider.sphere(2, { x: 4.0, y: 0.5, z: 0.0 }, pickup_radius))
+	player_box and door_box and pickup_sphere and List.len(scene.colliders) == 3
+}
+
+expect {
+	# The player's box turns with the player.
+	scene = view(facing(new_game(test_meshes, 0), 1.0))
+	collider_of(scene, 0).map_ok(|c| c.yaw) == Ok(1.0)
+}
+
+expect {
+	# An open door lifts its collider out of the way with its draw.
+	after = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 30, 0.1)
+	collider_of(view(after), 1).map_ok(|c| near(c.pos.y, 1.5 + door_height)) == Ok(Bool.True)
+}
+
+expect {
+	# Water drops touch nothing.
+	watered = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 6, 0.1)
+	scene = view(watered)
+	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1]
+}
+
 expect {
 	# The camera follows the player from a fixed offset.
-	scene = view(step(new_game(test_meshes, 1), right, 1.0))
+	scene = view(step(new_game(test_meshes, 1), right, [], 1.0))
 	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 1.5
 }
 
@@ -792,7 +847,7 @@ expect {
 
 expect {
 	# A drop with no delay starts in a ring above the plant, and follows and turns with it.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, 1.0 / 120.0)
+	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 1.0 / 120.0)
 	offsets = |m| {
 		scene = view(m)
 		p = draw_of(scene, 0).map_ok(|d| d.pos) ?? origin

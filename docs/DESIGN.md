@@ -19,9 +19,9 @@ evidence are marked as decisions.
 | GPU resources, meshes, shaders, the level arena | the picture, as `view` |
 | the mesh table and its ids | which mesh a game object uses |
 | the audio callback and its thread | what should be heard, as data |
-| the collision broadphase, when it exists | what a contact means |
+| finding the Contacts between Colliders | which shapes touch, as Colliders; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
-| the vocabulary types: `Config`, `Input`, `Scene` | the `Model` type, which the host never reads |
+| the vocabulary types: `Config`, `Input`, `Contact`, `Scene` | the `Model` type, which the host never reads |
 
 Odin produces facts. Roc produces decisions. Both cross the seam as plain
 values. Roc never asks the engine a question mid-step. Roc never calls a draw
@@ -30,9 +30,9 @@ function.
 ## 2. The three functions
 
 ```roc
-init : Config -> Model          # once, at startup
-step : Model, Input, F32 -> Model   # once per fixed step, 120 Hz
-view : Model -> Scene           # once per fixed step, after step
+init : Config -> Model                             # once, at startup
+step : Model, Input, List(Contact), F32 -> Model   # once per fixed step, 120 Hz
+view : Model -> Scene                              # once per fixed step, after step
 ```
 
 The host calls `step` then `view` inside the fixed-step loop. The host holds
@@ -40,16 +40,22 @@ the current `Scene` and the previous `Scene`. At render time the host
 interpolates between them by the accumulator remainder. Roc never sees a
 previous `Model` and never sees an alpha.
 
+The host computes the Contacts from the Colliders in the previous `Scene`.
+The host tests overlap, not sweep, so the normal and depth describe where
+the shapes are now. The first step gets empty Contacts. Decision.
+
+Until the host computes Contacts, every step gets empty Contacts.
+
 ```
              fixed step, 120 Hz                        render frame, display rate
   ┌────────────── Odin ───────────────┐      ┌────────────── Odin ────────────────┐
   │ clock, key codes held and pressed │      │ accumulator remainder → alpha       │
   │ mouse delta                       │      │ Scene[n-1], Scene[n]                │
-  │ later: broadphase contacts        │      └──────────────┬─────────────────────┘
+  │ Contacts from Scene[n-1]          │      └──────────────┬─────────────────────┘
   └──────────────┬────────────────────┘                     │ pair draws by id, lerp
-                 │ Input, dt                                ▼
+                 │ Input, Contacts, dt                      ▼
                  ▼                                 model matrix per draw
-   step : Model, Input, F32 -> Model               mesh id → mesh handle
+   step : Model, Input, List(Contact), F32 -> Model   mesh id → mesh handle
                  │ Model (one reference, mutated in place)
                  ▼
    view : Model -> Scene
@@ -66,30 +72,44 @@ draw at the Alpha and submits it.
 
 ## 3. The vocabulary
 
-The platform header names three types. Nothing in them names a game. The
+The platform header names four types. Nothing in them names a game. The
 test: if a field would be meaningless to a different game, the field belongs
 in the app.
 
 ```roc
-Vec3   : { x : F32, y : F32, z : F32 }
-Rgb    : { r : F32, g : F32, b : F32 }
-Config : { seed : U64, meshes : List({ name : Str, id : U32 }) }
-Input  : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw   : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
-Camera : { eye : Vec3, target : Vec3, fov_y : F32 }
-Scene  : { camera : Camera, draws : List(Draw) }
+Vec3     : { x : F32, y : F32, z : F32 }
+Rgb      : { r : F32, g : F32, b : F32 }
+Config   : { seed : U64, meshes : List({ name : Str, id : U32 }) }
+Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
+Camera   : { eye : Vec3, target : Vec3, fov_y : F32 }
+Collider : { id : U64, kind : U8, pos : Vec3, yaw : F32, extent : Vec3 }
+Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider) }
 ```
 
 | Type | Carries | Does not carry |
 |---|---|---|
 | `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view | an entity kind; a score; a mesh catalogue; quit; cursor mode |
+| `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view; the Colliders that can touch | an entity kind; a score; a mesh catalogue; quit; cursor mode; a physics body |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
 The game binds keys to intent. The engine does not. The host filters no key
 out of `held` or `pressed`, including the keys it reacts to itself.
+
+A Collider has the id of the entity it belongs to. An entity with no
+Collider touches nothing, so a game opts in per entity. The render shape is
+not the collision shape. `kind` is a number because the Odin glue has no tag
+unions yet: 0 is a box, 1 a sphere, 2 a capsule. For a box, `extent` is the
+half extents and `yaw` turns it in the ground plane. For a sphere,
+`extent.x` is the radius. For a capsule, `extent.x` is the radius and
+`extent.y` the half height of the segment. Games build Colliders with
+`pf.Collider`, for example `Collider.box(id, pos, yaw, half)`, and never
+write a kind number. A new shape is a host branch, not a vocabulary change.
+Decision.
 
 The host latches input between fixed steps. A key press waits in a pending
 set until a step takes it as `pressed`. The mouse delta waits the same way.
@@ -182,10 +202,10 @@ The platform header binds `Model` with a for-clause:
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> model,
-        step : Model, Vocabulary.Input, F32 -> Model,
+        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary, Key]
+    exposes [Vocabulary, Key, Collider]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -199,8 +219,8 @@ it:
 init_for_host : Config -> Box(Model)
 init_for_host = |config| Box.box(init(config))
 
-step_for_host : Box(Model), Input, F32 -> Box(Model)
-step_for_host = |boxed, input, dt| Box.box(step(Box.unbox(boxed), input, dt))
+step_for_host : Box(Model), Input, List(Contact), F32 -> Box(Model)
+step_for_host = |boxed, input, contacts, dt| Box.box(step(Box.unbox(boxed), input, contacts, dt))
 
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
@@ -209,14 +229,14 @@ view_for_host = |boxed| view(Box.unbox(boxed))
 The glue emits `Model` as one opaque pointer. The three entrypoints are:
 
 ```
-roc_init(Config)             -> ptr
-roc_step(ptr, Input, f32)    -> ptr
-roc_view(ptr)                -> Scene
+roc_init(Config)                          -> ptr
+roc_step(ptr, Input, List(Contact), f32)  -> ptr
+roc_view(ptr)                             -> Scene
 ```
 
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Input` or `Scene` change. Those three types are the
-engine's public API.
+only when `Config`, `Input`, `Contact` or `Scene` change. Those four types
+are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
 qualified names such as `Vocabulary.Config`, because it does not see the
@@ -351,7 +371,13 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
-- One `Scene` allocation per step. It is the extract; it would exist anyway.
+- One allocation per step for each non-empty `Scene` list: the draws, and
+  the colliders when a game returns any. It is the extract; it would exist
+  anyway.
+- One allocation and one free per step for non-empty Contacts, once the
+  host computes them. Empty Contacts allocate nothing.
+- A Collider kind is a `U8`, not a tag union, until the glue emits tag
+  unions. `pf.Collider` hides the number from games.
 - One box shell allocation and free per step. The pool removes it.
 - One allocation and one free per step for each non-empty `Input` list. The
   refcount-1 axiom costs this. The pool removes it.

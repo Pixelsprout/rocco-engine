@@ -4,6 +4,7 @@ import "core:slice"
 import "core:testing"
 
 FAKE_KEYS_MAX :: 8
+FAKE_CONTACTS_MAX :: 4
 
 FAKE_GAME :: Game_Calls {
 	init       = fake_init,
@@ -13,23 +14,25 @@ FAKE_GAME :: Game_Calls {
 }
 
 Fake_Game :: struct {
-	inits:       int,
-	seed:        u64,
-	init_box:    rawptr,
-	steps:       int,
-	step_in:     rawptr,
-	step_in_rc:  int,
-	step_out:    rawptr,
-	held:        [FAKE_KEYS_MAX]u16,
-	held_len:    int,
-	pressed:     [FAKE_KEYS_MAX]u16,
-	pressed_len: int,
-	views:       int,
-	view_box:    rawptr,
-	view_rc:     int,
-	drops:       int,
-	drop_box:    rawptr,
-	drop_rc:     int,
+	inits:        int,
+	seed:         u64,
+	init_box:     rawptr,
+	steps:        int,
+	step_in:      rawptr,
+	step_in_rc:   int,
+	step_out:     rawptr,
+	held:         [FAKE_KEYS_MAX]u16,
+	held_len:     int,
+	pressed:      [FAKE_KEYS_MAX]u16,
+	pressed_len:  int,
+	contacts:     [FAKE_CONTACTS_MAX]Contact,
+	contacts_len: int,
+	views:        int,
+	view_box:     rawptr,
+	view_rc:      int,
+	drops:        int,
+	drop_box:     rawptr,
+	drop_rc:      int,
 }
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
@@ -59,7 +62,7 @@ fake_init :: proc(config: Config) -> rawptr {
 	return g_fake.init_box
 }
 
-fake_step :: proc(model: rawptr, input: Input, dt: f32) -> rawptr {
+fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> rawptr {
 	g_fake.steps += 1
 	g_fake.step_in = model
 	g_fake.step_in_rc = fake_refcount(model)^
@@ -68,6 +71,8 @@ fake_step :: proc(model: rawptr, input: Input, dt: f32) -> rawptr {
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
 	roc_decref(input)
+	g_fake.contacts_len = copy(g_fake.contacts[:], contacts.elements[:contacts.length])
+	roc_list_decref(contacts)
 
 	g_fake.step_out = fake_box_new()
 	return g_fake.step_out
@@ -201,6 +206,40 @@ test_seam_step_delivers_the_held_and_pressed_keys :: proc(t: ^testing.T) {
 	testing.expect(t, slice.equal(g_fake.pressed[:g_fake.pressed_len], pressed))
 	testing.expect_value(t, after.allocs - before.allocs, 4)
 	testing.expect_value(t, after.deallocs - before.deallocs, 4)
+}
+
+@(test)
+test_seam_step_hands_the_pending_contacts_to_step_once :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	defer seam_shutdown(&s)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 0)
+
+	s.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2, depth = 0.25}})
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 1)
+	testing.expect_value(t, g_fake.contacts[0].b, 2)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 0)
+}
+
+@(test)
+test_seam_shutdown_releases_contacts_no_step_took :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	s.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2}})
+	seam_shutdown(&s)
+
+	testing.expect_value(t, roc_heap_counters().live, 0)
 }
 
 @(test)

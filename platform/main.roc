@@ -1,10 +1,10 @@
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> model,
-        step : Model, Vocabulary.Input, F32 -> Model,
+        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary, Key]
+    exposes [Vocabulary, Key, Collider]
     packages { roc: "nightly-2026-09-27-a3ce7f1" }
     provides {
         "roc_init": init_for_host,
@@ -57,10 +57,11 @@ platform ""
         ] },
     }
 
-import Vocabulary exposing [Config, Input, Scene]
+import Vocabulary exposing [Config, Contact, Input, Scene]
 
 # Only here because every exposes entry needs a matching import.
 import Key
+import Collider
 
 # Model is whatever the app declares under that name. The host holds it as
 # one pointer and never reads inside. The host keeps exactly one reference,
@@ -70,8 +71,8 @@ import Key
 init_for_host : Config -> Box(Model)
 init_for_host = |config| Box.box(init(config))
 
-step_for_host : Box(Model), Input, F32 -> Box(Model)
-step_for_host = |boxed, input, dt| Box.box(step(Box.unbox(boxed), input, dt))
+step_for_host : Box(Model), Input, List(Contact), F32 -> Box(Model)
+step_for_host = |boxed, input, contacts, dt| Box.box(step(Box.unbox(boxed), input, contacts, dt))
 
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
