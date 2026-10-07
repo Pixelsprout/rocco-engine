@@ -396,14 +396,73 @@ change, except for the pairing map capacity below.
 
 Done when contacts cross the seam as a list.
 
-1. The host computes swept AABB contacts from the current `Scene` bounds or
-   from a `List(Collider)` the game returns in `Scene`. Decide which by
-   measuring which is smaller at 1,000 entities.
-2. `step` gains a third argument: `List(Contact)`. Update `Input` or add the
-   list to it. This is a vocabulary change and rebuilds the host library.
+1. `Scene` gains `colliders : List(Collider)`. The host finds the overlapping
+   pairs with a broadphase and a narrowphase per shape pair.
+2. `step` gains a third argument: `List(Contact)`. This is a vocabulary
+   change and rebuilds the host library.
 3. The game decides what a contact means. The engine never does.
 
-Check: the player stops at the door while it is closed.
+Check: the player stops at the door while it is closed and walks under it
+once it lifts.
+
+Decisions for this milestone, agreed 2026-10-07. The ones that change the
+seam go into `docs/DESIGN.md` sections 1, 2, 3 and 9 when the vocabulary
+task lands.
+
+- Colliders come from the game, not from Draw bounds. Opting in is the
+  filter: the floor and the water drops have none. The render shape is not
+  the collision shape. Decided by reasoning, not by the measurement the old
+  text asked for. An Odin test times the host at 1,000 colliders and the
+  number goes into `docs/DESIGN.md` section 10.
+- `Collider : { id : U64, kind : U8, pos : Vec3, yaw : F32, extent : Vec3 }`.
+  Kind 0 is a box: `extent` is the half extents and `yaw` turns it in the
+  ground plane. Kind 1 is a sphere: `extent.x` is the radius. Kind 2 is a
+  capsule, reserved: `extent.x` is the radius and `extent.y` the half height
+  of the segment. A kind number because the Odin glue has no tag unions yet.
+  A new shape is a host branch, not a vocabulary change. The host logs an
+  unknown kind once per run and skips it.
+- `pf.Collider` names the kinds and builds the records, as `pf.Key` names
+  key codes. Games never write a kind number.
+- `Contact : { a : U64, b : U64, normal : Vec3, depth : F32 }`. `a < b`.
+  `normal` points from a to b on the least-overlap axis and `depth` is the
+  overlap on it. One contact per pair, sorted by `(a, b)`, so a replay gets
+  the same list.
+- `step : Model, Input, List(Contact), F32 -> Model`. The bare list, not a
+  record. `Input` stays what the person did. cards ignores the argument. The
+  platform header and both games change.
+- The host tests overlap, not sweep. Contacts for Scene n reach step n + 1,
+  after the move, so a time of impact would describe the past. The normal
+  and depth fix the current state. Swept replaces overlap the first time a
+  speed per step exceeds a thickness. At 120 Hz the player moves 0.05 units
+  per step and the door is 0.3 thick.
+- Broadphase is sweep and prune on x: sort the colliders by their world
+  AABB min x on the frame arena each step, then scan. The host derives the
+  world AABB from kind, pos, yaw and extent.
+- Narrowphase this milestone: box-box by a separating axis test on five axes
+  (y and the two ground-plane axes of each box), sphere-sphere, and
+  box-sphere. Capsule waits for the first game that slides along walls.
+- Duplicate collider ids: the first wins and the host logs once per run, as
+  the pairing does.
+- The first step gets an empty list. With no input the entity game has no
+  overlapping pair, so the contact list allocates nothing.
+- Entity game colliders, built in the same `view` fold as the draws so a
+  child's world pos and yaw are reused. Player: box, half extents 0.3 by 0.5
+  by 0.3, centred 0.5 above its pos, with its yaw. Door: box, 1.5 by 1.5 by
+  0.15 at the lifted draw pos, so an open door lifts out of the way.
+  Pickups: sphere, radius 0.4. Floor and drops: none.
+- A `block` stage runs after `steer` and before `integrate`. For each
+  player-door contact it moves the player out by normal times depth and
+  removes the velocity component into the normal, so `integrate` cannot push
+  back in on the same step.
+- `collect` reads player-pickup contacts instead of measuring distance. The
+  same Contact is a stop in one branch and a score in another.
+- `scripts/alloc-check.sh` takes expected counts per game: cards 2,
+  entity-game 3. The third is the colliders list.
+- Roc tests cover `block`, `collect` by contact, and the collider list. Odin
+  tests cover each pair test, the broadphase, the sort order, the duplicate
+  log and the unknown kind.
+- `x64win` is checked by hand or recorded as not checked.
+- No ADR.
 
 ## Milestone 7: one gameplay verb
 

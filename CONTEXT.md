@@ -55,8 +55,9 @@ The game's function from Config to Model. Called once, at startup.
 _Avoid_: setup, start, new
 
 **step**:
-The game's function from Model, Input and dt to Model. Called once per fixed
-step. Pure: the same Model and Input give the same Model.
+The game's function from Model, Input, the Contacts and dt to Model. Called
+once per fixed step. Pure: the same Model, Input and Contacts give the same
+Model.
 _Avoid_: update, tick, simulate, advance
 
 **view**:
@@ -116,9 +117,10 @@ key tapped between two steps is pressed but not held.
 _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
-What `view` returns each fixed step: a Camera and a list of Draws. It
-describes what should be on screen now. Derived from the Model, rebuilt every
-step, stored by the host and never by the game.
+What `view` returns each fixed step: a Camera, a list of Draws and a list of
+Colliders. It describes what should be on screen now and what can touch.
+Derived from the Model, rebuilt every step, stored by the host and never by
+the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
@@ -231,14 +233,21 @@ first command; until then the host quits on `ESC`.
 _Avoid_: description, effect, action, message, event
 
 **Contact**:
-A fact the host computes: two bounds overlapped this step. The game decides
-what a contact means; the engine never does.
+A fact the host computes from the previous Scene: two Colliders overlapped,
+with the normal and depth that separate them. The game decides what a contact
+means; the engine never does.
 _Avoid_: collision (the game's response), hit, overlap event, trigger
 
+**Contacts**:
+The list of Contacts the host hands `step`, one per overlapping pair, in id
+order. Not part of Input, which is what the person did.
+_Avoid_: collision list, events, physics state
+
 **Collider**:
-A shape a game may return in its Scene for the host to sweep. Whether Scenes
-carry colliders or the host derives bounds from Draws is undecided.
-_Avoid_: hitbox, body, rigidbody, bounds (the derived alternative)
+A shape with a draw id that a game returns in its Scene so the host can find
+its Contacts. The shape kinds are box, sphere and capsule. An entity with no
+Collider touches nothing.
+_Avoid_: hitbox, body, rigidbody, bounds
 
 ## Memory lifetimes
 
