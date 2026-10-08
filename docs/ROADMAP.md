@@ -29,6 +29,9 @@ Built and running:
   id draws the fallback mesh.
 - Games import the seam types from `pf.Vocabulary` and name keys with
   `pf.Key`, which `scripts/build.roc` generates from sokol.
+- The game gives colliders in `Scene.colliders`. The host finds the
+  contacts and passes them to the next `step` as `List(Contact)`.
+  The game decides what each contact means.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
@@ -392,7 +395,13 @@ change, except for the pairing map capacity below.
   alloc check, and a host allocation count on the report line.
 - No ADR.
 
-## Milestone 6: collision as data
+## Milestone 6: collision as data (done)
+
+Results, 2026-10-08: the player stops at the closed door and walks under it
+once it lifts. A contact collects a pickup. The game reads the contacts in
+its `block` and `collect` stages. The Odin tests, the Roc tests,
+`scripts/alloc-check.sh` and `scripts/host-check.sh` pass on `arm64mac`.
+`scripts/linux/check.sh` passes on `x64glibc`. Nobody checked `x64win`.
 
 Done when contacts cross the seam as a list.
 

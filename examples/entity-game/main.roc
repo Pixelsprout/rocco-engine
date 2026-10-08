@@ -63,14 +63,15 @@ new_game = |meshes, pickups| {
 # testable alone. Reorder the pipeline and you reorder the stages.
 
 step : Model, Input, List(Contact), F32 -> Model
-step = |model, input, _contacts, dt|
+step = |model, input, contacts, dt|
 	model
 		|> steer(input)
 		|> face(dt)
+		|> block(contacts)
 		|> integrate(dt)
 		|> spin(dt)
 		|> expire(dt)
-		|> collect
+		|> collect(contacts)
 		|> fall
 		|> open_door
 		|> raise_door(dt)
@@ -132,6 +133,45 @@ wrap_angle = |a|
 		a
 	}
 
+# Contacts come from the last Scene, so block runs before integrate moves the
+# player. The host orders a contact by id, so the player can be a or b.
+block : Model, List(Contact) -> Model
+block = |m, contacts|
+	if List.is_empty(contacts) {
+		m
+	} else {
+		match player(m) {
+			Err(NotFound) => m
+			Ok(p) => {
+				is_door_id = |id| List.any(m.entities, |e| e.id == id and is_door(e))
+				moved = List.fold(contacts, p, |acc, c| push_out(acc, c, is_door_id))
+				map_entities(
+					m,
+					|e| if e.id == p.id {
+						moved
+					} else {
+						e
+					},
+				)
+			}
+		}
+	}
+
+push_out : Entity, Contact, (U64 -> Bool) -> Entity
+push_out = |e, c, is_door_id| match seen_from(c, e.id) {
+	Ok(side) if is_door_id(side.other) => {
+		away = scale(side.normal, -1.0)
+		into = dot(e.vel, away)
+		vel = if into < 0.0 {
+			add(e.vel, scale(away, -into))
+		} else {
+			e.vel
+		}
+		{ ..e, pos: add(e.pos, scale(away, c.depth)), vel }
+	}
+	_ => e
+}
+
 integrate : Model, F32 -> Model
 integrate = |m, dt| map_entities(m, |e| { ..e, pos: add(e.pos, scale(e.vel, dt)) })
 
@@ -144,28 +184,31 @@ spin = |m, dt| map_entities(
 	},
 )
 
-# Collision for a small game is a distance test over a list. When the host
-# grows a broadphase, it passes contacts in as data and this stage reads them.
-collect : Model -> Model
-collect = |m| match player(m) {
-	Err(NotFound) => m
-	Ok(p) => {
-		touched = |e| is_pickup(e) and e.alive and dist2(e.pos, p.pos) < 1.0
-		gained = List.count_if(m.entities, touched)
-		if gained == 0 {
-			return m
+collect : Model, List(Contact) -> Model
+collect = |m, contacts|
+	if List.is_empty(contacts) {
+		m
+	} else {
+		match player(m) {
+			Err(NotFound) => m
+			Ok(p) => {
+				touched = |e| is_pickup(e) and e.alive and List.any(contacts, |c| seen_from(c, p.id).map_ok(|side| side.other == e.id) ?? Bool.False)
+				gained = List.count_if(m.entities, touched)
+				if gained == 0 {
+					return m
+				}
+				gone = map_entities(
+					m,
+					|e| if touched(e) {
+						{ ..e, alive: Bool.False }
+					} else {
+						e
+					},
+				)
+				spawn_drops({ ..gone, score: m.score + gained }, p.id, gained * drops_per_pickup)
+			}
 		}
-		entities = List.map(
-			m.entities,
-			|e| if touched(e) {
-				{ ..e, alive: Bool.False }
-			} else {
-				e
-			},
-		)
-		spawn_drops({ ..m, score: m.score + gained, entities }, p.id, gained * drops_per_pickup)
 	}
-}
 
 drops_per_pickup : U64
 drops_per_pickup = 6
@@ -440,6 +483,23 @@ waiting = |e| match e.kind {
 	_ => Bool.False
 }
 
+# The normal of the result points from id to the other entity.
+seen_from : Contact, U64 -> Try({ other : U64, normal : Vec3 }, [NotInContact])
+seen_from = |c, id|
+	if c.a == id {
+		Ok({ other: c.b, normal: c.normal })
+	} else if c.b == id {
+		Ok({ other: c.a, normal: scale(c.normal, -1.0) })
+	} else {
+		Err(NotInContact)
+	}
+
+is_door : Entity -> Bool
+is_door = |e| match e.kind {
+	Door(_) => Bool.True
+	_ => Bool.False
+}
+
 is_pickup : Entity -> Bool
 is_pickup = |e| match e.kind {
 	Pickup => Bool.True
@@ -478,11 +538,8 @@ scale = |v, s| { x: v.x * s, y: v.y * s, z: v.z * s }
 pi : F32
 pi = 3.1415927
 
-dist2 : Vec3, Vec3 -> F32
-dist2 = |a, b| {
-	d = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }
-	d.x * d.x + d.y * d.y + d.z * d.z
-}
+dot : Vec3, Vec3 -> F32
+dot = |a, b| a.x * b.x + a.y * b.y + a.z * b.z
 
 # ---- tests. `roc test main.roc` runs these with no engine. ----------------
 
@@ -568,19 +625,13 @@ expect {
 }
 
 expect {
-	# Standing on every pickup collects every pickup and opens the door in one step.
-	m = new_game(test_meshes, 2)
-	on_top = map_entities(
-		m,
-		|e| if is_pickup(e) {
-			{ ..e, pos: origin }
-		} else {
-			e
-		},
-	)
-	after = step(on_top, idle, [], 1.0 / 120.0)
+	# Touching every pickup collects every pickup and opens the door in one step.
+	after = collected(new_game(test_meshes, 2), 1.0 / 120.0)
 	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * drops_per_pickup
 }
+
+touch : U64, U64 -> Contact
+touch = |a, b| { a, b, normal: { x: 1.0, y: 0.0, z: 0.0 }, depth: 0.1 }
 
 is_drop : Entity -> Bool
 is_drop = |e| match e.kind {
@@ -593,23 +644,14 @@ drop_count = |m| List.count_if(m.entities, is_drop)
 
 expect {
 	# Each collected pickup spawns its drops, and the pickup is swept.
-	m = new_game(test_meshes, 3)
-	on_one = map_entities(
-		m,
-		|e| if e.id == 2 {
-			{ ..e, pos: origin }
-		} else {
-			e
-		},
-	)
-	after = step(on_one, idle, [], 1.0 / 120.0)
+	after = step(new_game(test_meshes, 3), idle, [touch(0, 2)], 1.0 / 120.0)
 	drop_count(after) == drops_per_pickup and List.count_if(after.entities, is_pickup) == 2
 }
 
 expect {
 	# New ids start past the last pickup, only grow, and are never reused.
 	m = new_game(test_meshes, 2)
-	after = step(on_every_pickup(m), idle, [], 1.0 / 120.0)
+	after = collected(m, 1.0 / 120.0)
 	drop_ids = List.keep_if(after.entities, is_drop).map(|e| e.id)
 	fresh = List.all(drop_ids, |id| id >= m.next_id and id < after.next_id)
 	distinct = List.all(drop_ids, |id| List.count_if(drop_ids, |other| other == id) == 1)
@@ -619,7 +661,7 @@ expect {
 expect {
 	# A drop lives for its delay plus drop_life, then sweep drops it. The
 	# delays differ, so the drops die one after another.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 0.1)
+	watered = collected(new_game(test_meshes, 1), 0.1)
 	before = run_steps(watered, idle, 8, 0.1)
 	some = run_steps(before, idle, 3, 0.1)
 	after = run_steps(some, idle, 5, 0.1)
@@ -632,7 +674,7 @@ drawn_drops = |m| List.count_if(view(m).draws, |d| d.id >= 3 and d.id < m.next_i
 
 expect {
 	# Drops wait for their delays, so they appear one after another.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 1.0 / 120.0)
+	watered = collected(new_game(test_meshes, 1), 1.0 / 120.0)
 	soon = run_steps(watered, idle, 2, 0.1)
 	later = run_steps(soon, idle, 3, 0.1)
 	drawn_drops(watered) == 1 and drawn_drops(soon) > 1 and drawn_drops(soon) < drops_per_pickup and drawn_drops(later) == drops_per_pickup
@@ -640,7 +682,7 @@ expect {
 
 expect {
 	# Pickups are cubes so the spin shows. Drops are small spheres.
-	watered = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 6, 0.1)
+	watered = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 5, 0.1)
 	scene = view(watered)
 	pickup_mesh = List.find_first(view(new_game(test_meshes, 1)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
 	drop_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < watered.next_id)
@@ -660,25 +702,22 @@ door_lift = |m| List.fold(
 door_draw_y : Model -> F32
 door_draw_y = |m| List.find_first(view(m).draws, |d| d.id == 1).map_ok(|d| d.pos.y) ?? -1.0
 
-on_every_pickup : Model -> Model
-on_every_pickup = |m| map_entities(
-	m,
-	|e| if is_pickup(e) {
-		{ ..e, pos: origin }
-	} else {
-		e
-	},
-)
+# One idle step on which the player touches every live pickup.
+collected : Model, F32 -> Model
+collected = |m, dt| {
+	contacts = List.keep_if(m.entities, |e| is_pickup(e) and e.alive).map(|e| touch(0, e.id))
+	step(m, idle, contacts, dt)
+}
 
 expect {
 	# The door starts to rise on the step it opens, at door_speed.
-	after = step(on_every_pickup(new_game(test_meshes, 2)), idle, [], 0.1)
+	after = collected(new_game(test_meshes, 2), 0.1)
 	near(door_lift(after), door_speed * 0.1) and near(door_draw_y(after), 1.5 + door_speed * 0.1)
 }
 
 expect {
 	# Given time, the door stops at door_height.
-	after = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 30, 0.1)
+	after = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 29, 0.1)
 	near(door_lift(after), door_height) and near(door_draw_y(after), 1.5 + door_height)
 }
 
@@ -737,13 +776,13 @@ expect {
 
 expect {
 	# An open door lifts its collider out of the way with its draw.
-	after = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 30, 0.1)
+	after = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 29, 0.1)
 	collider_of(view(after), 1).map_ok(|c| near(c.pos.y, 1.5 + door_height)) == Ok(Bool.True)
 }
 
 expect {
 	# Water drops touch nothing.
-	watered = run_steps(on_every_pickup(new_game(test_meshes, 2)), idle, 6, 0.1)
+	watered = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 5, 0.1)
 	scene = view(watered)
 	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1]
 }
@@ -823,7 +862,7 @@ expect {
 
 expect {
 	# A child of the door lifts with the slab, because it composes from the door's Draw.
-	opened = run_steps(on_every_pickup(new_game(test_meshes, 1)), idle, 30, 0.1)
+	opened = run_steps(collected(new_game(test_meshes, 1), 0.1), idle, 29, 0.1)
 	with_child = { ..opened, entities: List.append(opened.entities, entity_at(50, Child(1), { x: 0.0, y: 2.0, z: 0.0 }, 0.0)) }
 	draw_of(view(with_child), 50).map_ok(|d| near(d.pos.y, 1.5 + door_height + 2.0)) ?? Bool.False
 }
@@ -847,7 +886,7 @@ expect {
 
 expect {
 	# A drop with no delay starts in a ring above the plant, and follows and turns with it.
-	watered = step(on_every_pickup(new_game(test_meshes, 1)), idle, [], 1.0 / 120.0)
+	watered = collected(new_game(test_meshes, 1), 1.0 / 120.0)
 	offsets = |m| {
 		scene = view(m)
 		p = draw_of(scene, 0).map_ok(|d| d.pos) ?? origin
@@ -868,4 +907,73 @@ expect {
 	first_half = start.y - half.y
 	second_half = half.y - end.y
 	half.x < start.x and second_half > first_half and near_vec(end, { x: drop_land_radius, y: drop_land_height, z: 0.0 })
+}
+
+placed : Model, Vec3 -> Model
+placed = |m, pos| map_entities(
+	m,
+	|e| match e.kind {
+		Player => { ..e, pos }
+		_ => e
+	},
+)
+
+door_contact : F32 -> Contact
+door_contact = |depth| { a: 0, b: 1, normal: { x: 0.0, y: 0.0, z: -1.0 }, depth }
+
+expect {
+	# A closed door pushes the player out by the depth and stops the walk into it. The walk along it goes on.
+	m = placed(new_game(test_meshes, 0), { x: 0.0, y: 0.0, z: -7.6 })
+	after = step(m, { ..idle, held: [Key.code(W), Key.code(D)] }, [door_contact(0.1)], 0.1)
+	match player(after) {
+		Ok(p) => near_vec(p.pos, { x: 0.6, y: 0.0, z: -7.5 }) and p.vel.z == 0.0
+		Err(_) => Bool.False
+	}
+}
+
+expect {
+	# A player that walks away from the door keeps its speed.
+	m = placed(new_game(test_meshes, 0), { x: 0.0, y: 0.0, z: -7.6 })
+	after = step(m, { ..idle, held: [Key.code(S)] }, [door_contact(0.1)], 0.1)
+	player(after).map_ok(|p| near(p.pos.z, -6.9)) ?? Bool.False
+}
+
+expect {
+	# A contact collects a pickup. Distance alone does not: pickup 2 sits on the player
+	# with no contact, and pickup 3 is far away with one.
+	m = map_entities(
+		new_game(test_meshes, 3),
+		|e| if e.id == 2 {
+			{ ..e, pos: origin }
+		} else {
+			e
+		},
+	)
+	after = step(m, idle, [touch(0, 3)], 1.0 / 120.0)
+	alive_pickups = List.keep_if(after.entities, is_pickup).map(|e| e.id)
+	after.score == 1 and alive_pickups == [2, 4]
+}
+
+expect {
+	# A contact with the door collects nothing.
+	after = step(new_game(test_meshes, 1), idle, [touch(0, 1)], 1.0 / 120.0)
+	after.score == 0 and List.count_if(after.entities, is_pickup) == 1
+}
+
+door_gap : Scene -> F32
+door_gap = |scene|
+	match (collider_of(scene, 0), collider_of(scene, 1)) {
+		(Ok(p), Ok(d)) => (d.pos.y - door_half.y) - (p.pos.y + player_half.y)
+		_ => -100.0
+	}
+
+expect {
+	# A shut door reaches the player. An open door rises clear of the player's box,
+	# so the host finds no contact and the player walks through under it.
+	shut = new_game(test_meshes, 1)
+	opened = run_steps(collected(shut, 0.1), idle, 29, 0.1)
+	at_door = placed(opened, { x: 0.0, y: 0.0, z: -7.6 })
+	through = run_steps(at_door, { ..idle, held: [Key.code(W)] }, 2, 0.1)
+	walked = player(through).map_ok(|p| near(p.pos.z, -8.8)) ?? Bool.False
+	door_gap(view(shut)) < 0.0 and door_gap(view(opened)) > 0.0 and walked
 }
