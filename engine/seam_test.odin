@@ -33,6 +33,7 @@ Fake_Game :: struct {
 	drops:        int,
 	drop_box:     rawptr,
 	drop_rc:      int,
+	colliders:    []Collider,
 }
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
@@ -83,7 +84,10 @@ fake_view :: proc(model: rawptr) -> Scene {
 	g_fake.view_box = model
 	g_fake.view_rc = fake_refcount(model)^
 	fake_refcount(model)^ -= 1
-	return {draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}})}
+	return {
+		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
+		colliders = roc_list_from_slice(g_fake.colliders),
+	}
 }
 
 fake_drop_model :: proc(model: rawptr) {
@@ -93,8 +97,8 @@ fake_drop_model :: proc(model: rawptr) {
 	fake_box_free(model)
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0) {
-	g_fake = {}
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil) {
+	g_fake = {colliders = colliders}
 	seam_init(s, FAKE_GAME, Config{seed = seed})
 }
 
@@ -225,6 +229,31 @@ test_seam_step_hands_the_pending_contacts_to_step_once :: proc(t: ^testing.T) {
 	testing.expect_value(t, g_fake.contacts_len, 1)
 	testing.expect_value(t, g_fake.contacts[0].b, 2)
 
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 0)
+}
+
+@(test)
+test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	touching := []Collider{test_sphere(7, {0, 0, 0}, 1), test_sphere(3, {1, 0, 0}, 1)}
+	s: Seam
+	fake_seam_init(&s, colliders = touching)
+	defer seam_shutdown(&s)
+
+	// The Scene from init touches, but the first step still gets no contacts.
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 0)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 1)
+	testing.expect_value(t, [2]u64{g_fake.contacts[0].a, g_fake.contacts[0].b}, [2]u64{3, 7})
+
+	g_fake.colliders = nil
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 1)
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.contacts_len, 0)
 }

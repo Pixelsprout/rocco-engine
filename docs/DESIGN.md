@@ -44,7 +44,14 @@ The host computes the Contacts from the Colliders in the previous `Scene`.
 The host tests overlap, not sweep, so the normal and depth describe where
 the shapes are now. The first step gets empty Contacts. Decision.
 
-Until the host computes Contacts, every step gets empty Contacts.
+The host finds the Contacts in `engine/collision.odin`. A sweep and prune
+on x finds the pairs whose world boxes overlap. A test for each pair of
+shapes then gives the normal and depth. Two boxes get a separating axis
+test. A box turns only in the ground plane, so five axes are enough. Two
+spheres, and a box and a sphere, get direct tests. When two Colliders share
+an id, the first one collides. The host logs each shared id and each
+unknown kind once per run, and skips the Collider. A skipped Collider does
+not claim its id. Decision.
 
 ```
              fixed step, 120 Hz                        render frame, display rate
@@ -374,8 +381,10 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - One allocation per step for each non-empty `Scene` list: the draws, and
   the colliders when a game returns any. It is the extract; it would exist
   anyway.
-- One allocation and one free per step for non-empty Contacts, once the
-  host computes them. Empty Contacts allocate nothing.
+- One allocation and one free per step for non-empty Contacts. Empty
+  Contacts allocate nothing.
+- The contact search costs time for each Collider, not only for each pair.
+  See section 10 for the cost at 1,000 Colliders.
 - A Collider kind is a `U8`, not a tag union, until the glue emits tag
   unions. `pf.Collider` hides the number from games.
 - One box shell allocation and free per step. The pool removes it.
@@ -434,6 +443,21 @@ The measurement found these costs in game code. Section 9 lists them.
 - `List.keep_if` allocates even when it keeps every element.
   `List.concat([x], list)` allocates twice. entity-game skips the first on a
   quiet step and builds its draws with `List.with_capacity`.
+
+Milestone 6 timed the contact search on `arm64mac`.
+`test_contact_search_timing_at_1000_colliders` in `engine/collision_test.odin`
+scatters 1,000 Colliders over 100 by 100 units, half boxes and half
+spheres, and finds 191 Contacts.
+
+| Build | Mean per step, microseconds |
+|---|---|
+| `-debug`, as `scripts/build.roc` builds the host | about 1,300 |
+| `-o:speed` | about 230 |
+
+The cost does not come from the pairs. The same Colliders spread apart cost
+about the same. The id check and the sort take most of the time.
+`slice.sort_by` took about 200 microseconds for 1,000 elements, so the host
+uses its own heap sort.
 
 Not verified:
 

@@ -16,8 +16,9 @@ Seam :: struct {
 	prev:     Scene,
 	curr:     Scene,
 	has_prev: bool,
-	// The next step takes these. Empty until the host computes contacts.
+	// The next step takes these. They come from curr's colliders.
 	contacts: Roc_List(Contact),
+	search:   Contact_Search,
 }
 
 // Owns the one reference to the Model, the last two Scenes and the contacts.
@@ -25,6 +26,7 @@ Seam :: struct {
 // argument it gets.
 seam_init :: proc(s: ^Seam, calls: Game_Calls, config: Config) {
 	s.calls = calls
+	contact_search_init(&s.search, context.allocator)
 	s.model = s.calls.init(config)
 	s.curr = seam_view(s)
 }
@@ -48,6 +50,8 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 	s.has_prev = true
 	s.curr = seam_view(s)
 	viewed := time.tick_now()
+	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
+	s.contacts = roc_list_from_slice(contacts_find(&s.search, colliders, context.temp_allocator))
 
 	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed)
 }
@@ -71,4 +75,5 @@ seam_shutdown :: proc(s: ^Seam) {
 	roc_decref(s.curr)
 	roc_list_decref(s.contacts)
 	s.calls.drop_model(s.model)
+	contact_search_destroy(&s.search)
 }
