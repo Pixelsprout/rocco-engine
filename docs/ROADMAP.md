@@ -539,6 +539,159 @@ assets do not change. The game is a demo a stranger can finish, not a game.
   escape is a `settle` call. See `docs/NOTES.md`.
 - No ADR.
 
+## The second arc: a Kula World clone
+
+Agreed 2026-10-11. Milestones 3 to 7 were pulled by the entity game. The
+second arc is pulled by a clone of Kula World: a ball rolls on blocks that
+float in a sky, gravity is relative to the surface the ball is on and flips
+when it rolls over an edge, the ball jumps one block, keys open the exit.
+The minimum is three levels and a HUD that shows the keys held. Fruit, the
+time limit, bonus levels and sound come after.
+
+The clone starts in this repo under `games/kula/` on the local platform. It
+moves to its own repo on the published bundle URL as the last milestone, so
+it is the bundle's first consumer. Levels are ASCII layer maps in `.txt`
+files, embedded at compile time with Roc's file import and parsed by a
+tested `Level` module. The game is laid out by concern: `main.roc` holds
+the two pipelines, `World` the types, and `Level`, `Grid`, `Ball`, `Rules`,
+`View` and `Hud` one concern each, imports pointing downward only. Tests are
+inline `expect`s and `roc test main.roc` runs them all. The entity game
+stays one file and stays the alloc-check subject.
+
+Each milestone gets its own grilling before implementation. The entries
+below are the roadmap, not the designs.
+
+Decisions that span the arc:
+
+- Forward rendering stays, with a light cap of 8. No deferred pass. A
+  directional shadow map is the first upgrade that changes the look, and it
+  sits beside the milestones.
+- Textures come with the mesh through glTF materials. Draw does not gain a
+  texture id.
+- Tag unions cross the seam once the glue emits them. No new kind numbers.
+- A game never asks the engine for a file. Compile-time file import is not
+  asking.
+- Second copies become packages: `packages/vec3` and the quaternion
+  package at milestone 10, the entity store package at the first copy of
+  `map_entities`.
+
+## Milestone 8: tag unions in the glue
+
+Done when a tag union crosses the seam and both games draw with 4 samples.
+
+1. Extend the Odin glue in `glue/` with non-recursive tag unions: a raw
+   union payload and the discriminant at its offset, with the Zig glue as
+   the reference. Recursive unions stay unimplemented.
+2. Make `Collider` a tag union and delete its kind number. `pf.Collider`
+   keeps building the records.
+3. Set the window and pipeline sample count to 4. sokol resolves the
+   multisample surface in end-pass. This is the first host change of the
+   arc, so the host rebuilds once for both.
+
+Check: `host-check.sh` shows the glue emitting the union. The entity game
+renders with no stair-stepped edges.
+
+## Milestone 9: commands
+
+Done when a game quits itself.
+
+1. `Scene` gains `commands : List(Command)` with `Quit` as the only tag.
+2. Cursor mode becomes a field in `Scene`. The host stops setting it.
+3. ESC leaves the host. The game binds it.
+
+Check: ESC still quits the entity game, from Roc. `cards` ignores the list.
+
+## Milestone 10: Kula slice one
+
+Done when the first Kula level is finishable.
+
+1. Draw's `yaw` becomes `rot`, a quaternion. The host interpolates with
+   slerp, with the sign check the glossary records. `Collider` keeps `yaw`.
+   A small quaternion package gives `from_yaw`, `mul` and
+   `from_axis_angle`. The entity game composes parents with it.
+2. `packages/vec3` takes the Vec3 maths both games copy.
+3. `games/kula/` on the local platform: a ball rolls on vertex-coloured
+   blocks, gravity flips at edges, it jumps, keys open the exit. One level
+   from `levels/level1.txt`, parsed by `Level` with tests.
+
+Check: a ball rolls over an edge onto the side of a block and keeps
+rolling. The level is finishable with the keyboard.
+
+## Milestone 11: lights as data
+
+Done when both games light their own scene and the host has no sun.
+
+1. `Scene` gains `lights : List(Light)` with `Ambient(Rgb)`,
+   `Directional({ dir, color })` and `Point({ pos, color, range })`. Colour
+   carries intensity.
+2. The host takes the first ambient and up to 8 directional and point
+   lights into a uniform array. Extra lights are dropped with one log per
+   run. An empty list is dark.
+3. Both games add their sun. Spot lights wait for a game that needs one.
+
+Check: an empty list draws black. A point light falls off with range.
+
+## Milestone 12: textures with the mesh
+
+Done when a level unloads and the next loads without a stale mesh id
+drawing.
+
+1. The glTF loader reads the base colour texture from the GLB binary chunk,
+   PNG only through `core:image/png`, and the UVs. Each mesh gets an image
+   and a sampler from the glTF sampler: nearest or linear, wrap, mipmaps
+   when the minification filter asks. JPEG is skipped with a log. The unlit
+   material extension marks a mesh unlit.
+2. A cubemap skybox: six PNGs in `assets/sky/<name>/` named `px`, `nx`,
+   `py`, `ny`, `pz`, `nz`, published in the manifest as `sky/<name>`.
+   `Scene` gains `sky : U32`, 0 meaning none. The host draws a unit cube
+   around the camera, pinned to the far plane, after the opaque pass.
+3. Mesh ids gain a generation. `level_unload` gets its first caller. A
+   stale id draws the fallback and logs once.
+4. Kula gets textured blocks, a sky and three levels.
+
+Check: drop a textured `.glb` and a sky directory in, restart, name them
+from Roc, see them. Finish level one, see level two, with no magenta.
+
+## Milestone 13: the HUD
+
+Done when the key count changes on screen without a 3D draw.
+
+1. Clay in the host, through its Odin bindings, as one more archive per
+   target beside sokol's. One arena at init, no allocation per frame.
+2. `Scene` gains `ui : List(Element)`: a flat list where each element names
+   its parent and parents precede children, the entity invariant. A box
+   carries layout, colour or image. Text carries the string, size and
+   colour. The host rebuilds the Clay tree with its open and close calls.
+3. The host draws Clay's render commands with an orthographic quad pass
+   after the 3D pass, and measures text through the callback.
+4. One bitmap font baked into the host: an atlas and metrics generated by
+   a dev-only tool from a free face and committed as an Odin file, like
+   the primitive meshes.
+5. Kula shows the keys held.
+
+Check: a box anchored to a corner stays there when the window resizes. The
+count reads right at two window sizes.
+
+## Milestone 14: CI and the bundle
+
+Done when Kula builds on a clean machine with only Roc installed.
+
+1. Three GitHub Actions runners: macOS arm64, Ubuntu and Windows. Each
+   builds the host library for its OS, runs both games under a virtual
+   display with `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check` and
+   `roc test` on every app. The Linux job reuses
+   `scripts/linux/Dockerfile`.
+2. The Linux CRT objects and library stubs are committed to the repo, so a
+   diff is the reproducibility check. Windows import libraries come from
+   MinGW `.def` files through `zig dlltool`.
+3. A release workflow on a tag gathers the three host archives into the
+   target directories and runs `roc bundle` to a release asset, as roc-ray
+   does with a script.
+4. Kula moves to its own repo and its header names the bundle URL.
+
+Check: clone the Kula repo on a machine with Roc and nothing else, run
+`roc main.roc`, play level one.
+
 ## Beside the milestones
 
 Slot these in when they pay for themselves. Do not run them as a block.
@@ -548,9 +701,17 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Audio.** `saudio` calls back on another thread against a deadline. The
   game returns what should be heard as data. The first command with a
   duration probably arrives here.
-- **Commands.** When the first command arrives, quit becomes a command and
-  cursor mode becomes a field in `Scene`. Until then, `ESC` quits and the
-  host sets the cursor.
+- **A directional shadow map.** The first rendering upgrade that changes
+  the look. Forward rendering stays.
+- **World-space sprites.** An orthographic camera and sprites in the world,
+  so 2D games are possible. The HUD pass is the start of it.
+- **Game-provided fonts.** Faces in `assets/fonts/`, beside the one the
+  host bakes in.
+- **An equirectangular sky loader.** One panorama converted to the six
+  cubemap faces at load.
+- **Blender as a level editor.** Needs the engine to publish glTF node
+  names and transforms in `Config`. A vocabulary change.
+- **A `settle` call.** Same-step contact resolution. See `docs/NOTES.md`.
 - **Shader loading and reload.** The shader is a `sokol-shdc` output.
   Reload means re-running the compiler and swapping the pipeline; the
   platform files decide how each OS watches the file.
@@ -561,30 +722,16 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Debug and speed parity.** Run the allocator counters under both
   `--opt=dev` and `--opt=speed` after every memory change.
 
-Alpha work, once the experiment earns it and not before milestone 2 is done:
-
-- **CI.** GitHub Actions with one runner per OS. Roc refuses `x64glibc` from
-  a machine that does not run Linux, and `x64win` needs a Windows SDK. So no
-  single runner builds all three. Each job runs the build script for its
-  runner OS, runs both games under a virtual display with
-  `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check` and `roc test` on every
-  app under `examples/`. The Linux job reuses
-  `scripts/linux/Dockerfile`.
-- **A published platform bundle.** `roc bundle` into a release asset holding
-  every target directory with prebuilt host libraries, as roc-ray does. A
-  game header points at the URL and the author runs `roc main.roc` with
-  nothing but Roc installed. Needs committable Linux inputs: checked-in CRT
-  objects and assembly stubs for libc, libm and the X11 libraries instead of
-  copies from a container. Windows import libraries can come from MinGW
-  `.def` files through `zig dlltool`, so no SDK at bundle time.
+Commands, CI and the published bundle moved into milestones 9 and 14.
 
 ## Out of scope
 
 - A Vulkan or Metal backend by hand. sokol is the floor.
 - Networking.
-- An editor.
-- Dynamics beyond simple collision until milestone 4 is done.
+- An editor. Blender as a level editor is the nearest thing, beside the
+  milestones.
+- Dynamics beyond simple collision.
 - Web builds until Odin and sokol have a shared web path.
-- CI and a published platform bundle until alpha.
+- CI and a published platform bundle until milestone 14.
 - A scripting API where Roc calls the engine. Roc returns descriptions. The
   engine acts on them.

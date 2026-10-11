@@ -146,3 +146,32 @@ contacts, then runs `view` again. It costs a vocabulary change and a second
 extract per step, about 10 microseconds today. Roc still never calls the
 engine. Do this only when the stranger check or a later game shows a feel
 problem that the one-step latency causes.
+
+## Findings from the second arc grilling
+
+Recorded 2026-10-11, on `nightly-2026-09-27-a3ce7f1`.
+
+- `import "level1.txt" as level1 : Str` embeds a file at compile time.
+  Checked with a basic-cli app: it checks, runs and prints the file.
+- App-local modules work as type modules: a headerless file whose top-level
+  type matches the filename, such as `World := [].{ Model : {...} }`. The
+  `module [...]` header still works but the compiler warns it is deprecated.
+- The platform's required `Model` can be an alias: `Model : World.Model`.
+- `roc test main.roc` runs the `expect`s of every imported module, the
+  app's and the platform's.
+- sokol MSAA: `sapp_desc.sample_count` on the window; pipelines inherit the
+  count through `sglue_environment()`; the backend resolves in end-pass.
+- Clay (nicbarker/clay): one C header, no dependencies, flexbox-like
+  layout, one caller arena, no allocation per frame. `EndLayout` returns a
+  sorted list of render commands and draws nothing. Text is measured by a
+  callback. Official Odin bindings ship a prebuilt static library per OS and
+  a script to rebuild it. zlib licence.
+- GPUI is Rust, owns its renderer and windowing, has no C ABI and no
+  layout-only mode. roc-gui copies its element model. The idea transfers,
+  the code does not.
+- roc-ray CI: five runners build the hosts, the Linux linker inputs are a
+  content-addressed release with a lock file, and a release job copies the
+  host archives into the target directories and runs `roc bundle` to a
+  `.tar.zst` asset that apps name by URL.
+- Odin `core:image/png` decodes PNG through core zlib. `core:image` also
+  reads baseline JPEG, BMP, TGA and QOI.
