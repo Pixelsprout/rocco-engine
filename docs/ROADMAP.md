@@ -341,7 +341,11 @@ low-poly style.
 - Fewer than 65,535 vertices in total. Smooth shading is allowed.
 - Node transforms do not need to be applied.
 
-## Milestone 5: entities in Roc
+## Milestone 5: entities in Roc (done)
+
+Results, 2026-10-01: the entity game spawns and sweeps water drops at
+runtime, with parenting. The Pairing map reserves room for 4096 draws. The
+user confirmed a hand run and `scripts/alloc-check.sh`.
 
 Done when the entity game creates and destroys entities at runtime.
 
@@ -580,7 +584,10 @@ Decisions that span the arc:
   package at milestone 10, the entity store package at the first copy of
   `map_entities`.
 
-## Milestone 8: tag unions in the glue
+## Milestone 8: tag unions in the glue (done)
+
+Results, 2026-10-11: `Collider.shape` crosses the seam as a tag union that
+the Odin glue emits. Both games draw with 4x MSAA.
 
 Done when a tag union crosses the seam and both games draw with 4 samples.
 
