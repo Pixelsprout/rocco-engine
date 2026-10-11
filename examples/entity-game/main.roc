@@ -92,13 +92,13 @@ pickup_spot = |i|
 
 step : Model, Input, List(Contact), F32 -> Model
 step = |model, input, contacts, dt| {
-	heard = match model.phase {
+	active_input = match model.phase {
 		Playing => input
 		Won(_) => no_input
 	}
 	model
-		|> steer(heard)
-		|> jump(heard)
+		|> steer(active_input)
+		|> jump(active_input)
 		|> face(dt)
 		|> gravity(dt)
 		|> block(contacts)
