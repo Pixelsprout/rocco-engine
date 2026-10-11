@@ -2,6 +2,9 @@ package engine
 
 import sg "../sokol-odin/sokol/gfx"
 
+// The window swapchain and the pipeline must agree, or sokol rejects the pipeline.
+SAMPLE_COUNT :: 4
+
 Renderer :: struct {
 	pip:    sg.Pipeline,
 	meshes: Mesh_Table,
@@ -15,6 +18,7 @@ renderer_init :: proc(r: ^Renderer) {
 	// Reversed-Z: the depth buffer clears to 0 and nearer is greater.
 	desc := sg.Pipeline_Desc {
 		shader = shader,
+		sample_count = SAMPLE_COUNT,
 		depth = {compare = .GREATER_EQUAL, write_enabled = true},
 		index_type = .UINT16,
 		cull_mode = .BACK,

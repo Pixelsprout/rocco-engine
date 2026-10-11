@@ -59,6 +59,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 			cleanup_cb = cleanup_cb,
 			width = 960,
 			height = 540,
+			sample_count = SAMPLE_COUNT,
 			window_title = "rocco",
 			logger = {func = slog.func},
 			event_cb = event_cb,
