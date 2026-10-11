@@ -123,3 +123,26 @@ them.
   renderer stays allocation-free up to 4096 draws by construction, not by
   measurement. A count of permanent-arena allocations per frame on the same
   line would let the alloc check assert zero.
+
+## A settle call for same-step contact resolution
+
+Recorded 2026-10-11, from the milestone 7 grilling. Not milestone work.
+
+Contacts for Scene n reach step n + 1, because positions come out of `step`,
+the host sees them through `view`, and Roc never asks the engine a question
+mid-step. Unity and Rapier report contacts after the move in the same way,
+and a game's response lands a frame later. Platformer fixes such as coyote
+time and jump buffering are game-side code.
+
+If a game ever needs the response in the same step, the escape is a second
+call per fixed step:
+
+```roc
+settle : Model, List(Contact) -> Model
+```
+
+The host runs `step`, then `view`, tests the Scene, calls `settle` with the
+contacts, then runs `view` again. It costs a vocabulary change and a second
+extract per step, about 10 microseconds today. Roc still never calls the
+engine. Do this only when the stranger check or a later game shows a feel
+problem that the one-step latency causes.

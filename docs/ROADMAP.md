@@ -482,6 +482,49 @@ Done when the entity game is playable start to finish.
 
 Check: a stranger plays it without instructions.
 
+Decisions for this milestone, agreed 2026-10-11. All of it lands in
+`examples/entity-game`. The vocabulary, the glue, the host library and the
+assets do not change. The game is a demo a stranger can finish, not a game.
+
+- The verb is jump, on Space pressed. Jump speed 7, gravity 20, so the apex
+  is about 1.2 units. A `gravity` stage pulls the player down. The floor is
+  y 0 for the player and has no collider. Space is the key a stranger tries
+  first, and this is the first use of `pressed` and of the y axis.
+- `Player({ grounded : Bool })`. Grounded is set at y 0 or on a contact with
+  a +y normal, and cleared by a jump. No double jump. Stored, not derived,
+  because contacts arrive one step late and a derived flag would flicker
+  for one step after a landing.
+- `solid` is derived from kind. Door and Block are solid. Pickup and Goal
+  are triggers. The `block` stage pushes the player out of every solid
+  contact, so a landing from above is the same push-out with a +y normal.
+- The level: seven pickups on an arc of radius 4 across the front half, from
+  the player's left to right, so all are in view at start. A 1 by 1 by 1
+  block at x -4.5, z -4 with the eighth pickup on top, so the door only
+  opens after a jump. The door stays at z -8. A goal pad behind it: a flat
+  cube 2 by 0.1 by 1.5 at y 0.05 and z -9.2, bright tint, with a matching
+  box collider. A plane would z-fight the floor.
+- A player-goal contact sets the win. `Model` gains
+  `phase : [Playing, Won(F32)]`, the number being seconds since the win.
+- While Won: `steer` and jump ignore input. A `celebrate` stage spawns one
+  drop onto the player every 0.08 seconds, with its phase taken from the
+  step count. `view` orbits the camera round the player at radius 6, height
+  3, 0.8 radians per second, with the camera package's look-at.
+- At 4 seconds `new_game` runs again with the current `next_id`, so every
+  fresh entity has a new id and the host pairs nothing across the reset.
+  The player is found by kind, not by id.
+- Roc tests: jump rises and lands, no double jump, landing on the block
+  through a +y contact, a goal contact sets Won, Won ignores input, restart
+  after 4 seconds with fresh ids, and rain while Won.
+- `scripts/alloc-check.sh` does not change. No input means no jump, no
+  contact and no win.
+- The stranger check: at least two people who have not seen the game, with
+  no words from the author. The results line records how many finished.
+- The `Model` type changes, so a hot reload across this change loses state.
+- The one-step contact latency is a consequence of the design and the
+  industry norm, not a flaw. If a game ever needs same-step resolution, the
+  escape is a `settle` call. See `docs/NOTES.md`.
+- No ADR.
+
 ## Beside the milestones
 
 Slot these in when they pay for themselves. Do not run them as a block.
