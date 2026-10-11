@@ -595,8 +595,11 @@ renders with no stair-stepped edges.
 
 Done when a game quits itself.
 
-1. `Scene` gains `commands : List(Command)` with `Quit` as the only tag.
-2. Cursor mode becomes a field in `Scene`. The host stops setting it.
+1. `step` returns `{ model, commands : List(Command) }`, with `Quit` as
+   the only tag. The glue learns single-tag unions and a `Box` inside a
+   returned record first.
+2. Cursor mode becomes `cursor : [Free, Locked]` in `Scene`. The host
+   stops setting it, apart from the debug camera.
 3. ESC leaves the host. The game binds it.
 
 Check: ESC still quits the entity game, from Roc. `cards` ignores the list.
