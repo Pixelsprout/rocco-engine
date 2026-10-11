@@ -85,8 +85,9 @@ engine -debug` runs the engine's tests.
 
 `ROCCO_EXIT_AFTER_FRAMES=N` makes the game quit after N rendered frames. The
 game then prints `Frame Count: N` and exits with code 0. Without the variable,
-the game runs until you press Escape. A value that is not a positive integer
-stops the game at startup with exit code 1.
+the game runs until it returns `Quit` or you close the window. The entity
+game quits on Escape. A value that is not a positive integer stops the game
+at startup with exit code 1.
 
 The other variables the engine reads:
 

@@ -32,8 +32,8 @@ _Avoid_: script, scripting, application code, client
 
 **Seam**:
 The boundary between game and engine. Only plain values cross it: facts go in
-through `init` and `step`, decisions and a Scene come out. Nothing effectful
-crosses in either direction.
+through `init` and `step`, and decisions come out as a Scene and Commands.
+Nothing effectful crosses in either direction.
 _Avoid_: API, FFI boundary, scripting API, bridge
 
 **Game calls**:
@@ -55,10 +55,10 @@ The game's function from Config to Model. Called once, at startup.
 _Avoid_: setup, start, new
 
 **step**:
-The game's function from Model, Input, the Contacts and dt to Model. Called
-once per fixed step. Pure: the same Model, Input and Contacts give the same
-Model.
-_Avoid_: update, tick, simulate, advance
+The game's function from Model, Input, the Contacts and dt to a record of
+the next Model and a list of Commands. Called once per fixed step. Pure: the
+same Model, Input and Contacts give the same Model and Commands.
+_Avoid_: tick, simulate, advance, update (the game's Stage pipeline)
 
 **view**:
 The game's function from Model to Scene. Called once per fixed step, after
@@ -66,20 +66,22 @@ The game's function from Model to Scene. Called once per fixed step, after
 _Avoid_: render, draw, extract, present
 
 **Stage**:
-One function from Model to Model inside the `step` pipeline. The order of the
-stages is the schedule; each stage is a unit test.
+One function from Model to Model inside the game's `update` pipeline, which
+`step` calls. The order of the stages is the schedule; each stage is a unit
+test.
 _Avoid_: system, pass, phase
 
 ## The vocabulary
 
 **Vocabulary**:
-The three types that cross the seam: Config, Input and Scene. They are the
-engine's public API. Nothing in them names a game. Games import them, and the
-records inside them, from `pf.Vocabulary`.
+The types that cross the seam: Config, Input, Contact, Scene and Command.
+They are the engine's public API. Nothing in them names a game. Games import
+them, and the records inside them, from `pf.Vocabulary`.
 _Avoid_: protocol, schema, contract, ABI
 
 **Vocabulary change**:
-Any edit to Config, Input or Scene. It rebuilds the host and every game.
+Any edit to Config, Input, Contact, Scene or Command. It rebuilds the host
+and every game.
 Adding an asset, an entity kind or a game rule is never one.
 _Avoid_: breaking change, API change
 
@@ -117,10 +119,10 @@ key tapped between two steps is pressed but not held.
 _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
-What `view` returns each fixed step: a Camera, a list of Draws and a list of
-Colliders. It describes what should be on screen now and what can touch.
-Derived from the Model, rebuilt every step, stored by the host and never by
-the game.
+What `view` returns each fixed step: a Camera, a list of Draws, a list of
+Colliders and a Cursor. It describes what should be on screen now and what
+can touch. Derived from the Model, rebuilt every step, stored by the host
+and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
@@ -138,6 +140,12 @@ The field of a Scene that says where the eye is, what it looks at and the
 vertical field of view. The game decides it; the host interpolates it. The
 camera package in `packages/camera/` builds one.
 _Avoid_: view (the call), viewport, camera target
+
+**Cursor**:
+The field of a Scene that says if the mouse is `Free` or `Locked`. It is a
+state, not a Command. The host locks or frees the mouse only when it changes.
+The debug camera forces `Locked`.
+_Avoid_: mouse mode, cursor command, grab
 
 **Model**:
 The one value that is the game. The game declares its type; the host holds
@@ -227,9 +235,10 @@ reconciles against the last one. A Scene is one. Descriptions first.
 _Avoid_: command, request, event, intent
 
 **Command**:
-A value that says do this once: spawn, destroy, play a sound. Reserved for
-things with host-side lifetime. Not in the vocabulary yet. Quit becomes the
-first command; until then the host quits on `ESC`.
+A value that says do this once. `step` returns them; the host runs each one
+in list order after `step` and before `view`. `Quit` is the only one today;
+spawn, destroy and play a sound may follow. The host binds no key to `Quit`;
+a game binds `Escape` itself. Reserved for things a description cannot say.
 _Avoid_: description, effect, action, message, event
 
 **Contact**:

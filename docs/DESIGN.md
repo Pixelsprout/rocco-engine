@@ -21,7 +21,7 @@ evidence are marked as decisions.
 | the audio callback and its thread | what should be heard, as data |
 | finding the Contacts between Colliders | which shapes touch, as Colliders; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
-| the vocabulary types: `Config`, `Input`, `Contact`, `Scene` | the `Model` type, which the host never reads |
+| the vocabulary types: `Config`, `Input`, `Contact`, `Scene`, `Command` | the `Model` type, which the host never reads |
 
 Odin produces facts. Roc produces decisions. Both cross the seam as plain
 values. Roc never asks the engine a question mid-step. Roc never calls a draw
@@ -30,15 +30,24 @@ function.
 ## 2. The three functions
 
 ```roc
-init : Config -> Model                             # once, at startup
-step : Model, Input, List(Contact), F32 -> Model   # once per fixed step, 120 Hz
-view : Model -> Scene                              # once per fixed step, after step
+# once, at startup
+init : Config -> Model
+# once per fixed step, 120 Hz
+step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
+# once per fixed step, after step
+view : Model -> Scene
 ```
 
 The host calls `step` then `view` inside the fixed-step loop. The host holds
 the current `Scene` and the previous `Scene`. At render time the host
 interpolates between them by the accumulator remainder. Roc never sees a
 previous `Model` and never sees an alpha.
+
+Between `step` and `view`, the host runs each command in list order, then
+frees the list. The list does not stay in the Seam. A command means do this
+once, and `view` runs again from the same `Model`. So commands come from
+`step`, not from `Scene`. `Quit` asks sokol to quit, and the current frame
+finishes. Decision.
 
 The host computes the Contacts from the Colliders in the previous `Scene`.
 The host tests overlap, not sweep, so the normal and depth describe where
@@ -56,14 +65,21 @@ not claim its id. Decision.
 ```
              fixed step, 120 Hz                        render frame, display rate
   ┌────────────── Odin ───────────────┐      ┌────────────── Odin ────────────────┐
-  │ clock, key codes held and pressed │      │ accumulator remainder → alpha       │
-  │ mouse delta                       │      │ Scene[n-1], Scene[n]                │
-  │ Contacts from Scene[n-1]          │      └──────────────┬─────────────────────┘
-  └──────────────┬────────────────────┘                     │ pair draws by id, lerp
-                 │ Input, Contacts, dt                      ▼
-                 ▼                                 model matrix per draw
-   step : Model, Input, List(Contact), F32 -> Model   mesh id → mesh handle
-                 │ Model (one reference, mutated in place)
+  │ clock, key codes held and pressed │      │ accumulator remainder → alpha      │
+  │ mouse delta                       │      │ Scene[n-1], Scene[n]               │
+  │ Contacts from Scene[n-1]          │      │ cursor from Scene[n] → mouse lock  │
+  └──────────────┬────────────────────┘      └──────────────┬─────────────────────┘
+                 │ Input, Contacts, dt                      │ pair draws by id, lerp
+                 ▼                                          ▼
+   step : Model, Input, List(Contact), F32         model matrix per draw
+                 │ Model (one reference, mutated in place)  mesh id → mesh handle
+                 │ and List(Command)
+                 ▼
+  ┌────────────── Odin ───────────────┐
+  │ run each command in list order;   │
+  │ free the list                     │
+  └──────────────┬────────────────────┘
+                 │ Model
                  ▼
    view : Model -> Scene
                  │ Scene[n]
@@ -79,7 +95,7 @@ draw at the Alpha and submits it.
 
 ## 3. The vocabulary
 
-The platform header names four types. Nothing in them names a game. The
+The platform header names five types. Nothing in them names a game. The
 test: if a field would be meaningless to a different game, the field belongs
 in the app.
 
@@ -92,7 +108,9 @@ Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : R
 Camera   : { eye : Vec3, target : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider) }
+Cursor   : [Free, Locked]
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), cursor : Cursor }
+Command  : [Quit]
 ```
 
 | Type | Carries | Does not carry |
@@ -100,12 +118,21 @@ Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider) }
 | `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view; the Colliders that can touch | an entity kind; a score; a mesh catalogue; quit; cursor mode; a physics body |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view; the Colliders that can touch; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
+| `List(Command)` | what the host does once after this step: `Quit` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
 The game binds keys to intent. The engine does not. The host filters no key
-out of `held` or `pressed`, including the keys it reacts to itself.
+out of `held` or `pressed`, including the keys it reacts to itself. The host
+binds no key to quit. A game returns `Quit` from `step`, for example on
+`Escape`. A game with no quit key closes when the player closes the window,
+or with Cmd+Q on macOS.
+
+The cursor is a state, so it is a field in `Scene` and not a command. Once
+per render frame the host reads `cursor` from the current `Scene`. It locks
+or frees the mouse only when the state changes. The debug camera forces
+`Locked` and ignores `Scene.cursor`. Decision.
 
 A Collider has the id of the entity it belongs to. An entity with no
 Collider touches nothing, so a game opts in per entity. The render shape is
@@ -208,7 +235,7 @@ The platform header binds `Model` with a for-clause:
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> model,
-        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> Model,
+        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
         view : Model -> Vocabulary.Scene,
     }
     exposes [Vocabulary, Key, Collider]
@@ -225,8 +252,11 @@ it:
 init_for_host : Config -> Box(Model)
 init_for_host = |config| Box.box(init(config))
 
-step_for_host : Box(Model), Input, List(Contact), F32 -> Box(Model)
-step_for_host = |boxed, input, contacts, dt| Box.box(step(Box.unbox(boxed), input, contacts, dt))
+step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host = |boxed, input, contacts, dt| {
+    stepped = step(Box.unbox(boxed), input, contacts, dt)
+    { model: Box.box(stepped.model), commands: stepped.commands }
+}
 
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
@@ -236,13 +266,13 @@ The glue emits `Model` as one opaque pointer. The three entrypoints are:
 
 ```
 roc_init(Config)                          -> ptr
-roc_step(ptr, Input, List(Contact), f32)  -> ptr
+roc_step(ptr, Input, List(Contact), f32)  -> { ptr, List(Command) }
 roc_view(ptr)                             -> Scene
 ```
 
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Input`, `Contact` or `Scene` change. Those four types
-are the engine's public API.
+only when `Config`, `Input`, `Contact`, `Scene` or `Command` change. Those
+five types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
 qualified names such as `Vocabulary.Config`, because it does not see the
@@ -289,8 +319,10 @@ one.
 Call protocol, per fixed step:
 
 1. The host owns one box pointer `m`.
-2. Call `roc_step(m, input, dt)`. Roc consumes `m` and returns `m'`. The
-   host must not use `m` again. Passing `m` twice is a double free.
+2. Call `roc_step(m, input, contacts, dt)`. Roc consumes `m` and returns
+   `m'` and a commands list. The host must not use `m` again. Passing `m`
+   twice is a double free. The host runs each command in list order, then
+   frees the list. It frees only the list and keeps `m'`.
 3. Increment the refcount on `m'`. Call `roc_view(m')`. Roc consumes one
    reference and returns a `Scene`. The host still holds `m'` with refcount
    one.
@@ -335,14 +367,14 @@ in the roadmap removes the system heap from that path.
   a refcount to get wrong.
 - **No game type in the platform header.** See section 3.
 - **No previous `Model` across the seam.** See section 5.
-- **No quit or cursor field in `Scene` yet.** Until the first command
-  arrives, `ESC` quits and the host sets the cursor. Then quit becomes a
-  command, and cursor mode becomes a field in `Scene`, because it is a state.
+- **No command in `Scene`.** Commands come from `step`, because `view` runs
+  again from the same `Model` and a command means do this once. Quit is a
+  command. The cursor is a state, so it is a field in `Scene`.
 - **No hosted function until a pure value cannot express the need.** A sound
   with a duration or a physics body with a warm-start cache has host-side
-  lifetime. When the first one arrives, Roc returns a `List Command` with
-  `Spawn` and `Destroy` by id and the host reconciles. Descriptions first.
-  Commands only when a description cannot say it.
+  lifetime. When the first one arrives, `Command` gains `Spawn` and
+  `Destroy` by id and the host reconciles. Descriptions first. Commands only
+  when a description cannot say it.
 
 ## 7. Where the design comes from
 
@@ -365,8 +397,9 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - **Replay.** `step` is pure. A log of `(Input, dt)` reproduces any bug.
 - **Tests without an engine.** `roc test` runs `step` and `view` directly.
   The example game's six tests run in 34 ms.
-- **The schedule is composition.** `model |> steer(input) |> integrate(dt)
-  |> collect`. Each stage is `Model -> Model` and a unit test. Reordering the
+- **The schedule is composition.** A game's `update` is `model
+  |> steer(input) |> integrate(dt) |> collect`, and `step` wraps it. Each
+  stage is `Model -> Model` and a unit test. Reordering the
   pipeline reorders the systems.
 - **Hot reload keeps the state.** The `Model` lives in host-owned memory.
   Replacing the code that produces it does not disturb it. Measured.

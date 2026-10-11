@@ -37,6 +37,10 @@ Built and running:
   finished it with no instructions.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
+- `step` returns a `List(Command)` with the next `Model`. The host runs each
+  command after `step` and before `view`. `Quit` is the only command. The
+  host binds no key; the entity game binds `Escape` to `Quit`. The mouse lock
+  comes from `Scene.cursor`, apart from the debug camera.
 - The engine links as one host library per target into a Roc platform. The
   game manages its state. The host honours `roc_dealloc`. The game calls sit
   behind a struct of procedures, with a fake game in the Odin tests, so the
@@ -145,7 +149,8 @@ ones that change the design.
   pipeline toggle and the `SPACE` pause. The `Scene` from `view` is the only
   source of draws.
 - `ESC` quits. The host filters no key out of `held` or `pressed`. Quit and
-  cursor mode stay host policy until the first command arrives.
+  cursor mode stay host policy until the first command arrives. Milestone 9
+  moved both to the game, apart from the debug camera.
 - `ROCCO_SEED` gives `Config.seed`. The default is 0.
 - `ROCCO_DEBUG_CAMERA=1` turns on the fly camera and the mouse lock. Then the
   host ignores `Scene.camera`. The game still gets all input.
@@ -591,7 +596,15 @@ Done when a tag union crosses the seam and both games draw with 4 samples.
 Check: `host-check.sh` shows the glue emitting the union. The entity game
 renders with no stair-stepped edges.
 
-## Milestone 9: commands
+## Milestone 9: commands (done)
+
+Results, 2026-10-11: the entity game returns `Quit` from `step` on an
+`Escape` press, and `Escape` quits the running game. `cards` returns no
+commands and has no quit key. The host binds no key. Roc tests check
+`step(...).commands` for an `Escape` press, for idle input and for `Escape`
+during the win. The Roc tests, the Odin tests, `scripts/alloc-check.sh` and `scripts/host-check.sh` pass on
+`arm64mac`. A step with no commands adds no allocation. Nobody checked
+`x64glibc` or `x64win`.
 
 Done when a game quits itself.
 

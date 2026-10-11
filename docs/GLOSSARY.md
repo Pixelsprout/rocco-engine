@@ -208,7 +208,7 @@ Apple’s C++-derived shader language, and what the Metal backend compiles at `s
 
 ## Mouse lock {#mouse-lock}
 
-Hiding the cursor and decoupling it from the pointer so movement is reported forever instead of stopping at the screen edge. `sapp.lock_mouse(true)`; on macOS that is `CGAssociateMouseAndMouseCursorPosition(NO)` plus `[NSCursor hide]` (`sokol_app.h:6062`). Measured on this machine: `sapp.mouse_locked()` reflects it in the *same* frame, though the header warns other platforms may delay it. `Escape` is the only way out of a locked window.
+Hiding the cursor and decoupling it from the pointer so movement is reported forever instead of stopping at the screen edge. `sapp.lock_mouse(true)`; on macOS that is `CGAssociateMouseAndMouseCursorPosition(NO)` plus `[NSCursor hide]` (`sokol_app.h:6062`). Measured on this machine: `sapp.mouse_locked()` reflects it in the *same* frame, though the header warns other platforms may delay it. The host binds no key to unlock it. A game can bind `Escape` to `Quit`; on macOS, Cmd+Q also closes the window.
 
 ## Model matrix {#model-matrix}
 
@@ -500,7 +500,7 @@ The `[Model: model] for init : …` form in a Roc platform's `requires` block. I
 
 ## Description vs command {#description-vs-command}
 
-Two ways for a pure function to ask for an effect. A *description* says what should exist now, every step, and the host reconciles: a `Scene` is one. A *command* says do this once: `Spawn`, `Destroy`, play a sound. Descriptions suit things with no host-side lifetime; commands suit things that have one. Start with descriptions.
+Two ways for a pure function to ask for an effect. A *description* says what should exist now, every step, and the host reconciles: a `Scene` is one, and its `cursor` field is one too. A *command* says do this once. `Quit` is the first command; `Spawn`, `Destroy` and play a sound may follow. Commands come from `step`, because `view` runs again from the same `Model` and a command in `Scene` could run twice. Descriptions suit things with no host-side lifetime; commands suit things that have one. Start with descriptions.
 
 ## Extract {#extract}
 
@@ -508,4 +508,4 @@ Bevy's name for the phase that copies render-relevant data out of the game world
 
 ## Schedule as composition {#schedule-as-composition}
 
-Bevy orders systems in a schedule; Elm orders nothing because `update` is one function. The Roc middle ground: `step` is a pipeline of `Model -> Model` stages joined with `|>`. The order of the pipeline is the schedule, and each stage is a unit test.
+Bevy orders systems in a schedule; Elm orders nothing because `update` is one function. The Roc middle ground: a game's `update` is a pipeline of `Model -> Model` stages joined with `|>`, and `step` wraps it. The order of the pipeline is the schedule, and each stage is a unit test.
