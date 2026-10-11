@@ -119,7 +119,7 @@ update = |model, input, contacts, dt| {
 }
 
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
-step = |model, input, contacts, dt| { model: update(model, input, contacts, dt), commands: [] }
+step = |model, input, contacts, dt| { model: update(model, input, contacts, dt), commands: quit_on_escape(input) }
 
 # Seconds from the win to the next round.
 celebration : F32
@@ -141,6 +141,15 @@ speed = 6.0
 # The binding from keys to intent lives in the game, not the engine.
 move_dir : Input -> Vec3
 move_dir = |input| { x: Key.axis(input, A, D), y: 0.0, z: Key.axis(input, W, S) }
+
+# Reads the raw input, so ESC quits during the celebration too.
+quit_on_escape : Input -> List(Command)
+quit_on_escape = |input|
+	if Key.pressed(input, Escape) {
+		[Quit]
+	} else {
+		[]
+	}
 
 steer : Model, Input -> Model
 steer = |m, input| map_entities(
@@ -903,6 +912,22 @@ expect {
 	a = update(m, right, [], 0.5)
 	b = update(m, right, [], 0.5)
 	a.steps == b.steps and a.score == b.score
+}
+
+expect {
+	out = step(new_game(test_meshes, 1, 0), { ..idle, pressed: [Key.code(Escape)] }, [], 1.0 / 120.0)
+	out.commands == [Quit]
+}
+
+expect {
+	out = step(new_game(test_meshes, 1, 0), idle, [], 1.0 / 120.0)
+	out.commands == []
+}
+
+expect {
+	won = { ..new_game(test_meshes, 1, 0), phase: Won(0.0) }
+	out = step(won, { ..idle, pressed: [Key.code(Escape)] }, [], 1.0 / 120.0)
+	out.commands == [Quit]
 }
 
 expect {
