@@ -59,8 +59,9 @@ target_lines = |target| "target=${target.roc_target}\nsuffix=${target.exe}\nhost
 
 Run : { program : Str, args : List(Str), cwd : Str }
 
+# The glue cache can return the output of an older glue/OdinGlue.roc.
 glue_run : Run
-glue_run = { program: "roc", args: ["glue", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
+glue_run = { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
 host_run : Target -> Run
 host_run = |target| {
@@ -316,7 +317,7 @@ expect target_for(windows).map_ok(|target| target.roc_target) == Ok("x64win")
 expect target_for({ arch: X64, os: MACOS }) == Err(UnsupportedMachine)
 expect target_for({ arch: X64, os: OTHER("freebsd") }) == Err(UnsupportedMachine)
 
-expect glue_run == { program: "roc", args: ["glue", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
+expect glue_run == { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
 expect {
 	run = target_for(mac).map_ok(host_run)

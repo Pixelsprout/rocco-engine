@@ -11,11 +11,11 @@ COLLISION_EPS :: f32(1e-4)
 TIMING_COLLIDERS :: 1000
 
 test_box :: proc(id: u64, pos: [3]f32, yaw: f32, half: [3]f32) -> Collider {
-	return {id = id, kind = COLLIDER_BOX, pos = {pos.x, pos.y, pos.z}, yaw = yaw, extent = {half.x, half.y, half.z}}
+	return {id = id, pos = {pos.x, pos.y, pos.z}, yaw = yaw, shape = {payload = {box = {half.x, half.y, half.z}}, tag = .Box}}
 }
 
 test_sphere :: proc(id: u64, pos: [3]f32, radius: f32) -> Collider {
-	return {id = id, kind = COLLIDER_SPHERE, pos = {pos.x, pos.y, pos.z}, extent = {x = radius}}
+	return {id = id, pos = {pos.x, pos.y, pos.z}, shape = {payload = {sphere = radius}, tag = .Sphere}}
 }
 
 contacts_of :: proc(search: ^Contact_Search, colliders: ..Collider) -> []Contact {
@@ -213,20 +213,16 @@ test_contact_search_duplicate_id_keeps_the_first_and_logs_once :: proc(t: ^testi
 }
 
 @(test)
-test_contact_search_unknown_kind_is_skipped_and_logged_once :: proc(t: ^testing.T) {
+test_contact_search_capsule_is_skipped :: proc(t: ^testing.T) {
 	search: Contact_Search
 	contact_search_init(&search, context.allocator)
 	defer contact_search_destroy(&search)
 
 	capsule := Collider {
-		id     = 2,
-		kind   = COLLIDER_CAPSULE,
-		extent = {x = 1, y = 1},
+		id = 2,
+		shape = {payload = {capsule = {radius = 1, half_height = 1}}, tag = .Capsule},
 	}
 	testing.expect_value(t, len(contacts_of(&search, test_sphere(1, {0, 0, 0}, 1), capsule)), 0)
-	testing.expect_value(t, len(contacts_of(&search, test_sphere(1, {0, 0, 0}, 1), capsule)), 0)
-	testing.expect(t, search.logged_kinds[COLLIDER_CAPSULE])
-	testing.expect(t, !search.logged_kinds[COLLIDER_SPHERE])
 }
 
 @(test)

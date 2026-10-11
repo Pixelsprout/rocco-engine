@@ -924,7 +924,7 @@ expect {
 	scene = view(new_game(test_meshes, 1, 0))
 	player_box = collider_of(scene, 0) == Ok(Collider.box(0, { x: 0.0, y: 0.5, z: 0.0 }, 0.0, player_half))
 	door_box = collider_of(scene, 1) == Ok(Collider.box(1, { x: 0.0, y: 1.5, z: -8.0 }, 0.0, door_half))
-	pickup_sphere = collider_of(scene, 2).map_ok(|c| c.kind == Collider.kind(Sphere) and c.extent.x == pickup_radius and near_vec(c.pos, { x: -4.0, y: 0.5, z: 0.0 })) == Ok(Bool.True)
+	pickup_sphere = collider_of(scene, 2).map_ok(|c| c.shape == Sphere(pickup_radius) and near_vec(c.pos, { x: -4.0, y: 0.5, z: 0.0 })) == Ok(Bool.True)
 	block_box = collider_of(scene, 3) == Ok(Collider.box(3, block_pos, 0.0, block_half))
 	goal_box = collider_of(scene, 4) == Ok(Collider.box(4, { x: 0.0, y: 0.05, z: -9.2 }, 0.0, { x: 1.0, y: 0.05, z: 0.75 }))
 	player_box and door_box and pickup_sphere and block_box and goal_box and List.len(scene.colliders) == 5
@@ -1219,7 +1219,7 @@ expect {
 	high = List.find_first(m.entities, |e| is_pickup(e) and !floor_pickup(e)).map_ok(|e| collider_of(scene, e.id))
 	block_ok = cube == Ok(Ok(Collider.box(10, { x: -4.5, y: 0.5, z: -4.0 }, 0.0, block_half)))
 	high_ok = match high {
-		Ok(Ok(c)) => c.pos.x == -4.5 and c.pos.z == -4.0 and c.pos.y - c.extent.x > 2.0 * player_half.y
+		Ok(Ok({ pos, shape: Sphere(radius), .. })) => pos.x == -4.5 and pos.z == -4.0 and pos.y - radius > 2.0 * player_half.y
 		_ => Bool.False
 	}
 	List.len(arc) == 7 and on_arc and left_to_right and block_ok and high_ok

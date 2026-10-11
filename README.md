@@ -65,7 +65,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 
 | Command | When | What it runs |
 |---|---|---|
-| `glue` | When `platform/main.roc` changes. | `roc glue glue/OdinGlue.roc ./engine platform/main.roc` |
+| `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
 | `inputs` | Once, and after a sokol or SDK update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
 | `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |

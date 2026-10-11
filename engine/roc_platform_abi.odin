@@ -272,27 +272,57 @@ Roc_View :: struct {
 
 Roc_View_Colliders :: struct {
 	id: u64,
-	extent: Roc_Step_Arg2_Normal,
 	pos: Roc_Step_Arg2_Normal,
+	shape: Roc_View_Colliders_Shape,
 	yaw: f32,
-	kind: u8,
 }
 
 #assert(size_of(Roc_View_Colliders) == 40)
 #assert(align_of(Roc_View_Colliders) == 8)
 #assert(offset_of(Roc_View_Colliders, id) == 0)
 #assert(size_of(type_of(Roc_View_Colliders{}.id)) == 8)
-#assert(offset_of(Roc_View_Colliders, extent) == 8)
-#assert(size_of(type_of(Roc_View_Colliders{}.extent)) == 12)
-#assert(offset_of(Roc_View_Colliders, pos) == 20)
+#assert(offset_of(Roc_View_Colliders, pos) == 8)
 #assert(size_of(type_of(Roc_View_Colliders{}.pos)) == 12)
-#assert(offset_of(Roc_View_Colliders, yaw) == 32)
+#assert(offset_of(Roc_View_Colliders, shape) == 20)
+#assert(size_of(type_of(Roc_View_Colliders{}.shape)) == 16)
+#assert(offset_of(Roc_View_Colliders, yaw) == 36)
 #assert(size_of(type_of(Roc_View_Colliders{}.yaw)) == 4)
-#assert(offset_of(Roc_View_Colliders, kind) == 36)
-#assert(size_of(type_of(Roc_View_Colliders{}.kind)) == 1)
 
-Roc_View_Colliders_Extent :: Roc_Step_Arg2_Normal
 Roc_View_Colliders_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Colliders_Shape_Tag :: enum u8 {
+	Box = 0,
+	Capsule = 1,
+	Sphere = 2,
+}
+
+Roc_View_Colliders_Shape_Payload :: struct #raw_union {
+	box: Roc_Step_Arg2_Normal,
+	capsule: Roc_View_Colliders_Shape_Capsule,
+	sphere: f32,
+}
+
+Roc_View_Colliders_Shape :: struct {
+	payload: Roc_View_Colliders_Shape_Payload,
+	tag: Roc_View_Colliders_Shape_Tag,
+}
+
+#assert(size_of(Roc_View_Colliders_Shape) == 16)
+#assert(align_of(Roc_View_Colliders_Shape) == 4)
+#assert(offset_of(Roc_View_Colliders_Shape, tag) == 12)
+
+Roc_View_Colliders_Shape_Box :: Roc_Step_Arg2_Normal
+Roc_View_Colliders_Shape_Capsule :: struct {
+	half_height: f32,
+	radius: f32,
+}
+
+#assert(size_of(Roc_View_Colliders_Shape_Capsule) == 8)
+#assert(align_of(Roc_View_Colliders_Shape_Capsule) == 4)
+#assert(offset_of(Roc_View_Colliders_Shape_Capsule, half_height) == 0)
+#assert(size_of(type_of(Roc_View_Colliders_Shape_Capsule{}.half_height)) == 4)
+#assert(offset_of(Roc_View_Colliders_Shape_Capsule, radius) == 4)
+#assert(size_of(type_of(Roc_View_Colliders_Shape_Capsule{}.radius)) == 4)
+
 Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,

@@ -90,7 +90,7 @@ Config   : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
 Camera   : { eye : Vec3, target : Vec3, fov_y : F32 }
-Collider : { id : U64, kind : U8, pos : Vec3, yaw : F32, extent : Vec3 }
+Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider) }
 ```
@@ -109,14 +109,13 @@ out of `held` or `pressed`, including the keys it reacts to itself.
 
 A Collider has the id of the entity it belongs to. An entity with no
 Collider touches nothing, so a game opts in per entity. The render shape is
-not the collision shape. `kind` is a number because the Odin glue has no tag
-unions yet: 0 is a box, 1 a sphere, 2 a capsule. For a box, `extent` is the
-half extents and `yaw` turns it in the ground plane. For a sphere,
-`extent.x` is the radius. For a capsule, `extent.x` is the radius and
-`extent.y` the half height of the segment. Games build Colliders with
-`pf.Collider`, for example `Collider.box(id, pos, yaw, half)`, and never
-write a kind number. A new shape is a host branch, not a vocabulary change.
-Decision.
+not the collision shape. `shape` is a tag union. `Box` carries the half
+extents, and `yaw` turns the box in the ground plane. `Sphere` carries the
+radius. `Capsule` carries the radius and the half height of a segment along
+y. The host does not test capsules yet. Games build Colliders with
+`pf.Collider`, for example `Collider.box(id, pos, yaw, half)`. The host
+switches on every tag, so a new shape breaks the Odin compile until the host
+adds a case for it. Decision.
 
 The host latches input between fixed steps. A key press waits in a pending
 set until a step takes it as `pressed`. The mouse delta waits the same way.
@@ -385,8 +384,6 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   Contacts allocate nothing.
 - The contact search costs time for each Collider, not only for each pair.
   See section 10 for the cost at 1,000 Colliders.
-- A Collider kind is a `U8`, not a tag union, until the glue emits tag
-  unions. `pf.Collider` hides the number from games.
 - One box shell allocation and free per step. The pool removes it.
 - One allocation and one free per step for each non-empty `Input` list. The
   refcount-1 axiom costs this. The pool removes it.

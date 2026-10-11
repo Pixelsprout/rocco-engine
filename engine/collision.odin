@@ -4,16 +4,9 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 
-// The Collider kinds. pf.Collider names them for games. The host does not
-// test capsules yet.
-COLLIDER_BOX :: u8(0)
-COLLIDER_SPHERE :: u8(1)
-COLLIDER_CAPSULE :: u8(2)
-
 // What the host has logged this run, so each problem logs once.
 Contact_Search :: struct {
-	logged_ids:   map[u64]struct {},
-	logged_kinds: [256]bool,
+	logged_ids: map[u64]struct {},
 }
 
 // Sorting these instead of Shapes moves 8 bytes per swap, not 80.
@@ -28,7 +21,7 @@ Sweep_Key :: struct {
 @(private = "file")
 Shape :: struct {
 	id:       u64,
-	kind:     u8,
+	tag:      Collider_Shape_Tag,
 	centre:   [3]f32,
 	extent:   [3]f32,
 	axes:     [2][3]f32,
@@ -54,14 +47,8 @@ contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator:
 	seen := make(map[u64]struct {}, allocator)
 	reserve(&seen, len(colliders))
 	for col in colliders {
-		if col.kind != COLLIDER_BOX && col.kind != COLLIDER_SPHERE {
-			if !search.logged_kinds[col.kind] {
-				search.logged_kinds[col.kind] = true
-				fmt.eprintfln("collider kind %v is not tested; skipping it (first seen on collider id %v)", col.kind, col.id)
-			}
-			continue
-		}
 		// A skipped Collider does not claim its id.
+		shape := shape_make(col) or_continue
 		if col.id in seen {
 			if col.id not_in search.logged_ids {
 				search.logged_ids[col.id] = {}
@@ -70,7 +57,7 @@ contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator:
 			continue
 		}
 		seen[col.id] = {}
-		append(&shapes, shape_make(col))
+		append(&shapes, shape)
 	}
 
 	// Sweep and prune on x: once b starts past a's end, so does every later Shape.
@@ -103,41 +90,58 @@ contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator:
 	return contacts[:]
 }
 
+// ok is false for a capsule: the host does not test capsules yet.
 @(private = "file")
-shape_make :: proc(col: Collider) -> Shape {
-	b := Shape {
+shape_make :: proc(col: Collider) -> (b: Shape, ok: bool) {
+	b = Shape {
 		id     = col.id,
-		kind   = col.kind,
+		tag    = col.shape.tag,
 		centre = {col.pos.x, col.pos.y, col.pos.z},
-		extent = {col.extent.x, col.extent.y, col.extent.z},
 	}
 	reach: [3]f32
-	if col.kind == COLLIDER_SPHERE {
-		reach = b.extent.x
-	} else {
+	switch col.shape.tag {
+	case .Box:
+		half := col.shape.payload.box
+		b.extent = {half.x, half.y, half.z}
 		// Turned the way the host turns a Draw: +z goes to (sin, 0, cos).
 		s, c := math.sincos(col.yaw)
 		b.axes = {{c, 0, -s}, {s, 0, c}}
 		reach = {abs(c) * b.extent.x + abs(s) * b.extent.z, b.extent.y, abs(s) * b.extent.x + abs(c) * b.extent.z}
+	case .Sphere:
+		b.extent.x = col.shape.payload.sphere
+		reach = b.extent.x
+	case .Capsule:
+		return {}, false
 	}
 	b.min = b.centre - reach
 	b.max = b.centre + reach
-	return b
+	return b, true
 }
 
-// The normal points from a to b.
+// The normal points from a to b. shape_make never makes a capsule.
 @(private = "file")
 narrowphase :: proc(a, b: Shape) -> (normal: [3]f32, depth: f32, ok: bool) {
-	switch {
-	case a.kind == COLLIDER_BOX && b.kind == COLLIDER_BOX:
-		return box_box(a, b)
-	case a.kind == COLLIDER_SPHERE && b.kind == COLLIDER_SPHERE:
-		return sphere_sphere(a, b)
-	case a.kind == COLLIDER_BOX:
-		return box_sphere(a, b)
+	switch a.tag {
+	case .Box:
+		switch b.tag {
+		case .Box:
+			return box_box(a, b)
+		case .Sphere:
+			return box_sphere(a, b)
+		case .Capsule:
+		}
+	case .Sphere:
+		switch b.tag {
+		case .Box:
+			normal, depth = box_sphere(b, a) or_return
+			return -normal, depth, true
+		case .Sphere:
+			return sphere_sphere(a, b)
+		case .Capsule:
+		}
+	case .Capsule:
 	}
-	normal, depth = box_sphere(b, a) or_return
-	return -normal, depth, true
+	return {}, 0, false
 }
 
 // A separating axis test on y and the ground-plane axes of each box. A box

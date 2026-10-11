@@ -245,8 +245,8 @@ _Avoid_: collision list, events, physics state
 
 **Collider**:
 A shape with a draw id that a game returns in its Scene so the host can find
-its Contacts. The shape kinds are box, sphere and capsule. An entity with no
-Collider touches nothing.
+its Contacts. The shape is a tag union of box, sphere and capsule. The host
+does not test capsules yet. An entity with no Collider touches nothing.
 _Avoid_: hitbox, body, rigidbody, bounds
 
 ## Memory lifetimes

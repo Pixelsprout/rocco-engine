@@ -10,6 +10,8 @@ Contact :: Roc_Step_Arg2
 Scene :: Roc_View
 Draw :: Roc_View_Draws
 Collider :: Roc_View_Colliders
+Collider_Shape :: Roc_View_Colliders_Shape
+Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag
 Vec3 :: Roc_Step_Arg2_Normal
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera
