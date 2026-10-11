@@ -32,6 +32,9 @@ Built and running:
 - The game gives colliders in `Scene.colliders`. The host finds the
   contacts and passes them to the next `step` as `List(Contact)`.
   The game decides what each contact means.
+- The entity game is playable start to finish: jump, collect the pickups,
+  pass the door, win on the goal pad and start a new round. Two strangers
+  finished it with no instructions.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - The engine links as one host library per target into a Roc platform. The
@@ -473,29 +476,17 @@ task lands.
 - `x64win` is checked by hand or recorded as not checked.
 - No ADR.
 
-## Milestone 7: one gameplay verb
+## Milestone 7: one gameplay verb (done)
 
-Results so far, 2026-10-11. The milestone stays open until the stranger
-check runs.
-
-- The Roc tests cover these parts:
-  - the jump and the landing;
-  - the landing on the block;
-  - the door that waits for the eighth pickup;
-  - the win on a goal contact;
-  - the rain;
-  - the orbit camera;
-  - the restart with fresh ids.
-- Nobody has played a full round by hand yet.
-- The Roc tests, the Odin tests, `scripts/alloc-check.sh` and
-  `scripts/host-check.sh` pass on `arm64mac`.
-- Nobody checked `x64glibc` or `x64win`.
-- The stranger check has not run.
-- A player who walks off the block stays grounded, so it can jump once in
-  the air. Only a jump clears grounded, as decided below. If the stranger
-  check shows a problem, change this rule.
-- The camera cuts at the win, from the follow offset to the orbit. It cuts
-  again at the restart, from the orbit back to the follow offset.
+Results, 2026-10-11: two strangers played the entity game with no words
+from the author, and both finished. The player jumps onto the block for the
+eighth pickup, walks under the open door and wins on the goal pad. The
+camera circles the player in the rain, and a new round starts after 4
+seconds. Neither tester had a problem with the air jump after a walk off the
+block or with the camera cuts at the win and the restart. The Roc tests,
+the Odin tests, `scripts/alloc-check.sh` and `scripts/host-check.sh` pass on
+`arm64mac`. `scripts/linux/check.sh` passes on `x64glibc`. Nobody checked
+`x64win`.
 
 Done when the entity game is playable start to finish.
 
