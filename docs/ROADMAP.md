@@ -45,7 +45,8 @@ Built and running:
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
 - `examples/cards` and `examples/entity-game` build and run from one checkout
-  on `arm64mac`, `x64glibc` and `x64win`. `examples/pong` builds and runs on
+  on `arm64mac` and `x64glibc`. They last ran on `x64win` at milestone 2.
+  Nobody has checked `x64win` since then. `examples/pong` builds and runs on
   `arm64mac`; the checks do not build it yet.
   `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes a run
   end cleanly for checks. `scripts/alloc-check.sh` and
