@@ -8,7 +8,7 @@ import pf.Key
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
-Kind : [Player, Pickup, Door({ open : Bool, lift : F32 }), Drop({ age : F32, phase : F32, delay : F32 })]
+Kind : [Player({ grounded : Bool }), Pickup, Block, Door({ open : Bool, lift : F32 }), Drop({ age : F32, phase : F32, delay : F32 })]
 
 # pos and yaw are local to the parent. A parent precedes its children in the
 # entity list: a child spawns later and append places it later. Reparenting to
@@ -30,7 +30,7 @@ Model : { steps : U64, score : U64, next_id : U64, meshes : MeshIds, entities : 
 # here.
 
 init : Config -> Model
-init = |config| new_game(resolve_meshes(config), 8)
+init = |config| new_game(resolve_meshes(config), arc_pickups + 1)
 
 resolve_meshes : Config -> MeshIds
 resolve_meshes = |config| {
@@ -40,22 +40,39 @@ resolve_meshes = |config| {
 	sprout: Mesh.resolve(config, "sprout"),
 }
 
+# Fills the first `pickups` pickup spots.
 new_game : MeshIds, U64 -> Model
 new_game = |meshes, pickups| {
-	player = { id: 0, kind: Player, parent: Root, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
+	player = { id: 0, kind: Player({ grounded: Bool.True }), parent: Root, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
 	door = { id: 1, kind: Door({ open: Bool.False, lift: 0.0 }), parent: Root, pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
+	block_entity = { id: 2 + pickups, kind: Block, parent: Root, pos: block_pos, vel: origin, yaw: 0.0, alive: Bool.True }
 
-	var $pickups = List.with_capacity(pickups)
+	var $entities = List.with_capacity(pickups + 3).append(player).append(door)
 	var $i = 0
 	while $i < pickups {
-		angle = ($i.to_f32()) * 6.2832 / (pickups.to_f32())
-		pos = { x: 4.0 * angle.cos(), y: 0.5, z: 4.0 * angle.sin() }
-		$pickups = List.append($pickups, { id: 2 + $i, kind: Pickup, parent: Root, pos, vel: origin, yaw: 0.0, alive: Bool.True })
+		$entities = List.append($entities, { id: 2 + $i, kind: Pickup, parent: Root, pos: pickup_spot($i), vel: origin, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 
-	{ steps: 0, score: 0, next_id: 2 + pickups, meshes, entities: List.concat([player, door], $pickups), orphans_logged: [] }
+	{ steps: 0, score: 0, next_id: 3 + pickups, meshes, entities: List.append($entities, block_entity), orphans_logged: [] }
 }
+
+block_pos : Vec3
+block_pos = { x: -4.5, y: 0.5, z: -4.0 }
+
+arc_pickups : U64
+arc_pickups = 7
+
+# The arc runs from the player's left to its right across the front half, so the
+# camera sees every spot at the start. The last spot is on top of the block.
+pickup_spot : U64 -> Vec3
+pickup_spot = |i|
+	if i < arc_pickups {
+		angle = pi + i.to_f32() * pi / (arc_pickups - 1).to_f32()
+		{ x: 4.0 * angle.cos(), y: 0.5, z: 4.0 * angle.sin() }
+	} else {
+		{ ..block_pos, y: block_pos.y + block_half.y + 0.5 }
+	}
 
 # ---- step : Model, Input, List(Contact), F32 -> Model -------------------
 #
@@ -66,9 +83,12 @@ step : Model, Input, List(Contact), F32 -> Model
 step = |model, input, contacts, dt|
 	model
 		|> steer(input)
+		|> jump(input)
 		|> face(dt)
+		|> gravity(dt)
 		|> block(contacts)
 		|> integrate(dt)
+		|> ground
 		|> spin(dt)
 		|> expire(dt)
 		|> collect(contacts)
@@ -90,7 +110,48 @@ steer : Model, Input -> Model
 steer = |m, input| map_entities(
 	m,
 	|e| match e.kind {
-		Player => { ..e, vel: scale(move_dir(input), speed) }
+		Player(_) => { ..e, vel: { ..scale(move_dir(input), speed), y: e.vel.y } }
+		_ => e
+	},
+)
+
+# Units per second, and units per second squared. The apex is about 1.2 units.
+jump_speed : F32
+jump_speed = 7.0
+
+fall_accel : F32
+fall_accel = 20.0
+
+jump : Model, Input -> Model
+jump = |m, input|
+	if Key.pressed(input, Space) {
+		map_entities(
+			m,
+			|e| match e.kind {
+				Player(p) if p.grounded => { ..e, kind: Player({ grounded: Bool.False }), vel: { ..e.vel, y: jump_speed } }
+				_ => e
+			},
+		)
+	} else {
+		m
+	}
+
+# Runs before block, so a solid under the player takes this pull back out.
+gravity : Model, F32 -> Model
+gravity = |m, dt| map_entities(
+	m,
+	|e| match e.kind {
+		Player(_) => { ..e, vel: { ..e.vel, y: e.vel.y - fall_accel * dt } }
+		_ => e
+	},
+)
+
+# The floor has no collider. It is y 0 for the player.
+ground : Model -> Model
+ground = |m| map_entities(
+	m,
+	|e| match e.kind {
+		Player(_) if e.pos.y <= 0.0 => { ..e, kind: Player({ grounded: Bool.True }), pos: { ..e.pos, y: 0.0 }, vel: { ..e.vel, y: F32.max(e.vel.y, 0.0) } }
 		_ => e
 	},
 )
@@ -104,7 +165,7 @@ face : Model, F32 -> Model
 face = |m, dt| map_entities(
 	m,
 	|e| match e.kind {
-		Player if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: turn_toward(e.yaw, F32.atan2({ x: e.vel.z, y: e.vel.x }), turn_speed * dt) }
+		Player(_) if e.vel.x != 0.0 or e.vel.z != 0.0 => { ..e, yaw: turn_toward(e.yaw, F32.atan2({ x: e.vel.z, y: e.vel.x }), turn_speed * dt) }
 		_ => e
 	},
 )
@@ -134,7 +195,8 @@ wrap_angle = |a|
 	}
 
 # Contacts come from the last Scene, so block runs before integrate moves the
-# player. The host orders a contact by id, so the player can be a or b.
+# player. The host orders a contact by id, so the player can be a or b. A
+# landing from above is the same push-out with a +y normal.
 block : Model, List(Contact) -> Model
 block = |m, contacts|
 	if List.is_empty(contacts) {
@@ -143,8 +205,8 @@ block = |m, contacts|
 		match player(m) {
 			Err(NotFound) => m
 			Ok(p) => {
-				is_door_id = |id| List.any(m.entities, |e| e.id == id and is_door(e))
-				moved = List.fold(contacts, p, |acc, c| push_out(acc, c, is_door_id))
+				is_solid_id = |id| List.any(m.entities, |e| e.id == id and is_solid(e))
+				moved = List.fold(contacts, p, |acc, c| push_out(acc, c, is_solid_id))
 				map_entities(
 					m,
 					|e| if e.id == p.id {
@@ -157,9 +219,10 @@ block = |m, contacts|
 		}
 	}
 
+# A player that moves up off a solid is leaving it, so that contact does not ground it.
 push_out : Entity, Contact, (U64 -> Bool) -> Entity
-push_out = |e, c, is_door_id| match seen_from(c, e.id) {
-	Ok(side) if is_door_id(side.other) => {
+push_out = |e, c, is_solid_id| match seen_from(c, e.id) {
+	Ok(side) if is_solid_id(side.other) => {
 		away = scale(side.normal, -1.0)
 		into = dot(e.vel, away)
 		vel = if into < 0.0 {
@@ -167,7 +230,11 @@ push_out = |e, c, is_door_id| match seen_from(c, e.id) {
 		} else {
 			e.vel
 		}
-		{ ..e, pos: add(e.pos, scale(away, c.depth)), vel }
+		kind = match e.kind {
+			Player(_) if away.y > 0.0 and into <= 0.0 => Player({ grounded: Bool.True })
+			k => k
+		}
+		{ ..e, kind, pos: add(e.pos, scale(away, c.depth)), vel }
 	}
 	_ => e
 }
@@ -422,8 +489,9 @@ draw = |meshes, e, world| {
 	pos = world.pos
 	yaw = world.yaw
 	match e.kind {
-		Player => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
+		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Block => { id: e.id, mesh: meshes.cube, pos, scale: scale(block_half, 2.0), yaw, tint: { r: 0.28, g: 0.16, b: 0.08 } }
 		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, yaw, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
@@ -439,14 +507,18 @@ player_half = { x: 0.3, y: 0.5, z: 0.3 }
 door_half : Vec3
 door_half = { x: 1.5, y: 1.5, z: 0.15 }
 
+block_half : Vec3
+block_half = { x: 0.5, y: 0.5, z: 0.5 }
+
 pickup_radius : F32
 pickup_radius = 0.4
 
 # Floor and drops touch nothing.
 with_collider : List(Vocabulary.Collider), Entity, { pos : Vec3, yaw : F32 } -> List(Vocabulary.Collider)
 with_collider = |colliders, e, world| match e.kind {
-	Player => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
+	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
 	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
+	Block => colliders.append(Collider.box(e.id, world.pos, world.yaw, block_half))
 	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
 	Drop(_) => colliders
 }
@@ -471,7 +543,7 @@ player : Model -> Try(Entity, [NotFound])
 player = |m| List.find_first(
 	m.entities,
 	|e| match e.kind {
-		Player => Bool.True
+		Player(_) => Bool.True
 		_ => Bool.False
 	},
 )
@@ -494,9 +566,10 @@ seen_from = |c, id|
 		Err(NotInContact)
 	}
 
-is_door : Entity -> Bool
-is_door = |e| match e.kind {
-	Door(_) => Bool.True
+# Solid kinds push the player out.
+is_solid : Entity -> Bool
+is_solid = |e| match e.kind {
+	Door(_) | Block => Bool.True
 	_ => Bool.False
 }
 
@@ -558,7 +631,7 @@ right = { ..idle, held: [Key.code(D)] }
 
 expect {
 	m = new_game(test_meshes, 3)
-	List.len(m.entities) == 5 and m.score == 0
+	List.len(m.entities) == 6 and m.score == 0
 }
 
 expect {
@@ -598,7 +671,7 @@ facing : Model, F32 -> Model
 facing = |m, yaw| map_entities(
 	m,
 	|e| match e.kind {
-		Player => { ..e, yaw }
+		Player(_) => { ..e, yaw }
 		_ => e
 	},
 )
@@ -627,7 +700,7 @@ expect {
 expect {
 	# Touching every pickup collects every pickup and opens the door in one step.
 	after = collected(new_game(test_meshes, 2), 1.0 / 120.0)
-	after.score == 2 and door_open(after) and List.len(after.entities) == 2 + 2 * drops_per_pickup
+	after.score == 2 and door_open(after) and List.len(after.entities) == 3 + 2 * drops_per_pickup
 }
 
 touch : U64, U64 -> Contact
@@ -655,7 +728,7 @@ expect {
 	drop_ids = List.keep_if(after.entities, is_drop).map(|e| e.id)
 	fresh = List.all(drop_ids, |id| id >= m.next_id and id < after.next_id)
 	distinct = List.all(drop_ids, |id| List.count_if(drop_ids, |other| other == id) == 1)
-	m.next_id == 4 and after.next_id == m.next_id + 2 * drops_per_pickup and fresh and distinct
+	m.next_id == 5 and after.next_id == m.next_id + 2 * drops_per_pickup and fresh and distinct
 }
 
 expect {
@@ -669,8 +742,11 @@ expect {
 	drop_count(watered) == drops_per_pickup and drop_count(before) == drops_per_pickup and partly and drop_count(after) == 0
 }
 
+drop_draws : Model -> List(Draw)
+drop_draws = |m| List.keep_if(view(m).draws, |d| List.any(m.entities, |e| e.id == d.id and is_drop(e)))
+
 drawn_drops : Model -> U64
-drawn_drops = |m| List.count_if(view(m).draws, |d| d.id >= 3 and d.id < m.next_id)
+drawn_drops = |m| List.len(drop_draws(m))
 
 expect {
 	# Drops wait for their delays, so they appear one after another.
@@ -683,10 +759,9 @@ expect {
 expect {
 	# Pickups are cubes so the spin shows. Drops are small spheres.
 	watered = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 5, 0.1)
-	scene = view(watered)
 	pickup_mesh = List.find_first(view(new_game(test_meshes, 1)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
-	drop_draws = List.keep_if(scene.draws, |d| d.id >= 4 and d.id < watered.next_id)
-	pickup_mesh == test_meshes.cube and List.len(drop_draws) == 2 * drops_per_pickup and List.all(drop_draws, |d| d.mesh == test_meshes.sphere)
+	drops = drop_draws(watered)
+	pickup_mesh == test_meshes.cube and List.len(drops) == 2 * drops_per_pickup and List.all(drops, |d| d.mesh == test_meshes.sphere)
 }
 
 door_lift : Model -> F32
@@ -730,7 +805,7 @@ expect {
 expect {
 	# Nothing touched: the door stays shut and nothing is swept.
 	after = step(new_game(test_meshes, 4), idle, [], 1.0 / 120.0)
-	after.score == 0 and !door_open(after) and List.len(after.entities) == 6
+	after.score == 0 and !door_open(after) and List.len(after.entities) == 7
 }
 
 expect {
@@ -748,7 +823,7 @@ expect {
 	m = new_game(test_meshes, 1)
 	scene = view(step(m, right, [], 1.0))
 	player_draw = List.find_first(scene.draws, |d| d.id == 0)
-	ids_unique = List.len(scene.draws) == 4 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
+	ids_unique = List.len(scene.draws) == 5 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
 	match player_draw {
 		Ok(d) => d.pos.x == 6.0 and ids_unique
 		Err(_) => Bool.False
@@ -759,13 +834,14 @@ collider_of : Scene, U64 -> Try(Vocabulary.Collider, [NotFound])
 collider_of = |scene, id| List.find_first(scene.colliders, |c| c.id == id)
 
 expect {
-	# The player stands on a box, the door is a thin box and a pickup is a sphere.
-	# The floor has no collider.
+	# The player stands on a box, the door is a thin box, a pickup is a sphere and
+	# the block is a cube. The floor has no collider.
 	scene = view(new_game(test_meshes, 1))
 	player_box = collider_of(scene, 0) == Ok(Collider.box(0, { x: 0.0, y: 0.5, z: 0.0 }, 0.0, player_half))
 	door_box = collider_of(scene, 1) == Ok(Collider.box(1, { x: 0.0, y: 1.5, z: -8.0 }, 0.0, door_half))
-	pickup_sphere = collider_of(scene, 2) == Ok(Collider.sphere(2, { x: 4.0, y: 0.5, z: 0.0 }, pickup_radius))
-	player_box and door_box and pickup_sphere and List.len(scene.colliders) == 3
+	pickup_sphere = collider_of(scene, 2).map_ok(|c| c.kind == Collider.kind(Sphere) and c.extent.x == pickup_radius and near_vec(c.pos, { x: -4.0, y: 0.5, z: 0.0 })) == Ok(Bool.True)
+	block_box = collider_of(scene, 3) == Ok(Collider.box(3, block_pos, 0.0, block_half))
+	player_box and door_box and pickup_sphere and block_box and List.len(scene.colliders) == 4
 }
 
 expect {
@@ -784,7 +860,7 @@ expect {
 	# Water drops touch nothing.
 	watered = run_steps(collected(new_game(test_meshes, 2), 0.1), idle, 5, 0.1)
 	scene = view(watered)
-	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1]
+	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1, 4]
 }
 
 expect {
@@ -888,9 +964,8 @@ expect {
 	# A drop with no delay starts in a ring above the plant, and follows and turns with it.
 	watered = collected(new_game(test_meshes, 1), 1.0 / 120.0)
 	offsets = |m| {
-		scene = view(m)
-		p = draw_of(scene, 0).map_ok(|d| d.pos) ?? origin
-		List.keep_if(scene.draws, |d| d.id >= 3 and d.id < m.next_id).map(|d| { x: d.pos.x - p.x, y: d.pos.y - p.y, z: d.pos.z - p.z })
+		p = draw_of(view(m), 0).map_ok(|d| d.pos) ?? origin
+		drop_draws(m).map(|d| { x: d.pos.x - p.x, y: d.pos.y - p.y, z: d.pos.z - p.z })
 	}
 	on_ring = |o| near(o.x * o.x + o.z * o.z, drop_start_radius * drop_start_radius) and near(o.y, drop_start_height)
 	still = offsets(watered)
@@ -913,7 +988,7 @@ placed : Model, Vec3 -> Model
 placed = |m, pos| map_entities(
 	m,
 	|e| match e.kind {
-		Player => { ..e, pos }
+		Player(_) => { ..e, pos }
 		_ => e
 	},
 )
@@ -976,4 +1051,116 @@ expect {
 	through = run_steps(at_door, { ..idle, held: [Key.code(W)] }, 2, 0.1)
 	walked = player(through).map_ok(|p| near(p.pos.z, -8.8)) ?? Bool.False
 	door_gap(view(shut)) < 0.0 and door_gap(view(opened)) > 0.0 and walked
+}
+
+space : Input
+space = { ..idle, pressed: [Key.code(Space)] }
+
+height_of : Model -> F32
+height_of = |m| player(m).map_ok(|p| p.pos.y) ?? -100.0
+
+# The highest the player gets over n idle steps.
+peak : Model, U64, F32 -> F32
+peak = |m, n, dt| {
+	var $m = m
+	var $top = height_of(m)
+	var $i = 0
+	while $i < n {
+		$m = step($m, idle, [], dt)
+		$top = F32.max($top, height_of($m))
+		$i = $i + 1
+	}
+	$top
+}
+
+expect {
+	# A jump peaks near jump_speed squared over twice fall_accel and lands within a second.
+	dt = 1.0 / 120.0
+	jumped = step(new_game(test_meshes, 0), space, [], dt)
+	top = peak(jumped, 120, dt)
+	landed = run_steps(jumped, idle, 120, dt)
+	top > 1.15 and top < 1.25 and height_of(landed) == 0.0
+}
+
+expect {
+	# Space in the air does nothing. Space again after the landing jumps.
+	dt = 1.0 / 120.0
+	in_air = run_steps(step(new_game(test_meshes, 0), space, [], dt), idle, 10, dt)
+	landed = run_steps(in_air, idle, 120, dt)
+	again = step(landed, space, [], dt)
+	player(step(in_air, space, [], dt)) == player(step(in_air, idle, [], dt)) and height_of(again) > 0.0
+}
+
+airborne : F32 -> Entity
+airborne = |y| { id: 0, kind: Player({ grounded: Bool.False }), parent: Root, pos: { ..block_pos, y }, vel: origin, yaw: 0.0, alive: Bool.True }
+
+test_block : Entity
+test_block = { id: 5, kind: Block, parent: Root, pos: block_pos, vel: origin, yaw: 0.0, alive: Bool.True }
+
+grounded : Model -> Bool
+grounded = |m|
+	match player(m).map_ok(|p| p.kind) {
+		Ok(Player(p)) => p.grounded
+		_ => Bool.False
+	}
+
+expect {
+	# A +y contact with a solid stops the fall and grounds the player. The contact on
+	# the jump step comes from the last Scene, so it does not ground the player again.
+	dt = 1.0 / 120.0
+	falling = { ..airborne(0.95), vel: { x: 0.0, y: -3.0, z: 0.0 } }
+	on_top = { a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: 0.05 }
+	landed = step(with_entities([falling, test_block]), idle, [on_top], dt)
+	jumped = step(landed, space, [on_top], dt)
+	near(height_of(landed), 1.0) and grounded(landed) and height_of(jumped) > 1.0 and !grounded(jumped)
+}
+
+floor_pickup : Entity -> Bool
+floor_pickup = |e| is_pickup(e) and e.pos.y < 1.0
+
+touch_all : Model, (Entity -> Bool) -> Model
+touch_all = |m, keep| step(m, idle, List.keep_if(m.entities, keep).map(|e| touch(0, e.id)), 1.0 / 120.0)
+
+expect {
+	# The arc runs left to right in front of the player. The last pickup is out of reach from the floor.
+	m = new_game(test_meshes, 8)
+	scene = view(m)
+	arc = List.keep_if(m.entities, floor_pickup)
+	xs = arc.map(|e| e.pos.x)
+	on_arc = List.all(arc, |e| near(e.pos.x * e.pos.x + e.pos.z * e.pos.z, 16.0) and e.pos.z <= 0.0001)
+	left_to_right = List.fold(xs, { ok: Bool.True, last: -100.0 }, |acc, x| { ok: acc.ok and x > acc.last, last: x }).ok
+	cube = List.find_first(m.entities, |e| e.kind == Block).map_ok(|e| collider_of(scene, e.id))
+	high = List.find_first(m.entities, |e| is_pickup(e) and !floor_pickup(e)).map_ok(|e| collider_of(scene, e.id))
+	block_ok = cube == Ok(Ok(Collider.box(10, { x: -4.5, y: 0.5, z: -4.0 }, 0.0, block_half)))
+	high_ok = match high {
+		Ok(Ok(c)) => c.pos.x == -4.5 and c.pos.z == -4.0 and c.pos.y - c.extent.x > 2.0 * player_half.y
+		_ => Bool.False
+	}
+	List.len(arc) == 7 and on_arc and left_to_right and block_ok and high_ok
+}
+
+expect {
+	# The door stays shut until the pickup on the block is collected.
+	m = new_game(test_meshes, 8)
+	floor_done = touch_all(m, floor_pickup)
+	all_done = touch_all(floor_done, is_pickup)
+	floor_done.score == 7 and !door_open(floor_done) and all_done.score == 8 and door_open(all_done)
+}
+
+expect {
+	# Standing on the block, the contact comes and goes because it is one step late.
+	# The player stays grounded and level with the top, and can jump.
+	dt = 1.0 / 120.0
+	top = block_pos.y + block_half.y
+	var $m = step(with_entities([airborne(top), test_block]), idle, [], dt)
+	var $steady = Bool.True
+	var $i = 0
+	while $i < 120 {
+		y = height_of($m)
+		contacts = if y < top [{ a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: top - y }] else []
+		$m = step($m, idle, contacts, dt)
+		$steady = $steady and grounded($m) and (height_of($m) - top).abs() < 0.01
+		$i = $i + 1
+	}
+	$steady and height_of(step($m, space, [], dt)) > top + 0.01
 }
