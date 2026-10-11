@@ -50,7 +50,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	seam_init(&g_state.seam, ROC_GAME, config_make(seed_from_env(), &g_state.renderer.meshes))
+	seam_init(&g_state.seam, ROC_GAME, app_run_command, config_make(seed_from_env(), &g_state.renderer.meshes))
 
 	sapp.run(
 		sapp.Desc {
@@ -111,11 +111,12 @@ frame_cb :: proc "c" () {
 		camera_look(&g_state.debug_camera, &g_state.input)
 		camera_fly(&g_state.debug_camera, &g_state.input, f32(min(sapp.frame_duration(), MAX_FRAME_TIME)))
 		view_proj = camera_proj(&g_state.debug_camera, aspect) * camera_view(&g_state.debug_camera)
-		if !sapp.mouse_locked() {
-			sapp.lock_mouse(true)
-		}
 	} else {
 		view_proj = frame_render_camera(prev, curr, alpha, aspect)
+	}
+	cursor := Cursor.Locked if g_state.use_debug_camera else curr.cursor
+	if (cursor == .Locked) != sapp.mouse_locked() {
+		sapp.lock_mouse(cursor == .Locked)
 	}
 
 	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, &g_state.renderer.meshes)
@@ -157,12 +158,14 @@ cleanup_cb :: proc "c" () {
 	}
 }
 
-// ESC quits until quit becomes a command. The game still sees the key.
 event_cb :: proc "c" (event: ^sapp.Event) {
 	context = g_state.ctx
 
-	if event.type == .KEY_DOWN && event.key_code == .ESCAPE {
-		sapp.request_quit()
-	}
 	input_on_event(&g_state.input, event)
+}
+
+// Command has one tag and no payload, so every Command is Quit.
+// Quit lets the current frame finish.
+app_run_command :: proc(command: Command) {
+	sapp.request_quit()
 }

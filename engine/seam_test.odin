@@ -5,12 +5,19 @@ import "core:testing"
 
 FAKE_KEYS_MAX :: 8
 FAKE_CONTACTS_MAX :: 4
+FAKE_COMMANDS_MAX :: 4
 
 FAKE_GAME :: Game_Calls {
 	init       = fake_init,
 	step       = fake_step,
 	view       = fake_view,
 	drop_model = fake_drop_model,
+}
+
+// When the fake runner ran a command, counted in steps and views.
+Fake_Command_Run :: struct {
+	steps: int,
+	views: int,
 }
 
 Fake_Game :: struct {
@@ -34,6 +41,9 @@ Fake_Game :: struct {
 	drop_box:     rawptr,
 	drop_rc:      int,
 	colliders:    []Collider,
+	commands_out: int,
+	runs:         [FAKE_COMMANDS_MAX]Fake_Command_Run,
+	runs_len:     int,
 }
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
@@ -63,7 +73,7 @@ fake_init :: proc(config: Config) -> rawptr {
 	return g_fake.init_box
 }
 
-fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> rawptr {
+fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result {
 	g_fake.steps += 1
 	g_fake.step_in = model
 	g_fake.step_in_rc = fake_refcount(model)^
@@ -76,7 +86,8 @@ fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: 
 	roc_list_decref(contacts)
 
 	g_fake.step_out = fake_box_new()
-	return g_fake.step_out
+	quits: [FAKE_COMMANDS_MAX]Command
+	return {model = g_fake.step_out, commands = roc_list_from_slice(quits[:g_fake.commands_out])}
 }
 
 fake_view :: proc(model: rawptr) -> Scene {
@@ -97,9 +108,14 @@ fake_drop_model :: proc(model: rawptr) {
 	fake_box_free(model)
 }
 
+fake_run_command :: proc(command: Command) {
+	g_fake.runs[g_fake.runs_len] = {steps = g_fake.steps, views = g_fake.views}
+	g_fake.runs_len += 1
+}
+
 fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil) {
 	g_fake = {colliders = colliders}
-	seam_init(s, FAKE_GAME, Config{seed = seed})
+	seam_init(s, FAKE_GAME, fake_run_command, Config{seed = seed})
 }
 
 @(test)
@@ -286,6 +302,48 @@ test_seam_shutdown_drops_the_model_once_and_leaves_no_live_block :: proc(t: ^tes
 	testing.expect_value(t, g_fake.drop_box, g_fake.step_out)
 	testing.expect_value(t, g_fake.drop_rc, 1)
 	testing.expect_value(t, roc_heap_counters().live, 0)
+}
+
+@(test)
+test_seam_step_runs_each_command_after_step_and_before_view :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	defer seam_shutdown(&s)
+
+	g_fake.commands_out = 3
+	seam_step(&s, {}, 1.0 / 60)
+
+	testing.expect_value(t, g_fake.runs_len, 3)
+	for run in g_fake.runs[:g_fake.runs_len] {
+		testing.expect_value(t, run, Fake_Command_Run{steps = 1, views = 1})
+	}
+
+	g_fake.commands_out = 0
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.runs_len, 3)
+}
+
+@(test)
+test_seam_step_releases_the_commands_list :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	defer seam_shutdown(&s)
+	seam_step(&s, {}, 1.0 / 60)
+
+	g_fake.commands_out = 2
+	before := roc_heap_counters()
+	seam_step(&s, {}, 1.0 / 60)
+	after := roc_heap_counters()
+
+	testing.expect_value(t, after.allocs - before.allocs, 3)
+	testing.expect_value(t, after.deallocs - before.deallocs, 3)
+	testing.expect_value(t, after.live, before.live)
 }
 
 @(test)

@@ -4,14 +4,17 @@ import "core:time"
 
 Game_Calls :: struct {
 	init:       proc(config: Config) -> rawptr,
-	step:       proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> rawptr,
+	step:       proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result,
 	view:       proc(model: rawptr) -> Scene,
 	drop_model: proc(model: rawptr),
 }
 
+Command_Runner :: #type proc(command: Command)
+
 Seam :: struct {
-	calls: Game_Calls,
-	model: rawptr,
+	calls:       Game_Calls,
+	run_command: Command_Runner,
+	model:       rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
 	curr:     Scene,
@@ -24,8 +27,9 @@ Seam :: struct {
 // Owns the one reference to the Model, the last two Scenes and the contacts.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
-seam_init :: proc(s: ^Seam, calls: Game_Calls, config: Config) {
+seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, config: Config) {
 	s.calls = calls
+	s.run_command = run_command
 	contact_search_init(&s.search, context.allocator)
 	s.model = s.calls.init(config)
 	s.curr = seam_view(s)
@@ -40,9 +44,15 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
 	// step frees the old box and consumes the contacts. Never touch either again.
-	s.model = s.calls.step(s.model, input, s.contacts, dt)
+	// The host owns the returned commands list and frees it after running it.
+	result := s.calls.step(s.model, input, s.contacts, dt)
+	s.model = result.model
 	s.contacts = {}
 	stepped := time.tick_now()
+	for command in result.commands.elements[:result.commands.length] {
+		s.run_command(command)
+	}
+	roc_list_decref(result.commands)
 	if s.has_prev {
 		roc_decref(s.prev)
 	}

@@ -255,10 +255,28 @@ Roc_Step_Arg2_Normal :: struct {
 #assert(offset_of(Roc_Step_Arg2_Normal, z) == 8)
 #assert(size_of(type_of(Roc_Step_Arg2_Normal{}.z)) == 4)
 
+Roc_Step :: struct {
+	commands: Roc_List(Roc_Step_Commands),
+	model: rawptr,
+}
+
+#assert(size_of(Roc_Step) == 32)
+#assert(align_of(Roc_Step) == 8)
+#assert(offset_of(Roc_Step, commands) == 0)
+#assert(size_of(type_of(Roc_Step{}.commands)) == 24)
+#assert(offset_of(Roc_Step, model) == 24)
+#assert(size_of(type_of(Roc_Step{}.model)) == 8)
+
+Roc_Step_Commands :: struct {}
+
+#assert(size_of(Roc_Step_Commands) == 0)
+#assert(align_of(Roc_Step_Commands) == 1)
+
 Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
 	camera: Roc_View_Camera,
+	cursor: Roc_View_Cursor,
 }
 
 #assert(size_of(Roc_View) == 80)
@@ -269,6 +287,8 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
 #assert(offset_of(Roc_View, camera) == 48)
 #assert(size_of(type_of(Roc_View{}.camera)) == 28)
+#assert(offset_of(Roc_View, cursor) == 76)
+#assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
 	id: u64,
@@ -381,6 +401,14 @@ Roc_View_Camera :: struct {
 
 Roc_View_Camera_Eye :: Roc_Step_Arg2_Normal
 Roc_View_Camera_Target :: Roc_Step_Arg2_Normal
+Roc_View_Cursor :: enum u8 {
+	Free = 0,
+	Locked = 1,
+}
+
+#assert(size_of(Roc_View_Cursor) == 1)
+#assert(align_of(Roc_View_Cursor) == 1)
+
 
 roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
 	roc_list_decref_roc_init_arg0_meshes(value.meshes)
@@ -393,6 +421,10 @@ roc_init_arg0_meshes_decref :: proc(value: Roc_Init_Arg0_Meshes) {
 roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 	roc_list_decref_u16(value.held)
 	roc_list_decref_u16(value.pressed)
+}
+
+roc_step_decref :: proc(value: Roc_Step) {
+	roc_list_decref_roc_step_commands(value.commands)
 }
 
 roc_view_decref :: proc(value: Roc_View) {
@@ -424,6 +456,14 @@ roc_list_from_slice_roc_step_arg2 :: proc(elems: []Roc_Step_Arg2) -> Roc_List(Ro
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_step_commands :: proc(list: Roc_List(Roc_Step_Commands)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_step_commands :: proc(elems: []Roc_Step_Commands) -> Roc_List(Roc_Step_Commands) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_list_decref_roc_view_colliders :: proc(list: Roc_List(Roc_View_Colliders)) {
 	roc_list_decref_flat(list)
 }
@@ -445,6 +485,7 @@ roc_decref :: proc {
 	roc_init_arg0_decref,
 	roc_init_arg0_meshes_decref,
 	roc_step_arg1_decref,
+	roc_step_decref,
 	roc_view_decref,
 }
 
@@ -452,6 +493,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_init_arg0_meshes,
 	roc_list_decref_u16,
 	roc_list_decref_roc_step_arg2,
+	roc_list_decref_roc_step_commands,
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 }
@@ -460,6 +502,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_init_arg0_meshes,
 	roc_list_from_slice_u16,
 	roc_list_from_slice_roc_step_arg2,
+	roc_list_from_slice_roc_step_commands,
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 }
@@ -468,7 +511,7 @@ roc_list_from_slice :: proc {
 @(default_calling_convention = "c")
 foreign {
 	roc_init :: proc(arg0: Roc_Init_Arg0) -> rawptr ---
-	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> rawptr ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> Roc_Step ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 	roc_drop_model :: proc(arg0: rawptr) ---
 }

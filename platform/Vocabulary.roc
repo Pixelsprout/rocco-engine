@@ -11,5 +11,7 @@ Vocabulary := [].{
     Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
     Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
     Contact : { a : U64, b : U64, normal : Vec3, depth : F32 }
-    Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider) }
+    Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), cursor : Cursor }
+    Cursor : [Free, Locked]
+    Command : [Quit]
 }

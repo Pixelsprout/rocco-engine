@@ -2,7 +2,7 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
-import pf.Vocabulary exposing [Config, Contact, Draw, Input, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
 import pf.Collider
 import pf.Key
 
@@ -85,13 +85,13 @@ pickup_spot = |i|
 		{ ..block_pos, y: block_pos.y + block_half.y + 0.5 }
 	}
 
-# ---- step : Model, Input, List(Contact), F32 -> Model -------------------
+# ---- update : Model, Input, List(Contact), F32 -> Model -----------------
 #
 # The schedule is function composition. Each stage is Model -> Model and
 # testable alone. Reorder the pipeline and you reorder the stages.
 
-step : Model, Input, List(Contact), F32 -> Model
-step = |model, input, contacts, dt| {
+update : Model, Input, List(Contact), F32 -> Model
+update = |model, input, contacts, dt| {
 	active_input = match model.phase {
 		Playing => input
 		Won(_) => no_input
@@ -117,6 +117,9 @@ step = |model, input, contacts, dt| {
 		|> count_step
 		|> restart
 }
+
+step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
+step = |model, input, contacts, dt| { model: update(model, input, contacts, dt), commands: [] }
 
 # Seconds from the win to the next round.
 celebration : F32
@@ -548,7 +551,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders }
+	{ camera, draws: built.draws, colliders: built.colliders, cursor: Free }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -746,7 +749,7 @@ run_steps = |m, input, n, dt| {
 	var $m = m
 	var $i = 0
 	while $i < n {
-		$m = step($m, input, [], dt)
+		$m = update($m, input, [], dt)
 		$i = $i + 1
 	}
 	$m
@@ -763,7 +766,7 @@ facing = |m, yaw| map_entities(
 
 expect {
 	# One short step turns the player part of the way, at turn_speed.
-	moved = step(new_game(test_meshes, 0, 0), right, [], 0.05)
+	moved = update(new_game(test_meshes, 0, 0), right, [], 0.05)
 	near(yaw_of(moved), turn_speed * 0.05)
 }
 
@@ -778,7 +781,7 @@ expect {
 expect {
 	# From 3/4 pi toward -3/4 pi, the short way is up through pi.
 	m = facing(new_game(test_meshes, 0, 0), 0.75 * pi)
-	turned = step(m, { ..idle, held: [Key.code(W), Key.code(A)] }, [], 0.05)
+	turned = update(m, { ..idle, held: [Key.code(W), Key.code(A)] }, [], 0.05)
 	yaw_of(turned) > 0.75 * pi
 }
 
@@ -802,7 +805,7 @@ drop_count = |m| List.count_if(m.entities, is_drop)
 
 expect {
 	# Each collected pickup spawns its drops, and the pickup is swept.
-	after = step(new_game(test_meshes, 3, 0), idle, [touch(0, 2)], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 3, 0), idle, [touch(0, 2)], 1.0 / 120.0)
 	drop_count(after) == drops_per_pickup and List.count_if(after.entities, is_pickup) == 2
 }
 
@@ -866,7 +869,7 @@ door_draw_y = |m| List.find_first(view(m).draws, |d| d.id == 1).map_ok(|d| d.pos
 collected : Model, F32 -> Model
 collected = |m, dt| {
 	contacts = List.keep_if(m.entities, |e| is_pickup(e) and e.alive).map(|e| touch(0, e.id))
-	step(m, idle, contacts, dt)
+	update(m, idle, contacts, dt)
 }
 
 expect {
@@ -889,16 +892,16 @@ expect {
 
 expect {
 	# Nothing touched: the door stays shut and nothing is swept.
-	after = step(new_game(test_meshes, 4, 0), idle, [], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 4, 0), idle, [], 1.0 / 120.0)
 	after.score == 0 and !door_open(after) and List.len(after.entities) == 8
 }
 
 expect {
-	# step is pure. The same Model and Input give the same step count and score,
+	# update is pure. The same Model and Input give the same step count and score,
 	# which is what makes a recorded input log a replay.
 	m = new_game(test_meshes, 4, 0)
-	a = step(m, right, [], 0.5)
-	b = step(m, right, [], 0.5)
+	a = update(m, right, [], 0.5)
+	b = update(m, right, [], 0.5)
 	a.steps == b.steps and a.score == b.score
 }
 
@@ -906,7 +909,7 @@ expect {
 	# view carries the entity id onto its draw, so the host can pair this
 	# step's draw with the last one. The floor's id never collides.
 	m = new_game(test_meshes, 1, 0)
-	scene = view(step(m, right, [], 1.0))
+	scene = view(update(m, right, [], 1.0))
 	player_draw = List.find_first(scene.draws, |d| d.id == 0)
 	ids_unique = List.len(scene.draws) == 6 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
 	match player_draw {
@@ -951,7 +954,7 @@ expect {
 
 expect {
 	# The camera follows the player from a fixed offset.
-	scene = view(step(new_game(test_meshes, 1, 0), right, [], 1.0))
+	scene = view(update(new_game(test_meshes, 1, 0), right, [], 1.0))
 	scene.camera.target.x == 6.0 and scene.camera.eye.x == 6.0 and scene.camera.eye.y == 1.5
 }
 
@@ -1085,7 +1088,7 @@ door_contact = |depth| { a: 0, b: 1, normal: { x: 0.0, y: 0.0, z: -1.0 }, depth 
 expect {
 	# A closed door pushes the player out by the depth and stops the walk into it. The walk along it goes on.
 	m = placed(new_game(test_meshes, 0, 0), { x: 0.0, y: 0.0, z: -7.6 })
-	after = step(m, { ..idle, held: [Key.code(W), Key.code(D)] }, [door_contact(0.1)], 0.1)
+	after = update(m, { ..idle, held: [Key.code(W), Key.code(D)] }, [door_contact(0.1)], 0.1)
 	match player(after) {
 		Ok(p) => near_vec(p.pos, { x: 0.6, y: 0.0, z: -7.5 }) and p.vel.z == 0.0
 		Err(_) => Bool.False
@@ -1095,7 +1098,7 @@ expect {
 expect {
 	# A player that walks away from the door keeps its speed.
 	m = placed(new_game(test_meshes, 0, 0), { x: 0.0, y: 0.0, z: -7.6 })
-	after = step(m, { ..idle, held: [Key.code(S)] }, [door_contact(0.1)], 0.1)
+	after = update(m, { ..idle, held: [Key.code(S)] }, [door_contact(0.1)], 0.1)
 	player(after).map_ok(|p| near(p.pos.z, -6.9)) ?? Bool.False
 }
 
@@ -1110,14 +1113,14 @@ expect {
 			e
 		},
 	)
-	after = step(m, idle, [touch(0, 3)], 1.0 / 120.0)
+	after = update(m, idle, [touch(0, 3)], 1.0 / 120.0)
 	alive_pickups = List.keep_if(after.entities, is_pickup).map(|e| e.id)
 	after.score == 1 and alive_pickups == [2, 4]
 }
 
 expect {
 	# A contact with the door collects nothing.
-	after = step(new_game(test_meshes, 1, 0), idle, [touch(0, 1)], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 1, 0), idle, [touch(0, 1)], 1.0 / 120.0)
 	after.score == 0 and List.count_if(after.entities, is_pickup) == 1
 }
 
@@ -1152,7 +1155,7 @@ peak = |m, n, dt| {
 	var $top = height_of(m)
 	var $i = 0
 	while $i < n {
-		$m = step($m, idle, [], dt)
+		$m = update($m, idle, [], dt)
 		$top = F32.max($top, height_of($m))
 		$i = $i + 1
 	}
@@ -1162,7 +1165,7 @@ peak = |m, n, dt| {
 expect {
 	# A jump peaks near jump_speed squared over twice fall_accel and lands within a second.
 	dt = 1.0 / 120.0
-	jumped = step(new_game(test_meshes, 0, 0), space, [], dt)
+	jumped = update(new_game(test_meshes, 0, 0), space, [], dt)
 	top = peak(jumped, 120, dt)
 	landed = run_steps(jumped, idle, 120, dt)
 	top > 1.15 and top < 1.25 and height_of(landed) == 0.0
@@ -1171,10 +1174,10 @@ expect {
 expect {
 	# Space in the air does nothing. Space again after the landing jumps.
 	dt = 1.0 / 120.0
-	in_air = run_steps(step(new_game(test_meshes, 0, 0), space, [], dt), idle, 10, dt)
+	in_air = run_steps(update(new_game(test_meshes, 0, 0), space, [], dt), idle, 10, dt)
 	landed = run_steps(in_air, idle, 120, dt)
-	again = step(landed, space, [], dt)
-	player(step(in_air, space, [], dt)) == player(step(in_air, idle, [], dt)) and height_of(again) > 0.0
+	again = update(landed, space, [], dt)
+	player(update(in_air, space, [], dt)) == player(update(in_air, idle, [], dt)) and height_of(again) > 0.0
 }
 
 airborne : F32 -> Entity
@@ -1196,8 +1199,8 @@ expect {
 	dt = 1.0 / 120.0
 	falling = { ..airborne(0.95), vel: { x: 0.0, y: -3.0, z: 0.0 } }
 	on_top = { a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: 0.05 }
-	landed = step(with_entities([falling, test_block]), idle, [on_top], dt)
-	jumped = step(landed, space, [on_top], dt)
+	landed = update(with_entities([falling, test_block]), idle, [on_top], dt)
+	jumped = update(landed, space, [on_top], dt)
 	near(height_of(landed), 1.0) and grounded(landed) and height_of(jumped) > 1.0 and !grounded(jumped)
 }
 
@@ -1205,7 +1208,7 @@ floor_pickup : Entity -> Bool
 floor_pickup = |e| is_pickup(e) and e.pos.y < 1.0
 
 touch_all : Model, (Entity -> Bool) -> Model
-touch_all = |m, keep| step(m, idle, List.keep_if(m.entities, keep).map(|e| touch(0, e.id)), 1.0 / 120.0)
+touch_all = |m, keep| update(m, idle, List.keep_if(m.entities, keep).map(|e| touch(0, e.id)), 1.0 / 120.0)
 
 expect {
 	# The arc runs left to right in front of the player. The last pickup is out of reach from the floor.
@@ -1238,17 +1241,17 @@ expect {
 	# The player stays grounded and level with the top, and can jump.
 	dt = 1.0 / 120.0
 	top = block_pos.y + block_half.y
-	var $m = step(with_entities([airborne(top), test_block]), idle, [], dt)
+	var $m = update(with_entities([airborne(top), test_block]), idle, [], dt)
 	var $steady = Bool.True
 	var $i = 0
 	while $i < 120 {
 		y = height_of($m)
 		contacts = if y < top [{ a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: top - y }] else []
-		$m = step($m, idle, contacts, dt)
+		$m = update($m, idle, contacts, dt)
 		$steady = $steady and grounded($m) and (height_of($m) - top).abs() < 0.01
 		$i = $i + 1
 	}
-	$steady and height_of(step($m, space, [], dt)) > top + 0.01
+	$steady and height_of(update($m, space, [], dt)) > top + 0.01
 }
 
 goal_id : Model -> U64
@@ -1257,7 +1260,7 @@ goal_id = |m| List.find_first(m.entities, |e| e.kind == Goal).map_ok(|e| e.id) ?
 expect {
 	# A goal contact wins the round. The goal is not solid, so it does not move the player.
 	m = new_game(test_meshes, 1, 0)
-	after = step(m, idle, [touch(0, goal_id(m))], 1.0 / 120.0)
+	after = update(m, idle, [touch(0, goal_id(m))], 1.0 / 120.0)
 	at_origin = player(after).map_ok(|p| p.pos == origin) ?? Bool.False
 	m.phase == Playing and after.phase == Won(0.0) and at_origin
 }
@@ -1266,7 +1269,7 @@ expect {
 	# After the win, keys neither move the player nor make it jump.
 	won = { ..new_game(test_meshes, 0, 0), phase: Won(0.0) }
 	dt = 1.0 / 120.0
-	player(step(won, { ..right, pressed: [Key.code(Space)] }, [], dt)) == player(step(won, idle, [], dt))
+	player(update(won, { ..right, pressed: [Key.code(Space)] }, [], dt)) == player(update(won, idle, [], dt))
 }
 
 expect {

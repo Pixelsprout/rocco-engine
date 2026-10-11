@@ -6,6 +6,8 @@ package engine
 Config :: Roc_Init_Arg0
 Mesh_Entry :: Roc_Init_Arg0_Meshes
 Input :: Roc_Step_Arg1
+Step_Result :: Roc_Step
+Command :: Roc_Step_Commands
 Contact :: Roc_Step_Arg2
 Scene :: Roc_View
 Draw :: Roc_View_Draws
@@ -15,3 +17,4 @@ Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag
 Vec3 :: Roc_Step_Arg2_Normal
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera
+Cursor :: Roc_View_Cursor

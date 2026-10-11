@@ -1,7 +1,7 @@
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> model,
-        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> Model,
+        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
         view : Model -> Vocabulary.Scene,
     }
     exposes [Vocabulary, Key, Collider]
@@ -57,7 +57,7 @@ platform ""
         ] },
     }
 
-import Vocabulary exposing [Config, Contact, Input, Scene]
+import Vocabulary exposing [Command, Config, Contact, Input, Scene]
 
 # Only here because every exposes entry needs a matching import.
 import Key
@@ -71,8 +71,11 @@ import Collider
 init_for_host : Config -> Box(Model)
 init_for_host = |config| Box.box(init(config))
 
-step_for_host : Box(Model), Input, List(Contact), F32 -> Box(Model)
-step_for_host = |boxed, input, contacts, dt| Box.box(step(Box.unbox(boxed), input, contacts, dt))
+step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host = |boxed, input, contacts, dt| {
+    stepped = step(Box.unbox(boxed), input, contacts, dt)
+    { model: Box.box(stepped.model), commands: stepped.commands }
+}
 
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
