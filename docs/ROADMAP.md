@@ -475,6 +475,28 @@ task lands.
 
 ## Milestone 7: one gameplay verb
 
+Results so far, 2026-10-11. The milestone stays open until the stranger
+check runs.
+
+- The Roc tests cover these parts:
+  - the jump and the landing;
+  - the landing on the block;
+  - the door that waits for the eighth pickup;
+  - the win on a goal contact;
+  - the rain;
+  - the orbit camera;
+  - the restart with fresh ids.
+- Nobody has played a full round by hand yet.
+- The Roc tests, the Odin tests, `scripts/alloc-check.sh` and
+  `scripts/host-check.sh` pass on `arm64mac`.
+- Nobody checked `x64glibc` or `x64win`.
+- The stranger check has not run.
+- A player who walks off the block stays grounded, so it can jump once in
+  the air. Only a jump clears grounded, as decided below. If the stranger
+  check shows a problem, change this rule.
+- The camera cuts at the win, from the follow offset to the orbit. It cuts
+  again at the restart, from the orbit back to the follow offset.
+
 Done when the entity game is playable start to finish.
 
 1. Add one verb as a stage in the `step` pipeline with a test.
@@ -510,7 +532,7 @@ assets do not change. The game is a demo a stranger can finish, not a game.
   step count. `view` orbits the camera round the player at radius 6, height
   3, 0.8 radians per second, with the camera package's look-at.
 - At 4 seconds `new_game` runs again with the current `next_id`, so every
-  fresh entity has a new id and the host pairs nothing across the reset.
+  fresh entity has a new id and the host pairs nothing across the restart.
   The player is found by kind, not by id.
 - Roc tests: jump rises and lands, no double jump, landing on the block
   through a +y contact, a goal contact sets Won, Won ignores input, restart
