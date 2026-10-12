@@ -580,8 +580,8 @@ Decisions that span the arc:
 - Tag unions cross the seam once the glue emits them. No new kind numbers.
 - A game never asks the engine for a file. Compile-time file import is not
   asking.
-- Second copies become packages: `packages/vec3` and the quaternion
-  package at milestone 10, the entity store package at the first copy of
+- Second copies become packages: `packages/linalg` with Vec3 and Quat
+  at milestone 10, the entity store package at the first copy of
   `map_entities`.
 
 ## Milestone 8: tag unions in the glue (done)
@@ -630,9 +630,9 @@ Done when the first Kula level is finishable.
 
 1. Draw's `yaw` becomes `rot`, a quaternion. The host interpolates with
    slerp, with the sign check the glossary records. `Collider` keeps `yaw`.
-   A small quaternion package gives `from_yaw`, `mul` and
+   `Quat` in `packages/linalg` gives `from_yaw`, `mul` and
    `from_axis_angle`. The entity game composes parents with it.
-2. `packages/vec3` takes the Vec3 maths both games copy.
+2. `packages/linalg` takes the Vec3 maths both games copy.
 3. `games/kula/` on the local platform: a ball rolls on vertex-coloured
    blocks, gravity flips at edges, it jumps, keys open the exit. One level
    from `levels/level1.txt`, parsed by `Level` with tests.

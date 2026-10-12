@@ -1,8 +1,8 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", vec3: "../../packages/vec3/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
-import vec3.Vec3 as V
+import linalg.Vec3 as V
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
 import pf.Collider
 import pf.Key
