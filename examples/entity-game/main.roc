@@ -1,7 +1,8 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", vec3: "../../packages/vec3/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
+import vec3.Vec3 as V
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
 import pf.Collider
 import pf.Key
@@ -46,15 +47,15 @@ resolve_meshes = |config| {
 # Fills the first `pickups` pickup spots.
 new_game : MeshIds, U64, U64 -> Model
 new_game = |meshes, pickups, first_id| {
-	player_entity = { id: first_id, kind: Player({ grounded: Bool.True }), parent: Root, pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
-	door = { id: first_id + 1, kind: Door({ open: Bool.False, lift: 0.0 }), parent: Root, pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: origin, yaw: 0.0, alive: Bool.True }
-	block_entity = { id: first_id + 2 + pickups, kind: Block, parent: Root, pos: block_pos, vel: origin, yaw: 0.0, alive: Bool.True }
-	goal = { id: first_id + 3 + pickups, kind: Goal, parent: Root, pos: goal_pos, vel: origin, yaw: 0.0, alive: Bool.True }
+	player_entity = { id: first_id, kind: Player({ grounded: Bool.True }), parent: Root, pos: V.zero, vel: V.zero, yaw: 0.0, alive: Bool.True }
+	door = { id: first_id + 1, kind: Door({ open: Bool.False, lift: 0.0 }), parent: Root, pos: { x: 0.0, y: 1.5, z: -8.0 }, vel: V.zero, yaw: 0.0, alive: Bool.True }
+	block_entity = { id: first_id + 2 + pickups, kind: Block, parent: Root, pos: block_pos, vel: V.zero, yaw: 0.0, alive: Bool.True }
+	goal = { id: first_id + 3 + pickups, kind: Goal, parent: Root, pos: goal_pos, vel: V.zero, yaw: 0.0, alive: Bool.True }
 
 	var $entities = List.with_capacity(pickups + 4).append(player_entity).append(door)
 	var $i = 0
 	while $i < pickups {
-		$entities = List.append($entities, { id: first_id + 2 + $i, kind: Pickup, parent: Root, pos: pickup_spot($i), vel: origin, yaw: 0.0, alive: Bool.True })
+		$entities = List.append($entities, { id: first_id + 2 + $i, kind: Pickup, parent: Root, pos: pickup_spot($i), vel: V.zero, yaw: 0.0, alive: Bool.True })
 		$i = $i + 1
 	}
 
@@ -155,7 +156,7 @@ steer : Model, Input -> Model
 steer = |m, input| map_entities(
 	m,
 	|e| match e.kind {
-		Player(_) => { ..e, vel: { ..scale(move_dir(input), speed), y: e.vel.y } }
+		Player(_) => { ..e, vel: { ..V.scale(move_dir(input), speed), y: e.vel.y } }
 		_ => e
 	},
 )
@@ -268,10 +269,10 @@ block = |m, contacts|
 push_out : Entity, Contact, (U64 -> Bool) -> Entity
 push_out = |e, c, is_solid_id| match seen_from(c, e.id) {
 	Ok(side) if is_solid_id(side.other) => {
-		away = scale(side.normal, -1.0)
-		into = dot(e.vel, away)
+		away = V.scale(side.normal, -1.0)
+		into = V.dot(e.vel, away)
 		vel = if into < 0.0 {
-			add(e.vel, scale(away, -into))
+			V.add(e.vel, V.scale(away, -into))
 		} else {
 			e.vel
 		}
@@ -279,13 +280,13 @@ push_out = |e, c, is_solid_id| match seen_from(c, e.id) {
 			Player(_) if away.y > 0.0 and into <= 0.0 => Player({ grounded: Bool.True })
 			k => k
 		}
-		{ ..e, kind, pos: add(e.pos, scale(away, c.depth)), vel }
+		{ ..e, kind, pos: V.add(e.pos, V.scale(away, c.depth)), vel }
 	}
 	_ => e
 }
 
 integrate : Model, F32 -> Model
-integrate = |m, dt| map_entities(m, |e| { ..e, pos: add(e.pos, scale(e.vel, dt)) })
+integrate = |m, dt| map_entities(m, |e| { ..e, pos: V.add(e.pos, V.scale(e.vel, dt)) })
 
 spin : Model, F32 -> Model
 spin = |m, dt| map_entities(
@@ -355,7 +356,7 @@ spawn_drops = |m, parent, count| {
 }
 
 drop : U64, U64, F32, F32 -> Entity
-drop = |id, parent, phase, delay| { id, kind: Drop({ age: 0.0, phase, delay }), parent: Child(parent), pos: origin, vel: origin, yaw: 0.0, alive: Bool.True }
+drop = |id, parent, phase, delay| { id, kind: Drop({ age: 0.0, phase, delay }), parent: Child(parent), pos: V.zero, vel: V.zero, yaw: 0.0, alive: Bool.True }
 
 ring_phase : U64 -> F32
 ring_phase = |slot| (slot % drops_per_pickup).to_f32() * 2.0 * pi / drops_per_pickup.to_f32()
@@ -523,7 +524,7 @@ camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
 view : Model -> Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.plane, pos: origin, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
+	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation for the draws and one for the colliders. A parent
 	# precedes its child, so the parent's Draw is already in acc.
@@ -538,7 +539,7 @@ view = |curr| {
 			world = match e.parent {
 				Root => { pos: e.pos, yaw: e.yaw }
 				Child(parent) => match List.find_first(acc.draws, |d| d.id == parent) {
-					Ok(p) => { pos: add(p.pos, rotate_y(e.pos, p.yaw)), yaw: p.yaw + e.yaw }
+					Ok(p) => { pos: V.add(p.pos, rotate_y(e.pos, p.yaw)), yaw: p.yaw + e.yaw }
 					Err(NotFound) => { pos: e.pos, yaw: e.yaw }
 				}
 			}
@@ -552,7 +553,7 @@ view = |curr| {
 
 	target = match player(curr) {
 		Ok(p) => p.pos
-		Err(NotFound) => origin
+		Err(NotFound) => V.zero
 	}
 
 	camera = match curr.phase {
@@ -578,10 +579,10 @@ draw = |meshes, e, world| {
 	pos = world.pos
 	yaw = world.yaw
 	match e.kind {
-		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: scale(one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Block => { id: e.id, mesh: meshes.cube, pos, scale: scale(block_half, 2.0), yaw, tint: { r: 0.28, g: 0.16, b: 0.08 } }
-		Goal => { id: e.id, mesh: meshes.cube, pos, scale: scale(goal_half, 2.0), yaw, tint: { r: 1.0, g: 0.75, b: 0.05 } }
+		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
+		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), yaw, tint: { r: 0.28, g: 0.16, b: 0.08 } }
+		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), yaw, tint: { r: 1.0, g: 0.75, b: 0.05 } }
 		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, yaw, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
@@ -655,7 +656,7 @@ seen_from = |c, id|
 	if c.a == id {
 		Ok({ other: c.b, normal: c.normal })
 	} else if c.b == id {
-		Ok({ other: c.a, normal: scale(c.normal, -1.0) })
+		Ok({ other: c.a, normal: V.scale(c.normal, -1.0) })
 	} else {
 		Err(NotInContact)
 	}
@@ -685,15 +686,6 @@ door_open = |m| List.any(
 	},
 )
 
-origin : Vec3
-origin = { x: 0.0, y: 0.0, z: 0.0 }
-
-one : Vec3
-one = { x: 1.0, y: 1.0, z: 1.0 }
-
-add : Vec3, Vec3 -> Vec3
-add = |a, b| { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
-
 # Turns v about +y by yaw, the way the host turns a Draw, so +z goes to (sin, 0, cos).
 rotate_y : Vec3, F32 -> Vec3
 rotate_y = |v, yaw| {
@@ -702,14 +694,8 @@ rotate_y = |v, yaw| {
 	{ x: v.x * c + v.z * s, y: v.y, z: v.z * c - v.x * s }
 }
 
-scale : Vec3, F32 -> Vec3
-scale = |v, s| { x: v.x * s, y: v.y * s, z: v.z * s }
-
 pi : F32
 pi = 3.1415927
-
-dot : Vec3, Vec3 -> F32
-dot = |a, b| a.x * b.x + a.y * b.y + a.z * b.z
 
 # ---- tests. `roc test main.roc` runs these with no engine. ----------------
 
@@ -985,7 +971,7 @@ expect {
 
 # A Pickup draws at its world pos and yaw with no offset.
 entity_at : U64, [Root, Child(U64)], Vec3, F32 -> Entity
-entity_at = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: origin, yaw, alive: Bool.True }
+entity_at = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: V.zero, yaw, alive: Bool.True }
 
 with_entities : List(Entity) -> Model
 with_entities = |entities| { ..new_game(test_meshes, 0, 0), entities }
@@ -1020,7 +1006,7 @@ expect {
 
 expect {
 	# Scale is not inherited.
-	scene = view(with_entities([entity_at(10, Root, origin, 0.0), entity_at(11, Child(10), origin, 0.0)]))
+	scene = view(with_entities([entity_at(10, Root, V.zero, 0.0), entity_at(11, Child(10), V.zero, 0.0)]))
 	match (draw_of(scene, 10), draw_of(scene, 11)) {
 		(Ok(parent), Ok(child)) => parent.scale == child.scale
 		_ => Bool.False
@@ -1045,7 +1031,7 @@ expect {
 
 expect {
 	# log_orphans records each orphan id once, however many steps it lives.
-	m = with_entities([entity_at(10, Child(99), origin, 0.0), entity_at(11, Child(12), origin, 0.0), entity_at(12, Root, origin, 0.0), entity_at(13, Child(13), origin, 0.0)])
+	m = with_entities([entity_at(10, Child(99), V.zero, 0.0), entity_at(11, Child(12), V.zero, 0.0), entity_at(12, Root, V.zero, 0.0), entity_at(13, Child(13), V.zero, 0.0)])
 	after = run_steps(m, idle, 3, 0.1)
 	after.orphans_logged == [10, 11, 13]
 }
@@ -1059,15 +1045,15 @@ expect {
 
 expect {
 	# Sweep drops a dead entity, then every descendant of it in the same pass.
-	dead = { ..entity_at(10, Root, origin, 0.0), alive: Bool.False }
+	dead = { ..entity_at(10, Root, V.zero, 0.0), alive: Bool.False }
 	swept = sweep(
 		with_entities(
 			[
 				dead,
-				entity_at(11, Child(10), origin, 0.0),
-				entity_at(12, Child(11), origin, 0.0),
-				entity_at(13, Root, origin, 0.0),
-				entity_at(14, Child(13), origin, 0.0),
+				entity_at(11, Child(10), V.zero, 0.0),
+				entity_at(12, Child(11), V.zero, 0.0),
+				entity_at(13, Root, V.zero, 0.0),
+				entity_at(14, Child(13), V.zero, 0.0),
 			],
 		),
 	)
@@ -1078,8 +1064,8 @@ expect {
 	# A drop with no delay starts in a ring above the plant, and follows and turns with it.
 	watered = collected(new_game(test_meshes, 1, 0), 1.0 / 120.0)
 	offsets = |m| {
-		p = draw_of(view(m), 0).map_ok(|d| d.pos) ?? origin
-		drop_draws(m).map(|d| { x: d.pos.x - p.x, y: d.pos.y - p.y, z: d.pos.z - p.z })
+		p = draw_of(view(m), 0).map_ok(|d| d.pos) ?? V.zero
+		drop_draws(m).map(|d| V.sub(d.pos, p))
 	}
 	on_ring = |o| near(o.x * o.x + o.z * o.z, drop_start_radius * drop_start_radius) and near(o.y, drop_start_height)
 	still = offsets(watered)
@@ -1133,7 +1119,7 @@ expect {
 	m = map_entities(
 		new_game(test_meshes, 3, 0),
 		|e| if e.id == 2 {
-			{ ..e, pos: origin }
+			{ ..e, pos: V.zero }
 		} else {
 			e
 		},
@@ -1206,10 +1192,10 @@ expect {
 }
 
 airborne : F32 -> Entity
-airborne = |y| { id: 0, kind: Player({ grounded: Bool.False }), parent: Root, pos: { ..block_pos, y }, vel: origin, yaw: 0.0, alive: Bool.True }
+airborne = |y| { id: 0, kind: Player({ grounded: Bool.False }), parent: Root, pos: { ..block_pos, y }, vel: V.zero, yaw: 0.0, alive: Bool.True }
 
 test_block : Entity
-test_block = { id: 5, kind: Block, parent: Root, pos: block_pos, vel: origin, yaw: 0.0, alive: Bool.True }
+test_block = { id: 5, kind: Block, parent: Root, pos: block_pos, vel: V.zero, yaw: 0.0, alive: Bool.True }
 
 grounded : Model -> Bool
 grounded = |m|
@@ -1286,7 +1272,7 @@ expect {
 	# A goal contact wins the round. The goal is not solid, so it does not move the player.
 	m = new_game(test_meshes, 1, 0)
 	after = update(m, idle, [touch(0, goal_id(m))], 1.0 / 120.0)
-	at_origin = player(after).map_ok(|p| p.pos == origin) ?? Bool.False
+	at_origin = player(after).map_ok(|p| p.pos == V.zero) ?? Bool.False
 	m.phase == Playing and after.phase == Won(0.0) and at_origin
 }
 
@@ -1316,7 +1302,7 @@ expect {
 	before = run_steps(won, idle, 39, 0.1)
 	after = run_steps(before, idle, 2, 0.1)
 	fresh = List.all(after.entities, |e| e.id >= before.next_id)
-	at_start = player(after).map_ok(|p| p.pos == origin) ?? Bool.False
+	at_start = player(after).map_ok(|p| p.pos == V.zero) ?? Bool.False
 	pickups = List.count_if(after.entities, is_pickup)
 	before.phase != Playing and after.phase == Playing and after.score == 0 and fresh and at_start and pickups == 8 and drop_count(after) == 0
 }
