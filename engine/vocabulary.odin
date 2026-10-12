@@ -15,6 +15,7 @@ Collider :: Roc_View_Colliders
 Collider_Shape :: Roc_View_Colliders_Shape
 Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag
 Vec3 :: Roc_Step_Arg2_Normal
+Quat :: Roc_View_Draws_Rot
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor

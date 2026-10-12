@@ -1,7 +1,8 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
+app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
+import linalg.Quat
 import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
 import pf.Key
 
@@ -101,7 +102,7 @@ pip_tint = |state, own, other| {
 }
 
 box : U32, U64, Vec3, Vec3, Rgb -> Draw
-box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, yaw: 0.0, tint }
+box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, rot: Quat.identity, tint }
 
 view : Model -> Scene
 view = |m| {

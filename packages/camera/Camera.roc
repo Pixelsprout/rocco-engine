@@ -1,26 +1,31 @@
 Camera := [].{
     Vec3 : { x : F32, y : F32, z : F32 }
-    View : { eye : Vec3, target : Vec3, fov_y : F32 }
+    View : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 
     # 60 degrees, in radians.
     default_fov_y : F32
     default_fov_y = 1.047
 
+    # A game that turns the camera over replaces up with a record update.
+    world_up : Vec3
+    world_up = { x: 0.0, y: 1.0, z: 0.0 }
+
     look_at : Vec3, Vec3 -> View
-    look_at = |eye, target| { eye, target, fov_y: default_fov_y }
+    look_at = |eye, target| { eye, target, up: world_up, fov_y: default_fov_y }
 
     # The eye sits at target + offset.
     follow : Vec3, Vec3 -> View
     follow = |target, offset| {
         eye: { x: target.x + offset.x, y: target.y + offset.y, z: target.z + offset.z },
         target,
+        up: world_up,
         fov_y: default_fov_y,
     }
 }
 
 expect {
     view = Camera.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 1.0, y: 0.0, z: 0.0 })
-    view.eye.y == 8.0 and view.target.x == 1.0 and view.fov_y == Camera.default_fov_y
+    view.eye.y == 8.0 and view.target.x == 1.0 and view.up == Camera.world_up and view.fov_y == Camera.default_fov_y
 }
 
 expect {

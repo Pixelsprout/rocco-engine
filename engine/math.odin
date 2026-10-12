@@ -131,6 +131,11 @@ v3_normalize :: proc(v: [3]f32) -> [3]f32 {
 	return v / v3_length(v)
 }
 
+v3_normalize_or_zero :: proc(v: [3]f32) -> [3]f32 {
+	len := v3_length(v)
+	return v / len if len > 0 else {}
+}
+
 quat_from_axis_angle :: proc(axis: [3]f32, rad: f32) -> quaternion128 {
 	c := math.cos(rad / 2.0)
 	s := math.sin(rad / 2.0)

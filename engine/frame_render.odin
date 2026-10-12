@@ -8,6 +8,7 @@ import "core:mem"
 LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |L| = 1 exactly
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
+UP_EPSILON :: f32(1e-6)
 
 // The pairing map holds this many draws without allocating.
 PAIRING_CAPACITY :: 4096
@@ -16,15 +17,16 @@ PAIRING_CAPACITY :: 4096
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 
 Frame_Render :: struct {
-	pairing:    Pairing,
-	submit:     Submit,
-	submit_ctx: rawptr,
+	pairing:            Pairing,
+	submit:             Submit,
+	submit_ctx:         rawptr,
+	up_fallback_logged: bool,
 }
 
 Draw_Transform :: struct {
 	position: [3]f32,
 	scale:    [3]f32,
-	yaw:      f32,
+	rotation: quaternion128,
 }
 
 // Maps each draw id of the previous Scene to its index. Rebuilt every Frame
@@ -37,8 +39,8 @@ Pairing :: struct {
 
 // The camera the host draws a frame with.
 Camera_Pose :: struct {
-	eye, target: [3]f32,
-	fov_y:       f32,
+	eye, target, up: [3]f32,
+	fov_y:           f32,
 }
 
 frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
@@ -49,8 +51,17 @@ frame_render_destroy :: proc(fr: ^Frame_Render) {
 	pairing_destroy(&fr.pairing)
 }
 
-frame_render_camera :: proc(prev, curr: Scene, alpha, aspect: f32) -> Mat4 {
-	return scene_view_proj(camera_lerp(prev.camera, curr.camera, alpha), aspect)
+// An up along the view, or a zero up, has no right vector.
+frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> Mat4 {
+	pose := camera_lerp(prev.camera, curr.camera, alpha)
+	if v3_length(v3_cross(pose.target - pose.eye, pose.up)) < UP_EPSILON {
+		if !fr.up_fallback_logged {
+			fr.up_fallback_logged = true
+			fmt.eprintfln("the Scene camera's up %v is zero or along its view; using +y", pose.up)
+		}
+		pose.up = UP
+	}
+	return scene_view_proj(pose, aspect)
 }
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
@@ -79,7 +90,7 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 }
 
 scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
-	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, UP)
+	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, camera.up)
 }
 
 pairing_init :: proc(p: ^Pairing, allocator: mem.Allocator) {
@@ -122,25 +133,21 @@ draw_transform :: proc(prev, curr: Draw, alpha: f32) -> Draw_Transform {
 	return {
 		position = v3_lerp(prev.pos, curr.pos, alpha),
 		scale = v3_lerp(prev.scale, curr.scale, alpha),
-		yaw = yaw_lerp(prev.yaw, curr.yaw, alpha),
+		rotation = quat_slerp(quat_of(prev.rot), quat_of(curr.rot), alpha),
 	}
 }
 
 draw_model_matrix :: proc(x: Draw_Transform) -> Mat4 {
-	return transform_to_mat4({position = x.position, rotation = quat_from_axis_angle(UP, x.yaw), scale = x.scale})
+	return transform_to_mat4({position = x.position, rotation = x.rotation, scale = x.scale})
 }
 
 camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Camera_Pose {
-	return {eye = v3_lerp(prev.eye, curr.eye, alpha), target = v3_lerp(prev.target, curr.target, alpha), fov_y = curr.fov_y}
-}
-
-// Turns through the shorter arc, so -3 to 3 radians passes through pi.
-yaw_lerp :: proc(a, b, t: f32) -> f32 {
-	d := math.mod(b - a + math.PI, 2 * math.PI)
-	if d < 0 {
-		d += 2 * math.PI
+	return {
+		eye = v3_lerp(prev.eye, curr.eye, alpha),
+		target = v3_lerp(prev.target, curr.target, alpha),
+		up = v3_normalize_or_zero(v3_lerp(prev.up, curr.up, alpha)),
+		fov_y = curr.fov_y,
 	}
-	return a + (d - math.PI) * t
 }
 
 v3_lerp :: proc(a, b: Vec3, t: f32) -> [3]f32 {
@@ -150,3 +157,8 @@ v3_lerp :: proc(a, b: Vec3, t: f32) -> [3]f32 {
 vec3_array :: proc(v: Vec3) -> [3]f32 {
 	return {v.x, v.y, v.z}
 }
+
+quat_of :: proc(q: Quat) -> quaternion128 {
+	return quaternion(w = q.w, x = q.x, y = q.y, z = q.z)
+}
+

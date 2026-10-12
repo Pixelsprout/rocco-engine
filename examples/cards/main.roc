@@ -1,7 +1,8 @@
-app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc" }
+app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
+import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Contact, Input, Scene]
 import pf.Key
 
@@ -35,7 +36,7 @@ view = |m| {
             Number(_) => { r: 0.787, g: 0.787, b: 0.787 }
         }
         # The slot index is the draw id: a card slides to its slot when dealt.
-        { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, yaw: 0.0, tint }
+        { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, rot: Quat.identity, tint }
     })
     { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], cursor: Free }
 }

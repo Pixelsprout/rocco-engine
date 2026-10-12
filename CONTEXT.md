@@ -126,8 +126,9 @@ and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
-One entry in a Scene: a draw id, a mesh id, a position, scale, yaw and tint.
-It is a description, not a command.
+One entry in a Scene: a draw id, a mesh id, a position, scale, rot and tint.
+It is a description, not a command. `rot` is a unit quaternion. The host
+interpolates it between two Scenes.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
 **Tint**:
@@ -136,9 +137,9 @@ The host multiplies the mesh colour by it.
 _Avoid_: colour (for the field), albedo, Vec3 colour
 
 **Camera**:
-The field of a Scene that says where the eye is, what it looks at and the
-vertical field of view. The game decides it; the host interpolates it. The
-camera package in `packages/camera/` builds one.
+The field of a Scene that says where the eye is, what it looks at, which way
+is `up` and the vertical field of view. The game decides it. The host
+interpolates it. The camera package in `packages/camera/` builds one.
 _Avoid_: view (the call), viewport, camera target
 
 **Cursor**:

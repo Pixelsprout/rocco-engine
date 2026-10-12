@@ -279,15 +279,15 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 80)
+#assert(size_of(Roc_View) == 96)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, colliders) == 0)
 #assert(size_of(type_of(Roc_View{}.colliders)) == 24)
 #assert(offset_of(Roc_View, draws) == 24)
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
 #assert(offset_of(Roc_View, camera) == 48)
-#assert(size_of(type_of(Roc_View{}.camera)) == 28)
-#assert(offset_of(Roc_View, cursor) == 76)
+#assert(size_of(type_of(Roc_View{}.camera)) == 40)
+#assert(offset_of(Roc_View, cursor) == 88)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
@@ -347,12 +347,12 @@ Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,
 	pos: Roc_Step_Arg2_Normal,
+	rot: Roc_View_Draws_Rot,
 	scale: Roc_Step_Arg2_Normal,
 	tint: Roc_View_Draws_Tint,
-	yaw: f32,
 }
 
-#assert(size_of(Roc_View_Draws) == 56)
+#assert(size_of(Roc_View_Draws) == 64)
 #assert(align_of(Roc_View_Draws) == 8)
 #assert(offset_of(Roc_View_Draws, id) == 0)
 #assert(size_of(type_of(Roc_View_Draws{}.id)) == 8)
@@ -360,14 +360,32 @@ Roc_View_Draws :: struct {
 #assert(size_of(type_of(Roc_View_Draws{}.mesh)) == 4)
 #assert(offset_of(Roc_View_Draws, pos) == 12)
 #assert(size_of(type_of(Roc_View_Draws{}.pos)) == 12)
-#assert(offset_of(Roc_View_Draws, scale) == 24)
+#assert(offset_of(Roc_View_Draws, rot) == 24)
+#assert(size_of(type_of(Roc_View_Draws{}.rot)) == 16)
+#assert(offset_of(Roc_View_Draws, scale) == 40)
 #assert(size_of(type_of(Roc_View_Draws{}.scale)) == 12)
-#assert(offset_of(Roc_View_Draws, tint) == 36)
+#assert(offset_of(Roc_View_Draws, tint) == 52)
 #assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
-#assert(offset_of(Roc_View_Draws, yaw) == 48)
-#assert(size_of(type_of(Roc_View_Draws{}.yaw)) == 4)
 
 Roc_View_Draws_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Draws_Rot :: struct {
+	w: f32,
+	x: f32,
+	y: f32,
+	z: f32,
+}
+
+#assert(size_of(Roc_View_Draws_Rot) == 16)
+#assert(align_of(Roc_View_Draws_Rot) == 4)
+#assert(offset_of(Roc_View_Draws_Rot, w) == 0)
+#assert(size_of(type_of(Roc_View_Draws_Rot{}.w)) == 4)
+#assert(offset_of(Roc_View_Draws_Rot, x) == 4)
+#assert(size_of(type_of(Roc_View_Draws_Rot{}.x)) == 4)
+#assert(offset_of(Roc_View_Draws_Rot, y) == 8)
+#assert(size_of(type_of(Roc_View_Draws_Rot{}.y)) == 4)
+#assert(offset_of(Roc_View_Draws_Rot, z) == 12)
+#assert(size_of(type_of(Roc_View_Draws_Rot{}.z)) == 4)
+
 Roc_View_Draws_Scale :: Roc_Step_Arg2_Normal
 Roc_View_Draws_Tint :: struct {
 	b: f32,
@@ -388,9 +406,10 @@ Roc_View_Camera :: struct {
 	eye: Roc_Step_Arg2_Normal,
 	fov_y: f32,
 	target: Roc_Step_Arg2_Normal,
+	up: Roc_Step_Arg2_Normal,
 }
 
-#assert(size_of(Roc_View_Camera) == 28)
+#assert(size_of(Roc_View_Camera) == 40)
 #assert(align_of(Roc_View_Camera) == 4)
 #assert(offset_of(Roc_View_Camera, eye) == 0)
 #assert(size_of(type_of(Roc_View_Camera{}.eye)) == 12)
@@ -398,9 +417,12 @@ Roc_View_Camera :: struct {
 #assert(size_of(type_of(Roc_View_Camera{}.fov_y)) == 4)
 #assert(offset_of(Roc_View_Camera, target) == 16)
 #assert(size_of(type_of(Roc_View_Camera{}.target)) == 12)
+#assert(offset_of(Roc_View_Camera, up) == 28)
+#assert(size_of(type_of(Roc_View_Camera{}.up)) == 12)
 
 Roc_View_Camera_Eye :: Roc_Step_Arg2_Normal
 Roc_View_Camera_Target :: Roc_Step_Arg2_Normal
+Roc_View_Camera_Up :: Roc_Step_Arg2_Normal
 Roc_View_Cursor :: enum u8 {
 	Free = 0,
 	Locked = 1,

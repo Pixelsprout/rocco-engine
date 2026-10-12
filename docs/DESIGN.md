@@ -104,8 +104,9 @@ Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
 Config   : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, yaw : F32, tint : Rgb }
-Camera   : { eye : Vec3, target : Vec3, fov_y : F32 }
+Quat     : { x : F32, y : F32, z : F32, w : F32 }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, tint : Rgb }
+Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 Cursor   : [Free, Locked]
@@ -118,7 +119,7 @@ Command  : [Quit]
 | `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target and field of view; the Colliders that can touch; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
 | `List(Command)` | what the host does once after this step: `Quit` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -166,8 +167,10 @@ host reads the seed from `ROCCO_SEED`. The default is 0. Decision.
 ### The camera is a description
 
 The game decides the camera. `Scene.camera` says where the eye is, what it
-looks at and the vertical field of view. The up vector is +Y. The host
-interpolates `eye` and `target` like a draw. Pure helpers such as `look_at`
+looks at, which way is up and the vertical field of view. The host
+interpolates `eye`, `target` and `up` like a draw. If `up` is zero or lies
+along the view, the host uses +y and logs once. See
+`docs/adr/0001-orientation-crosses-the-seam.md`. Pure helpers such as `look_at`
 and `follow` live in the camera package in `packages/camera/`. The package
 does not depend on the platform: Roc records are structural, so its `View`
 record fits `Scene.camera`. Decision.
@@ -212,8 +215,8 @@ vocabulary. `init` reads it once. The cost is glue coverage, not time.
 
 ### Draws carry a stable id
 
-The host pairs draws across two `Scene`s by `id` and interpolates position
-and yaw between them. A draw whose id has no partner in the previous `Scene`
+The host pairs draws across two `Scene`s by `id` and interpolates position,
+scale and rot between them. A draw whose id has no partner in the previous `Scene`
 is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
 entities never reach.
 

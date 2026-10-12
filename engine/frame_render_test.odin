@@ -5,6 +5,7 @@ import "core:mem"
 import "core:testing"
 
 EPS :: f32(1e-5)
+IDENTITY :: Quat{w = 1}
 
 Submitted :: struct {
 	mesh:  ^Mesh,
@@ -21,24 +22,6 @@ Frame_Fixture :: struct {
 	fr:     Frame_Render,
 	meshes: Mesh_Table,
 	rec:    Recorder,
-}
-
-@(test)
-test_yaw_takes_the_short_way_across_pi :: proc(t: ^testing.T) {
-	testing.expect(t, abs(yaw_lerp(3.0, -3.0, 0.5) - math.PI) < EPS)
-	testing.expect(t, abs(yaw_lerp(-3.0, 3.0, 0.5) + math.PI) < EPS)
-}
-
-@(test)
-test_yaw_lerps_a_small_turn :: proc(t: ^testing.T) {
-	testing.expect(t, abs(yaw_lerp(0, math.PI / 2, 0.5) - math.PI / 4) < EPS)
-	testing.expect(t, abs(yaw_lerp(1, 2, 0) - 1) < EPS)
-	testing.expect(t, abs(yaw_lerp(1, 2, 1) - 2) < EPS)
-}
-
-@(test)
-test_yaw_ignores_whole_turns :: proc(t: ^testing.T) {
-	testing.expect(t, abs(yaw_lerp(0.1, 0.1 + 4 * math.PI, 0.5) - 0.1) < 1e-4)
 }
 
 @(test)
@@ -113,22 +96,32 @@ test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: 
 }
 
 @(test)
-test_draw_interpolates_pos_scale_yaw_and_takes_the_new_tint :: proc(t: ^testing.T) {
-	prev := Draw{pos = {0, 0, 0}, scale = {1, 1, 1}, yaw = 0, tint = {1, 0, 0}}
-	curr := Draw{pos = {2, 4, 6}, scale = {3, 1, 1}, yaw = 1, tint = {0, 1, 0}}
+test_draw_interpolates_pos_scale_and_rot :: proc(t: ^testing.T) {
+	prev := Draw{pos = {0, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}
+	curr := Draw{pos = {2, 4, 6}, scale = {3, 1, 1}, rot = quat_yaw(1)}
 	x := draw_transform(prev, curr, 0.25)
 	testing.expect_value(t, x.position, [3]f32{0.5, 1, 1.5})
 	testing.expect_value(t, x.scale, [3]f32{1.5, 1, 1})
-	testing.expect(t, abs(x.yaw - 0.25) < EPS)
+	expect_quat_near(t, x.rotation, quat_from_axis_angle(UP, 0.25))
+}
+
+// q and -q are one orientation, so the slerp does not turn the long way round.
+@(test)
+test_draw_rot_stays_put_between_a_quaternion_and_its_negation :: proc(t: ^testing.T) {
+	prev := Draw{rot = IDENTITY}
+	curr := Draw{rot = {w = -1}}
+	x := draw_transform(prev, curr, 0.5)
+	expect_quat_near(t, x.rotation, 1)
 }
 
 @(test)
-test_camera_interpolates_eye_and_target_and_takes_the_new_fov :: proc(t: ^testing.T) {
-	prev := Scene_Camera{eye = {0, 8, 8}, target = {0, 0, 0}, fov_y = 1}
-	curr := Scene_Camera{eye = {2, 8, 8}, target = {2, 0, 0}, fov_y = 2}
+test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^testing.T) {
+	prev := Scene_Camera{eye = {0, 8, 8}, target = {0, 0, 0}, up = {0, 1, 0}, fov_y = 1}
+	curr := Scene_Camera{eye = {2, 8, 8}, target = {2, 0, 0}, up = {1, 0, 0}, fov_y = 2}
 	c := camera_lerp(prev, curr, 0.5)
 	testing.expect_value(t, c.eye, [3]f32{1, 8, 8})
 	testing.expect_value(t, c.target, [3]f32{1, 0, 0})
+	testing.expect(t, v3_length(c.up - {math.SQRT_TWO / 2, math.SQRT_TWO / 2, 0}) < EPS)
 	testing.expect_value(t, c.fov_y, 2)
 }
 
@@ -179,12 +172,12 @@ test_frame_render_interpolates_a_draw_with_a_partner :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	prev := []Draw{{id = 1, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}, yaw = 0}}
-	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}}
+	prev := []Draw{{id = 1, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}}
+	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, rot = quat_yaw(1)}}
 	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.25)
 
 	testing.expect_value(t, len(got), 1)
-	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}, yaw = 0.25}))
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}, rotation = quat_from_axis_angle(UP, 0.25)}))
 }
 
 @(test)
@@ -193,12 +186,12 @@ test_frame_render_draws_a_draw_with_no_partner_at_itself :: proc(t: ^testing.T) 
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	prev := []Draw{{id = 2, mesh = 1, pos = {9, 9, 9}, scale = {1, 1, 1}}}
-	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}}
+	prev := []Draw{{id = 2, mesh = 1, pos = {9, 9, 9}, scale = {1, 1, 1}, rot = IDENTITY}}
+	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, rot = quat_yaw(1)}}
 	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.25)
 
 	testing.expect_value(t, len(got), 1)
-	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {4, 0, 0}, scale = {1, 1, 1}, yaw = 1}))
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {4, 0, 0}, scale = {1, 1, 1}, rotation = quat_from_axis_angle(UP, 1)}))
 }
 
 @(test)
@@ -207,13 +200,13 @@ test_frame_render_draws_every_draw_at_itself_when_the_scenes_are_one :: proc(t: 
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	draws := []Draw{{id = 1, mesh = 1, pos = {1, 0, 0}, scale = {1, 1, 1}}, {id = 2, mesh = 2, pos = {0, 2, 0}, scale = {2, 2, 2}, yaw = 3}}
+	draws := []Draw{{id = 1, mesh = 1, pos = {1, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}, {id = 2, mesh = 2, pos = {0, 2, 0}, scale = {2, 2, 2}, rot = quat_yaw(3)}}
 	scene := scene_of(draws)
 	got := frame_fixture_draw(&f, scene, scene, 0.5)
 
 	testing.expect_value(t, len(got), 2)
-	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}}))
-	expect_mat4_near(t, got[1].model, draw_model_matrix({position = {0, 2, 0}, scale = {2, 2, 2}, yaw = 3}))
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}, rotation = 1}))
+	expect_mat4_near(t, got[1].model, draw_model_matrix({position = {0, 2, 0}, scale = {2, 2, 2}, rotation = quat_from_axis_angle(UP, 3)}))
 }
 
 @(test)
@@ -252,19 +245,50 @@ test_frame_render_pairs_a_shared_id_with_the_first_draw :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	prev := []Draw{{id = 5, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}}, {id = 5, mesh = 1, pos = {10, 0, 0}, scale = {1, 1, 1}}}
-	curr := []Draw{{id = 5, mesh = 1, pos = {2, 0, 0}, scale = {1, 1, 1}}}
+	prev := []Draw{{id = 5, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}, {id = 5, mesh = 1, pos = {10, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}}
+	curr := []Draw{{id = 5, mesh = 1, pos = {2, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}}
 	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.5)
 
 	testing.expect_value(t, len(got), 1)
-	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}}))
+	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {1, 0, 0}, scale = {1, 1, 1}, rotation = 1}))
 }
 
 @(test)
 test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t: ^testing.T) {
-	prev := Scene{camera = {eye = {0, 8, 8}, target = {0, 0, 0}, fov_y = 1}}
-	curr := Scene{camera = {eye = {2, 8, 8}, target = {2, 0, 0}, fov_y = 2}}
-	got := frame_render_camera(prev, curr, 0.5, 16.0 / 9.0)
-	want := scene_view_proj({eye = {1, 8, 8}, target = {1, 0, 0}, fov_y = 2}, 16.0 / 9.0)
+	fr: Frame_Render
+	prev := Scene{camera = {eye = {0, 8, 8}, target = {0, 0, 0}, up = {0, 1, 0}, fov_y = 1}}
+	curr := Scene{camera = {eye = {2, 8, 8}, target = {2, 0, 0}, up = {0, 1, 0}, fov_y = 2}}
+	got := frame_render_camera(&fr, prev, curr, 0.5, 16.0 / 9.0)
+	want := scene_view_proj({eye = {1, 8, 8}, target = {1, 0, 0}, up = {0, 1, 0}, fov_y = 2}, 16.0 / 9.0)
 	expect_mat4_near(t, got, want)
+	testing.expect(t, !fr.up_fallback_logged)
+}
+
+@(test)
+test_frame_render_camera_uses_the_scene_up :: proc(t: ^testing.T) {
+	fr: Frame_Render
+	s := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {1, 0, 0}, fov_y = 1}}
+	got := frame_render_camera(&fr, s, s, 0, 1)
+	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, {1, 0, 0})
+	expect_mat4_near(t, got, want)
+}
+
+@(test)
+test_frame_render_camera_falls_back_to_world_up_and_logs_once :: proc(t: ^testing.T) {
+	fr: Frame_Render
+	along := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {0, 0, 1}, fov_y = 1}}
+	zero := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, fov_y = 1}}
+	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, UP)
+	expect_mat4_near(t, frame_render_camera(&fr, along, along, 0, 1), want)
+	testing.expect(t, fr.up_fallback_logged)
+	expect_mat4_near(t, frame_render_camera(&fr, zero, zero, 0, 1), want)
+}
+
+quat_yaw :: proc(rad: f32) -> Quat {
+	q := quat_from_axis_angle(UP, rad)
+	return {w = q.w, x = q.x, y = q.y, z = q.z}
+}
+
+expect_quat_near :: proc(t: ^testing.T, got, want: quaternion128, loc := #caller_location) {
+	testing.expectf(t, abs(abs(quat_dot(got, want)) - 1) < EPS, "got %v, want %v", got, want, loc = loc)
 }

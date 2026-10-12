@@ -3,6 +3,7 @@ app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Vec3 as V
+import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
 import pf.Collider
 import pf.Key
@@ -524,7 +525,7 @@ camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
 view : Model -> Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, yaw: 0.0, tint: { r: 0.051, g: 0.051, b: 0.064 } }
+	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation for the draws and one for the colliders. A parent
 	# precedes its child, so the parent's Draw is already in acc.
@@ -537,10 +538,14 @@ view = |curr| {
 		first,
 		|acc, e| {
 			world = match e.parent {
-				Root => { pos: e.pos, yaw: e.yaw }
+				Root => local_world(e)
 				Child(parent) => match List.find_first(acc.draws, |d| d.id == parent) {
-					Ok(p) => { pos: V.add(p.pos, rotate_y(e.pos, p.yaw)), yaw: p.yaw + e.yaw }
-					Err(NotFound) => { pos: e.pos, yaw: e.yaw }
+					Ok(p) => {
+						pos: V.add(p.pos, Quat.rotate(e.pos, p.rot)),
+						yaw: rot_yaw(p.rot) + e.yaw,
+						rot: Quat.mul(p.rot, Quat.from_yaw(e.yaw)),
+					}
+					Err(NotFound) => local_world(e)
 				}
 			}
 			if waiting(e) {
@@ -574,19 +579,29 @@ orbit_eye = |target, t| {
 	{ x: target.x + 6.0 * angle.sin(), y: target.y + 3.0, z: target.z + 6.0 * angle.cos() }
 }
 
-draw : MeshIds, Entity, { pos : Vec3, yaw : F32 } -> Draw
+# yaw feeds the colliders, which stay on the ground plane. rot feeds the draws.
+World : { pos : Vec3, yaw : F32, rot : Quat.Quat }
+
+local_world : Entity -> World
+local_world = |e| { pos: e.pos, yaw: e.yaw, rot: Quat.from_yaw(e.yaw) }
+
+# Every rot in this game turns about +y only, so the yaw comes back out.
+rot_yaw : Quat.Quat -> F32
+rot_yaw = |q| 2.0 * F32.atan2({ y: q.y, x: q.w })
+
+draw : MeshIds, Entity, World -> Draw
 draw = |meshes, e, world| {
 	pos = world.pos
-	yaw = world.yaw
+	rot = world.rot
 	match e.kind {
-		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, yaw, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), yaw, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), yaw, tint: { r: 0.28, g: 0.16, b: 0.08 } }
-		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), yaw, tint: { r: 1.0, g: 0.75, b: 0.05 } }
-		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, yaw, tint: { r: 0.02, g: 0.3, b: 1.0 } }
+		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, rot, tint: { r: 1.0, g: 1.0, b: 1.0 } }
+		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, tint: { r: 0.28, g: 0.16, b: 0.08 } }
+		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, tint: { r: 1.0, g: 0.75, b: 0.05 } }
+		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
-			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, yaw, tint: { r: 0.214, g: 0.073, b: 0.604 } }
+			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
 }
@@ -608,7 +623,7 @@ pickup_radius : F32
 pickup_radius = 0.4
 
 # Floor and drops touch nothing.
-with_collider : List(Vocabulary.Collider), Entity, { pos : Vec3, yaw : F32 } -> List(Vocabulary.Collider)
+with_collider : List(Vocabulary.Collider), Entity, World -> List(Vocabulary.Collider)
 with_collider = |colliders, e, world| match e.kind {
 	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
 	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
@@ -685,14 +700,6 @@ door_open = |m| List.any(
 		_ => Bool.False
 	},
 )
-
-# Turns v about +y by yaw, the way the host turns a Draw, so +z goes to (sin, 0, cos).
-rotate_y : Vec3, F32 -> Vec3
-rotate_y = |v, yaw| {
-	c = yaw.cos()
-	s = yaw.sin()
-	{ x: v.x * c + v.z * s, y: v.y, z: v.z * c - v.x * s }
-}
 
 pi : F32
 pi = 3.1415927
@@ -982,6 +989,9 @@ draw_of = |scene, id| List.find_first(scene.draws, |d| d.id == id)
 near_vec : Vec3, Vec3 -> Bool
 near_vec = |a, b| near(a.x, b.x) and near(a.y, b.y) and near(a.z, b.z)
 
+near_rot : Quat.Quat, Quat.Quat -> Bool
+near_rot = |a, b| near(a.x, b.x) and near(a.y, b.y) and near(a.z, b.z) and near(a.w, b.w)
+
 expect {
 	# A child's world pos is its local pos turned by the parent yaw, plus the
 	# parent pos. Yaws add. Depth is unbounded.
@@ -998,10 +1008,17 @@ expect {
 		(Ok(child), Ok(grandchild)) => {
 			turned = pi / 2.0 + 0.5
 			want = { x: 2.0 + turned.sin(), y: 2.0, z: turned.cos() }
-			near_vec(child.pos, { x: 2.0, y: 2.0, z: 0.0 }) and near(child.yaw, turned) and near_vec(grandchild.pos, want)
+			near_vec(child.pos, { x: 2.0, y: 2.0, z: 0.0 }) and near_rot(child.rot, Quat.from_yaw(turned)) and near_vec(grandchild.pos, want)
 		}
 		_ => Bool.False
 	}
+}
+
+expect {
+	# A child's collider turns by the parent's world yaw plus its own.
+	parent = entity_at(10, Root, V.zero, 1.0)
+	child = { ..entity_at(11, Child(10), { x: 0.0, y: 0.0, z: 2.0 }, 0.5), kind: Block }
+	collider_of(view(with_entities([parent, child])), 11).map_ok(|c| near(c.yaw, 1.5)) == Ok(Bool.True)
 }
 
 expect {
@@ -1025,7 +1042,7 @@ expect {
 			],
 		),
 	)
-	at_local = |id| draw_of(scene, id).map_ok(|d| d.pos == local and d.yaw == 0.25) ?? Bool.False
+	at_local = |id| draw_of(scene, id).map_ok(|d| d.pos == local and d.rot == Quat.from_yaw(0.25)) ?? Bool.False
 	at_local(10) and at_local(11)
 }
 

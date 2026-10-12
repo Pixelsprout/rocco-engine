@@ -112,7 +112,7 @@ frame_cb :: proc "c" () {
 		camera_fly(&g_state.debug_camera, &g_state.input, f32(min(sapp.frame_duration(), MAX_FRAME_TIME)))
 		view_proj = camera_proj(&g_state.debug_camera, aspect) * camera_view(&g_state.debug_camera)
 	} else {
-		view_proj = frame_render_camera(prev, curr, alpha, aspect)
+		view_proj = frame_render_camera(&g_state.frame_render, prev, curr, alpha, aspect)
 	}
 	cursor := Cursor.Locked if g_state.use_debug_camera else curr.cursor
 	if (cursor == .Locked) != sapp.mouse_locked() {

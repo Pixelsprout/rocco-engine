@@ -1,3 +1,4 @@
-package [Vec3] {}
+package [Vec3, Quat] {}
 
 import Vec3
+import Quat
