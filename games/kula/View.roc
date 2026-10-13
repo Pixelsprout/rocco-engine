@@ -27,13 +27,26 @@ View := [].{
 		{ id: 0, mesh, pos: Vec3.sub(placed.pos, Vec3.scale(placed.up, sink)), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
 	}
 
+	# The camera has no clipping test. It stays less than half a cell behind the
+	# ball, so after a climb it never reaches into the floor the ball left.
 	camera : Ball.Ball -> Camera
 	camera = |ball| {
 		placed = interpolated(ball)
-		eye = Vec3.add(Vec3.sub(placed.pos, Vec3.scale(placed.forward, 3.0)), Vec3.scale(placed.up, 2.0))
-		{ eye, target: placed.pos, up: placed.up, fov_y: 1.047 }
+		eye = Vec3.add(Vec3.sub(placed.pos, Vec3.scale(placed.forward, camera_back)), Vec3.scale(placed.up, camera_height))
+		target = Vec3.add(placed.pos, Vec3.scale(placed.forward, camera_lead))
+		{ eye, target, up: placed.up, fov_y: 1.047 }
 	}
 }
+
+camera_back : F32
+camera_back = 0.4
+
+camera_height : F32
+camera_height = 2.5
+
+# The camera looks one cell ahead, so the ball sits low in the view.
+camera_lead : F32
+camera_lead = 1.0
 
 jump_height : F32
 jump_height = 0.5
@@ -91,5 +104,19 @@ expect {
 
 expect {
 	cam = View.camera(Ball.start(on_origin))
-	cam.eye == { x: 0.0, y: 3.0, z: 3.0 } and cam.target == { x: 0.0, y: 1.0, z: 0.0 } and cam.up == { x: 0.0, y: 1.0, z: 0.0 }
+	near(cam.eye, { x: 0.0, y: 3.5, z: 0.4 }) and cam.target == { x: 0.0, y: 1.0, z: -1.0 } and cam.up == { x: 0.0, y: 1.0, z: 0.0 }
+}
+
+inside_block : Set(World.Cell), Vec3.Vec3 -> Bool
+inside_block = |blocks, v| blocks.to_list().any(|b| {
+	c = Grid.to_vec3(b)
+	(v.x - c.x).abs() < 0.5 and (v.y - c.y).abs() < 0.5 and (v.z - c.z).abs() < 0.5
+})
+
+# After a climb, behind the ball is down through the floor it left.
+expect {
+	behind = Set.from_list([cell(0, 0, 0), cell(0, 0, 1), cell(0, 0, 2), cell(0, 0, 3), cell(0, 1, -1)])
+	climbed = Ball.advance(Ball.act(behind, Ball.start(on_origin), Roll), 0.2)
+	cam = View.camera(climbed)
+	climbed.pose.up == cell(0, 0, 1) and near(cam.eye, { x: 0.0, y: 0.6, z: 2.5 }) and !inside_block(behind, cam.eye)
 }
