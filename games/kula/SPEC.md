@@ -114,6 +114,13 @@ engine culls back faces. A camera inside a block therefore sees through
 that block, because every face of it points away. No face exists between
 two blocks, so the neighbours do not hide the ball.
 
+Halfway through a climb, the eye passes down through the top face of the
+floor the ball left. Just before that, the engine's near plane slices that
+floor. The original's near-polygon code (`SubdivideLevelGeometryPolys`) is
+still assembly, so its behaviour is not known. PS1 games usually drop
+polygons that come too close to the camera. The clone guesses the same: it
+does not draw a face within 0.5 cell of the eye (Inferred).
+
 A whole-cube mesh would draw the faces between blocks. Do not use one for
 level blocks.
 

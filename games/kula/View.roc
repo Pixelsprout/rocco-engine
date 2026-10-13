@@ -43,6 +43,22 @@ View := [].{
 	faces = |blocks| blocks.to_list().join_map(|block|
 		normals.keep_if(|normal| !Grid.has_block(blocks, Grid.add(block, normal))).map(|normal| { block, normal }))
 
+	# A guess at the original's near-polygon handling, which is undecompiled: a
+	# face this close to the eye is not drawn, so the floor left behind in a
+	# climb vanishes and is not sliced by the near plane. See SPEC.md.
+	near_eye : Face, Vec3.Vec3 -> Bool
+	near_eye = |face, eye| {
+		centre_of_face = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
+		n = Grid.to_vec3(face.normal)
+		closest = |e, c, axis_normal| if axis_normal != 0.0 { c } else { clamp(e, c - 0.5, c + 0.5) }
+		nearest = {
+			x: closest(eye.x, centre_of_face.x, n.x),
+			y: closest(eye.y, centre_of_face.y, n.y),
+			z: closest(eye.z, centre_of_face.z, n.z),
+		}
+		Vec3.length(Vec3.sub(eye, nearest)) < near_face_distance
+	}
+
 	# The primitive plane faces +y and is one-sided.
 	face_draw : U64, U32, Face, Rgb -> Draw
 	face_draw = |id, mesh, face, tint| {
@@ -65,6 +81,12 @@ camera_drop = 250.0 / 512.0
 # 73.7 degrees, from the original's 90 degree horizontal view on 4:3.
 camera_fov_y : F32
 camera_fov_y = 1.286
+
+near_face_distance : F32
+near_face_distance = 0.5
+
+clamp : F32, F32, F32 -> F32
+clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
 
 pi : F32
 pi = 3.1415927
@@ -242,4 +264,9 @@ expect {
 	half = Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.17)
 	d = Ball.radius * 0.70710678
 	near(View.ball_draw(half, 2, white).pos, { x: 0.0, y: 0.5 + d, z: -0.5 - d })
+}
+
+expect {
+	face = { block: cell(0, 0, 0), normal: cell(0, 1, 0) }
+	View.near_eye(face, { x: 0.2, y: 0.8, z: -0.4 }) and !View.near_eye(face, { x: 0.0, y: 1.1, z: 0.0 }) and !View.near_eye(face, { x: 1.2, y: 0.5, z: 0.0 })
 }

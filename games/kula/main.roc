@@ -66,13 +66,18 @@ action = |input|
 view : Model -> Scene
 view = |model| {
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
-	blocks = View.faces(model.level.blocks).map_with_index(|face, i| {
-		tint = if exits.contains(face.block) { exit_tint } else { block_tint }
-		View.face_draw(1 + i.to_u64(), model.meshes.plane, face, tint)
-	})
+	camera = View.camera(model.ball)
+	# Ids come before the near-eye filter, so a face keeps its id while others drop out.
+	blocks = View.faces(model.level.blocks)
+		.map_with_index(|face, i| { face, id: 1 + i.to_u64() })
+		.keep_if(|entry| !View.near_eye(entry.face, camera.eye))
+		.map(|entry| {
+			tint = if exits.contains(entry.face.block) { exit_tint } else { block_tint }
+			View.face_draw(entry.id, model.meshes.plane, entry.face, tint)
+		})
 	keys = model.level.items.keep_if(|entry| entry.item == Key).map_with_index(|entry, i| cube(model.meshes, key_ids + i.to_u64(), entry.cell, 0.3, key_tint))
 	ball = View.ball_draw(model.ball, model.meshes.sphere, ball_tint)
-	{ camera: View.camera(model.ball), draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
+	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
 }
 
 # Face draw ids count up from 1, so the key ids start well past any level's faces.
@@ -141,4 +146,14 @@ expect {
 	model = init(test_config)
 	ball = view(model).draws.keep_if(|d| d.mesh == model.meshes.sphere)
 	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.695, z: 9.0 }]
+}
+
+# Halfway through the climb at the level1 wall, the eye is near the old floor.
+# Faces near it drop out, and the rest keep the ids they have at rest.
+expect {
+	rest = view(init(test_config)).draws
+	at_wall = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	mid_climb = step(at_wall, up_held, [], 0.14).model
+	faces = view(mid_climb).draws.keep_if(|d| d.mesh == mid_climb.meshes.plane)
+	faces.len() < 46 and faces.all(|d| rest.any(|r| r.id == d.id and r.pos == d.pos))
 }
