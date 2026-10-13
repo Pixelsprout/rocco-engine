@@ -68,11 +68,11 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
 | `inputs` | Once, and after a sokol or SDK update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
-| `game <example>` | When anything changes. | `roc build` in `examples/<example>/` |
+| `game <name>` | When anything changes. | `roc build` in `games/<name>/`, or else `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game` |
+| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game kula` |
 
 The script stops at the first step that fails. After a change, run `glue`,
 `host` and `game` in that order. Each tool consumes the previous one's output
@@ -104,8 +104,8 @@ constant live block count. cards expects 2 allocs and entity-game 3. Build
 the host library first. Each game opens a window. Do not type into it during the
 check, because a key press allocates the `Input` lists.
 
-`./scripts/host-check.sh` regenerates the glue and links both games, then
-checks that the host library and the glue did not change.
+`./scripts/host-check.sh` regenerates the glue and links cards, entity-game
+and kula, then checks that the host library and the glue did not change.
 
 ### macOS
 
@@ -224,12 +224,13 @@ a change to the `Model` type, restart the game.
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. |
+| `games/kula/` | A Kula World clone: a ball rolls over blocks, collects keys and rolls into the exit. Its `README.md` has the rules and the level format. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
-| `scripts/host-check.sh` | Checks that linking both games does not change the host library or the glue. |
+| `scripts/host-check.sh` | Checks that linking cards, entity-game and kula does not change the host library or the glue. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
@@ -262,9 +263,10 @@ the Docker image, and the image sees only this checkout.
 
 ## Status
 
-Milestones 1 to 4 of `docs/ROADMAP.md` are done. The engine builds and runs
+Milestones 1 to 10 of `docs/ROADMAP.md` are done. The engine builds and runs
 on macOS, Linux and Windows from one checkout. The platform names no game:
-three games (`cards`, `entity-game`, `pong`) link against one host library.
+three games (`cards`, `entity-game`, `kula`) link against one host library.
+`examples/pong` does not compile against the current platform.
 Each draw carries a mesh id from the manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.

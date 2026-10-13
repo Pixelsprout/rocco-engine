@@ -289,11 +289,11 @@ Packages declare the types they need by shape and never import the platform,
 so they stay publishable. The aliases are structural, so a package's
 `{ x : F32, y : F32, z : F32 }` and the vocabulary's `Vec3` are one type.
 
-Evidence: two unrelated games link and run against one host library on
-`nightly-2026-09-27-a3ce7f1`. See `examples/cards` and `examples/entity-game`.
-`scripts/host-check.sh` links both and checks that the host library and the
-glue do not change. The Zig glue output for that platform contains no game
-word.
+Evidence: three unrelated games link and run against one host library on
+`nightly-2026-09-27-a3ce7f1`. See `examples/cards`, `examples/entity-game`
+and `games/kula`. `scripts/host-check.sh` links all three and checks that
+the host library and the glue do not change. The Zig glue output for that
+platform contains no game word.
 
 ## 5. Memory: one reference, mutated in place
 

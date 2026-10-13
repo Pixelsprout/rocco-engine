@@ -35,6 +35,9 @@ Built and running:
 - The entity game is playable start to finish: jump, collect the pickups,
   pass the door, win on the goal pad and start a new round. Two strangers
   finished it with no instructions.
+- `games/kula` is playable start to finish: roll, climb, edge rolls, jump,
+  keys, the exit, falling and the restart, on one level from a text file.
+- Each draw carries `rot`, a quaternion. The camera carries `up`.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - `step` returns a `List(Command)` with the next `Model`. The host runs each
@@ -48,12 +51,12 @@ Built and running:
   `roc run` on macOS when the `Model` type does not change.
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
-- `examples/cards` and `examples/entity-game` build and run from one checkout
-  on `arm64mac` and `x64glibc`. They last ran on `x64win` at milestone 2.
-  Nobody has checked `x64win` since then. `examples/pong` builds and runs on
-  `arm64mac`; the checks do not build it yet.
-  `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes a run
-  end cleanly for checks. `scripts/alloc-check.sh` and
+- `examples/cards`, `examples/entity-game` and `games/kula` build and run
+  from one checkout on `arm64mac` and `x64glibc`. cards and entity-game last
+  ran on `x64win` at milestone 2. Nobody has checked `x64win` since then.
+  `examples/pong` does not compile against the current platform, and the
+  checks do not build it. `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes
+  a run end cleanly for checks. `scripts/alloc-check.sh` and
   `scripts/host-check.sh` check the seam.
 
 ## Milestone 1: one source tree, three desktop targets (done)
@@ -624,7 +627,16 @@ Done when a game quits itself.
 
 Check: ESC still quits the entity game, from Roc. `cards` ignores the list.
 
-## Milestone 10: Kula slice one
+## Milestone 10: Kula slice one (done)
+
+Results, 2026-10-13: the user finished `level1` with the keyboard on
+`arm64mac`. The route rolls over an edge onto the side of a block and keeps
+rolling. Both keys collect, the exit brightens when open, entering it wins,
+and a jump into nothing falls and restarts the level. Blocks draw as
+`face.glb` and the ball as `ball.glb`, both built by a committed Blender
+script. The Roc tests, the Odin tests, `scripts/alloc-check.sh` (cards and
+entity-game only) and `scripts/host-check.sh` pass on `arm64mac`. `scripts/linux/check.sh` runs
+Kula for 120 frames on `x64glibc` with exit code 0. Nobody checked `x64win`.
 
 Done when the first Kula level is finishable.
 
