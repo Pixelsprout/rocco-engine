@@ -76,15 +76,19 @@ buttons are read every frame (`HandlePlayerButtons`, `src/level_update2.c`).
 Speed does not change the kind. No input acts during a forward jump. During
 a jump in place, L and R still turn the ball.
 
+The ball stays in the rolling state until it reaches the edge of its block
+(`HandleViewportRotationStart`, Code). Only then does the edge turn start.
+X can therefore start a forward jump on the way to an edge.
+
 A turn press during a turn waits. The next turn starts when the current one
 ends (`startTurningLeftNextFrame`, `HandlePlayerButtons`, Code). The clone
 copies this for every turn.
 
 | Fact | Original | Label | Clone |
 |---|---|---|---|
-| Choice of kind | Forward when Up is held or the ball rolls; in place otherwise | Code | Same. Only a floor roll can start a jump. Climbs, edge rolls and turns cannot |
+| Choice of kind | Forward when Up is held or the ball rolls; in place otherwise | Code | Same. A floor roll, or an edge roll before the ball reaches the edge, can start a jump. Climbs and turns cannot |
 | Forward distance | 1024 units, two cells ahead at the same level (`player_movement.c:391`) | Code | Same |
-| Start of a rolling jump | At once, from the ball's current position. Only the sideways offset snaps to the cell centre (`AutoAlignJumpStartPos`) | Code | At once, from the ball's current position. The ball lands two cells past the cell it is nearest to. The clone's ball is always on the cell line, so it has no sideways snap |
+| Start of a rolling jump | At once, from the ball's current position. Only the sideways offset snaps to the cell centre (`AutoAlignJumpStartPos`) | Code | At once, from the ball's current position. The ball lands two cells past the cell it is nearest to. On the way to an edge, that is the cell the ball rolls from. The clone's ball is always on the cell line, so it has no sideways snap |
 | Jump in place | Same curve with only the vertical part. Lands on the same cell (`ProcessMovement`, `JUMPING_INPLACE`) | Code | `JumpingInPlace`: same duration and peak as the forward jump |
 | Turn in mid-air | Forward jump: no input acts. Jump in place: L and R still turn the ball | Code | Same. The turn takes 0.32 s and can outlast the jump |
 | No floor there | The ball falls | Code | `Falling`: the ball drops three cells in 0.5 s, then the level restarts |

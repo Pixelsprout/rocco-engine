@@ -37,7 +37,8 @@ ball, not to the screen.
 A move starts only when the ball is still and not turning. Two moves also
 accept input:
 
-- During a floor roll, Space starts a forward jump.
+- During a floor roll, Space starts a forward jump. During an edge roll,
+  Space starts a forward jump until the ball reaches the edge.
 - During a jump in place, Left and Right turn the ball.
 
 A Left or Right press during a turn waits. The next turn starts when the
@@ -96,18 +97,19 @@ ball rises and lands on the same cell. Left and Right turn the ball in the
 air. The turn can last longer than the jump. A block above the ball bounces
 the jump: the ball does not move.
 
-**Forward jump.** Space while Up is held, or Space during a floor roll. The
-jump aims two cells ahead, at the same level. During a roll, the jump
-starts at once from where the ball is. It aims two cells past the cell the
-ball is nearest to. No input acts during a forward jump.
+**Forward jump.** Space while Up is held, Space during a floor roll, or
+Space during an edge roll before the ball reaches the edge. The jump aims
+two cells ahead, at the same level. During a roll, the jump starts at once
+from where the ball is. It aims two cells past the cell the ball is nearest
+to. No input acts during a forward jump.
 
 - If a block is above the ball, or in either of the two cells ahead, the
   jump bounces. A still ball does not move. A rolling ball rolls on.
 - If a block is under the landing cell, the ball lands there.
 - If no block is under the landing cell, the ball falls.
 
-A climb, an edge roll or a turn cannot start a jump. A jump never lands on
-top of the block ahead. To get onto a wall, roll into it.
+A climb, a turn or an edge roll past the edge cannot start a jump. A jump
+never lands on top of the block ahead. To get onto a wall, roll into it.
 
 The ball can land only in the last 11 of the jump's 27 frames. On level
 ground it lands when the jump ends.

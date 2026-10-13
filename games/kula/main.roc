@@ -244,3 +244,14 @@ expect {
 	model = [0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
 	model.ball.pose.cell == { x: 0, y: 1, z: 7 } and model.ball.motion != Still
 }
+
+# Held Up runs the ball to the level1 gap. Space on the approach to the edge clears it.
+expect {
+	two_before = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 1, z: 5 } })
+	at_edge = step(two_before, up_held, [], 0.26).model
+	jumped = step(at_edge, { ..space, held: [Key.code(Up)] }, [], 0.06).model
+	jumped.ball.pose.cell == { x: 0, y: 1, z: 2 } and match jumped.ball.motion {
+		Jumping({ from, .. }) => from.cell == { x: 0, y: 1, z: 4 }
+		_ => False
+	}
+}

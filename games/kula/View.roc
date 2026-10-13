@@ -317,3 +317,11 @@ expect {
 	s = 0.70710678
 	placed.pos.y > 1.0 and near(placed.forward, { x: -s, y: 0.0, z: -s })
 }
+
+# A jump from the approach to an edge starts where the ball is.
+expect {
+	gap = Set.from_list([cell(0, 0, 0), cell(0, 0, -2)])
+	rolling = Ball.advance(Ball.act(gap, Ball.start(on_origin), Roll), 0.06)
+	jumping = Ball.act(gap, rolling, Jump({ up_held: True }))
+	jumping != rolling and near(View.ball_draw(jumping, 2, white).pos, View.ball_draw(rolling, 2, white).pos)
+}

@@ -90,8 +90,9 @@ Ball := [].{
 	can_land : F32, F32 -> Bool
 	can_land = |t, lift| t >= 16.0 / 27.0 and lift <= 0.0
 
-	# A roll or a jump starts only from Still with no turn running. A floor roll
-	# can also start a jump. A turn can start during a jump in place.
+	# A roll or a jump starts only from Still with no turn running. A floor roll,
+	# or an edge roll before the edge, can also start a jump. A turn can start
+	# during a jump in place.
 	act : Set(World.Cell), Ball.Ball, Action -> Ball.Ball
 	act = |blocks, ball, action| {
 		from = ball.pose
@@ -104,6 +105,9 @@ Ball := [].{
 			# The jump starts from the cell the ball is nearest to.
 			(Rolling({ from: roll_from, t }), _, Jump(_)) if roll_kind(roll_from, ball.pose) == Floor =>
 				if t < 0.5 { leap(blocks, ball, roll_from, t) } else { leap(blocks, ball, ball.pose, t - 1.0) }
+			# The original rolls up to the edge before it turns, so X still jumps there.
+			(Rolling({ from: roll_from, t }), _, Jump(_)) if roll_kind(roll_from, ball.pose) == Edge and t * roll_length(Edge) < 0.5 =>
+				leap(blocks, ball, roll_from, t * roll_length(Edge))
 			(motion, _, TurnLeft) if can_turn(motion) => turn(ball, TurnLeft)
 			(motion, _, TurnRight) if can_turn(motion) => turn(ball, TurnRight)
 			_ => ball
@@ -362,14 +366,24 @@ expect Ball.act(long_floor, rolling_at(0.75), in_place) == { ..still, pose: { ..
 # A block in the path bounces a jump from a roll. The ball rolls on.
 expect Ball.act(blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2), cell(0, 1, -2)]), rolling_at(0.25), in_place) == rolling_at(0.25)
 
-# Climbs, edge rolls and turns cannot start a jump.
+# Climbs and turns cannot start a jump. An edge roll can, until the ball reaches the edge.
 expect {
 	climbing = { ..Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Roll), motion: Rolling({ from: on_origin, t: 0.75 }) }
 	Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), climbing, forward_jump) == climbing
 }
 expect {
-	edge_rolling = Ball.act(blocks([cell(0, 0, 0)]), still, Roll)
-	Ball.act(blocks([cell(0, 0, 0)]), edge_rolling, forward_jump) == edge_rolling
+	gap = blocks([cell(0, 0, 0), cell(0, 0, -2)])
+	approaching = { ..Ball.act(gap, still, Roll), motion: Rolling({ from: on_origin, t: 0.2 }) }
+	jumped = Ball.act(gap, approaching, in_place)
+	jumped.pose == { ..on_origin, cell: cell(0, 1, -2) } and match jumped.motion {
+		Jumping({ from, offset, t }) => from == on_origin and near(offset, 0.2 * Ball.roll_length(Edge)) and t == 0.0
+		_ => False
+	}
+}
+expect {
+	gap = blocks([cell(0, 0, 0), cell(0, 0, -2)])
+	wrapping = { ..Ball.act(gap, still, Roll), motion: Rolling({ from: on_origin, t: 0.5 }) }
+	Ball.act(gap, wrapping, forward_jump) == wrapping
 }
 expect {
 	turning = Ball.act(floor_ahead, still, TurnLeft)
