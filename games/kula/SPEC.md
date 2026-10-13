@@ -66,17 +66,46 @@ clone has no speed-up.
 
 ### Jump
 
+The original has two kinds of jump, chosen when the jump starts
+(`StartMovementIfNeeded`, `src/player_movement.c:125-188`, Code). The
+buttons are read every frame (`HandlePlayerButtons`, `src/level_update2.c`).
+
+- **Forward jump.** X while Up is held, or X while the ball rolls.
+- **Jump in place.** X while the ball is still and Up is not held.
+
+Speed does not change the kind. No input acts during a forward jump. During
+a jump in place, L and R still turn the ball.
+
 | Fact | Original | Label | Clone |
 |---|---|---|---|
-| Landing | Exactly two cells ahead at the same level | Code | Same |
+| Choice of kind | Forward when Up is held or the ball rolls; in place otherwise | Code | Space always jumps forward |
+| Forward distance | 1024 units, two cells ahead at the same level (`player_movement.c:391`) | Code | Same |
+| Start of a rolling jump | At once, from the ball's current position. Only the sideways offset snaps to the cell centre (`AutoAlignJumpStartPos`) | Code | Only from Still, at a cell centre. A Space press during a roll is lost |
+| Jump in place | Same curve with only the vertical part. Lands on the same cell (`ProcessMovement`, `JUMPING_INPLACE`) | Code | Not copied |
+| Turn in mid-air | Forward jump: no input acts. Jump in place: L and R still turn the ball | Code | No input acts during a jump |
 | No floor there | The ball falls | Code | `Falling`: the ball drops three cells in 0.5 s, then the level restarts |
-| A block in the path | The ball bounces back and falls | Code, `CheckForPlayerWallHit` | `Bounce` when a block sits one or two cells ahead |
-| A block above | Not found | | `Bounce` (inferred) |
-| Duration | 27 frames | Reported, wiki.kula.quest | 0.54 s |
-| Peak height | Not found | | 0.5 cell |
+| A block in the path | Forward jump only. Past 412/512 of its cell, a block ahead at the ball's height bounces it back and it falls (`CheckForPlayerWallHit`) | Code | `Bounce` when a block sits one or two cells ahead. The ball does not move |
+| A block above | Both kinds. A rising ball at height 412 or more under a block bounces down and falls (`CheckPlayerHitCeiling`) | Code | `Bounce` before the jump starts |
+| Landing window | The last 11 frames of the jump can land (`CheckPlayerJumpingStuff`) | Code | Lands only when the jump ends |
+| After landing | Up held keeps the ball rolling at full speed (`CheckIfPlayerLanded`) | Code | The ball stops for one step |
+| Duration | 27 frames | Reported, wiki.kula.quest. The frame count is in GGI data (`ggiPart5JumpAnimData`), not in the C code | 0.54 s |
+| Peak height | In GGI data | | 0.5 cell |
 
 A jump never lands on top of the block ahead. The only way onto a wall is
 to roll into it.
+
+### Long jump
+
+The long jump is not a button combination (Code):
+
+- The Bouncy pill (`OBJ_BOUNCY_PILL`, `src/level_update3.c:184`) makes the
+  ball jump all the time for 14 s. While it acts, Up and X held for more
+  than 3 frames start a long jump (`level_update2.c`).
+- A bounce pad (`OBJ_BOUNCEPAD`, `level_update3.c:1076-1093`) forces a long
+  jump.
+- A long jump scales the jump curve by 3/2. It lands 1536 units, three
+  cells, ahead (`player_movement.c:371-389`).
+- A wall hit, a ceiling hit or a landing ends it.
 
 ## Camera
 
@@ -131,7 +160,7 @@ level blocks.
 - Look up and look down.
 - The "hall of mirrors": in skybox themes the original does not clear the
   screen each frame (Code, `src/disp.c`). The engine clears every frame.
-- The long jump and the boost.
+- The long jump, the Bouncy pill, bounce pads and the boost.
 
 ## Sources
 
