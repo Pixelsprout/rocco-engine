@@ -15,7 +15,7 @@ Model : { level : World.Level, ball : Ball.Ball, meshes : World.Meshes }
 init : Config -> Model
 init = |config| {
 	level = parse_or_crash(Level.level1_text)
-	{ level, ball: Ball.start(level.start), meshes: { cube: mesh_id(config, "primitive/cube"), sphere: mesh_id(config, "primitive/sphere") } }
+	{ level, ball: Ball.start(level.start), meshes: { cube: mesh_id(config, "primitive/cube"), sphere: mesh_id(config, "primitive/sphere"), plane: mesh_id(config, "primitive/plane") } }
 }
 
 parse_or_crash : Str -> World.Level
@@ -66,16 +66,16 @@ action = |input|
 view : Model -> Scene
 view = |model| {
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
-	blocks = model.level.blocks.to_list().map_with_index(|block, i| {
-		tint = if exits.contains(block) { exit_tint } else { block_tint }
-		cube(model.meshes, 1 + i.to_u64(), block, 1.0, tint)
+	blocks = View.faces(model.level.blocks).map_with_index(|face, i| {
+		tint = if exits.contains(face.block) { exit_tint } else { block_tint }
+		View.face_draw(1 + i.to_u64(), model.meshes.plane, face, tint)
 	})
 	keys = model.level.items.keep_if(|entry| entry.item == Key).map_with_index(|entry, i| cube(model.meshes, key_ids + i.to_u64(), entry.cell, 0.3, key_tint))
 	ball = View.ball_draw(model.ball, model.meshes.sphere, ball_tint)
 	{ camera: View.camera(model.ball), draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
 }
 
-# Block draw ids count up from 1, so the key ids start well past any level's blocks.
+# Face draw ids count up from 1, so the key ids start well past any level's faces.
 key_ids : U64
 key_ids = 100_000
 
@@ -98,23 +98,23 @@ cube : World.Meshes, U64, World.Cell, F32, Rgb -> Draw
 cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, tint }
 
 test_config : Config
-test_config = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }] }
+test_config = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }] }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-expect init(test_config).meshes == { cube: 1, sphere: 2 }
+expect init(test_config).meshes == { cube: 1, sphere: 2, plane: 3 }
 expect init(test_config).ball == Ball.start(init(test_config).level.start)
 
 up_held : Input
 up_held = { ..idle, held: [Key.code(Up)] }
 
-expect step(init(test_config), up_held, [], 0.1).model.ball.motion == Rolling({ from: init(test_config).level.start, t: 0.5 })
-expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.05).model.ball.motion == Turning({ from: init(test_config).level.start, t: 0.5 })
-expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.05).model.ball.motion == Still
+expect step(init(test_config), up_held, [], 0.13).model.ball.motion == Rolling({ from: init(test_config).level.start, t: 0.5 })
+expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.16).model.ball.motion == Turning({ from: init(test_config).level.start, t: 0.5 })
+expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.16).model.ball.motion == Still
 
 expect {
-	model = [0.1, 0.1, 0.1, 0.1].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
 	model.ball.pose.cell == { x: 0, y: 1, z: 7 }
 }
 expect step(init(test_config), { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
@@ -122,12 +122,13 @@ expect step(init(test_config), idle, [], 0.1).commands == []
 
 expect {
 	draws = view(init(test_config)).draws
-	draws.len() == 14
+	draws.len() == 49
 }
 
 expect {
 	draws = view(init(test_config)).draws
-	draws.keep_if(|d| d.tint == exit_tint).map(|d| d.pos) == [{ x: 0.0, y: 0.0, z: 0.0 }]
+	exit_faces = draws.keep_if(|d| d.tint == exit_tint)
+	exit_faces.len() == 5 and exit_faces.all(|d| Vec3.length(d.pos) == 0.5)
 }
 
 expect {
@@ -139,5 +140,5 @@ expect {
 expect {
 	model = init(test_config)
 	ball = view(model).draws.keep_if(|d| d.mesh == model.meshes.sphere)
-	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.9, z: 9.0 }]
+	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.695, z: 9.0 }]
 }

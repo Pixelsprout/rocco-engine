@@ -19,37 +19,83 @@ View := [].{
 		}
 	}
 
-	# The centre sinks from the middle of the cell so the ball rests on the face below.
 	ball_draw : Ball.Ball, U32, Rgb -> Draw
 	ball_draw = |ball, mesh, tint| {
-		placed = interpolated(ball)
-		sink = 0.5 - Ball.radius
-		{ id: 0, mesh, pos: Vec3.sub(placed.pos, Vec3.scale(placed.up, sink)), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
+		{ id: 0, mesh, pos: ball_centre(interpolated(ball)), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
 	}
 
-	# The camera has no clipping test. It stays less than half a cell behind the
-	# ball, so after a climb it never reaches into the floor the ball left.
+	# Rigid in the ball's frame, with no smoothing and no clipping test, as in the
+	# original. After a climb the eye sits inside the floor the ball left. That
+	# floor does not hide the ball only because blocks draw as one-sided faces.
 	camera : Ball.Ball -> Camera
 	camera = |ball| {
 		placed = interpolated(ball)
-		eye = Vec3.add(Vec3.sub(placed.pos, Vec3.scale(placed.forward, camera_back)), Vec3.scale(placed.up, camera_height))
-		target = Vec3.add(placed.pos, Vec3.scale(placed.forward, camera_lead))
-		{ eye, target, up: placed.up, fov_y: 1.047 }
+		cam_forward = Vec3.sub(Vec3.scale(placed.forward, camera_pitch.cos()), Vec3.scale(placed.up, camera_pitch.sin()))
+		cam_up = Vec3.add(Vec3.scale(placed.forward, camera_pitch.sin()), Vec3.scale(placed.up, camera_pitch.cos()))
+		eye = Vec3.add(Vec3.sub(ball_centre(placed), Vec3.scale(cam_forward, camera_depth)), Vec3.scale(cam_up, camera_drop))
+		{ eye, target: Vec3.add(eye, cam_forward), up: cam_up, fov_y: camera_fov_y }
+	}
+
+	Face : { block : World.Cell, normal : World.Cell }
+
+	# One face for each side of a block that borders an empty cell, as the original builds its level.
+	faces : Set(World.Cell) -> List(Face)
+	faces = |blocks| blocks.to_list().join_map(|block|
+		normals.keep_if(|normal| !Grid.has_block(blocks, Grid.add(block, normal))).map(|normal| { block, normal }))
+
+	# The primitive plane faces +y and is one-sided.
+	face_draw : U64, U32, Face, Rgb -> Draw
+	face_draw = |id, mesh, face, tint| {
+		pos = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
+		{ id, mesh, pos, scale: Vec3.one, rot: face_rot(face.normal), tint }
 	}
 }
 
-camera_back : F32
-camera_back = 0.4
+# The original's view space puts the ball centre 250 units below the screen
+# centre at a depth of 800, with the basis pitched down 250 of 4096. See SPEC.md.
+camera_pitch : F32
+camera_pitch = 250.0 / 4096.0 * 2.0 * pi
 
-camera_height : F32
-camera_height = 2.5
+camera_depth : F32
+camera_depth = 800.0 / 512.0
 
-# The camera looks one cell ahead, so the ball sits low in the view.
-camera_lead : F32
-camera_lead = 1.0
+camera_drop : F32
+camera_drop = 250.0 / 512.0
+
+# 73.7 degrees, from the original's 90 degree horizontal view on 4:3.
+camera_fov_y : F32
+camera_fov_y = 1.286
+
+pi : F32
+pi = 3.1415927
 
 jump_height : F32
 jump_height = 0.5
+
+ball_centre : View.Placement -> Vec3.Vec3
+ball_centre = |placed| Vec3.sub(placed.pos, Vec3.scale(placed.up, 0.5 - Ball.radius))
+
+normals : List(World.Cell)
+normals = [{ x: 0, y: 1, z: 0 }, { x: 0, y: -1, z: 0 }, { x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }]
+
+face_rot : World.Cell -> Quat.Quat
+face_rot = |normal| {
+	x_axis = { x: 1.0, y: 0.0, z: 0.0 }
+	z_axis = { x: 0.0, y: 0.0, z: 1.0 }
+	if normal.y == 1 {
+		Quat.identity
+	} else if normal.y == -1 {
+		Quat.from_axis_angle(x_axis, pi)
+	} else if normal.x == 1 {
+		Quat.from_axis_angle(z_axis, -pi / 2.0)
+	} else if normal.x == -1 {
+		Quat.from_axis_angle(z_axis, pi / 2.0)
+	} else if normal.z == 1 {
+		Quat.from_axis_angle(x_axis, pi / 2.0)
+	} else {
+		Quat.from_axis_angle(x_axis, -pi / 2.0)
+	}
+}
 
 placement_of : World.Pose -> View.Placement
 placement_of = |pose| { pos: Grid.to_vec3(pose.cell), up: Grid.to_vec3(pose.up), forward: Grid.to_vec3(pose.forward) }
@@ -79,32 +125,41 @@ white = { r: 1.0, g: 1.0, b: 1.0 }
 expect View.interpolated(Ball.start(on_origin)) == { pos: { x: 0.0, y: 1.0, z: 0.0 }, up: { x: 0.0, y: 1.0, z: 0.0 }, forward: { x: 0.0, y: 0.0, z: -1.0 } }
 
 expect {
-	half = Ball.advance(Ball.act(floor, Ball.start(on_origin), Roll), 0.1)
+	half = Ball.advance(Ball.act(floor, Ball.start(on_origin), Roll), 0.13)
 	View.interpolated(half).pos == { x: 0.0, y: 1.0, z: -0.5 }
 }
 
 # Halfway round an edge, up and forward are each a unit diagonal.
 expect {
 	edge = Set.from_list([cell(0, 0, 0)])
-	placed = View.interpolated(Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.1))
+	placed = View.interpolated(Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.11))
 	s = 0.70710678
 	near(placed.pos, { x: 0.0, y: 0.5, z: -0.5 }) and near(placed.up, { x: 0.0, y: s, z: -s }) and near(placed.forward, { x: 0.0, y: -s, z: -s })
 }
 
 # A jump peaks half a cell above the straight line at its midpoint.
 expect {
-	placed = View.interpolated(Ball.advance(Ball.act(floor, Ball.start(on_origin), Jump), 0.2))
+	placed = View.interpolated(Ball.advance(Ball.act(floor, Ball.start(on_origin), Jump), 0.27))
 	near(placed.pos, { x: 0.0, y: 1.5, z: -1.0 })
 }
 
 expect {
 	draw = View.ball_draw(Ball.start(on_origin), 2, white)
-	near(draw.pos, { x: 0.0, y: 0.9, z: 0.0 }) and draw.scale == Vec3.scale(Vec3.one, 0.8) and draw.rot == Quat.identity and draw.mesh == 2
+	near(draw.pos, { x: 0.0, y: 0.695, z: 0.0 }) and draw.scale == Vec3.scale(Vec3.one, 0.39) and draw.rot == Quat.identity and draw.mesh == 2
 }
 
+# SPEC.md: the eye is 1.27 cells behind the ball centre and 1.04 above it.
 expect {
 	cam = View.camera(Ball.start(on_origin))
-	near(cam.eye, { x: 0.0, y: 3.5, z: 0.4 }) and cam.target == { x: 0.0, y: 1.0, z: -1.0 } and cam.up == { x: 0.0, y: 1.0, z: 0.0 }
+	(cam.eye.x).abs() < 0.001 and (cam.eye.y - (0.695 + 1.0375)).abs() < 0.001 and (cam.eye.z - 1.2663).abs() < 0.001
+}
+
+# The ball centre sits 250 units below the view axis at a depth of 800.
+expect {
+	cam = View.camera(Ball.start(on_origin))
+	to_ball = Vec3.sub({ x: 0.0, y: 0.695, z: 0.0 }, cam.eye)
+	view_dir = Vec3.sub(cam.target, cam.eye)
+	(Vec3.dot(to_ball, view_dir) - 800.0 / 512.0).abs() < 0.001 and (Vec3.dot(to_ball, cam.up) + 250.0 / 512.0).abs() < 0.001
 }
 
 inside_block : Set(World.Cell), Vec3.Vec3 -> Bool
@@ -113,10 +168,28 @@ inside_block = |blocks, v| blocks.to_list().any(|b| {
 	(v.x - c.x).abs() < 0.5 and (v.y - c.y).abs() < 0.5 and (v.z - c.z).abs() < 0.5
 })
 
-# After a climb, behind the ball is down through the floor it left.
+# After a climb the eye is inside the floor block behind the ball, as in the original.
 expect {
 	behind = Set.from_list([cell(0, 0, 0), cell(0, 0, 1), cell(0, 0, 2), cell(0, 0, 3), cell(0, 1, -1)])
-	climbed = Ball.advance(Ball.act(behind, Ball.start(on_origin), Roll), 0.2)
+	climbed = Ball.advance(Ball.act(behind, Ball.start(on_origin), Roll), 0.28)
 	cam = View.camera(climbed)
-	climbed.pose.up == cell(0, 0, 1) and near(cam.eye, { x: 0.0, y: 0.6, z: 2.5 }) and !inside_block(behind, cam.eye)
+	climbed.pose.up == cell(0, 0, 1) and inside_block(Set.from_list([cell(0, 0, 1)]), cam.eye)
+}
+
+expect View.faces(Set.from_list([cell(0, 0, 0)])).len() == 6
+
+# Two stacked blocks draw no face between them.
+expect {
+	found = View.faces(Set.from_list([cell(0, 0, 0), cell(0, 1, 0)]))
+	found.len() == 10 and !found.contains({ block: cell(0, 0, 0), normal: cell(0, 1, 0) }) and !found.contains({ block: cell(0, 1, 0), normal: cell(0, -1, 0) })
+}
+
+# Each face turns the plane's +y onto its normal and sits on the block's surface.
+expect {
+	up = { x: 0.0, y: 1.0, z: 0.0 }
+	View.faces(Set.from_list([cell(2, 0, 0)])).all(|face| {
+		draw = View.face_draw(1, 3, face, white)
+		n = Grid.to_vec3(face.normal)
+		near(Quat.rotate(up, draw.rot), n) and near(draw.pos, Vec3.add({ x: 2.0, y: 0.0, z: 0.0 }, Vec3.scale(n, 0.5)))
+	})
 }

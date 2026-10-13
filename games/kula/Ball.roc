@@ -10,22 +10,27 @@ Ball := [].{
 
 	Action : [Roll, TurnLeft, TurnRight, Jump]
 
-	# In cells.
+	# In cells. The original rests the ball centre 100 of 512 units above a face.
 	radius : F32
-	radius = 0.4
+	radius = 0.195
 
 	start : World.Pose -> Ball.Ball
 	start = |pose| { pose, motion: Still, rot: Quat.identity }
 
-	roll : Set(World.Cell), World.Pose -> World.Pose
+	# An edge roll needs an open end, as in the original.
+	roll : Set(World.Cell), World.Pose -> Try(World.Pose, [ClosedEdge])
 	roll = |blocks, pose| {
 		ahead = Grid.add(pose.cell, pose.forward)
+		standing_on = Grid.sub(pose.cell, pose.up)
+		right = Grid.cross(pose.forward, pose.up)
 		if Grid.has_block(blocks, ahead) {
-			{ cell: pose.cell, up: Grid.neg(pose.forward), forward: pose.up }
+			Ok({ cell: pose.cell, up: Grid.neg(pose.forward), forward: pose.up })
 		} else if Grid.has_block(blocks, Grid.sub(ahead, pose.up)) {
-			{ ..pose, cell: ahead }
+			Ok({ ..pose, cell: ahead })
+		} else if Grid.has_block(blocks, Grid.add(standing_on, right)) or Grid.has_block(blocks, Grid.sub(standing_on, right)) {
+			Err(ClosedEdge)
 		} else {
-			{ cell: Grid.sub(ahead, pose.up), up: pose.forward, forward: Grid.neg(pose.up) }
+			Ok({ cell: Grid.sub(ahead, pose.up), up: pose.forward, forward: Grid.neg(pose.up) })
 		}
 	}
 
@@ -35,18 +40,13 @@ Ball := [].{
 	turn_right : World.Pose -> World.Pose
 	turn_right = |pose| { ..pose, forward: Grid.cross(pose.forward, pose.up) }
 
-	# A block ahead is checked before the floor two ahead, so a jump never passes through a wall.
-	jump : Set(World.Cell), World.Pose -> [Land(World.Pose), Fall(World.Pose), Refused]
+	# Always two cells ahead at the same level. A block in the path bounces the ball back.
+	jump : Set(World.Cell), World.Pose -> [Land(World.Pose), Fall(World.Pose), Bounce]
 	jump = |blocks, pose| {
 		ahead = Grid.add(pose.cell, pose.forward)
 		two_ahead = Grid.add(ahead, pose.forward)
-		on_ahead = Grid.add(ahead, pose.up)
-		if Grid.has_block(blocks, Grid.add(pose.cell, pose.up)) {
-			Refused
-		} else if Grid.has_block(blocks, ahead) {
-			if Grid.has_block(blocks, on_ahead) { Refused } else { Land({ ..pose, cell: on_ahead }) }
-		} else if Grid.has_block(blocks, two_ahead) {
-			Refused
+		if Grid.has_block(blocks, Grid.add(pose.cell, pose.up)) or Grid.has_block(blocks, ahead) or Grid.has_block(blocks, two_ahead) {
+			Bounce
 		} else if Grid.has_block(blocks, Grid.sub(two_ahead, pose.up)) {
 			Land({ ..pose, cell: two_ahead })
 		} else {
@@ -59,13 +59,16 @@ Ball := [].{
 	act = |blocks, ball, action| {
 		from = ball.pose
 		match (ball.motion, action) {
-			(Still, Roll) => { ..ball, pose: roll(blocks, from), motion: Rolling({ from, t: 0.0 }) }
+			(Still, Roll) => match roll(blocks, from) {
+				Ok(pose) => { ..ball, pose, motion: Rolling({ from, t: 0.0 }) }
+				Err(ClosedEdge) => ball
+			}
 			(Still, TurnLeft) => { ..ball, pose: turn_left(from), motion: Turning({ from, t: 0.0 }) }
 			(Still, TurnRight) => { ..ball, pose: turn_right(from), motion: Turning({ from, t: 0.0 }) }
 			(Still, Jump) => match jump(blocks, from) {
 				Land(pose) => { ..ball, pose, motion: Jumping({ from, t: 0.0 }) }
 				Fall(_) => ball
-				Refused => ball
+				Bounce => ball
 			}
 			_ => ball
 		}
@@ -75,7 +78,7 @@ Ball := [].{
 	advance = |ball, dt| match ball.motion {
 		Still => ball
 		Rolling({ from, t }) => {
-			next = progress(t, dt, roll_seconds)
+			next = progress(t, dt, roll_seconds(from, ball.pose))
 			axis = Grid.to_vec3(Grid.cross(from.up, from.forward))
 			spin = Quat.from_axis_angle(axis, (next - t) / radius)
 			{ ..ball, rot: Quat.mul(spin, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
@@ -91,14 +94,22 @@ Ball := [].{
 	}
 }
 
-roll_seconds : F32
-roll_seconds = 0.2
+# PAL frame counts from the original, at 0.02 s a frame. See SPEC.md.
+roll_seconds : World.Pose, World.Pose -> F32
+roll_seconds = |from, to|
+	if from.up == to.up {
+		0.26
+	} else if from.cell == to.cell {
+		0.28
+	} else {
+		0.22
+	}
 
 turn_seconds : F32
-turn_seconds = 0.1
+turn_seconds = 0.32
 
 jump_seconds : F32
-jump_seconds = 0.4
+jump_seconds = 0.54
 
 # Clamped to 1, so the last step of a roll spins only the remaining distance.
 progress : F32, F32, F32 -> F32
@@ -123,30 +134,29 @@ on_origin = { cell: y_up, up: y_up, forward: north }
 blocks : List(World.Cell) -> Set(World.Cell)
 blocks = |cells| Set.from_list(cells)
 
-expect Ball.roll(blocks([cell(0, 0, 0), cell(0, 1, -1)]), on_origin) == { cell: y_up, up: cell(0, 0, 1), forward: y_up }
-expect Ball.roll(blocks([cell(0, 0, 0), cell(0, 0, -1)]), on_origin) == { cell: cell(0, 1, -1), up: y_up, forward: north }
+expect Ball.roll(blocks([cell(0, 0, 0), cell(0, 1, -1)]), on_origin) == Ok({ cell: y_up, up: cell(0, 0, 1), forward: y_up })
+expect Ball.roll(blocks([cell(0, 0, 0), cell(0, 0, -1)]), on_origin) == Ok({ cell: cell(0, 1, -1), up: y_up, forward: north })
 
 # Over the edge onto the block's -z side, then on round under it.
 expect {
 	floor = blocks([cell(0, 0, 0)])
-	side = Ball.roll(floor, on_origin)
-	under = Ball.roll(floor, side)
+	side = Ball.roll(floor, on_origin) ?? on_origin
+	under = Ball.roll(floor, side) ?? side
 	side == { cell: cell(0, 0, -1), up: north, forward: cell(0, -1, 0) } and under == { cell: cell(0, -1, 0), up: cell(0, -1, 0), forward: cell(0, 0, 1) }
 }
+
+# An edge roll needs an open end: no block beside the one the ball stands on.
+expect Ball.roll(blocks([cell(0, 0, 0), cell(1, 0, 0)]), on_origin) == Err(ClosedEdge)
+expect Ball.roll(blocks([cell(0, 0, 0), cell(-1, 0, 0)]), on_origin) == Err(ClosedEdge)
 
 expect Ball.turn_left(on_origin) == { ..on_origin, forward: cell(-1, 0, 0) }
 expect Ball.turn_right(on_origin) == { ..on_origin, forward: cell(1, 0, 0) }
 
 expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 0, -2)]), on_origin) == Land({ ..on_origin, cell: cell(0, 1, -2) })
-expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -1)]), on_origin) == Land({ ..on_origin, cell: cell(0, 2, -1) })
 expect Ball.jump(blocks([cell(0, 0, 0)]), on_origin) == Fall({ ..on_origin, cell: cell(0, 1, -2) })
-expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 0, -2), cell(0, 2, 0)]), on_origin) == Refused
-
-expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -1), cell(0, 0, -2)]), on_origin) == Land({ ..on_origin, cell: cell(0, 2, -1) })
-
-# A wall two high ahead has no top to land on, and a wall two ahead blocks the landing.
-expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -1), cell(0, 2, -1)]), on_origin) == Refused
-expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -2)]), on_origin) == Refused
+expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -1), cell(0, 0, -2)]), on_origin) == Bounce
+expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -2), cell(0, 0, -2)]), on_origin) == Bounce
+expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 0, -2), cell(0, 2, 0)]), on_origin) == Bounce
 
 floor_ahead : Set(World.Cell)
 floor_ahead = blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2)])
@@ -162,9 +172,11 @@ expect {
 	ball.pose.cell == cell(0, 1, -1) and ball.motion == Rolling({ from: on_origin, t: 0.0 })
 }
 
+expect Ball.act(blocks([cell(0, 0, 0), cell(1, 0, 0)]), still, Roll) == still
 expect Ball.act(floor_ahead, still, TurnLeft).motion == Turning({ from: on_origin, t: 0.0 })
 expect Ball.act(floor_ahead, still, Jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, t: 0.0 }) }
 expect Ball.act(blocks([cell(0, 0, 0)]), still, Jump) == still
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Jump) == still
 
 # Input is read only when Still.
 expect {
@@ -172,19 +184,21 @@ expect {
 	Ball.act(floor_ahead, rolling, TurnLeft) == rolling
 }
 
-expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.1).motion == Rolling({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.2).motion == Still
-expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.05).motion == Turning({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.1).motion == Still
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.2).motion == Jumping({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.4).motion == Still
+expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.13).motion == Rolling({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.26).motion == Still
+expect Ball.advance(Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Roll), 0.14).motion == Rolling({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Roll), 0.11).motion == Rolling({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.16).motion == Turning({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).motion == Still
+expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.27).motion == Jumping({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.54).motion == Still
 expect Ball.advance(still, 1.0) == still
 
-# Rolling along -z on +y turns about -x, 2.5 radians a cell, however the steps fall.
+# Rolling along -z on +y turns about -x, one cell over the radius, however the steps fall.
 expect {
 	rolling = Ball.act(floor_ahead, still, Roll)
-	ball = [0.05, 0.05, 0.07, 0.07].fold(rolling, |b, dt| Ball.advance(b, dt))
-	ball.motion == Still and near_quat(ball.rot, Quat.from_axis_angle({ x: -1.0, y: 0.0, z: 0.0 }, 2.5))
+	ball = [0.06, 0.07, 0.06, 0.07, 0.05].fold(rolling, |b, dt| Ball.advance(b, dt))
+	ball.motion == Still and near_quat(ball.rot, Quat.from_axis_angle({ x: -1.0, y: 0.0, z: 0.0 }, 1.0 / Ball.radius))
 }
 
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.4).rot == Quat.identity
+expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.54).rot == Quat.identity
