@@ -17,26 +17,32 @@ init = |config| Rules.start(View.meshes(config))
 
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _contacts, dt| {
-	stages = [read_input(input), move_ball(dt), Rules.collect, Rules.exit, Rules.fall]
+	stages = [read_input(input), move_ball(input, dt), Rules.collect, Rules.exit, Rules.fall]
 	commands = if Key.pressed(input, Escape) { [Quit] } else { [] }
 	{ model: stages.fold(model, |m, stage| stage(m)), commands }
 }
 
-# Input is read before the ball moves, so a key acts only on a step that starts Still.
+# Input is read before the ball moves. Ball.act ignores a key that cannot act on the current move.
 read_input : Input -> (Model -> Model)
 read_input = |input| |model| match (model.phase, action(input)) {
 	(Playing, Ok(act)) => { ..model, ball: Ball.act(model.level.blocks, model.ball, act) }
 	_ => model
 }
 
-move_ball : F32 -> (Model -> Model)
-move_ball = |dt| |model| { ..model, ball: Ball.advance(model.ball, dt) }
+move_ball : Input, F32 -> (Model -> Model)
+move_ball = |input, dt| |model|
+	if Key.held(input, Up) {
+		{ ..model, ball: Ball.advance_up_held(model.level.blocks, model.ball, dt) }
+	} else {
+		{ ..model, ball: Ball.advance(model.ball, dt) }
+	}
 
-# Tank controls. Up rolls while held; the others act on press only.
+# Tank controls. Up rolls while held; the others act on press only. Space with Up
+# held is a forward jump.
 action : Input -> Try(Ball.Action, [NoAction])
 action = |input|
 	if Key.pressed(input, Space) {
-		Ok(Jump)
+		Ok(Jump({ up_held: Key.held(input, Up) }))
 	} else if Key.pressed(input, Left) {
 		Ok(TurnLeft)
 	} else if Key.pressed(input, Right) {
@@ -116,8 +122,8 @@ up_held : Input
 up_held = { ..idle, held: [Key.code(Up)] }
 
 expect step(init(test_config), up_held, [], 0.13).model.ball.motion == Rolling({ from: init(test_config).level.start, t: 0.5 })
-expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.16).model.ball.motion == Turning({ from: init(test_config).level.start, t: 0.5 })
-expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.16).model.ball.motion == Still
+expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.16).model.ball.turn == Turning({ from: init(test_config).level.start, t: 0.5, next: Stay })
+expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.16).model.ball.turn == Steady
 
 expect {
 	model = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
@@ -187,11 +193,11 @@ expect {
 
 # A jump off the side from S falls, then the level restarts.
 expect {
-	space = { ..idle, pressed: [Key.code(Space)] }
+	space = { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
 	facing_out = { ..at_pose(init(test_config), { ..init(test_config).level.start, forward: { x: -1, y: 0, z: 0 } }), keys_left: 1 }
 	jumped = step(facing_out, space, [], 0.25).model
 	landed = step(jumped, idle, [], 0.25).model
-	jumped.ball.motion == Falling({ from: facing_out.ball.pose, t: 0.5 }) and landed == init(test_config)
+	jumped.ball.motion == Falling({ from: facing_out.ball.pose, offset: 0.0, t: 0.5 }) and landed == init(test_config)
 }
 
 expect {
@@ -208,4 +214,33 @@ expect {
 expect {
 	won = { ..init(test_config), phase: Won }
 	view(won).draws.keep_if(|d| d.mesh == won.meshes.ball).map(|d| d.tint) == [won_ball_tint]
+}
+
+space : Input
+space = { ..idle, pressed: [Key.code(Space)] }
+
+expect step(init(test_config), space, [], 0.27).model.ball.motion == JumpingInPlace({ t: 0.5 })
+
+# Up and Space jump the level1 gap from the cell before it.
+expect {
+	before_gap = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 1, z: 4 } })
+	jumped = step(before_gap, { ..space, held: [Key.code(Up)] }, [], 0.1).model
+	jumped.ball.pose.cell == { x: 0, y: 1, z: 2 } and jumped.ball.motion == Jumping({ from: before_gap.ball.pose, offset: 0.0, t: 0.1 / 0.54 })
+}
+
+# A key in the roll's target cell is collected, though the jump starts from the cell behind it.
+expect {
+	on_layer1 = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 2, z: 6 } })
+	rolling = step(on_layer1, up_held, [], 0.05).model
+	jumped = step(rolling, space, [], 0.01).model
+	jumped.collected.contains({ x: 0, y: 2, z: 5 }) and jumped.keys_left == 1 and match jumped.ball.motion {
+		Falling({ from, .. }) => from.cell == { x: 0, y: 2, z: 6 }
+		_ => False
+	}
+}
+
+# Held Up rolls on through the cell with no step at rest.
+expect {
+	model = [0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model.ball.pose.cell == { x: 0, y: 1, z: 7 } and model.ball.motion != Still
 }

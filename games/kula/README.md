@@ -25,13 +25,23 @@ The engine loads the meshes in `assets/meshes/` at startup.
 | Up, held | Roll forward, one cell after another |
 | Left | Turn 90° left |
 | Right | Turn 90° right |
-| Space | Jump |
+| Space | Jump in place |
+| Up and Space | Jump forward |
+| Space during a roll | Jump forward |
 | Escape | Quit |
 
-Up, Left, Right and Space act only when the ball is still. Left, Right and
-Space act on the press. Hold Up to keep rolling. Escape quits at any time.
-The controls are tank controls: they are relative to the ball, not to the
-screen.
+Left, Right and Space act on the press. Hold Up to keep rolling. Escape
+quits at any time. The controls are tank controls: they are relative to the
+ball, not to the screen.
+
+A move starts only when the ball is still and not turning. Two moves also
+accept input:
+
+- During a floor roll, Space starts a forward jump.
+- During a jump in place, Left and Right turn the ball.
+
+A Left or Right press during a turn waits. The next turn starts when the
+current one ends.
 
 ## Words
 
@@ -51,7 +61,10 @@ screen.
 ## Moves
 
 All moves are on the grid. The ball does not start a new move until the
-current one ends.
+current one ends, except for the cases in Controls.
+
+If Up is held when a roll or a jump ends, the next roll starts at once. The
+ball does not stop at the cell.
 
 ### Roll
 
@@ -76,15 +89,28 @@ Time: 0.32 s.
 
 ### Jump
 
-A jump always aims two cells ahead, at the same level. Time: 0.54 s.
+A jump takes 0.54 s and rises half a cell. There are two kinds.
+
+**Jump in place.** Space while the ball is still and Up is not held. The
+ball rises and lands on the same cell. Left and Right turn the ball in the
+air. The turn can last longer than the jump. A block above the ball bounces
+the jump: the ball does not move.
+
+**Forward jump.** Space while Up is held, or Space during a floor roll. The
+jump aims two cells ahead, at the same level. During a roll, the jump
+starts at once from where the ball is. It aims two cells past the cell the
+ball is nearest to. No input acts during a forward jump.
 
 - If a block is above the ball, or in either of the two cells ahead, the
-  jump bounces. The ball does not move.
-- If a block is under the cell two ahead, the ball lands there.
-- If no block is under the cell two ahead, the ball falls.
+  jump bounces. A still ball does not move. A rolling ball rolls on.
+- If a block is under the landing cell, the ball lands there.
+- If no block is under the landing cell, the ball falls.
 
-A jump never lands on top of the block ahead. To get onto a wall, roll into
-it.
+A climb, an edge roll or a turn cannot start a jump. A jump never lands on
+top of the block ahead. To get onto a wall, roll into it.
+
+The ball can land only in the last 11 of the jump's 27 frames. On level
+ground it lands when the jump ends.
 
 ### Fall and restart
 

@@ -103,12 +103,12 @@ expect {
 
 expect {
 	model = at(Rules.start(meshes), first_key)
-	ball = { ..model.ball, motion: Falling({ from: model.level.start, t: 0.5 }) }
+	ball = { ..model.ball, motion: Falling({ from: model.level.start, offset: 0.0, t: 0.5 }) }
 	Rules.fall({ ..model, ball }) == { ..model, ball }
 }
 
 expect {
 	dirty = { ..Rules.collect(at(Rules.start(meshes), first_key)), phase: Won }
-	ball = { ..dirty.ball, motion: Falling({ from: dirty.level.start, t: 1.0 }) }
+	ball = { ..dirty.ball, motion: Falling({ from: dirty.level.start, offset: 0.0, t: 1.0 }) }
 	Rules.fall({ ..dirty, ball }) == Rules.start(meshes)
 }

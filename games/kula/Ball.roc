@@ -3,19 +3,27 @@ import World
 import Grid
 
 Ball := [].{
-	Ball : { pose : World.Pose, motion : Motion, rot : Quat.Quat }
+	Ball : { pose : World.Pose, motion : Motion, turn : Turn, rot : Quat.Quat }
 
-	# The pose commits when a move starts. from and t only serve View.
-	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Turning({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, t : F32 }), Falling({ from : World.Pose, t : F32 })]
+	# The pose commits when a move starts. from, offset and t only serve View.
+	# A jump from a roll starts offset cells along forward from from.cell.
+	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, offset : F32, t : F32 }), JumpingInPlace({ t : F32 }), Falling({ from : World.Pose, offset : F32, t : F32 })]
 
-	Action : [Roll, TurnLeft, TurnRight, Jump]
+	# A turn runs while the ball is Still or JumpingInPlace, and can outlast the jump.
+	# next holds a turn pressed during this one, as the original's startTurningLeftNextFrame.
+	Turn : [Steady, Turning({ from : World.Pose, t : F32, next : NextTurn })]
+
+	NextTurn : [Stay, TurnLeft, TurnRight]
+
+	# Jump is a forward jump when Up is held or the ball rolls, else a jump in place.
+	Action : [Roll, TurnLeft, TurnRight, Jump({ up_held : Bool })]
 
 	# In cells. The original rests the ball centre 100 of 512 units above a face.
 	radius : F32
 	radius = 0.195
 
 	start : World.Pose -> Ball.Ball
-	start = |pose| { pose, motion: Still, rot: Quat.identity }
+	start = |pose| { pose, motion: Still, turn: Steady, rot: Quat.identity }
 
 	# An edge roll needs an open end, as in the original.
 	roll : Set(World.Cell), World.Pose -> Try(World.Pose, [ClosedEdge])
@@ -75,47 +83,138 @@ Ball := [].{
 		}
 	}
 
-	# Starts a move from Still. A moving ball ignores the action.
+	jump_lift : F32 -> F32
+	jump_lift = |t| 4.0 * jump_height * t * (1.0 - t)
+
+	# The original tests for a landing only in the last 11 of the jump's 27 frames.
+	can_land : F32, F32 -> Bool
+	can_land = |t, lift| t >= 16.0 / 27.0 and lift <= 0.0
+
+	# A roll or a jump starts only from Still with no turn running. A floor roll
+	# can also start a jump. A turn can start during a jump in place.
 	act : Set(World.Cell), Ball.Ball, Action -> Ball.Ball
 	act = |blocks, ball, action| {
 		from = ball.pose
-		match (ball.motion, action) {
-			(Still, Roll) => match roll(blocks, from) {
+		match (ball.motion, ball.turn, action) {
+			(Still, Steady, Roll) => match roll(blocks, from) {
 				Ok(pose) => { ..ball, pose, motion: Rolling({ from, t: 0.0 }) }
 				Err(ClosedEdge) => ball
 			}
-			(Still, TurnLeft) => { ..ball, pose: turn_left(from), motion: Turning({ from, t: 0.0 }) }
-			(Still, TurnRight) => { ..ball, pose: turn_right(from), motion: Turning({ from, t: 0.0 }) }
-			(Still, Jump) => match jump(blocks, from) {
-				Land(pose) => { ..ball, pose, motion: Jumping({ from, t: 0.0 }) }
-				Fall(pose) => { ..ball, pose, motion: Falling({ from, t: 0.0 }) }
-				Bounce => ball
-			}
+			(Still, Steady, Jump({ up_held })) => if up_held { leap(blocks, ball, from, 0.0) } else { start_jump_in_place(blocks, ball) }
+			# The jump starts from the cell the ball is nearest to.
+			(Rolling({ from: roll_from, t }), _, Jump(_)) if roll_kind(roll_from, ball.pose) == Floor =>
+				if t < 0.5 { leap(blocks, ball, roll_from, t) } else { leap(blocks, ball, ball.pose, t - 1.0) }
+			(motion, _, TurnLeft) if can_turn(motion) => turn(ball, TurnLeft)
+			(motion, _, TurnRight) if can_turn(motion) => turn(ball, TurnRight)
 			_ => ball
 		}
 	}
 
 	advance : Ball.Ball, F32 -> Ball.Ball
-	advance = |ball, dt| match ball.motion {
-		Still => ball
-		Rolling({ from, t }) => {
-			kind = roll_kind(from, ball.pose)
-			next = progress(t, dt, roll_seconds(kind))
-			axis = Grid.to_vec3(Grid.cross(from.up, from.forward))
-			spin = Quat.from_axis_angle(axis, (next - t) * roll_length(kind) / radius)
-			{ ..ball, rot: Quat.mul(spin, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
+	advance = |ball, dt| advance_turn(advance_motion(ball, dt), dt)
+
+	# With Up held, a roll or jump that ends this step starts the next roll in the
+	# same step. The next roll gets the time left over, so the ball keeps its speed.
+	advance_up_held : Set(World.Cell), Ball.Ball, F32 -> Ball.Ball
+	advance_up_held = |blocks, ball, dt| {
+		moved = advance(ball, dt)
+		match (moved.motion, moved.turn) {
+			(Still, Steady) if ball.motion != Still => {
+				# One roll at most, so Rules.collect sees every committed cell.
+				busy = seconds_left(ball)
+				turning = turn_seconds_left(ball)
+				left_over = dt - (if turning > busy { turning } else { busy })
+				if left_over > 0.0 { advance(act(blocks, moved, Roll), left_over) } else { act(blocks, moved, Roll) }
+			}
+			_ => moved
 		}
-		Turning({ from, t }) => {
-			next = progress(t, dt, turn_seconds)
-			{ ..ball, motion: if next < 1.0 { Turning({ from, t: next }) } else { Still } }
-		}
-		Jumping({ from, t }) => {
-			next = progress(t, dt, jump_seconds)
-			{ ..ball, motion: if next < 1.0 { Jumping({ from, t: next }) } else { Still } }
-		}
-		# A fall never ends Still. Rules restarts the level when t reaches 1.
-		Falling({ from, t }) => { ..ball, motion: Falling({ from, t: progress(t, dt, fall_seconds) }) }
 	}
+}
+
+leap : Set(World.Cell), Ball.Ball, World.Pose, F32 -> Ball.Ball
+leap = |blocks, ball, from, offset| match Ball.jump(blocks, from) {
+	Land(pose) => { ..ball, pose, motion: Jumping({ from, offset, t: 0.0 }) }
+	Fall(pose) => { ..ball, pose, motion: Falling({ from, offset, t: 0.0 }) }
+	Bounce => ball
+}
+
+start_jump_in_place : Set(World.Cell), Ball.Ball -> Ball.Ball
+start_jump_in_place = |blocks, ball|
+	if Grid.has_block(blocks, Grid.add(ball.pose.cell, ball.pose.up)) {
+		ball
+	} else {
+		{ ..ball, motion: JumpingInPlace({ t: 0.0 }) }
+	}
+
+can_turn : Ball.Motion -> Bool
+can_turn = |motion| match motion {
+	Still => True
+	JumpingInPlace(_) => True
+	_ => False
+}
+
+# A press during a turn waits for that turn to end.
+turn : Ball.Ball, Ball.NextTurn -> Ball.Ball
+turn = |ball, side| match ball.turn {
+	Steady => start_turn(ball, side)
+	Turning(turning) => { ..ball, turn: Turning({ ..turning, next: side }) }
+}
+
+start_turn : Ball.Ball, Ball.NextTurn -> Ball.Ball
+start_turn = |ball, side| {
+	from = ball.pose
+	match side {
+		Stay => { ..ball, turn: Steady }
+		TurnLeft => { ..ball, pose: Ball.turn_left(from), turn: Turning({ from, t: 0.0, next: Stay }) }
+		TurnRight => { ..ball, pose: Ball.turn_right(from), turn: Turning({ from, t: 0.0, next: Stay }) }
+	}
+}
+
+advance_turn : Ball.Ball, F32 -> Ball.Ball
+advance_turn = |ball, dt| match ball.turn {
+	Steady => ball
+	Turning(turning) => {
+		next = progress(turning.t, dt, turn_seconds)
+		if next < 1.0 { { ..ball, turn: Turning({ ..turning, t: next }) } } else { start_turn(ball, turning.next) }
+	}
+}
+
+advance_motion : Ball.Ball, F32 -> Ball.Ball
+advance_motion = |ball, dt| match ball.motion {
+	Still => ball
+	Rolling({ from, t }) => {
+		kind = Ball.roll_kind(from, ball.pose)
+		next = progress(t, dt, roll_seconds(kind))
+		axis = Grid.to_vec3(Grid.cross(from.up, from.forward))
+		spin = Quat.from_axis_angle(axis, (next - t) * Ball.roll_length(kind) / Ball.radius)
+		{ ..ball, rot: Quat.mul(spin, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
+	}
+	# The landing cell always has a floor, so the ball lands back at rest height.
+	Jumping(jumping) => {
+		next = progress(jumping.t, dt, jump_seconds)
+		{ ..ball, motion: if Ball.can_land(next, Ball.jump_lift(next)) { Still } else { Jumping({ ..jumping, t: next }) } }
+	}
+	JumpingInPlace({ t }) => {
+		next = progress(t, dt, jump_seconds)
+		{ ..ball, motion: if Ball.can_land(next, Ball.jump_lift(next)) { Still } else { JumpingInPlace({ t: next }) } }
+	}
+	# A fall never ends Still. Rules restarts the level when t reaches 1.
+	Falling(falling) => { ..ball, motion: Falling({ ..falling, t: progress(falling.t, dt, fall_seconds) }) }
+}
+
+turn_seconds_left : Ball.Ball -> F32
+turn_seconds_left = |ball| match ball.turn {
+	Steady => 0.0
+	Turning({ t, .. }) => (1.0 - t) * turn_seconds
+}
+
+seconds_left : Ball.Ball -> F32
+seconds_left = |ball| match ball.motion {
+	Still => 0.0
+	Rolling({ from, t }) => (1.0 - t) * roll_seconds(Ball.roll_kind(from, ball.pose))
+	Jumping({ t, .. }) => (1.0 - t) * jump_seconds
+	JumpingInPlace({ t }) => (1.0 - t) * jump_seconds
+	Falling({ t, .. }) => (1.0 - t) * fall_seconds
 }
 
 # PAL frame counts from the original, at 0.02 s a frame. See SPEC.md.
@@ -138,6 +237,9 @@ jump_seconds = 0.54
 
 fall_seconds : F32
 fall_seconds = 0.5
+
+jump_height : F32
+jump_height = 0.5
 
 # Clamped to 1, so the last step of a roll spins only the remaining distance.
 progress : F32, F32, F32 -> F32
@@ -192,6 +294,9 @@ floor_ahead = blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2)])
 still : Ball.Ball
 still = Ball.start(on_origin)
 
+forward_jump : Ball.Action
+forward_jump = Jump({ up_held: True })
+
 near_quat : Quat.Quat, Quat.Quat -> Bool
 near_quat = |a, b| (a.x - b.x).abs() < 0.0001 and (a.y - b.y).abs() < 0.0001 and (a.z - b.z).abs() < 0.0001 and (a.w - b.w).abs() < 0.0001
 
@@ -201,10 +306,10 @@ expect {
 }
 
 expect Ball.act(blocks([cell(0, 0, 0), cell(1, 0, 0)]), still, Roll) == still
-expect Ball.act(floor_ahead, still, TurnLeft).motion == Turning({ from: on_origin, t: 0.0 })
-expect Ball.act(floor_ahead, still, Jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, t: 0.0 }) }
-expect Ball.act(blocks([cell(0, 0, 0)]), still, Jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, t: 0.0 }) }
-expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Jump) == still
+expect Ball.act(floor_ahead, still, TurnLeft).turn == Turning({ from: on_origin, t: 0.0, next: Stay })
+expect Ball.act(floor_ahead, still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, offset: 0.0, t: 0.0 }) }
+expect Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, offset: 0.0, t: 0.0 }) }
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, forward_jump) == still
 
 # Input is read only when Still.
 expect {
@@ -216,13 +321,13 @@ expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.13).motion == Rolling(
 expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.26).motion == Still
 expect Ball.advance(Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Roll), 0.14).motion == Rolling({ from: on_origin, t: 0.5 })
 expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Roll), 0.17).motion == Rolling({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.16).motion == Turning({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).motion == Still
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.27).motion == Jumping({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.54).motion == Still
+expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.16).turn == Turning({ from: on_origin, t: 0.5, next: Stay })
+expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).turn == Steady
+expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.27).motion == Jumping({ from: on_origin, offset: 0.0, t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).motion == Still
 expect Ball.advance(still, 1.0) == still
-expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Jump), 0.25).motion == Falling({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Jump), 0.5), 0.5).motion == Falling({ from: on_origin, t: 1.0 })
+expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump), 0.25).motion == Falling({ from: on_origin, offset: 0.0, t: 0.5 })
+expect Ball.advance(Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump), 0.5), 0.5).motion == Falling({ from: on_origin, offset: 0.0, t: 1.0 })
 
 # Rolling along -z on +y turns about -x, one cell over the radius, however the steps fall.
 expect {
@@ -231,4 +336,115 @@ expect {
 	ball.motion == Still and near_quat(ball.rot, Quat.from_axis_angle({ x: -1.0, y: 0.0, z: 0.0 }, 1.0 / Ball.radius))
 }
 
-expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.54).rot == Quat.identity
+expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).rot == Quat.identity
+
+in_place : Ball.Action
+in_place = Jump({ up_held: False })
+
+long_floor : Set(World.Cell)
+long_floor = blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2), cell(0, 0, -3)])
+
+rolling_at : F32 -> Ball.Ball
+rolling_at = |t| { ..Ball.act(long_floor, still, Roll), motion: Rolling({ from: on_origin, t }) }
+
+expect Ball.act(floor_ahead, still, in_place) == { ..still, motion: JumpingInPlace({ t: 0.0 }) }
+expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.27).motion == JumpingInPlace({ t: 0.5 })
+expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.54) == still
+
+# Only a block above bounces a jump in place. A block ahead does not.
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 2, 0)]), still, in_place) == still
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, in_place).motion == JumpingInPlace({ t: 0.0 })
+
+# A jump from a roll lands two cells past the cell the ball is nearest to.
+expect Ball.act(long_floor, rolling_at(0.25), in_place) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, offset: 0.25, t: 0.0 }) }
+expect Ball.act(long_floor, rolling_at(0.75), in_place) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -3) }, motion: Jumping({ from: { ..on_origin, cell: cell(0, 1, -1) }, offset: -0.25, t: 0.0 }) }
+
+# A block in the path bounces a jump from a roll. The ball rolls on.
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2), cell(0, 1, -2)]), rolling_at(0.25), in_place) == rolling_at(0.25)
+
+# Climbs, edge rolls and turns cannot start a jump.
+expect {
+	climbing = { ..Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Roll), motion: Rolling({ from: on_origin, t: 0.75 }) }
+	Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), climbing, forward_jump) == climbing
+}
+expect {
+	edge_rolling = Ball.act(blocks([cell(0, 0, 0)]), still, Roll)
+	Ball.act(blocks([cell(0, 0, 0)]), edge_rolling, forward_jump) == edge_rolling
+}
+expect {
+	turning = Ball.act(floor_ahead, still, TurnLeft)
+	Ball.act(floor_ahead, turning, forward_jump) == turning and Ball.act(floor_ahead, turning, in_place) == turning
+}
+
+# No input acts during a forward jump.
+expect {
+	jumping = Ball.act(floor_ahead, still, forward_jump)
+	[TurnLeft, TurnRight, Roll, forward_jump, in_place].all(|action| Ball.act(floor_ahead, jumping, action) == jumping)
+}
+
+# During a jump in place, Left and Right turn the ball. The turn can outlast the jump.
+expect {
+	jumping_in_place = Ball.advance(Ball.act(floor_ahead, still, in_place), 0.4)
+	turning = Ball.act(floor_ahead, jumping_in_place, TurnLeft)
+	landed = Ball.advance(turning, 0.2)
+	turning.motion == JumpingInPlace({ t: 0.4 / 0.54 }) and turning.turn == Turning({ from: on_origin, t: 0.0, next: Stay }) and landed.motion == Still and landed.turn != Steady
+}
+
+# A turn pressed during a turn starts when the current one ends.
+expect {
+	turning = Ball.act(floor_ahead, Ball.act(floor_ahead, still, in_place), TurnLeft)
+	queued = Ball.act(floor_ahead, turning, TurnLeft)
+	after = Ball.advance(queued, 0.32)
+	queued.pose == turning.pose and after.turn == Turning({ from: Ball.turn_left(on_origin), t: 0.0, next: Stay }) and after.pose == Ball.turn_left(Ball.turn_left(on_origin))
+}
+
+# The original tests for a landing only in the last 11 of 27 frames.
+expect !Ball.can_land(15.0 / 27.0, 0.0) and Ball.can_land(16.0 / 27.0, 0.0) and !Ball.can_land(0.9, 0.01)
+expect {
+	jumping = Ball.act(floor_ahead, still, forward_jump)
+	Ball.advance(jumping, 0.53).motion != Still and Ball.advance(jumping, 0.54).motion == Still
+}
+
+near : F32, F32 -> Bool
+near = |a, b| (a - b).abs() < 0.0001
+
+# With Up held, the next roll starts in the step the last one ends, with the time left over.
+expect {
+	ball = Ball.advance_up_held(long_floor, rolling_at(0.5), 0.26)
+	ball.pose.cell == cell(0, 1, -2) and match ball.motion {
+		Rolling({ from, t }) => from.cell == cell(0, 1, -1) and near(t, 0.5)
+		_ => False
+	}
+}
+
+expect {
+	jumping = Ball.act(long_floor, still, forward_jump)
+	ball = Ball.advance_up_held(long_floor, jumping, 0.54)
+	ball.pose.cell == cell(0, 1, -3) and match ball.motion {
+		Rolling({ t, .. }) => near(t, 0.0)
+		_ => False
+	}
+}
+
+# A turn that outlasts the jump in place holds the roll back.
+expect {
+	turning = Ball.act(floor_ahead, Ball.advance(Ball.act(floor_ahead, still, in_place), 0.4), TurnLeft)
+	Ball.advance_up_held(floor_ahead, turning, 0.2).motion == Still
+}
+
+expect Ball.advance(rolling_at(0.5), 0.26).motion == Still
+
+# A block above bounces a forward jump too. A block two ahead does not bounce a jump in place.
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 0, -2), cell(0, 2, 0)]), still, forward_jump) == still
+expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -2)]), still, in_place).motion == JumpingInPlace({ t: 0.0 })
+
+# The next roll gets the time after the later of the jump's end and the turn's end.
+expect {
+	west = blocks([cell(0, 0, 0), cell(-1, 0, 0)])
+	turning = Ball.act(west, Ball.advance(Ball.act(west, still, in_place), 0.4), TurnLeft)
+	ball = Ball.advance_up_held(west, turning, 0.52)
+	ball.pose.cell == cell(-1, 1, 0) and match ball.motion {
+		Rolling({ t, .. }) => near(t, 0.2 / roll_seconds(Floor))
+		_ => False
+	}
+}

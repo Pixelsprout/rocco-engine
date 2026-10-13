@@ -76,18 +76,22 @@ buttons are read every frame (`HandlePlayerButtons`, `src/level_update2.c`).
 Speed does not change the kind. No input acts during a forward jump. During
 a jump in place, L and R still turn the ball.
 
+A turn press during a turn waits. The next turn starts when the current one
+ends (`startTurningLeftNextFrame`, `HandlePlayerButtons`, Code). The clone
+copies this for every turn.
+
 | Fact | Original | Label | Clone |
 |---|---|---|---|
-| Choice of kind | Forward when Up is held or the ball rolls; in place otherwise | Code | Space always jumps forward |
+| Choice of kind | Forward when Up is held or the ball rolls; in place otherwise | Code | Same. Only a floor roll can start a jump. Climbs, edge rolls and turns cannot |
 | Forward distance | 1024 units, two cells ahead at the same level (`player_movement.c:391`) | Code | Same |
-| Start of a rolling jump | At once, from the ball's current position. Only the sideways offset snaps to the cell centre (`AutoAlignJumpStartPos`) | Code | Only from Still, at a cell centre. A Space press during a roll is lost |
-| Jump in place | Same curve with only the vertical part. Lands on the same cell (`ProcessMovement`, `JUMPING_INPLACE`) | Code | Not copied |
-| Turn in mid-air | Forward jump: no input acts. Jump in place: L and R still turn the ball | Code | No input acts during a jump |
+| Start of a rolling jump | At once, from the ball's current position. Only the sideways offset snaps to the cell centre (`AutoAlignJumpStartPos`) | Code | At once, from the ball's current position. The ball lands two cells past the cell it is nearest to. The clone's ball is always on the cell line, so it has no sideways snap |
+| Jump in place | Same curve with only the vertical part. Lands on the same cell (`ProcessMovement`, `JUMPING_INPLACE`) | Code | `JumpingInPlace`: same duration and peak as the forward jump |
+| Turn in mid-air | Forward jump: no input acts. Jump in place: L and R still turn the ball | Code | Same. The turn takes 0.32 s and can outlast the jump |
 | No floor there | The ball falls | Code | `Falling`: the ball drops three cells in 0.5 s, then the level restarts |
-| A block in the path | Forward jump only. Past 412/512 of its cell, a block ahead at the ball's height bounces it back and it falls (`CheckForPlayerWallHit`) | Code | `Bounce` when a block sits one or two cells ahead. The ball does not move |
-| A block above | Both kinds. A rising ball at height 412 or more under a block bounces down and falls (`CheckPlayerHitCeiling`) | Code | `Bounce` before the jump starts |
-| Landing window | The last 11 frames of the jump can land (`CheckPlayerJumpingStuff`) | Code | Lands only when the jump ends |
-| After landing | Up held keeps the ball rolling at full speed (`CheckIfPlayerLanded`) | Code | The ball stops for one step |
+| A block in the path | Forward jump only. Past 412/512 of its cell, a block ahead at the ball's height bounces it back and it falls (`CheckForPlayerWallHit`) | Code | Forward jump only. `Bounce` when a block sits one or two cells ahead. The ball does not jump |
+| A block above | Both kinds. A rising ball at height 412 or more under a block bounces down and falls (`CheckPlayerHitCeiling`) | Code | Both kinds. `Bounce` before the jump starts |
+| Landing window | The last 11 frames of the jump can land (`CheckPlayerJumpingStuff`) | Code | Same (`Ball.can_land`, t >= 16/27). The ball lands when its centre is at or below rest height over a floor. On level ground this is the end of the jump |
+| After landing | Up held keeps the ball rolling at full speed (`CheckIfPlayerLanded`) | Code | Same. With Up held, the next roll starts in the step the jump lands and gets the time left over. A roll that ends with Up held does the same |
 | Duration | 27 frames | Reported, wiki.kula.quest. The frame count is in GGI data (`ggiPart5JumpAnimData`), not in the C code | 0.54 s |
 | Peak height | In GGI data | | 0.5 cell |
 

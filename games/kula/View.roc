@@ -14,18 +14,18 @@ View := [].{
 	Placement : { pos : Vec3.Vec3, up : Vec3.Vec3, forward : Vec3.Vec3 }
 
 	interpolated : Ball.Ball -> Placement
-	interpolated = |ball| match ball.motion {
-		Still => placement_of(ball.pose)
-		Rolling({ from, t }) => between(from, ball.pose, t)
-		Turning({ from, t }) => between(from, ball.pose, t)
-		Jumping({ from, t }) => {
-			placed = between(from, ball.pose, t)
-			{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, jump_lift(t))) }
+	interpolated = |ball| {
+		placed = match ball.motion {
+			Still => placement_of(ball.pose)
+			Rolling({ from, t }) => between(from, ball.pose, t)
+			Jumping({ from, offset, t }) => lifted(jump_placement(from, offset, ball.pose, t), Ball.jump_lift(t))
+			JumpingInPlace({ t }) => lifted(placement_of(ball.pose), Ball.jump_lift(t))
+			# The jump arc, pulled down so it ends fall_depth cells below the landing cell.
+			Falling({ from, offset, t }) => lifted(jump_placement(from, offset, ball.pose, t), Ball.jump_lift(t) - fall_depth * t * t)
 		}
-		# The jump arc, pulled down so it ends fall_depth cells below the landing cell.
-		Falling({ from, t }) => {
-			placed = between(from, ball.pose, t)
-			{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, jump_lift(t) - fall_depth * t * t)) }
+		match ball.turn {
+			Steady => placed
+			Turning({ from, t, .. }) => { ..placed, forward: between(from, ball.pose, t).forward }
 		}
 	}
 
@@ -101,14 +101,8 @@ clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
 pi : F32
 pi = 3.1415927
 
-jump_height : F32
-jump_height = 0.5
-
 fall_depth : F32
 fall_depth = 3.0
-
-jump_lift : F32 -> F32
-jump_lift = |t| 4.0 * jump_height * t * (1.0 - t)
 
 # The centre rests one radius above the face. Round an edge it follows the
 # original's path: half a cell to the edge, a quarter circle of one radius
@@ -162,6 +156,15 @@ face_rot = |normal| {
 	}
 }
 
+jump_placement : World.Pose, F32, World.Pose, F32 -> View.Placement
+jump_placement = |from, offset, to, t| {
+	placed = between(from, to, t)
+	{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.forward, offset * (1.0 - t))) }
+}
+
+lifted : View.Placement, F32 -> View.Placement
+lifted = |placed, lift| { ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, lift)) }
+
 placement_of : World.Pose -> View.Placement
 placement_of = |pose| { pos: Grid.to_vec3(pose.cell), up: Grid.to_vec3(pose.up), forward: Grid.to_vec3(pose.forward) }
 
@@ -204,13 +207,13 @@ expect {
 
 # A jump peaks half a cell above the straight line at its midpoint.
 expect {
-	placed = View.interpolated(Ball.advance(Ball.act(floor, Ball.start(on_origin), Jump), 0.27))
+	placed = View.interpolated(Ball.advance(Ball.act(floor, Ball.start(on_origin), Jump({ up_held: True })), 0.27))
 	near(placed.pos, { x: 0.0, y: 1.5, z: -1.0 })
 }
 
 # A jump into nothing ends fall_depth below its landing cell.
 expect {
-	falling = Ball.act(Set.from_list([cell(0, 0, 0)]), Ball.start(on_origin), Jump)
+	falling = Ball.act(Set.from_list([cell(0, 0, 0)]), Ball.start(on_origin), Jump({ up_held: True }))
 	near(View.interpolated(Ball.advance(falling, 0.5)).pos, { x: 0.0, y: -2.0, z: -2.0 })
 }
 
@@ -291,4 +294,26 @@ expect {
 expect {
 	face = { block: cell(0, 0, 0), normal: cell(0, 1, 0) }
 	View.near_eye(face, { x: 0.2, y: 1.5, z: -0.4 }) and !View.near_eye(face, { x: 0.0, y: 1.7, z: 0.0 }) and !View.near_eye(face, { x: 1.7, y: 0.5, z: 0.0 })
+}
+
+# A jump in place rises half a cell and comes down on the same cell.
+expect {
+	jumping_in_place = Ball.act(floor, Ball.start(on_origin), Jump({ up_held: False }))
+	near(View.interpolated(Ball.advance(jumping_in_place, 0.27)).pos, { x: 0.0, y: 1.5, z: 0.0 }) and View.interpolated(Ball.advance(jumping_in_place, 0.54)).pos == { x: 0.0, y: 1.0, z: 0.0 }
+}
+
+# A jump from a roll starts where the ball is and ends on the landing cell.
+expect {
+	long = Set.from_list([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2), cell(0, 0, -3)])
+	rolling = Ball.advance(Ball.act(long, Ball.start(on_origin), Roll), 0.195)
+	jumping = Ball.act(long, rolling, Jump({ up_held: False }))
+	near(View.interpolated(jumping).pos, View.interpolated(rolling).pos) and near(View.interpolated(Ball.advance(jumping, 0.54)).pos, { x: 0.0, y: 1.0, z: -3.0 })
+}
+
+# Halfway through a turn during a jump in place, the ball faces between the two directions.
+expect {
+	jumping_in_place = Ball.act(floor, Ball.start(on_origin), Jump({ up_held: False }))
+	placed = View.interpolated(Ball.advance(Ball.act(floor, jumping_in_place, TurnLeft), 0.16))
+	s = 0.70710678
+	placed.pos.y > 1.0 and near(placed.forward, { x: -s, y: 0.0, z: -s })
 }
