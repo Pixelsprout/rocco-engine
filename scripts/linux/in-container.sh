@@ -25,11 +25,13 @@ roc scripts/build.roc all
 # The timeout turns a hang into a failure instead of a stuck container.
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
 EXPECTED="Frame Count: $FRAMES"
-for game in cards entity-game; do
+for game in cards entity-game kula; do
 	echo "== run $game for $FRAMES frames under xvfb"
 	RUN_LOG=/tmp/$game.log
+	dir=examples/$game
+	if [ -f "games/$game/main.roc" ]; then dir=games/$game; fi
 	set +e
-	(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES $RUN "./${game}_linux.bin") > "$RUN_LOG" 2>&1
+	(cd "$dir" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES $RUN "./${game}_linux.bin") > "$RUN_LOG" 2>&1
 	code=$?
 	set -e
 	frame_count_lines=$(grep -c '^Frame Count: ' "$RUN_LOG" || true)

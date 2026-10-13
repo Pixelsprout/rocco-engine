@@ -15,11 +15,11 @@ parse = |args| match args {
 	["inputs"] => Ok([Inputs])
 	["glue"] => Ok([Glue])
 	["host"] => Ok([Host])
-	["game", example] => Ok([Game(example)])
+	["game", name] => Ok([Game(name)])
 	["shaders"] => Ok([Shaders])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
-	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game")])
+	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("kula")])
 	_ => Err(Usage)
 }
 
@@ -70,11 +70,15 @@ host_run = |target| {
 	cwd: ".",
 }
 
-game_run : Target, Str -> Run
-game_run = |target, example| {
+# A game under games/ wins over an example of the same name.
+game_dirs : Str -> List(Str)
+game_dirs = |name| ["games/${name}", "examples/${name}"]
+
+game_run : Target, Str, Str -> Run
+game_run = |target, dir, name| {
 	program: "roc",
-	args: ["build", "--target=${target.roc_target}", "--output=./${example}${target.exe}", "main.roc"],
-	cwd: "examples/${example}",
+	args: ["build", "--target=${target.roc_target}", "--output=./${name}${target.exe}", "main.roc"],
+	cwd: dir,
 }
 
 shaders_run : Run
@@ -156,11 +160,11 @@ usage =
 	\\  inputs          copy sokol, compiler-rt or SDK libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
-	\\  game <example>  link examples/<example> against the platform
+	\\  game <name>     link games/<name>, or else examples/<name>, against the platform
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
-	\\  all             glue, host, inputs, game cards, game entity-game
+	\\  all             glue, host, inputs, game cards, game entity-game, game kula
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 
@@ -206,7 +210,10 @@ run_step! = |step, target| match step {
 	}
 	# roc build exits 2 when it wrote the binary with warnings and no errors.
 	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
-	Game(example) => exec_allowing!(game_run(target, example), [2])
+	Game(name) => {
+		dir = find_game_dir!(name) ? |_| Failed("Neither games/${name}/main.roc nor examples/${name}/main.roc exists.")
+		exec_allowing!(game_run(target, dir, name), [2])
+	}
 	Shaders =>
 		if Cmd.check_available!(shaders_run.program) {
 			exec!(shaders_run)
@@ -215,6 +222,16 @@ run_step! = |step, target| match step {
 		}
 	Keys => keys!()
 	Target => Stdout.line!(target_lines(target))
+}
+
+find_game_dir! : Str => Try(Str, [NoGame])
+find_game_dir! = |name| {
+	for dir in game_dirs(name) {
+		if Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False {
+			return Ok(dir)
+		}
+	}
+	Err(NoGame)
 }
 
 exec! : Run => Try({}, _)
@@ -301,7 +318,7 @@ expect parse(["glue"]) == Ok([Glue])
 expect parse(["host"]) == Ok([Host])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game")])
+expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("kula")])
 expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
@@ -331,12 +348,19 @@ expect {
 }
 
 expect {
-	run = target_for(mac).map_ok(|target| game_run(target, "cards"))
+	run = target_for(mac).map_ok(|target| game_run(target, "examples/cards", "cards"))
 	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./cards.bin", "main.roc"], cwd: "examples/cards" })
 }
 
 expect {
-	out = target_for(windows).map_ok(|target| game_run(target, "cards").args.get(2))
+	run = target_for(mac).map_ok(|target| game_run(target, "games/kula", "kula"))
+	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./kula.bin", "main.roc"], cwd: "games/kula" })
+}
+
+expect game_dirs("kula") == ["games/kula", "examples/kula"]
+
+expect {
+	out = target_for(windows).map_ok(|target| game_run(target, "examples/cards", "cards").args.get(2))
 	out == Ok(Ok("--output=./cards.exe"))
 }
 
@@ -365,7 +389,7 @@ expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsSdk
 
 expect {
 	# The Linux image mounts the checkout, so the Mac binary must survive a Linux build.
-	out = target_for(linux).map_ok(|target| game_run(target, "entity-game").args.get(2))
+	out = target_for(linux).map_ok(|target| game_run(target, "examples/entity-game", "entity-game").args.get(2))
 	out == Ok(Ok("--output=./entity-game_linux.bin"))
 }
 

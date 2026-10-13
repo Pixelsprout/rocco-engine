@@ -24,5 +24,9 @@ examples/*/*.exe
 examples/*/*.pdb
 # lld-link writes an import library beside an exe that exports symbols.
 examples/*/*.lib
+games/*/*.bin
+games/*/*.exe
+games/*/*.pdb
+games/*/*.lib
 
 .DS_Store

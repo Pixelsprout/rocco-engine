@@ -2,8 +2,8 @@
 # Check that the games do not rebuild the host library. Records the host
 # library's hash and mtime and the hashes of the generated glue and
 # platform/Key.roc, regenerates both, runs the tests in platform/Key.roc and
-# links both games, then compares.
-# A Model change in either game must pass this check, because the platform
+# links every game, then compares.
+# A Model change in any game must pass this check, because the platform
 # never names the game.
 set -eu
 cd "$(dirname "$0")/.."
@@ -30,6 +30,7 @@ roc scripts/build.roc -- keys > /dev/null
 roc test platform/Key.roc > /dev/null
 roc scripts/build.roc -- game cards > /dev/null
 roc scripts/build.roc -- game entity-game > /dev/null
+roc scripts/build.roc -- game kula > /dev/null
 
 failed=0
 if [ "$(hash engine/roc_platform_abi.odin)" != "$glue_hash" ]; then
@@ -45,6 +46,6 @@ if [ "$(hash "$lib")" != "$lib_hash" ] || [ "$(mtime "$lib")" != "$lib_mtime" ];
 	failed=1
 fi
 if [ "$failed" -eq 0 ]; then
-	echo "PASS: $lib, the glue and platform/Key.roc did not change while both games built"
+	echo "PASS: $lib, the glue and platform/Key.roc did not change while the games built"
 fi
 exit $failed
