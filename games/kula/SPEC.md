@@ -153,11 +153,22 @@ of it points away. No face exists between two blocks, so the neighbours do
 not hide the ball.
 
 Halfway through a climb, the eye passes down through the top face of the
-floor the ball left. Just before that, the engine's near plane slices that
-floor. The original's near-polygon code (`SubdivideLevelGeometryPolys`) is
-still assembly, so its behaviour is not known. PS1 games usually drop
-polygons that come too close to the camera. The clone guesses the same: it
-does not draw a face within 1.12 cells of the eye, tuned by eye (Inferred).
+floor the ball left. Just before that, the engine's near plane cuts that
+floor inside the screen, and a hole shows. The original's near-polygon code
+(`SubdivideLevelGeometryPolys`) is still assembly, so its behaviour is not
+known.
+
+The clone hides a face only when the near plane cuts it inside the screen
+(`View.cut_by_near_plane`). Two conditions must both be true:
+
+- The face is within 0.2 cell of the eye. The corners of the near plane's
+  window are 0.183 cell from the eye, with the engine's near plane at 0.1
+  and a 16:9 screen.
+- The face's plane passes through that window.
+
+In a climb at the level1 wall, this hides the old floor for about 2 ms.
+A face that crosses the near plane outside the screen still draws, so the
+ball's floor and the walls beside the ball do not vanish (Inferred).
 
 A whole-cube mesh would draw the faces between blocks. Do not use one for
 level blocks.

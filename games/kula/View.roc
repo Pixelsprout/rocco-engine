@@ -53,20 +53,19 @@ View := [].{
 	faces = |blocks| blocks.to_list().join_map(|block|
 		normals.keep_if(|normal| !Grid.has_block(blocks, Grid.add(block, normal))).map(|normal| { block, normal }))
 
-	# A guess at the original's near-polygon handling, which is undecompiled: a
-	# face this close to the eye is not drawn, so the floor left behind in a
-	# climb vanishes and is not sliced by the near plane. See SPEC.md.
-	near_eye : Face, Vec3.Vec3 -> Bool
-	near_eye = |face, eye| {
+	# True when the near plane cuts the face inside the screen, which shows as a
+	# hole. This happens as the eye passes through the floor it left in a climb.
+	cut_by_near_plane : Face, Camera -> Bool
+	cut_by_near_plane = |face, cam| {
 		centre_of_face = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
 		n = Grid.to_vec3(face.normal)
 		closest = |e, c, axis_normal| if axis_normal != 0.0 { c } else { clamp(e, c - 0.5, c + 0.5) }
 		nearest = {
-			x: closest(eye.x, centre_of_face.x, n.x),
-			y: closest(eye.y, centre_of_face.y, n.y),
-			z: closest(eye.z, centre_of_face.z, n.z),
+			x: closest(cam.eye.x, centre_of_face.x, n.x),
+			y: closest(cam.eye.y, centre_of_face.y, n.y),
+			z: closest(cam.eye.z, centre_of_face.z, n.z),
 		}
-		Vec3.length(Vec3.sub(eye, nearest)) < near_face_distance
+		Vec3.length(Vec3.sub(cam.eye, nearest)) < near_window_reach and near_window(cam).any(|corner| Vec3.dot(Vec3.sub(corner, centre_of_face), n) < 0.0)
 	}
 
 	# face.glb, like the primitive plane, faces +y and is one-sided.
@@ -92,8 +91,16 @@ camera_drop = 250.0 / 512.0
 camera_fov_y : F32
 camera_fov_y = 1.286
 
-near_face_distance : F32
-near_face_distance = 1.12
+# The engine's SCENE_NEAR. Kula assumes a 16:9 screen.
+near_plane : F32
+near_plane = 0.1
+
+screen_aspect : F32
+screen_aspect = 16.0 / 9.0
+
+# The near window's corners are 0.183 from the eye, so only a face that close can be cut.
+near_window_reach : F32
+near_window_reach = 0.2
 
 clamp : F32, F32, F32 -> F32
 clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
@@ -132,6 +139,17 @@ edge_centre = |from, t| {
 	} else {
 		Vec3.sub(Vec3.add(edge, Vec3.scale(forward, r)), Vec3.scale(up, s - 0.5 - arc))
 	}
+}
+
+near_window : Camera -> List(Vec3.Vec3)
+near_window = |cam| {
+	forward = Vec3.normalize(Vec3.sub(cam.target, cam.eye))
+	right = Vec3.cross(forward, cam.up)
+	half_height = near_plane * (cam.fov_y / 2.0).tan()
+	half_width = half_height * screen_aspect
+	centre_of_window = Vec3.add(cam.eye, Vec3.scale(forward, near_plane))
+	[(-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0)].map(|(sx, sy)|
+		Vec3.add(centre_of_window, Vec3.add(Vec3.scale(right, sx * half_width), Vec3.scale(cam.up, sy * half_height))))
 }
 
 normals : List(World.Cell)
@@ -291,9 +309,19 @@ expect {
 	near(View.ball_draw(half, 2, white).pos, { x: 0.0, y: 0.5 + d, z: -0.5 - d })
 }
 
+# Looking along a floor from just above it, the near plane cuts the floor. Higher up, or
+# looking up, it does not.
 expect {
 	face = { block: cell(0, 0, 0), normal: cell(0, 1, 0) }
-	View.near_eye(face, { x: 0.2, y: 1.5, z: -0.4 }) and !View.near_eye(face, { x: 0.0, y: 1.7, z: 0.0 }) and !View.near_eye(face, { x: 1.7, y: 0.5, z: 0.0 })
+	level = |y, target_y| { eye: { x: 0.0, y, z: 0.0 }, target: { x: 0.0, y: target_y, z: -1.0 }, up: { x: 0.0, y: 1.0, z: 0.0 }, fov_y: 1.286 }
+	View.cut_by_near_plane(face, level(0.55, 0.55)) and !View.cut_by_near_plane(face, level(0.8, 0.8)) and !View.cut_by_near_plane(face, { ..level(0.55, 0.55), target: { x: 0.0, y: 1.55, z: 0.0 }, up: { x: 0.0, y: 0.0, z: 1.0 } })
+}
+
+# Halfway through a climb, the floor under the ball and the floor behind it still draw.
+expect {
+	behind = Set.from_list([cell(0, 0, 0), cell(0, 0, 1), cell(0, 0, 2), cell(0, 1, -1)])
+	mid_climb = Ball.advance(Ball.act(behind, Ball.start(on_origin), Roll), 0.14)
+	View.faces(behind).all(|face| !View.cut_by_near_plane(face, View.camera(mid_climb)))
 }
 
 # A jump in place rises half a cell and comes down on the same cell.

@@ -58,10 +58,10 @@ view = |model| {
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
 	exit_tint = if Rules.exit_open(model) { open_exit_tint } else { closed_exit_tint }
 	camera = View.camera(model.ball)
-	# Ids come before the near-eye filter, so a face keeps its id while others drop out.
+	# Ids come before the near-plane filter, so a face keeps its id while others drop out.
 	blocks = View.faces(model.level.blocks)
 		.map_with_index(|face, i| { face, id: 1 + i.to_u64() })
-		.keep_if(|entry| !View.near_eye(entry.face, camera.eye))
+		.keep_if(|entry| !View.cut_by_near_plane(entry.face, camera))
 		.map(|entry| {
 			tint = if exits.contains(entry.face.block) { exit_tint } else { block_tint }
 			View.face_draw(entry.id, model.meshes.face, entry.face, tint)
@@ -155,14 +155,17 @@ expect {
 	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.695, z: 9.0 }]
 }
 
-# Halfway through the climb at the level1 wall, the eye is near the old floor.
-# Faces near it drop out, and the rest keep the ids they have at rest.
+# In the climb at the level1 wall, the eye passes down through the old floor.
+# Only as it passes does that face drop out, and the rest keep their ids.
 expect {
 	rest = view(init(test_config)).draws
 	at_wall = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
-	mid_climb = step(at_wall, up_held, [], 0.14).model
-	faces = view(mid_climb).draws.keep_if(|d| d.mesh == mid_climb.meshes.face)
-	faces.len() < 46 and faces.all(|d| rest.any(|r| r.id == d.id and r.pos == d.pos))
+	faces_at = |dt| {
+		climbing = step(at_wall, up_held, [], dt).model
+		view(climbing).draws.keep_if(|d| d.mesh == climbing.meshes.face)
+	}
+	passing = faces_at(0.152)
+	faces_at(0.14).len() == 46 and passing.len() < 46 and passing.all(|d| rest.any(|r| r.id == d.id and r.pos == d.pos))
 }
 
 # Rolling from S over the first key collects it.
