@@ -1,11 +1,16 @@
 import linalg.Quat
 import linalg.Vec3
-import pf.Vocabulary exposing [Camera, Draw, Rgb]
+import mesh.Mesh
+import pf.Vocabulary exposing [Camera, Config, Draw, Rgb]
 import World
 import Grid
 import Ball
 
 View := [].{
+	# Keys stay primitive cubes until a key mesh exists.
+	meshes : Config -> World.Meshes
+	meshes = |config| { cube: Mesh.primitive(config, Cube), face: Mesh.resolve(config, "face"), ball: Mesh.resolve(config, "ball") }
+
 	Placement : { pos : Vec3.Vec3, up : Vec3.Vec3, forward : Vec3.Vec3 }
 
 	interpolated : Ball.Ball -> Placement
@@ -15,7 +20,12 @@ View := [].{
 		Turning({ from, t }) => between(from, ball.pose, t)
 		Jumping({ from, t }) => {
 			placed = between(from, ball.pose, t)
-			{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, 4.0 * jump_height * t * (1.0 - t))) }
+			{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, jump_lift(t))) }
+		}
+		# The jump arc, pulled down so it ends fall_depth cells below the landing cell.
+		Falling({ from, t }) => {
+			placed = between(from, ball.pose, t)
+			{ ..placed, pos: Vec3.add(placed.pos, Vec3.scale(placed.up, jump_lift(t) - fall_depth * t * t)) }
 		}
 	}
 
@@ -59,7 +69,7 @@ View := [].{
 		Vec3.length(Vec3.sub(eye, nearest)) < near_face_distance
 	}
 
-	# The primitive plane faces +y and is one-sided.
+	# face.glb, like the primitive plane, faces +y and is one-sided.
 	face_draw : U64, U32, Face, Rgb -> Draw
 	face_draw = |id, mesh, face, tint| {
 		pos = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
@@ -93,6 +103,12 @@ pi = 3.1415927
 
 jump_height : F32
 jump_height = 0.5
+
+fall_depth : F32
+fall_depth = 3.0
+
+jump_lift : F32 -> F32
+jump_lift = |t| 4.0 * jump_height * t * (1.0 - t)
 
 # The centre rests one radius above the face. Round an edge it follows the
 # original's path: half a cell to the edge, a quarter circle of one radius
@@ -190,6 +206,12 @@ expect {
 expect {
 	placed = View.interpolated(Ball.advance(Ball.act(floor, Ball.start(on_origin), Jump), 0.27))
 	near(placed.pos, { x: 0.0, y: 1.5, z: -1.0 })
+}
+
+# A jump into nothing ends fall_depth below its landing cell.
+expect {
+	falling = Ball.act(Set.from_list([cell(0, 0, 0)]), Ball.start(on_origin), Jump)
+	near(View.interpolated(Ball.advance(falling, 0.5)).pos, { x: 0.0, y: -2.0, z: -2.0 })
 }
 
 expect {

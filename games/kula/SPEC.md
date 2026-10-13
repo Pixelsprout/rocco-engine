@@ -69,7 +69,7 @@ clone has no speed-up.
 | Fact | Original | Label | Clone |
 |---|---|---|---|
 | Landing | Exactly two cells ahead at the same level | Code | Same |
-| No floor there | The ball falls | Code | `Fall`. The Rules task makes the ball fall |
+| No floor there | The ball falls | Code | `Falling`: the ball drops three cells in 0.5 s, then the level restarts |
 | A block in the path | The ball bounces back and falls | Code, `CheckForPlayerWallHit` | `Bounce` when a block sits one or two cells ahead |
 | A block above | Not found | | `Bounce` (inferred) |
 | Duration | 27 frames | Reported, wiki.kula.quest | 0.54 s |
@@ -109,10 +109,11 @@ face when the neighbour cell holds a solid block (`ProcessCubesIntoFaces`,
 `src/level_init.c`, Code). Faces carry a flag that the decompiler marks as
 back-face culling, with a question mark.
 
-The clone draws each exposed face as the one-sided primitive plane. The
-engine culls back faces. A camera inside a block therefore sees through
-that block, because every face of it points away. No face exists between
-two blocks, so the neighbours do not hide the ball.
+The clone draws each exposed face as `face.glb`, a one-sided quad like the
+primitive plane with a lighter border. The engine culls back faces. A
+camera inside a block therefore sees through that block, because every face
+of it points away. No face exists between two blocks, so the neighbours do
+not hide the ball.
 
 Halfway through a climb, the eye passes down through the top face of the
 floor the ball left. Just before that, the engine's near plane slices that

@@ -6,7 +6,7 @@ Ball := [].{
 	Ball : { pose : World.Pose, motion : Motion, rot : Quat.Quat }
 
 	# The pose commits when a move starts. from and t only serve View.
-	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Turning({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, t : F32 })]
+	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Turning({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, t : F32 }), Falling({ from : World.Pose, t : F32 })]
 
 	Action : [Roll, TurnLeft, TurnRight, Jump]
 
@@ -88,7 +88,7 @@ Ball := [].{
 			(Still, TurnRight) => { ..ball, pose: turn_right(from), motion: Turning({ from, t: 0.0 }) }
 			(Still, Jump) => match jump(blocks, from) {
 				Land(pose) => { ..ball, pose, motion: Jumping({ from, t: 0.0 }) }
-				Fall(_) => ball
+				Fall(pose) => { ..ball, pose, motion: Falling({ from, t: 0.0 }) }
 				Bounce => ball
 			}
 			_ => ball
@@ -113,6 +113,8 @@ Ball := [].{
 			next = progress(t, dt, jump_seconds)
 			{ ..ball, motion: if next < 1.0 { Jumping({ from, t: next }) } else { Still } }
 		}
+		# A fall never ends Still. Rules restarts the level when t reaches 1.
+		Falling({ from, t }) => { ..ball, motion: Falling({ from, t: progress(t, dt, fall_seconds) }) }
 	}
 }
 
@@ -133,6 +135,9 @@ turn_seconds = 0.32
 
 jump_seconds : F32
 jump_seconds = 0.54
+
+fall_seconds : F32
+fall_seconds = 0.5
 
 # Clamped to 1, so the last step of a roll spins only the remaining distance.
 progress : F32, F32, F32 -> F32
@@ -198,7 +203,7 @@ expect {
 expect Ball.act(blocks([cell(0, 0, 0), cell(1, 0, 0)]), still, Roll) == still
 expect Ball.act(floor_ahead, still, TurnLeft).motion == Turning({ from: on_origin, t: 0.0 })
 expect Ball.act(floor_ahead, still, Jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, t: 0.0 }) }
-expect Ball.act(blocks([cell(0, 0, 0)]), still, Jump) == still
+expect Ball.act(blocks([cell(0, 0, 0)]), still, Jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, t: 0.0 }) }
 expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Jump) == still
 
 # Input is read only when Still.
@@ -216,6 +221,8 @@ expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).motion == Sti
 expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.27).motion == Jumping({ from: on_origin, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.54).motion == Still
 expect Ball.advance(still, 1.0) == still
+expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Jump), 0.25).motion == Falling({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Jump), 0.5), 0.5).motion == Falling({ from: on_origin, t: 1.0 })
 
 # Rolling along -z on +y turns about -x, one cell over the radius, however the steps fall.
 expect {

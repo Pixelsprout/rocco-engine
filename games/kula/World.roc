@@ -5,5 +5,5 @@ World := [].{
 	Pose : { cell : Cell, up : Cell, forward : Cell }
 	Item : [Key, Exit]
 	Level : { blocks : Set(Cell), items : List({ cell : Cell, item : Item }), start : Pose }
-	Meshes : { cube : U32, sphere : U32, plane : U32 }
+	Meshes : { cube : U32, face : U32, ball : U32 }
 }
