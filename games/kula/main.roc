@@ -5,14 +5,17 @@ import linalg.Vec3
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Rgb, Scene]
 import pf.Key
 import World
+import Grid
 import Level
+import Ball
+import View
 
-Model : World.Model
+Model : { level : World.Level, ball : Ball.Ball, meshes : World.Meshes }
 
 init : Config -> Model
 init = |config| {
 	level = parse_or_crash(Level.level1_text)
-	{ level, ball: level.start, meshes: { cube: mesh_id(config, "primitive/cube"), sphere: mesh_id(config, "primitive/sphere") } }
+	{ level, ball: Ball.start(level.start), meshes: { cube: mesh_id(config, "primitive/cube"), sphere: mesh_id(config, "primitive/sphere") } }
 }
 
 parse_or_crash : Str -> World.Level
@@ -29,10 +32,36 @@ mesh_id = |config, name| match List.find_first(config.meshes, |m| m.name == name
 }
 
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
-step = |model, input, _contacts, _dt| {
+step = |model, input, _contacts, dt| {
+	stages = [read_input(input), move_ball(dt)]
 	commands = if Key.pressed(input, Escape) { [Quit] } else { [] }
-	{ model, commands }
+	{ model: stages.fold(model, |m, stage| stage(m)), commands }
 }
+
+# Input is read before the ball moves, so a key acts only on a step that starts Still.
+read_input : Input -> (Model -> Model)
+read_input = |input| |model| match action(input) {
+	Ok(act) => { ..model, ball: Ball.act(model.level.blocks, model.ball, act) }
+	Err(NoAction) => model
+}
+
+move_ball : F32 -> (Model -> Model)
+move_ball = |dt| |model| { ..model, ball: Ball.advance(model.ball, dt) }
+
+# Tank controls. Up rolls while held; the others act on press only.
+action : Input -> Try(Ball.Action, [NoAction])
+action = |input|
+	if Key.pressed(input, Space) {
+		Ok(Jump)
+	} else if Key.pressed(input, Left) {
+		Ok(TurnLeft)
+	} else if Key.pressed(input, Right) {
+		Ok(TurnRight)
+	} else if Key.held(input, Up) {
+		Ok(Roll)
+	} else {
+		Err(NoAction)
+	}
 
 view : Model -> Scene
 view = |model| {
@@ -42,16 +71,13 @@ view = |model| {
 		cube(model.meshes, 1 + i.to_u64(), block, 1.0, tint)
 	})
 	keys = model.level.items.keep_if(|entry| entry.item == Key).map_with_index(|entry, i| cube(model.meshes, key_ids + i.to_u64(), entry.cell, 0.3, key_tint))
-	ball = { id: 0, mesh: model.meshes.sphere, pos: to_vec3(model.ball.cell), scale: Vec3.one, rot: Quat.identity, tint: ball_tint }
-	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
+	ball = View.ball_draw(model.ball, model.meshes.sphere, ball_tint)
+	{ camera: View.camera(model.ball), draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
 }
 
 # Block draw ids count up from 1, so the key ids start well past any level's blocks.
 key_ids : U64
 key_ids = 100_000
-
-camera : Vocabulary.Camera
-camera = { eye: { x: 7.0, y: 8.0, z: 11.0 }, target: { x: 0.0, y: 0.5, z: 4.5 }, up: { x: 0.0, y: 1.0, z: 0.0 }, fov_y: 1.047 }
 
 block_tint : Rgb
 block_tint = { r: 0.45, g: 0.5, b: 0.6 }
@@ -68,11 +94,8 @@ ball_tint = { r: 0.9, g: 0.9, b: 0.95 }
 below : World.Cell -> World.Cell
 below = |cell| { ..cell, y: cell.y - 1 }
 
-to_vec3 : World.Cell -> Vocabulary.Vec3
-to_vec3 = |cell| { x: cell.x.to_f32(), y: cell.y.to_f32(), z: cell.z.to_f32() }
-
 cube : World.Meshes, U64, World.Cell, F32, Rgb -> Draw
-cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, tint }
+cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, tint }
 
 test_config : Config
 test_config = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }] }
@@ -81,7 +104,19 @@ idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
 expect init(test_config).meshes == { cube: 1, sphere: 2 }
-expect init(test_config).ball == init(test_config).level.start
+expect init(test_config).ball == Ball.start(init(test_config).level.start)
+
+up_held : Input
+up_held = { ..idle, held: [Key.code(Up)] }
+
+expect step(init(test_config), up_held, [], 0.1).model.ball.motion == Rolling({ from: init(test_config).level.start, t: 0.5 })
+expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.05).model.ball.motion == Turning({ from: init(test_config).level.start, t: 0.5 })
+expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.05).model.ball.motion == Still
+
+expect {
+	model = [0.1, 0.1, 0.1, 0.1].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model.ball.pose.cell == { x: 0, y: 1, z: 7 }
+}
 expect step(init(test_config), { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
 expect step(init(test_config), idle, [], 0.1).commands == []
 
@@ -104,5 +139,5 @@ expect {
 expect {
 	model = init(test_config)
 	ball = view(model).draws.keep_if(|d| d.mesh == model.meshes.sphere)
-	ball.map(|d| d.pos) == [{ x: 0.0, y: 1.0, z: 9.0 }]
+	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.9, z: 9.0 }]
 }

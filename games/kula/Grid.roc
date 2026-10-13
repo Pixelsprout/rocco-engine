@@ -20,6 +20,9 @@ Grid := [].{
 	scale : World.Cell, I32 -> World.Cell
 	scale = |a, s| { x: a.x * s, y: a.y * s, z: a.z * s }
 
+	to_vec3 : World.Cell -> { x : F32, y : F32, z : F32 }
+	to_vec3 = |c| { x: c.x.to_f32(), y: c.y.to_f32(), z: c.z.to_f32() }
+
 	has_block : Set(World.Cell), World.Cell -> Bool
 	has_block = |blocks, cell| blocks.contains(cell)
 }
@@ -31,5 +34,6 @@ expect Grid.neg({ x: 1, y: 0, z: -1 }) == { x: -1, y: 0, z: 1 }
 expect Grid.cross({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }) == { x: 0, y: 0, z: 1 }
 expect Grid.cross({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }) == { x: -1, y: 0, z: 0 }
 expect Grid.scale({ x: 0, y: 0, z: -1 }, 2) == { x: 0, y: 0, z: -2 }
+expect Grid.to_vec3({ x: 1, y: -2, z: 3 }) == { x: 1.0, y: -2.0, z: 3.0 }
 expect Grid.has_block(Set.from_list([{ x: 1, y: 0, z: 2 }]), { x: 1, y: 0, z: 2 })
 expect !Grid.has_block(Set.from_list([{ x: 1, y: 0, z: 2 }]), { x: 1, y: 1, z: 2 })

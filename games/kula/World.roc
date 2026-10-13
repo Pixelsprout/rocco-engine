@@ -6,5 +6,4 @@ World := [].{
 	Item : [Key, Exit]
 	Level : { blocks : Set(Cell), items : List({ cell : Cell, item : Item }), start : Pose }
 	Meshes : { cube : U32, sphere : U32 }
-	Model : { level : Level, ball : Pose, meshes : Meshes }
 }
