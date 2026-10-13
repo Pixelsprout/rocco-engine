@@ -21,7 +21,7 @@ View := [].{
 
 	ball_draw : Ball.Ball, U32, Rgb -> Draw
 	ball_draw = |ball, mesh, tint| {
-		{ id: 0, mesh, pos: ball_centre(interpolated(ball)), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
+		{ id: 0, mesh, pos: centre(ball), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
 	}
 
 	# Rigid in the ball's frame, with no smoothing and no clipping test, as in the
@@ -32,7 +32,7 @@ View := [].{
 		placed = interpolated(ball)
 		cam_forward = Vec3.sub(Vec3.scale(placed.forward, camera_pitch.cos()), Vec3.scale(placed.up, camera_pitch.sin()))
 		cam_up = Vec3.add(Vec3.scale(placed.forward, camera_pitch.sin()), Vec3.scale(placed.up, camera_pitch.cos()))
-		eye = Vec3.add(Vec3.sub(ball_centre(placed), Vec3.scale(cam_forward, camera_depth)), Vec3.scale(cam_up, camera_drop))
+		eye = Vec3.add(Vec3.sub(centre(ball), Vec3.scale(cam_forward, camera_depth)), Vec3.scale(cam_up, camera_drop))
 		{ eye, target: Vec3.add(eye, cam_forward), up: cam_up, fov_y: camera_fov_y }
 	}
 
@@ -72,8 +72,35 @@ pi = 3.1415927
 jump_height : F32
 jump_height = 0.5
 
-ball_centre : View.Placement -> Vec3.Vec3
-ball_centre = |placed| Vec3.sub(placed.pos, Vec3.scale(placed.up, 0.5 - Ball.radius))
+# The centre rests one radius above the face. Round an edge it follows the
+# original's path: half a cell to the edge, a quarter circle of one radius
+# about the edge line, then half a cell down the side.
+centre : Ball.Ball -> Vec3.Vec3
+centre = |ball| match ball.motion {
+	Rolling({ from, t }) if Ball.roll_kind(from, ball.pose) == Edge => edge_centre(from, t)
+	_ => {
+		placed = View.interpolated(ball)
+		Vec3.sub(placed.pos, Vec3.scale(placed.up, 0.5 - Ball.radius))
+	}
+}
+
+edge_centre : World.Pose, F32 -> Vec3.Vec3
+edge_centre = |from, t| {
+	up = Grid.to_vec3(from.up)
+	forward = Grid.to_vec3(from.forward)
+	r = Ball.radius
+	edge = Vec3.add(Grid.to_vec3(Grid.sub(from.cell, from.up)), Vec3.scale(Vec3.add(up, forward), 0.5))
+	arc = pi / 2.0 * r
+	s = t * Ball.roll_length(Edge)
+	if s < 0.5 {
+		Vec3.add(edge, Vec3.add(Vec3.scale(up, r), Vec3.scale(forward, s - 0.5)))
+	} else if s < 0.5 + arc {
+		a = (s - 0.5) / r
+		Vec3.add(edge, Vec3.add(Vec3.scale(up, r * a.cos()), Vec3.scale(forward, r * a.sin())))
+	} else {
+		Vec3.sub(Vec3.add(edge, Vec3.scale(forward, r)), Vec3.scale(up, s - 0.5 - arc))
+	}
+}
 
 normals : List(World.Cell)
 normals = [{ x: 0, y: 1, z: 0 }, { x: 0, y: -1, z: 0 }, { x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }]
@@ -132,7 +159,7 @@ expect {
 # Halfway round an edge, up and forward are each a unit diagonal.
 expect {
 	edge = Set.from_list([cell(0, 0, 0)])
-	placed = View.interpolated(Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.11))
+	placed = View.interpolated(Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.17))
 	s = 0.70710678
 	near(placed.pos, { x: 0.0, y: 0.5, z: -0.5 }) and near(placed.up, { x: 0.0, y: s, z: -s }) and near(placed.forward, { x: 0.0, y: -s, z: -s })
 }
@@ -192,4 +219,27 @@ expect {
 		n = Grid.to_vec3(face.normal)
 		near(Quat.rotate(up, draw.rot), n) and near(draw.pos, Vec3.add({ x: 2.0, y: 0.0, z: 0.0 }, Vec3.scale(n, 0.5)))
 	})
+}
+
+# Distance from a point to the surface of the unit block at the origin, 0 inside.
+outside_origin_block : Vec3.Vec3 -> F32
+outside_origin_block = |v| {
+	gap = |c| if c.abs() > 0.5 { c.abs() - 0.5 } else { 0.0 }
+	Vec3.length({ x: gap(v.x), y: gap(v.y), z: gap(v.z) })
+}
+
+# Round an edge, the ball wraps the corner and never enters the block.
+expect {
+	edge = Set.from_list([cell(0, 0, 0)])
+	rolling = Ball.act(edge, Ball.start(on_origin), Roll)
+	steps = [0.0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.17, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34]
+	steps.all(|dt| outside_origin_block(View.ball_draw(Ball.advance(rolling, dt), 2, white).pos) >= Ball.radius - 0.001)
+}
+
+# Halfway round, the centre sits one radius out from the edge at 45 degrees.
+expect {
+	edge = Set.from_list([cell(0, 0, 0)])
+	half = Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.17)
+	d = Ball.radius * 0.70710678
+	near(View.ball_draw(half, 2, white).pos, { x: 0.0, y: 0.5 + d, z: -0.5 - d })
 }

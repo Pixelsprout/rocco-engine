@@ -34,6 +34,27 @@ Ball := [].{
 		}
 	}
 
+	RollKind : [Floor, Climb, Edge]
+
+	roll_kind : World.Pose, World.Pose -> RollKind
+	roll_kind = |from, to|
+		if from.up == to.up {
+			Floor
+		} else if from.cell == to.cell {
+			Climb
+		} else {
+			Edge
+		}
+
+	# The distance the ball centre travels. A climb rolls to the wall, then up it.
+	# An edge roll adds a quarter circle round the edge.
+	roll_length : RollKind -> F32
+	roll_length = |kind| match kind {
+		Floor => 1.0
+		Climb => 2.0 * (0.5 - radius)
+		Edge => 1.0 + quarter_turn * radius
+	}
+
 	turn_left : World.Pose -> World.Pose
 	turn_left = |pose| { ..pose, forward: Grid.cross(pose.up, pose.forward) }
 
@@ -78,9 +99,10 @@ Ball := [].{
 	advance = |ball, dt| match ball.motion {
 		Still => ball
 		Rolling({ from, t }) => {
-			next = progress(t, dt, roll_seconds(from, ball.pose))
+			kind = roll_kind(from, ball.pose)
+			next = progress(t, dt, roll_seconds(kind))
 			axis = Grid.to_vec3(Grid.cross(from.up, from.forward))
-			spin = Quat.from_axis_angle(axis, (next - t) / radius)
+			spin = Quat.from_axis_angle(axis, (next - t) * roll_length(kind) / radius)
 			{ ..ball, rot: Quat.mul(spin, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
 		}
 		Turning({ from, t }) => {
@@ -95,15 +117,16 @@ Ball := [].{
 }
 
 # PAL frame counts from the original, at 0.02 s a frame. See SPEC.md.
-roll_seconds : World.Pose, World.Pose -> F32
-roll_seconds = |from, to|
-	if from.up == to.up {
-		0.26
-	} else if from.cell == to.cell {
-		0.28
-	} else {
-		0.22
-	}
+# An edge roll is half a cell at top speed, the 4-frame wrap, then half a cell.
+roll_seconds : Ball.RollKind -> F32
+roll_seconds = |kind| match kind {
+	Floor => 0.26
+	Climb => 0.28
+	Edge => 0.34
+}
+
+quarter_turn : F32
+quarter_turn = 1.5707963
 
 turn_seconds : F32
 turn_seconds = 0.32
@@ -187,7 +210,7 @@ expect {
 expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.13).motion == Rolling({ from: on_origin, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.26).motion == Still
 expect Ball.advance(Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, Roll), 0.14).motion == Rolling({ from: on_origin, t: 0.5 })
-expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Roll), 0.11).motion == Rolling({ from: on_origin, t: 0.5 })
+expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, Roll), 0.17).motion == Rolling({ from: on_origin, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.16).motion == Turning({ from: on_origin, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).motion == Still
 expect Ball.advance(Ball.act(floor_ahead, still, Jump), 0.27).motion == Jumping({ from: on_origin, t: 0.5 })

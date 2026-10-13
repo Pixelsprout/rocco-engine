@@ -21,7 +21,7 @@ clone uses cells, radians and seconds. One PAL frame is 0.02 s.
 |---|---|---|---|
 | Radius | 100 units, 0.195 cell | Code: the ball centre rests 100 units above a face | `Ball.radius = 0.195` |
 | Visual radius | Not found | | Same as the collision radius |
-| Spin | Not modelled here | | One cell of roll turns the ball 1 / 0.195 radians |
+| Spin | Not modelled here | | The distance the centre travels over the radius |
 
 The ball centre is 0.195 cell above the face it stands on. The draw centre
 is the cell centre minus 0.305 along up.
@@ -51,8 +51,15 @@ speeddemosarchive.com report the same rule.
 |---|---|---|---|
 | Floor roll | Speeds up by 7 units a frame to 40 units a frame | Code | 0.26 s, the time for one cell at top speed |
 | Climb | The camera turns 90° in 14 frames. The ball does not move | Code | 0.28 s |
-| Edge roll | The camera turns 90° in 11 frames | Code | 0.22 s |
+| Edge roll | The ball wraps the edge in 4 frames. The camera turns 90° in 11 frames | Code | 0.34 s: half a cell at top speed, the wrap, half a cell (inferred) |
 | Turn | 90° in 16 frames, linear | Code | 0.32 s |
+
+Round an edge, the original moves the ball centre on a fixed arc. Each of
+the 4 frames steps (up, forward) by (38, 8), (32, 22), (22, 32), (8, 39)
+units, about one radius in all (Code, `ProcessMovement` case `ROTATING`).
+The clone moves the centre half a cell to the edge, a quarter circle of one
+radius about the edge line, then half a cell down the side. The ball never
+enters the block.
 
 The original stops the ball at a cell centre when forward is not held. The
 clone has no speed-up.
