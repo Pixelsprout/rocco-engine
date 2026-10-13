@@ -275,19 +275,22 @@ Roc_Step_Commands :: struct {}
 Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
+	lights: Roc_List(Roc_View_Lights),
 	camera: Roc_View_Camera,
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 96)
+#assert(size_of(Roc_View) == 120)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, colliders) == 0)
 #assert(size_of(type_of(Roc_View{}.colliders)) == 24)
 #assert(offset_of(Roc_View, draws) == 24)
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
-#assert(offset_of(Roc_View, camera) == 48)
+#assert(offset_of(Roc_View, lights) == 48)
+#assert(size_of(type_of(Roc_View{}.lights)) == 24)
+#assert(offset_of(Roc_View, camera) == 72)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, cursor) == 88)
+#assert(offset_of(Roc_View, cursor) == 112)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
@@ -402,6 +405,59 @@ Roc_View_Draws_Tint :: struct {
 #assert(offset_of(Roc_View_Draws_Tint, r) == 8)
 #assert(size_of(type_of(Roc_View_Draws_Tint{}.r)) == 4)
 
+Roc_View_Lights_Tag :: enum u8 {
+	Ambient = 0,
+	Directional = 1,
+	Point = 2,
+}
+
+Roc_View_Lights_Payload :: struct #raw_union {
+	ambient: Roc_View_Draws_Tint,
+	directional: Roc_View_Lights_Directional,
+	point: Roc_View_Lights_Point,
+}
+
+Roc_View_Lights :: struct {
+	payload: Roc_View_Lights_Payload,
+	tag: Roc_View_Lights_Tag,
+}
+
+#assert(size_of(Roc_View_Lights) == 32)
+#assert(align_of(Roc_View_Lights) == 4)
+#assert(offset_of(Roc_View_Lights, tag) == 28)
+
+Roc_View_Lights_Ambient :: Roc_View_Draws_Tint
+Roc_View_Lights_Directional :: struct {
+	color: Roc_View_Draws_Tint,
+	dir: Roc_Step_Arg2_Normal,
+}
+
+#assert(size_of(Roc_View_Lights_Directional) == 24)
+#assert(align_of(Roc_View_Lights_Directional) == 4)
+#assert(offset_of(Roc_View_Lights_Directional, color) == 0)
+#assert(size_of(type_of(Roc_View_Lights_Directional{}.color)) == 12)
+#assert(offset_of(Roc_View_Lights_Directional, dir) == 12)
+#assert(size_of(type_of(Roc_View_Lights_Directional{}.dir)) == 12)
+
+Roc_View_Lights_Directional_Color :: Roc_View_Draws_Tint
+Roc_View_Lights_Directional_Dir :: Roc_Step_Arg2_Normal
+Roc_View_Lights_Point :: struct {
+	color: Roc_View_Draws_Tint,
+	pos: Roc_Step_Arg2_Normal,
+	range: f32,
+}
+
+#assert(size_of(Roc_View_Lights_Point) == 28)
+#assert(align_of(Roc_View_Lights_Point) == 4)
+#assert(offset_of(Roc_View_Lights_Point, color) == 0)
+#assert(size_of(type_of(Roc_View_Lights_Point{}.color)) == 12)
+#assert(offset_of(Roc_View_Lights_Point, pos) == 12)
+#assert(size_of(type_of(Roc_View_Lights_Point{}.pos)) == 12)
+#assert(offset_of(Roc_View_Lights_Point, range) == 24)
+#assert(size_of(type_of(Roc_View_Lights_Point{}.range)) == 4)
+
+Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
+Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Normal
 Roc_View_Camera :: struct {
 	eye: Roc_Step_Arg2_Normal,
 	fov_y: f32,
@@ -452,6 +508,7 @@ roc_step_decref :: proc(value: Roc_Step) {
 roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_colliders(value.colliders)
 	roc_list_decref_roc_view_draws(value.draws)
+	roc_list_decref_roc_view_lights(value.lights)
 }
 
 roc_list_decref_roc_init_arg0_meshes :: proc(list: Roc_List(Roc_Init_Arg0_Meshes)) {
@@ -502,6 +559,14 @@ roc_list_from_slice_roc_view_draws :: proc(elems: []Roc_View_Draws) -> Roc_List(
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_view_lights :: proc(list: Roc_List(Roc_View_Lights)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_List(Roc_View_Lights) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_decref :: proc {
 	roc_str_decref,
 	roc_init_arg0_decref,
@@ -518,6 +583,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_step_commands,
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
+	roc_list_decref_roc_view_lights,
 }
 
 roc_list_from_slice :: proc {
@@ -527,6 +593,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_step_commands,
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
+	roc_list_from_slice_roc_view_lights,
 }
 
 // The Roc app defines these symbols at the final link.

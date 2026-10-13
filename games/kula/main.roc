@@ -4,6 +4,7 @@ import linalg.Quat
 import linalg.Vec3
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Rgb, Scene]
 import pf.Key
+import pf.Light
 import World
 import Grid
 import Ball
@@ -53,6 +54,12 @@ action = |input|
 		Err(NoAction)
 	}
 
+lights : List(Vocabulary.Light)
+lights = [
+	Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
+	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
+]
+
 view : Model -> Scene
 view = |model| {
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
@@ -77,7 +84,7 @@ view = |model| {
 		Won => won_ball_tint
 	}
 	ball = View.ball_draw(model.ball, model.meshes.ball, ball_tint)
-	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], cursor: Free }
+	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights, cursor: Free }
 }
 
 # Face draw ids count up from 1, so the key ids start well past any level's faces.

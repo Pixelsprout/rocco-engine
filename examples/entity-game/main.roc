@@ -7,6 +7,7 @@ import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
 import pf.Collider
 import pf.Key
+import pf.Light
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
@@ -523,6 +524,12 @@ floor_id = U64.highest
 camera_offset : Vec3
 camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
+lights : List(Vocabulary.Light)
+lights = [
+	Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
+	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
+]
+
 view : Model -> Scene
 view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
@@ -566,7 +573,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, cursor: Free }
+	{ camera, draws: built.draws, colliders: built.colliders, lights, cursor: Free }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.

@@ -5,6 +5,7 @@ import mesh.Mesh as Mesh
 import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Contact, Input, Scene]
 import pf.Key
+import pf.Light
 
 # A second game on the same platform. No entities and no positions in the Model.
 Card : [Ace, King, Number(U8)]
@@ -27,6 +28,12 @@ update = |m, input, _contacts, _dt|
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
 step = |m, input, contacts, dt| { model: update(m, input, contacts, dt), commands: [] }
 
+lights : List(Vocabulary.Light)
+lights = [
+    Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
+    Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
+]
+
 view : Model -> Scene
 view = |m| {
     draws = List.map_with_index(m.hand, |card, i| {
@@ -38,7 +45,7 @@ view = |m| {
         # The slot index is the draw id: a card slides to its slot when dealt.
         { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, rot: Quat.identity, tint }
     })
-    { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], cursor: Free }
+    { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], lights, cursor: Free }
 }
 
 expect {
