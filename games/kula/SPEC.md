@@ -119,7 +119,7 @@ floor the ball left. Just before that, the engine's near plane slices that
 floor. The original's near-polygon code (`SubdivideLevelGeometryPolys`) is
 still assembly, so its behaviour is not known. PS1 games usually drop
 polygons that come too close to the camera. The clone guesses the same: it
-does not draw a face within 0.5 cell of the eye (Inferred).
+does not draw a face within 1.12 cells of the eye, tuned by eye (Inferred).
 
 A whole-cube mesh would draw the faces between blocks. Do not use one for
 level blocks.

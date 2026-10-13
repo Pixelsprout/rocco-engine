@@ -83,7 +83,7 @@ camera_fov_y : F32
 camera_fov_y = 1.286
 
 near_face_distance : F32
-near_face_distance = 0.5
+near_face_distance = 1.12
 
 clamp : F32, F32, F32 -> F32
 clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
@@ -268,5 +268,5 @@ expect {
 
 expect {
 	face = { block: cell(0, 0, 0), normal: cell(0, 1, 0) }
-	View.near_eye(face, { x: 0.2, y: 0.8, z: -0.4 }) and !View.near_eye(face, { x: 0.0, y: 1.1, z: 0.0 }) and !View.near_eye(face, { x: 1.2, y: 0.5, z: 0.0 })
+	View.near_eye(face, { x: 0.2, y: 1.5, z: -0.4 }) and !View.near_eye(face, { x: 0.0, y: 1.7, z: 0.0 }) and !View.near_eye(face, { x: 1.7, y: 0.5, z: 0.0 })
 }
