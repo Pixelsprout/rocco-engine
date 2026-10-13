@@ -5,7 +5,8 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 
-LIGHT_DIR :: [4]f32{2.0 / 7.0, 3.0 / 7.0, 6.0 / 7.0, 0} // 4 + 9 + 36 = 49, so |L| = 1 exactly
+// The light arrays in engine/shaders/basic.glsl have this size.
+MAX_LIGHTS :: 8
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 UP_EPSILON :: f32(1e-6)
@@ -13,14 +14,26 @@ UP_EPSILON :: f32(1e-6)
 // The pairing map holds this many draws without allocating.
 PAIRING_CAPACITY :: 4096
 
-// Lets tests run without sokol.
+#assert(len(Fs_Lights{}.light_pos) == MAX_LIGHTS)
+
+// Lets tests run without sokol. submit_lights runs once per frame, before any submit.
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
+Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
+
+Light_Drop :: enum {
+	Second_Ambient,
+	Over_Limit,
+	Zero_Dir,
+	Bad_Range,
+}
 
 Frame_Render :: struct {
 	pairing:            Pairing,
 	submit:             Submit,
+	submit_lights:      Submit_Lights,
 	submit_ctx:         rawptr,
 	up_fallback_logged: bool,
+	lights_logged:      bit_set[Light_Drop],
 }
 
 Draw_Transform :: struct {
@@ -66,6 +79,7 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
 frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, meshes: ^Mesh_Table) {
+	fr.submit_lights(fr.submit_ctx, frame_render_lights(fr, curr.lights.elements[:curr.lights.length]))
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	for d in curr.draws.elements[:curr.draws.length] {
 		from := d
@@ -79,13 +93,75 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 			fr.submit_ctx,
 			mesh,
 			vs_params = {mvp = view_proj * model, model = model},
-			fs_params = {
-				light_dir = LIGHT_DIR,
-				light_color = [4]f32{1, 1, 1, 1},
-				ambient = [4]f32{0.1, 0.1, 0.1, 1},
-				tint = tint,
-			},
+			fs_params = {tint = tint},
 		)
+	}
+}
+
+// A dropped light does not take a slot. An unused slot keeps a zero colour, so it adds no light.
+frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> Fs_Lights {
+	out: Fs_Lights
+	has_ambient := false
+	n := 0
+	for l in lights {
+		pos: [4]f32
+		color: Rgb
+		range: f32
+		switch l.tag {
+		case .Ambient:
+			if has_ambient {
+				light_drop(fr, .Second_Ambient)
+				continue
+			}
+			has_ambient = true
+			c := l.payload.ambient
+			out.ambient = {c.r, c.g, c.b, 1}
+			continue
+		case .Directional:
+			d := l.payload.directional
+			to_light := -v3_normalize_or_zero(vec3_array(d.dir))
+			if to_light == 0 {
+				light_drop(fr, .Zero_Dir)
+				continue
+			}
+			pos = {to_light.x, to_light.y, to_light.z, 0}
+			color = d.color
+		case .Point:
+			p := l.payload.point
+			// Written this way round so a NaN range drops too.
+			if !(p.range > 0) {
+				light_drop(fr, .Bad_Range)
+				continue
+			}
+			pos = {p.pos.x, p.pos.y, p.pos.z, 1}
+			color = p.color
+			range = p.range
+		}
+		if n == MAX_LIGHTS {
+			light_drop(fr, .Over_Limit)
+			continue
+		}
+		out.light_pos[n] = pos
+		out.light_color[n] = {color.r, color.g, color.b, range}
+		n += 1
+	}
+	return out
+}
+
+light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
+	if reason in fr.lights_logged {
+		return
+	}
+	fr.lights_logged += {reason}
+	switch reason {
+	case .Second_Ambient:
+		fmt.eprintln("a Scene has a second ambient light; the host uses the first")
+	case .Over_Limit:
+		fmt.eprintfln("a Scene has more than %v directional and point lights; the host drops the rest", MAX_LIGHTS)
+	case .Zero_Dir:
+		fmt.eprintln("a directional light has a zero dir; the host drops it")
+	case .Bad_Range:
+		fmt.eprintln("a point light has a range <= 0; the host drops it")
 	}
 }
 

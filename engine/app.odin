@@ -85,6 +85,7 @@ init_cb :: proc "c" () {
 
 	renderer_init(&g_state.renderer)
 	g_state.frame_render.submit = renderer_draw
+	g_state.frame_render.submit_lights = renderer_lights
 	g_state.frame_render.submit_ctx = &g_state.renderer
 }
 

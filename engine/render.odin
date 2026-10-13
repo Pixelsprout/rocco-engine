@@ -34,9 +34,15 @@ renderer_init :: proc(r: ^Renderer) {
 	r.pip = sg.make_pipeline(desc)
 }
 
-renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
+// sokol keeps the applied fs_lights until the next apply_pipeline, so renderer_draw must not apply the pipeline.
+renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 	r := (^Renderer)(ctx)
 	sg.apply_pipeline(r.pip)
+	l := lights
+	sg.apply_uniforms(UB_fs_lights, {ptr = &l, size = size_of(Fs_Lights)})
+}
+
+renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
 
 	vs := vs_params

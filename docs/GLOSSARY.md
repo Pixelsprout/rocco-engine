@@ -200,7 +200,7 @@ How long an allocation must stay valid. Three lifetimes are arenas this process 
 
 ## Light direction {#light-dir}
 
-In this engine, `LIGHT_DIR` is the unit vector **pointing at the light**, not the direction the light travels. The two are negatives of each other, both conventions are in common use, and nothing in any API will tell you which one a given codebase means — so it is written down here and kept. Getting it backwards is not subtle: every face that should be lit is dark and every face that should be dark is lit, which looks like a normal sign error and is not.
+In this engine, a directional light's `dir` is **the way the light travels**. The host negates and normalises it, so the shader gets the unit vector pointing at the light. The two are negatives of each other, both conventions are in common use, and nothing in any API will tell you which one a given codebase means — so it is written down here and kept. Getting it backwards is not subtle: every face that should be lit is dark and every face that should be dark is lit, which looks like a normal sign error and is not.
 
 ## Metal Shading Language {#metal-shading-language}
 
