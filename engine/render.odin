@@ -150,7 +150,8 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
 	r := (^Renderer)(ctx)
 	switch pass {
 	case .Shadow:
-		sg.begin_pass({action = {depth = {load_action = .CLEAR, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
+		// sokol discards depth at the end of a pass unless told to store it.
+		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
 		sg.apply_pipeline(r.shadow_pip)
 	case .Main:
 		sg.begin_pass({action = r.pass_action, swapchain = sglue.swapchain()})
