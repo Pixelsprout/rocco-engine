@@ -268,9 +268,10 @@ These Commands do nothing and log once per pack name:
 - an `Unload` for a pack that is not loaded.
 
 The primitives load at startup, before `init`. They belong to no pack and
-never unload, so a game can draw them before any `Load`. How a game gets
-their ids once `Config` carries no ids is open. The seam task `jw0tlmqt`
-decides it.
+never unload, so a game can draw them before any `Load`. Their ids are
+fixed: fallback 0, cube 1, sphere 2, plane 3. Each is its slot at
+generation 0. No primitive slot goes on a free list, so the ids never
+change.
 
 GPU resources belong to the asset. Vertex and image data are scratch until
 the upload, and no arena holds an asset, because packs unload in any order.
@@ -334,8 +335,9 @@ The primitives have type-safe tags in the mesh package:
 `Mesh.primitive(config, Cube)`. `Mesh.resolve(config, "name")` resolves the
 name of a loaded file to its mesh id. Both return 0 and print a `dbg` line on
 a miss. The tags live in the package only. The vocabulary still carries only
-a `U32`. Once `Config` carries no ids, both need a new source. The seam task
-`jw0tlmqt` decides it.
+a `U32`. In Milestone 12, `Mesh.primitive(Cube)` returns the fixed id and
+takes no `Config`, and `Mesh.resolve` takes a Manifest. A host test and a
+`roc test` in `packages/mesh` pin the same four values. Decision.
 
 The asset names in `Config`, the Manifest and the pack names in `Load` and
 `Unload` are the places a refcounted type (`Str`) enters the vocabulary.

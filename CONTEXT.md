@@ -232,9 +232,8 @@ _Avoid_: built-in, shape, basic mesh
 
 **Primitive tag**:
 A tag of `Primitive : [Cube, Sphere, Plane]` in the mesh package
-(`packages/mesh/`). `Mesh.primitive` resolves one to its mesh id. Today it
-reads the ids from Config; task `jw0tlmqt` decides the source once Config
-carries no ids. It belongs to the package, not the vocabulary: Draws still carry
+(`packages/mesh/`). `Mesh.primitive` resolves one to its fixed mesh id:
+cube 1, sphere 2, plane 3. It needs no Config and no Pack. It belongs to the package, not the vocabulary: Draws still carry
 a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
 

@@ -65,9 +65,10 @@ Three other options were rejected:
 - GPU resources belong to the asset, not the pack. Vertex and image data are
   scratch until upload, so a pack keeps only its name and its asset list. The
   level arena goes.
-- `Config` carries no ids, so `Mesh.primitive(config, Cube)` cannot read a
-  primitive id from it. The seam task `jw0tlmqt` decides how a game gets the
-  primitive ids.
+- `Config` carries no ids, so the primitive ids are fixed constants:
+  fallback 0, cube 1, sphere 2, plane 3. Each is its slot at generation 0.
+  `Mesh.primitive(Cube)` takes no `Config`. A test on each side of the seam
+  pins the values, and no primitive slot goes on a free list.
 - Every game changes `init` and adds `loaded`. This is a vocabulary change,
   so the host and every game rebuild.
 - A Load for a loaded pack, an Unload for an unknown pack, and a second Load
