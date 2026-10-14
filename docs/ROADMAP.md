@@ -654,7 +654,7 @@ Done when the first Kula level is finishable.
 Check: a ball rolls over an edge onto the side of a block and keeps
 rolling. The level is finishable with the keyboard.
 
-## Milestone 11: lights as data
+## Milestone 11: lights as data (done)
 
 Done when all three games (cards, entity-game, kula) light their own scene
 and the host has no light of its own.
