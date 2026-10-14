@@ -46,6 +46,10 @@ Rotation about the forward axis — tilting the horizon. The third of Dunn & Par
 
 A procedure declared `proc "c"` so C code can call it. Odin's implicit `context` cannot cross that boundary, so the first line of every one must be `context = g_state.ctx`. Sokol's `init_cb`, `frame_cb`, `cleanup_cb`, and `event_cb` are all of this kind.
 
+## Clay {#clay}
+
+Nic Barker's single-header C library for UI layout. Each frame the caller opens and closes Clay elements in tree order and configures their sizing, padding, gap and alignment. Clay returns a flat list of render commands with final positions: rectangles, text runs and scissor changes. It measures text through a callback the caller supplies, such as one backed by [SDF text](#sdf-text). It allocates nothing after one arena at init. Clay lays out; it does not draw. Here the host feeds it the `Scene.ui` stream and draws the commands itself. See `docs/adr/0004-ui-layout-runs-in-the-host.md`.
+
 ## Clip space {#clip-space}
 
 The coordinate space the GPU expects a vertex shader to output: x and y from −1 to +1, z from 0 to +1 on Metal, origin at the centre of the viewport, y pointing up. Author vertices directly here and no matrices are needed. Everything the model – view – projection chain does is get you back to it.
@@ -349,6 +353,10 @@ A struct holding a pointer into itself — as `Memory` does, since each `Allocat
 ## Signed area {#signed-area}
 
 The area of a projected triangle carrying a sign, computed as one [cross product](#cross-product) of its edge vectors after the viewport transform. The magnitude is area; the **sign** is the [winding](#winding), and so the facing. Zero means a [degenerate triangle](#degenerate-triangle) covering no pixels, which the same comparison discards for free. This is the entire mechanism of [back-face culling](#back-face-culling), and it is why culling happens before rasterisation rather than per fragment.
+
+## SDF text {#sdf-text}
+
+Text drawn from a signed distance field: a texture that stores, for each texel, the distance to the nearest glyph edge instead of the glyph's coverage. The fragment shader turns distance into alpha with a `smoothstep` around the edge. So one atlas baked at one size draws sharp at many sizes, where a coverage atlas blurs when scaled up. It costs a little shader work and loses sharp corners at very large sizes. stb_truetype bakes one glyph at a time with `stbtt_GetCodepointSDF`. This engine bakes one font, ASCII 32 to 126, into `engine/font_baked.odin`, and [Clay](#clay) lays out the text.
 
 ## Shader {#shader}
 

@@ -285,7 +285,8 @@ _Avoid_: step, tick, render pass
 
 **Frame render**:
 The host module that turns the previous Scene, the current Scene and the
-Alpha into one submitted draw per Draw. It manages the Pairing.
+Alpha into one submitted draw per Draw, then draws the current Scene's UI.
+It manages the Pairing.
 _Avoid_: renderer, draw loop, presenter, scene renderer
 
 **dt**:

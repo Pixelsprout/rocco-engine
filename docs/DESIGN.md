@@ -74,6 +74,7 @@ not claim its id. Decision.
   │ clock, key codes held and pressed │      │ accumulator remainder → alpha      │
   │ mouse delta                       │      │ Scene[n-1], Scene[n]               │
   │ Contacts from Scene[n-1]          │      │ cursor from Scene[n] → mouse lock  │
+  │                                   │      │ ui from Scene[n] → layout, quads   │
   └──────────────┬────────────────────┘      └──────────────┬─────────────────────┘
                  │ Input, Contacts, dt                      │ pair draws by id, lerp
                  ▼                                          ▼
@@ -108,6 +109,7 @@ in the app.
 ```roc
 Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
+Rgba     : { r : F32, g : F32, b : F32, a : F32 }
 Config   : { seed : U64, assets : List(Str) }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
@@ -118,7 +120,13 @@ Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), C
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32 }
+Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
+Align    : [Start, Center, End]
+AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
+Box      : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
+Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
+Element  : [Open(Box), Text(Text), Close]
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element) }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
 
@@ -128,7 +136,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id | an entity kind; a score; a mesh catalogue; quit; a physics body |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -248,6 +256,94 @@ shader.
 
 The host uses the current `Scene`'s lights for the whole frame. Lights have
 no id and do not interpolate. A light that moves jumps once per fixed step.
+
+### The UI is a Description
+
+The game decides the UI in its Scene. `Scene.ui` is a flat list of
+Elements: `Open(Box)`, `Text` and `Close`. An `Open` starts a Box, its
+`Close` ends it, and the Elements between them are its children. The list
+is in pre-order, the order Clay reads it. An Element has no id. Its place in
+the list is its identity. The glue cannot carry a recursive tag union, so
+the tree crosses the seam as this flat list. Games write nested code with
+the UI package in `packages/ui/`, for example `box(config, children)` and
+`text(str, style)`. The package builds the list and a default Box config.
+A game with no UI returns `ui: []`. Decision.
+`docs/adr/0004-ui-layout-runs-in-the-host.md` records the options.
+
+A Box carries Clay's layout fields and Clay's defaults. The tag names are
+short forms of Clay's, such as `Row` for `LEFT_TO_RIGHT`:
+
+| Field | Values | Default |
+|---|---|---|
+| `width`, `height` | `Fit({ min, max })`, `Grow({ min, max })`, `Fixed(F32)`, `Percent(F32)` from 0 to 1 | `Fit` with no limit |
+| `pad` | `{ left, right, top, bottom }` | 0 on each side |
+| `gap` | the space between children | 0 |
+| `direction` | `Row` or `Col` | `Row` |
+| `child_align` | `{ x, y }`, each `Start`, `Center` or `End` | `Start`, `Start` |
+| `background` | an `Rgba` | alpha 0, so nothing draws |
+| `radius` | one corner radius for all four corners | 0 |
+| `floating` | `NoFloat`, or `Float({ attach, offset })` | `NoFloat` |
+
+An empty config means the same in Roc and in Clay. A floating Box attaches
+to one of the nine `AttachPoint`s of the window, such as `RightBottom`,
+then moves by `offset`. The host attaches it to Clay's root and sets the
+same point on the Box and on the window. So a `RightBottom` Box puts its
+own bottom-right corner on the window's. It ignores its parent's layout. A
+Box floats to the window only, never to another Element.
+
+A Text carries the string, a size, an `Rgba` colour and a wrap mode,
+`Words` or `None`. `Words` is Clay's default. Clay takes a whole font size,
+so the host rounds the size after the DPI scale. The font is the host's one
+baked font, so the Text names no font.
+
+`Rgba` is a colour with alpha. Each channel is linear, from 0 to 1, and
+alpha is not premultiplied. A Tint stays `Rgb`. Decision.
+
+Sizes are logical pixels. The game does not learn the window size, and no
+layout result flows back to the game. The host multiplies each size by
+`sapp.dpi_scale()`, which is 1 while `high_dpi` is off. Decision.
+
+The host runs C Clay through its Odin bindings. Clay is a git submodule
+pinned to a commit. The `inputs` step copies its prebuilt lib per target,
+like sokol's. The Clay arena comes from the permanent arena at init, sized
+by `MinMemorySize()` with the default element cap. The host allocates
+nothing per frame for the UI.
+
+Once per frame, the host lays out the current Scene's UI against
+`sapp.width()` and `sapp.height()`. It reads the Elements in order. An `Open`
+opens and configures a Clay element, a `Text` adds text, and a `Close`
+closes the open element. The UI does not interpolate. It changes once per
+fixed step, like the Lights. Text strings point into the current Scene,
+which lives for the frame, so the host copies no string. Decision.
+
+The host measures text with its one baked font, in a plain procedure that
+Clay calls back. The font id is always 0. The font is an SDF atlas of ASCII
+32 to 126 from Atkinson Hyperlegible (OFL). A Font step in
+`scripts/build.roc` runs an Odin bake tool that uses `vendor:stb/truetype`.
+The tool writes `engine/font_baked.odin`, which is committed. If the tool
+cannot run, the committed file stays, as for `engine/shader_basic.odin`.
+
+The host draws Clay's render commands inside the Main pass, after the sky.
+The UI pipeline has no depth test and no depth write. It blends by alpha
+and uses sample count 4. Every rectangle and glyph goes into one dynamic
+vertex buffer per frame, sized at init for about 16k quads. The host makes
+one draw call for each change of scissor or texture. A new `ui` program in
+`engine/shaders/basic.glsl` draws rounded rectangles and SDF glyphs with
+`smoothstep`. UI colours skip the tone map and go through the sRGB encode,
+like the sky, so the UI draws at its authored colour. The Frame render owns
+the UI draw. It submits the quads through a submit procedure, like the
+meshes, so a test can record them without sokol.
+
+The host repairs these errors and logs each one once:
+
+- a `Close` with no open Box: the host ignores it.
+- a Box still open at the end of the list: the host closes it.
+- a character outside ASCII 32 to 126: the host draws `?`.
+- more quads than the vertex buffer holds: the host drops the rest.
+
+A Clay error, such as a `Percent` over 1, logs once per kind, and the host
+draws what fits. The UI draws in every case. A bug is visible, not fatal.
+Decision.
 
 ### The look is Scene data, proposed
 
@@ -374,10 +470,11 @@ returns 0 and prints a `dbg` line on a miss. The tags live in the package
 only. The vocabulary still carries only a `U32`. A host test and a `roc
 test` in `packages/mesh` pin the same four primitive ids. Decision.
 
-The asset names in `Config`, the Manifest and the pack names in `Load` and
-`Unload` are the places a refcounted type (`Str`) enters the vocabulary.
-Each crosses once per `init` or per pack. The cost is glue coverage, not
-time.
+A refcounted type (`Str`) enters the vocabulary in four places: the asset
+names in `Config`, the Manifest, the pack names in `Load` and `Unload`, and
+the strings of Text Elements. The names cross once per `init` or per pack.
+Text strings cross once per fixed step, inside the `Scene`. The host reads
+them in place and copies none.
 
 ### A scale acts along its own axes
 
@@ -608,8 +705,9 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
 - One allocation per step for each non-empty `Scene` list: the draws, and
-  the colliders when a game returns any. It is the extract; it would exist
-  anyway.
+  the colliders and the UI when a game returns any. It is the extract; it
+  would exist anyway. A long Text string built at run time adds one
+  allocation. A short one fits inside the `Str` and adds none.
 - One allocation and one free per step for non-empty Contacts. Empty
   Contacts allocate nothing.
 - The contact search costs time for each Collider, not only for each pair.
