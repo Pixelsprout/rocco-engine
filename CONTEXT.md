@@ -144,7 +144,12 @@ is a linear `Rgb` that carries intensity, so a channel can exceed 1. A
 Directional `dir` is the way the light travels. A Point light falls off to
 zero at its `range`. `pf.Light` builds each one. Lights have no id and do not
 interpolate. An empty list draws black.
-_Avoid_: lamp, sun, light source, colour (for intensity)
+_Avoid_: lamp, light source, colour (for intensity)
+
+**Sun**:
+The Directional Light that casts the shadow. If a Scene names two, the
+first one is the Sun. With none, nothing casts a shadow.
+_Avoid_: main light, key light, shadow light
 
 **Camera**:
 The field of a Scene that says where the eye is, what it looks at, which way

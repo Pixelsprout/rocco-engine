@@ -212,12 +212,34 @@ ball's floor and the walls beside the ball do not vanish (Inferred).
 A whole-cube mesh would draw the faces between blocks. Do not use one for
 level blocks.
 
+## Look
+
+The clone keeps the original's feel: a sky, a palette and a mood for each
+world. It draws them with smooth modern lighting instead of the PS1 tricks.
+
+A **Theme** is the look of one world: a sky, a set of lights and a set of
+block meshes. It is Kula game data. The engine has no Theme.
+A table in Kula code maps each level to its Theme.
+
+| Fact | Original | Label | Clone |
+|---|---|---|---|
+| Background | A textured sky sphere, unlit, that turns with the camera and its gravity roll (`render1.c:86-106`, `skybox.c`). Bonus levels draw a gradient sphere | Code | A cubemap sky for each Theme. With no sky, the host clears to black |
+| Block shading | No real-time lighting. Each face direction picks a fixed brightness and a Theme tint (`level_init.c:1059`, `BlockColors` in `common.h`) | Code | A Theme sun, a dim fill opposite it and an ambient, all fixed in the world. Each face direction gets its own shade |
+| Ball shadow | A shadow sprite (`DrawShadowSprites`, `render1.c`) | Code | A shadow map from the Theme sun. The shadow falls away from the sun, not always below the ball |
+| Sun | A sun for each world with a lens flare (`lensflare.c`) | Code | The sun is painted in the sky, in line with the Theme sun. No lens flare |
+| Distance fade | Distant faces fade toward the Theme block colour (`SetFarColor`, `render1.c`) | Inferred | No fog yet |
+| Ball shine | A specular sprite (`DrawPlayerSpecularSprites`, `render3.c`) | Code | A specular term from the ball's glTF material |
+| Pickup flash | Collecting a pickup brightens nearby faces for a short time and emits particles (`light_effect.c`) | Code | A short point light at the pickup that fades. Pickups are unlit |
+| Highlights | Not applicable | | A fixed tone map before the sRGB encode |
+
 ## Not copied
 
 - The speed-up at the start of a roll.
 - Look up and look down.
 - The "hall of mirrors": in skybox themes the original does not clear the
   screen each frame (Code, `src/disp.c`). The engine clears every frame.
+- The lens flare and the motion blur on fast turns.
+- Fog.
 - The long jump, the Bouncy pill, bounce pads and the boost.
 
 ## Sources

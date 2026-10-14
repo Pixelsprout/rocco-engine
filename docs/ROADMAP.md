@@ -576,8 +576,10 @@ below are the roadmap, not the designs.
 Decisions that span the arc:
 
 - Forward rendering stays, with a light cap of 8. No deferred pass. A
-  directional shadow map is the first upgrade that changes the look, and it
-  sits beside the milestones.
+  directional shadow map from the sun is the first upgrade that changes
+  the look, in Milestone 13.
+- The Kula look keeps the original's feel and draws it with modern
+  lighting. `games/kula/SPEC.md` states each choice.
 - Textures come with the mesh through glTF materials. Draw does not gain a
   texture id.
 - Tag unions cross the seam once the glue emits them. No new kind numbers.
@@ -680,23 +682,45 @@ Check: an empty list draws black. A point light falls off with range.
 Done when a level unloads and the next loads without a stale mesh id
 drawing.
 
+Before it: the shader tone maps with ACES fitted before the sRGB encode,
+the host clears to black with the sRGB encode, and each game retunes its
+lights. Kula lights each level with a sun, a dim fill opposite it and an
+ambient, and drops the placeholder point light.
+
 1. The glTF loader reads the base colour texture from the GLB binary chunk,
    PNG only through `core:image/png`, and the UVs. Each mesh gets an image
    and a sampler from the glTF sampler: nearest or linear, wrap, mipmaps
    when the minification filter asks. JPEG is skipped with a log. The unlit
-   material extension marks a mesh unlit.
+   material extension marks a mesh unlit. The loader reads the material
+   roughness, and the shader adds a specular term from it. The fragment
+   shader gains the camera position.
 2. A cubemap skybox: six PNGs in `assets/sky/<name>/` named `px`, `nx`,
    `py`, `ny`, `pz`, `nz`, published in the manifest as `sky/<name>`.
    `Scene` gains `sky : U32`, 0 meaning none. The host draws a unit cube
    around the camera, pinned to the far plane, after the opaque pass.
 3. Mesh ids gain a generation. `level_unload` gets its first caller. A
    stale id draws the fallback and logs once.
-4. Kula gets textured blocks, a sky and three levels.
+4. Kula gets textured blocks, a sky and three levels. A table in Kula code
+   maps each level to its Theme. The ball has a low roughness.
 
 Check: drop a textured `.glb` and a sky directory in, restart, name them
 from Roc, see them. Finish level one, see level two, with no magenta.
 
-## Milestone 13: the HUD
+## Milestone 13: shadows
+
+Done when the ball casts a shadow on the blocks from the Kula sun.
+
+1. `Directional` gains `shadow : Bool`. `pf.Light.directional` sets
+   `False`. `pf.Light.sun` sets `True`. If two lights set it, the host
+   uses the first and logs once.
+2. The host renders one depth map from the sun over the bounds of the
+   Scene's Draws, and the shader samples it with a small PCF filter.
+3. Kula's Theme sun casts the shadow. Cards and entity-game do not change.
+
+Check: jump over a gap and see the shadow on the landing block. A Scene
+with no sun draws as before.
+
+## Milestone 14: the HUD
 
 Done when the key count changes on screen without a 3D draw.
 
@@ -716,7 +740,7 @@ Done when the key count changes on screen without a 3D draw.
 Check: a box anchored to a corner stays there when the window resizes. The
 count reads right at two window sizes.
 
-## Milestone 14: CI and the bundle
+## Milestone 15: CI and the bundle
 
 Done when Kula builds on a clean machine with only Roc installed.
 
@@ -745,8 +769,9 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Audio.** `saudio` calls back on another thread against a deadline. The
   game returns what should be heard as data. The first command with a
   duration probably arrives here.
-- **A directional shadow map.** The first rendering upgrade that changes
-  the look. Forward rendering stays.
+- **Fog.** The original fades distant blocks toward the Theme colour.
+  `Scene` gains a fog field. Decide it once a sky shows the horizon
+  colour. This is a vocabulary change.
 - **World-space sprites.** An orthographic camera and sprites in the world,
   so 2D games are possible. The HUD pass is the start of it.
 - **Game-provided fonts.** Faces in `assets/fonts/`, beside the one the
