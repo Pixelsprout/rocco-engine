@@ -208,8 +208,9 @@ expect {
 	space = { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
 	facing_out = { ..at_pose(init(test_config), { ..init(test_config).level.start, forward: { x: -1, y: 0, z: 0 } }), keys_left: 1 }
 	jumped = step(facing_out, space, [], 0.25).model
-	landed = step(jumped, idle, [], 0.25).model
-	jumped.ball.motion == Falling({ from: facing_out.ball.pose, offset: 0.0, t: 0.5 }) and landed == init(test_config)
+	still_falling = step(jumped, idle, [], 0.25).model
+	landed = step(still_falling, idle, [], 0.5).model
+	jumped.ball.motion == Falling({ from: facing_out.ball.pose, offset: 0.0, over: { ..facing_out.ball.pose, cell: { x: -2, y: 1, z: 9 } }, drop: Off(3), seconds: 0.25 }) and still_falling.ball.pose == jumped.ball.pose and landed == init(test_config)
 }
 
 expect {
@@ -249,6 +250,15 @@ expect {
 		Falling({ from, .. }) => from.cell == { x: 0, y: 2, z: 6 }
 		_ => False
 	}
+}
+
+# The jump from the raised block lands on the floor one cell below its target.
+expect {
+	on_layer1 = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 2, z: 6 } })
+	rolling = step(on_layer1, up_held, [], 0.05).model
+	jumped = step(rolling, space, [], 0.01).model
+	landed = step(jumped, idle, [], 1.0).model
+	landed.ball.motion == Still and landed.ball.pose.cell == { x: 0, y: 1, z: 4 }
 }
 
 # Held Up rolls on through the cell with no step at rest.

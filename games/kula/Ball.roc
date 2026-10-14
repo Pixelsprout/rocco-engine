@@ -5,9 +5,13 @@ import Grid
 Ball := [].{
 	Ball : { pose : World.Pose, motion : Motion, turn : Turn, rot : Quat.Quat }
 
-	# The pose commits when a move starts. from, offset and t only serve View.
+	# The pose commits when a move starts. from, offset, over and t only serve View.
 	# A jump from a roll starts offset cells along forward from from.cell.
-	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, offset : F32, t : F32 }), JumpingInPlace({ t : F32 }), Falling({ from : World.Pose, offset : F32, t : F32 })]
+	# A fall jumps to over, then drops straight down. Its seconds count from the jump start.
+	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, offset : F32, t : F32 }), JumpingInPlace({ t : F32 }), Falling({ from : World.Pose, offset : F32, over : World.Pose, drop : Drop, seconds : F32 })]
+
+	# Cells the ball drops below over. Off drops to 2 cells past the lowest block, then the level restarts.
+	Drop : [Onto(I32), Off(I32)]
 
 	# A turn runs while the ball is Still or JumpingInPlace, and can outlast the jump.
 	# next holds a turn pressed during this one, as the original's startTurningLeftNextFrame.
@@ -70,7 +74,7 @@ Ball := [].{
 	turn_right = |pose| { ..pose, forward: Grid.cross(pose.forward, pose.up) }
 
 	# Always two cells ahead at the same level. A block in the path bounces the ball back.
-	jump : Set(World.Cell), World.Pose -> [Land(World.Pose), Fall(World.Pose), Bounce]
+	jump : Set(World.Cell), World.Pose -> [Land(World.Pose), Fall({ over : World.Pose, drop : Drop }), Bounce]
 	jump = |blocks, pose| {
 		ahead = Grid.add(pose.cell, pose.forward)
 		two_ahead = Grid.add(ahead, pose.forward)
@@ -79,12 +83,23 @@ Ball := [].{
 		} else if Grid.has_block(blocks, Grid.sub(two_ahead, pose.up)) {
 			Land({ ..pose, cell: two_ahead })
 		} else {
-			Fall({ ..pose, cell: two_ahead })
+			over = { ..pose, cell: two_ahead }
+			lowest = lowest_along(blocks, pose.up, Grid.dot(two_ahead, pose.up))
+			Fall({ over, drop: drop_below(blocks, over, 1, lowest) })
 		}
 	}
 
 	jump_lift : F32 -> F32
 	jump_lift = |t| 4.0 * jump_height * t * (1.0 - t)
+
+	fall_stage : F32 -> [Arc(F32), Dropped(F32)]
+	fall_stage = |seconds| if seconds < jump_seconds { Arc(seconds / jump_seconds) } else { Dropped(drop_distance(seconds - jump_seconds)) }
+
+	fell_off : Ball.Ball -> Bool
+	fell_off = |ball| match ball.motion {
+		Falling({ drop: Off(cells), seconds, .. }) => seconds >= fall_seconds(Off(cells))
+		_ => False
+	}
 
 	# The original tests for a landing only in the last 11 of the jump's 27 frames.
 	can_land : F32, F32 -> Bool
@@ -138,8 +153,33 @@ Ball := [].{
 leap : Set(World.Cell), Ball.Ball, World.Pose, F32 -> Ball.Ball
 leap = |blocks, ball, from, offset| match Ball.jump(blocks, from) {
 	Land(pose) => { ..ball, pose, motion: Jumping({ from, offset, t: 0.0 }) }
-	Fall(pose) => { ..ball, pose, motion: Falling({ from, offset, t: 0.0 }) }
+	Fall({ over, drop }) => { ..ball, pose: landing(over, drop), motion: Falling({ from, offset, over, drop, seconds: 0.0 }) }
 	Bounce => ball
+}
+
+# The original drops until it leaves its fixed grid. The clone stops 2 cells past the lowest block.
+drop_below : Set(World.Cell), World.Pose, I32, I32 -> Ball.Drop
+drop_below = |blocks, over, depth, lowest| {
+	below = Grid.sub(over.cell, Grid.scale(over.up, depth + 1))
+	if Grid.dot(below, over.up) < lowest {
+		Off(Grid.dot(over.cell, over.up) - lowest + 2)
+	} else if Grid.has_block(blocks, below) {
+		Onto(depth)
+	} else {
+		drop_below(blocks, over, depth + 1, lowest)
+	}
+}
+
+lowest_along : Set(World.Cell), World.Cell, I32 -> I32
+lowest_along = |blocks, up, start| blocks.to_list().fold(start, |low, block| {
+	along = Grid.dot(block, up)
+	if along < low { along } else { low }
+})
+
+landing : World.Pose, Ball.Drop -> World.Pose
+landing = |over, drop| match drop {
+	Onto(depth) => { ..over, cell: Grid.sub(over.cell, Grid.scale(over.up, depth)) }
+	Off(_) => over
 }
 
 start_jump_in_place : Set(World.Cell), Ball.Ball -> Ball.Ball
@@ -202,8 +242,15 @@ advance_motion = |ball, dt| match ball.motion {
 		next = progress(t, dt, jump_seconds)
 		{ ..ball, motion: if Ball.can_land(next, Ball.jump_lift(next)) { Still } else { JumpingInPlace({ t: next }) } }
 	}
-	# A fall never ends Still. Rules restarts the level when t reaches 1.
-	Falling(falling) => { ..ball, motion: Falling({ ..falling, t: progress(falling.t, dt, fall_seconds) }) }
+	# An Off fall waits at its end for Rules to restart the level.
+	Falling(falling) => {
+		total = fall_seconds(falling.drop)
+		next = if falling.seconds + dt > total { total } else { falling.seconds + dt }
+		match falling.drop {
+			Onto(_) if next >= total => { ..ball, motion: Still }
+			_ => { ..ball, motion: Falling({ ..falling, seconds: next }) }
+		}
+	}
 }
 
 turn_seconds_left : Ball.Ball -> F32
@@ -218,7 +265,7 @@ seconds_left = |ball| match ball.motion {
 	Rolling({ from, t }) => (1.0 - t) * roll_seconds(Ball.roll_kind(from, ball.pose))
 	Jumping({ t, .. }) => (1.0 - t) * jump_seconds
 	JumpingInPlace({ t }) => (1.0 - t) * jump_seconds
-	Falling({ t, .. }) => (1.0 - t) * fall_seconds
+	Falling({ drop, seconds, .. }) => fall_seconds(drop) - seconds
 }
 
 # PAL frame counts from the original, at 0.02 s a frame. See SPEC.md.
@@ -239,11 +286,50 @@ turn_seconds = 0.32
 jump_seconds : F32
 jump_seconds = 0.54
 
-fall_seconds : F32
-fall_seconds = 0.5
-
 jump_height : F32
 jump_height = 0.5
+
+# The original adds 6 units a frame to the fall speed, up to 80 units a frame.
+gravity : F32
+gravity = 6.0 / 512.0 / (0.02 * 0.02)
+
+top_fall_speed : F32
+top_fall_speed = 80.0 / 512.0 / 0.02
+
+# The drop starts at the speed the jump arc ends with.
+drop_start_speed : F32
+drop_start_speed = 4.0 * jump_height / jump_seconds
+
+seconds_to_top_speed : F32
+seconds_to_top_speed = (top_fall_speed - drop_start_speed) / gravity
+
+distance_to_top_speed : F32
+distance_to_top_speed = (drop_start_speed + top_fall_speed) / 2.0 * seconds_to_top_speed
+
+drop_distance : F32 -> F32
+drop_distance = |seconds|
+	if seconds <= seconds_to_top_speed {
+		drop_start_speed * seconds + 0.5 * gravity * seconds * seconds
+	} else {
+		distance_to_top_speed + top_fall_speed * (seconds - seconds_to_top_speed)
+	}
+
+drop_seconds : F32 -> F32
+drop_seconds = |cells|
+	if cells <= distance_to_top_speed {
+		((drop_start_speed * drop_start_speed + 2.0 * gravity * cells).sqrt() - drop_start_speed) / gravity
+	} else {
+		seconds_to_top_speed + (cells - distance_to_top_speed) / top_fall_speed
+	}
+
+fall_seconds : Ball.Drop -> F32
+fall_seconds = |drop| {
+	cells = match drop {
+		Onto(depth) => depth
+		Off(depth) => depth
+	}
+	jump_seconds + drop_seconds(cells.to_f32())
+}
 
 # Clamped to 1, so the last step of a roll spins only the remaining distance.
 progress : F32, F32, F32 -> F32
@@ -287,7 +373,17 @@ expect Ball.turn_left(on_origin) == { ..on_origin, forward: cell(-1, 0, 0) }
 expect Ball.turn_right(on_origin) == { ..on_origin, forward: cell(1, 0, 0) }
 
 expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 0, -2)]), on_origin) == Land({ ..on_origin, cell: cell(0, 1, -2) })
-expect Ball.jump(blocks([cell(0, 0, 0)]), on_origin) == Fall({ ..on_origin, cell: cell(0, 1, -2) })
+expect Ball.jump(blocks([cell(0, 0, 0)]), on_origin) == Fall({ over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Off(3) })
+
+# A jump with no floor two ahead falls onto the first block below the target.
+expect Ball.jump(blocks([cell(0, 0, 0), cell(0, -1, -2)]), on_origin) == Fall({ over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Onto(1) })
+
+# On a wall the search runs along -x.
+expect {
+	on_wall = { cell: cell(1, 0, 0), up: cell(1, 0, 0), forward: north }
+	over = { ..on_wall, cell: cell(1, 0, -2) }
+	Ball.jump(blocks([cell(0, 0, 0), cell(-1, 0, -2)]), on_wall) == Fall({ over, drop: Onto(1) }) and Ball.jump(blocks([cell(0, 0, 0)]), on_wall) == Fall({ over, drop: Off(3) })
+}
 expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -1), cell(0, 0, -2)]), on_origin) == Bounce
 expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 1, -2), cell(0, 0, -2)]), on_origin) == Bounce
 expect Ball.jump(blocks([cell(0, 0, 0), cell(0, 0, -2), cell(0, 2, 0)]), on_origin) == Bounce
@@ -312,7 +408,7 @@ expect {
 expect Ball.act(blocks([cell(0, 0, 0), cell(1, 0, 0)]), still, Roll) == still
 expect Ball.act(floor_ahead, still, TurnLeft).turn == Turning({ from: on_origin, t: 0.0, next: Stay })
 expect Ball.act(floor_ahead, still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, offset: 0.0, t: 0.0 }) }
-expect Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, offset: 0.0, t: 0.0 }) }
+expect Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, offset: 0.0, over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Off(3), seconds: 0.0 }) }
 expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, forward_jump) == still
 
 # Input is read only when Still.
@@ -330,8 +426,13 @@ expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).turn == Stead
 expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.27).motion == Jumping({ from: on_origin, offset: 0.0, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).motion == Still
 expect Ball.advance(still, 1.0) == still
-expect Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump), 0.25).motion == Falling({ from: on_origin, offset: 0.0, t: 0.5 })
-expect Ball.advance(Ball.advance(Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump), 0.5), 0.5).motion == Falling({ from: on_origin, offset: 0.0, t: 1.0 })
+
+# A 1-cell drop lands between 0.70 and 0.71 s after the jump starts.
+expect {
+	falling = Ball.act(blocks([cell(0, 0, 0), cell(0, -1, -2)]), still, forward_jump)
+	landed = Ball.advance(falling, 0.71)
+	falling.pose.cell == cell(0, 0, -2) and Ball.advance(falling, 0.70).motion != Still and landed.motion == Still and landed.pose.cell == cell(0, 0, -2)
+}
 
 # Rolling along -z on +y turns about -x, one cell over the radius, however the steps fall.
 expect {

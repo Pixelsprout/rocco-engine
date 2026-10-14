@@ -17,6 +17,9 @@ Grid := [].{
 		z: a.x * b.y - a.y * b.x,
 	}
 
+	dot : World.Cell, World.Cell -> I32
+	dot = |a, b| a.x * b.x + a.y * b.y + a.z * b.z
+
 	scale : World.Cell, I32 -> World.Cell
 	scale = |a, s| { x: a.x * s, y: a.y * s, z: a.z * s }
 
@@ -33,6 +36,7 @@ expect Grid.neg({ x: 1, y: 0, z: -1 }) == { x: -1, y: 0, z: 1 }
 # Right-handed: +x cross +y is +z, and +y cross -z is -x.
 expect Grid.cross({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }) == { x: 0, y: 0, z: 1 }
 expect Grid.cross({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }) == { x: -1, y: 0, z: 0 }
+expect Grid.dot({ x: 1, y: -2, z: 3 }, { x: 0, y: 1, z: 0 }) == -2
 expect Grid.scale({ x: 0, y: 0, z: -1 }, 2) == { x: 0, y: 0, z: -2 }
 expect Grid.to_vec3({ x: 1, y: -2, z: 3 }) == { x: 1.0, y: -2.0, z: 3.0 }
 expect Grid.has_block(Set.from_list([{ x: 1, y: 0, z: 2 }]), { x: 1, y: 0, z: 2 })

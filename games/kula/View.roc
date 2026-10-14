@@ -20,8 +20,10 @@ View := [].{
 			Rolling({ from, t }) => between(from, ball.pose, t)
 			Jumping({ from, offset, t }) => lifted(jump_placement(from, offset, ball.pose, t), Ball.jump_lift(t))
 			JumpingInPlace({ t }) => lifted(placement_of(ball.pose), Ball.jump_lift(t))
-			# The jump arc, pulled down so it ends fall_depth cells below the landing cell.
-			Falling({ from, offset, t }) => lifted(jump_placement(from, offset, ball.pose, t), Ball.jump_lift(t) - fall_depth * t * t)
+			Falling({ from, offset, over, seconds, .. }) => match Ball.fall_stage(seconds) {
+				Arc(t) => lifted(jump_placement(from, offset, over, t), Ball.jump_lift(t))
+				Dropped(cells) => lifted(placement_of(over), -cells)
+			}
 		}
 		match ball.turn {
 			Steady => placed
@@ -107,9 +109,6 @@ clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
 
 pi : F32
 pi = 3.1415927
-
-fall_depth : F32
-fall_depth = 3.0
 
 # The centre rests one radius above the face. Round an edge it follows the
 # original's path: half a cell to the edge, a quarter circle of one radius
@@ -229,10 +228,19 @@ expect {
 	near(placed.pos, { x: 0.0, y: 1.5, z: -1.0 })
 }
 
-# A jump into nothing ends fall_depth below its landing cell.
+# A jump into nothing drops to 2 cells below the lowest block.
 expect {
 	falling = Ball.act(Set.from_list([cell(0, 0, 0)]), Ball.start(on_origin), Jump({ up_held: True }))
-	near(View.interpolated(Ball.advance(falling, 0.5)).pos, { x: 0.0, y: -2.0, z: -2.0 })
+	near(View.interpolated(Ball.advance(falling, 2.0)).pos, { x: 0.0, y: -2.0, z: -2.0 })
+}
+
+# The drop starts where the jump arc ends, and ends on the floor below.
+expect {
+	falling = Ball.act(Set.from_list([cell(0, 0, 0), cell(0, -1, -2)]), Ball.start(on_origin), Jump({ up_held: True }))
+	at_arc_end = View.interpolated(Ball.advance(falling, 0.539)).pos
+	dropping = View.interpolated(Ball.advance(falling, 0.541)).pos
+	near_arc_end = Vec3.length(Vec3.sub(at_arc_end, { x: 0.0, y: 1.0, z: -2.0 })) < 0.01 and Vec3.length(Vec3.sub(dropping, { x: 0.0, y: 1.0, z: -2.0 })) < 0.01
+	near_arc_end and dropping.y < 1.0 and View.interpolated(Ball.advance(falling, 1.0)).pos == { x: 0.0, y: 0.0, z: -2.0 }
 }
 
 expect {

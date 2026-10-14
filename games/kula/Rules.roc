@@ -41,10 +41,7 @@ Rules := [].{
 		}
 
 	fall : Model -> Model
-	fall = |model| match model.ball.motion {
-		Falling({ t, .. }) if t >= 1.0 => restart(model)
-		_ => model
-	}
+	fall = |model| if Ball.fell_off(model.ball) { restart(model) } else { model }
 }
 
 parse_or_crash : Str -> World.Level
@@ -103,12 +100,12 @@ expect {
 
 expect {
 	model = at(Rules.start(meshes), first_key)
-	ball = { ..model.ball, motion: Falling({ from: model.level.start, offset: 0.0, t: 0.5 }) }
+	ball = { ..model.ball, motion: Falling({ from: model.level.start, offset: 0.0, over: model.level.start, drop: Off(3), seconds: 0.5 }) }
 	Rules.fall({ ..model, ball }) == { ..model, ball }
 }
 
 expect {
 	dirty = { ..Rules.collect(at(Rules.start(meshes), first_key)), phase: Won }
-	ball = { ..dirty.ball, motion: Falling({ from: dirty.level.start, offset: 0.0, t: 1.0 }) }
+	ball = { ..dirty.ball, motion: Falling({ from: dirty.level.start, offset: 0.0, over: dirty.level.start, drop: Off(3), seconds: 1.0 }) }
 	Rules.fall({ ..dirty, ball }) == Rules.start(meshes)
 }
