@@ -615,8 +615,8 @@ expect {
 }
 expect {
 	gap = blocks([cell(0, 0, 0), cell(0, 0, -2)])
-	wrapping = { ..Ball.act(gap, still, Roll), motion: Rolling({ from: on_origin, t: 0.5 }) }
-	Ball.act(gap, wrapping, forward_jump) == wrapping
+	on_wrap = { ..Ball.act(gap, still, Roll), motion: Rolling({ from: on_origin, t: 0.5 }) }
+	Ball.act(gap, on_wrap, forward_jump) == on_wrap
 }
 expect {
 	turning = Ball.act(floor_ahead, still, TurnLeft)
@@ -719,6 +719,6 @@ expect {
 # The bob holds while the ball wraps an edge, and runs on the way to it.
 expect {
 	rolling = Ball.act(blocks([cell(0, 0, 0)]), still, Roll)
-	wrapping = Ball.advance(rolling, 0.14)
-	Ball.advance(rolling, 0.02).bob > 0.0 and Ball.advance(wrapping, 0.02).bob == wrapping.bob
+	on_wrap = Ball.advance(rolling, 0.14)
+	Ball.advance(rolling, 0.02).bob > 0.0 and Ball.advance(on_wrap, 0.02).bob == on_wrap.bob
 }
