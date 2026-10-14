@@ -677,10 +677,11 @@ and the host has no light of its own.
 
 Check: an empty list draws black. A point light falls off with range.
 
-## Milestone 12: textures with the mesh
+## Milestone 12: packs, textures and PBR
 
-Done when a level unloads and the next loads without a stale mesh id
-drawing.
+Done when a Pack unloads and the next loads with no stale id drawn, and
+Kula plays three textured, sky-lit levels with no magenta. The full spec
+is the dex task nc3cv6do.
 
 Before it (done): the shader tone maps with ACES fitted before the sRGB
 encode, the host clears to black with the sRGB encode, and each game
@@ -688,24 +689,30 @@ retunes its lights. Cards and entity-game raise the ambient to 0.2 and the
 directional light to 1.6. Kula lights each level with a sun, a dim fill
 opposite it and an ambient, and drops the placeholder point light.
 
-1. The glTF loader reads the base colour texture from the GLB binary chunk,
-   PNG only through `core:image/png`, and the UVs. Each mesh gets an image
-   and a sampler from the glTF sampler: nearest or linear, wrap, mipmaps
-   when the minification filter asks. JPEG is skipped with a log. The unlit
-   material extension marks a mesh unlit. The loader reads the material
-   roughness, and the shader adds a specular term from it. The fragment
-   shader gains the camera position.
-2. A cubemap skybox: six PNGs in `assets/sky/<name>/` named `px`, `nx`,
-   `py`, `ny`, `pz`, `nz`, published in the manifest as `sky/<name>`.
-   `Scene` gains `sky : U32`, 0 meaning none. The host draws a unit cube
-   around the camera, pinned to the far plane, after the opaque pass.
-3. Mesh ids gain a generation, and a stale id draws the fallback and logs
-   once (done). `level_unload` gets its first caller (not done).
-4. Kula gets textured blocks, a sky and three levels. A table in Kula code
-   maps each level to its Theme. The ball has a low roughness.
+1. Pack term and docs. A Pack is a named set of assets that load and
+   unload together. CONTEXT.md and GLOSSARY.md gain Pack. ADR 0003 records
+   that packs own asset lifetimes.
+2. The seam. `Command` gains `Load({ pack, assets })` and `Unload(pack)`.
+   `init` returns commands. A fourth function, `loaded : Model, Str,
+   Manifest -> Model`, runs before the next `view`. `Config` lists the
+   asset names on disk, with no ids. Cards, entity-game and Kula move to
+   it. Only the primitives load at startup.
+3. The host tables. Packs are independent. A shared asset loads once and
+   is refcounted. The mesh table and a 16-slot sky table reuse slots
+   through a free list and the generation (done: jzvojfn9).
+4. Textures and PBR. UVs, the glTF base colour texture and sampler, sRGB
+   images and linear-light mipmaps. The loader reads roughness, metallic,
+   the metallic-roughness texture and the unlit extension. The shader uses
+   GGX, Smith visibility, Schlick Fresnel and Lambert diffuse, with an
+   approximate ambient specular. Light colours follow physical units, and
+   each game retunes its lights by pi.
+5. The sky. `Scene.sky : U32`, 0 meaning none. A cubemap of six PNGs in
+   `assets/sky/<name>/`. The sky and unlit meshes skip the lights and the
+   tone map.
+6. Kula. A pack per Theme, three levels, generated textures and skies.
+   Finishing level 3 keeps Won.
 
-Check: drop a textured `.glb` and a sky directory in, restart, name them
-from Roc, see them. Finish level one, see level two, with no magenta.
+Check: finish level one, see level two under a new Theme, with no magenta.
 
 ## Milestone 13: shadows
 
