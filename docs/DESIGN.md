@@ -16,8 +16,8 @@ evidence are marked as decisions.
 |---|---|
 | the window, the clock, the accumulator | the `Model`: the one value that is the game |
 | input, and turning it into levels and edges | the rules, as `step` |
-| GPU resources, meshes, shaders, the level arena | the picture, as `view` |
-| the mesh table and its ids | which mesh a game object uses |
+| GPU resources, meshes, shaders | the picture, as `view` |
+| the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio callback and its thread | what should be heard, as data |
 | finding the Contacts between Colliders | which shapes touch, as Colliders; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
@@ -27,16 +27,22 @@ Odin produces facts. Roc produces decisions. Both cross the seam as plain
 values. Roc never asks the engine a question mid-step. Roc never calls a draw
 function.
 
-## 2. The three functions
+## 2. The four functions
 
 ```roc
 # once, at startup
-init : Config -> Model
+init : Config -> { model : Model, commands : List(Command) }
 # once per fixed step, 120 Hz
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
+# once per Load, before the next view
+loaded : Model, Str, Manifest -> Model
 # once per fixed step, after step
 view : Model -> Scene
 ```
+
+`init` returning Commands and `loaded` are Milestone 12 decisions. Until
+the seam step of that milestone lands, `init` returns a `Model` and there is
+no `loaded`. See section "Packs own asset lifetimes".
 
 The host calls `step` then `view` inside the fixed-step loop. The host holds
 the current `Scene` and the previous `Scene`. At render time the host
@@ -47,7 +53,8 @@ Between `step` and `view`, the host runs each command in list order, then
 frees the list. The list does not stay in the Seam. A command means do this
 once, and `view` runs again from the same `Model`. So commands come from
 `step`, not from `Scene`. `Quit` asks sokol to quit, and the current frame
-finishes. Decision.
+finishes. The Commands from `init` run the same way, before the first
+`view`. A `Load` calls `loaded` before the next `view`. Decision.
 
 The host computes the Contacts from the Colliders in the previous `Scene`.
 The host tests overlap, not sweep, so the normal and depth describe where
@@ -102,7 +109,8 @@ in the app.
 ```roc
 Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
-Config   : { seed : U64, meshes : List({ name : Str, id : U32 }) }
+Config   : { seed : U64, assets : List(Str) }
+Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
@@ -112,16 +120,21 @@ Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
 Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor }
-Command  : [Quit]
+Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
+
+`Config.assets`, `Manifest`, `Load` and `Unload` are Milestone 12
+decisions. Until the seam step lands, `Config` carries
+`meshes : List({ name : Str, id : U32 })` and `Command` is `[Quit]`.
 
 | Type | Carries | Does not carry |
 |---|---|---|
-| `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
+| `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
+| `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
 | `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
-| `List(Command)` | what the host does once after this step: `Quit` | anything that should exist every step |
+| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
@@ -220,34 +233,97 @@ builds the record once per Theme. The host passes the tone map as an int in
 
 Proposed, not decided. The dex task `yjtqgdd4` holds the decision.
 
+### Packs own asset lifetimes
+
+A Pack is a named set of assets that load and unload together. The game
+names the assets of each pack in Roc. "Level" is a game word. The engine
+has no level. `docs/adr/0003-packs-own-asset-lifetimes.md` records the
+options. Decision, built in Milestone 12.
+
+The game sends `Load({ pack, assets })` from `init` or `step`. The host runs
+it after the call that returned it. It loads each named asset that is not
+loaded yet, synchronously. Then it calls `loaded` with the pack name and the
+Manifest, in the same frame and before the next `view`. `loaded` is the only
+promise that ids exist. A later background loader can call `loaded` frames
+later, and no game changes.
+
+The Manifest holds every name the `Load` asked for, in the order asked. A
+name not on disk, or a file that fails to load, gets id 0 and one log line.
+`Config.assets` lists the names on disk, with no ids, so a game can check
+its names in `init`.
+
+The game sends `Unload(pack)` when it is done with a pack. Packs are
+independent. Any number can be loaded at once, and each unloads by name in
+any order. An asset named by two loaded packs loads once and keeps one id.
+Each asset counts the packs that hold it and unloads when the count is zero.
+A pack keeps only its name and its asset list.
+
+A swap is `Load(new)`, then `loaded`, then `Unload(old)` from a later step.
+The new ids exist before the old ones go, so no frame draws a stale id.
+
+These Commands do nothing and log once per pack name:
+
+- a `Load` for a pack that is loaded,
+- a second `Load` of one pack in one step,
+- an `Unload` for a pack that is not loaded.
+
+The primitives load at startup, before `init`. They belong to no pack and
+never unload, so a game can draw them before any `Load`. How a game gets
+their ids once `Config` carries no ids is open. The seam task `jw0tlmqt`
+decides it.
+
+GPU resources belong to the asset. Vertex and image data are scratch until
+the upload, and no arena holds an asset, because packs unload in any order.
+The level arena goes.
+
+### Assets are organised by type
+
+Files sit on disk by type, not by pack, so one file serves many packs:
+
+- A mesh is a `.glb` file in `assets/meshes/`. Its name is the file stem,
+  such as `sprout`.
+- A sky is a directory in `assets/sky/` that holds six PNGs named `px`,
+  `nx`, `py`, `ny`, `pz` and `nz`. Its name is `sky/<dir>`.
+
+Each asset table uses the slot-and-generation id of the mesh table and
+reuses freed slots through a free list. The mesh table has 64 slots. The
+sky table has 16 slots, and sky 0 means no sky. Decision, built in
+Milestone 12.
+
 ### Meshes are ids
 
-The engine loads every asset it finds at startup and registers its own
-primitives in the same table. It assigns a `U32` to each and hands the
-name-to-id manifest to `init`. The game resolves the names it needs once and
-keeps the ids in its `Model`. A name the engine did not load resolves to id 0.
-The engine draws id 0 as the fallback mesh. A typo is visible, not fatal.
+The engine assigns a `U32` to each mesh it loads and hands the ids to the
+game. The game keeps the ids it needs in its `Model`. A name the engine did
+not load resolves to id 0. The engine draws id 0 as the fallback mesh. A
+typo is visible, not fatal.
+
+Until the seam step of Milestone 12 lands, the engine loads every mesh it
+finds at startup, registers its own primitives in the same table, and hands
+the name-to-id manifest to `init` in `Config`.
 
 A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 `libhost.a` for every new asset.
 
 Games treat mesh ids as opaque. A game never hard-codes an id and never does
-maths on one. It gets each id from the manifest in `init`.
+maths on one. It gets each id from the Manifest in `loaded`. Until the seam
+step of Milestone 12 lands, it gets each id from `Config` in `init`.
 
 The low 16 bits of a mesh id are the slot in the mesh table. The high 16
-bits are the slot's generation. `mesh_table_unload_level` empties every slot
-past the primitives and adds 1 to its generation. An id kept from the old
-level then resolves to the fallback and is logged once, instead of drawing
-the mesh that took its slot. The first generation is 0, so before any unload
-an id is its slot. The primitives never unload. The generation wraps after
-65536 unloads of one slot, and then a very old id can match again. Decision.
+bits are the slot's generation. Unloading a mesh empties its slot and adds
+1 to its generation. An id kept from an unloaded pack then resolves to the
+fallback and is logged once, instead of drawing the mesh that took its
+slot. Today `mesh_table_unload_level` unloads every slot past the
+primitives. Milestone 12 makes the unload per pack. The first generation is
+0, so before any unload an id is its slot. The primitives never unload. The
+generation wraps after 65536 unloads of one slot, and then a very old id can
+match again. Decision.
 
 Assets are `.glb` files in `assets/meshes/`, in the directory of the
 program path (`argv[0]`). `roc run` sets `argv[0]` to the game's `main.roc`,
 and a built game has its binary in the game directory, so both find the
 game's assets from any working directory. `ROCCO_ASSETS` replaces the
-`assets` path. The engine reads the top
-level only, in sorted order, so ids are stable across runs. A file goes into
+`assets` path. The engine reads only the files directly in `assets/meshes/`,
+in sorted order, so ids are stable across runs. A file goes into
 the manifest under its stem, such as `sprout`. Names are case-sensitive. The
 primitives go in as `primitive/fallback`, `primitive/cube`, `primitive/sphere`
 and `primitive/plane`. A file stem cannot contain `/`, so a file never takes
@@ -258,10 +334,13 @@ The primitives have type-safe tags in the mesh package:
 `Mesh.primitive(config, Cube)`. `Mesh.resolve(config, "name")` resolves the
 name of a loaded file to its mesh id. Both return 0 and print a `dbg` line on
 a miss. The tags live in the package only. The vocabulary still carries only
-a `U32`.
+a `U32`. Once `Config` carries no ids, both need a new source. The seam task
+`jw0tlmqt` decides it.
 
-The manifest is the one place a refcounted type (`Str`) enters the
-vocabulary. `init` reads it once. The cost is glue coverage, not time.
+The asset names in `Config`, the Manifest and the pack names in `Load` and
+`Unload` are the places a refcounted type (`Str`) enters the vocabulary.
+Each crosses once per `init` or per pack. The cost is glue coverage, not
+time.
 
 ### A scale acts along its own axes
 
@@ -334,8 +413,13 @@ roc_step(ptr, Input, List(Contact), f32)  -> { ptr, List(Command) }
 roc_view(ptr)                             -> Scene
 ```
 
+Milestone 12 changes two entrypoints and adds one. `roc_init` returns
+`{ ptr, List(Command) }`, like `roc_step`. `roc_loaded(ptr, Str, Manifest)`
+returns a `ptr`, and the wrapper boxes it like `step_for_host`. Decision.
+
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Input`, `Contact`, `Scene` or `Command` change. Those
+only when `Config`, `Input`, `Contact`, `Scene` or `Command` change.
+Milestone 12 adds `Manifest` to that list. Those
 five types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
@@ -396,7 +480,13 @@ Call protocol, per fixed step:
 After `init`, the host runs steps 3 and 4 once. The first frame then has a
 `Scene` to draw.
 
-The host allocates the `Input` lists and the `Config` manifest with
+`loaded` follows the rule of step 2. Roc consumes `m` and returns `m'`, and
+the host keeps only `m'`. The host allocates the pack name and the Manifest
+at refcount 1 and passes them in, and Roc consumes them. The host runs each
+`Load` from `init` or a step, and calls `loaded` for it, before step 3.
+Decision, built in Milestone 12.
+
+The host allocates the `Input` lists and the `Config` names with
 `roc_alloc` at refcount 1, through glue helpers. An empty list allocates
 nothing. The glue helpers also free each `Scene` the host drops. The host
 never computes a header offset itself.

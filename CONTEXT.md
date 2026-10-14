@@ -1,7 +1,7 @@
 # rocco
 
 rocco is a game engine written in Odin that hosts games written in Roc. The
-two meet at a seam of three pure functions, and this glossary fixes the words
+two meet at a seam of four pure functions, and this glossary fixes the words
 on both sides of it. `docs/DESIGN.md` decides meaning; `docs/GLOSSARY.md`
 explains the general graphics and memory concepts the engine is built from.
 
@@ -13,9 +13,10 @@ It is the whole of the non-Roc half.
 _Avoid_: runtime, backend, native side, C side
 
 **Host**:
-The engine seen from the seam: the party that calls `init`, `step` and
-`view`, owns the one pointer to the Model, and drops it at shutdown. Same
-code as the engine; say "host" when the sentence is about the seam.
+The engine seen from the seam: the party that calls `init`, `step`,
+`loaded` and `view`, owns the one pointer to the Model, and drops it at
+shutdown. Same code as the engine; say "host" when the sentence is about the
+seam.
 _Avoid_: script host, runtime
 
 **Platform**:
@@ -26,18 +27,18 @@ _Avoid_: SDK, framework, engine API
 
 **Game**:
 A Roc app built on the platform. It declares `Model` and defines `init`,
-`step` and `view`. "App" is Roc's word for the file kind; "game" is what it
+`step`, `loaded` and `view`. "App" is Roc's word for the file kind; "game" is what it
 is.
 _Avoid_: script, scripting, application code, client
 
 **Seam**:
 The boundary between game and engine. Only plain values cross it: facts go in
-through `init` and `step`, and decisions come out as a Scene and Commands.
+through `init`, `step` and `loaded`, and decisions come out as a Scene and Commands.
 Nothing effectful crosses in either direction.
 _Avoid_: API, FFI boundary, scripting API, bridge
 
 **Game calls**:
-What the host calls on the game: the three calls, and `drop_model`, the
+What the host calls on the game: the four calls, and `drop_model`, the
 platform export that frees the Model at shutdown. The Seam reaches them
 through a struct of procedures, so a fake game can stand in for the Roc app
 in tests.
@@ -48,10 +49,11 @@ The generated Odin bindings for the vocabulary, produced by `roc glue` from
 the spec in the `glue/` submodule. Never written by hand.
 _Avoid_: bindings, FFI header, ABI file
 
-## The three calls
+## The four calls
 
 **init**:
-The game's function from Config to Model. Called once, at startup.
+The game's function from Config to a record of the Model and a list of
+Commands. Called once, at startup. Its Commands can load the first Pack.
 _Avoid_: setup, start, new
 
 **step**:
@@ -59,6 +61,12 @@ The game's function from Model, Input, the Contacts and dt to a record of
 the next Model and a list of Commands. Called once per fixed step. Pure: the
 same Model, Input and Contacts give the same Model and Commands.
 _Avoid_: tick, simulate, advance, update (the game's Stage pipeline)
+
+**loaded**:
+The game's function from Model, a pack name and a Manifest to Model. The
+host calls it after it runs a Load, before the next `view`. It is the only
+promise that ids exist.
+_Avoid_: on_load, ready, callback
 
 **view**:
 The game's function from Model to Scene. Called once per fixed step, after
@@ -86,7 +94,8 @@ Adding an asset, an entity kind or a game rule is never one.
 _Avoid_: breaking change, API change
 
 **Config**:
-What the host gives `init` once: a seed and the manifest.
+What the host gives `init` once: a seed and the asset names found on disk,
+with no ids.
 _Avoid_: settings, options, init args, environment
 
 **Seed**:
@@ -108,8 +117,8 @@ carries the code; the game decides what the key means. `roc scripts/build.roc
 _Avoid_: keycode, button, action
 
 **Held**:
-A key in Input that is down at this step. A level: asking twice gives the
-same answer.
+A key in Input that is down at this step. A state, not an edge: asking
+twice gives the same answer.
 _Avoid_: down, level, pressed
 
 **Pressed**:
@@ -183,20 +192,30 @@ their entity id; fixed scenery uses ids no entity reaches.
 _Avoid_: handle, key, index, entity id (when the draw is scenery)
 
 **Mesh id**:
-A number the engine assigns to each mesh it loaded, published in the manifest
+A number the engine assigns to each mesh it loaded, published in a Manifest
 and carried on Draws. Id 0 is the fallback mesh. An id from an unloaded
-level is stale and draws the fallback mesh.
+pack is stale and draws the fallback mesh.
 _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 
 **Manifest**:
-The name-to-mesh-id list in Config: the fallback mesh, the primitives and
-every asset loaded from disk. The game resolves the names it needs once, in
-`init`, and keeps the ids in its Model.
+The name-to-id list the host hands `loaded` for one Pack. It holds every name
+the Load asked for. A name that did not load has id 0. The game keeps the
+ids it needs in its Model.
 _Avoid_: mesh table, catalogue, registry, asset list
+
+**Pack**:
+A named set of assets that load and unload together. A game names its
+assets in Roc and sends Load. Any number of packs can be loaded at once, and
+each unloads by name in any order. An asset named by two loaded packs loads
+once, keeps one id, and unloads with its last pack. A pack is a list of
+names, not a directory. `docs/adr/0003-packs-own-asset-lifetimes.md`
+records the decision.
+_Avoid_: level, bundle, asset group, scene, chunk (a game's word for what a
+pack can hold)
 
 **Mesh table**:
 The engine's table from mesh id to GPU resources. The game never sees it; it
-sees the manifest.
+sees a Manifest.
 _Avoid_: manifest, asset store, resource cache
 
 **Fallback mesh**:
@@ -206,15 +225,16 @@ _Avoid_: default mesh, error mesh, placeholder, missing mesh
 
 **Primitive**:
 A mesh the engine builds itself rather than loads: the cube, the sphere and
-the plane. They sit in the manifest beside loaded assets, named with a
-`primitive/` prefix, such as `primitive/cube`. A loaded asset takes its bare
-file stem.
+the plane. They load at startup, belong to no Pack and never unload. They
+are named with a `primitive/` prefix, such as `primitive/cube`. A loaded
+asset takes its bare file stem.
 _Avoid_: built-in, shape, basic mesh
 
 **Primitive tag**:
 A tag of `Primitive : [Cube, Sphere, Plane]` in the mesh package
-(`packages/mesh/`). `Mesh.primitive` resolves one to its mesh id through
-the manifest. It belongs to the package, not the vocabulary: Draws still carry
+(`packages/mesh/`). `Mesh.primitive` resolves one to its mesh id. Today it
+reads the ids from Config; task `jw0tlmqt` decides the source once Config
+carries no ids. It belongs to the package, not the vocabulary: Draws still carry
 a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
 
@@ -253,10 +273,24 @@ _Avoid_: command, request, event, intent
 
 **Command**:
 A value that says do this once. `step` returns them; the host runs each one
-in list order after `step` and before `view`. `Quit` is the only one today;
-spawn, destroy and play a sound may follow. The host binds no key to `Quit`;
-a game binds `Escape` itself. Reserved for things a description cannot say.
+in list order after `step` and before `view`. `init` returns them too.
+`Quit`, `Load` and `Unload` are the Commands; spawn, destroy and play a
+sound may follow. The host binds no key to `Quit`; a game binds `Escape`
+itself. Reserved for things a description cannot say.
 _Avoid_: description, effect, action, message, event
+
+**Load**:
+The Command `Load({ pack, assets })`. The host loads each named asset that is
+not loaded yet, then calls `loaded` with the pack name and the Manifest. A
+Load for a loaded pack, or a second Load of one pack in one step, logs once
+and does nothing.
+_Avoid_: open, import, preload
+
+**Unload**:
+The Command `Unload(pack)`. The host drops the pack and unloads each asset
+that no other loaded pack holds. An Unload for an unknown pack logs once and
+does nothing. A swap sends it from a step after `loaded`.
+_Avoid_: close, free, release
 
 **Contact**:
 A fact the host computes from the previous Scene: two Colliders overlapped,
@@ -281,11 +315,11 @@ _Avoid_: hitbox, body, rigidbody, bounds
 The lifetime of the program: renderer, input, config.
 _Avoid_: global, static, forever
 
-**Level**:
-The lifetime of everything loaded from disk for the current world: meshes
-and textures. It never holds entities; those live in the Model.
-_Avoid_: scene, world, map, stage; and "level" for an input that holds (say
-held)
+**Asset lifetime**:
+The lifetime of one asset loaded from disk, such as a mesh or a sky: from
+the first Pack that names it to the unload of the last one. Its GPU
+resources belong to it. It never holds entities; those live in the Model.
+_Avoid_: level, scene, world, map, stage
 
 **Frame**:
 The lifetime of one frame: scratch that dies when the frame ends.

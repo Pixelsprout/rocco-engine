@@ -152,7 +152,7 @@ The truncated pyramid of space a perspective camera can see: bounded by the fiel
 
 ## GPU lifetime {#gpu-lifetime}
 
-The fourth lifetime, alongside permanent, level and frame. Memory holding vertex and texture data that this process cannot address and cannot reset. Released through `sg.destroy_*` or `sg.shutdown`, never by an arena. See GPU resources.
+The lifetime alongside permanent, frame and the asset lifetime. Memory holding vertex and texture data that this process cannot address and cannot reset. Released through `sg.destroy_*` or `sg.shutdown`, never by an arena. See GPU resources.
 
 ## Handle {#handle}
 
@@ -186,17 +186,13 @@ An Odin procedure returning `(T, bool)`, usable directly in `for x in f(&state)`
 
 The OS re-sending `.KEY_DOWN` for a held key after a delay. Flagged by `Event.key_repeat`. Deriving edges from two frames of state absorbs repeats automatically — the repeat writes `true` over `true`, so no edge appears.
 
-## Level arena {#level-arena}
-
-Our name for the arena reset when a level unloads. Holds what was loaded from disk for the current world: meshes and textures. It never holds entities, which live in the game's `Model` on the Roc heap. Not a [`Scene`](#platform-seam), which is one step's render description and lives for two steps.
-
 ## Level (input) {#level-input}
 
-An input condition that holds over time — "is this key down right now". Safe to read inside the fixed-step loop, because asking twice gives the same answer. In the vocabulary it is `Input.held`; say *held* rather than *level* where the [level arena](#level-arena) could be meant. Contrast [edge](#edge-input).
+An input condition that holds over time — "is this key down right now". Safe to read inside the fixed-step loop, because asking twice gives the same answer. In the vocabulary it is `Input.held`; say *held*, because "level" is a game word for a stage of play. Contrast [edge](#edge-input).
 
 ## Lifetime {#lifetime}
 
-How long an allocation must stay valid. Three lifetimes are arenas this process manages — *permanent*, *level*, *frame* — and the arena holding an allocation is chosen by that answer alone.
+How long an allocation must stay valid. Two lifetimes are arenas this process manages, *permanent* and *frame*, and the arena holding an allocation is chosen by that answer alone. The *asset lifetime* is the third, and no arena can hold it: it lives while any [pack](#pack) names it, and packs unload in any order. A count of packs per asset ends it, not an arena reset.
 
 ## Light direction {#light-dir}
 
@@ -262,13 +258,17 @@ One batch of GPU work drawing into a set of attachments. Bracketed by `sg.begin_
 
 What happens to each attachment when a pass begins. `.CLEAR` overwrites with `clear_value`, `.LOAD` keeps the previous contents, and `.DONTCARE` lets the driver skip the work because you promise to write every pixel.
 
+## Pack {#pack}
+
+A named set of assets that load and unload together. The game sends `Load` with a pack name and a list of asset names. The host loads each one not yet loaded and calls `loaded` with the [manifest](#mesh-manifest). The game sends `Unload` with the name when it is done. Packs are independent: a world pack and a room pack can both be loaded, and streamed chunks unload in any order. An asset two packs name loads once and keeps one id; it counts the packs that hold it and unloads at zero. That count is why packs are not arenas: an arena frees everything at once, but a shared asset must outlive the pack that loaded it. Files sit on disk by type, not by pack, so one file serves many packs. Unity calls the idea an AssetBundle and Godot a resource pack. Both tie the set to a file; here it is a list of names in game data. "Level" is the game's word for a stage of play; the engine has no level. See `docs/adr/0003-packs-own-asset-lifetimes.md`.
+
 ## Parallax {#parallax}
 
 Near objects sweeping across the view faster than far ones as the viewpoint moves. It is the cue that reads as "I am moving through a space" rather than "the picture is changing", and it is why a camera cannot be demonstrated with a single object.
 
 ## Permanent arena {#permanent-arena}
 
-Our name for the arena that lives as long as the program. Holds subsystem state that outlives every level: the renderer, the input system, config.
+Our name for the arena that lives as long as the program. Holds subsystem state that outlives every [pack](#pack): the renderer, the input system, config.
 
 ## Pipeline {#pipeline}
 
@@ -488,11 +488,11 @@ Naming a generated type after the route that reaches it from a `provides` entry 
 
 ## Platform seam {#platform-seam}
 
-The boundary between the Roc game and the Odin engine, drawn as three pure functions: `init`, `step` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
+The boundary between the Roc game and the Odin engine, drawn as four pure functions: `init`, `step`, `loaded` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
 
-## Mesh manifest {#mesh-manifest}
+## Manifest {#mesh-manifest}
 
-The name-to-id table the engine hands to `init` in `Config`: every asset loaded from disk plus the built-in primitives, one `U32` each, with 0 reserved for the fallback mesh. Draws carry the id. The game resolves the names it needs once and keeps the ids in its `Model`. Bevy calls the id a `Handle`, Godot an RID. It is what keeps a new Blender export from changing the platform vocabulary.
+The name-to-id list the engine hands to `loaded` for one [pack](#pack): every name the `Load` asked for, one `U32` each, with 0 for a name that did not load. Mesh id 0 is the fallback mesh, and sky 0 is no sky. Draws carry the id. The game keeps the ids it needs in its `Model`; an id from an unloaded pack is stale and draws the fallback. Bevy calls the id a `Handle`, Godot an RID. It is what keeps a new Blender export from changing the platform vocabulary.
 
 ## For-clause {#for-clause}
 
