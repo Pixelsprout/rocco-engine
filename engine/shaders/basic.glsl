@@ -1,6 +1,6 @@
-// The Scene's lights over vertex colours, times a per-draw tint. Compiled by sokol-shdc to MSL,
-// GLSL and HLSL; see engine/shader_basic.odin for the command. shdc comes
-// from floooh/sokol-tools-bin at commit 11d0cf6.
+// The Scene's lights over vertex colours, times a per-draw tint, tone mapped.
+// Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
+// for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
 @header import sg "../sokol-odin/sokol/gfx"
 @ctype mat4 Mat4
@@ -53,6 +53,22 @@ in vec3 v_world;
 
 out vec4 frag_color;
 
+// Stephen Hill's fit of the ACES RRT and sRGB ODT. It rolls highlights off
+// towards 1 instead of clipping them, so a light colour above 1 keeps detail.
+vec3 aces_fitted(vec3 c) {
+    const mat3 aces_in = mat3(
+        0.59719, 0.07600, 0.02840,
+        0.35458, 0.90834, 0.13383,
+        0.04823, 0.01566, 0.83777);
+    const mat3 aces_out = mat3(
+         1.60475, -0.10208, -0.00327,
+        -0.53108,  1.10813, -0.07276,
+        -0.07367, -0.00605,  1.07602);
+    c = aces_in * c;
+    c = (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.4329510) + 0.238081);
+    return aces_out * c;
+}
+
 // The swapchain is not sRGB on every backend, so the shader encodes. Colours
 // and tints are linear, like glTF, and the lighting runs in linear.
 vec3 linear_to_srgb(vec3 c) {
@@ -75,7 +91,7 @@ void main() {
         }
         lighting += light_color[i].rgb * max(dot(n, l), 0.0) * falloff;
     }
-    frag_color = vec4(linear_to_srgb(v_col.rgb * tint.rgb * lighting), v_col.a);
+    frag_color = vec4(linear_to_srgb(aces_fitted(v_col.rgb * tint.rgb * lighting)), v_col.a);
 }
 @end
 

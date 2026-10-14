@@ -526,8 +526,8 @@ camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
 lights : List(Vocabulary.Light)
 lights = [
-	Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
+	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
+	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.6, g: 1.6, b: 1.6 }),
 ]
 
 view : Model -> Scene

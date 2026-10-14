@@ -682,10 +682,11 @@ Check: an empty list draws black. A point light falls off with range.
 Done when a level unloads and the next loads without a stale mesh id
 drawing.
 
-Before it: the shader tone maps with ACES fitted before the sRGB encode,
-the host clears to black with the sRGB encode, and each game retunes its
-lights. Kula lights each level with a sun, a dim fill opposite it and an
-ambient, and drops the placeholder point light.
+Before it (done): the shader tone maps with ACES fitted before the sRGB
+encode, the host clears to black with the sRGB encode, and each game
+retunes its lights. Cards and entity-game raise the ambient to 0.2 and the
+directional light to 1.6. Kula lights each level with a sun, a dim fill
+opposite it and an ambient, and drops the placeholder point light.
 
 1. The glTF loader reads the base colour texture from the GLB binary chunk,
    PNG only through `core:image/png`, and the UVs. Each mesh gets an image

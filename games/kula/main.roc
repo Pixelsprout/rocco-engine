@@ -54,12 +54,15 @@ action = |input|
 		Err(NoAction)
 	}
 
+# No two axes of the Sun's dir share a size, so each face direction of a block gets its own shade.
+sun_dir : Vec3.Vec3
+sun_dir = { x: -2.0 / 7.0, y: -6.0 / 7.0, z: -3.0 / 7.0 }
+
 lights : List(Vocabulary.Light)
 lights = [
-	Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
-	# A placeholder above the level1 start until the Kula look is chosen.
-	Light.point({ x: 0.0, y: 3.0, z: 9.0 }, { r: 1.0, g: 0.6, b: 0.3 }, 6.0),
+	Light.ambient({ r: 0.15, g: 0.15, b: 0.15 }),
+	Light.directional(sun_dir, { r: 1.6, g: 1.6, b: 1.6 }),
+	Light.directional(Vec3.neg(sun_dir), { r: 0.3, g: 0.3, b: 0.3 }),
 ]
 
 view : Model -> Scene
@@ -280,4 +283,21 @@ expect {
 		Jumping({ from, .. }) => from.cell == { x: 0, y: 1, z: 4 }
 		_ => False
 	}
+}
+
+# The red channel of all lights summed on a face with this normal.
+shade : Vec3.Vec3 -> F32
+shade = |normal| lights.fold(0.0, |sum, light| match light {
+	Ambient(color) => sum + color.r
+	Directional({ dir, color }) => {
+		facing = Vec3.dot(normal, Vec3.neg(dir))
+		if facing > 0.0 { sum + color.r * facing } else { sum }
+	}
+	Point(_) => sum
+})
+
+expect {
+	normals = [{ x: 1.0, y: 0.0, z: 0.0 }, { x: -1.0, y: 0.0, z: 0.0 }, { x: 0.0, y: 1.0, z: 0.0 }, { x: 0.0, y: -1.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 1.0 }, { x: 0.0, y: 0.0, z: -1.0 }]
+	shades = normals.map(shade)
+	shades.all(|a| shades.keep_if(|b| (a - b).abs() < 0.02).len() == 1)
 }

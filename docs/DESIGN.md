@@ -158,8 +158,10 @@ A tint and a light colour are each an `Rgb`, not a `Vec3`. Roc records are
 structural, so the two names keep a position from passing as a colour. Each
 channel is linear, like a glTF colour. A tint channel runs from 0 to 1. A
 light colour carries intensity, so a channel can exceed 1. The host
-multiplies the mesh colour by the tint, lights the result in linear, and the
-shader encodes it to sRGB for the screen. Decision.
+multiplies the mesh colour by the tint and lights the result in linear. The
+shader tone maps it with a fixed ACES fit, so a bright channel rolls off
+towards 1 instead of clipping. Then it encodes the result to sRGB for the
+screen. The tone map has no knob. Decision.
 
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in

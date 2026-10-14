@@ -79,7 +79,7 @@ init_cb :: proc "c" () {
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
 	g_state.pass_action = {
-		colors = {0 = {load_action = .CLEAR, clear_value = {r = 0.0, g = 0.0, b = 0.1, a = 1.0}}},
+		colors = {0 = {load_action = .CLEAR, clear_value = {r = 0.0, g = 0.0, b = 0.0, a = 1.0}}},
 		depth = {load_action = .CLEAR, clear_value = 0.0},
 	}
 
