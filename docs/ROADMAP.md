@@ -712,9 +712,9 @@ opposite it and an ambient, and drops the placeholder point light.
    `assets/sky/<name>/`. The sky and unlit meshes skip the lights and the
    tone map. Done (mlhioxmj).
 6. Kula. A pack per Theme, three levels, generated textures and skies.
-   Finishing level 3 keeps Won. Built (bfn69njy): each Theme pack holds its
-   textured face and a sky rendered by Blender. Nobody has done the by-eye
-   check yet.
+   Finishing level 3 keeps Won. Done (bfn69njy): each Theme pack holds its
+   textured face and a sky rendered by Blender. The user checked all three
+   levels by eye on 2026-10-15.
 
 Check: finish level one, see level two under a new Theme, with no magenta.
 
