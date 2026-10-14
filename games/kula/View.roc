@@ -9,17 +9,17 @@ import Ball
 View := [].{
 	# The kula pack's assets. Each Theme names its own.
 	assets : List(Str)
-	assets = ["ball", "sky/test"]
+	assets = ["ball"]
 
 	# Keys stay primitive cubes until a key mesh exists. face and ball are 0, the fallback, and sky is 0, no sky, until loaded.
 	primitive_meshes : World.Meshes
 	primitive_meshes = { cube: Mesh.primitive(Cube), face: 0, ball: 0, sky: 0 }
 
 	kula_meshes : World.Meshes, Manifest -> World.Meshes
-	kula_meshes = |meshes, manifest| { ..meshes, ball: Mesh.resolve(manifest, "ball"), sky: Mesh.resolve(manifest, "sky/test") }
+	kula_meshes = |meshes, manifest| { ..meshes, ball: Mesh.resolve(manifest, "ball") }
 
-	theme_meshes : World.Meshes, Manifest -> World.Meshes
-	theme_meshes = |meshes, manifest| { ..meshes, face: Mesh.resolve(manifest, "face") }
+	theme_meshes : World.Meshes, Manifest, Str, Str -> World.Meshes
+	theme_meshes = |meshes, manifest, face, sky| { ..meshes, face: Mesh.resolve(manifest, face), sky: Mesh.resolve(manifest, sky) }
 
 	Placement : { pos : Vec3.Vec3, up : Vec3.Vec3, forward : Vec3.Vec3 }
 
@@ -87,7 +87,7 @@ View := [].{
 		Vec3.length(Vec3.sub(cam.eye, nearest)) < near_window_reach and near_window(cam).any(|corner| Vec3.dot(Vec3.sub(corner, centre_of_face), n) < 0.0)
 	}
 
-	# face.glb, like the primitive plane, faces +y and is one-sided.
+	# A Theme's face mesh, like the primitive plane, faces +y and is one-sided.
 	face_draw : U64, U32, Face, Rgb -> Draw
 	face_draw = |id, mesh, face, tint| {
 		pos = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))

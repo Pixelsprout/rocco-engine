@@ -1,4 +1,4 @@
-# Builds face.glb and ball.glb for Kula. Run from any directory:
+# Builds each Theme's <theme>_face.glb and ball.glb for Kula. Run from any directory:
 #   /Applications/Blender.app/Contents/MacOS/Blender --background --python games/kula/assets/source/make_meshes.py
 #
 # Blender is +Z up. The glTF export turns that into +Y up, so a quad facing
@@ -6,19 +6,16 @@
 
 import math
 import os
+import random
 
 import bmesh
 import bpy
 
 MESHES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "meshes")
 
-# The engine multiplies the face texture by the draw's tint, so the centre
-# matches the primitive plane's linear grey of 0.8 and the border reads lighter
-# under any tint. Image pixels are sRGB: 0.906 is linear 0.8.
-FACE_CENTRE = (0.906, 0.906, 0.906, 1.0)
-FACE_BORDER = (1.0, 1.0, 1.0, 1.0)
+# Kula draws faces with a white tint, so each texture carries its Theme's
+# colour. The exit's red tint multiplies it.
 FACE_TEXTURE_SIZE = 64
-FACE_BORDER_TEXELS = 4
 
 # Low enough that the sun leaves a soft highlight on the ball.
 BALL_ROUGHNESS = 0.4
@@ -57,14 +54,65 @@ def texture_material(name, image):
     return mat
 
 
-def face_image():
+def linear_to_srgb(c):
+    c = max(0.0, min(1.0, c))
+    return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+
+def scaled(colour, s):
+    return tuple(c * s for c in colour)
+
+
+# Each pattern takes the texel's distance from the nearest edge, its offset
+# from the centre and a noise value near 1, and gives a linear colour.
+def haze_texel(edge, dx, dy, noise):
+    if edge < 4:
+        return scaled((0.6, 0.63, 0.7), noise)
+    return scaled((0.42, 0.45, 0.52), noise)
+
+
+# A groove, a raised rim and a stepped diamond, like carved sandstone.
+def inca_texel(edge, dx, dy, noise):
+    if edge < 3:
+        return scaled((0.3, 0.18, 0.08), noise)
+    if edge < 6:
+        return scaled((0.68, 0.47, 0.24), noise)
+    step = int((abs(dx) + abs(dy)) / 5)
+    shade = 0.55 if step % 2 == 0 else 0.47
+    return scaled((shade, shade * 0.66, shade * 0.31), noise)
+
+
+# Bright bevelled edges and faint diagonal frost lines.
+def arctic_texel(edge, dx, dy, noise):
+    if edge < 3:
+        return scaled((0.9, 0.95, 1.0), noise)
+    if int(dx + dy) % 16 == 0:
+        return scaled((0.75, 0.86, 0.96), noise)
+    return scaled((0.62, 0.75, 0.88), noise)
+
+
+# Pack name, texel pattern and noise strength. The names match Theme.roc.
+THEMES = [
+    ("haze", haze_texel, 0.04),
+    ("inca", inca_texel, 0.06),
+    ("arctic", arctic_texel, 0.03),
+]
+
+
+# Blender stores byte image pixels as sRGB, so the linear colours convert here.
+# A fixed seed keeps the committed files stable.
+def face_image(name, texel, noise_amount):
     size = FACE_TEXTURE_SIZE
-    image = bpy.data.images.new("face", size, size, alpha=False)
+    rng = random.Random(name)
+    image = bpy.data.images.new(name + "_face", size, size, alpha=False)
     pixels = []
+    centre = (size - 1) / 2
     for y in range(size):
         for x in range(size):
             edge = min(x, y, size - 1 - x, size - 1 - y)
-            pixels.extend(FACE_BORDER if edge < FACE_BORDER_TEXELS else FACE_CENTRE)
+            noise = 1.0 + rng.uniform(-noise_amount, noise_amount)
+            colour = texel(edge, x - centre, y - centre, noise)
+            pixels.extend([linear_to_srgb(c) for c in colour] + [1.0])
     image.pixels = pixels
     image.file_format = "PNG"
     return image
@@ -91,8 +139,8 @@ def export(obj, file_name):
 
 
 # A 1 x 1 quad centred on the origin that winds counter-clockwise seen from
-# +Z. Its uvs span the whole bordered texture.
-def make_face():
+# +Z. Its uvs span the whole texture.
+def make_face(name, texel, noise_amount):
     clear_scene()
     half = 0.5
     verts = [(-half, -half, 0.0), (half, -half, 0.0), (half, half, 0.0), (-half, half, 0.0)]
@@ -102,9 +150,9 @@ def make_face():
     for loop in mesh.loops:
         x, y, _ = verts[loop.vertex_index]
         uvs.data[loop.index].uv = (x + half, y + half)
-    mesh.materials.append(texture_material("face", face_image()))
+    mesh.materials.append(texture_material(name + "_face", face_image(name, texel, noise_amount)))
     mesh.update()
-    export(new_object("face", mesh), "face.glb")
+    export(new_object(name + "_face", mesh), name + "_face.glb")
 
 
 # A UV sphere of diameter 1, like the primitive sphere. The wedges run pole to
@@ -127,5 +175,6 @@ def make_ball():
 
 
 os.makedirs(MESHES, exist_ok=True)
-make_face()
+for theme in THEMES:
+    make_face(*theme)
 make_ball()

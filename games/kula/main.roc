@@ -33,14 +33,15 @@ load_theme = |level_number| {
 # The next level starts only when its Theme has loaded, so no level draws with the old Theme's ids.
 loaded : Model, Str, Manifest -> Model
 loaded = |model, pack, manifest| {
-	current = Theme.of_level(model.level_number).pack
+	current = Theme.of_level(model.level_number)
+	next_theme = Theme.of_level(model.level_number + 1)
 	if pack == kula_pack {
 		{ ..model, meshes: View.kula_meshes(model.meshes, manifest) }
-	} else if model.phase == Cleared and pack == Theme.of_level(model.level_number + 1).pack {
-		next = Rules.next_level({ ..model, meshes: View.theme_meshes(model.meshes, manifest) })
-		{ ..next, unloads: [current] }
-	} else if model.phase != Cleared and pack == current {
-		{ ..model, meshes: View.theme_meshes(model.meshes, manifest) }
+	} else if model.phase == Cleared and pack == next_theme.pack {
+		next = Rules.next_level({ ..model, meshes: View.theme_meshes(model.meshes, manifest, next_theme.face, next_theme.sky) })
+		{ ..next, unloads: [current.pack] }
+	} else if model.phase != Cleared and pack == current.pack {
+		{ ..model, meshes: View.theme_meshes(model.meshes, manifest, current.face, current.sky) }
 	} else {
 		model
 	}
@@ -98,7 +99,7 @@ view = |model| {
 		.map_with_index(|face, i| { face, id: 1 + i.to_u64() })
 		.keep_if(|entry| !View.cut_by_near_plane(entry.face, camera))
 		.map(|entry| {
-			tint = if exits.contains(entry.face.block) { exit_tint } else { theme.block_tint }
+			tint = if exits.contains(entry.face.block) { exit_tint } else { face_tint }
 			View.face_draw(entry.id, model.meshes.face, entry.face, tint)
 		})
 	# Ids come before the collected filter too, so a key keeps its id.
@@ -122,6 +123,10 @@ closed_exit_tint = { r: 0.6, g: 0.15, b: 0.15 }
 open_exit_tint : Rgb
 open_exit_tint = { r: 1.0, g: 0.35, b: 0.3 }
 
+# Each Theme's face texture carries its colour.
+face_tint : Rgb
+face_tint = { r: 1.0, g: 1.0, b: 1.0 }
+
 key_tint : Rgb
 key_tint = { r: 1.0, g: 0.787, b: 0.033 }
 
@@ -141,14 +146,14 @@ cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3
 # The Model after init and both of its loads, as the first view sees it.
 started : Model
 started = {
-	booted = init({ seed: 0, assets: ["ball", "face"] }).model
-	loaded(loaded(booted, "kula", [{ name: "ball", id: 4 }, { name: "sky/test", id: 1 }]), "haze", [{ name: "face", id: 5 }])
+	booted = init({ seed: 0, assets: ["ball", "haze_face", "sky/haze"] }).model
+	loaded(loaded(booted, "kula", [{ name: "ball", id: 4 }]), "haze", [{ name: "haze_face", id: 5 }, { name: "sky/haze", id: 1 }])
 }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball", "sky/test"] }), Load({ pack: "haze", assets: ["face"] })]
+expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball"] }), Load({ pack: "haze", assets: ["haze_face", "sky/haze"] })]
 expect init({ seed: 0, assets: [] }).model.meshes == { cube: 1, face: 0, ball: 0, sky: 0 }
 expect started.meshes == { cube: 1, face: 5, ball: 4, sky: 1 }
 expect view(started).sky == 1
@@ -308,11 +313,11 @@ expect {
 expect {
 	open = { ..at_pose(started, before_exit), keys_left: 0 }
 	finished = step(open, up_held, [], 0.1)
-	switched = loaded(finished.model, "inca", [{ name: "face", id: 7 }])
+	switched = loaded(finished.model, "inca", [{ name: "inca_face", id: 7 }, { name: "sky/inca", id: 2 }])
 	after = step(switched, idle, [], 0.1)
-	finished.commands == [Load({ pack: "inca", assets: ["face"] })]
+	finished.commands == [Load({ pack: "inca", assets: ["inca_face", "sky/inca"] })]
 	and finished.model.phase == Cleared
-	and switched.meshes == { cube: 1, face: 7, ball: 4, sky: 1 }
+	and switched.meshes == { cube: 1, face: 7, ball: 4, sky: 2 }
 	and switched.level_number == 2
 	and switched.phase == Starting(Rules.start_pause)
 	and after.commands == [Unload("haze")]
@@ -327,7 +332,7 @@ expect {
 }
 
 # A loaded for a pack Kula did not ask for changes nothing.
-expect loaded(started, "inca", [{ name: "face", id: 7 }]) == started
+expect loaded(started, "inca", [{ name: "inca_face", id: 7 }]) == started
 
 # During the pause the ball ignores input. After it, the level plays.
 expect {
@@ -338,7 +343,6 @@ expect {
 }
 
 expect view(on_level(2)).lights == Theme.of_level(2).lights
-expect view(on_level(3)).draws.any(|d| d.tint == Theme.of_level(3).block_tint)
 
 Move : [Roll, Left, Right, Leap]
 

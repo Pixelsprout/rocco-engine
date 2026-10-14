@@ -185,10 +185,10 @@ face when the neighbour cell holds a solid block (`ProcessCubesIntoFaces`,
 `src/level_init.c`, Code). Faces carry a flag that the decompiler marks as
 back-face culling, with a question mark.
 
-The clone draws each exposed face as `face.glb`, a one-sided quad like the
-primitive plane with a lighter border. The engine culls back faces. A
-camera inside a block therefore sees through that block, because every face
-of it points away. No face exists between two blocks, so the neighbours do
+The clone draws each exposed face as its Theme's face mesh, a one-sided
+quad like the primitive plane with a bordered texture. The engine culls
+back faces. A camera inside a block therefore sees through that block,
+because every face of it points away. No face exists between two blocks, so the neighbours do
 not hide the ball.
 
 Halfway through a climb, the eye passes down through the top face of the

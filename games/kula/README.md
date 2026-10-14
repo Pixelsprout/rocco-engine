@@ -59,7 +59,7 @@ current one ends.
 | Commit | A move sets the new pose when it starts. The ball then moves to that pose over the time of the move. |
 | Open end | A block with no block to its left or right, as the ball sees it. Only an open end lets the ball roll over the edge. |
 | Phase | `Playing`, `Cleared`, `Starting` or `Won`. `Cleared` waits for the next Theme to load. In `Starting`, the ball waits before the next level plays. |
-| Theme | The look of one level: a pack of block meshes, a block tint, a sun and its lights. |
+| Theme | The look of one level: a pack of a textured face and a sky, a sun and its lights. |
 
 ## Moves
 
@@ -146,9 +146,10 @@ back and the exit closes.
 | 2 | `levels/level2.txt` | `inca` |
 | 3 | `levels/level3.txt` | `arctic` |
 
-Each Theme is also a pack name. For now the Themes differ only by block
-tint and lights, and every Theme pack holds the same `face`. The Kula look
-task gives each Theme its own faces.
+Each Theme is also a pack name. The pack of Theme `<theme>` holds
+`<theme>_face` and `sky/<theme>`. The face texture
+carries the Theme's colour. The sun is painted in the sky where the Theme's
+sun light comes from.
 
 1. `init` sends Load for the `kula` pack and Load for the level 1 Theme.
    The `kula` pack holds `ball`, which every level uses. It never unloads.
@@ -209,7 +210,7 @@ layer 1 comes after layer 0 and a blank line. The route:
 5. Jump the gap.
 6. Roll on to the exit.
 
-## Meshes
+## Meshes and skies
 
 The blocks draw as faces, not as whole cubes. The camera can then sit inside
 a block, as in the original, and still see the ball. Keys are primitive
@@ -217,14 +218,18 @@ cubes.
 
 | File | What it is |
 |---|---|
-| `assets/meshes/face.glb` | A 1 × 1 quad facing +y, one-sided, with a lighter border |
+| `assets/meshes/<theme>_face.glb` | A 1 × 1 quad facing +y, one-sided, with the Theme's texture |
 | `assets/meshes/ball.glb` | A sphere of diameter 1 with eight white and red wedges |
+| `assets/sky/<theme>/` | Six PNG cube faces of the Theme's sky |
 
-`assets/source/make_meshes.py` builds both files. Run it with Blender from
-this directory:
+`assets/source/make_meshes.py` builds the meshes and their textures.
+`assets/source/make_skies.py` renders the skies. Each Theme in a script
+uses the same name and sun direction as in `Theme.roc`. Run both with
+Blender from this directory:
 
 ```sh
 /Applications/Blender.app/Contents/MacOS/Blender --background --python assets/source/make_meshes.py
+/Applications/Blender.app/Contents/MacOS/Blender --background --python assets/source/make_skies.py
 ```
 
-Commit the script and both `.glb` files. The build does not run Blender.
+Commit the scripts and their outputs. The build does not run Blender.

@@ -710,9 +710,11 @@ opposite it and an ambient, and drops the placeholder point light.
    each game retunes its lights by pi.
 5. The sky. `Scene.sky : U32`, 0 meaning none. A cubemap of six PNGs in
    `assets/sky/<name>/`. The sky and unlit meshes skip the lights and the
-   tone map. Done (mlhioxmj): Kula draws a test sky.
+   tone map. Done (mlhioxmj).
 6. Kula. A pack per Theme, three levels, generated textures and skies.
-   Finishing level 3 keeps Won.
+   Finishing level 3 keeps Won. Built (bfn69njy): each Theme pack holds its
+   textured face and a sky rendered by Blender. Nobody has done the by-eye
+   check yet.
 
 Check: finish level one, see level two under a new Theme, with no magenta.
 
