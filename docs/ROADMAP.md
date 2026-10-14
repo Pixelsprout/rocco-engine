@@ -13,10 +13,10 @@ Built and running:
 - Three arenas by lifetime: permanent, level, frame. The level arena holds
   the meshes loaded from disk.
 - Rendering through sokol: one pipeline, a mesh table, index buffers,
-  back-face culling, reversed-Z depth, one directional light. The backend is
-  Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
-  source in `engine/shaders/basic.glsl` compiles to all three with
-  `sokol-shdc`.
+  back-face culling, reversed-Z depth, Lambert lighting from
+  `Scene.lights`. The backend is Metal on macOS, GL core on Linux and D3D11
+  on Windows. One shader source in `engine/shaders/basic.glsl` compiles to
+  all three with `sokol-shdc`.
 - The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
   game. The host holds the `Model` as one boxed pointer. The Seam keeps the
   two `Scene`s. The Frame render pairs draws by id and interpolates them at
@@ -654,15 +654,24 @@ rolling. The level is finishable with the keyboard.
 
 ## Milestone 11: lights as data
 
-Done when both games light their own scene and the host has no sun.
+Done when all three games (cards, entity-game, kula) light their own scene
+and the host has no light of its own.
 
 1. `Scene` gains `lights : List(Light)` with `Ambient(Rgb)`,
    `Directional({ dir, color })` and `Point({ pos, color, range })`. Colour
-   carries intensity.
-2. The host takes the first ambient and up to 8 directional and point
-   lights into a uniform array. Extra lights are dropped with one log per
-   run. An empty list is dark.
-3. Both games add their sun. Spot lights wait for a game that needs one.
+   carries intensity and can exceed 1. A tint stays 0 to 1. `pf.Light`
+   builds each one. `dir` is the way the light travels.
+2. The host takes the first ambient and the first 8 directional and point
+   lights, in list order, into a new `fs_lights` uniform block. It drops a
+   second ambient, a light past the 8th, a Directional with a zero `dir`
+   and a Point with a range <= 0. It logs each reason once per run. An
+   empty list draws black. Lights do not interpolate. A point light falls
+   off as `clamp(1 - (d/range)^2, 0, 1)^2`. Shading stays Lambert diffuse
+   only.
+3. Each game copies the old lights: a 0.1 grey ambient and a white
+   directional light travelling `-(2,3,6)/7`. Kula adds a warm placeholder
+   point light near the start, range 6, until the Kula look task chooses
+   its lights. Spot lights wait for a game that needs one.
 
 Check: an empty list draws black. A point light falls off with range.
 

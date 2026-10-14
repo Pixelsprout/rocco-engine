@@ -58,6 +58,8 @@ lights : List(Vocabulary.Light)
 lights = [
 	Light.ambient({ r: 0.1, g: 0.1, b: 0.1 }),
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.0, g: 1.0, b: 1.0 }),
+	# A placeholder above the level1 start until the Kula look is chosen.
+	Light.point({ x: 0.0, y: 3.0, z: 9.0 }, { r: 1.0, g: 0.6, b: 0.3 }, 6.0),
 ]
 
 view : Model -> Scene

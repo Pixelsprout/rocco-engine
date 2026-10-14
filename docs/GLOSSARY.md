@@ -28,7 +28,7 @@ An arena that reserves one fixed span of virtual address space up front and comm
 
 ## Ambient term {#ambient}
 
-A constant added to every surface's lighting regardless of orientation, so that a face turned away from every light is dark rather than black. It stands in for all the light that arrives after bouncing off something else, which a [directional light](#directional-light) model does not simulate. It is a fudge, and an honest one: with `ambient = 0.15` the unlit faces of this engine's cubes read `38` in 8-bit and stay visible. Not to be confused with ambient *occlusion*, which is the attempt to work out where that bounced light cannot reach.
+A constant added to every surface's lighting regardless of orientation, so that a face turned away from every light is dark rather than black. It stands in for all the light that arrives after bouncing off something else, which a [directional light](#directional-light) model does not simulate. It is a fudge, and an honest one: with the games' 0.1 grey `Ambient` light, the unlit faces of this engine's cubes stay visible. Not to be confused with ambient *occlusion*, which is the attempt to work out where that bounced light cannot reach.
 
 ## Basis vectors {#basis-vectors}
 

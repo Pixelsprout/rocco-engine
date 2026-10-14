@@ -120,9 +120,9 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of Draws, a list of
-Colliders and a Cursor. It describes what should be on screen now and what
-can touch. Derived from the Model, rebuilt every step, stored by the host
-and never by the game.
+Colliders, a list of Lights and a Cursor. It describes what should be on
+screen now and what can touch. Derived from the Model, rebuilt every step,
+stored by the host and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
@@ -133,8 +133,17 @@ _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
 **Tint**:
 The colour of a Draw, as an `Rgb` record with linear channels from 0 to 1.
-The host multiplies the mesh colour by it.
+The host multiplies the mesh colour by it. A Light colour can exceed 1; a
+tint cannot.
 _Avoid_: colour (for the field), albedo, Vec3 colour
+
+**Light**:
+One entry in `Scene.lights`: `Ambient`, `Directional` or `Point`. Its colour
+is a linear `Rgb` that carries intensity, so a channel can exceed 1. A
+Directional `dir` is the way the light travels. A Point light falls off to
+zero at its `range`. `pf.Light` builds each one. Lights have no id and do not
+interpolate. An empty list draws black.
+_Avoid_: lamp, sun, light source, colour (for intensity)
 
 **Camera**:
 The field of a Scene that says where the eye is, what it looks at, which way

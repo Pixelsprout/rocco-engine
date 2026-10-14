@@ -109,8 +109,9 @@ Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, tint : 
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
+Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), cursor : Cursor }
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor }
 Command  : [Quit]
 ```
 
@@ -119,7 +120,7 @@ Command  : [Quit]
 | `Config` | a seed; the mesh manifest for every asset the engine loaded | how many pickups a round has |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
 | `List(Command)` | what the host does once after this step: `Quit` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -153,11 +154,12 @@ runs gets them. `held` is the key state when the step runs. When the
 window loses focus, the host releases every held key, because their key-up
 events go to the other window. Decision.
 
-A tint is an `Rgb`, not a `Vec3`. Roc records are structural, so the two
-names keep a position from passing as a colour. Each channel runs from 0 to
-1 and is linear, like a glTF colour. The host multiplies the mesh colour by
-the tint, lights the result in linear, and the shader encodes it to sRGB for
-the screen. Decision.
+A tint and a light colour are each an `Rgb`, not a `Vec3`. Roc records are
+structural, so the two names keep a position from passing as a colour. Each
+channel is linear, like a glTF colour. A tint channel runs from 0 to 1. A
+light colour carries intensity, so a channel can exceed 1. The host
+multiplies the mesh colour by the tint, lights the result in linear, and the
+shader encodes it to sRGB for the screen. Decision.
 
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in
@@ -177,6 +179,28 @@ record fits `Scene.camera`. Decision.
 
 `ROCCO_DEBUG_CAMERA=1` gives the host a fly camera for debugging. The host
 then ignores `Scene.camera`, and the game still gets all input.
+
+### Lights are data
+
+The game decides the Lights in its Scene. `Scene.lights` is a list of `Ambient`,
+`Directional` and `Point` lights. Games build them with `pf.Light`, for
+example `Light.point(pos, color, range)`. The host has no light of its own,
+so an empty list draws black. Decision.
+
+A Directional `dir` is the way the light travels. The host negates and
+normalises it. A Point light falls off as `clamp(1 - (d/range)^2, 0, 1)^2`,
+so it reaches zero at `range`. There is no inverse square. Each light adds
+its colour times `max(n.L, 0)`. Shading is Lambert diffuse only, with no
+specular and no shadows.
+
+The host takes the first ambient and the first 8 directional and point
+lights, in list order. It drops a second ambient, a light past the 8th, a
+Directional with a zero `dir` and a Point with a range <= 0. It logs each
+reason once per run. The cap of 8 is the size of the light arrays in the
+shader.
+
+The host uses the current `Scene`'s lights for the whole frame. Lights have
+no id and do not interpolate. A light that moves jumps once per fixed step.
 
 ### Meshes are ids
 
