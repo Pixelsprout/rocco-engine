@@ -1,4 +1,4 @@
-// The Scene's lights over vertex colours, times a per-draw tint, tone mapped.
+// The Scene's lights over vertex colour, base colour texture and tint, tone mapped.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -18,16 +18,19 @@ layout(binding = 0) uniform vs_params {
 in vec3 pos;
 in vec4 col;
 in vec3 nrm;
+in vec2 uv;
 
 out vec4 v_col;
 out vec3 v_nrm;
 out vec3 v_world;
+out vec2 v_uv;
 
 void main() {
     gl_Position = mvp * vec4(pos, 1.0);
     v_col = col;
     v_nrm = (normal_model * vec4(nrm, 0.0)).xyz;
     v_world = (model * vec4(pos, 1.0)).xyz;
+    v_uv = uv;
 }
 @end
 
@@ -47,9 +50,14 @@ layout(binding = 2) uniform fs_lights {
     vec4 light_color[8];
 };
 
+// SRGB8A8, so a sample is linear. A mesh with no texture binds a white texel.
+layout(binding = 0) uniform texture2D base_tex;
+layout(binding = 0) uniform sampler base_smp;
+
 in vec4 v_col;
 in vec3 v_nrm;
 in vec3 v_world;
+in vec2 v_uv;
 
 out vec4 frag_color;
 
@@ -91,7 +99,8 @@ void main() {
         }
         lighting += light_color[i].rgb * max(dot(n, l), 0.0) * falloff;
     }
-    frag_color = vec4(linear_to_srgb(aces_fitted(v_col.rgb * tint.rgb * lighting)), v_col.a);
+    vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
+    frag_color = vec4(linear_to_srgb(aces_fitted(base.rgb * tint.rgb * lighting)), base.a);
 }
 @end
 

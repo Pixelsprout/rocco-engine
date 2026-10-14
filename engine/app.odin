@@ -74,7 +74,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	sg.setup({environment = sglue.environment(), logger = {func = slog.func}})
+	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, sampler_pool_size = SAMPLER_POOL_SIZE})
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()

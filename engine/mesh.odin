@@ -24,16 +24,16 @@ MAGENTA :: [4]f32{1, 0, 1, 1}
 // A 1 x 1 quad in x-z, facing +y. One-sided: back-face culling hides it from below.
 @(rodata)
 PLANE_VERTICES := [4]Vertex {
-	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}},
-	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}},
+	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 0}},
+	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 1}},
+	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 1}},
+	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 0}},
 }
 
 @(rodata)
 PLANE_INDICES := [6]u16{0, 1, 2, 0, 2, 3}
 
-// Positions and normals of a unit cube. cube_build sets the colour.
+// Positions and normals of a unit cube. cube_build sets the colour and uvs.
 @(rodata)
 CUBE_VERTICES := [24]Vertex{
 	// -z face
@@ -91,10 +91,19 @@ Primitive :: enum u32 {
 	Plane,
 }
 
+// glTF puts uv 0, 0 at the top left of the image.
 Vertex :: struct {
-	pos:   [3]f32,
-	color: [4]f32,
+	pos:    [3]f32,
+	color:  [4]f32,
 	normal: [3]f32,
+	uv:     [2]f32,
+}
+
+// A zero id means the mesh has no texture and binds the white image.
+Mesh_Texture :: struct {
+	image:   sg.Image,
+	view:    sg.View,
+	sampler: sg.Sampler,
 }
 
 Mesh :: struct {
@@ -104,6 +113,7 @@ Mesh :: struct {
 	vertices:    sg.Buffer,
 	indices:     sg.Buffer,
 	index_count: int,
+	texture:     Mesh_Texture,
 	generation:  u16,
 }
 
@@ -122,6 +132,7 @@ Mesh_Table :: struct {
 Mesh_Data :: struct {
 	vertices: []Vertex,
 	indices:  []u16,
+	texture:  Maybe(Texture),
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -195,6 +206,11 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 		sg.destroy_buffer(m.vertices)
 		sg.destroy_buffer(m.indices)
 	}
+	if m.texture.image.id != 0 {
+		sg.destroy_view(m.texture.view)
+		sg.destroy_image(m.texture.image)
+		sg.destroy_sampler(m.texture.sampler)
+	}
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
 	m^ = {generation = m.generation + 1}
@@ -227,6 +243,9 @@ mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	delete(data.vertices, t.allocator)
 	delete(data.indices, t.allocator)
+	if tex, ok := data.texture.?; ok {
+		texture_delete(tex, t.allocator)
+	}
 }
 
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
@@ -241,6 +260,13 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 		},
 	)
 	m.index_count = len(data.indices)
+	if tex, ok := data.texture.?; ok {
+		m.texture = texture_upload(tex)
+	}
+}
+
+mesh_texture_or :: proc(m: ^Mesh, white: Mesh_Texture) -> Mesh_Texture {
+	return m.texture if m.texture.image.id != 0 else white
 }
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.
@@ -281,9 +307,24 @@ primitive_build :: proc(p: Primitive, allocator: mem.Allocator) -> Mesh_Data {
 cube_build :: proc(color: [4]f32, allocator: mem.Allocator) -> Mesh_Data {
 	vertices := make([]Vertex, len(CUBE_VERTICES), allocator)
 	for v, i in CUBE_VERTICES {
-		vertices[i] = {pos = v.pos, color = color, normal = v.normal}
+		vertices[i] = {pos = v.pos, color = color, normal = v.normal, uv = cube_uv(v.pos, v.normal)}
 	}
 	return {vertices = vertices, indices = CUBE_INDICES[:]}
+}
+
+// Each side face shows the whole texture upright from outside. The top face
+// puts the top of the image towards -z.
+cube_uv :: proc(pos, normal: [3]f32) -> [2]f32 {
+	u, v: f32
+	switch {
+	case normal.x != 0:
+		u, v = -pos.z * normal.x, -pos.y
+	case normal.y != 0:
+		u, v = pos.x, pos.z * normal.y
+	case:
+		u, v = pos.x * normal.z, -pos.y
+	}
+	return {u + 0.5, v + 0.5}
 }
 
 // A UV sphere of diameter 1. Ring 0 is the +y pole. Each ring repeats its
@@ -295,7 +336,8 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 		for s in 0 ..= SPHERE_SEGMENTS {
 			phi := 2 * math.PI * f32(s) / SPHERE_SEGMENTS
 			n := [3]f32{math.sin(theta) * math.cos(phi), math.cos(theta), math.sin(theta) * math.sin(phi)}
-			vertices[r * (SPHERE_SEGMENTS + 1) + s] = {pos = n * 0.5, color = GREY, normal = n}
+			uv := [2]f32{f32(s) / SPHERE_SEGMENTS, f32(r) / SPHERE_RINGS}
+			vertices[r * (SPHERE_SEGMENTS + 1) + s] = {pos = n * 0.5, color = GREY, normal = n, uv = uv}
 		}
 	}
 

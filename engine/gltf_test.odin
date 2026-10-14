@@ -90,7 +90,7 @@ triangle_glb :: proc(primitives: string, nodes := `[{"mesh":0}]`, extra := "") -
 
 @(test)
 test_glb_loads_a_triangle_in_grey_without_a_material :: proc(t: ^testing.T) {
-	data, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`), context.temp_allocator)
+	data, _, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect_value(t, len(data.vertices), 3)
 	testing.expect_value(t, len(data.indices), 3)
@@ -109,19 +109,19 @@ test_glb_loads_a_triangle_in_grey_without_a_material :: proc(t: ^testing.T) {
 test_glb_rejects_a_bad_magic_number :: proc(t: ^testing.T) {
 	bytes := triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`)
 	bytes[0] = 'x'
-	_, err := glb_parse(bytes, context.temp_allocator)
+	_, _, err := glb_parse(bytes, context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Bad_Magic)
 }
 
 @(test)
 test_glb_rejects_a_primitive_without_normals :: proc(t: ^testing.T) {
-	_, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0},"indices":2}]`), context.temp_allocator)
+	_, _, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0},"indices":2}]`), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.No_Normals)
 }
 
 @(test)
 test_glb_rejects_a_primitive_that_is_not_triangles :: proc(t: ^testing.T) {
-	_, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"mode":1}]`), context.temp_allocator)
+	_, _, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"mode":1}]`), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Not_Triangles)
 }
 
@@ -131,7 +131,7 @@ test_glb_bakes_each_node_world_transform_into_positions_and_normals :: proc(t: ^
 	nodes := `[
 		{"children":[1],"matrix":[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,2,0,1]},
 		{"mesh":0,"rotation":[0,0.70710678,0,0.70710678],"scale":[2,2,2]}]`
-	data, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":4}]`, nodes), context.temp_allocator)
+	data, _, err := glb_parse(triangle_glb(`[{"attributes":{"POSITION":0,"NORMAL":1},"indices":4}]`, nodes), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	want_pos := [3][3]f32{{0, 2, 0}, {0, 2, -2}, {0, 4, 0}}
 	for v, i in data.vertices {
@@ -148,7 +148,7 @@ test_glb_merges_primitives_and_colours_each_by_its_material :: proc(t: ^testing.
 	materials := `"materials":[
 		{"pbrMetallicRoughness":{"baseColorFactor":[1,0,0,1]}},
 		{"pbrMetallicRoughness":{"baseColorFactor":[0,0,1,1]}}],`
-	data, err := glb_parse(triangle_glb(primitives, extra = materials), context.temp_allocator)
+	data, _, err := glb_parse(triangle_glb(primitives, extra = materials), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect_value(t, len(data.vertices), 6)
 	testing.expect_value(t, len(data.indices), 6)
@@ -174,7 +174,7 @@ test_glb_rejects_a_mesh_with_more_than_65535_vertices :: proc(t: ^testing.T) {
 		COUNT * 12,
 		COUNT,
 	)
-	_, err := glb_parse(glb_make(json, make([]byte, COUNT * 12, context.temp_allocator)), context.temp_allocator)
+	_, _, err := glb_parse(glb_make(json, make([]byte, COUNT * 12, context.temp_allocator)), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Too_Many_Vertices)
 }
 
@@ -182,7 +182,7 @@ test_glb_rejects_a_mesh_with_more_than_65535_vertices :: proc(t: ^testing.T) {
 test_glb_rejects_a_header_length_shorter_than_the_header :: proc(t: ^testing.T) {
 	bytes := triangle_glb(TRIANGLE_PRIMITIVES)
 	endian.put_u32(bytes[8:], .Little, 4)
-	_, err := glb_parse(bytes, context.temp_allocator)
+	_, _, err := glb_parse(bytes, context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Bad_Chunks)
 }
 
@@ -203,7 +203,7 @@ test_glb_rejects_an_accessor_offset_past_its_buffer_view :: proc(t: ^testing.T) 
 			c.view,
 			c.accessor,
 		)
-		_, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
+		_, _, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
 		testing.expectf(t, err == .Bad_Accessor, "%v gave %v, want Bad_Accessor", c.accessor, err)
 	}
 }
@@ -213,18 +213,151 @@ test_glb_rejects_a_sparse_accessor :: proc(t: ^testing.T) {
 	json := `{"nodes":[{"mesh":0}],"meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":0}}]}],
 	"bufferViews":[{"buffer":0,"byteLength":36}],
 	"accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","sparse":{"count":1}}]}`
-	_, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
+	_, _, err := glb_parse(glb_make(json, triangle_bin()), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Bad_Accessor)
 }
 
 // glTF reverses the winding of a node whose transform mirrors it.
 @(test)
 test_glb_keeps_a_mirrored_node_ccw_from_outside :: proc(t: ^testing.T) {
-	data, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES, `[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
+	data, _, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES, `[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	a := data.vertices[data.indices[0]]
 	b := data.vertices[data.indices[1]]
 	c := data.vertices[data.indices[2]]
 	face := v3_cross(b.pos - a.pos, c.pos - a.pos)
 	testing.expectf(t, v3_dot(face, a.normal) > 0, "mirrored triangle winds clockwise from outside")
+}
+
+// The triangle with TEXCOORD_0 as accessor 5 and an image in buffer view 6.
+// A second primitive, if given, joins the first.
+textured_glb :: proc(
+	image_bytes: []byte,
+	image := `{"bufferView":6,"mimeType":"image/png"}`,
+	texture := `{"source":0}`,
+	samplers := "",
+	second := "",
+) -> []byte {
+	bin := make([dynamic]byte, context.temp_allocator)
+	append(&bin, ..triangle_bin())
+	for v in ([]f32{0, 0, 1, 0, 0, 1}) {
+		bin_put(&bin, v)
+	}
+	image_offset := len(bin)
+	append(&bin, ..image_bytes)
+	json := fmt.tprintf(
+		`{{"scenes":[{{"nodes":[0]}}],"nodes":[{{"mesh":0}}],
+		"meshes":[{{"primitives":[{{"attributes":{{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5}},"indices":2,"material":0}}%s]}}],
+		"materials":[{{"pbrMetallicRoughness":{{"baseColorTexture":{{"index":0}}}}}}],
+		"textures":[%s],"images":[%s],%s
+		"bufferViews":[
+			{{"buffer":0,"byteOffset":0,"byteLength":36}},
+			{{"buffer":0,"byteOffset":36,"byteLength":36}},
+			{{"buffer":0,"byteOffset":72,"byteLength":6}},
+			{{"buffer":0,"byteOffset":80,"byteLength":12}},
+			{{"buffer":0,"byteOffset":92,"byteLength":3}},
+			{{"buffer":0,"byteOffset":96,"byteLength":24}},
+			{{"buffer":0,"byteOffset":%v,"byteLength":%v}}],
+		"accessors":[
+			{{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}},
+			{{"bufferView":1,"componentType":5126,"count":3,"type":"VEC3"}},
+			{{"bufferView":2,"componentType":5123,"count":3,"type":"SCALAR"}},
+			{{"bufferView":3,"componentType":5125,"count":3,"type":"SCALAR"}},
+			{{"bufferView":4,"componentType":5121,"count":3,"type":"SCALAR"}},
+			{{"bufferView":5,"componentType":5126,"count":3,"type":"VEC2"}}]}}`,
+		second,
+		texture,
+		image,
+		samplers,
+		image_offset,
+		len(image_bytes),
+	)
+	return glb_make(json, bin[:])
+}
+
+@(test)
+test_glb_reads_texcoord_0_into_each_vertex_uv :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3})), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	want := [3][2]f32{{0, 0}, {1, 0}, {0, 1}}
+	for v, i in data.vertices {
+		testing.expect_value(t, v.uv, want[i])
+	}
+}
+
+@(test)
+test_glb_reads_an_embedded_png_as_the_base_colour_texture :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(textured_glb(png_make(2, 1, PNG_RGB, {10, 20, 30, 40, 50, 60})), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	tex, ok := data.texture.?
+	testing.expect(t, ok)
+	testing.expect_value(t, len(tex.levels), 1)
+	testing.expect_value(t, [2]int{tex.levels[0].width, tex.levels[0].height}, [2]int{2, 1})
+	want := [8]byte{10, 20, 30, 255, 40, 50, 60, 255}
+	for b, i in tex.levels[0].pixels {
+		testing.expect_value(t, b, want[i])
+	}
+	testing.expect_value(t, tex.sampler, Texture_Sampler{min_filter = .LINEAR, mag_filter = .LINEAR, mipmap_filter = .NEAREST, wrap_u = .REPEAT, wrap_v = .REPEAT})
+}
+
+@(test)
+test_glb_reads_the_sampler_and_builds_mipmaps_when_the_min_filter_asks :: proc(t: ^testing.T) {
+	samplers := `"samplers":[{"magFilter":9728,"minFilter":9986,"wrapS":33071,"wrapT":33648}],`
+	glb := textured_glb(png_make(2, 2, PNG_GRAY, {0, 0, 0, 0}), texture = `{"source":0,"sampler":0}`, samplers = samplers)
+	data, _, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	tex, ok := data.texture.?
+	testing.expect(t, ok)
+	testing.expect_value(t, len(tex.levels), 2)
+	testing.expect_value(
+		t,
+		tex.sampler,
+		Texture_Sampler{min_filter = .NEAREST, mag_filter = .NEAREST, mipmap_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .MIRRORED_REPEAT, mipmaps = true},
+	)
+}
+
+@(test)
+test_glb_skips_a_jpeg_texture_with_a_note :: proc(t: ^testing.T) {
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xe0, 0, 0}
+	data, notes, err := glb_parse(textured_glb(jpeg, image = `{"bufferView":6,"mimeType":"image/jpeg"}`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Jpeg_Skipped})
+	testing.expect(t, data.texture == nil)
+	testing.expect_value(t, len(data.vertices), 3)
+}
+
+@(test)
+test_glb_skips_a_png_that_does_not_decode_with_a_note :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(textured_glb(transmute([]byte)string("not a png")), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Bad_Png})
+	testing.expect(t, data.texture == nil)
+}
+
+@(test)
+test_glb_without_a_texture_has_no_texture_and_zero_uvs :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect(t, data.texture == nil)
+	for v in data.vertices {
+		testing.expect_value(t, v.uv, [2]f32{0, 0})
+	}
+}
+
+@(test)
+test_glb_rejects_a_texture_index_out_of_range :: proc(t: ^testing.T) {
+	_, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), texture = `{"source":4}`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Bad_Texture)
+}
+
+// The mesh has one texture, so an untextured primitive beside a textured one draws it too.
+@(test)
+test_glb_notes_a_textured_primitive_merged_with_an_untextured_one :: proc(t: ^testing.T) {
+	second := `,{"attributes":{"POSITION":0,"NORMAL":1},"indices":3}`
+	data, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), second = second), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Mixed_Textures})
+	testing.expect(t, data.texture != nil)
 }

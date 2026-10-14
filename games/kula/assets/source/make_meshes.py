@@ -12,11 +12,13 @@ import bpy
 
 MESHES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "meshes")
 
-# The engine multiplies these by the draw's tint, so the face centre matches
-# the primitive plane's grey and the border reads lighter under any tint.
-FACE_CENTRE = (0.8, 0.8, 0.8, 1.0)
+# The engine multiplies the face texture by the draw's tint, so the centre
+# matches the primitive plane's linear grey of 0.8 and the border reads lighter
+# under any tint. Image pixels are sRGB: 0.906 is linear 0.8.
+FACE_CENTRE = (0.906, 0.906, 0.906, 1.0)
 FACE_BORDER = (1.0, 1.0, 1.0, 1.0)
-FACE_BORDER_WIDTH = 0.06
+FACE_TEXTURE_SIZE = 64
+FACE_BORDER_TEXELS = 4
 
 BALL_WHITE = (0.9, 0.9, 0.9, 1.0)
 BALL_RED = (0.8, 0.05, 0.03, 1.0)
@@ -37,6 +39,31 @@ def material(name, colour):
     return mat
 
 
+# The export writes the image as a PNG in the .glb. Linear interpolation
+# exports as a mipmapped minification filter.
+def texture_material(name, image):
+    mat = material(name, (1.0, 1.0, 1.0, 1.0))
+    nodes = mat.node_tree.nodes
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = image
+    tex.interpolation = "Linear"
+    mat.node_tree.links.new(tex.outputs["Color"], nodes["Principled BSDF"].inputs["Base Color"])
+    return mat
+
+
+def face_image():
+    size = FACE_TEXTURE_SIZE
+    image = bpy.data.images.new("face", size, size, alpha=False)
+    pixels = []
+    for y in range(size):
+        for x in range(size):
+            edge = min(x, y, size - 1 - x, size - 1 - y)
+            pixels.extend(FACE_BORDER if edge < FACE_BORDER_TEXELS else FACE_CENTRE)
+    image.pixels = pixels
+    image.file_format = "PNG"
+    return image
+
+
 def new_object(name, mesh):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
@@ -51,28 +78,25 @@ def export(obj, file_name):
         filepath=os.path.join(MESHES, file_name),
         export_format="GLB",
         use_selection=True,
-        export_texcoords=False,
+        export_texcoords=True,
+        export_image_format="AUTO",
         export_animations=False,
     )
 
 
-# A 1 x 1 quad centred on the origin: a centre square and a border ring of
-# four quads round it. All faces wind counter-clockwise seen from +Z.
+# A 1 x 1 quad centred on the origin that winds counter-clockwise seen from
+# +Z. Its uvs span the whole bordered texture.
 def make_face():
     clear_scene()
     half = 0.5
-    inner_half = half - FACE_BORDER_WIDTH
-    outer = [(-half, -half), (half, -half), (half, half), (-half, half)]
-    inner = [(-inner_half, -inner_half), (inner_half, -inner_half), (inner_half, inner_half), (-inner_half, inner_half)]
-    verts = [(x, y, 0.0) for x, y in outer + inner]
-    centre = [(4, 5, 6, 7)]
-    border = [(k, (k + 1) % 4, (k + 1) % 4 + 4, k + 4) for k in range(4)]
+    verts = [(-half, -half, 0.0), (half, -half, 0.0), (half, half, 0.0), (-half, half, 0.0)]
     mesh = bpy.data.meshes.new("face")
-    mesh.from_pydata(verts, [], centre + border)
-    mesh.materials.append(material("face_centre", FACE_CENTRE))
-    mesh.materials.append(material("face_border", FACE_BORDER))
-    for poly in mesh.polygons:
-        poly.material_index = 0 if poly.index == 0 else 1
+    mesh.from_pydata(verts, [], [(0, 1, 2, 3)])
+    uvs = mesh.uv_layers.new(name="UVMap")
+    for loop in mesh.loops:
+        x, y, _ = verts[loop.vertex_index]
+        uvs.data[loop.index].uv = (x + half, y + half)
+    mesh.materials.append(texture_material("face", face_image()))
     mesh.update()
     export(new_object("face", mesh), "face.glb")
 

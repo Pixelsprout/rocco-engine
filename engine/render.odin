@@ -5,13 +5,26 @@ import sg "../sokol-odin/sokol/gfx"
 // The window swapchain and the pipeline must agree, or sokol rejects the pipeline.
 SAMPLE_COUNT :: 4
 
+// Each loaded mesh can own one sampler, and the white image needs one more.
+SAMPLER_POOL_SIZE :: MESH_CAPACITY + 1
+
+@(rodata)
+WHITE_TEXEL := [4]byte{255, 255, 255, 255}
+
 Renderer :: struct {
 	pip:    sg.Pipeline,
 	meshes: Mesh_Table,
+	white:  Mesh_Texture,
 }
 
 renderer_init :: proc(r: ^Renderer) {
 	mesh_table_upload(&r.meshes)
+	r.white = texture_upload(
+		{
+			levels = {{width = 1, height = 1, pixels = WHITE_TEXEL[:]}},
+			sampler = {min_filter = .NEAREST, mag_filter = .NEAREST, mipmap_filter = .NEAREST, wrap_u = .REPEAT, wrap_v = .REPEAT},
+		},
+	)
 
 	shader := sg.make_shader(basic_shader_desc(sg.query_backend()))
 
@@ -28,6 +41,7 @@ renderer_init :: proc(r: ^Renderer) {
 				ATTR_basic_pos = {format = sg.Vertex_Format.FLOAT3},
 				ATTR_basic_col = {format = sg.Vertex_Format.FLOAT4},
 				ATTR_basic_nrm = {format = sg.Vertex_Format.FLOAT3},
+				ATTR_basic_uv = {format = sg.Vertex_Format.FLOAT2},
 			},
 		},
 	}
@@ -43,7 +57,16 @@ renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 }
 
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
-	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
+	r := (^Renderer)(ctx)
+	tex := mesh_texture_or(mesh, r.white)
+	sg.apply_bindings(
+		{
+			vertex_buffers = {0 = mesh.vertices},
+			index_buffer = mesh.indices,
+			views = {VIEW_base_tex = tex.view},
+			samplers = {SMP_base_smp = tex.sampler},
+		},
+	)
 
 	vs := vs_params
 	fs := fs_params

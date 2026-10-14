@@ -1,5 +1,6 @@
 package engine
 
+import "core:math/linalg"
 import "core:testing"
 
 @(test)
@@ -132,4 +133,40 @@ test_fallback_is_a_magenta_cube :: proc(t: ^testing.T) {
 		testing.expect_value(t, v.color, [4]f32{1, 0, 1, 1})
 		testing.expect_value(t, v.pos, cube.vertices[i].pos)
 	}
+}
+
+// A primitive with every uv at one point would draw a texture as one flat texel.
+@(test)
+test_every_primitive_has_uvs_from_0_to_1 :: proc(t: ^testing.T) {
+	for p in Primitive {
+		data := primitive_build(p, context.temp_allocator)
+		lo, hi := [2]f32{1, 1}, [2]f32{0, 0}
+		for v in data.vertices {
+			lo = linalg.min(lo, v.uv)
+			hi = linalg.max(hi, v.uv)
+		}
+		testing.expectf(t, lo == {0, 0} && hi == {1, 1}, "%v has uvs from %v to %v, want 0 to 1", p, lo, hi)
+	}
+}
+
+@(test)
+test_each_cube_face_spans_the_whole_texture :: proc(t: ^testing.T) {
+	data := primitive_build(.Cube, context.temp_allocator)
+	for face in 0 ..< 6 {
+		corners := data.vertices[face * 4:][:4]
+		for a, i in corners {
+			for b in corners[i + 1:] {
+				testing.expectf(t, a.uv != b.uv, "face %v repeats uv %v", face, a.uv)
+			}
+		}
+	}
+}
+
+@(test)
+test_a_mesh_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
+	white := Mesh_Texture{image = {id = 1}, view = {id = 2}, sampler = {id = 3}}
+	plain := Mesh{}
+	testing.expect_value(t, mesh_texture_or(&plain, white), white)
+	textured := Mesh{texture = {image = {id = 7}, view = {id = 8}, sampler = {id = 9}}}
+	testing.expect_value(t, mesh_texture_or(&textured, white), textured.texture)
 }

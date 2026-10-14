@@ -1,5 +1,6 @@
 package engine
 
+import sg "../sokol-odin/sokol/gfx"
 import "core:encoding/endian"
 import "core:encoding/json"
 import "core:math/linalg"
@@ -16,6 +17,15 @@ GLTF_U8 :: 5121
 GLTF_U16 :: 5123
 GLTF_U32 :: 5125
 GLTF_F32 :: 5126
+GLTF_NEAREST :: 9728
+GLTF_LINEAR :: 9729
+GLTF_NEAREST_MIPMAP_NEAREST :: 9984
+GLTF_LINEAR_MIPMAP_NEAREST :: 9985
+GLTF_NEAREST_MIPMAP_LINEAR :: 9986
+GLTF_LINEAR_MIPMAP_LINEAR :: 9987
+GLTF_CLAMP_TO_EDGE :: 33071
+GLTF_MIRRORED_REPEAT :: 33648
+GLTF_REPEAT :: 10497
 
 GLB_ERROR_REASONS := [Glb_Error]string {
 	.None              = "no error",
@@ -27,12 +37,20 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 	.No_Mesh           = "no node in the scene has a mesh",
 	.Bad_Node          = "a node index is out of range or the nodes form a cycle",
 	.Bad_Material      = "a material index is out of range",
+	.Bad_Texture       = "a texture, image, sampler or image buffer view index is out of range",
 	.Not_Triangles     = "a primitive is not triangles",
 	.No_Positions      = "a primitive has no POSITION",
 	.No_Normals        = "a primitive has no NORMAL",
 	.Bad_Accessor      = "an accessor has the wrong type, is sparse or reads past its buffer",
 	.Bad_Index         = "an index is out of range or the index count is not a multiple of 3",
 	.Too_Many_Vertices = "the mesh has more than 65,535 vertices",
+}
+
+GLB_NOTE_REASONS := [Glb_Note]string {
+	.Jpeg_Skipped      = "its base colour texture is a JPEG, so it draws untextured; export PNG",
+	.Bad_Png           = "its base colour PNG does not decode or has a side over 32768, so it draws untextured",
+	.Unsupported_Image = "its base colour texture is not an embedded PNG, so it draws untextured",
+	.Mixed_Textures    = "its primitives do not share one base colour texture, so they all draw the first",
 }
 
 Glb_Error :: enum {
@@ -45,6 +63,7 @@ Glb_Error :: enum {
 	No_Mesh,
 	Bad_Node,
 	Bad_Material,
+	Bad_Texture,
 	Not_Triangles,
 	No_Positions,
 	No_Normals,
@@ -52,6 +71,16 @@ Glb_Error :: enum {
 	Bad_Index,
 	Too_Many_Vertices,
 }
+
+// A texture problem that does not stop the mesh loading.
+Glb_Note :: enum {
+	Jpeg_Skipped,
+	Bad_Png,
+	Unsupported_Image,
+	Mixed_Textures,
+}
+
+Glb_Notes :: bit_set[Glb_Note]
 
 // Only the fields the engine reads. json.unmarshal skips the rest.
 Gltf :: struct {
@@ -65,8 +94,25 @@ Gltf :: struct {
 	},
 	materials:    []struct {
 		pbr: struct {
-			base_color_factor: Maybe([4]f32) `json:"baseColorFactor"`,
+			base_color_factor:  Maybe([4]f32) `json:"baseColorFactor"`,
+			base_color_texture: Maybe(struct {
+					index: int,
+				}) `json:"baseColorTexture"`,
 		} `json:"pbrMetallicRoughness"`,
+	},
+	textures:     []struct {
+		source:  Maybe(int),
+		sampler: Maybe(int),
+	},
+	images:       []struct {
+		buffer_view: Maybe(int) `json:"bufferView"`,
+		mime_type:   string `json:"mimeType"`,
+	},
+	samplers:     []struct {
+		mag_filter: Maybe(int) `json:"magFilter"`,
+		min_filter: Maybe(int) `json:"minFilter"`,
+		wrap_s:     Maybe(int) `json:"wrapS"`,
+		wrap_t:     Maybe(int) `json:"wrapT"`,
 	},
 	accessors:    []Gltf_Accessor,
 	buffer_views: []Gltf_Buffer_View `json:"bufferViews"`,
@@ -109,6 +155,11 @@ Glb_Loader :: struct {
 	bin:      []byte,
 	vertices: [dynamic]Vertex,
 	indices:  [dynamic]u16,
+	texture:  Maybe(int),
+	// The primitives so far name one texture, or none, between them.
+	first:    Maybe(Maybe(int)),
+	mixed:    bool,
+	notes:    Glb_Notes,
 }
 
 // One accessor's elements in the BIN chunk. data starts at element 0.
@@ -120,9 +171,9 @@ Glb_View :: struct {
 }
 
 // Merges every triangle primitive of every mesh node in the glTF scene into
-// one mesh. Scratch is frame memory, so a rejected file leaves nothing in
-// allocator.
-glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, err: Glb_Error) {
+// one mesh with one base colour texture. Scratch is frame memory, so a
+// rejected file leaves nothing in allocator.
+glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
 	json_chunk, bin := glb_chunks(bytes) or_return
 
 	l := Glb_Loader {
@@ -131,16 +182,24 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 		indices  = make([dynamic]u16, context.temp_allocator),
 	}
 	if json.unmarshal(json_chunk, &l.gltf, allocator = context.temp_allocator) != nil {
-		return {}, .Bad_Json
+		return {}, {}, .Bad_Json
 	}
 
 	for root in glb_roots(&l.gltf) {
 		glb_visit(&l, root, mat4_identity(), 0) or_return
 	}
 	if len(l.vertices) == 0 {
-		return {}, .No_Mesh
+		return {}, {}, .No_Mesh
 	}
-	return {vertices = slice.clone(l.vertices[:], allocator), indices = slice.clone(l.indices[:], allocator)}, .None
+	texture: Maybe(Texture)
+	if index, ok := l.texture.?; ok {
+		texture = glb_texture(&l, index, allocator) or_return
+	}
+	if l.mixed && texture != nil {
+		l.notes += {.Mixed_Textures}
+	}
+	data = {vertices = slice.clone(l.vertices[:], allocator), indices = slice.clone(l.indices[:], allocator), texture = texture}
+	return data, l.notes, .None
 }
 
 glb_chunks :: proc(bytes: []byte) -> (json_chunk, bin: []byte, err: Glb_Error) {
@@ -266,12 +325,34 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 		return .Too_Many_Vertices
 	}
 
+	uvs: Glb_View
+	uv_index, has_uv := p.attributes["TEXCOORD_0"]
+	if has_uv {
+		uvs = glb_accessor(l, uv_index, "VEC2") or_return
+		if uvs.component_type != GLTF_F32 || uvs.count != count {
+			return .Bad_Accessor
+		}
+	}
+
 	color := GREY
+	tex: Maybe(int)
 	if m, ok := p.material.?; ok {
 		if m < 0 || m >= len(l.gltf.materials) {
 			return .Bad_Material
 		}
-		color = l.gltf.materials[m].pbr.base_color_factor.? or_else {1, 1, 1, 1}
+		pbr := &l.gltf.materials[m].pbr
+		color = pbr.base_color_factor.? or_else {1, 1, 1, 1}
+		if ref, textured := pbr.base_color_texture.?; textured {
+			tex = ref.index
+			if l.texture == nil {
+				l.texture = ref.index
+			}
+		}
+	}
+	if first, seen := l.first.?; !seen {
+		l.first = tex
+	} else if first != tex {
+		l.mixed = true
 	}
 
 	basis := linalg.matrix3_from_matrix4_f32(world)
@@ -281,12 +362,17 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 	for i in 0 ..< count {
 		pos := glb_read_vec3(positions, i)
 		nrm := glb_read_vec3(normals, i)
+		uv: [2]f32
+		if has_uv {
+			uv = glb_read_vec2(uvs, i)
+		}
 		append(
 			&l.vertices,
 			Vertex {
 				pos = (world * [4]f32{pos.x, pos.y, pos.z, 1}).xyz,
 				color = color,
 				normal = linalg.normalize0(normal_matrix * nrm),
+				uv = uv,
 			},
 		)
 	}
@@ -349,7 +435,10 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 	case:
 		return {}, .Bad_Accessor
 	}
-	if type == "VEC3" {
+	switch type {
+	case "VEC2":
+		size *= 2
+	case "VEC3":
 		size *= 3
 	}
 
@@ -372,6 +461,102 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 	}
 	data := l.bin[bv.byte_offset:][:bv.byte_length][a.byte_offset:]
 	return {data = data, count = a.count, stride = stride, component_type = a.component_type}, .None
+}
+
+// A texture that cannot draw gives a note and no texture. Only a bad index is an error.
+glb_texture :: proc(l: ^Glb_Loader, index: int, allocator: mem.Allocator) -> (tex: Maybe(Texture), err: Glb_Error) {
+	if index < 0 || index >= len(l.gltf.textures) {
+		return nil, .Bad_Texture
+	}
+	t := &l.gltf.textures[index]
+	sampler := glb_sampler(nil, nil, nil, nil)
+	if s, ok := t.sampler.?; ok {
+		if s < 0 || s >= len(l.gltf.samplers) {
+			return nil, .Bad_Texture
+		}
+		gs := &l.gltf.samplers[s]
+		sampler = glb_sampler(gs.mag_filter, gs.min_filter, gs.wrap_s, gs.wrap_t)
+	}
+
+	source, has_source := t.source.?
+	if !has_source {
+		l.notes += {.Unsupported_Image}
+		return nil, .None
+	}
+	if source < 0 || source >= len(l.gltf.images) {
+		return nil, .Bad_Texture
+	}
+	img := &l.gltf.images[source]
+	view_index, embedded := img.buffer_view.?
+	if !embedded {
+		l.notes += {.Unsupported_Image}
+		return nil, .None
+	}
+	if view_index < 0 || view_index >= len(l.gltf.buffer_views) {
+		return nil, .Bad_Texture
+	}
+	bv := &l.gltf.buffer_views[view_index]
+	if bv.buffer != 0 || bv.byte_offset < 0 || bv.byte_offset > len(l.bin) || bv.byte_length < 0 || bv.byte_length > len(l.bin) - bv.byte_offset {
+		return nil, .Bad_Texture
+	}
+	bytes := l.bin[bv.byte_offset:][:bv.byte_length]
+
+	switch img.mime_type {
+	case "image/png":
+		width, height, rgba, ok := png_decode(bytes)
+		if !ok {
+			l.notes += {.Bad_Png}
+			return nil, .None
+		}
+		return texture_build(width, height, rgba, sampler, allocator), .None
+	case "image/jpeg":
+		l.notes += {.Jpeg_Skipped}
+	case:
+		l.notes += {.Unsupported_Image}
+	}
+	return nil, .None
+}
+
+// glTF leaves a missing filter to the engine, which picks linear with no
+// mipmaps. A missing wrap is repeat.
+glb_sampler :: proc(mag_filter, min_filter, wrap_s, wrap_t: Maybe(int)) -> Texture_Sampler {
+	s := Texture_Sampler {
+		min_filter    = .LINEAR,
+		mag_filter    = .NEAREST if mag_filter == GLTF_NEAREST else .LINEAR,
+		mipmap_filter = .NEAREST,
+	}
+	switch min_filter.? or_else GLTF_LINEAR {
+	case GLTF_NEAREST:
+		s.min_filter = .NEAREST
+	case GLTF_NEAREST_MIPMAP_NEAREST:
+		s.min_filter, s.mipmaps = .NEAREST, true
+	case GLTF_LINEAR_MIPMAP_NEAREST:
+		s.min_filter, s.mipmaps = .LINEAR, true
+	case GLTF_NEAREST_MIPMAP_LINEAR:
+		s.min_filter, s.mipmap_filter, s.mipmaps = .NEAREST, .LINEAR, true
+	case GLTF_LINEAR_MIPMAP_LINEAR:
+		s.min_filter, s.mipmap_filter, s.mipmaps = .LINEAR, .LINEAR, true
+	}
+	s.wrap_u = glb_wrap(wrap_s)
+	s.wrap_v = glb_wrap(wrap_t)
+	return s
+}
+
+glb_wrap :: proc(wrap: Maybe(int)) -> sg.Wrap {
+	switch wrap.? or_else GLTF_REPEAT {
+	case GLTF_CLAMP_TO_EDGE:
+		return .CLAMP_TO_EDGE
+	case GLTF_MIRRORED_REPEAT:
+		return .MIRRORED_REPEAT
+	}
+	return .REPEAT
+}
+
+glb_read_vec2 :: proc(v: Glb_View, i: int) -> [2]f32 {
+	b := v.data[i * v.stride:]
+	x, _ := endian.get_f32(b[0:], .Little)
+	y, _ := endian.get_f32(b[4:], .Little)
+	return {x, y}
 }
 
 glb_read_vec3 :: proc(v: Glb_View, i: int) -> [3]f32 {
