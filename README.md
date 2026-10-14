@@ -107,6 +107,19 @@ check, because a key press allocates the `Input` lists.
 `./scripts/host-check.sh` regenerates the glue and links cards, entity-game
 and kula, then checks that the host library and the glue did not change.
 
+### Screenshots
+
+`scripts/screenshot.sh <game> <out.png> [delay]` runs a built game, waits
+`delay` seconds (default 3), saves the game window to `out.png` and stops the
+game. The capture works when other windows cover the game window. `ROCCO_*`
+variables pass through, so `ROCCO_DEBUG_CAMERA=1` and `ROCCO_SEED` work.
+Build the game first with `roc scripts/build.roc -- game <game>`.
+
+The script runs on macOS only. It builds `scripts/macos/wincap.swift` into
+`build/wincap` with `swiftc` when the source changes. The first capture
+asks for Screen Recording permission for the terminal. Grant it, then run the
+script again.
+
 ### macOS
 
 ```sh
@@ -232,6 +245,8 @@ a change to the `Model` type, restart the game.
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
 | `scripts/host-check.sh` | Checks that linking cards, entity-game and kula does not change the host library or the glue. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
+| `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |
+| `scripts/macos/wincap.swift` | The window capture tool that `screenshot.sh` builds and runs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |

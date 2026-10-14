@@ -11,6 +11,9 @@ We use matt-pocock skills to work through tasks:
 - `/teach` - Use when the human needs to be taught something, don't commit learning documents, place them in a temp directory.
 - `/wait-what` - The human uses when confused by the AI.
 
+# Seeing a frame
+To check a visual change yourself, run `scripts/screenshot.sh <game> <out.png>` and read the PNG. See "Screenshots" in `README.md`.
+
 # Odin file layout
 Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
 1. Imports.
