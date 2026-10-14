@@ -184,7 +184,8 @@ _Avoid_: handle, key, index, entity id (when the draw is scenery)
 
 **Mesh id**:
 A number the engine assigns to each mesh it loaded, published in the manifest
-and carried on Draws. Id 0 is the fallback mesh.
+and carried on Draws. Id 0 is the fallback mesh. An id from an unloaded
+level is stale and draws the fallback mesh.
 _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 
 **Manifest**:

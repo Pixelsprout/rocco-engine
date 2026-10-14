@@ -234,6 +234,14 @@ A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 Games treat mesh ids as opaque. A game never hard-codes an id and never does
 maths on one. It gets each id from the manifest in `init`.
 
+The low 16 bits of a mesh id are the slot in the mesh table. The high 16
+bits are the slot's generation. `mesh_table_unload_level` empties every slot
+past the primitives and adds 1 to its generation. An id kept from the old
+level then resolves to the fallback and is logged once, instead of drawing
+the mesh that took its slot. The first generation is 0, so before any unload
+an id is its slot. The primitives never unload. The generation wraps after
+65536 unloads of one slot, and then a very old id can match again. Decision.
+
 Assets are `.glb` files in `assets/meshes/`, in the directory of the
 program path (`argv[0]`). `roc run` sets `argv[0]` to the game's `main.roc`,
 and a built game has its binary in the game directory, so both find the

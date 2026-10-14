@@ -36,10 +36,6 @@ mesh_table_load_dir :: proc(t: ^Mesh_Table, dir: string, level: mem.Allocator) {
 		if e.type == .Directory || os.ext(e.name) != ".glb" || os.stem(e.name) == "" {
 			continue
 		}
-		if t.count == MESH_CAPACITY {
-			fmt.eprintfln("skipping %v: the mesh table is full at %v meshes", e.fullpath, MESH_CAPACITY)
-			continue
-		}
 		bytes, read_err := os.read_entire_file(e.fullpath, context.temp_allocator)
 		if read_err != nil {
 			fmt.eprintfln("skipping %v: %v", e.fullpath, os.error_string(read_err))
@@ -50,7 +46,8 @@ mesh_table_load_dir :: proc(t: ^Mesh_Table, dir: string, level: mem.Allocator) {
 			fmt.eprintfln("skipping %v: %v", e.fullpath, GLB_ERROR_REASONS[glb_err])
 			continue
 		}
-		t.meshes[t.count] = {name = strings.clone(os.stem(e.name), level), data = data}
-		t.count += 1
+		if _, ok := mesh_table_add(t, strings.clone(os.stem(e.name), level), data); !ok {
+			fmt.eprintfln("skipping %v: the mesh table is full at %v meshes", e.fullpath, MESH_CAPACITY)
+		}
 	}
 }

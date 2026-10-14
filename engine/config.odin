@@ -47,8 +47,8 @@ mesh_dir_from_env :: proc() -> string {
 // Every string and list is a fresh roc_alloc at refcount 1; the game init call consumes them.
 config_make :: proc(seed: u64, table: ^Mesh_Table) -> Config {
 	entries := make([]Mesh_Entry, table.count, context.temp_allocator)
-	for mesh, id in table.meshes[:table.count] {
-		entries[id] = {name = roc_str_from_slice(mesh.name), id = u32(id)}
+	for mesh, slot in table.meshes[:table.count] {
+		entries[slot] = {name = roc_str_from_slice(mesh.name), id = mesh_id(table, slot)}
 	}
 	return {seed = seed, meshes = roc_list_from_slice(entries)}
 }

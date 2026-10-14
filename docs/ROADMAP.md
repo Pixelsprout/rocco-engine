@@ -699,8 +699,8 @@ opposite it and an ambient, and drops the placeholder point light.
    `py`, `ny`, `pz`, `nz`, published in the manifest as `sky/<name>`.
    `Scene` gains `sky : U32`, 0 meaning none. The host draws a unit cube
    around the camera, pinned to the far plane, after the opaque pass.
-3. Mesh ids gain a generation. `level_unload` gets its first caller. A
-   stale id draws the fallback and logs once.
+3. Mesh ids gain a generation, and a stale id draws the fallback and logs
+   once (done). `level_unload` gets its first caller (not done).
 4. Kula gets textured blocks, a sky and three levels. A table in Kula code
    maps each level to its Theme. The ball has a low roughness.
 

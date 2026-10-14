@@ -15,12 +15,21 @@ test_mesh_table_resolves_a_known_id_to_its_slot :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_mesh_table_resolves_an_unknown_id_and_id_0_to_the_fallback :: proc(t: ^testing.T) {
+test_mesh_table_resolves_id_0_and_unknown_ids_to_the_fallback :: proc(t: ^testing.T) {
 	table: Mesh_Table
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
 
-	for id in ([]u32{0, 9, len(Primitive), MESH_CAPACITY, max(u32)}) {
+	ids := []u32 {
+		0,
+		9,
+		len(Primitive),
+		MESH_CAPACITY,
+		max(u32),
+		1 << MESH_SLOT_BITS,
+		1 << MESH_SLOT_BITS | u32(Primitive.Cube),
+	}
+	for id in ids {
 		mesh, fallback := mesh_resolve(&table, id, 4)
 		testing.expectf(t, fallback, "expected mesh id %v to be the fallback", id)
 		testing.expect_value(t, mesh, &table.meshes[Primitive.Fallback])
@@ -39,6 +48,53 @@ test_mesh_table_logs_each_fallback_id_once :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(table.logged), 2)
 	testing.expect(t, 9 in table.logged)
 	testing.expect(t, 0 in table.logged)
+}
+
+@(test)
+test_a_first_generation_id_is_the_slot_index :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	testing.expect_value(t, mesh_id(&table, int(Primitive.Sphere)), u32(Primitive.Sphere))
+}
+
+@(test)
+test_a_stale_id_resolves_to_the_fallback_after_its_slot_is_reused :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	slot, _ := mesh_table_add(&table, "old", {})
+	stale := mesh_id(&table, slot)
+
+	mesh_table_unload_level(&table)
+	testing.expect_value(t, table.count, len(Primitive))
+	reused, _ := mesh_table_add(&table, "new", {})
+	testing.expect_value(t, reused, slot)
+	fresh := mesh_id(&table, slot)
+
+	testing.expect(t, fresh != stale)
+	mesh, fallback := mesh_resolve(&table, stale, 4)
+	testing.expect(t, fallback)
+	testing.expect_value(t, mesh, &table.meshes[Primitive.Fallback])
+	mesh, fallback = mesh_resolve(&table, fresh, 4)
+	testing.expect(t, !fallback)
+	testing.expect_value(t, mesh.name, "new")
+}
+
+@(test)
+test_unloading_a_level_keeps_the_primitive_ids :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	mesh_table_unload_level(&table)
+	for p in Primitive {
+		testing.expect_value(t, mesh_id(&table, int(p)), u32(p))
+	}
+	_, fallback := mesh_resolve(&table, u32(Primitive.Cube), 4)
+	testing.expect(t, !fallback)
 }
 
 @(test)

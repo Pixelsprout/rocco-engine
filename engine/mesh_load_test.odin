@@ -85,6 +85,26 @@ test_mesh_dir_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_a_reloaded_mesh_dir_gives_new_ids_and_old_ids_draw_the_fallback :: proc(t: ^testing.T) {
+	files := make(map[string][]byte, context.temp_allocator)
+	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	dir := temp_mesh_dir(t, files)
+	defer os.remove_all(dir)
+
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+	mesh_table_load_dir(&table, dir, context.temp_allocator)
+	old := mesh_id(&table, len(Primitive))
+	mesh_table_unload_level(&table)
+	mesh_table_load_dir(&table, dir, context.temp_allocator)
+
+	testing.expect(t, mesh_id(&table, len(Primitive)) != old)
+	_, fallback := mesh_resolve(&table, old, 4)
+	testing.expect(t, fallback)
+}
+
+@(test)
 test_mesh_dir_is_meshes_under_rocco_assets_or_beside_the_program :: proc(t: ^testing.T) {
 	Case :: struct {
 		assets, program, want: string,
