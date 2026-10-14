@@ -129,7 +129,7 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of Draws, a list of
-Colliders, a list of Lights and a Cursor. It describes what should be on
+Colliders, a list of Lights, a Cursor and the UI. It describes what should be on
 screen now and what can touch. Derived from the Model, rebuilt every step,
 stored by the host and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
@@ -146,6 +146,11 @@ The colour of a Draw, as an `Rgb` record with linear channels from 0 to 1.
 The host multiplies the mesh colour by it. A Light colour can exceed 1; a
 tint cannot.
 _Avoid_: colour (for the field), albedo, Vec3 colour
+
+**Rgba**:
+A colour with alpha, as linear channels from 0 to 1. Alpha is not
+premultiplied. UI colours use it; a Tint stays `Rgb`.
+_Avoid_: colour with opacity, Vec4
 
 **Light**:
 One entry in `Scene.lights`: `Ambient`, `Directional` or `Point`. Its colour
@@ -173,6 +178,33 @@ The field of a Scene that says if the mouse is `Free` or `Locked`. It is a
 state, not a Command. The host locks or frees the mouse only when it changes.
 The debug camera forces `Locked`.
 _Avoid_: mouse mode, cursor command, grab
+
+**UI**:
+The field of a Scene that lists the Elements drawn flat over the 3D view.
+It is a Description: rebuilt every step, drawn from the current Scene only,
+never interpolated. Sizes are in logical pixels. The game does not learn the
+window size; the layout fits the Elements to it. "HUD" is a game's word for
+what its UI shows.
+_Avoid_: HUD (in the engine), overlay, GUI, canvas, widget tree
+
+**Element**:
+One entry in the UI: an Open, a Text or a Close, in the order the layout
+reads them. An Open starts a Box and its Close ends it; what lies between
+are its children. The list stays flat. An Element's identity is its place
+in the list. The UI package builds the list from nested code.
+_Avoid_: widget, node, control, view (the call), parent index
+
+**Box**:
+The rectangle an Open starts. It carries its sizing, padding, gap,
+direction, child alignment, background and corner radius. A floating Box
+attaches to a point of the window, such as a corner, and ignores its
+parent's layout.
+_Avoid_: panel, div, container, frame
+
+**Text**:
+An Element that draws one string in the engine's font, at a size and colour.
+The layout measures it; the game never does.
+_Avoid_: label, string, glyph run
 
 **Model**:
 The one value that is the game. The game declares its type; the host holds
