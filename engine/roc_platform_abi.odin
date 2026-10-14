@@ -467,14 +467,17 @@ Roc_View_Lights_Ambient :: Roc_View_Draws_Tint
 Roc_View_Lights_Directional :: struct {
 	color: Roc_View_Draws_Tint,
 	dir: Roc_Step_Arg2_Normal,
+	shadow: bool,
 }
 
-#assert(size_of(Roc_View_Lights_Directional) == 24)
+#assert(size_of(Roc_View_Lights_Directional) == 28)
 #assert(align_of(Roc_View_Lights_Directional) == 4)
 #assert(offset_of(Roc_View_Lights_Directional, color) == 0)
 #assert(size_of(type_of(Roc_View_Lights_Directional{}.color)) == 12)
 #assert(offset_of(Roc_View_Lights_Directional, dir) == 12)
 #assert(size_of(type_of(Roc_View_Lights_Directional{}.dir)) == 12)
+#assert(offset_of(Roc_View_Lights_Directional, shadow) == 24)
+#assert(size_of(type_of(Roc_View_Lights_Directional{}.shadow)) == 1)
 
 Roc_View_Lights_Directional_Color :: Roc_View_Draws_Tint
 Roc_View_Lights_Directional_Dir :: Roc_Step_Arg2_Normal

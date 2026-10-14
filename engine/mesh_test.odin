@@ -1,6 +1,7 @@
 package engine
 
 import "core:math/linalg"
+import "core:strings"
 import "core:testing"
 
 @(test)
@@ -185,5 +186,34 @@ test_every_primitive_is_matte_and_not_metal :: proc(t: ^testing.T) {
 	defer mesh_table_destroy(&meshes)
 	for p in Primitive {
 		testing.expect_value(t, meshes.meshes[p].material, MATERIAL_MATTE)
+	}
+}
+
+@(test)
+test_a_loaded_mesh_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	vertices := make([]Vertex, 3)
+	vertices[0].pos = {-1, 0, 2}
+	vertices[1].pos = {3, -4, 1}
+	vertices[2].pos = {0, 5, 1.5}
+	slot, _ := mesh_table_add(&table, strings.clone("rock"), {vertices = vertices})
+	testing.expect_value(t, table.meshes[slot].box, Box{min = {-1, -4, 1}, max = {3, 5, 2}})
+}
+
+@(test)
+test_each_primitive_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	testing.expect_value(t, table.meshes[Primitive.Fallback].box, Box{min = -0.5, max = 0.5})
+	testing.expect_value(t, table.meshes[Primitive.Cube].box, Box{min = -0.5, max = 0.5})
+	testing.expect_value(t, table.meshes[Primitive.Plane].box, Box{min = {-0.5, 0, -0.5}, max = {0.5, 0, 0.5}})
+	sphere := table.meshes[Primitive.Sphere].box
+	for i in 0 ..< 3 {
+		testing.expect(t, abs(sphere.min[i] + 0.5) < EPS && abs(sphere.max[i] - 0.5) < EPS)
 	}
 }

@@ -44,7 +44,7 @@ theme = |pack, sun, sun_rgb, ambient| {
 		sun,
 		lights: [
 			Light.ambient(ambient),
-			Light.directional(sun, times_pi(sun_rgb)),
+			Light.sun(sun, times_pi(sun_rgb)),
 			Light.directional(Vec3.neg(sun), times_pi(grey(0.3))),
 		],
 	}
@@ -63,7 +63,7 @@ pi = 3.14159265
 shade : List(Vocabulary.Light), Vec3.Vec3 -> F32
 shade = |lights, normal| lights.fold(0.0, |sum, light| match light {
 	Ambient(c) => sum + c.r + c.g + c.b
-	Directional({ dir, color }) => {
+	Directional({ dir, color, shadow: _ }) => {
 		facing = Vec3.dot(normal, Vec3.neg(dir))
 		if facing > 0.0 { sum + (color.r + color.g + color.b) * facing } else { sum }
 	}

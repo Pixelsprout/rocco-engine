@@ -51,6 +51,16 @@ mat4_perspective_reversed_infinite :: proc(fovy, aspect, near: f32) -> Mat4 {
 	}
 }
 
+// Maps view z = -near to depth 1 and view z = -far to depth 0.
+mat4_ortho_reversed :: proc(left, right, bottom, top, near, far: f32) -> Mat4 {
+	return Mat4{
+		2 / (right - left), 0, 0, -(right + left) / (right - left),
+		0, 2 / (top - bottom), 0, -(top + bottom) / (top - bottom),
+		0, 0, 1 / (far - near), far / (far - near),
+		0, 0, 0, 1,
+	}
+}
+
 mat4_rotate_z :: proc(rad: f32) -> Mat4 {
 	c := math.cos(rad)
 	s := math.sin(rad)

@@ -15,16 +15,35 @@ UP_EPSILON :: f32(1e-6)
 // The pairing map holds this many draws without allocating.
 PAIRING_CAPACITY :: 4096
 
-#assert(len(Fs_Lights{}.light_pos) == MAX_LIGHTS)
+// The light_view_proj array in engine/shaders/basic.glsl has this size.
+MAX_CASCADES :: 1
+// The shadow box snaps outward to this grid, so the map changes size in steps
+// and its edges do not crawl as a Draw moves.
+SHADOW_GRID :: f32(1)
+SHADOW_NORMAL_OFFSET :: f32(0.05)
 
-// Lets tests run without sokol. submit_lights runs once per frame, before any
-// submit. submit_sky runs at most once per frame, after every submit.
+#assert(len(Fs_Lights{}.light_pos) == MAX_LIGHTS)
+#assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
+
+Pass :: enum {
+	Shadow,
+	Main,
+}
+
+// Lets tests run without sokol. Each frame begins and ends one Shadow pass
+// per shadow view, then one Main pass. submit_shadow runs only in a Shadow
+// pass. In the Main pass, submit_lights runs before any submit, and
+// submit_sky runs at most once, after every submit.
+Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int)
+End_Pass :: #type proc(ctx: rawptr)
+Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 
 Light_Drop :: enum {
 	Second_Ambient,
+	Second_Sun,
 	Over_Limit,
 	Zero_Dir,
 	Bad_Range,
@@ -32,6 +51,10 @@ Light_Drop :: enum {
 
 Frame_Render :: struct {
 	pairing:            Pairing,
+	placed:             [dynamic]Placed,
+	begin_pass:         Begin_Pass,
+	end_pass:           End_Pass,
+	submit_shadow:      Submit_Shadow,
 	submit:             Submit,
 	submit_lights:      Submit_Lights,
 	submit_sky:         Submit_Sky,
@@ -45,6 +68,15 @@ Draw_Transform :: struct {
 	scale:          [3]f32,
 	rotation:       quaternion128,
 	scale_rotation: quaternion128,
+}
+
+// A Draw at its interpolated pose, kept so both passes use one transform.
+Placed :: struct {
+	mesh:      ^Mesh,
+	fallback:  bool,
+	tint:      Rgb,
+	transform: Draw_Transform,
+	model:     Mat4,
 }
 
 // Maps each draw id of the previous Scene to its index. Rebuilt every Frame
@@ -63,10 +95,12 @@ Camera_Pose :: struct {
 
 frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
 	pairing_init(&fr.pairing, perm)
+	fr.placed = make([dynamic]Placed, 0, PAIRING_CAPACITY, perm)
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
 	pairing_destroy(&fr.pairing)
+	delete(fr.placed)
 }
 
 // An up along the view, or a zero up, has no right vector.
@@ -86,35 +120,84 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 // the game asked for. The sky draws last, so the depth test hides it behind
 // every mesh.
 frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table) {
-	lights := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
+	lights, sun := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
-	fr.submit_lights(fr.submit_ctx, lights)
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
+	clear(&fr.placed)
 	for d in curr.draws.elements[:curr.draws.length] {
 		from := d
 		if i, ok := pairing_find(&fr.pairing, d.id); ok {
 			from = prev.draws.elements[i]
 		}
 		x := draw_transform(from, d, alpha)
-		model := draw_model_matrix(x)
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
-		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
-		material := mesh.material
+		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
+	}
+
+	if sun >= 0 && len(fr.placed) > 0 {
+		frame_render_shadow(fr, &lights, sun)
+	}
+
+	fr.begin_pass(fr.submit_ctx, .Main, 0)
+	fr.submit_lights(fr.submit_ctx, lights)
+	for p in fr.placed {
+		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
+		material := p.mesh.material
 		fr.submit(
 			fr.submit_ctx,
-			mesh,
-			vs_params = {mvp = view_proj * model, model = model, normal_model = draw_normal_matrix(x)},
+			p.mesh,
+			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
 			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
 		)
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
 	}
+	fr.end_pass(fr.submit_ctx)
+}
+
+// Must run before the Main pass begins, because sokol passes do not nest.
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int) {
+	light_view_proj := shadow_view_proj(lights.light_pos[sun].xyz, fr.placed[:])
+	// The shader reads x as the view count, y as the Sun's slot and z as the normal offset.
+	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
+	lights.light_view_proj[0] = light_view_proj
+	fr.begin_pass(fr.submit_ctx, .Shadow, 0)
+	for p in fr.placed {
+		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model})
+	}
+	fr.end_pass(fr.submit_ctx)
+}
+
+// An orthographic view from the Sun over the box of every placed Draw.
+shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
+	up := UP if abs(to_light.y) < 0.99 else [3]f32{0, 0, 1}
+	light_view := mat4_look_at({}, -to_light, up)
+	lo := [3]f32{max(f32), max(f32), max(f32)}
+	hi := -lo
+	for p in placed {
+		to_view := light_view * p.model
+		for corner in 0 ..< 8 {
+			c := [3]f32 {
+				p.mesh.box.max.x if corner & 1 != 0 else p.mesh.box.min.x,
+				p.mesh.box.max.y if corner & 2 != 0 else p.mesh.box.min.y,
+				p.mesh.box.max.z if corner & 4 != 0 else p.mesh.box.min.z,
+			}
+			v := (to_view * [4]f32{c.x, c.y, c.z, 1}).xyz
+			lo = linalg.min(lo, v)
+			hi = linalg.max(hi, v)
+		}
+	}
+	lo = linalg.floor(lo / SHADOW_GRID) * SHADOW_GRID
+	// A flat box would give a zero extent and divide by zero.
+	hi = linalg.max(linalg.ceil(hi / SHADOW_GRID) * SHADOW_GRID, lo + SHADOW_GRID)
+	return mat4_ortho_reversed(lo.x, hi.x, lo.y, hi.y, -hi.z, -lo.z) * light_view
 }
 
 // A dropped light does not take a slot. An unused slot keeps a zero colour, so it adds no light.
-frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> Fs_Lights {
-	out: Fs_Lights
+// sun is the Sun's slot, or -1 with no Sun.
+frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> (out: Fs_Lights, sun: int) {
+	sun = -1
 	has_ambient := false
 	n := 0
 	for l in lights {
@@ -138,6 +221,11 @@ frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> Fs_Lights {
 				light_drop(fr, .Zero_Dir)
 				continue
 			}
+			if d.shadow && sun >= 0 {
+				light_drop(fr, .Second_Sun)
+			} else if d.shadow && n < MAX_LIGHTS {
+				sun = n
+			}
 			pos = {to_light.x, to_light.y, to_light.z, 0}
 			color = d.color
 		case .Point:
@@ -159,7 +247,7 @@ frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> Fs_Lights {
 		out.light_color[n] = {color.r, color.g, color.b, range}
 		n += 1
 	}
-	return out
+	return
 }
 
 light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
@@ -170,6 +258,8 @@ light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
 	switch reason {
 	case .Second_Ambient:
 		fmt.eprintln("a Scene has a second ambient light; the host uses the first")
+	case .Second_Sun:
+		fmt.eprintln("a second directional light sets shadow; it lights but casts no shadow")
 	case .Over_Limit:
 		fmt.eprintfln("a Scene has more than %v directional and point lights; the host drops the rest", MAX_LIGHTS)
 	case .Zero_Dir:

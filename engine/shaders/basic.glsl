@@ -1,6 +1,7 @@
 // basic: a metallic-roughness BRDF under the Scene's lights, tone mapped. An
 // unlit mesh draws its base colour with no lights and no tone map.
 // sky: a cubemap on a cube around the camera, at its authored colour.
+// shadow: depth only, from the Sun.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -57,12 +58,16 @@ layout(binding = 1) uniform fs_params {
 // has a zero colour. For a directional light, xyz of light_pos is the unit
 // vector towards the light and w is 0. For a point light, xyz is the position,
 // w is 1 and w of light_color is the range. Light colours are physical: the
-// BRDF carries the 1/pi.
+// BRDF carries the 1/pi. shadow is the count of shadow views, the Sun's
+// slot, the normal offset and a spare. A count of 0 means no Sun. The view
+// array size is MAX_CASCADES.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
     vec4 light_pos[8];
     vec4 light_color[8];
+    vec4 shadow;
+    mat4 light_view_proj[1];
 };
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
@@ -72,6 +77,9 @@ layout(binding = 0) uniform texture2D base_tex;
 layout(binding = 0) uniform sampler base_smp;
 layout(binding = 1) uniform texture2D metallic_roughness_tex;
 layout(binding = 1) uniform sampler metallic_roughness_smp;
+// One layer per shadow view. Reversed-Z, so a greater depth is nearer the Sun.
+layout(binding = 2) uniform texture2DArray shadow_tex;
+layout(binding = 2) uniform sampler shadow_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -145,6 +153,29 @@ vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
     return f0 * ab.x + ab.y;
 }
 
+// The share of the Sun's light that reaches this point, from 0 to 1. Each of
+// the 3 x 3 taps compares 2 x 2 texels in hardware.
+float sun_visibility(vec3 n) {
+    vec3 world = v_world + n * shadow.z;
+    vec4 clip = light_view_proj[0] * vec4(world, 1.0);
+    vec3 ndc = clip.xyz / clip.w;
+    vec2 uv = ndc.xy * 0.5 + 0.5;
+    // A GL texture starts at the bottom row. Metal and D3D start at the top.
+#if !SOKOL_GLSL
+    uv.y = 1.0 - uv.y;
+#endif
+    // No early return outside the map: D3D needs uniform control flow around SampleCmp.
+    bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+    vec2 texel = 1.0 / vec2(textureSize(sampler2DArrayShadow(shadow_tex, shadow_smp), 0).xy);
+    float sum = 0.0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, 0.0, ndc.z));
+        }
+    }
+    return inside ? sum / 9.0 : 1.0;
+}
+
 void main() {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
     vec3 albedo = base.rgb * tint.rgb;
@@ -165,10 +196,13 @@ void main() {
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
 
     vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v));
+    int sun = shadow.x > 0.0 ? int(shadow.y) : -1;
     for (int i = 0; i < 8; i++) {
         vec3 l = light_pos[i].xyz;
         float attenuation = 1.0;
-        if (light_pos[i].w != 0.0) {
+        if (i == sun) {
+            attenuation = sun_visibility(n);
+        } else if (light_pos[i].w != 0.0) {
             vec3 to_light = l - v_world;
             float d2 = dot(to_light, to_light);
             float range = light_color[i].w;
@@ -231,3 +265,23 @@ void main() {
 @end
 
 @program sky sky_vs sky_fs
+
+@vs shadow_vs
+@glsl_options fixup_clipspace
+layout(binding = 0) uniform shadow_vs_params {
+    mat4 light_mvp;
+};
+
+in vec3 pos;
+
+void main() {
+    gl_Position = light_mvp * vec4(pos, 1.0);
+}
+@end
+
+@fs shadow_fs
+void main() {
+}
+@end
+
+@program shadow shadow_vs shadow_fs

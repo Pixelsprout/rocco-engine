@@ -156,8 +156,10 @@ interpolate. An empty list draws black.
 _Avoid_: lamp, light source, colour (for intensity)
 
 **Sun**:
-The Directional Light that casts the shadow. If a Scene names two, the
-first one is the Sun. With none, nothing casts a shadow.
+The first Directional Light that sets `shadow`. It is the only Light that
+casts a shadow. `pf.Light.sun` sets `shadow` and `pf.Light.directional` does
+not. If a second Directional sets it, the host logs once. With no Sun,
+nothing casts a shadow.
 _Avoid_: main light, key light, shadow light
 
 **Camera**:

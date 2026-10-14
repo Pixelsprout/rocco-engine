@@ -3,6 +3,7 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
 
 MESH_CAPACITY :: 64
@@ -117,6 +118,11 @@ Mesh_Texture :: struct {
 	sampler: sg.Sampler,
 }
 
+// An axis-aligned box in the mesh's own space, around every vertex.
+Box :: struct {
+	min, max: [3]f32,
+}
+
 Mesh :: struct {
 	name:               string,
 	data:               Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
@@ -127,6 +133,7 @@ Mesh :: struct {
 	texture:            Mesh_Texture,
 	metallic_roughness: Mesh_Texture,
 	material:           Material,
+	box:                Box,
 	generation:         u16,
 }
 
@@ -155,7 +162,8 @@ mesh_table_init :: proc(t: ^Mesh_Table, allocator: mem.Allocator) {
 	t.allocator = allocator
 	t.logged = make(map[u32]struct {}, allocator)
 	for p in Primitive {
-		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true, material = MATERIAL_MATTE}
+		box := mesh_box(primitive_build(p, context.temp_allocator).vertices)
+		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true, material = MATERIAL_MATTE, box = box}
 	}
 	t.count = len(Primitive)
 }
@@ -205,7 +213,7 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		slot = t.count
 		t.count += 1
 	}
-	t.meshes[slot] = {name = name, data = data, live = true, material = data.material, generation = t.meshes[slot].generation}
+	t.meshes[slot] = {name = name, data = data, live = true, material = data.material, box = mesh_box(data.vertices), generation = t.meshes[slot].generation}
 	if t.uploaded {
 		mesh_upload_loaded(t, &t.meshes[slot])
 	}
@@ -318,6 +326,18 @@ mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fal
 		}
 	}
 	return &t.meshes[Primitive.Fallback], true
+}
+
+mesh_box :: proc(vertices: []Vertex) -> Box {
+	if len(vertices) == 0 {
+		return {}
+	}
+	box := Box{vertices[0].pos, vertices[0].pos}
+	for v in vertices[1:] {
+		box.min = linalg.min(box.min, v.pos)
+		box.max = linalg.max(box.max, v.pos)
+	}
+	return box
 }
 
 primitive_build :: proc(p: Primitive, allocator: mem.Allocator) -> Mesh_Data {

@@ -13,7 +13,6 @@ import "base:runtime"
 State :: struct {
 	mem:               Memory,
 	ctx:               runtime.Context,
-	pass_action:       sg.Pass_Action,
 	frame_count:       int,
 	clock:             Clock,
 	input:             Input_Latch,
@@ -81,12 +80,10 @@ init_cb :: proc "c" () {
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
-	g_state.pass_action = {
-		colors = {0 = {load_action = .CLEAR, clear_value = {r = 0.0, g = 0.0, b = 0.0, a = 1.0}}},
-		depth = {load_action = .CLEAR, clear_value = 0.0},
-	}
-
 	renderer_init(&g_state.renderer)
+	g_state.frame_render.begin_pass = renderer_begin_pass
+	g_state.frame_render.end_pass = renderer_end_pass
+	g_state.frame_render.submit_shadow = renderer_shadow
 	g_state.frame_render.submit = renderer_draw
 	g_state.frame_render.submit_lights = renderer_lights
 	g_state.frame_render.submit_sky = renderer_sky
@@ -105,8 +102,6 @@ frame_cb :: proc "c" () {
 			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
 		}
 	}
-
-	sg.begin_pass({action = g_state.pass_action, swapchain = sglue.swapchain()})
 
 	alpha := clock_alpha(&g_state.clock)
 	prev, curr := seam_scenes(&g_state.seam)
@@ -128,7 +123,6 @@ frame_cb :: proc "c" () {
 
 	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies)
 
-	sg.end_pass()
 	sg.commit()
 	g_state.frame_count += 1
 

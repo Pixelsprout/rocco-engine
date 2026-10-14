@@ -17,8 +17,24 @@ Submitted :: struct {
 	material:     [4]f32,
 }
 
+// main_before is the number of main pass submits before this shadow submit.
+Shadow_Submitted :: struct {
+	mesh:        ^Mesh,
+	light_mvp:   Mat4,
+	view:        int,
+	main_before: int,
+}
+
+Pass_Begun :: struct {
+	pass: Pass,
+	view: int,
+}
+
 // sky_after is the number of submits before the sky.
 Recorder :: struct {
+	passes:        [dynamic]Pass_Begun,
+	pass_ends:     int,
+	shadows:       [dynamic]Shadow_Submitted,
 	submits:       [dynamic]Submitted,
 	lights:        Fs_Lights,
 	lights_calls:  int,
@@ -222,11 +238,31 @@ record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r.sky_after = len(r.submits)
 }
 
+record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
+	r := (^Recorder)(ctx)
+	append(&r.passes, Pass_Begun{pass, view})
+}
+
+record_end_pass :: proc(ctx: rawptr) {
+	r := (^Recorder)(ctx)
+	r.pass_ends += 1
+}
+
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {
+	r := (^Recorder)(ctx)
+	append(&r.shadows, Shadow_Submitted{mesh = mesh, light_mvp = vs_params.light_mvp, view = r.passes[len(r.passes) - 1].view, main_before = len(r.submits)})
+}
+
 frame_fixture_init :: proc(f: ^Frame_Fixture) {
 	frame_render_init(&f.fr, context.allocator)
 	mesh_table_init(&f.meshes, context.allocator)
 	sky_table_init(&f.skies, context.allocator)
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
+	f.rec.passes = make([dynamic]Pass_Begun, context.allocator)
+	f.rec.shadows = make([dynamic]Shadow_Submitted, context.allocator)
+	f.fr.begin_pass = record_begin_pass
+	f.fr.end_pass = record_end_pass
+	f.fr.submit_shadow = record_shadow
 	f.fr.submit = record_submit
 	f.fr.submit_lights = record_lights
 	f.fr.submit_sky = record_sky
@@ -235,6 +271,8 @@ frame_fixture_init :: proc(f: ^Frame_Fixture) {
 
 frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
 	delete(f.rec.submits)
+	delete(f.rec.passes)
+	delete(f.rec.shadows)
 	mesh_table_destroy(&f.meshes)
 	sky_table_destroy(&f.skies)
 	frame_render_destroy(&f.fr)
@@ -242,6 +280,9 @@ frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
 
 frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye := [3]f32{}) -> []Submitted {
 	clear(&f.rec.submits)
+	clear(&f.rec.passes)
+	clear(&f.rec.shadows)
+	f.rec.pass_ends = 0
 	f.rec.lights_calls = 0
 	f.rec.sky_calls = 0
 	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes, &f.skies)
@@ -265,6 +306,16 @@ light_ambient :: proc(c: Rgb) -> Light {
 
 light_directional :: proc(dir: Vec3, c: Rgb) -> Light {
 	return {tag = .Directional, payload = {directional = {dir = dir, color = c}}}
+}
+
+light_sun :: proc(dir: Vec3, c: Rgb) -> Light {
+	return {tag = .Directional, payload = {directional = {dir = dir, color = c, shadow = true}}}
+}
+
+scene_lit :: proc(draws: []Draw, lights: []Light) -> Scene {
+	s := scene_of(draws)
+	s.lights = {elements = raw_data(lights), length = uint(len(lights))}
+	return s
 }
 
 light_point :: proc(pos: Vec3, c: Rgb, range: f32) -> Light {
@@ -601,4 +652,89 @@ test_frame_render_submits_no_sky_for_a_stale_sky_id_and_logs_it_once :: proc(t: 
 	frame_fixture_draw(&f, scene, scene, 0)
 	testing.expect_value(t, f.rec.sky_calls, 0)
 	testing.expect_value(t, len(f.skies.logged), 1)
+}
+
+@(test)
+test_frame_render_draws_every_draw_from_the_sun_before_the_main_pass :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	prev := []Draw{{id = 1, mesh = 1, pos = {0, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}, {id = 2, mesh = 2, scale = {1, 1, 1}, rot = IDENTITY}}
+	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}, {id = 2, mesh = 2, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(prev, lights), scene_lit(curr, lights), 0.25)
+
+	testing.expect_value(t, len(f.rec.passes), 2)
+	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
+	testing.expect_value(t, f.rec.passes[1], Pass_Begun{.Main, 0})
+	testing.expect_value(t, f.rec.pass_ends, 2)
+	testing.expect_value(t, len(f.rec.shadows), 2)
+	testing.expect_value(t, f.rec.shadows[0].mesh, &f.meshes.meshes[Primitive.Cube])
+	testing.expect_value(t, f.rec.shadows[1].mesh, &f.meshes.meshes[Primitive.Sphere])
+	testing.expect_value(t, f.rec.shadows[1].main_before, 0)
+	light_view_proj := f.rec.lights.light_view_proj[0]
+	expect_mat4_near(t, f.rec.shadows[0].light_mvp, light_view_proj * mat4_translate({1, 0, 0}))
+	testing.expect_value(t, f.rec.lights.shadow.x, 1)
+	testing.expect_value(t, f.rec.lights.shadow.y, 0)
+}
+
+@(test)
+test_frame_render_skips_the_shadow_pass_with_no_sun :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_directional({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, len(f.rec.passes), 1)
+	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Main, 0})
+	testing.expect_value(t, f.rec.pass_ends, 1)
+	testing.expect_value(t, len(f.rec.shadows), 0)
+	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
+}
+
+@(test)
+test_frame_render_takes_the_first_sun_and_logs_a_second_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light {
+		light_ambient({r = 0.1}),
+		light_directional({x = 1, y = 0, z = 0}, {r = 1}),
+		light_sun({x = 0, y = -1, z = 0}, {r = 2}),
+		light_sun({x = 0, y = 0, z = -1}, {r = 3}),
+	}
+	draws := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, f.rec.lights.shadow.x, 1)
+	testing.expect_value(t, f.rec.lights.shadow.y, 1)
+	testing.expect_value(t, f.rec.lights.light_color[2], [4]f32{3, 0, 0, 0})
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Sun})
+}
+
+@(test)
+test_frame_render_fits_the_sun_view_to_the_draws_snapped_to_whole_units :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, pos = {0.2, 0, 0.3}, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	light_view_proj := f.rec.lights.light_view_proj[0]
+	for corner in 0 ..< 8 {
+		w := [4]f32{-1 if corner & 1 == 0 else 1, -1 if corner & 2 == 0 else 1, -1 if corner & 4 == 0 else 1, 1}
+		clip := light_view_proj * w
+		testing.expectf(t, abs(abs(clip.x) - 1) < EPS && abs(abs(clip.y) - 1) < EPS, "corner %v maps to %v", w, clip)
+		testing.expectf(t, abs(clip.z) < EPS || abs(clip.z - 1) < EPS, "corner %v has depth %v", w, clip.z)
+	}
+	top := light_view_proj * [4]f32{0, 1, 0, 1}
+	bottom := light_view_proj * [4]f32{0, -1, 0, 1}
+	testing.expectf(t, top.z > bottom.z, "the side nearer the Sun is nearer in reversed-Z: %v, %v", top.z, bottom.z)
 }

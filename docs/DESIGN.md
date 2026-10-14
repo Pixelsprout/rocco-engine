@@ -209,6 +209,27 @@ illuminance and a point colour is intensity, and the BRDF carries the `1/pi`.
 A white matte surface facing a directional light of colour `c` shows about
 `c / pi`, so a light of `pi` lights it to 1. Decision.
 
+### Shadows
+
+Only the Sun casts a shadow. The Sun is the first Directional that sets
+`shadow`, which `pf.Light.sun` does. A second Directional that sets `shadow`
+still lights but casts no shadow, and the host logs it once. Decision.
+
+The host draws one shadow map from the Sun before the main pass. Its
+orthographic view covers the box of every Draw at its interpolated pose. The
+host snaps that box outward to whole units, so the map changes size in steps.
+The shadow darkens only the Sun's own light. Unlit meshes cast a shadow but
+do not receive one, and the sky does neither.
+
+The shader moves each sample point `SHADOW_NORMAL_OFFSET` along its normal, and the shadow
+pipeline adds a slope-scaled depth bias. A 3 x 3 PCF filter softens each edge
+through the hardware comparison sampler. The shadow map is 2048 x 2048, and
+host constants set its size and bias.
+
+The code passes N shadow views with N = 1: `MAX_CASCADES`, the
+`light_view_proj` array and a texture array with one layer. Cascades for
+large worlds raise that count, and no game changes.
+
 Each mesh has a glTF metallic-roughness material. The BRDF is the glTF 2.0
 Appendix B model with Filament's terms: GGX distribution with
 `alpha = roughness^2`, height-correlated Smith visibility, Schlick Fresnel
