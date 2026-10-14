@@ -701,7 +701,7 @@ opposite it and an ambient, and drops the placeholder point light.
    is refcounted. The mesh table and a 16-slot sky table reuse slots
    through a free list and the generation (done: jzvojfn9). Done for the
    mesh table: `Unload(pack)`, the free list and per-pack lifetimes
-   (7zk6yajs). The sky table comes with the sky.
+   (7zk6yajs). The sky table comes with the sky (mlhioxmj).
 4. Textures and PBR. UVs, the glTF base colour texture and sampler, sRGB
    images and linear-light mipmaps. The loader reads roughness, metallic,
    the metallic-roughness texture and the unlit extension. The shader uses
@@ -710,7 +710,7 @@ opposite it and an ambient, and drops the placeholder point light.
    each game retunes its lights by pi.
 5. The sky. `Scene.sky : U32`, 0 meaning none. A cubemap of six PNGs in
    `assets/sky/<name>/`. The sky and unlit meshes skip the lights and the
-   tone map.
+   tone map. Done (mlhioxmj): Kula draws a test sky.
 6. Kula. A pack per Theme, three levels, generated textures and skies.
    Finishing level 3 keeps Won.
 

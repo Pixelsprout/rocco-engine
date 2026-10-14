@@ -109,7 +109,7 @@ view = |model| {
 		.map(|key| cube(model.meshes, key.id, key.cell, 0.3, key_tint))
 	ball_tint = if model.phase == Won { won_ball_tint } else { playing_ball_tint }
 	ball = View.ball_draw(model.ball, model.meshes.ball, ball_tint)
-	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free }
+	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free, sky: model.meshes.sky }
 }
 
 # Face draw ids count up from 1, so the key ids start well past any level's faces.
@@ -142,15 +142,16 @@ cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3
 started : Model
 started = {
 	booted = init({ seed: 0, assets: ["ball", "face"] }).model
-	loaded(loaded(booted, "kula", [{ name: "ball", id: 4 }]), "haze", [{ name: "face", id: 5 }])
+	loaded(loaded(booted, "kula", [{ name: "ball", id: 4 }, { name: "sky/test", id: 1 }]), "haze", [{ name: "face", id: 5 }])
 }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball"] }), Load({ pack: "haze", assets: ["face"] })]
-expect init({ seed: 0, assets: [] }).model.meshes == { cube: 1, face: 0, ball: 0 }
-expect started.meshes == { cube: 1, face: 5, ball: 4 }
+expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball", "sky/test"] }), Load({ pack: "haze", assets: ["face"] })]
+expect init({ seed: 0, assets: [] }).model.meshes == { cube: 1, face: 0, ball: 0, sky: 0 }
+expect started.meshes == { cube: 1, face: 5, ball: 4, sky: 1 }
+expect view(started).sky == 1
 expect started.ball == Ball.start(started.level.start)
 expect started.level_number == 1 and started.phase == Playing
 
@@ -311,7 +312,7 @@ expect {
 	after = step(switched, idle, [], 0.1)
 	finished.commands == [Load({ pack: "inca", assets: ["face"] })]
 	and finished.model.phase == Cleared
-	and switched.meshes == { cube: 1, face: 7, ball: 4 }
+	and switched.meshes == { cube: 1, face: 7, ball: 4, sky: 1 }
 	and switched.level_number == 2
 	and switched.phase == Starting(Rules.start_pause)
 	and after.commands == [Unload("haze")]

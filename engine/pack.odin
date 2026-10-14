@@ -11,14 +11,27 @@ Manifest_Line :: struct {
 	id:   u32,
 }
 
-// A mesh unloads when the refs of its slot reach 0. Each logged set keeps a
+Asset_Kind :: enum {
+	Mesh,
+	Sky,
+}
+
+Held_Asset :: struct {
+	kind: Asset_Kind,
+	id:   u32,
+}
+
+// An asset unloads when the refs of its slot reach 0. Each logged set keeps a
 // nonsense Command or a bad asset to one log line per run.
 Packs :: struct {
 	meshes:         ^Mesh_Table,
+	skies:          ^Sky_Table,
 	mesh_dir:       string,
+	sky_dir:        string,
 	on_disk:        []string,
-	loaded:         map[string][]u32,
-	refs:           [MESH_CAPACITY]int,
+	loaded:         map[string][]Held_Asset,
+	mesh_refs:      [MESH_CAPACITY]int,
+	sky_refs:       [SKY_CAPACITY]int,
 	logged_packs:   map[string]struct {},
 	logged_unloads: map[string]struct {},
 	logged_assets:  map[string]struct {},
@@ -26,14 +39,22 @@ Packs :: struct {
 	allocator:      mem.Allocator,
 }
 
-// Names the meshes on disk and loads none of them. The allocator must free,
-// because packs unload in any order.
-packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, mesh_dir: string, allocator: mem.Allocator) {
+// Names the meshes and skies under assets_dir and loads none of them. The
+// allocator must free, because packs unload in any order.
+packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, assets_dir: string, allocator: mem.Allocator) {
+	mesh_dir := fmt.aprintf("%v/meshes", assets_dir, allocator = allocator)
+	sky_dir := fmt.aprintf("%v/sky", assets_dir, allocator = allocator)
+	mesh_names := mesh_names_on_disk(mesh_dir, allocator)
+	defer delete(mesh_names, allocator)
+	sky_names := sky_names_on_disk(sky_dir, allocator)
+	defer delete(sky_names, allocator)
 	p^ = {
 		meshes         = meshes,
-		mesh_dir       = strings.clone(mesh_dir, allocator),
-		on_disk        = mesh_names_on_disk(mesh_dir, allocator),
-		loaded         = make(map[string][]u32, allocator),
+		skies          = skies,
+		mesh_dir       = mesh_dir,
+		sky_dir        = sky_dir,
+		on_disk        = slice.concatenate([][]string{mesh_names, sky_names}, allocator),
+		loaded         = make(map[string][]Held_Asset, allocator),
 		logged_packs   = make(map[string]struct {}, allocator),
 		logged_unloads = make(map[string]struct {}, allocator),
 		logged_assets  = make(map[string]struct {}, allocator),
@@ -42,7 +63,7 @@ packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, mesh_dir: string, allocator: 
 	}
 }
 
-// Frees what the packs own. The meshes stay in the mesh table.
+// Frees what the packs own. The assets stay in their tables.
 packs_destroy :: proc(p: ^Packs) {
 	for name, ids in p.loaded {
 		delete(name, p.allocator)
@@ -60,6 +81,7 @@ packs_destroy :: proc(p: ^Packs) {
 	}
 	delete(p.on_disk, p.allocator)
 	delete(p.mesh_dir, p.allocator)
+	delete(p.sky_dir, p.allocator)
 }
 
 // Loads each named asset that is not loaded yet. The Manifest has one line
@@ -74,22 +96,21 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 		return nil, false
 	}
 
-	held := make([dynamic]u32, 0, len(assets), p.allocator)
+	held := make([dynamic]Held_Asset, 0, len(assets), p.allocator)
 	manifest = make([]Manifest_Line, len(assets), allocator)
 	for name, i in assets {
-		id := pack_asset_id(p, pack, name)
-		manifest[i] = {name = name, id = id}
-		slot := mesh_slot(id)
-		if slot >= len(Primitive) && !slice.contains(held[:], id) {
-			append(&held, id)
-			p.refs[slot] += 1
+		asset := pack_asset_id(p, pack, name)
+		manifest[i] = {name = name, id = asset.id}
+		if pack_refcounted(asset) && !slice.contains(held[:], asset) {
+			append(&held, asset)
+			pack_refs(p, asset)^ += 1
 		}
 	}
 	p.loaded[strings.clone(pack, p.allocator)] = held[:]
 	return manifest, true
 }
 
-// Unloads each mesh no other loaded pack holds. An unknown pack gives
+// Unloads each asset no other loaded pack holds. An unknown pack gives
 // ok = false.
 pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 	name, held, found := pack_take(p, pack)
@@ -100,11 +121,17 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 		}
 		return false
 	}
-	for id in held {
-		slot := mesh_slot(id)
-		p.refs[slot] -= 1
-		if p.refs[slot] == 0 {
-			mesh_table_remove(p.meshes, slot)
+	for asset in held {
+		refs := pack_refs(p, asset)
+		refs^ -= 1
+		if refs^ > 0 {
+			continue
+		}
+		switch asset.kind {
+		case .Mesh:
+			mesh_table_remove(p.meshes, mesh_slot(asset.id))
+		case .Sky:
+			sky_table_remove(p.skies, sky_slot(asset.id))
 		}
 	}
 	delete(name, p.allocator)
@@ -113,7 +140,7 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 }
 
 @(private = "file")
-pack_take :: proc(p: ^Packs, pack: string) -> (name: string, held: []u32, found: bool) {
+pack_take :: proc(p: ^Packs, pack: string) -> (name: string, held: []Held_Asset, found: bool) {
 	if pack not_in p.loaded {
 		return
 	}
@@ -121,38 +148,81 @@ pack_take :: proc(p: ^Packs, pack: string) -> (name: string, held: []u32, found:
 	return name, held, true
 }
 
+// Id 0 is the fallback mesh or no sky, and a primitive never unloads.
+@(private = "file")
+pack_refcounted :: proc(asset: Held_Asset) -> bool {
+	switch asset.kind {
+	case .Mesh:
+		return mesh_slot(asset.id) >= len(Primitive)
+	case .Sky:
+		return asset.id != 0
+	}
+	unreachable()
+}
+
+@(private = "file")
+pack_refs :: proc(p: ^Packs, asset: Held_Asset) -> ^int {
+	switch asset.kind {
+	case .Mesh:
+		return &p.mesh_refs[mesh_slot(asset.id)]
+	case .Sky:
+		return &p.sky_refs[sky_slot(asset.id)]
+	}
+	unreachable()
+}
+
 // A primitive or an asset another pack loaded keeps its id. A name that
 // failed once is not read again, but a full table can empty, so a name that
 // found it full tries again.
 @(private = "file")
-pack_asset_id :: proc(p: ^Packs, pack, name: string) -> u32 {
-	if id, found := mesh_table_find(p.meshes, name); found {
-		return id
+pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
+	kind := Asset_Kind.Sky if strings.has_prefix(name, SKY_PREFIX) else .Mesh
+	found_id: u32
+	found: bool
+	switch kind {
+	case .Mesh:
+		found_id, found = mesh_table_find(p.meshes, name)
+	case .Sky:
+		found_id, found = sky_table_find(p.skies, name)
+	}
+	if found {
+		return {kind, found_id}
 	}
 	if name in p.logged_assets {
-		return 0
+		return {kind, 0}
 	}
+	dir := p.sky_dir if kind == .Sky else p.mesh_dir
 	if !slice.contains(p.on_disk, name) {
-		pack_log_asset(p, name, fmt.tprintf("pack %q names %q, which is not in %v", pack, name, p.mesh_dir))
-		return 0
+		pack_log_asset(p, name, fmt.tprintf("pack %q names %q, which is not in %v", pack, name, dir))
+		return {kind, 0}
 	}
-	if mesh_table_full(p.meshes) {
+	full := sky_table_full(p.skies) if kind == .Sky else mesh_table_full(p.meshes)
+	if full {
 		if name not_in p.logged_full {
 			p.logged_full[strings.clone(name, p.allocator)] = {}
-			fmt.eprintfln("pack %q names %q, but the mesh table is full at %v meshes; its id is 0, the fallback", pack, name, MESH_CAPACITY)
+			table := fmt.tprintf("the sky table is full at %v skies", SKY_CAPACITY - 1) if kind == .Sky else fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY)
+			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, table)
 		}
-		return 0
+		return {kind, 0}
 	}
-	id, reason, ok := mesh_load_file(p.meshes, p.mesh_dir, name)
+	id: u32
+	reason: string
+	ok: bool
+	switch kind {
+	case .Mesh:
+		id, reason, ok = mesh_load_file(p.meshes, p.mesh_dir, name)
+	case .Sky:
+		id, reason, ok = sky_load_dir(p.skies, p.sky_dir, name)
+	}
 	if !ok {
 		pack_log_asset(p, name, fmt.tprintf("pack %q names %q, which did not load: %v", pack, name, reason))
-		return 0
+		return {kind, 0}
 	}
-	return id
+	return {kind, id}
 }
 
 @(private = "file")
 pack_log_asset :: proc(p: ^Packs, name, message: string) {
 	p.logged_assets[strings.clone(name, p.allocator)] = {}
-	fmt.eprintfln("%v; its id is 0, the fallback", message)
+	fmt.eprintfln("%v; its id is 0", message)
 }

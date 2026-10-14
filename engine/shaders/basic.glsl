@@ -1,10 +1,20 @@
-// A metallic-roughness BRDF under the Scene's lights, tone mapped. An unlit
-// mesh draws its base colour with no lights and no tone map.
+// basic: a metallic-roughness BRDF under the Scene's lights, tone mapped. An
+// unlit mesh draws its base colour with no lights and no tone map.
+// sky: a cubemap on a cube around the camera, at its authored colour.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
 @header import sg "../sokol-odin/sokol/gfx"
 @ctype mat4 Mat4
+
+@block srgb
+// The swapchain is not sRGB on every backend, so the shader encodes. Colours
+// and tints are linear, like glTF, and the lighting runs in linear.
+vec3 linear_to_srgb(vec3 c) {
+    c = clamp(c, 0.0, 1.0);
+    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+@end
 
 @vs vs
 // GL clips z to -w..w. Remap from the 0..w range the reversed-Z projection writes.
@@ -70,6 +80,8 @@ in vec2 v_uv;
 
 out vec4 frag_color;
 
+@include_block srgb
+
 const float PI = 3.14159265;
 // Filament's lower bound, so alpha squared stays above fp32 underflow.
 const float MIN_ROUGHNESS = 0.045;
@@ -91,13 +103,6 @@ vec3 aces_fitted(vec3 c) {
     c = aces_in * c;
     c = (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.4329510) + 0.238081);
     return aces_out * c;
-}
-
-// The swapchain is not sRGB on every backend, so the shader encodes. Colours
-// and tints are linear, like glTF, and the lighting runs in linear.
-vec3 linear_to_srgb(vec3 c) {
-    c = clamp(c, 0.0, 1.0);
-    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
 }
 
 // v / |v|, or zero for a zero vector, where normalize gives NaN.
@@ -189,3 +194,40 @@ void main() {
 @end
 
 @program basic vs fs
+
+@vs sky_vs
+@glsl_options fixup_clipspace
+layout(binding = 0) uniform sky_vs_params {
+    mat4 view_proj;
+};
+
+in vec3 pos;
+
+out vec3 v_dir;
+
+// w = 0 drops the camera's translation, so the cube stays around the eye.
+// z = 0 is the far plane under reversed Z.
+void main() {
+    vec4 clip = view_proj * vec4(pos, 0.0);
+    gl_Position = vec4(clip.xy, 0.0, clip.w);
+    v_dir = pos;
+}
+@end
+
+@fs sky_fs
+// SRGB8A8, so a sample is linear.
+layout(binding = 0) uniform textureCube sky_tex;
+layout(binding = 0) uniform sampler sky_smp;
+
+in vec3 v_dir;
+
+out vec4 frag_color;
+
+@include_block srgb
+
+void main() {
+    frag_color = vec4(linear_to_srgb(texture(samplerCube(sky_tex, sky_smp), v_dir).rgb), 1.0);
+}
+@end
+
+@program sky sky_vs sky_fs

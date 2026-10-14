@@ -307,6 +307,7 @@ Roc_View :: struct {
 	draws: Roc_List(Roc_View_Draws),
 	lights: Roc_List(Roc_View_Lights),
 	camera: Roc_View_Camera,
+	sky: u32,
 	cursor: Roc_View_Cursor,
 }
 
@@ -320,7 +321,9 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.lights)) == 24)
 #assert(offset_of(Roc_View, camera) == 72)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, cursor) == 112)
+#assert(offset_of(Roc_View, sky) == 112)
+#assert(size_of(type_of(Roc_View{}.sky)) == 4)
+#assert(offset_of(Roc_View, cursor) == 116)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {

@@ -46,9 +46,10 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	// init runs before sokol starts. renderer_init uploads the meshes its Loads added.
+	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
 	mesh_table_init(&g_state.renderer.meshes, context.allocator)
-	packs_init(&g_state.packs, &g_state.renderer.meshes, mesh_dir_from_env(), context.allocator)
+	sky_table_init(&g_state.renderer.skies, context.allocator)
+	packs_init(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, assets_dir_from_env(), context.allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
 	config := config_make(seed_from_env(), g_state.packs.on_disk)
@@ -88,6 +89,7 @@ init_cb :: proc "c" () {
 	renderer_init(&g_state.renderer)
 	g_state.frame_render.submit = renderer_draw
 	g_state.frame_render.submit_lights = renderer_lights
+	g_state.frame_render.submit_sky = renderer_sky
 	g_state.frame_render.submit_ctx = &g_state.renderer
 }
 
@@ -124,7 +126,7 @@ frame_cb :: proc "c" () {
 		sapp.lock_mouse(cursor == .Locked)
 	}
 
-	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes)
+	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies)
 
 	sg.end_pass()
 	sg.commit()

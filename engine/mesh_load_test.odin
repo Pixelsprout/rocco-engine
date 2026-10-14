@@ -114,21 +114,3 @@ test_a_reloaded_mesh_gets_a_new_id_and_the_old_id_draws_the_fallback :: proc(t: 
 	_, fallback := mesh_resolve(&table, old, 4)
 	testing.expect(t, fallback)
 }
-
-@(test)
-test_mesh_dir_is_meshes_under_rocco_assets_or_beside_the_program :: proc(t: ^testing.T) {
-	Case :: struct {
-		assets, program, want: string,
-	}
-	cases := []Case {
-		{"/games/sprout", "./examples/entity-game/main.roc", "/games/sprout/meshes"},
-		{"", "./examples/entity-game/main.roc", "./examples/entity-game/assets/meshes"},
-		{"", "/opt/game/entity-game.bin", "/opt/game/assets/meshes"},
-		{"", "./entity-game.bin", "./assets/meshes"},
-		{"", "entity-game.bin", "assets/meshes"},
-		{"", "", "assets/meshes"},
-	}
-	for c in cases {
-		testing.expect_value(t, mesh_dir_from(c.assets, c.program, context.temp_allocator), c.want)
-	}
-}

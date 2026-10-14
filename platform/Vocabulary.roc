@@ -1,7 +1,8 @@
 # The types that cross the seam; see CONTEXT.md. Nothing in them names a game.
 # Key codes are sokol's; pf.Key names them. Config names the assets on disk
 # with no ids. Mesh ids come from the Manifest that loaded gets after a Load.
-# An id the engine does not know draws the fallback mesh. A Box
+# An id the engine does not know draws the fallback mesh. Scene.sky is a sky
+# id from a Manifest; 0 or an id the engine does not know draws no sky. A Box
 # shape carries its half extents. A Light colour carries its intensity and
 # can exceed 1. A Directional dir is the way the light travels.
 Vocabulary := [].{
@@ -16,7 +17,7 @@ Vocabulary := [].{
     Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
     Contact : { a : U64, b : U64, normal : Vec3, depth : F32 }
     Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
-    Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor }
+    Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32 }
     Cursor : [Free, Locked]
     Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 }

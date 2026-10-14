@@ -17,9 +17,11 @@ PAIRING_CAPACITY :: 4096
 
 #assert(len(Fs_Lights{}.light_pos) == MAX_LIGHTS)
 
-// Lets tests run without sokol. submit_lights runs once per frame, before any submit.
+// Lets tests run without sokol. submit_lights runs once per frame, before any
+// submit. submit_sky runs at most once per frame, after every submit.
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
+Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 
 Light_Drop :: enum {
 	Second_Ambient,
@@ -32,6 +34,7 @@ Frame_Render :: struct {
 	pairing:            Pairing,
 	submit:             Submit,
 	submit_lights:      Submit_Lights,
+	submit_sky:         Submit_Sky,
 	submit_ctx:         rawptr,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
@@ -79,8 +82,10 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 	return scene_view_proj(pose, aspect), pose.eye
 }
 
-// The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
-frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table) {
+// The fallback ignores the tint, so an unknown mesh id shows magenta whatever
+// the game asked for. The sky draws last, so the depth test hides it behind
+// every mesh.
+frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table) {
 	lights := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	fr.submit_lights(fr.submit_ctx, lights)
@@ -101,6 +106,9 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 			vs_params = {mvp = view_proj * model, model = model, normal_model = draw_normal_matrix(x)},
 			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
 		)
+	}
+	if sky, ok := sky_resolve(skies, curr.sky); ok {
+		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
 	}
 }
 

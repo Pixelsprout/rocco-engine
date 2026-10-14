@@ -17,16 +17,22 @@ Submitted :: struct {
 	material:     [4]f32,
 }
 
+// sky_after is the number of submits before the sky.
 Recorder :: struct {
-	submits:      [dynamic]Submitted,
-	lights:       Fs_Lights,
-	lights_calls: int,
+	submits:       [dynamic]Submitted,
+	lights:        Fs_Lights,
+	lights_calls:  int,
+	sky:           ^Sky,
+	sky_view_proj: Mat4,
+	sky_calls:     int,
+	sky_after:     int,
 }
 
 // The table is never uploaded, so the tests need no sokol setup.
 Frame_Fixture :: struct {
 	fr:     Frame_Render,
 	meshes: Mesh_Table,
+	skies:  Sky_Table,
 	rec:    Recorder,
 }
 
@@ -208,25 +214,37 @@ record_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 	r.lights_calls += 1
 }
 
+record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
+	r := (^Recorder)(ctx)
+	r.sky = sky
+	r.sky_view_proj = vs_params.view_proj
+	r.sky_calls += 1
+	r.sky_after = len(r.submits)
+}
+
 frame_fixture_init :: proc(f: ^Frame_Fixture) {
 	frame_render_init(&f.fr, context.allocator)
 	mesh_table_init(&f.meshes, context.allocator)
+	sky_table_init(&f.skies, context.allocator)
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
 	f.fr.submit = record_submit
 	f.fr.submit_lights = record_lights
+	f.fr.submit_sky = record_sky
 	f.fr.submit_ctx = &f.rec
 }
 
 frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
 	delete(f.rec.submits)
 	mesh_table_destroy(&f.meshes)
+	sky_table_destroy(&f.skies)
 	frame_render_destroy(&f.fr)
 }
 
 frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye := [3]f32{}) -> []Submitted {
 	clear(&f.rec.submits)
 	f.rec.lights_calls = 0
-	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes)
+	f.rec.sky_calls = 0
+	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes, &f.skies)
 	return f.rec.submits[:]
 }
 
@@ -530,4 +548,57 @@ test_frame_render_gives_the_lights_the_camera_eye :: proc(t: ^testing.T) {
 	s := Scene{}
 	frame_fixture_draw(&f, s, s, 0, eye = {1, 2, 3})
 	testing.expect_value(t, f.rec.lights.camera_pos, [4]f32{1, 2, 3, 0})
+}
+
+// The table is never uploaded, so the sky needs no sokol.
+frame_fixture_sky :: proc(f: ^Frame_Fixture) -> u32 {
+	slot, _ := sky_table_add(&f.skies, strings.clone("sky/test"), 1, make([]byte, len(SKY_FACES) * 4))
+	return sky_id(&f.skies, slot)
+}
+
+@(test)
+test_frame_render_submits_no_sky_for_sky_0 :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_sky(&f)
+
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, f.rec.sky_calls, 0)
+	testing.expect_value(t, len(f.skies.logged), 0)
+}
+
+@(test)
+test_frame_render_submits_the_sky_after_every_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}, {id = 2, mesh = u32(Primitive.Sphere), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	prev := scene_of(draws)
+	curr := scene_of(draws)
+	curr.sky = sky
+	frame_fixture_draw(&f, prev, curr, 0)
+
+	testing.expect_value(t, f.rec.sky_calls, 1)
+	testing.expect_value(t, f.rec.sky_after, 2)
+	testing.expect_value(t, f.rec.sky, &f.skies.skies[sky_slot(sky)])
+	expect_mat4_near(t, f.rec.sky_view_proj, 1)
+}
+
+@(test)
+test_frame_render_submits_no_sky_for_a_stale_sky_id_and_logs_it_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+	sky_table_remove(&f.skies, sky_slot(sky))
+
+	scene := Scene{sky = sky}
+	frame_fixture_draw(&f, scene, scene, 0)
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.sky_calls, 0)
+	testing.expect_value(t, len(f.skies.logged), 1)
 }

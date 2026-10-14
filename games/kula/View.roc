@@ -9,14 +9,14 @@ import Ball
 View := [].{
 	# The kula pack's assets. Each Theme names its own.
 	assets : List(Str)
-	assets = ["ball"]
+	assets = ["ball", "sky/test"]
 
-	# Keys stay primitive cubes until a key mesh exists. face and ball are 0, the fallback, until loaded.
+	# Keys stay primitive cubes until a key mesh exists. face and ball are 0, the fallback, and sky is 0, no sky, until loaded.
 	primitive_meshes : World.Meshes
-	primitive_meshes = { cube: Mesh.primitive(Cube), face: 0, ball: 0 }
+	primitive_meshes = { cube: Mesh.primitive(Cube), face: 0, ball: 0, sky: 0 }
 
 	kula_meshes : World.Meshes, Manifest -> World.Meshes
-	kula_meshes = |meshes, manifest| { ..meshes, ball: Mesh.resolve(manifest, "ball") }
+	kula_meshes = |meshes, manifest| { ..meshes, ball: Mesh.resolve(manifest, "ball"), sky: Mesh.resolve(manifest, "sky/test") }
 
 	theme_meshes : World.Meshes, Manifest -> World.Meshes
 	theme_meshes = |meshes, manifest| { ..meshes, face: Mesh.resolve(manifest, "face") }

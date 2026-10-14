@@ -1,8 +1,10 @@
 package engine
 
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:strconv"
+import "core:strings"
 
 SEED_ENV :: "ROCCO_SEED"
 DEBUG_CAMERA_ENV :: "ROCCO_DEBUG_CAMERA"
@@ -39,9 +41,23 @@ alloc_report_from_env :: proc() -> bool {
 	return os.get_env(ALLOC_REPORT_ENV, context.temp_allocator) == "1"
 }
 
-mesh_dir_from_env :: proc() -> string {
+assets_dir_from_env :: proc() -> string {
 	program := os.args[0] if len(os.args) > 0 else ""
-	return mesh_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
+	return assets_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
+}
+
+// ROCCO_ASSETS wins; otherwise the assets sit beside the program. roc run sets
+// argv[0] to the game's main.roc, so a game finds its assets from any directory.
+// A forward slash works on all three targets.
+assets_dir_from :: proc(assets, program: string, allocator: mem.Allocator) -> string {
+	if assets != "" {
+		return strings.clone(assets, allocator)
+	}
+	dir, _ := os.split_path(program)
+	if dir == "" {
+		return strings.clone(DEFAULT_ASSETS, allocator)
+	}
+	return fmt.aprintf("%v/%v", dir, DEFAULT_ASSETS, allocator = allocator)
 }
 
 // Every string and list is a fresh roc_alloc at refcount 1; the game init call consumes them.

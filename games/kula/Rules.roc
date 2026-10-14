@@ -69,7 +69,7 @@ has_item : World.Level, World.Cell, World.Item -> Bool
 has_item = |level, cell, item| level.items.any(|entry| entry.cell == cell and entry.item == item)
 
 meshes : World.Meshes
-meshes = { cube: 1, face: 5, ball: 4 }
+meshes = { cube: 1, face: 5, ball: 4, sky: 1 }
 
 cell : I32, I32, I32 -> World.Cell
 cell = |x, y, z| { x, y, z }

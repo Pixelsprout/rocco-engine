@@ -1,5 +1,6 @@
 package engine
 
+import "core:fmt"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -8,7 +9,7 @@ import "core:testing"
 FAKE_KEYS_MAX :: 8
 FAKE_CONTACTS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
-NO_MESH_DIR :: "no/such/rocco/dir"
+NO_ASSETS_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
 	init       = fake_init,
@@ -57,6 +58,7 @@ Fake_Game :: struct {
 	loaded_manifest: []Manifest_Line,
 	loaded_out:      rawptr,
 	meshes:          Mesh_Table,
+	skies:           Sky_Table,
 	packs:           Packs,
 }
 
@@ -175,10 +177,11 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, mesh_dir := NO_MESH_DIR, init_commands: []Command = nil) {
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil) {
 	g_fake = {colliders = colliders, init_commands = init_commands}
 	mesh_table_init(&g_fake.meshes, context.allocator)
-	packs_init(&g_fake.packs, &g_fake.meshes, mesh_dir, context.allocator)
+	sky_table_init(&g_fake.skies, context.allocator)
+	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)
 	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk), &g_fake.packs)
 }
 
@@ -186,14 +189,23 @@ fake_seam_shutdown :: proc(s: ^Seam) {
 	seam_shutdown(s)
 	packs_destroy(&g_fake.packs)
 	mesh_table_destroy(&g_fake.meshes)
+	sky_table_destroy(&g_fake.skies)
 }
 
-// a.glb and b.glb load; broken.glb is on disk but fails.
-fake_mesh_dir :: proc(t: ^testing.T) -> string {
+// Meshes a and b load; broken is on disk but fails. Sky clear loads; torn
+// has no nz face.
+fake_assets_dir :: proc(t: ^testing.T) -> string {
 	files := make(map[string][]byte, context.temp_allocator)
-	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	files["b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	files["broken.glb"] = transmute([]byte)string("not a glb")
+	files["meshes/a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	files["meshes/b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	files["meshes/broken.glb"] = transmute([]byte)string("not a glb")
+	face := png_make(2, 2, PNG_RGBA, make([]byte, 2 * 2 * 4, context.temp_allocator))
+	for name in SKY_FACES {
+		files[fmt.tprintf("sky/clear/%v.png", name)] = face
+		if name != "nz" {
+			files[fmt.tprintf("sky/torn/%v.png", name)] = face
+		}
+	}
 	return temp_mesh_dir(t, files)
 }
 
@@ -212,6 +224,12 @@ fake_draws_fallback :: proc(id: u32) -> bool {
 fake_mesh_name :: proc(id: u32) -> string {
 	mesh, _ := mesh_resolve(&g_fake.meshes, id, 1)
 	return mesh.name
+}
+
+// "" when the id draws no sky.
+fake_sky_name :: proc(id: u32) -> string {
+	sky, ok := sky_resolve(&g_fake.skies, id)
+	return sky.name if ok else ""
 }
 
 @(test)
@@ -458,13 +476,13 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 
 @(test)
 test_seam_init_runs_its_load_and_calls_loaded_before_the_first_view :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("start", "a")})
 	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.loadeds, 1)
@@ -477,30 +495,31 @@ test_seam_init_runs_its_load_and_calls_loaded_before_the_first_view :: proc(t: ^
 
 @(test)
 test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, 42, mesh_dir = dir)
+	fake_seam_init(&s, 42, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.seed, 42)
-	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken"}))
+	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken", "sky/clear", "sky/torn"}))
 	testing.expect_value(t, g_fake.meshes.count, len(Primitive))
+	testing.expect_value(t, g_fake.skies.count, 1)
 	testing.expect_value(t, g_fake.loadeds, 0)
 }
 
 @(test)
 test_seam_step_runs_a_load_after_step_and_calls_loaded_before_view :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir)
+	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b")}
@@ -514,13 +533,13 @@ test_seam_step_runs_a_load_after_step_and_calls_loaded_before_view :: proc(t: ^t
 
 @(test)
 test_loaded_gets_every_asked_for_name_and_a_missing_or_broken_one_has_id_0 :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir)
+	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b", "nope", "primitive/cube", "broken", "a")}
@@ -540,13 +559,13 @@ test_loaded_gets_every_asked_for_name_and_a_missing_or_broken_one_has_id_0 :: pr
 
 @(test)
 test_a_repeated_load_logs_once_and_does_not_call_loaded_again :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("start", "a")})
 	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b"), fake_load("room", "b")}
@@ -563,14 +582,14 @@ test_a_repeated_load_logs_once_and_does_not_call_loaded_again :: proc(t: ^testin
 
 @(test)
 test_loads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	long_name := "a pack name longer than twenty-three bytes"
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load(long_name, "a", "a mesh name longer than twenty-three bytes")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load(long_name, "a", "a mesh name longer than twenty-three bytes")})
 	g_fake.next_commands = {fake_load(long_name, "b"), fake_load("room", "b")}
 	seam_step(&s, {}, 1.0 / 60)
 	fake_seam_shutdown(&s)
@@ -580,13 +599,13 @@ test_loads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
 
 @(test)
 test_a_swap_draws_the_fallback_for_the_old_pack_and_the_new_pack_meshes :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "a")})
 	defer fake_seam_shutdown(&s)
 	a := g_fake.loaded_manifest[0].id
 
@@ -600,13 +619,13 @@ test_a_swap_draws_the_fallback_for_the_old_pack_and_the_new_pack_meshes :: proc(
 
 @(test)
 test_an_asset_in_two_packs_keeps_one_id_until_its_last_pack_unloads :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "a")})
 	defer fake_seam_shutdown(&s)
 	in_a := g_fake.loaded_manifest[0].id
 
@@ -623,13 +642,13 @@ test_an_asset_in_two_packs_keeps_one_id_until_its_last_pack_unloads :: proc(t: ^
 
 @(test)
 test_a_freed_slot_is_reused_and_the_old_id_stays_stale :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "a")})
 	defer fake_seam_shutdown(&s)
 	old := g_fake.loaded_manifest[0].id
 
@@ -644,13 +663,13 @@ test_a_freed_slot_is_reused_and_the_old_id_stays_stale :: proc(t: ^testing.T) {
 
 @(test)
 test_an_unload_of_an_unknown_pack_logs_once_and_does_nothing :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "a")})
 	defer fake_seam_shutdown(&s)
 	a := g_fake.loaded_manifest[0].id
 
@@ -666,13 +685,13 @@ test_an_unload_of_an_unknown_pack_logs_once_and_does_nothing :: proc(t: ^testing
 
 @(test)
 test_unloading_every_pack_keeps_the_primitive_ids :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a", "primitive/cube")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "a", "primitive/cube")})
 	defer fake_seam_shutdown(&s)
 	fake_step_with(&s, fake_load("B", "primitive/sphere", "b", "primitive/fallback"))
 	fake_step_with(&s, fake_unload("B"), fake_unload("A"))
@@ -691,14 +710,14 @@ test_unloading_every_pack_keeps_the_primitive_ids :: proc(t: ^testing.T) {
 
 @(test)
 test_unloads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	long_name := "a pack name longer than twenty-three bytes"
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load(long_name, "a")})
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load(long_name, "a")})
 	fake_step_with(&s, fake_unload(long_name), fake_unload(long_name))
 	fake_seam_shutdown(&s)
 
@@ -707,13 +726,13 @@ test_unloads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
 
 @(test)
 test_a_name_that_found_the_table_full_loads_after_an_unload_frees_a_slot :: proc(t: ^testing.T) {
-	dir := fake_mesh_dir(t)
+	dir := fake_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
-	fake_seam_init(&s, mesh_dir = dir)
+	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
 	g_fake.meshes.count = MESH_CAPACITY - 1
 
@@ -725,4 +744,96 @@ test_a_name_that_found_the_table_full_loads_after_an_unload_frees_a_slot :: proc
 	fake_step_with(&s, fake_unload("A"))
 	b := fake_step_with(&s, fake_load("D", "b"))[0].id
 	testing.expect_value(t, fake_mesh_name(b), "b")
+}
+
+@(test)
+test_a_sky_name_in_a_load_gets_a_sky_id :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sky/clear", "a")})
+	defer fake_seam_shutdown(&s)
+
+	sky := g_fake.loaded_manifest[0].id
+	testing.expect(t, sky != 0)
+	testing.expect_value(t, fake_sky_name(sky), "sky/clear")
+	testing.expect_value(t, g_fake.loaded_manifest[1].id, len(Primitive))
+}
+
+@(test)
+test_a_stale_sky_id_draws_no_sky :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sky/clear")})
+	defer fake_seam_shutdown(&s)
+	old := g_fake.loaded_manifest[0].id
+
+	fake_step_with(&s, fake_unload("A"))
+	fresh := fake_step_with(&s, fake_load("B", "sky/clear"))[0].id
+
+	testing.expect_value(t, sky_slot(fresh), sky_slot(old))
+	testing.expect(t, fresh != old)
+	testing.expect_value(t, fake_sky_name(old), "")
+	testing.expect_value(t, fake_sky_name(fresh), "sky/clear")
+	testing.expect_value(t, len(g_fake.skies.logged), 1)
+}
+
+@(test)
+test_a_sky_with_a_missing_face_logs_and_gets_id_0 :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sky/torn", "sky/nope")})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, []Manifest_Line{{"sky/torn", 0}, {"sky/nope", 0}}))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+	testing.expect_value(t, g_fake.skies.count, 1)
+}
+
+@(test)
+test_a_sky_in_two_packs_keeps_one_id_until_its_last_pack_unloads :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sky/clear")})
+	defer fake_seam_shutdown(&s)
+	in_a := g_fake.loaded_manifest[0].id
+
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear", "sky/clear"))[1].id, in_a)
+	fake_step_with(&s, fake_unload("A"))
+	testing.expect_value(t, fake_sky_name(in_a), "sky/clear")
+
+	fake_step_with(&s, fake_unload("B"))
+	testing.expect_value(t, fake_sky_name(in_a), "")
+}
+
+@(test)
+test_a_sky_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir)
+	defer fake_seam_shutdown(&s)
+	g_fake.skies.count = SKY_CAPACITY
+
+	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sky/clear"))[0].id, 0)
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear"))[0].id, 0)
+	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
 }

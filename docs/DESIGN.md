@@ -118,7 +118,7 @@ Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), C
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor }
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32 }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
 
@@ -128,7 +128,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode | an entity kind; a score; a mesh catalogue; quit; a physics body |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id | an entity kind; a score; a mesh catalogue; quit; a physics body |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -296,7 +296,11 @@ Files sit on disk by type, not by pack, so one file serves many packs:
 - A mesh is a `.glb` file in `assets/meshes/`. Its name is the file stem,
   such as `sprout`.
 - A sky is a directory in `assets/sky/` that holds six PNGs named `px`,
-  `nx`, `py`, `ny`, `pz` and `nz`. Its name is `sky/<dir>`.
+  `nx`, `py`, `ny`, `pz` and `nz`. Its name is `sky/<dir>`. Face `px`
+  holds the directions nearest +x, with its top row towards +y and its left
+  column towards +z; `engine/sky.odin` states the layout. The host draws
+  `Scene.sky` as a cube around the camera at the far plane, after every
+  mesh, with no lights and no tone map.
 
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The

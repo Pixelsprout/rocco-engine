@@ -44,3 +44,21 @@ test_seed_rejects_bad_values :: proc(t: ^testing.T) {
 		testing.expectf(t, !ok, "expected %q to be rejected", value)
 	}
 }
+
+@(test)
+test_assets_dir_is_rocco_assets_or_beside_the_program :: proc(t: ^testing.T) {
+	Case :: struct {
+		assets, program, want: string,
+	}
+	cases := []Case {
+		{"/games/sprout", "./examples/entity-game/main.roc", "/games/sprout"},
+		{"", "./examples/entity-game/main.roc", "./examples/entity-game/assets"},
+		{"", "/opt/game/entity-game.bin", "/opt/game/assets"},
+		{"", "./entity-game.bin", "./assets"},
+		{"", "entity-game.bin", "assets"},
+		{"", "", "assets"},
+	}
+	for c in cases {
+		testing.expect_value(t, assets_dir_from(c.assets, c.program, context.temp_allocator), c.want)
+	}
+}
