@@ -3,6 +3,7 @@ package engine
 import "base:runtime"
 import "core:fmt"
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
 
 // The light arrays in engine/shaders/basic.glsl have this size.
@@ -37,9 +38,10 @@ Frame_Render :: struct {
 }
 
 Draw_Transform :: struct {
-	position: [3]f32,
-	scale:    [3]f32,
-	rotation: quaternion128,
+	position:       [3]f32,
+	scale:          [3]f32,
+	rotation:       quaternion128,
+	scale_rotation: quaternion128,
 }
 
 // Maps each draw id of the previous Scene to its index. Rebuilt every Frame
@@ -86,13 +88,14 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 		if i, ok := pairing_find(&fr.pairing, d.id); ok {
 			from = prev.draws.elements[i]
 		}
-		model := draw_model_matrix(draw_transform(from, d, alpha))
+		x := draw_transform(from, d, alpha)
+		model := draw_model_matrix(x)
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
 		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
 		fr.submit(
 			fr.submit_ctx,
 			mesh,
-			vs_params = {mvp = view_proj * model, model = model},
+			vs_params = {mvp = view_proj * model, model = model, normal_model = draw_normal_matrix(x)},
 			fs_params = {tint = tint},
 		)
 	}
@@ -210,11 +213,29 @@ draw_transform :: proc(prev, curr: Draw, alpha: f32) -> Draw_Transform {
 		position = v3_lerp(prev.pos, curr.pos, alpha),
 		scale = v3_lerp(prev.scale, curr.scale, alpha),
 		rotation = quat_slerp(quat_of(prev.rot), quat_of(curr.rot), alpha),
+		// Most draws keep one scale_rot, so most skip the slerp.
+		scale_rotation = quat_of(curr.scale_rot) if prev.scale_rot == curr.scale_rot else quat_slerp(quat_of(prev.scale_rot), quat_of(curr.scale_rot), alpha),
 	}
 }
 
+// The scale acts along the axes of scale_rotation, then rotation turns the result.
 draw_model_matrix :: proc(x: Draw_Transform) -> Mat4 {
-	return transform_to_mat4({position = x.position, rotation = x.rotation, scale = x.scale})
+	return mat4_translate(x.position) * draw_rotate_scale(x, x.scale)
+}
+
+// The inverse transpose of the model's linear part. Each rotation is its own
+// inverse transpose, so only the scale inverts.
+draw_normal_matrix :: proc(x: Draw_Transform) -> Mat4 {
+	inverse_scale: [3]f32
+	for s, i in x.scale {
+		inverse_scale[i] = 1 / s if s != 0 else 0
+	}
+	return draw_rotate_scale(x, inverse_scale)
+}
+
+draw_rotate_scale :: proc(x: Draw_Transform, scale: [3]f32) -> Mat4 {
+	frame := mat4_from_quat(x.scale_rotation)
+	return mat4_from_quat(x.rotation) * frame * mat4_scale(scale) * linalg.transpose(frame)
 }
 
 camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Camera_Pose {

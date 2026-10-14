@@ -105,7 +105,7 @@ Rgb      : { r : F32, g : F32, b : F32 }
 Config   : { seed : U64, meshes : List({ name : Str, id : U32 }) }
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, tint : Rgb }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
@@ -237,11 +237,22 @@ a `U32`.
 The manifest is the one place a refcounted type (`Str`) enters the
 vocabulary. `init` reads it once. The cost is glue coverage, not time.
 
+### A scale acts along its own axes
+
+`scale` acts along the axes of `scale_rot`, in the mesh's space. `rot` then
+turns the result. The model matrix is `T · R · F · S · F⁻¹`, where `F` is
+`scale_rot`. With `scale_rot` at `Quat.identity`, this is `T · R · S`. A
+squash that must stay along a world axis while `rot` spins sets `scale_rot`
+to `conjugate(rot) · F_world`. The host lights normals with the inverse
+transpose of the model matrix, so a non-uniform scale keeps them correct. A
+zero scale factor gives a zero normal along that axis. Decision.
+`docs/adr/0002-a-scale-acts-along-its-own-axes.md` records the options.
+
 ### Draws carry a stable id
 
 The host pairs draws across two `Scene`s by `id` and interpolates position,
-scale and rot between them. A draw whose id has no partner in the previous `Scene`
-is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
+scale, rot and scale_rot between them. A draw whose id has no partner in the
+previous `Scene` is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
 entities never reach.
 
 Draw ids must be unique in a `Scene`. The Frame render pairs each current

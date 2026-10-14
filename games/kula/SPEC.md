@@ -52,19 +52,18 @@ PAL frames. The bob amount `s` is `rsin(phase) * 200 / 4096`, from -200 to 200.
 
 | Fact | Original | Label | Clone |
 |---|---|---|---|
-| Amount | ±4.9% across up, ∓9.8% along up | Code | Not copied yet (`pshmtnpw`) |
-| Volume | Nearly constant: (1 + a)²(1 - 2a) ≈ 1 | Inferred | |
-| Floor contact | The draw centre moves `-200s / 4096` units along up, up to 0.019 cell. The bottom stays on the floor (`:1042-1044`) | Code | |
-| Phase step | 165 - 1.25 × seconds left, in 4096ths of a turn a frame | Inferred | |
-| Period | 2.05 s with 100 s left, 0.91 s with 60 s, 0.64 s with 30 s, 0.50 s at 0 | Inferred | |
-| Clock changes | The phase carries on, so a rate change has no jump. A Timer pause face stops the clock and holds the rate (`SubtractLevelTimer`). An hourglass flips the time left and changes the rate at once (`level_update3.c:311`) | Code | The clone has no level clock |
-| When it runs | Every frame except in a forward jump (`:930-934`). It also stops while `turningWhere` is not 0: each frame of the edge wrap, and one frame as a turn or a climb starts | Code | |
-| In a forward jump | The shape holds its last value. The jump stretch acts through `flattenFactor` | Code | |
+| Amount | ±4.9% across up, ∓9.8% along up | Code | Same. `View.ball_draw` scales by 1 + s across up and 1 - 2s along up |
+| Volume | Nearly constant: (1 + a)²(1 - 2a) ≈ 1 | Inferred | Same |
+| Floor contact | The draw centre moves `-200s / 4096` units along up, up to 0.019 cell. The bottom stays on the floor (`:1042-1044`) | Code | Same: the draw centre drops by 2s × radius. The camera follows the centre without the bob |
+| Phase step | 165 - 1.25 × seconds left, in 4096ths of a turn a frame | Inferred | `Ball.bob_rate` |
+| Period | 2.05 s with 100 s left, 0.91 s with 60 s, 0.64 s with 30 s, 0.50 s at 0 | Inferred | 2.05 s, the rate for 100 s left |
+| Clock changes | The phase carries on, so a rate change has no jump. A Timer pause face stops the clock and holds the rate (`SubtractLevelTimer`). An hourglass flips the time left and changes the rate at once (`level_update3.c:311`) | Code | The clone has no level clock, so the rate does not change |
+| When it runs | Every frame except in a forward jump (`:930-934`). It also stops while `turningWhere` is not 0: each frame of the edge wrap, and one frame as a turn or a climb starts | Code | Every step except a forward jump, the arc of a fall and the edge wrap. A turn or a climb does not stop it |
+| In a forward jump | The shape holds its last value. The jump stretch acts through `flattenFactor` | Code | The bob phase holds |
 | Landing squish | Adds to `s`. While it runs, the phase stops and the bob holds its value | Code | Task `42fsutrf` |
 
-The engine scales a Draw in model space, before `rot` (`engine/transform.odin`).
-The ball's `rot` is its spin, so a Draw cannot squash along up yet. Task
-`ofwdp7on` adds this.
+The ball's `rot` is its spin. The clone sets the Draw's `scale_rot` so the
+scale acts along up whatever the spin (`docs/adr/0002-a-scale-acts-along-its-own-axes.md`).
 
 ## Moves
 
@@ -220,7 +219,6 @@ level blocks.
 - The "hall of mirrors": in skybox themes the original does not clear the
   screen each frame (Code, `src/disp.c`). The engine clears every frame.
 - The long jump, the Bouncy pill, bounce pads and the boost.
-- The idle bob. A Draw cannot yet scale along the ball's up.
 
 ## Sources
 

@@ -31,9 +31,16 @@ View := [].{
 		}
 	}
 
+	# The idle bob squashes the ball along up, not along a spinning model axis.
+	# The centre drops as the ball squashes, so its bottom stays on the floor.
 	ball_draw : Ball.Ball, U32, Rgb -> Draw
 	ball_draw = |ball, mesh, tint| {
-		{ id: 0, mesh, pos: centre(ball), scale: Vec3.scale(Vec3.one, 2.0 * Ball.radius), rot: ball.rot, tint }
+		up = View.interpolated(ball).up
+		s = bob_amount * (2.0 * pi * ball.bob).sin()
+		pos = Vec3.sub(centre(ball), Vec3.scale(up, 2.0 * s * Ball.radius))
+		scale = Vec3.scale({ x: 1.0 + s, y: 1.0 - 2.0 * s, z: 1.0 + s }, 2.0 * Ball.radius)
+		scale_rot = Quat.mul(Quat.conjugate(ball.rot), Quat.between({ x: 0.0, y: 1.0, z: 0.0 }, up))
+		{ id: 0, mesh, pos, scale, rot: ball.rot, scale_rot, tint }
 	}
 
 	# Rigid in the ball's frame, with no smoothing and no clipping test, as in the
@@ -74,7 +81,7 @@ View := [].{
 	face_draw : U64, U32, Face, Rgb -> Draw
 	face_draw = |id, mesh, face, tint| {
 		pos = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
-		{ id, mesh, pos, scale: Vec3.one, rot: face_rot(face.normal), tint }
+		{ id, mesh, pos, scale: Vec3.one, rot: face_rot(face.normal), scale_rot: Quat.identity, tint }
 	}
 }
 
@@ -109,6 +116,10 @@ clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
 
 pi : F32
 pi = 3.1415927
+
+# The original's peak bob, 200 of 4096. See SPEC.md.
+bob_amount : F32
+bob_amount = 200.0 / 4096.0
 
 # The centre rests one radius above the face. Round an edge it follows the
 # original's path: half a cell to the edge, a quarter circle of one radius
@@ -206,6 +217,10 @@ near = |a, b| Vec3.length(Vec3.sub(a, b)) < 0.0001
 
 white : Rgb
 white = { r: 1.0, g: 1.0, b: 1.0 }
+
+# For tests of the centre's path, which the bob would shift.
+unbobbed : Ball.Ball -> Ball.Ball
+unbobbed = |ball| { ..ball, bob: 0.0 }
 
 expect View.interpolated(Ball.start(on_origin)) == { pos: { x: 0.0, y: 1.0, z: 0.0 }, up: { x: 0.0, y: 1.0, z: 0.0 }, forward: { x: 0.0, y: 0.0, z: -1.0 } }
 
@@ -306,7 +321,7 @@ expect {
 	edge = Set.from_list([cell(0, 0, 0)])
 	rolling = Ball.act(edge, Ball.start(on_origin), Roll)
 	steps = [0.0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.17, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34]
-	steps.all(|dt| outside_origin_block(View.ball_draw(Ball.advance(rolling, dt), 2, white).pos) >= Ball.radius - 0.001)
+	steps.all(|dt| outside_origin_block(View.ball_draw(unbobbed(Ball.advance(rolling, dt)), 2, white).pos) >= Ball.radius - 0.001)
 }
 
 # Halfway round, the centre sits one radius out from the edge at 45 degrees.
@@ -314,7 +329,7 @@ expect {
 	edge = Set.from_list([cell(0, 0, 0)])
 	half = Ball.advance(Ball.act(edge, Ball.start(on_origin), Roll), 0.17)
 	d = Ball.radius * 0.70710678
-	near(View.ball_draw(half, 2, white).pos, { x: 0.0, y: 0.5 + d, z: -0.5 - d })
+	near(View.ball_draw(unbobbed(half), 2, white).pos, { x: 0.0, y: 0.5 + d, z: -0.5 - d })
 }
 
 # Looking along a floor from just above it, the near plane cuts the floor. Higher up, or
@@ -359,5 +374,47 @@ expect {
 	gap = Set.from_list([cell(0, 0, 0), cell(0, 0, -2)])
 	rolling = Ball.advance(Ball.act(gap, Ball.start(on_origin), Roll), 0.06)
 	jumping = Ball.act(gap, rolling, Jump({ up_held: True }))
-	jumping != rolling and near(View.ball_draw(jumping, 2, white).pos, View.ball_draw(rolling, 2, white).pos)
+	jumping != rolling and near(View.ball_draw(unbobbed(jumping), 2, white).pos, View.ball_draw(unbobbed(rolling), 2, white).pos)
+}
+
+# A quarter of the way through a bob the ball is at its widest and shortest.
+expect {
+	draw = View.ball_draw({ ..Ball.start(on_origin), bob: 0.25 }, 2, white)
+	s = 200.0 / 4096.0
+	d = 2.0 * Ball.radius
+	near(draw.scale, { x: d * (1.0 + s), y: d * (1.0 - 2.0 * s), z: d * (1.0 + s) })
+}
+
+# The bottom of the ball stays on the floor through the bob.
+expect [0.0, 0.25, 0.5, 0.75].all(|bob| {
+	draw = View.ball_draw({ ..Ball.start(on_origin), bob }, 2, white)
+	(draw.pos.y - draw.scale.y / 2.0 - 0.5).abs() < 0.0001
+})
+
+# The squash acts along up, whatever the spin.
+expect {
+	rolled = { ..Ball.advance(Ball.act(floor, Ball.start(on_origin), Roll), 0.1), bob: 0.25 }
+	draw = View.ball_draw(rolled, 2, white)
+	rolled.rot != Quat.identity and near(Quat.rotate({ x: 0.0, y: 1.0, z: 0.0 }, Quat.mul(draw.rot, draw.scale_rot)), { x: 0.0, y: 1.0, z: 0.0 })
+}
+
+expect {
+	on_ceiling = { cell: cell(0, -1, 0), up: cell(0, -1, 0), forward: cell(0, 0, -1) }
+	draw = View.ball_draw({ ..Ball.start(on_ceiling), bob: 0.25 }, 2, white)
+	near(Quat.rotate({ x: 0.0, y: 1.0, z: 0.0 }, Quat.mul(draw.rot, draw.scale_rot)), { x: 0.0, y: -1.0, z: 0.0 })
+}
+
+# Three quarters of the way through a bob the ball is at its tallest and narrowest.
+expect {
+	draw = View.ball_draw({ ..Ball.start(on_origin), bob: 0.75 }, 2, white)
+	s = 200.0 / 4096.0
+	d = 2.0 * Ball.radius
+	near(draw.scale, { x: d * (1.0 - s), y: d * (1.0 + 2.0 * s), z: d * (1.0 - s) })
+}
+
+# On a ceiling, up is -y and the scale's y axis lies along it.
+expect {
+	on_ceiling = { cell: cell(0, -1, 0), up: cell(0, -1, 0), forward: cell(0, 0, -1) }
+	draw = View.ball_draw({ ..Ball.start(on_ceiling), bob: 0.25 }, 2, white)
+	(draw.pos.y + draw.scale.y / 2.0 + 0.5).abs() < 0.0001
 }

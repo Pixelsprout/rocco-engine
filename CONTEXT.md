@@ -126,7 +126,8 @@ stored by the host and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
-One entry in a Scene: a draw id, a mesh id, a position, scale, rot and tint.
+One entry in a Scene: a draw id, a mesh id, a position, scale, rot, scale_rot and tint.
+The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
 interpolates it between two Scenes.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object

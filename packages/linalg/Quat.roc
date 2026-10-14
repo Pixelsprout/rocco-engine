@@ -27,6 +27,25 @@ Quat := [].{
         w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
     }
 
+    # The inverse of a unit quaternion.
+    conjugate : Quat.Quat -> Quat.Quat
+    conjugate = |q| { x: -q.x, y: -q.y, z: -q.z, w: q.w }
+
+    # The shortest turn that sends a to b. Both must be unit length.
+    between : Vec3.Vec3, Vec3.Vec3 -> Quat.Quat
+    between = |a, b| {
+        w = 1.0 + Vec3.dot(a, b)
+        if w < 0.000001 {
+            side = if a.x.abs() < 0.9 { { x: 1.0, y: 0.0, z: 0.0 } } else { { x: 0.0, y: 0.0, z: 1.0 } }
+            axis = Vec3.normalize(Vec3.cross(a, side))
+            { x: axis.x, y: axis.y, z: axis.z, w: 0.0 }
+        } else {
+            c = Vec3.cross(a, b)
+            n = (c.x * c.x + c.y * c.y + c.z * c.z + w * w).sqrt()
+            { x: c.x / n, y: c.y / n, z: c.z / n, w: w / n }
+        }
+    }
+
     # q must be unit length.
     rotate : Vec3.Vec3, Quat.Quat -> Vec3.Vec3
     rotate = |v, q| {
@@ -68,4 +87,26 @@ expect {
     c = yaw.cos()
     s = yaw.sin()
     near(Quat.rotate(v, Quat.from_yaw(yaw)), { x: v.x * c + v.z * s, y: v.y, z: v.z * c - v.x * s })
+}
+
+# The conjugate undoes the turn.
+expect {
+    q = Quat.from_axis_angle({ x: 1.0, y: 2.0, z: 3.0 }, 0.8)
+    v = { x: 0.3, y: -1.0, z: 2.0 }
+    near(Quat.rotate(Quat.rotate(v, q), Quat.conjugate(q)), v)
+}
+
+expect near(Quat.rotate({ x: 0.0, y: 1.0, z: 0.0 }, Quat.between({ x: 0.0, y: 1.0, z: 0.0 }, { x: 0.0, y: 0.0, z: -1.0 })), { x: 0.0, y: 0.0, z: -1.0 })
+
+expect Quat.between({ x: 0.0, y: 1.0, z: 0.0 }, { x: 0.0, y: 1.0, z: 0.0 }) == Quat.identity
+
+# Opposite vectors have no single axis. Any half turn that sends a to b will do.
+expect {
+    a = { x: 0.0, y: 1.0, z: 0.0 }
+    near(Quat.rotate(a, Quat.between(a, Vec3.neg(a))), Vec3.neg(a))
+}
+
+expect {
+    a = { x: 1.0, y: 0.0, z: 0.0 }
+    near(Quat.rotate(a, Quat.between(a, Vec3.neg(a))), Vec3.neg(a))
 }

@@ -352,10 +352,11 @@ Roc_View_Draws :: struct {
 	pos: Roc_Step_Arg2_Normal,
 	rot: Roc_View_Draws_Rot,
 	scale: Roc_Step_Arg2_Normal,
+	scale_rot: Roc_View_Draws_Rot,
 	tint: Roc_View_Draws_Tint,
 }
 
-#assert(size_of(Roc_View_Draws) == 64)
+#assert(size_of(Roc_View_Draws) == 80)
 #assert(align_of(Roc_View_Draws) == 8)
 #assert(offset_of(Roc_View_Draws, id) == 0)
 #assert(size_of(type_of(Roc_View_Draws{}.id)) == 8)
@@ -367,7 +368,9 @@ Roc_View_Draws :: struct {
 #assert(size_of(type_of(Roc_View_Draws{}.rot)) == 16)
 #assert(offset_of(Roc_View_Draws, scale) == 40)
 #assert(size_of(type_of(Roc_View_Draws{}.scale)) == 12)
-#assert(offset_of(Roc_View_Draws, tint) == 52)
+#assert(offset_of(Roc_View_Draws, scale_rot) == 52)
+#assert(size_of(type_of(Roc_View_Draws{}.scale_rot)) == 16)
+#assert(offset_of(Roc_View_Draws, tint) == 68)
 #assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
 
 Roc_View_Draws_Pos :: Roc_Step_Arg2_Normal
@@ -390,6 +393,7 @@ Roc_View_Draws_Rot :: struct {
 #assert(size_of(type_of(Roc_View_Draws_Rot{}.z)) == 4)
 
 Roc_View_Draws_Scale :: Roc_Step_Arg2_Normal
+Roc_View_Draws_ScaleRot :: Roc_View_Draws_Rot
 Roc_View_Draws_Tint :: struct {
 	b: f32,
 	g: f32,

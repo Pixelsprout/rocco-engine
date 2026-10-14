@@ -532,7 +532,7 @@ lights = [
 
 view : Model -> Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
+	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation for the draws and one for the colliders. A parent
 	# precedes its child, so the parent's Draw is already in acc.
@@ -601,14 +601,14 @@ draw = |meshes, e, world| {
 	pos = world.pos
 	rot = world.rot
 	match e.kind {
-		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, rot, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, tint: { r: 0.28, g: 0.16, b: 0.08 } }
-		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, tint: { r: 1.0, g: 0.75, b: 0.05 } }
-		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, tint: { r: 0.02, g: 0.3, b: 1.0 } }
+		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, rot, scale_rot: Quat.identity, tint: { r: 1.0, g: 1.0, b: 1.0 } }
+		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, scale_rot: Quat.identity, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, scale_rot: Quat.identity, tint: { r: 0.28, g: 0.16, b: 0.08 } }
+		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, scale_rot: Quat.identity, tint: { r: 1.0, g: 0.75, b: 0.05 } }
+		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, scale_rot: Quat.identity, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
-			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, tint: { r: 0.214, g: 0.073, b: 0.604 } }
+			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, scale_rot: Quat.identity, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
 }

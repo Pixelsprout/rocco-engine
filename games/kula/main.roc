@@ -116,7 +116,7 @@ below : World.Cell -> World.Cell
 below = |cell| { ..cell, y: cell.y - 1 }
 
 cube : World.Meshes, U64, World.Cell, F32, Rgb -> Draw
-cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, tint }
+cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, scale_rot: Quat.identity, tint }
 
 test_config : Config
 test_config = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }, { name: "ball", id: 4 }, { name: "face", id: 5 }] }
@@ -200,7 +200,7 @@ expect {
 expect {
 	won = { ..init(test_config), phase: Won }
 	after = step(won, up_held, [], 0.1)
-	after.model.ball == won.ball and step(won, { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
+	{ ..after.model.ball, bob: won.ball.bob } == won.ball and step(won, { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
 }
 
 # A jump off the side from S falls, then the level restarts.

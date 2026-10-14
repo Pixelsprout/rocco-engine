@@ -11,6 +11,8 @@
 layout(binding = 0) uniform vs_params {
     mat4 mvp;
     mat4 model;
+    // The inverse transpose of model, so a non-uniform scale keeps normals at right angles to the surface.
+    mat4 normal_model;
 };
 
 in vec3 pos;
@@ -24,7 +26,7 @@ out vec3 v_world;
 void main() {
     gl_Position = mvp * vec4(pos, 1.0);
     v_col = col;
-    v_nrm = (model * vec4(nrm, 0.0)).xyz;
+    v_nrm = (normal_model * vec4(nrm, 0.0)).xyz;
     v_world = (model * vec4(pos, 1.0)).xyz;
 }
 @end

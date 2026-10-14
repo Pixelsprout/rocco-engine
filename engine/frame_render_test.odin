@@ -1,6 +1,7 @@
 package engine
 
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
 import "core:testing"
 
@@ -8,9 +9,10 @@ EPS :: f32(1e-5)
 IDENTITY :: Quat{w = 1}
 
 Submitted :: struct {
-	mesh:  ^Mesh,
-	model: Mat4,
-	tint:  [4]f32,
+	mesh:         ^Mesh,
+	model:        Mat4,
+	normal_model: Mat4,
+	tint:         [4]f32,
 }
 
 Recorder :: struct {
@@ -117,6 +119,63 @@ test_draw_rot_stays_put_between_a_quaternion_and_its_negation :: proc(t: ^testin
 }
 
 @(test)
+test_draw_interpolates_scale_rot :: proc(t: ^testing.T) {
+	prev := Draw{rot = IDENTITY, scale_rot = IDENTITY}
+	curr := Draw{rot = IDENTITY, scale_rot = quat_yaw(1)}
+	x := draw_transform(prev, curr, 0.25)
+	expect_quat_near(t, x.scale_rotation, quat_from_axis_angle(UP, 0.25))
+}
+
+@(test)
+test_draw_scale_acts_along_the_scale_rot_axes :: proc(t: ^testing.T) {
+	m := draw_model_matrix({scale = {1, 1, 2}, rotation = 1, scale_rotation = quat_from_axis_angle(UP, math.PI / 2)})
+	expect_v4_near(t, m * [4]f32{1, 0, 0, 0}, {2, 0, 0, 0})
+	expect_v4_near(t, m * [4]f32{0, 0, 1, 0}, {0, 0, 1, 0})
+}
+
+@(test)
+test_draw_scales_before_rot :: proc(t: ^testing.T) {
+	m := draw_model_matrix({position = {1, 2, 3}, scale = {2, 1, 1}, rotation = quat_from_axis_angle(UP, math.PI / 2), scale_rotation = 1})
+	expect_v4_near(t, m * [4]f32{1, 0, 0, 1}, {1, 2, 1, 1})
+}
+
+@(test)
+test_draw_normal_matrix_is_the_inverse_transpose_of_the_model :: proc(t: ^testing.T) {
+	x := Draw_Transform{
+		position       = {3, 4, 5},
+		scale          = {1, 2, 4},
+		rotation       = quat_from_axis_angle(UP, 0.7),
+		scale_rotation = quat_from_axis_angle({1, 0, 0}, 0.4),
+	}
+	linear := draw_model_matrix(x)
+	linear[0, 3], linear[1, 3], linear[2, 3] = 0, 0, 0
+	expect_mat4_near(t, linalg.transpose(draw_normal_matrix(x)) * linear, mat4_identity())
+}
+
+// A zero scale flattens the mesh. Its normals must stay finite.
+@(test)
+test_draw_normal_matrix_stays_finite_for_a_zero_scale :: proc(t: ^testing.T) {
+	n := draw_normal_matrix({scale = {1, 0, 1}, rotation = 1, scale_rotation = 1})
+	for c in 0 ..< 4 {
+		for r in 0 ..< 4 {
+			// x - x is 0 only for a finite x.
+			testing.expect_value(t, n[r, c] - n[r, c], 0)
+		}
+	}
+}
+
+@(test)
+test_frame_render_submits_the_normal_matrix :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	draws := []Draw{{id = 1, mesh = 1, scale = {1, 3, 1}, rot = quat_yaw(1), scale_rot = IDENTITY}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	want := draw_normal_matrix({scale = {1, 3, 1}, rotation = quat_from_axis_angle(UP, 1), scale_rotation = 1})
+	expect_mat4_near(t, got[0].normal_model, want)
+}
+
+@(test)
 test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^testing.T) {
 	prev := Scene_Camera{eye = {0, 8, 8}, target = {0, 0, 0}, up = {0, 1, 0}, fov_y = 1}
 	curr := Scene_Camera{eye = {2, 8, 8}, target = {2, 0, 0}, up = {1, 0, 0}, fov_y = 2}
@@ -129,7 +188,7 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 
 record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	r := (^Recorder)(ctx)
-	append(&r.submits, Submitted{mesh = mesh, model = vs_params.model, tint = fs_params.tint})
+	append(&r.submits, Submitted{mesh = mesh, model = vs_params.model, normal_model = vs_params.normal_model, tint = fs_params.tint})
 }
 
 record_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
@@ -417,6 +476,11 @@ test_frame_render_logs_each_light_drop_reason_once_per_run :: proc(t: ^testing.T
 quat_yaw :: proc(rad: f32) -> Quat {
 	q := quat_from_axis_angle(UP, rad)
 	return {w = q.w, x = q.x, y = q.y, z = q.z}
+}
+
+expect_v4_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_location) {
+	d := got - want
+	testing.expectf(t, math.sqrt(d.x * d.x + d.y * d.y + d.z * d.z + d.w * d.w) < EPS, "got %v, want %v", got, want, loc = loc)
 }
 
 expect_quat_near :: proc(t: ^testing.T, got, want: quaternion128, loc := #caller_location) {

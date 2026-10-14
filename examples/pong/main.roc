@@ -102,7 +102,7 @@ pip_tint = |state, own, other| {
 }
 
 box : U32, U64, Vec3, Vec3, Rgb -> Draw
-box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, rot: Quat.identity, tint }
+box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, rot: Quat.identity, scale_rot: Quat.identity, tint }
 
 view : Model -> Scene
 view = |m| {

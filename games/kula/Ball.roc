@@ -3,7 +3,8 @@ import World
 import Grid
 
 Ball := [].{
-	Ball : { pose : World.Pose, motion : Motion, turn : Turn, rot : Quat.Quat }
+	# bob is the phase of the idle bob, in turns from 0 to 1.
+	Ball : { pose : World.Pose, motion : Motion, turn : Turn, rot : Quat.Quat, bob : F32 }
 
 	# The pose commits when a move starts. from, offset, over and t only serve View.
 	# A jump from a roll starts offset cells along forward from from.cell.
@@ -28,7 +29,7 @@ Ball := [].{
 	radius = 0.195
 
 	start : World.Pose -> Ball.Ball
-	start = |pose| { pose, motion: Still, turn: Steady, rot: Quat.identity }
+	start = |pose| { pose, motion: Still, turn: Steady, rot: Quat.identity, bob: 0.0 }
 
 	# An edge roll needs an open end, as in the original.
 	roll : Set(World.Cell), World.Pose -> Try(World.Pose, [ClosedEdge])
@@ -225,7 +226,20 @@ advance_turn = |ball, dt| match ball.turn {
 }
 
 move : Ball.Ball, F32, [Held, Released] -> Ball.Ball
-move = |ball, dt, up| advance_turn(advance_motion(ball, dt, up), dt)
+move = |ball, dt, up| advance_turn(advance_motion(advance_bob(ball, dt), dt, up), dt)
+
+# The original holds the bob in a forward jump and while the ball wraps an
+# edge. A fall starts with a forward jump.
+advance_bob : Ball.Ball, F32 -> Ball.Ball
+advance_bob = |ball, dt| match ball.motion {
+	Jumping(_) => ball
+	Falling({ seconds, .. }) if seconds < jump_seconds => ball
+	Rolling({ from, t }) if Ball.roll_kind(from, ball.pose) == Edge and wrapping(t * Ball.roll_length(Edge)) => ball
+	_ => {
+		next = ball.bob + bob_rate(full_clock) * dt
+		{ ..ball, bob: if next >= 1.0 { next - 1.0 } else { next } }
+	}
+}
 
 advance_motion : Ball.Ball, F32, [Held, Released] -> Ball.Ball
 advance_motion = |ball, dt, up| match ball.motion {
@@ -321,6 +335,18 @@ jump_seconds = 0.54
 
 jump_height : F32
 jump_height = 0.5
+
+# The wrap is the quarter circle between the two half cells of an edge roll.
+wrapping : F32 -> Bool
+wrapping = |cells| cells >= 0.5 and cells < 0.5 + quarter_turn * Ball.radius
+
+# The clone has no level clock yet, so the bob runs at the rate for a full one.
+full_clock : F32
+full_clock = 100.0
+
+# Turns a second, for clock seconds left. Each frame the original adds 165 - 1.25 * clock, in 4096ths of a turn.
+bob_rate : F32 -> F32
+bob_rate = |clock| (165.0 - 1.25 * clock) / 4096.0 / 0.02
 
 # Radians a second at the top roll speed.
 top_spin : F32
@@ -468,7 +494,7 @@ expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.16).turn == Turni
 expect Ball.advance(Ball.act(floor_ahead, still, TurnRight), 0.32).turn == Steady
 expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.27).motion == Jumping({ from: on_origin, offset: 0.0, t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).motion == Still
-expect Ball.advance(still, 1.0) == still
+expect { ..Ball.advance(still, 1.0), bob: 0.0 } == still
 
 # A 1-cell drop lands between 0.70 and 0.71 s after the jump starts.
 expect {
@@ -557,7 +583,7 @@ expect near_quat(Ball.advance(Ball.act(long_floor, rolling_at(0.25), forward_jum
 
 expect Ball.act(floor_ahead, still, in_place) == { ..still, motion: JumpingInPlace({ t: 0.0 }) }
 expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.27).motion == JumpingInPlace({ t: 0.5 })
-expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.54) == still
+expect { ..Ball.advance(Ball.act(floor_ahead, still, in_place), 0.54), bob: 0.0 } == still
 
 # A jump in place does not spin.
 expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.27).rot == Quat.identity
@@ -668,4 +694,31 @@ expect {
 		Rolling({ t, .. }) => near(t, 0.2 / roll_seconds(Floor))
 		_ => False
 	}
+}
+
+expect near(Ball.advance(still, 0.512).bob, 0.25)
+expect near(Ball.advance(Ball.advance(still, 1.0), 1.048).bob, 0.0)
+
+# The bob runs in a roll and a jump in place.
+expect Ball.advance(Ball.act(floor_ahead, still, Roll), 0.1).bob > 0.0
+expect Ball.advance(Ball.act(floor_ahead, still, Jump({ up_held: False })), 0.1).bob > 0.0
+
+# A forward jump holds the bob, as does the arc of a fall.
+expect {
+	bobbing = { ..still, bob: 0.3 }
+	Ball.advance(Ball.act(floor_ahead, bobbing, forward_jump), 0.27).bob == 0.3
+}
+
+expect {
+	bobbing = { ..still, bob: 0.3 }
+	falling = Ball.act(blocks([cell(0, 0, 0), cell(0, -3, -2)]), bobbing, forward_jump)
+	in_arc = Ball.advance(falling, 0.5)
+	in_arc.bob == 0.3 and Ball.advance(Ball.advance(in_arc, 0.1), 0.1).bob > 0.3
+}
+
+# The bob holds while the ball wraps an edge, and runs on the way to it.
+expect {
+	rolling = Ball.act(blocks([cell(0, 0, 0)]), still, Roll)
+	wrapping = Ball.advance(rolling, 0.14)
+	Ball.advance(rolling, 0.02).bob > 0.0 and Ball.advance(wrapping, 0.02).bob == wrapping.bob
 }
