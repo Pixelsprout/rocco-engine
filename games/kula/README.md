@@ -2,7 +2,8 @@
 
 A clone of Kula World (PS1, 1998) on the rocco engine. A ball rolls over a
 grid of blocks. Gravity turns when the ball rolls over an edge. Collect
-every key, then roll into the exit.
+every key, then roll into the exit. Three levels follow one another, each
+in its own Theme.
 
 `SPEC.md` holds the original's numbers and says which of them this clone
 copies.
@@ -16,7 +17,7 @@ roc run main.roc
 roc test main.roc
 ```
 
-The engine loads the meshes in `assets/meshes/` at startup.
+Kula loads its meshes in packs. See Levels and Themes.
 
 ## Controls
 
@@ -57,7 +58,8 @@ current one ends.
 | Face | One side of a block that touches an empty cell. Only faces draw. |
 | Commit | A move sets the new pose when it starts. The ball then moves to that pose over the time of the move. |
 | Open end | A block with no block to its left or right, as the ball sees it. Only an open end lets the ball roll over the edge. |
-| Phase | `Playing` or `Won`. |
+| Phase | `Playing`, `Cleared`, `Starting` or `Won`. `Cleared` waits for the next Theme to load. In `Starting`, the ball waits before the next level plays. |
+| Theme | The look of one level: a pack of block meshes, a block tint, a sun and its lights. |
 
 ## Moves
 
@@ -126,10 +128,37 @@ back and the exit closes.
   into its cell commits. A collected key disappears.
 - The exit is a block. It is open when the ball has collected every key.
   An open exit draws brighter than a closed one.
-- When the ball enters the cell above the open exit, the phase changes to
-  `Won`. The ball finishes its move and stops. The ball changes colour.
+- When the ball enters the cell above the open exit of level 1 or 2, the
+  phase changes to `Cleared`. The next level starts. See Levels and Themes.
+- When the ball enters the cell above the open exit of level 3, the phase
+  changes to `Won`. The ball finishes its move and stops. The ball changes
+  colour.
 - In `Won`, every input except Escape does nothing.
 - A closed exit does nothing. The ball can roll over it.
+
+## Levels and Themes
+
+`Theme.roc` holds one Theme for each level:
+
+| Level | File | Theme |
+|---|---|---|
+| 1 | `levels/level1.txt` | `haze` |
+| 2 | `levels/level2.txt` | `inca` |
+| 3 | `levels/level3.txt` | `arctic` |
+
+Each Theme is also a pack name. For now the Themes differ only by block
+tint and lights, and every Theme pack holds the same `face`. The Kula look
+task gives each Theme its own faces.
+
+1. `init` sends Load for the `kula` pack and Load for the level 1 Theme.
+   The `kula` pack holds `ball`, which every level uses. It never unloads.
+2. When the ball clears a level before the last, Kula sends Load for the
+   next level's Theme.
+3. When the host calls `loaded` for that pack, Kula takes its mesh ids and
+   starts the next level. The ball stays still for 1 s, the `Starting` phase.
+4. The next step sends Unload for the old Theme.
+
+A fall restarts the level the ball is on, not level 1.
 
 ## Level files
 
@@ -149,8 +178,8 @@ layer first. A blank line separates two layers.
 | `K` | A block with a key on top |
 | `E` | The exit block |
 
-A level needs exactly one `S`. A level that does not parse stops the game at
-startup with the parse error.
+A level needs exactly one `S`. A level that does not parse stops the game
+with the parse error when that level starts.
 
 ### Example: level1
 

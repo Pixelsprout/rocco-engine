@@ -1,16 +1,22 @@
 import "levels/level1.txt" as level1 : Str
+import "levels/level2.txt" as level2 : Str
+import "levels/level3.txt" as level3 : Str
 import World
 import Grid
 
 Level := [].{
-	level1_text : Str
-	level1_text = level1
+	count : U64
+	count = texts.len()
+
+	# Levels count from 1. A number past the last level gives empty text, which does not parse.
+	text : U64 -> Str
+	text = |number| texts.get(number - 1) ?? ""
 
 	# Layers run bottom first, with a blank line between. Row index is z,
 	# column index is x and layer index is y. RaggedRow carries the line
 	# number, counted from 1.
 	parse : Str -> Try(World.Level, [RaggedRow(U64), UnknownChar(Str), NoStart, TwoStarts])
-	parse = |text| {
+	parse = |source| {
 		var $blocks = Set.empty()
 		var $items = []
 		var $starts = []
@@ -18,7 +24,7 @@ Level := [].{
 		var $line_number = 0
 		var $y = 0
 		var $z = 0
-		for raw in Str.split_on(text, "\n") {
+		for raw in Str.split_on(source, "\n") {
 			line = Str.drop_suffix(raw, "\r")
 			$line_number = $line_number + 1
 			if line == "" {
@@ -65,6 +71,9 @@ Level := [].{
 	}
 }
 
+texts : List(Str)
+texts = [level1, level2, level3]
+
 up : World.Cell
 up = { x: 0, y: 1, z: 0 }
 
@@ -89,12 +98,12 @@ cell = |x, y, z| { x, y, z }
 # 5. Jump the gap two cells ahead.
 # 6. Roll on to the exit.
 expect {
-	level = Level.parse(Level.level1_text)
+	level = Level.parse(Level.text(1))
 	level.map_ok(|l| l.start) == Ok({ cell: cell(0, 1, 9), up: cell(0, 1, 0), forward: cell(0, 0, -1) })
 }
 
 expect {
-	level = Level.parse(Level.level1_text)
+	level = Level.parse(Level.text(1))
 	level.map_ok(|l| l.items) == Ok([
 		{ cell: cell(0, 1, 0), item: Exit },
 		{ cell: cell(0, 1, 7), item: Key },
@@ -103,12 +112,12 @@ expect {
 }
 
 expect {
-	level = Level.parse(Level.level1_text)
+	level = Level.parse(Level.text(1))
 	level.map_ok(|l| l.blocks.len()) == Ok(11)
 }
 
 expect {
-	blocks = Level.parse(Level.level1_text).map_ok(|l| l.blocks) ?? Set.empty()
+	blocks = Level.parse(Level.text(1)).map_ok(|l| l.blocks) ?? Set.empty()
 	Grid.has_block(blocks, cell(0, 0, 9)) and Grid.has_block(blocks, cell(0, 1, 6)) and !Grid.has_block(blocks, cell(0, 0, 3)) and !Grid.has_block(blocks, cell(0, 1, 7))
 }
 
@@ -117,3 +126,18 @@ expect Level.parse("#S\n#x") == Err(UnknownChar("x"))
 expect Level.parse("##\n##") == Err(NoStart)
 expect Level.parse("#S\nS#") == Err(TwoStarts)
 expect Level.parse("..\n\nS.\n") == Ok({ blocks: Set.from_list([cell(0, 1, 0)]), items: [], start: { cell: cell(0, 2, 0), up: cell(0, 1, 0), forward: cell(0, 0, -1) } })
+
+expect Level.count == 3
+expect Level.parse(Level.text(4)) == Err(NoStart)
+
+# level2 turns twice and jumps a gap.
+expect {
+	level = Level.parse(Level.text(2))
+	level.map_ok(|l| { start: l.start.cell, keys: l.items.keep_if(|e| e.item == Key).len(), blocks: l.blocks.len() }) == Ok({ start: cell(0, 1, 7), keys: 2, blocks: 11 })
+}
+
+# level3 climbs a tower two blocks high.
+expect {
+	level = Level.parse(Level.text(3))
+	level.map_ok(|l| { start: l.start.cell, keys: l.items.keep_if(|e| e.item == Key).map(|e| e.cell), blocks: l.blocks.len() }) == Ok({ start: cell(0, 1, 9), keys: [cell(0, 2, 5), cell(0, 3, 6)], blocks: 12 })
+}

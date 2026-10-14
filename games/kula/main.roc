@@ -10,20 +10,50 @@ import Grid
 import Ball
 import Rules
 import View
+import Theme
 
 Model : Rules.Model
 
 init : Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: Rules.start(View.primitive_meshes), commands: [Load({ pack: "kula", assets: View.assets })] }
+init = |_config| {
+	model = Rules.start(View.primitive_meshes, 1)
+	{ model, commands: [Load({ pack: kula_pack, assets: View.assets }), load_theme(1)] }
+}
 
+# The kula pack holds what every Theme shares. It stays loaded for the whole game.
+kula_pack : Str
+kula_pack = "kula"
+
+load_theme : U64 -> Command
+load_theme = |level_number| {
+	theme = Theme.of_level(level_number)
+	Load({ pack: theme.pack, assets: theme.assets })
+}
+
+# The next level starts only when its Theme has loaded, so no level draws with the old Theme's ids.
 loaded : Model, Str, Manifest -> Model
-loaded = |model, _pack, manifest| { ..model, meshes: View.meshes(manifest) }
+loaded = |model, pack, manifest| {
+	current = Theme.of_level(model.level_number).pack
+	if pack == kula_pack {
+		{ ..model, meshes: View.kula_meshes(model.meshes, manifest) }
+	} else if model.phase == Cleared and pack == Theme.of_level(model.level_number + 1).pack {
+		next = Rules.next_level({ ..model, meshes: View.theme_meshes(model.meshes, manifest) })
+		{ ..next, unloads: [current] }
+	} else if model.phase != Cleared and pack == current {
+		{ ..model, meshes: View.theme_meshes(model.meshes, manifest) }
+	} else {
+		model
+	}
+}
 
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _contacts, dt| {
-	stages = [read_input(input), move_ball(input, dt), Rules.collect, Rules.exit, Rules.fall]
-	commands = if Key.pressed(input, Escape) { [Quit] } else { [] }
-	{ model: stages.fold(model, |m, stage| stage(m)), commands }
+	stages = [Rules.count_down(dt), read_input(input), move_ball(input, dt), Rules.collect, Rules.exit, Rules.fall]
+	after = stages.fold(model, |m, stage| stage(m))
+	quit = if Key.pressed(input, Escape) { [Quit] } else { [] }
+	load = if model.phase != Cleared and after.phase == Cleared { [load_theme(after.level_number + 1)] } else { [] }
+	unloads = model.unloads.map(|pack| Unload(pack))
+	{ model: { ..after, unloads: [] }, commands: quit.concat(load).concat(unloads) }
 }
 
 # Input is read before the ball moves. Ball.act ignores a key that cannot act on the current move.
@@ -57,20 +87,9 @@ action = |input|
 		Err(NoAction)
 	}
 
-# No two axes of the Sun's dir share a size, so each face direction of a block gets its own shade.
-sun_dir : Vec3.Vec3
-sun_dir = { x: -2.0 / 7.0, y: -6.0 / 7.0, z: -3.0 / 7.0 }
-
-# The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
-lights : List(Vocabulary.Light)
-lights = [
-	Light.ambient({ r: 0.15, g: 0.15, b: 0.15 }),
-	Light.directional(sun_dir, { r: 5.03, g: 5.03, b: 5.03 }),
-	Light.directional(Vec3.neg(sun_dir), { r: 0.94, g: 0.94, b: 0.94 }),
-]
-
 view : Model -> Scene
 view = |model| {
+	theme = Theme.of_level(model.level_number)
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
 	exit_tint = if Rules.exit_open(model) { open_exit_tint } else { closed_exit_tint }
 	camera = View.camera(model.ball)
@@ -79,7 +98,7 @@ view = |model| {
 		.map_with_index(|face, i| { face, id: 1 + i.to_u64() })
 		.keep_if(|entry| !View.cut_by_near_plane(entry.face, camera))
 		.map(|entry| {
-			tint = if exits.contains(entry.face.block) { exit_tint } else { block_tint }
+			tint = if exits.contains(entry.face.block) { exit_tint } else { theme.block_tint }
 			View.face_draw(entry.id, model.meshes.face, entry.face, tint)
 		})
 	# Ids come before the collected filter too, so a key keeps its id.
@@ -88,20 +107,14 @@ view = |model| {
 		.map_with_index(|entry, i| { cell: entry.cell, id: key_ids + i.to_u64() })
 		.keep_if(|key| !model.collected.contains(key.cell))
 		.map(|key| cube(model.meshes, key.id, key.cell, 0.3, key_tint))
-	ball_tint = match model.phase {
-		Playing => playing_ball_tint
-		Won => won_ball_tint
-	}
+	ball_tint = if model.phase == Won { won_ball_tint } else { playing_ball_tint }
 	ball = View.ball_draw(model.ball, model.meshes.ball, ball_tint)
-	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights, cursor: Free }
+	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free }
 }
 
 # Face draw ids count up from 1, so the key ids start well past any level's faces.
 key_ids : U64
 key_ids = 100_000
-
-block_tint : Rgb
-block_tint = { r: 0.45, g: 0.5, b: 0.6 }
 
 closed_exit_tint : Rgb
 closed_exit_tint = { r: 0.6, g: 0.15, b: 0.15 }
@@ -125,20 +138,21 @@ below = |cell| { ..cell, y: cell.y - 1 }
 cube : World.Meshes, U64, World.Cell, F32, Rgb -> Draw
 cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, scale_rot: Quat.identity, tint }
 
-test_manifest : Manifest
-test_manifest = [{ name: "ball", id: 4 }, { name: "face", id: 5 }]
-
-# The Model after init and loaded, as the first view sees it.
+# The Model after init and both of its loads, as the first view sees it.
 started : Model
-started = loaded(init({ seed: 0, assets: ["ball", "face"] }).model, "kula", test_manifest)
+started = {
+	booted = init({ seed: 0, assets: ["ball", "face"] }).model
+	loaded(loaded(booted, "kula", [{ name: "ball", id: 4 }]), "haze", [{ name: "face", id: 5 }])
+}
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball", "face"] })]
+expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball"] }), Load({ pack: "haze", assets: ["face"] })]
 expect init({ seed: 0, assets: [] }).model.meshes == { cube: 1, face: 0, ball: 0 }
 expect started.meshes == { cube: 1, face: 5, ball: 4 }
 expect started.ball == Ball.start(started.level.start)
+expect started.level_number == 1 and started.phase == Playing
 
 up_held : Input
 up_held = { ..idle, held: [Key.code(Up)] }
@@ -203,11 +217,6 @@ before_exit : World.Pose
 before_exit = { cell: { x: 0, y: 1, z: 1 }, up: { x: 0, y: 1, z: 0 }, forward: { x: 0, y: 0, z: -1 } }
 
 expect step(at_pose(started, before_exit), up_held, [], 0.1).model.phase == Playing
-
-expect {
-	open = { ..at_pose(started, before_exit), keys_left: 0 }
-	step(open, up_held, [], 0.1).model.phase == Won
-}
 
 # In Won the ball ignores input, and Escape still quits.
 expect {
@@ -295,19 +304,70 @@ expect {
 	}
 }
 
-# The red channel of all lights summed on a face with this normal.
-shade : Vec3.Vec3 -> F32
-shade = |normal| lights.fold(0.0, |sum, light| match light {
-	Ambient(color) => sum + color.r
-	Directional({ dir, color }) => {
-		facing = Vec3.dot(normal, Vec3.neg(dir))
-		if facing > 0.0 { sum + color.r * facing } else { sum }
+expect {
+	open = { ..at_pose(started, before_exit), keys_left: 0 }
+	finished = step(open, up_held, [], 0.1)
+	switched = loaded(finished.model, "inca", [{ name: "face", id: 7 }])
+	after = step(switched, idle, [], 0.1)
+	finished.commands == [Load({ pack: "inca", assets: ["face"] })]
+	and finished.model.phase == Cleared
+	and switched.meshes == { cube: 1, face: 7, ball: 4 }
+	and switched.level_number == 2
+	and switched.phase == Starting(Rules.start_pause)
+	and after.commands == [Unload("haze")]
+	and step(after.model, idle, [], 0.1).commands == []
+}
+
+# A Cleared level sends its Load once.
+expect {
+	open = { ..at_pose(started, before_exit), keys_left: 0 }
+	finished = step(open, up_held, [], 0.1).model
+	step(finished, idle, [], 0.1).commands == []
+}
+
+# A loaded for a pack Kula did not ask for changes nothing.
+expect loaded(started, "inca", [{ name: "face", id: 7 }]) == started
+
+# During the pause the ball ignores input. After it, the level plays.
+expect {
+	starting = { ..on_level(2), phase: Starting(1.0) }
+	paused = step(starting, up_held, [], 0.5).model
+	playing = step(paused, idle, [], 0.6).model
+	paused.ball.motion == Still and playing.phase == Playing and step(playing, up_held, [], 0.1).model.ball.motion != Still
+}
+
+expect view(on_level(2)).lights == Theme.of_level(2).lights
+expect view(on_level(3)).draws.any(|d| d.tint == Theme.of_level(3).block_tint)
+
+Move : [Roll, Left, Right, Leap]
+
+# Each move starts with a short step that presses its keys. A long idle step then finishes it.
+play : Model, List(Move) -> Model
+play = |model, moves| moves.fold(model, |m, move| {
+	keys = match move {
+		Roll => { ..idle, held: [Key.code(Up)] }
+		Left => { ..idle, pressed: [Key.code(Left)] }
+		Right => { ..idle, pressed: [Key.code(Right)] }
+		Leap => { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
 	}
-	Point(_) => sum
+	step(step(m, keys, [], 0.01).model, idle, [], 1.0).model
 })
 
+on_level : U64 -> Model
+on_level = |number| Rules.start(started.meshes, number)
+
 expect {
-	normals = [{ x: 1.0, y: 0.0, z: 0.0 }, { x: -1.0, y: 0.0, z: 0.0 }, { x: 0.0, y: 1.0, z: 0.0 }, { x: 0.0, y: -1.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 1.0 }, { x: 0.0, y: 0.0, z: -1.0 }]
-	shades = normals.map(shade)
-	shades.all(|a| shades.keep_if(|b| (a - b).abs() < 0.02).len() == 1)
+	played = play(on_level(2), [Roll, Roll, Right, Roll, Roll, Roll, Roll, Left, Leap, Roll, Roll, Roll])
+	played.keys_left == 0 and played.phase == Cleared
+}
+
+expect {
+	played = play(on_level(3), [Roll, Roll, Roll, Roll, Roll, Roll, Roll, Roll, Roll, Leap, Roll, Roll])
+	played.keys_left == 0 and played.phase == Won
+}
+
+expect {
+	open = { ..at_pose(on_level(3), before_exit), keys_left: 0 }
+	finished = step(open, up_held, [], 0.1)
+	finished.model.phase == Won and finished.commands == []
 }

@@ -7,15 +7,19 @@ import Grid
 import Ball
 
 View := [].{
+	# The kula pack's assets. Each Theme names its own.
 	assets : List(Str)
-	assets = ["ball", "face"]
+	assets = ["ball"]
 
 	# Keys stay primitive cubes until a key mesh exists. face and ball are 0, the fallback, until loaded.
 	primitive_meshes : World.Meshes
 	primitive_meshes = { cube: Mesh.primitive(Cube), face: 0, ball: 0 }
 
-	meshes : Manifest -> World.Meshes
-	meshes = |manifest| { ..primitive_meshes, face: Mesh.resolve(manifest, "face"), ball: Mesh.resolve(manifest, "ball") }
+	kula_meshes : World.Meshes, Manifest -> World.Meshes
+	kula_meshes = |meshes, manifest| { ..meshes, ball: Mesh.resolve(manifest, "ball") }
+
+	theme_meshes : World.Meshes, Manifest -> World.Meshes
+	theme_meshes = |meshes, manifest| { ..meshes, face: Mesh.resolve(manifest, "face") }
 
 	Placement : { pos : Vec3.Vec3, up : Vec3.Vec3, forward : Vec3.Vec3 }
 
