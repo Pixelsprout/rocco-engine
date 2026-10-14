@@ -21,10 +21,20 @@ clone uses cells, radians and seconds. One PAL frame is 0.02 s.
 |---|---|---|---|
 | Radius | 100 units, 0.195 cell | Code: the ball centre rests 100 units above a face | `Ball.radius = 0.195` |
 | Visual radius | Not found | | Same as the collision radius |
-| Spin | Not modelled here | | The distance the centre travels over the radius |
+| Spin | A rate, `rotX`. Each frame turns the ball `rotX` × 6/4096 of a turn about its right axis. A roll sets `rotX` to the roll speed. A forward jump sets 40, the top roll speed. A jump in place sets 0. A fall adds 6 a frame, up to 40, while Up is held. Otherwise it takes 1 away a frame, down to 0 (`player_movement.c:204, 316, 414-424, 456`) | Code | A roll: the distance the centre travels over the radius. A forward jump: the top roll rate, 1 cell per 0.26 s over the radius. A jump in place: no spin. A fall keeps the top rate in the arc. In the drop, Up held adds to the rate, up to the top in 0.13 s. Without Up, the spin stops in 0.8 s |
 
 The ball centre is 0.195 cell above the face it stands on. The draw centre
 is the cell centre minus 0.305 along up.
+
+`RotMatrixX` multiplies the matrix it gets. The original sets `matrix_254`
+only at level start and then turns it by `rotX` every frame. `rotX` is
+therefore a rate, not an angle (Inferred). At the top rate the original
+turns 0.37 rad a frame. The clone turns 0.39 rad a frame, the rate that
+rolls without slip. The spin carries on from one move to the next.
+
+The original reads Up for the fall through `rollingForward`. Each frame
+clears it, then sets it when Up is held (`level_update2.c:610, 686`, Code).
+The clone reads Up in the same step.
 
 ## Moves
 

@@ -210,7 +210,11 @@ expect {
 	jumped = step(facing_out, space, [], 0.25).model
 	still_falling = step(jumped, idle, [], 0.25).model
 	landed = step(still_falling, idle, [], 0.5).model
-	jumped.ball.motion == Falling({ from: facing_out.ball.pose, offset: 0.0, over: { ..facing_out.ball.pose, cell: { x: -2, y: 1, z: 9 } }, drop: Off(3), seconds: 0.25 }) and still_falling.ball.pose == jumped.ball.pose and landed == init(test_config)
+	fell = match jumped.ball.motion {
+		Falling({ from, offset, over, drop, seconds, .. }) => from == facing_out.ball.pose and offset == 0.0 and over == { ..facing_out.ball.pose, cell: { x: -2, y: 1, z: 9 } } and drop == Off(3) and seconds == 0.25
+		_ => False
+	}
+	fell and still_falling.ball.pose == jumped.ball.pose and landed == init(test_config)
 }
 
 expect {

@@ -8,7 +8,8 @@ Ball := [].{
 	# The pose commits when a move starts. from, offset, over and t only serve View.
 	# A jump from a roll starts offset cells along forward from from.cell.
 	# A fall jumps to over, then drops straight down. Its seconds count from the jump start.
-	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, offset : F32, t : F32 }), JumpingInPlace({ t : F32 }), Falling({ from : World.Pose, offset : F32, over : World.Pose, drop : Drop, seconds : F32 })]
+	# spin_rate is in radians a second. It plays the part of the original's rotX.
+	Motion : [Still, Rolling({ from : World.Pose, t : F32 }), Jumping({ from : World.Pose, offset : F32, t : F32 }), JumpingInPlace({ t : F32 }), Falling({ from : World.Pose, offset : F32, over : World.Pose, drop : Drop, seconds : F32, spin_rate : F32 })]
 
 	# Cells the ball drops below over. Off drops to 2 cells past the lowest block, then the level restarts.
 	Drop : [Onto(I32), Off(I32)]
@@ -130,20 +131,20 @@ Ball := [].{
 	}
 
 	advance : Ball.Ball, F32 -> Ball.Ball
-	advance = |ball, dt| advance_turn(advance_motion(ball, dt), dt)
+	advance = |ball, dt| move(ball, dt, Released)
 
 	# With Up held, a roll or jump that ends this step starts the next roll in the
 	# same step. The next roll gets the time left over, so the ball keeps its speed.
 	advance_up_held : Set(World.Cell), Ball.Ball, F32 -> Ball.Ball
 	advance_up_held = |blocks, ball, dt| {
-		moved = advance(ball, dt)
+		moved = move(ball, dt, Held)
 		match (moved.motion, moved.turn) {
 			(Still, Steady) if ball.motion != Still => {
 				# One roll at most, so Rules.collect sees every committed cell.
 				busy = seconds_left(ball)
 				turning = turn_seconds_left(ball)
 				left_over = dt - (if turning > busy { turning } else { busy })
-				if left_over > 0.0 { advance(act(blocks, moved, Roll), left_over) } else { act(blocks, moved, Roll) }
+				if left_over > 0.0 { move(act(blocks, moved, Roll), left_over, Held) } else { act(blocks, moved, Roll) }
 			}
 			_ => moved
 		}
@@ -153,7 +154,7 @@ Ball := [].{
 leap : Set(World.Cell), Ball.Ball, World.Pose, F32 -> Ball.Ball
 leap = |blocks, ball, from, offset| match Ball.jump(blocks, from) {
 	Land(pose) => { ..ball, pose, motion: Jumping({ from, offset, t: 0.0 }) }
-	Fall({ over, drop }) => { ..ball, pose: landing(over, drop), motion: Falling({ from, offset, over, drop, seconds: 0.0 }) }
+	Fall({ over, drop }) => { ..ball, pose: landing(over, drop), motion: Falling({ from, offset, over, drop, seconds: 0.0, spin_rate: top_spin }) }
 	Bounce => ball
 }
 
@@ -223,20 +224,22 @@ advance_turn = |ball, dt| match ball.turn {
 	}
 }
 
-advance_motion : Ball.Ball, F32 -> Ball.Ball
-advance_motion = |ball, dt| match ball.motion {
+move : Ball.Ball, F32, [Held, Released] -> Ball.Ball
+move = |ball, dt, up| advance_turn(advance_motion(ball, dt, up), dt)
+
+advance_motion : Ball.Ball, F32, [Held, Released] -> Ball.Ball
+advance_motion = |ball, dt, up| match ball.motion {
 	Still => ball
 	Rolling({ from, t }) => {
 		kind = Ball.roll_kind(from, ball.pose)
 		next = progress(t, dt, roll_seconds(kind))
-		axis = Grid.to_vec3(Grid.cross(from.up, from.forward))
-		spin = Quat.from_axis_angle(axis, (next - t) * Ball.roll_length(kind) / Ball.radius)
-		{ ..ball, rot: Quat.mul(spin, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
+		{ ..ball, rot: spin_about(from, (next - t) * Ball.roll_length(kind) / Ball.radius, ball.rot), motion: if next < 1.0 { Rolling({ from, t: next }) } else { Still } }
 	}
 	# The landing cell always has a floor, so the ball lands back at rest height.
 	Jumping(jumping) => {
 		next = progress(jumping.t, dt, jump_seconds)
-		{ ..ball, motion: if Ball.can_land(next, Ball.jump_lift(next)) { Still } else { Jumping({ ..jumping, t: next }) } }
+		rot = spin_about(jumping.from, (next - jumping.t) * jump_seconds * top_spin, ball.rot)
+		{ ..ball, rot, motion: if Ball.can_land(next, Ball.jump_lift(next)) { Still } else { Jumping({ ..jumping, t: next }) } }
 	}
 	JumpingInPlace({ t }) => {
 		next = progress(t, dt, jump_seconds)
@@ -246,10 +249,40 @@ advance_motion = |ball, dt| match ball.motion {
 	Falling(falling) => {
 		total = fall_seconds(falling.drop)
 		next = if falling.seconds + dt > total { total } else { falling.seconds + dt }
+		spun = fall_spin(falling.seconds, next, falling.spin_rate, up)
+		rot = spin_about(falling.from, spun.angle, ball.rot)
 		match falling.drop {
-			Onto(_) if next >= total => { ..ball, motion: Still }
-			_ => { ..ball, motion: Falling({ ..falling, seconds: next }) }
+			Onto(_) if next >= total => { ..ball, rot, motion: Still }
+			_ => { ..ball, rot, motion: Falling({ ..falling, seconds: next, spin_rate: spun.rate }) }
 		}
+	}
+}
+
+spin_about : World.Pose, F32, Quat.Quat -> Quat.Quat
+spin_about = |from, angle, rot| Quat.mul(Quat.from_axis_angle(Grid.to_vec3(Grid.cross(from.up, from.forward)), angle), rot)
+
+# The arc keeps its spin. The drop builds it to top_spin with Up held, else runs it down to 0.
+fall_spin : F32, F32, F32, [Held, Released] -> { rate : F32, angle : F32 }
+fall_spin = |from_seconds, to_seconds, rate, up| {
+	arc_end = if to_seconds < jump_seconds { to_seconds } else { jump_seconds }
+	arc = if arc_end > from_seconds { arc_end - from_seconds } else { 0.0 }
+	drop = to_seconds - from_seconds - arc
+	dropped = match up {
+		Held => spin_toward(rate, top_spin, spin_gain, drop)
+		Released => spin_toward(rate, 0.0, spin_loss, drop)
+	}
+	{ rate: dropped.rate, angle: rate * arc + dropped.angle }
+}
+
+# The rate changes linearly and stops at target, so the angle does not depend on the step size.
+spin_toward : F32, F32, F32, F32 -> { rate : F32, angle : F32 }
+spin_toward = |rate, target, change, seconds| {
+	to_target = (target - rate).abs() / change
+	if seconds <= to_target {
+		next = if target > rate { rate + change * seconds } else { rate - change * seconds }
+		{ rate: next, angle: (rate + next) / 2.0 * seconds }
+	} else {
+		{ rate: target, angle: (rate + target) / 2.0 * to_target + target * (seconds - to_target) }
 	}
 }
 
@@ -288,6 +321,16 @@ jump_seconds = 0.54
 
 jump_height : F32
 jump_height = 0.5
+
+# Radians a second at the top roll speed.
+top_spin : F32
+top_spin = 1.0 / roll_seconds(Floor) / Ball.radius
+
+# A fall adds 6 to rotX a frame with Up held, else takes 1 away. The top rotX is 40.
+spin_gain : F32
+spin_gain = top_spin * 6.0 / 40.0 / 0.02
+spin_loss : F32
+spin_loss = top_spin / 40.0 / 0.02
 
 # The original adds 6 units a frame to the fall speed, up to 80 units a frame.
 gravity : F32
@@ -408,7 +451,7 @@ expect {
 expect Ball.act(blocks([cell(0, 0, 0), cell(1, 0, 0)]), still, Roll) == still
 expect Ball.act(floor_ahead, still, TurnLeft).turn == Turning({ from: on_origin, t: 0.0, next: Stay })
 expect Ball.act(floor_ahead, still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Jumping({ from: on_origin, offset: 0.0, t: 0.0 }) }
-expect Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, offset: 0.0, over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Off(3), seconds: 0.0 }) }
+expect Ball.act(blocks([cell(0, 0, 0)]), still, forward_jump) == { ..still, pose: { ..on_origin, cell: cell(0, 1, -2) }, motion: Falling({ from: on_origin, offset: 0.0, over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Off(3), seconds: 0.0, spin_rate: top_spin }) }
 expect Ball.act(blocks([cell(0, 0, 0), cell(0, 1, -1)]), still, forward_jump) == still
 
 # Input is read only when Still.
@@ -438,10 +481,67 @@ expect {
 expect {
 	rolling = Ball.act(floor_ahead, still, Roll)
 	ball = [0.06, 0.07, 0.06, 0.07, 0.05].fold(rolling, |b, dt| Ball.advance(b, dt))
-	ball.motion == Still and near_quat(ball.rot, Quat.from_axis_angle({ x: -1.0, y: 0.0, z: 0.0 }, 1.0 / Ball.radius))
+	ball.motion == Still and near_quat(ball.rot, x_axis_spin(1.0 / Ball.radius))
 }
 
-expect Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).rot == Quat.identity
+x_axis_spin : F32 -> Quat.Quat
+x_axis_spin = |angle| Quat.from_axis_angle({ x: -1.0, y: 0.0, z: 0.0 }, angle)
+
+# A forward jump spins at the top roll rate from its first frame.
+expect near_quat(Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.27).rot, x_axis_spin(0.27 * top_spin))
+expect near_quat(Ball.advance(Ball.act(floor_ahead, still, forward_jump), 0.54).rot, x_axis_spin(0.54 * top_spin))
+
+# The spin carries on into the next roll with no jump in angle.
+expect {
+	jumping = Ball.act(long_floor, still, forward_jump)
+	ball = Ball.advance_up_held(long_floor, jumping, 0.67)
+	near_quat(ball.rot, x_axis_spin(0.54 * top_spin + 0.5 / Ball.radius))
+}
+
+# 13 cells to fall, so the ball is still falling after 2 s.
+deep_drop : Set(World.Cell)
+deep_drop = blocks([cell(0, 0, 0), cell(5, -10, 5)])
+
+fall_spin_rate : Ball.Ball -> F32
+fall_spin_rate = |ball| match ball.motion {
+	Falling({ spin_rate, .. }) => spin_rate
+	_ => -1.0
+}
+
+expect Ball.act(deep_drop, still, forward_jump).motion == Falling({ from: on_origin, offset: 0.0, over: { ..on_origin, cell: cell(0, 1, -2) }, drop: Off(13), seconds: 0.0, spin_rate: top_spin })
+
+# The arc keeps the top rate. Without Up, the drop then stops the spin in 0.8 s.
+expect {
+	falling = Ball.act(deep_drop, still, forward_jump)
+	ball = Ball.advance(falling, 2.0)
+	near(fall_spin_rate(Ball.advance(falling, 0.94)), 0.5 * top_spin) and fall_spin_rate(ball) == 0.0 and near_quat(ball.rot, x_axis_spin((0.54 + 0.4) * top_spin))
+}
+
+# With Up held, the drop keeps the top rate.
+expect {
+	falling = Ball.act(deep_drop, still, forward_jump)
+	near_quat(Ball.advance_up_held(deep_drop, falling, 1.54).rot, x_axis_spin(1.54 * top_spin))
+}
+
+# With Up held again, the rate climbs back to the top.
+expect {
+	slowed = Ball.advance(Ball.act(deep_drop, still, forward_jump), 0.94)
+	near(fall_spin_rate(Ball.advance_up_held(deep_drop, slowed, 0.04)), 0.8 * top_spin) and fall_spin_rate(Ball.advance_up_held(deep_drop, slowed, 0.1)) == top_spin
+}
+
+# The fall spin does not depend on how the steps fall, also across the arc's end.
+expect {
+	falling = Ball.act(deep_drop, still, forward_jump)
+	stepped = [0.3, 0.3, 0.3, 0.3, 0.34].fold(falling, |b, dt| Ball.advance(b, dt))
+	near_quat(stepped.rot, Ball.advance(falling, 1.54).rot)
+}
+
+# A ball that lands from a fall keeps the angle it spun to.
+expect {
+	landed = Ball.advance(Ball.act(blocks([cell(0, 0, 0), cell(0, -1, -2)]), still, forward_jump), 0.71)
+	drop = drop_seconds(1.0)
+	landed.motion == Still and near_quat(landed.rot, x_axis_spin(top_spin * (0.54 + drop - 0.5 * 1.25 * drop * drop)))
+}
 
 in_place : Ball.Action
 in_place = Jump({ up_held: False })
@@ -452,9 +552,15 @@ long_floor = blocks([cell(0, 0, 0), cell(0, 0, -1), cell(0, 0, -2), cell(0, 0, -
 rolling_at : F32 -> Ball.Ball
 rolling_at = |t| { ..Ball.act(long_floor, still, Roll), motion: Rolling({ from: on_origin, t }) }
 
+# A jump from a roll spins at the top rate too.
+expect near_quat(Ball.advance(Ball.act(long_floor, rolling_at(0.25), forward_jump), 0.27).rot, x_axis_spin(0.27 * top_spin))
+
 expect Ball.act(floor_ahead, still, in_place) == { ..still, motion: JumpingInPlace({ t: 0.0 }) }
 expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.27).motion == JumpingInPlace({ t: 0.5 })
 expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.54) == still
+
+# A jump in place does not spin.
+expect Ball.advance(Ball.act(floor_ahead, still, in_place), 0.27).rot == Quat.identity
 
 # Only a block above bounces a jump in place. A block ahead does not.
 expect Ball.act(blocks([cell(0, 0, 0), cell(0, 2, 0)]), still, in_place) == still
