@@ -20,6 +20,8 @@ FACE_BORDER = (1.0, 1.0, 1.0, 1.0)
 FACE_TEXTURE_SIZE = 64
 FACE_BORDER_TEXELS = 4
 
+# Low enough that the sun leaves a small, sharp highlight on the ball.
+BALL_ROUGHNESS = 0.2
 BALL_WHITE = (0.9, 0.9, 0.9, 1.0)
 BALL_RED = (0.8, 0.05, 0.03, 1.0)
 BALL_SEGMENTS = 32
@@ -31,11 +33,15 @@ def clear_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
-def material(name, colour):
+# The export writes metallicFactor 0 and the roughness as roughnessFactor.
+def material(name, colour, roughness=0.5):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     mat.use_backface_culling = True
-    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = colour
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = colour
+    bsdf.inputs["Metallic"].default_value = 0.0
+    bsdf.inputs["Roughness"].default_value = roughness
     return mat
 
 
@@ -115,8 +121,8 @@ def make_ball():
         f.smooth = True
     bm.to_mesh(mesh)
     bm.free()
-    mesh.materials.append(material("ball_white", BALL_WHITE))
-    mesh.materials.append(material("ball_red", BALL_RED))
+    mesh.materials.append(material("ball_white", BALL_WHITE, BALL_ROUGHNESS))
+    mesh.materials.append(material("ball_red", BALL_RED, BALL_ROUGHNESS))
     export(new_object("ball", mesh), "ball.glb")
 
 

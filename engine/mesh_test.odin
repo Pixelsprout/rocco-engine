@@ -166,7 +166,24 @@ test_each_cube_face_spans_the_whole_texture :: proc(t: ^testing.T) {
 test_a_mesh_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
 	white := Mesh_Texture{image = {id = 1}, view = {id = 2}, sampler = {id = 3}}
 	plain := Mesh{}
-	testing.expect_value(t, mesh_texture_or(&plain, white), white)
-	textured := Mesh{texture = {image = {id = 7}, view = {id = 8}, sampler = {id = 9}}}
-	testing.expect_value(t, mesh_texture_or(&textured, white), textured.texture)
+	base, mr := mesh_textures(&plain, white)
+	testing.expect_value(t, base, white)
+	testing.expect_value(t, mr, white)
+	textured := Mesh {
+		texture            = {image = {id = 7}, view = {id = 8}, sampler = {id = 9}},
+		metallic_roughness = {image = {id = 4}, view = {id = 5}, sampler = {id = 6}},
+	}
+	base, mr = mesh_textures(&textured, white)
+	testing.expect_value(t, base, textured.texture)
+	testing.expect_value(t, mr, textured.metallic_roughness)
+}
+
+@(test)
+test_every_primitive_is_matte_and_not_metal :: proc(t: ^testing.T) {
+	meshes: Mesh_Table
+	mesh_table_init(&meshes, context.allocator)
+	defer mesh_table_destroy(&meshes)
+	for p in Primitive {
+		testing.expect_value(t, meshes.meshes[p].material, MATERIAL_MATTE)
+	}
 }

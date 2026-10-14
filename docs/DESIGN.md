@@ -166,10 +166,12 @@ A tint and a light colour are each an `Rgb`, not a `Vec3`. Roc records are
 structural, so the two names keep a position from passing as a colour. Each
 channel is linear, like a glTF colour. A tint channel runs from 0 to 1. A
 light colour carries intensity, so a channel can exceed 1. The host
-multiplies the mesh colour by the tint and lights the result in linear. The
-shader tone maps it with a fixed ACES fit, so a bright channel rolls off
-towards 1 instead of clipping. Then it encodes the result to sRGB for the
-screen. The tone map has no knob. Decision.
+multiplies the mesh base colour by the tint and lights the result in linear.
+The tint does not multiply the lit result, so a dielectric's highlight
+keeps the light's colour. A metal's highlight takes its tinted base colour
+through F0. The shader tone maps the result with a fixed ACES fit, so a
+bright channel rolls off towards 1 instead of clipping. Then it encodes the
+result to sRGB for the screen. The tone map has no knob. Decision.
 
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in
@@ -198,10 +200,24 @@ example `Light.point(pos, color, range)`. The host has no light of its own,
 so an empty list draws black. Decision.
 
 A Directional `dir` is the way the light travels. The host negates and
-normalises it. A Point light falls off as `clamp(1 - (d/range)^2, 0, 1)^2`,
-so it reaches zero at `range`. There is no inverse square. Each light adds
-its colour times `max(n.L, 0)`. Shading is Lambert diffuse only, with no
-specular and no shadows.
+normalises it. A Point light falls off as
+`clamp(1 - (d/range)^2, 0, 1)^2 / max(d^2, 0.01^2)`. The window takes it to
+zero at `range`, and the inverse square stops growing inside 1 cm.
+
+Light colours are physical, as in glTF and Filament. A directional colour is
+illuminance and a point colour is intensity, and the BRDF carries the `1/pi`.
+A white matte surface facing a directional light of colour `c` shows about
+`c / pi`, so a light of `pi` lights it to 1. Decision.
+
+Each mesh has a glTF metallic-roughness material. The BRDF is the glTF 2.0
+Appendix B model with Filament's terms: GGX distribution with
+`alpha = roughness^2`, height-correlated Smith visibility, Schlick Fresnel
+with `F0 = mix(0.04, base, metallic)`, and Lambert diffuse
+`(1 - F) * (1 - metallic) * base / pi`. Roughness clamps to at least 0.045.
+The ambient light adds `ambient * ((1 - metallic) * base + EnvBRDFApprox)`,
+after Karis (2014), so metal keeps its colour in shade. There are no shadows
+and no environment map. A mesh with `KHR_materials_unlit` skips the lights
+and the tone map and draws its base colour.
 
 The host takes the first ambient and the first 8 directional and point
 lights, in list order. It drops a second ambient, a light past the 8th, a

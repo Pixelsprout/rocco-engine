@@ -19,6 +19,10 @@ PRIMITIVE_NAMES := [Primitive]string {
 }
 
 GREY :: [4]f32{0.8, 0.8, 0.8, 1}
+// A primitive, or a glTF primitive with no material, is not metal.
+MATERIAL_MATTE :: Material {
+	roughness = 1,
+}
 MAGENTA :: [4]f32{1, 0, 1, 1}
 
 // A 1 x 1 quad in x-z, facing +y. One-sided: back-face culling hides it from below.
@@ -99,6 +103,13 @@ Vertex :: struct {
 	uv:     [2]f32,
 }
 
+// unlit draws the base colour as it is, with no lights and no tone map.
+Material :: struct {
+	roughness: f32,
+	metallic:  f32,
+	unlit:     bool,
+}
+
 // A zero id means the mesh has no texture and binds the white image.
 Mesh_Texture :: struct {
 	image:   sg.Image,
@@ -107,14 +118,16 @@ Mesh_Texture :: struct {
 }
 
 Mesh :: struct {
-	name:        string,
-	data:        Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
-	live:        bool,
-	vertices:    sg.Buffer,
-	indices:     sg.Buffer,
-	index_count: int,
-	texture:     Mesh_Texture,
-	generation:  u16,
+	name:               string,
+	data:               Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
+	live:               bool,
+	vertices:           sg.Buffer,
+	indices:            sg.Buffer,
+	index_count:        int,
+	texture:            Mesh_Texture,
+	metallic_roughness: Mesh_Texture,
+	material:           Material,
+	generation:         u16,
 }
 
 // After mesh_table_upload, a new mesh uploads when it is added. The table
@@ -130,9 +143,11 @@ Mesh_Table :: struct {
 }
 
 Mesh_Data :: struct {
-	vertices: []Vertex,
-	indices:  []u16,
-	texture:  Maybe(Texture),
+	vertices:           []Vertex,
+	indices:            []u16,
+	texture:            Maybe(Texture),
+	metallic_roughness: Maybe(Texture),
+	material:           Material,
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -140,7 +155,7 @@ mesh_table_init :: proc(t: ^Mesh_Table, allocator: mem.Allocator) {
 	t.allocator = allocator
 	t.logged = make(map[u32]struct {}, allocator)
 	for p in Primitive {
-		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true}
+		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true, material = MATERIAL_MATTE}
 	}
 	t.count = len(Primitive)
 }
@@ -190,7 +205,7 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		slot = t.count
 		t.count += 1
 	}
-	t.meshes[slot] = {name = name, data = data, live = true, generation = t.meshes[slot].generation}
+	t.meshes[slot] = {name = name, data = data, live = true, material = data.material, generation = t.meshes[slot].generation}
 	if t.uploaded {
 		mesh_upload_loaded(t, &t.meshes[slot])
 	}
@@ -206,11 +221,8 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 		sg.destroy_buffer(m.vertices)
 		sg.destroy_buffer(m.indices)
 	}
-	if m.texture.image.id != 0 {
-		sg.destroy_view(m.texture.view)
-		sg.destroy_image(m.texture.image)
-		sg.destroy_sampler(m.texture.sampler)
-	}
+	mesh_texture_destroy(m.texture)
+	mesh_texture_destroy(m.metallic_roughness)
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
 	m^ = {generation = m.generation + 1}
@@ -246,6 +258,18 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	if tex, ok := data.texture.?; ok {
 		texture_delete(tex, t.allocator)
 	}
+	if tex, ok := data.metallic_roughness.?; ok {
+		texture_delete(tex, t.allocator)
+	}
+}
+
+@(private = "file")
+mesh_texture_destroy :: proc(tex: Mesh_Texture) {
+	if tex.image.id != 0 {
+		sg.destroy_view(tex.view)
+		sg.destroy_image(tex.image)
+		sg.destroy_sampler(tex.sampler)
+	}
 }
 
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
@@ -263,10 +287,16 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	if tex, ok := data.texture.?; ok {
 		m.texture = texture_upload(tex)
 	}
+	if tex, ok := data.metallic_roughness.?; ok {
+		m.metallic_roughness = texture_upload(tex)
+	}
 }
 
-mesh_texture_or :: proc(m: ^Mesh, white: Mesh_Texture) -> Mesh_Texture {
-	return m.texture if m.texture.image.id != 0 else white
+// White leaves the base colour as it is and the material factors at their values.
+mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness: Mesh_Texture) {
+	base = m.texture if m.texture.image.id != 0 else white
+	metallic_roughness = m.metallic_roughness if m.metallic_roughness.image.id != 0 else white
+	return
 }
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.

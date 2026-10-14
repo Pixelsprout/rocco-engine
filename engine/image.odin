@@ -23,11 +23,13 @@ Image_Level :: struct {
 	pixels:        []byte,
 }
 
-// RGBA8 in sRGB, level 0 first. Every level's pixels sit in one allocation.
+// RGBA8, level 0 first. Every level's pixels sit in one allocation. Base
+// colour is sRGB; a data texture such as metallic-roughness is linear.
 Texture :: struct {
 	levels:  []Image_Level,
 	pixels:  []byte,
 	sampler: Texture_Sampler,
+	srgb:    bool,
 }
 
 // Returns RGBA8 in frame memory. A 16-bit channel keeps its high byte.
@@ -68,14 +70,15 @@ png_decode :: proc(bytes: []byte) -> (width, height: int, rgba: []byte, ok: bool
 	return img.width, img.height, rgba, true
 }
 
-// Base colour is sRGB, so the GPU decodes it to linear before filtering.
+// An sRGB texture uploads as SRGB8A8, so the GPU decodes it to linear before filtering.
 texture_upload :: proc(tex: Texture) -> Mesh_Texture {
+	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
 	desc := sg.Image_Desc {
 		width        = i32(tex.levels[0].width),
 		height       = i32(tex.levels[0].height),
 		num_mipmaps  = i32(len(tex.levels)),
-		pixel_format = .SRGB8A8,
-		label        = "mesh-base-colour",
+		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
+		label        = label,
 	}
 	for level, i in tex.levels {
 		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
@@ -92,15 +95,16 @@ texture_upload :: proc(tex: Texture) -> Mesh_Texture {
 				mipmap_filter = s.mipmap_filter,
 				wrap_u = s.wrap_u,
 				wrap_v = s.wrap_v,
-				label = "mesh-base-colour",
+				label = label,
 			},
 		),
 	}
 }
 
 // Copies rgba into level 0. Each further level averages 2 x 2 texels of the
-// one before in linear light, down to 1 x 1. An odd side drops its last texel.
-texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler, allocator: mem.Allocator) -> Texture {
+// one before, down to 1 x 1. An sRGB texture averages its colour in linear
+// light. An odd side drops its last texel.
+texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler, srgb: bool, allocator: mem.Allocator) -> Texture {
 	count := 1
 	total := width * height * 4
 	if sampler.mipmaps {
@@ -116,13 +120,14 @@ texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler
 		levels  = make([]Image_Level, count, allocator),
 		pixels  = make([]byte, total, allocator),
 		sampler = sampler,
+		srgb    = srgb,
 	}
 	copy(tex.pixels, rgba[:width * height * 4])
 	tex.levels[0] = {width = width, height = height, pixels = tex.pixels[:width * height * 4]}
 
 	to_linear: [256]f32
 	for &v, i in to_linear {
-		v = srgb_to_linear(f32(i) / 255)
+		v = srgb_to_linear(f32(i) / 255) if srgb else f32(i) / 255
 	}
 	offset := width * height * 4
 	for i in 1 ..< count {
@@ -143,7 +148,7 @@ texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler
 				avg := sum / 4
 				out := dst.pixels[(y * w + x) * 4:]
 				for k in 0 ..< 3 {
-					out[k] = unorm8(linear_to_srgb(avg[k]))
+					out[k] = unorm8(linear_to_srgb(avg[k]) if srgb else avg[k])
 				}
 				out[3] = unorm8(avg[3])
 			}

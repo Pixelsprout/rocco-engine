@@ -104,7 +104,7 @@ test_png_decode_rejects_bytes_that_are_not_a_png :: proc(t: ^testing.T) {
 @(test)
 test_texture_build_without_mipmaps_keeps_one_level :: proc(t: ^testing.T) {
 	rgba := make([]byte, 4 * 4 * 4, context.temp_allocator)
-	tex := texture_build(4, 4, rgba, {mipmaps = false}, context.temp_allocator)
+	tex := texture_build(4, 4, rgba, {mipmaps = false}, srgb = true, allocator = context.temp_allocator)
 	testing.expect_value(t, len(tex.levels), 1)
 	testing.expect_value(t, tex.levels[0].width, 4)
 	testing.expect_value(t, tex.levels[0].height, 4)
@@ -113,7 +113,7 @@ test_texture_build_without_mipmaps_keeps_one_level :: proc(t: ^testing.T) {
 @(test)
 test_texture_build_halves_each_mipmap_down_to_1_by_1 :: proc(t: ^testing.T) {
 	rgba := make([]byte, 5 * 3 * 4, context.temp_allocator)
-	tex := texture_build(5, 3, rgba, {mipmaps = true}, context.temp_allocator)
+	tex := texture_build(5, 3, rgba, {mipmaps = true}, srgb = true, allocator = context.temp_allocator)
 	want := [][2]int{{5, 3}, {2, 1}, {1, 1}}
 	testing.expect_value(t, len(tex.levels), len(want))
 	for level, i in tex.levels {
@@ -127,7 +127,7 @@ test_texture_build_halves_each_mipmap_down_to_1_by_1 :: proc(t: ^testing.T) {
 @(test)
 test_texture_build_averages_mipmaps_in_linear_light :: proc(t: ^testing.T) {
 	rgba := []byte{0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0}
-	tex := texture_build(2, 2, rgba, {mipmaps = true}, context.temp_allocator)
+	tex := texture_build(2, 2, rgba, {mipmaps = true}, srgb = true, allocator = context.temp_allocator)
 	testing.expect_value(t, len(tex.levels), 2)
 	top := tex.levels[1].pixels
 	want := [4]byte{188, 188, 188, 128}
@@ -139,8 +139,20 @@ test_texture_build_averages_mipmaps_in_linear_light :: proc(t: ^testing.T) {
 @(test)
 test_texture_build_keeps_level_0_as_given :: proc(t: ^testing.T) {
 	rgba := []byte{1, 2, 3, 4, 5, 6, 7, 8}
-	tex := texture_build(2, 1, rgba, {mipmaps = true}, context.temp_allocator)
+	tex := texture_build(2, 1, rgba, {mipmaps = true}, srgb = true, allocator = context.temp_allocator)
 	for b, i in tex.levels[0].pixels {
 		testing.expect_value(t, b, rgba[i])
+	}
+}
+
+@(test)
+test_texture_build_averages_a_linear_texture_as_stored :: proc(t: ^testing.T) {
+	rgba := []byte{0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0}
+	tex := texture_build(2, 2, rgba, {mipmaps = true}, srgb = false, allocator = context.temp_allocator)
+	testing.expect(t, !tex.srgb)
+	top := tex.levels[1].pixels
+	want := [4]byte{128, 128, 128, 128}
+	for b, i in top {
+		testing.expect_value(t, b, want[i])
 	}
 }

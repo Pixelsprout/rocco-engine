@@ -6,6 +6,10 @@ import "core:math/linalg"
 import "core:testing"
 
 TRIANGLE_PRIMITIVES :: `[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2}]`
+MATERIAL_PRIMITIVES :: `[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0}]`
+TWO_MATERIAL_PRIMITIVES :: `[
+	{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0},
+	{"attributes":{"POSITION":0,"NORMAL":1},"indices":3,"material":1}]`
 
 // One triangle in x-y facing +z, then its indices as u16, u32 and u8.
 // Accessors: 0 POSITION, 1 NORMAL, 2 u16 indices, 3 u32 indices, 4 u8 indices.
@@ -142,13 +146,10 @@ test_glb_bakes_each_node_world_transform_into_positions_and_normals :: proc(t: ^
 
 @(test)
 test_glb_merges_primitives_and_colours_each_by_its_material :: proc(t: ^testing.T) {
-	primitives := `[
-		{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0},
-		{"attributes":{"POSITION":0,"NORMAL":1},"indices":3,"material":1}]`
 	materials := `"materials":[
 		{"pbrMetallicRoughness":{"baseColorFactor":[1,0,0,1]}},
 		{"pbrMetallicRoughness":{"baseColorFactor":[0,0,1,1]}}],`
-	data, _, err := glb_parse(triangle_glb(primitives, extra = materials), context.temp_allocator)
+	data, _, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect_value(t, len(data.vertices), 6)
 	testing.expect_value(t, len(data.indices), 6)
@@ -237,6 +238,7 @@ textured_glb :: proc(
 	texture := `{"source":0}`,
 	samplers := "",
 	second := "",
+	material := `{"pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}`,
 ) -> []byte {
 	bin := make([dynamic]byte, context.temp_allocator)
 	append(&bin, ..triangle_bin())
@@ -248,7 +250,7 @@ textured_glb :: proc(
 	json := fmt.tprintf(
 		`{{"scenes":[{{"nodes":[0]}}],"nodes":[{{"mesh":0}}],
 		"meshes":[{{"primitives":[{{"attributes":{{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5}},"indices":2,"material":0}}%s]}}],
-		"materials":[{{"pbrMetallicRoughness":{{"baseColorTexture":{{"index":0}}}}}}],
+		"materials":[%s],
 		"textures":[%s],"images":[%s],%s
 		"bufferViews":[
 			{{"buffer":0,"byteOffset":0,"byteLength":36}},
@@ -266,6 +268,7 @@ textured_glb :: proc(
 			{{"bufferView":4,"componentType":5121,"count":3,"type":"SCALAR"}},
 			{{"bufferView":5,"componentType":5126,"count":3,"type":"VEC2"}}]}}`,
 		second,
+		material,
 		texture,
 		image,
 		samplers,
@@ -358,6 +361,93 @@ test_glb_notes_a_textured_primitive_merged_with_an_untextured_one :: proc(t: ^te
 	second := `,{"attributes":{"POSITION":0,"NORMAL":1},"indices":3}`
 	data, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), second = second), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
-	testing.expect_value(t, notes, Glb_Notes{.Mixed_Textures})
+	testing.expect_value(t, notes, Glb_Notes{.Mixed_Textures, .Mixed_Materials})
 	testing.expect(t, data.texture != nil)
+}
+
+@(test)
+test_glb_without_a_material_is_matte_and_not_metal :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material, Material{roughness = 1, metallic = 0})
+}
+
+// glTF gives both factors 1 when a material leaves them out.
+@(test)
+test_glb_material_without_factors_takes_the_gltf_defaults :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = `"materials":[{}],`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material, Material{roughness = 1, metallic = 1})
+}
+
+@(test)
+test_glb_reads_the_metallic_and_roughness_factors :: proc(t: ^testing.T) {
+	materials := `"materials":[{"pbrMetallicRoughness":{"metallicFactor":0.25,"roughnessFactor":0.5}}],`
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material, Material{roughness = 0.5, metallic = 0.25})
+}
+
+@(test)
+test_glb_reads_the_unlit_extension :: proc(t: ^testing.T) {
+	materials := `"materials":[{"extensions":{"KHR_materials_unlit":{}}}],`
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect(t, data.material.unlit)
+}
+
+@(test)
+test_glb_reads_the_metallic_roughness_texture_as_linear :: proc(t: ^testing.T) {
+	material := `{"pbrMetallicRoughness":{"metallicRoughnessTexture":{"index":0},"roughnessFactor":0.5}}`
+	glb := textured_glb(png_make(1, 1, PNG_RGB, {0, 200, 100}), material = material)
+	data, notes, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect(t, data.texture == nil)
+	tex, ok := data.metallic_roughness.?
+	testing.expect(t, ok)
+	testing.expect(t, !tex.srgb)
+	want := [4]byte{0, 200, 100, 255}
+	for b, i in tex.levels[0].pixels {
+		testing.expect_value(t, b, want[i])
+	}
+	testing.expect_value(t, data.material, Material{roughness = 0.5, metallic = 1})
+}
+
+@(test)
+test_glb_reads_a_base_colour_texture_as_srgb :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3})), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	tex, ok := data.texture.?
+	testing.expect(t, ok)
+	testing.expect(t, tex.srgb)
+}
+
+@(test)
+test_glb_rejects_a_metallic_roughness_texture_index_out_of_range :: proc(t: ^testing.T) {
+	material := `{"pbrMetallicRoughness":{"metallicRoughnessTexture":{"index":3}}}`
+	_, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Bad_Texture)
+}
+
+// The mesh has one material, so every primitive draws with the first one's.
+@(test)
+test_glb_notes_primitives_with_different_materials :: proc(t: ^testing.T) {
+	materials := `"materials":[
+		{"pbrMetallicRoughness":{"roughnessFactor":0.2}},
+		{"pbrMetallicRoughness":{"roughnessFactor":0.9}}],`
+	data, notes, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Mixed_Materials})
+	testing.expect_value(t, data.material.roughness, f32(0.2))
+}
+
+@(test)
+test_glb_does_not_note_materials_that_differ_only_in_colour :: proc(t: ^testing.T) {
+	materials := `"materials":[
+		{"pbrMetallicRoughness":{"baseColorFactor":[1,0,0,1],"metallicFactor":0}},
+		{"pbrMetallicRoughness":{"baseColorFactor":[0,0,1,1],"metallicFactor":0}}],`
+	_, notes, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
 }

@@ -67,7 +67,7 @@ frame_render_destroy :: proc(fr: ^Frame_Render) {
 }
 
 // An up along the view, or a zero up, has no right vector.
-frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> Mat4 {
+frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> (view_proj: Mat4, eye: [3]f32) {
 	pose := camera_lerp(prev.camera, curr.camera, alpha)
 	if v3_length(v3_cross(pose.target - pose.eye, pose.up)) < UP_EPSILON {
 		if !fr.up_fallback_logged {
@@ -76,12 +76,14 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 		}
 		pose.up = UP
 	}
-	return scene_view_proj(pose, aspect)
+	return scene_view_proj(pose, aspect), pose.eye
 }
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever the game asked for.
-frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, meshes: ^Mesh_Table) {
-	fr.submit_lights(fr.submit_ctx, frame_render_lights(fr, curr.lights.elements[:curr.lights.length]))
+frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table) {
+	lights := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
+	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
+	fr.submit_lights(fr.submit_ctx, lights)
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	for d in curr.draws.elements[:curr.draws.length] {
 		from := d
@@ -92,11 +94,12 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 		model := draw_model_matrix(x)
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
 		tint := [4]f32{1, 1, 1, 1} if fallback else {d.tint.r, d.tint.g, d.tint.b, 1}
+		material := mesh.material
 		fr.submit(
 			fr.submit_ctx,
 			mesh,
 			vs_params = {mvp = view_proj * model, model = model, normal_model = draw_normal_matrix(x)},
-			fs_params = {tint = tint},
+			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
 		)
 	}
 }

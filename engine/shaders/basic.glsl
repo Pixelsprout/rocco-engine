@@ -1,4 +1,5 @@
-// The Scene's lights over vertex colour, base colour texture and tint, tone mapped.
+// A metallic-roughness BRDF under the Scene's lights, tone mapped. An unlit
+// mesh draws its base colour with no lights and no tone map.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -35,24 +36,32 @@ void main() {
 @end
 
 @fs fs
-// vec4 so every member is 16 bytes and flattens cleanly for GL.
+// vec4 so every member is 16 bytes and flattens cleanly for GL. material is
+// roughness, metallic, unlit (0 or 1) and a spare.
 layout(binding = 1) uniform fs_params {
     vec4 tint;
+    vec4 material;
 };
 
 // The array size is MAX_LIGHTS in engine/frame_render.odin. An unused slot
 // has a zero colour. For a directional light, xyz of light_pos is the unit
 // vector towards the light and w is 0. For a point light, xyz is the position,
-// w is 1 and w of light_color is the range.
+// w is 1 and w of light_color is the range. Light colours are physical: the
+// BRDF carries the 1/pi.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
+    vec4 camera_pos;
     vec4 light_pos[8];
     vec4 light_color[8];
 };
 
-// SRGB8A8, so a sample is linear. A mesh with no texture binds a white texel.
+// base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
+// linear data: G is roughness and B is metallic, as glTF puts them. A mesh
+// without a texture binds a white texel.
 layout(binding = 0) uniform texture2D base_tex;
 layout(binding = 0) uniform sampler base_smp;
+layout(binding = 1) uniform texture2D metallic_roughness_tex;
+layout(binding = 1) uniform sampler metallic_roughness_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -60,6 +69,13 @@ in vec3 v_world;
 in vec2 v_uv;
 
 out vec4 frag_color;
+
+const float PI = 3.14159265;
+// Filament's lower bound, so alpha squared stays above fp32 underflow.
+const float MIN_ROUGHNESS = 0.045;
+const float MIN_N_DOT_V = 1e-4;
+// Point lights stop growing inside 1 cm, as in Filament.
+const float MIN_POINT_DISTANCE_SQ = 1e-4;
 
 // Stephen Hill's fit of the ACES RRT and sRGB ODT. It rolls highlights off
 // towards 1 instead of clipping them, so a light colour above 1 keeps detail.
@@ -84,23 +100,91 @@ vec3 linear_to_srgb(vec3 c) {
     return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
 }
 
+// v / |v|, or zero for a zero vector, where normalize gives NaN.
+vec3 safe_normalize(vec3 v) {
+    return v / max(length(v), 1e-6);
+}
+
+float pow5(float x) {
+    float x2 = x * x;
+    return x2 * x2 * x;
+}
+
+// GGX normal distribution, glTF 2.0 Appendix B and Filament D_GGX.
+float distribution_ggx(float n_dot_h, float alpha) {
+    float a2 = alpha * alpha;
+    float f = (n_dot_h * a2 - n_dot_h) * n_dot_h + 1.0;
+    return a2 / max(PI * f * f, 1e-12);
+}
+
+// Height-correlated Smith visibility, the G / (4 n.l n.v) term, from Filament V_SmithGGXCorrelated.
+float visibility_smith(float n_dot_v, float n_dot_l, float alpha) {
+    float a2 = alpha * alpha;
+    float gv = n_dot_l * sqrt(n_dot_v * n_dot_v * (1.0 - a2) + a2);
+    float gl = n_dot_v * sqrt(n_dot_l * n_dot_l * (1.0 - a2) + a2);
+    return 0.5 / max(gv + gl, 1e-6);
+}
+
+vec3 fresnel_schlick(vec3 f0, float v_dot_h) {
+    return f0 + (1.0 - f0) * pow5(1.0 - v_dot_h);
+}
+
+// Karis (2014), Physically Based Shading on Mobile: a fit of the split-sum
+// environment BRDF that stands in for an environment map.
+vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
+    const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
+    const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
+    vec4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * n_dot_v)) * r.x + r.y;
+    vec2 ab = vec2(-1.04, 1.04) * a004 + r.zw;
+    return f0 * ab.x + ab.y;
+}
+
 void main() {
-    vec3 n = normalize(v_nrm);
-    vec3 lighting = ambient.rgb;
+    vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
+    vec3 albedo = base.rgb * tint.rgb;
+    if (material.z != 0.0) {
+        frag_color = vec4(linear_to_srgb(albedo), base.a);
+        return;
+    }
+
+    vec4 mr = texture(sampler2D(metallic_roughness_tex, metallic_roughness_smp), v_uv);
+    float roughness = clamp(material.x * mr.g, MIN_ROUGHNESS, 1.0);
+    float metallic = clamp(material.y * mr.b, 0.0, 1.0);
+    float alpha = roughness * roughness;
+    vec3 f0 = mix(vec3(0.04), albedo, metallic);
+    vec3 diffuse_color = (1.0 - metallic) * albedo;
+
+    vec3 n = safe_normalize(v_nrm);
+    vec3 v = safe_normalize(camera_pos.xyz - v_world);
+    float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
+
+    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v));
     for (int i = 0; i < 8; i++) {
         vec3 l = light_pos[i].xyz;
-        float falloff = 1.0;
+        float attenuation = 1.0;
         if (light_pos[i].w != 0.0) {
             vec3 to_light = l - v_world;
-            float d = length(to_light);
-            float k = clamp(1.0 - (d * d) / (light_color[i].w * light_color[i].w), 0.0, 1.0);
-            falloff = k * k;
-            l = to_light / max(d, 1e-6);
+            float d2 = dot(to_light, to_light);
+            float range = light_color[i].w;
+            float k = clamp(1.0 - d2 / (range * range), 0.0, 1.0);
+            attenuation = k * k / max(d2, MIN_POINT_DISTANCE_SQ);
+            l = safe_normalize(to_light);
         }
-        lighting += light_color[i].rgb * max(dot(n, l), 0.0) * falloff;
+        float n_dot_l = clamp(dot(n, l), 0.0, 1.0);
+        if (n_dot_l <= 0.0) {
+            continue;
+        }
+        vec3 h = safe_normalize(l + v);
+        float n_dot_h = clamp(dot(n, h), 0.0, 1.0);
+        float v_dot_h = clamp(dot(v, h), 0.0, 1.0);
+        vec3 f = fresnel_schlick(f0, v_dot_h);
+        vec3 specular = f * (distribution_ggx(n_dot_h, alpha) * visibility_smith(n_dot_v, n_dot_l, alpha));
+        // glTF 2.0 Appendix B: the light that Fresnel reflects does not also diffuse.
+        vec3 diffuse = (1.0 - f) * diffuse_color / PI;
+        color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
-    frag_color = vec4(linear_to_srgb(aces_fitted(base.rgb * tint.rgb * lighting)), base.a);
+    frag_color = vec4(linear_to_srgb(aces_fitted(color)), base.a);
 }
 @end
 

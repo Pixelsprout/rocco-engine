@@ -3,6 +3,7 @@ package engine
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
+import "core:strings"
 import "core:testing"
 
 EPS :: f32(1e-5)
@@ -13,6 +14,7 @@ Submitted :: struct {
 	model:        Mat4,
 	normal_model: Mat4,
 	tint:         [4]f32,
+	material:     [4]f32,
 }
 
 Recorder :: struct {
@@ -188,7 +190,16 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 
 record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	r := (^Recorder)(ctx)
-	append(&r.submits, Submitted{mesh = mesh, model = vs_params.model, normal_model = vs_params.normal_model, tint = fs_params.tint})
+	append(
+		&r.submits,
+		Submitted {
+			mesh = mesh,
+			model = vs_params.model,
+			normal_model = vs_params.normal_model,
+			tint = fs_params.tint,
+			material = fs_params.material,
+		},
+	)
 }
 
 record_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
@@ -212,10 +223,10 @@ frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
 	frame_render_destroy(&f.fr)
 }
 
-frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32) -> []Submitted {
+frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye := [3]f32{}) -> []Submitted {
 	clear(&f.rec.submits)
 	f.rec.lights_calls = 0
-	frame_render_draw(&f.fr, prev, curr, alpha, 1, &f.meshes)
+	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes)
 	return f.rec.submits[:]
 }
 
@@ -345,9 +356,10 @@ test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t:
 	fr: Frame_Render
 	prev := Scene{camera = {eye = {0, 8, 8}, target = {0, 0, 0}, up = {0, 1, 0}, fov_y = 1}}
 	curr := Scene{camera = {eye = {2, 8, 8}, target = {2, 0, 0}, up = {0, 1, 0}, fov_y = 2}}
-	got := frame_render_camera(&fr, prev, curr, 0.5, 16.0 / 9.0)
+	got, eye := frame_render_camera(&fr, prev, curr, 0.5, 16.0 / 9.0)
 	want := scene_view_proj({eye = {1, 8, 8}, target = {1, 0, 0}, up = {0, 1, 0}, fov_y = 2}, 16.0 / 9.0)
 	expect_mat4_near(t, got, want)
+	testing.expect_value(t, eye, [3]f32{1, 8, 8})
 	testing.expect(t, !fr.up_fallback_logged)
 }
 
@@ -355,7 +367,7 @@ test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t:
 test_frame_render_camera_uses_the_scene_up :: proc(t: ^testing.T) {
 	fr: Frame_Render
 	s := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {1, 0, 0}, fov_y = 1}}
-	got := frame_render_camera(&fr, s, s, 0, 1)
+	got, _ := frame_render_camera(&fr, s, s, 0, 1)
 	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, {1, 0, 0})
 	expect_mat4_near(t, got, want)
 }
@@ -366,9 +378,11 @@ test_frame_render_camera_falls_back_to_world_up_and_logs_once :: proc(t: ^testin
 	along := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {0, 0, 1}, fov_y = 1}}
 	zero := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, fov_y = 1}}
 	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, UP)
-	expect_mat4_near(t, frame_render_camera(&fr, along, along, 0, 1), want)
+	got_along, _ := frame_render_camera(&fr, along, along, 0, 1)
+	expect_mat4_near(t, got_along, want)
 	testing.expect(t, fr.up_fallback_logged)
-	expect_mat4_near(t, frame_render_camera(&fr, zero, zero, 0, 1), want)
+	got_zero, _ := frame_render_camera(&fr, zero, zero, 0, 1)
+	expect_mat4_near(t, got_zero, want)
 }
 
 @(test)
@@ -485,4 +499,35 @@ expect_v4_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_location
 
 expect_quat_near :: proc(t: ^testing.T, got, want: quaternion128, loc := #caller_location) {
 	testing.expectf(t, abs(abs(quat_dot(got, want)) - 1) < EPS, "got %v, want %v", got, want, loc = loc)
+}
+
+@(test)
+test_frame_render_submits_the_material_of_each_mesh :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	shiny, _ := mesh_table_add(&f.meshes, strings.clone("shiny"), {material = {roughness = 0.3, metallic = 0.7}})
+	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), {material = {roughness = 1, unlit = true}})
+	draws := []Draw {
+		{id = 1, mesh = u32(Primitive.Sphere)},
+		{id = 2, mesh = mesh_id(&f.meshes, shiny)},
+		{id = 3, mesh = mesh_id(&f.meshes, sign)},
+	}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 3)
+	testing.expect_value(t, got[0].material, [4]f32{1, 0, 0, 0})
+	testing.expect_value(t, got[1].material, [4]f32{0.3, 0.7, 0, 0})
+	testing.expect_value(t, got[2].material, [4]f32{1, 0, 1, 0})
+}
+
+@(test)
+test_frame_render_gives_the_lights_the_camera_eye :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := Scene{}
+	frame_fixture_draw(&f, s, s, 0, eye = {1, 2, 3})
+	testing.expect_value(t, f.rec.lights.camera_pos, [4]f32{1, 2, 3, 0})
 }

@@ -74,7 +74,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, sampler_pool_size = SAMPLER_POOL_SIZE})
+	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE})
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()
@@ -110,19 +110,21 @@ frame_cb :: proc "c" () {
 	prev, curr := seam_scenes(&g_state.seam)
 	aspect := f32(sapp.width()) / f32(sapp.height())
 	view_proj: Mat4
+	eye: [3]f32
 	if g_state.use_debug_camera {
 		camera_look(&g_state.debug_camera, &g_state.input)
 		camera_fly(&g_state.debug_camera, &g_state.input, f32(min(sapp.frame_duration(), MAX_FRAME_TIME)))
 		view_proj = camera_proj(&g_state.debug_camera, aspect) * camera_view(&g_state.debug_camera)
+		eye = g_state.debug_camera.eye
 	} else {
-		view_proj = frame_render_camera(&g_state.frame_render, prev, curr, alpha, aspect)
+		view_proj, eye = frame_render_camera(&g_state.frame_render, prev, curr, alpha, aspect)
 	}
 	cursor := Cursor.Locked if g_state.use_debug_camera else curr.cursor
 	if (cursor == .Locked) != sapp.mouse_locked() {
 		sapp.lock_mouse(cursor == .Locked)
 	}
 
-	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, &g_state.renderer.meshes)
+	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes)
 
 	sg.end_pass()
 	sg.commit()

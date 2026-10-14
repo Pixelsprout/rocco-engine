@@ -5,8 +5,9 @@ import sg "../sokol-odin/sokol/gfx"
 // The window swapchain and the pipeline must agree, or sokol rejects the pipeline.
 SAMPLE_COUNT :: 4
 
-// Each loaded mesh can own one sampler, and the white image needs one more.
-SAMPLER_POOL_SIZE :: MESH_CAPACITY + 1
+// Each loaded mesh can own a base colour and a metallic-roughness texture,
+// each with its own image, view and sampler. The white image needs one more.
+TEXTURE_POOL_SIZE :: 2 * MESH_CAPACITY + 1
 
 @(rodata)
 WHITE_TEXEL := [4]byte{255, 255, 255, 255}
@@ -58,13 +59,13 @@ renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
 	r := (^Renderer)(ctx)
-	tex := mesh_texture_or(mesh, r.white)
+	base, metallic_roughness := mesh_textures(mesh, r.white)
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = mesh.vertices},
 			index_buffer = mesh.indices,
-			views = {VIEW_base_tex = tex.view},
-			samplers = {SMP_base_smp = tex.sampler},
+			views = {VIEW_base_tex = base.view, VIEW_metallic_roughness_tex = metallic_roughness.view},
+			samplers = {SMP_base_smp = base.sampler, SMP_metallic_roughness_smp = metallic_roughness.sampler},
 		},
 	)
 

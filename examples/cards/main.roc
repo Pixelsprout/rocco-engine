@@ -36,10 +36,11 @@ update = |m, input, _contacts, _dt|
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
 step = |m, input, contacts, dt| { model: update(m, input, contacts, dt), commands: [] }
 
+# The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
 lights : List(Vocabulary.Light)
 lights = [
     Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-    Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 1.6, g: 1.6, b: 1.6 }),
+    Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
 view : Model -> Scene

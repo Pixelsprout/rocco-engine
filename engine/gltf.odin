@@ -47,10 +47,11 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 }
 
 GLB_NOTE_REASONS := [Glb_Note]string {
-	.Jpeg_Skipped      = "its base colour texture is a JPEG, so it draws untextured; export PNG",
-	.Bad_Png           = "its base colour PNG does not decode or has a side over 32768, so it draws untextured",
-	.Unsupported_Image = "its base colour texture is not an embedded PNG, so it draws untextured",
+	.Jpeg_Skipped      = "a texture is a JPEG, so it draws without that texture; export PNG",
+	.Bad_Png           = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
+	.Unsupported_Image = "a texture is not an embedded PNG, so it draws without that texture",
 	.Mixed_Textures    = "its primitives do not share one base colour texture, so they all draw the first",
+	.Mixed_Materials   = "its primitives do not share one roughness, metallic, unlit flag and metallic-roughness texture, so they all draw the first",
 }
 
 Glb_Error :: enum {
@@ -78,6 +79,7 @@ Glb_Note :: enum {
 	Bad_Png,
 	Unsupported_Image,
 	Mixed_Textures,
+	Mixed_Materials,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -93,12 +95,16 @@ Gltf :: struct {
 		primitives: []Gltf_Primitive,
 	},
 	materials:    []struct {
-		pbr: struct {
-			base_color_factor:  Maybe([4]f32) `json:"baseColorFactor"`,
-			base_color_texture: Maybe(struct {
-					index: int,
-				}) `json:"baseColorTexture"`,
+		pbr:        struct {
+			base_color_factor:          Maybe([4]f32) `json:"baseColorFactor"`,
+			base_color_texture:         Maybe(Gltf_Texture_Ref) `json:"baseColorTexture"`,
+			metallic_factor:            Maybe(f32) `json:"metallicFactor"`,
+			roughness_factor:           Maybe(f32) `json:"roughnessFactor"`,
+			metallic_roughness_texture: Maybe(Gltf_Texture_Ref) `json:"metallicRoughnessTexture"`,
 		} `json:"pbrMetallicRoughness"`,
+		extensions: struct {
+			unlit: Maybe(struct {}) `json:"KHR_materials_unlit"`,
+		},
 	},
 	textures:     []struct {
 		source:  Maybe(int),
@@ -116,6 +122,10 @@ Gltf :: struct {
 	},
 	accessors:    []Gltf_Accessor,
 	buffer_views: []Gltf_Buffer_View `json:"bufferViews"`,
+}
+
+Gltf_Texture_Ref :: struct {
+	index: int,
 }
 
 Gltf_Node :: struct {
@@ -159,7 +169,14 @@ Glb_Loader :: struct {
 	// The primitives so far name one texture, or none, between them.
 	first:    Maybe(Maybe(int)),
 	mixed:    bool,
+	// The first primitive's, which the whole mesh draws with.
+	material: Maybe(Glb_Material),
 	notes:    Glb_Notes,
+}
+
+Glb_Material :: struct {
+	values:             Material,
+	metallic_roughness: Maybe(int),
 }
 
 // One accessor's elements in the BIN chunk. data starts at element 0.
@@ -171,7 +188,7 @@ Glb_View :: struct {
 }
 
 // Merges every triangle primitive of every mesh node in the glTF scene into
-// one mesh with one base colour texture. Scratch is frame memory, so a
+// one mesh with one base colour texture and one material. Scratch is frame memory, so a
 // rejected file leaves nothing in allocator.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
 	json_chunk, bin := glb_chunks(bytes) or_return
@@ -193,12 +210,23 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	}
 	texture: Maybe(Texture)
 	if index, ok := l.texture.?; ok {
-		texture = glb_texture(&l, index, allocator) or_return
+		texture = glb_texture(&l, index, srgb = true, allocator = allocator) or_return
 	}
 	if l.mixed && texture != nil {
 		l.notes += {.Mixed_Textures}
 	}
-	data = {vertices = slice.clone(l.vertices[:], allocator), indices = slice.clone(l.indices[:], allocator), texture = texture}
+	material := l.material.? or_else {}
+	metallic_roughness: Maybe(Texture)
+	if index, ok := material.metallic_roughness.?; ok {
+		metallic_roughness = glb_texture(&l, index, srgb = false, allocator = allocator) or_return
+	}
+	data = {
+		vertices           = slice.clone(l.vertices[:], allocator),
+		indices            = slice.clone(l.indices[:], allocator),
+		texture            = texture,
+		material           = material.values,
+		metallic_roughness = metallic_roughness,
+	}
 	return data, l.notes, .None
 }
 
@@ -336,11 +364,15 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 
 	color := GREY
 	tex: Maybe(int)
+	material := Glb_Material {
+		values = MATERIAL_MATTE,
+	}
 	if m, ok := p.material.?; ok {
 		if m < 0 || m >= len(l.gltf.materials) {
 			return .Bad_Material
 		}
-		pbr := &l.gltf.materials[m].pbr
+		gltf_material := &l.gltf.materials[m]
+		pbr := &gltf_material.pbr
 		color = pbr.base_color_factor.? or_else {1, 1, 1, 1}
 		if ref, textured := pbr.base_color_texture.?; textured {
 			tex = ref.index
@@ -348,11 +380,24 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 				l.texture = ref.index
 			}
 		}
+		material.values = {
+			roughness = clamp(pbr.roughness_factor.? or_else 1, 0, 1),
+			metallic  = clamp(pbr.metallic_factor.? or_else 1, 0, 1),
+			unlit     = gltf_material.extensions.unlit != nil,
+		}
+		if ref, textured := pbr.metallic_roughness_texture.?; textured {
+			material.metallic_roughness = ref.index
+		}
 	}
 	if first, seen := l.first.?; !seen {
 		l.first = tex
 	} else if first != tex {
 		l.mixed = true
+	}
+	if first, seen := l.material.?; !seen {
+		l.material = material
+	} else if first != material {
+		l.notes += {.Mixed_Materials}
 	}
 
 	basis := linalg.matrix3_from_matrix4_f32(world)
@@ -464,7 +509,7 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 }
 
 // A texture that cannot draw gives a note and no texture. Only a bad index is an error.
-glb_texture :: proc(l: ^Glb_Loader, index: int, allocator: mem.Allocator) -> (tex: Maybe(Texture), err: Glb_Error) {
+glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Allocator) -> (tex: Maybe(Texture), err: Glb_Error) {
 	if index < 0 || index >= len(l.gltf.textures) {
 		return nil, .Bad_Texture
 	}
@@ -508,7 +553,7 @@ glb_texture :: proc(l: ^Glb_Loader, index: int, allocator: mem.Allocator) -> (te
 			l.notes += {.Bad_Png}
 			return nil, .None
 		}
-		return texture_build(width, height, rgba, sampler, allocator), .None
+		return texture_build(width, height, rgba, sampler, srgb, allocator), .None
 	case "image/jpeg":
 		l.notes += {.Jpeg_Skipped}
 	case:

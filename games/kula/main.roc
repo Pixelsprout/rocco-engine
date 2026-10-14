@@ -61,11 +61,12 @@ action = |input|
 sun_dir : Vec3.Vec3
 sun_dir = { x: -2.0 / 7.0, y: -6.0 / 7.0, z: -3.0 / 7.0 }
 
+# The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
 lights : List(Vocabulary.Light)
 lights = [
 	Light.ambient({ r: 0.15, g: 0.15, b: 0.15 }),
-	Light.directional(sun_dir, { r: 1.6, g: 1.6, b: 1.6 }),
-	Light.directional(Vec3.neg(sun_dir), { r: 0.3, g: 0.3, b: 0.3 }),
+	Light.directional(sun_dir, { r: 5.03, g: 5.03, b: 5.03 }),
+	Light.directional(Vec3.neg(sun_dir), { r: 0.94, g: 0.94, b: 0.94 }),
 ]
 
 view : Model -> Scene
