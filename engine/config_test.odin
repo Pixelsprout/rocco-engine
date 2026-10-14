@@ -22,37 +22,19 @@ test_seed_reads_any_u64 :: proc(t: ^testing.T) {
 	}
 }
 
-// packages/mesh/Mesh.roc checks the same literal manifest.
 @(test)
-test_config_carries_the_seed_and_the_manifest_built_from_the_mesh_table :: proc(t: ^testing.T) {
-	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
-	defer mesh_table_destroy(&table)
-	table.meshes[table.count].name = "sprout"
-	table.count += 1
-
+test_config_carries_the_seed_and_the_asset_names_with_no_ids :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
-	config := config_make(42, &table)
+	names := []string{"ball", "an asset name longer than twenty-three bytes"}
+	config := config_make(42, names)
 	defer roc_decref(config)
 
-	Entry :: struct {
-		name: string,
-		id:   u32,
-	}
-	want := []Entry{{"primitive/fallback", 0}, {"primitive/cube", 1}, {"primitive/sphere", 2}, {"primitive/plane", 3}, {"sprout", 4}}
 	testing.expect_value(t, config.seed, 42)
-	testing.expect_value(t, int(config.meshes.length), len(want))
-	for &e, i in config.meshes.elements[:config.meshes.length] {
-		testing.expect_value(t, Entry{roc_str_inline(&e.name), e.id}, want[i])
+	testing.expect_value(t, int(config.assets.length), len(names))
+	for &name, i in config.assets.elements[:config.assets.length] {
+		testing.expect_value(t, roc_str_string(&name), names[i])
 	}
-}
-
-// Every name in the test is short enough to live inside the Roc_Str.
-roc_str_inline :: proc(s: ^Roc_Str) -> string {
-	raw := ([^]u8)(s)
-	n := int(raw[size_of(Roc_Str) - 1] & 0x7f)
-	return string(raw[:n])
 }
 
 @(test)

@@ -1,10 +1,10 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
+app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Vec3 as V
 import linalg.Quat
-import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, Scene, Vec3]
 import pf.Collider
 import pf.Key
 import pf.Light
@@ -18,7 +18,7 @@ Kind : [Player({ grounded : Bool }), Pickup, Block, Goal, Door({ open : Bool, li
 # a younger entity is the one way to break that.
 Entity : { id : U64, kind : Kind, parent : [Root, Child(U64)], pos : Vec3, vel : Vec3, yaw : F32, alive : Bool }
 
-# The ids this game resolved from the manifest at init. Resolved once, kept
+# The ids this game resolved from the Manifest in loaded. Resolved once, kept
 # in the Model, never looked up per step.
 MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32 }
 
@@ -29,22 +29,29 @@ Phase : [Playing, Won(F32)]
 
 Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64) }
 
-# ---- init : Config -> Model ---------------------------------------------
+# ---- init : Config -> { model, commands } -------------------------------
 #
-# Config is the engine's: a seed and the mesh manifest, nothing about this
-# game. How many pickups a round has, and which mesh is a pickup, is decided
-# here.
+# Config is the engine's: a seed and the asset names on disk, nothing about
+# this game. How many pickups a round has, and which mesh is a pickup, is
+# decided here. The host runs the Load and calls loaded before the first view.
 
-init : Config -> Model
-init = |config| new_game(resolve_meshes(config), round_pickups, 0)
+init : Config -> { model : Model, commands : List(Command) }
+init = |_config| { model: new_game(primitive_meshes, round_pickups, 0), commands: [Load({ pack: "sprout", assets: ["sprout"] })] }
 
-resolve_meshes : Config -> MeshIds
-resolve_meshes = |config| {
-	cube: Mesh.primitive(config, Cube),
-	sphere: Mesh.primitive(config, Sphere),
-	plane: Mesh.primitive(config, Plane),
-	sprout: Mesh.resolve(config, "sprout"),
+loaded : Model, Str, Manifest -> Model
+loaded = |model, _pack, manifest| { ..model, meshes: resolve_meshes(manifest) }
+
+# sprout is 0, the fallback, until loaded.
+primitive_meshes : MeshIds
+primitive_meshes = {
+	cube: Mesh.primitive(Cube),
+	sphere: Mesh.primitive(Sphere),
+	plane: Mesh.primitive(Plane),
+	sprout: 0,
 }
+
+resolve_meshes : Manifest -> MeshIds
+resolve_meshes = |manifest| { ..primitive_meshes, sprout: Mesh.resolve(manifest, "sprout") }
 
 # Fills the first `pickups` pickup spots.
 new_game : MeshIds, U64, U64 -> Model
@@ -713,12 +720,15 @@ pi = 3.1415927
 
 # ---- tests. `roc test main.roc` runs these with no engine. ----------------
 
-# What the engine would hand init on this machine.
-manifest : Config
-manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }, { name: "sprout", id: 4 }] }
+# What the engine would hand loaded on this machine.
+manifest : Manifest
+manifest = [{ name: "sprout", id: 4 }]
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
+
+expect init({ seed: 0, assets: ["sprout"] }).commands == [Load({ pack: "sprout", assets: ["sprout"] })]
+expect loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4 }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }

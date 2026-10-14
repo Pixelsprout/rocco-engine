@@ -1,15 +1,19 @@
 package engine
 
+import "core:os"
 import "core:slice"
+import "core:strings"
 import "core:testing"
 
 FAKE_KEYS_MAX :: 8
 FAKE_CONTACTS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
+NO_MESH_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
 	init       = fake_init,
 	step       = fake_step,
+	loaded     = fake_loaded,
 	view       = fake_view,
 	drop_model = fake_drop_model,
 }
@@ -21,29 +25,39 @@ Fake_Command_Run :: struct {
 }
 
 Fake_Game :: struct {
-	inits:        int,
-	seed:         u64,
-	init_box:     rawptr,
-	steps:        int,
-	step_in:      rawptr,
-	step_in_rc:   int,
-	step_out:     rawptr,
-	held:         [FAKE_KEYS_MAX]u16,
-	held_len:     int,
-	pressed:      [FAKE_KEYS_MAX]u16,
-	pressed_len:  int,
-	contacts:     [FAKE_CONTACTS_MAX]Contact,
-	contacts_len: int,
-	views:        int,
-	view_box:     rawptr,
-	view_rc:      int,
-	drops:        int,
-	drop_box:     rawptr,
-	drop_rc:      int,
-	colliders:    []Collider,
-	commands_out: int,
-	runs:         [FAKE_COMMANDS_MAX]Fake_Command_Run,
-	runs_len:     int,
+	inits:           int,
+	seed:            u64,
+	assets:          []string,
+	init_box:        rawptr,
+	init_commands:   []Command,
+	steps:           int,
+	step_in:         rawptr,
+	step_in_rc:      int,
+	step_out:        rawptr,
+	held:            [FAKE_KEYS_MAX]u16,
+	held_len:        int,
+	pressed:         [FAKE_KEYS_MAX]u16,
+	pressed_len:     int,
+	contacts:        [FAKE_CONTACTS_MAX]Contact,
+	contacts_len:    int,
+	views:           int,
+	view_box:        rawptr,
+	view_rc:         int,
+	drops:           int,
+	drop_box:        rawptr,
+	drop_rc:         int,
+	colliders:       []Collider,
+	commands_out:    int,
+	next_commands:   []Command,
+	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
+	runs_len:        int,
+	loadeds:         int,
+	loaded_at:       Fake_Command_Run,
+	loaded_pack:     string,
+	loaded_manifest: []Manifest_Line,
+	loaded_out:      rawptr,
+	meshes:          Mesh_Table,
+	packs:           Packs,
 }
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
@@ -65,12 +79,29 @@ fake_box_free :: proc(box: rawptr) {
 	roc_dealloc(rawptr(uintptr(box) - size_of(int)), align_of(int))
 }
 
-fake_init :: proc(config: Config) -> rawptr {
+// The list a game returns owns the strings, so build each Load after roc_heap_test_begin.
+fake_load :: proc(pack: string, assets: ..string) -> Command {
+	names := make([]Roc_Str, len(assets), context.temp_allocator)
+	for name, i in assets {
+		names[i] = roc_str_from_slice(name)
+	}
+	command := Command {
+		tag = .Load,
+	}
+	command.payload.load = {pack = roc_str_from_slice(pack), assets = roc_list_from_slice(names)}
+	return command
+}
+
+fake_init :: proc(config: Config) -> Init_Result {
 	g_fake.inits += 1
 	g_fake.seed = config.seed
+	g_fake.assets = make([]string, config.assets.length, context.temp_allocator)
+	for &name, i in config.assets.elements[:config.assets.length] {
+		g_fake.assets[i] = strings.clone(roc_str_string(&name), context.temp_allocator)
+	}
 	roc_decref(config)
 	g_fake.init_box = fake_box_new()
-	return g_fake.init_box
+	return {model = g_fake.init_box, commands = roc_list_from_slice(g_fake.init_commands)}
 }
 
 fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result {
@@ -86,8 +117,31 @@ fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: 
 	roc_list_decref(contacts)
 
 	g_fake.step_out = fake_box_new()
-	quits: [FAKE_COMMANDS_MAX]Command
-	return {model = g_fake.step_out, commands = roc_list_from_slice(quits[:g_fake.commands_out])}
+	commands := make([dynamic]Command, context.temp_allocator)
+	for _ in 0 ..< g_fake.commands_out {
+		append(&commands, Command{tag = .Quit})
+	}
+	append(&commands, ..g_fake.next_commands)
+	g_fake.next_commands = nil
+	return {model = g_fake.step_out, commands = roc_list_from_slice(commands[:])}
+}
+
+fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr {
+	g_fake.loadeds += 1
+	g_fake.loaded_at = {steps = g_fake.steps, views = g_fake.views}
+	fake_box_free(model)
+
+	name := pack
+	g_fake.loaded_pack = strings.clone(roc_str_string(&name), context.temp_allocator)
+	roc_decref(pack)
+	g_fake.loaded_manifest = make([]Manifest_Line, manifest.length, context.temp_allocator)
+	for &entry, i in manifest.elements[:manifest.length] {
+		g_fake.loaded_manifest[i] = {strings.clone(roc_str_string(&entry.name), context.temp_allocator), entry.id}
+	}
+	roc_list_decref(manifest)
+
+	g_fake.loaded_out = fake_box_new()
+	return g_fake.loaded_out
 }
 
 fake_view :: proc(model: rawptr) -> Scene {
@@ -113,9 +167,20 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil) {
-	g_fake = {colliders = colliders}
-	seam_init(s, FAKE_GAME, fake_run_command, Config{seed = seed})
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, mesh_dir := NO_MESH_DIR, init_commands: []Command = nil) {
+	g_fake = {colliders = colliders, init_commands = init_commands}
+	mesh_table_init(&g_fake.meshes, context.temp_allocator)
+	packs_init(&g_fake.packs, &g_fake.meshes, mesh_dir, context.temp_allocator)
+	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk), &g_fake.packs)
+}
+
+// a.glb and b.glb load; broken.glb is on disk but fails.
+fake_mesh_dir :: proc(t: ^testing.T) -> string {
+	files := make(map[string][]byte, context.temp_allocator)
+	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	files["b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	files["broken.glb"] = transmute([]byte)string("not a glb")
+	return temp_mesh_dir(t, files)
 }
 
 @(test)
@@ -358,4 +423,126 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 	step_time, view_time := seam_step(&s, {}, 1.0 / 60)
 	testing.expect(t, step_time >= 0)
 	testing.expect(t, view_time >= 0)
+}
+
+@(test)
+test_seam_init_runs_its_load_and_calls_loaded_before_the_first_view :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
+	defer seam_shutdown(&s)
+
+	testing.expect_value(t, g_fake.loadeds, 1)
+	testing.expect_value(t, g_fake.loaded_at, Fake_Command_Run{steps = 0, views = 0})
+	testing.expect_value(t, g_fake.loaded_pack, "start")
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, []Manifest_Line{{"a", len(Primitive)}}))
+	testing.expect_value(t, g_fake.views, 1)
+	testing.expect_value(t, g_fake.view_box, g_fake.loaded_out)
+}
+
+@(test)
+test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, 42, mesh_dir = dir)
+	defer seam_shutdown(&s)
+
+	testing.expect_value(t, g_fake.seed, 42)
+	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken"}))
+	testing.expect_value(t, g_fake.meshes.count, len(Primitive))
+	testing.expect_value(t, g_fake.loadeds, 0)
+}
+
+@(test)
+test_seam_step_runs_a_load_after_step_and_calls_loaded_before_view :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir)
+	defer seam_shutdown(&s)
+
+	g_fake.next_commands = {fake_load("room", "b")}
+	seam_step(&s, {}, 1.0 / 60)
+
+	testing.expect_value(t, g_fake.loadeds, 1)
+	testing.expect_value(t, g_fake.loaded_at, Fake_Command_Run{steps = 1, views = 1})
+	testing.expect_value(t, g_fake.views, 2)
+	testing.expect_value(t, g_fake.view_box, g_fake.loaded_out)
+}
+
+@(test)
+test_loaded_gets_every_asked_for_name_and_a_missing_or_broken_one_has_id_0 :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir)
+	defer seam_shutdown(&s)
+
+	g_fake.next_commands = {fake_load("room", "b", "nope", "primitive/cube", "broken", "a")}
+	seam_step(&s, {}, 1.0 / 60)
+
+	want := []Manifest_Line{{"b", len(Primitive)}, {"nope", 0}, {"primitive/cube", 1}, {"broken", 0}, {"a", len(Primitive) + 1}}
+	testing.expect_value(t, g_fake.loaded_pack, "room")
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, want))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+
+	g_fake.next_commands = {fake_load("hall", "nope", "broken", "b")}
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, []Manifest_Line{{"nope", 0}, {"broken", 0}, {"b", len(Primitive)}}))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+	testing.expect_value(t, g_fake.meshes.count, len(Primitive) + 2)
+}
+
+@(test)
+test_a_repeated_load_logs_once_and_does_not_call_loaded_again :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
+	defer seam_shutdown(&s)
+
+	g_fake.next_commands = {fake_load("room", "b"), fake_load("room", "b")}
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.loadeds, 2)
+	testing.expect_value(t, len(g_fake.packs.logged_packs), 1)
+
+	g_fake.next_commands = {fake_load("start", "a"), fake_load("room")}
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.loadeds, 2)
+	testing.expect_value(t, len(g_fake.packs.logged_packs), 2)
+	testing.expect_value(t, g_fake.loaded_pack, "room")
+}
+
+@(test)
+test_loads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	long_name := "a pack name longer than twenty-three bytes"
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load(long_name, "a", "a mesh name longer than twenty-three bytes")})
+	g_fake.next_commands = {fake_load(long_name, "b"), fake_load("room", "b")}
+	seam_step(&s, {}, 1.0 / 60)
+	seam_shutdown(&s)
+
+	testing.expect_value(t, roc_heap_counters().live, 0)
 }

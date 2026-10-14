@@ -1,7 +1,8 @@
 platform ""
     requires {} {
-        [Model: model] for init : Vocabulary.Config -> model,
+        [Model: model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
         step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
+        loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
     exposes [Vocabulary, Key, Collider, Light]
@@ -9,6 +10,7 @@ platform ""
     provides {
         "roc_init": init_for_host,
         "roc_step": step_for_host,
+        "roc_loaded": loaded_for_host,
         "roc_view": view_for_host,
         "roc_drop_model": drop_model_for_host,
     }
@@ -57,7 +59,7 @@ platform ""
         ] },
     }
 
-import Vocabulary exposing [Command, Config, Contact, Input, Scene]
+import Vocabulary exposing [Command, Config, Contact, Input, Manifest, Scene]
 
 # Only here because every exposes entry needs a matching import.
 import Key
@@ -69,14 +71,20 @@ import Light
 # so Roc owns the Model uniquely and step mutates it in place. Interpolation
 # happens in the host between two Scenes, paired by draw id; Roc never sees
 # a previous Model or an alpha.
-init_for_host : Config -> Box(Model)
-init_for_host = |config| Box.box(init(config))
+init_for_host : Config -> { model : Box(Model), commands : List(Command) }
+init_for_host = |config| {
+    started = init(config)
+    { model: Box.box(started.model), commands: started.commands }
+}
 
 step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
 step_for_host = |boxed, input, contacts, dt| {
     stepped = step(Box.unbox(boxed), input, contacts, dt)
     { model: Box.box(stepped.model), commands: stepped.commands }
 }
+
+loaded_for_host : Box(Model), Str, Manifest -> Box(Model)
+loaded_for_host = |boxed, pack, manifest| Box.box(loaded(Box.unbox(boxed), pack, manifest))
 
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))

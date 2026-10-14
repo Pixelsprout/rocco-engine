@@ -22,6 +22,7 @@ State :: struct {
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
 	seam:              Seam,
+	packs:             Packs,
 	alloc_report:      bool,
 	steps:             u64,
 	frame_render:      Frame_Render,
@@ -45,12 +46,13 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	// Name and load the meshes before sokol starts, so the manifest does not wait on the GPU.
+	// init runs before sokol starts. renderer_init uploads the meshes its Loads added.
 	mesh_table_init(&g_state.renderer.meshes, g_state.mem.perm_allocator)
-	mesh_table_load_dir(&g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
+	packs_init(&g_state.packs, &g_state.renderer.meshes, mesh_dir_from_env(), g_state.mem.level_allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	seam_init(&g_state.seam, ROC_GAME, app_run_command, config_make(seed_from_env(), &g_state.renderer.meshes))
+	config := config_make(seed_from_env(), g_state.packs.on_disk)
+	seam_init(&g_state.seam, ROC_GAME, app_run_command, config, &g_state.packs)
 
 	sapp.run(
 		sapp.Desc {
@@ -165,8 +167,9 @@ event_cb :: proc "c" (event: ^sapp.Event) {
 	input_on_event(&g_state.input, event)
 }
 
-// Command has one tag and no payload, so every Command is Quit.
 // Quit lets the current frame finish.
 app_run_command :: proc(command: Command) {
-	sapp.request_quit()
+	if command.tag == .Quit {
+		sapp.request_quit()
+	}
 }

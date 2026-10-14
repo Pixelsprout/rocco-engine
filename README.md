@@ -267,13 +267,15 @@ Milestones 1 to 10 of `docs/ROADMAP.md` are done. The engine builds and runs
 on macOS, Linux and Windows from one checkout. The platform names no game:
 three games (`cards`, `entity-game`, `kula`) link against one host library.
 `examples/pong` does not compile against the current platform.
-Each draw carries a mesh id from the manifest, and an unknown id draws the
+Each draw carries a mesh id from a Manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.
 
-At startup the engine loads every `.glb` in `assets/meshes/` beside the game,
-and adds each one to the manifest under its file stem. `roc run` and the
-built binary both find it from any working directory.
+At startup the engine loads only its primitives and lists the `.glb` files in
+`assets/meshes/` beside the game in `Config.assets`, by file stem. A game
+sends `Load` with a pack name and the names it wants. The host loads them and
+calls `loaded` with each id before the next `view`. `roc run` and the built
+binary both find the assets from any working directory.
 `ROCCO_ASSETS` replaces the `assets` path. The entity game draws its player
 as the sprout model. Colours and tints are linear, and the shader encodes to
 sRGB. Milestone 5, entities in Roc, is next.

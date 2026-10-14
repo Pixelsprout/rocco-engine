@@ -3,17 +3,21 @@ package engine
 import "core:time"
 
 Game_Calls :: struct {
-	init:       proc(config: Config) -> rawptr,
+	init:       proc(config: Config) -> Init_Result,
 	step:       proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result,
+	loaded:     proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr,
 	view:       proc(model: rawptr) -> Scene,
 	drop_model: proc(model: rawptr),
 }
 
+// Runs every Command but Load. The Seam runs Load itself, because loaded must
+// reach the game before the next view.
 Command_Runner :: #type proc(command: Command)
 
 Seam :: struct {
 	calls:       Game_Calls,
 	run_command: Command_Runner,
+	packs:       ^Packs,
 	model:       rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
@@ -27,11 +31,14 @@ Seam :: struct {
 // Owns the one reference to the Model, the last two Scenes and the contacts.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
-seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, config: Config) {
+seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, config: Config, packs: ^Packs) {
 	s.calls = calls
 	s.run_command = run_command
+	s.packs = packs
 	contact_search_init(&s.search, context.allocator)
-	s.model = s.calls.init(config)
+	started := s.calls.init(config)
+	s.model = started.model
+	seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
 }
 
@@ -44,15 +51,11 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
 	// step frees the old box and consumes the contacts. Never touch either again.
-	// The host owns the returned commands list and frees it after running it.
 	result := s.calls.step(s.model, input, s.contacts, dt)
 	s.model = result.model
 	s.contacts = {}
 	stepped := time.tick_now()
-	for command in result.commands.elements[:result.commands.length] {
-		s.run_command(command)
-	}
-	roc_list_decref(result.commands)
+	seam_run_commands(s, result.commands)
 	if s.has_prev {
 		roc_decref(s.prev)
 	}
@@ -69,6 +72,41 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 // Before the first step there is one Scene, and it pairs with itself.
 seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
+}
+
+// The host owns the commands list and frees it after running it, so every
+// string a command holds is only borrowed until then.
+@(private = "file")
+seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) {
+	for &command in commands.elements[:commands.length] {
+		switch command.tag {
+		case .Load:
+			seam_load(s, &command.payload.load)
+		case .Quit:
+			s.run_command(command)
+		}
+	}
+	roc_list_decref(commands)
+}
+
+// loaded consumes the box, the pack name and the manifest, as step does.
+@(private = "file")
+seam_load :: proc(s: ^Seam, load: ^Load_Command) {
+	pack := roc_str_string(&load.pack)
+	assets := make([]string, load.assets.length, context.temp_allocator)
+	for &name, i in load.assets.elements[:load.assets.length] {
+		assets[i] = roc_str_string(&name)
+	}
+	lines, ok := pack_load(s.packs, pack, assets, context.temp_allocator)
+	if !ok {
+		return
+	}
+
+	entries := make([]Manifest_Entry, len(lines), context.temp_allocator)
+	for line, i in lines {
+		entries[i] = {name = roc_str_from_slice(line.name), id = line.id}
+	}
+	s.model = s.calls.loaded(s.model, roc_str_from_slice(pack), roc_list_from_slice(entries))
 }
 
 // view consumes one reference, so give it one and keep ours.

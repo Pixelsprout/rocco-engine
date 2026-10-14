@@ -40,9 +40,8 @@ loaded : Model, Str, Manifest -> Model
 view : Model -> Scene
 ```
 
-`init` returning Commands and `loaded` are Milestone 12 decisions. Until
-the seam step of that milestone lands, `init` returns a `Model` and there is
-no `loaded`. See section "Packs own asset lifetimes".
+`init` returns Commands so that a game can load its first pack before the
+first step. See section "Packs own asset lifetimes".
 
 The host calls `step` then `view` inside the fixed-step loop. The host holds
 the current `Scene` and the previous `Scene`. At render time the host
@@ -123,9 +122,8 @@ Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), li
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
 
-`Config.assets`, `Manifest`, `Load` and `Unload` are Milestone 12
-decisions. Until the seam step lands, `Config` carries
-`meshes : List({ name : Str, id : U32 })` and `Command` is `[Quit]`.
+`Unload` is a Milestone 12 decision. Until its task lands, `Command` is
+`[Quit, Load({ pack : Str, assets : List(Str) })]`.
 
 | Type | Carries | Does not carry |
 |---|---|---|
@@ -298,16 +296,12 @@ game. The game keeps the ids it needs in its `Model`. A name the engine did
 not load resolves to id 0. The engine draws id 0 as the fallback mesh. A
 typo is visible, not fatal.
 
-Until the seam step of Milestone 12 lands, the engine loads every mesh it
-finds at startup, registers its own primitives in the same table, and hands
-the name-to-id manifest to `init` in `Config`.
-
 A closed tag union of mesh names is not allowed in `Scene`. It would rebuild
 `libhost.a` for every new asset.
 
 Games treat mesh ids as opaque. A game never hard-codes an id and never does
-maths on one. It gets each id from the Manifest in `loaded`. Until the seam
-step of Milestone 12 lands, it gets each id from `Config` in `init`.
+maths on one. It gets each id from the Manifest in `loaded`. The
+primitive ids are the one exception: `Mesh.primitive` returns them.
 
 The low 16 bits of a mesh id are the slot in the mesh table. The high 16
 bits are the slot's generation. Unloading a mesh empties its slot and adds
@@ -323,21 +317,22 @@ Assets are `.glb` files in `assets/meshes/`, in the directory of the
 program path (`argv[0]`). `roc run` sets `argv[0]` to the game's `main.roc`,
 and a built game has its binary in the game directory, so both find the
 game's assets from any working directory. `ROCCO_ASSETS` replaces the
-`assets` path. The engine reads only the files directly in `assets/meshes/`,
-in sorted order, so ids are stable across runs. A file goes into
-the manifest under its stem, such as `sprout`. Names are case-sensitive. The
-primitives go in as `primitive/fallback`, `primitive/cube`, `primitive/sphere`
-and `primitive/plane`. A file stem cannot contain `/`, so a file never takes
-the name of a primitive. A file that does not load is skipped and logged, and
-its name resolves to id 0.
+`assets` path. At startup the engine lists the files directly in
+`assets/meshes/` and loads none of them. `Config.assets` holds each stem,
+such as `sprout`, in sorted order. Names are case-sensitive. A `Load` reads
+each named file that is not loaded yet. Ids follow the order of the Loads,
+so the same Loads give the same ids. The primitives are named
+`primitive/fallback`, `primitive/cube`, `primitive/sphere` and
+`primitive/plane`. A file stem cannot contain `/`, so a file never takes
+the name of a primitive. A name that is not on disk, or a file that does
+not load, gets id 0 in the Manifest and one log line per run.
 
 The primitives have type-safe tags in the mesh package:
-`Mesh.primitive(config, Cube)`. `Mesh.resolve(config, "name")` resolves the
-name of a loaded file to its mesh id. Both return 0 and print a `dbg` line on
-a miss. The tags live in the package only. The vocabulary still carries only
-a `U32`. In Milestone 12, `Mesh.primitive(Cube)` returns the fixed id and
-takes no `Config`, and `Mesh.resolve` takes a Manifest. A host test and a
-`roc test` in `packages/mesh` pin the same four values. Decision.
+`Mesh.primitive(Cube)` returns the fixed id and takes no `Config`.
+`Mesh.resolve(manifest, "name")` resolves a loaded name to its mesh id. It
+returns 0 and prints a `dbg` line on a miss. The tags live in the package
+only. The vocabulary still carries only a `U32`. A host test and a `roc
+test` in `packages/mesh` pin the same four primitive ids. Decision.
 
 The asset names in `Config`, the Manifest and the pack names in `Load` and
 `Unload` are the places a refcounted type (`Str`) enters the vocabulary.
@@ -379,11 +374,12 @@ The platform header binds `Model` with a for-clause:
 ```roc
 platform ""
     requires {} {
-        [Model: model] for init : Vocabulary.Config -> model,
+        [Model: model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
         step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
+        loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary, Key, Collider]
+    exposes [Vocabulary, Key, Collider, Light]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -394,8 +390,11 @@ The host cannot hold a value whose layout differs per game. The wrappers box
 it:
 
 ```roc
-init_for_host : Config -> Box(Model)
-init_for_host = |config| Box.box(init(config))
+init_for_host : Config -> { model : Box(Model), commands : List(Command) }
+init_for_host = |config| {
+    started = init(config)
+    { model: Box.box(started.model), commands: started.commands }
+}
 
 step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
 step_for_host = |boxed, input, contacts, dt| {
@@ -403,26 +402,28 @@ step_for_host = |boxed, input, contacts, dt| {
     { model: Box.box(stepped.model), commands: stepped.commands }
 }
 
+loaded_for_host : Box(Model), Str, Manifest -> Box(Model)
+loaded_for_host = |boxed, pack, manifest| Box.box(loaded(Box.unbox(boxed), pack, manifest))
+
 view_for_host : Box(Model) -> Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
 ```
 
-The glue emits `Model` as one opaque pointer. The three entrypoints are:
+The glue emits `Model` as one opaque pointer. The four entrypoints are:
 
 ```
-roc_init(Config)                          -> ptr
+roc_init(Config)                          -> { ptr, List(Command) }
 roc_step(ptr, Input, List(Contact), f32)  -> { ptr, List(Command) }
+roc_loaded(ptr, Str, Manifest)            -> ptr
 roc_view(ptr)                             -> Scene
 ```
 
-Milestone 12 changes two entrypoints and adds one. `roc_init` returns
-`{ ptr, List(Command) }`, like `roc_step`. `roc_loaded(ptr, Str, Manifest)`
-returns a `ptr`, and the wrapper boxes it like `step_for_host`. Decision.
+`Load` holds a `Str` and a `List(Str)`, so the glue frees a `Command` with a
+decref that switches on the tag. Decision.
 
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Input`, `Contact`, `Scene` or `Command` change.
-Milestone 12 adds `Manifest` to that list. Those
-five types are the engine's public API.
+only when `Config`, `Manifest`, `Input`, `Contact`, `Scene` or `Command`
+change. Those types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
 qualified names such as `Vocabulary.Config`, because it does not see the

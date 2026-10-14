@@ -1,8 +1,8 @@
-app [init, step, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc" }
+app [init, step, loaded, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc" }
 
 import linalg.Quat
 import linalg.Vec3
-import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Rgb, Scene]
+import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, Rgb, Scene]
 import pf.Key
 import pf.Light
 import World
@@ -13,8 +13,11 @@ import View
 
 Model : Rules.Model
 
-init : Config -> Model
-init = |config| Rules.start(View.meshes(config))
+init : Config -> { model : Model, commands : List(Command) }
+init = |_config| { model: Rules.start(View.primitive_meshes), commands: [Load({ pack: "kula", assets: View.assets })] }
+
+loaded : Model, Str, Manifest -> Model
+loaded = |model, _pack, manifest| { ..model, meshes: View.meshes(manifest) }
 
 step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _contacts, dt| {
@@ -121,48 +124,54 @@ below = |cell| { ..cell, y: cell.y - 1 }
 cube : World.Meshes, U64, World.Cell, F32, Rgb -> Draw
 cube = |meshes, id, cell, size, tint| { id, mesh: meshes.cube, pos: Grid.to_vec3(cell), scale: Vec3.scale(Vec3.one, size), rot: Quat.identity, scale_rot: Quat.identity, tint }
 
-test_config : Config
-test_config = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }, { name: "primitive/sphere", id: 2 }, { name: "primitive/plane", id: 3 }, { name: "ball", id: 4 }, { name: "face", id: 5 }] }
+test_manifest : Manifest
+test_manifest = [{ name: "ball", id: 4 }, { name: "face", id: 5 }]
+
+# The Model after init and loaded, as the first view sees it.
+started : Model
+started = loaded(init({ seed: 0, assets: ["ball", "face"] }).model, "kula", test_manifest)
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-expect init(test_config).meshes == { cube: 1, face: 5, ball: 4 }
-expect init(test_config).ball == Ball.start(init(test_config).level.start)
+expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "kula", assets: ["ball", "face"] })]
+expect init({ seed: 0, assets: [] }).model.meshes == { cube: 1, face: 0, ball: 0 }
+expect started.meshes == { cube: 1, face: 5, ball: 4 }
+expect started.ball == Ball.start(started.level.start)
 
 up_held : Input
 up_held = { ..idle, held: [Key.code(Up)] }
 
-expect step(init(test_config), up_held, [], 0.13).model.ball.motion == Rolling({ from: init(test_config).level.start, t: 0.5 })
-expect step(init(test_config), { ..idle, pressed: [Key.code(Left)] }, [], 0.16).model.ball.turn == Turning({ from: init(test_config).level.start, t: 0.5, next: Stay })
-expect step(init(test_config), { ..idle, held: [Key.code(Left)] }, [], 0.16).model.ball.turn == Steady
+expect step(started, up_held, [], 0.13).model.ball.motion == Rolling({ from: started.level.start, t: 0.5 })
+expect step(started, { ..idle, pressed: [Key.code(Left)] }, [], 0.16).model.ball.turn == Turning({ from: started.level.start, t: 0.5, next: Stay })
+expect step(started, { ..idle, held: [Key.code(Left)] }, [], 0.16).model.ball.turn == Steady
 
 expect {
-	model = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model = [0.13, 0.13, 0.13, 0.13].fold(started, |m, dt| step(m, up_held, [], dt).model)
 	model.ball.pose.cell == { x: 0, y: 1, z: 7 }
 }
-expect step(init(test_config), { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
-expect step(init(test_config), idle, [], 0.1).commands == []
+expect step(started, { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
+expect step(started, idle, [], 0.1).commands == []
 
 expect {
-	draws = view(init(test_config)).draws
+	draws = view(started).draws
 	draws.len() == 49
 }
 
 expect {
-	draws = view(init(test_config)).draws
+	draws = view(started).draws
 	exit_faces = draws.keep_if(|d| d.tint == closed_exit_tint)
 	exit_faces.len() == 5 and exit_faces.all(|d| Vec3.length(d.pos) == 0.5)
 }
 
 expect {
-	draws = view(init(test_config)).draws
+	draws = view(started).draws
 	keys = draws.keep_if(|d| d.tint == key_tint)
 	keys.map(|d| d.pos) == [{ x: 0.0, y: 1.0, z: 7.0 }, { x: 0.0, y: 2.0, z: 5.0 }] and keys.all(|d| d.scale.x == 0.3)
 }
 
 expect {
-	model = init(test_config)
+	model = started
 	ball = view(model).draws.keep_if(|d| d.mesh == model.meshes.ball)
 	ball.map(|d| d.pos) == [{ x: 0.0, y: 0.695, z: 9.0 }]
 }
@@ -170,8 +179,8 @@ expect {
 # In the climb at the level1 wall, the eye passes down through the old floor.
 # Only as it passes does that face drop out, and the rest keep their ids.
 expect {
-	rest = view(init(test_config)).draws
-	at_wall = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	rest = view(started).draws
+	at_wall = [0.13, 0.13, 0.13, 0.13].fold(started, |m, dt| step(m, up_held, [], dt).model)
 	faces_at = |dt| {
 		climbing = step(at_wall, up_held, [], dt).model
 		view(climbing).draws.keep_if(|d| d.mesh == climbing.meshes.face)
@@ -182,7 +191,7 @@ expect {
 
 # Rolling from S over the first key collects it.
 expect {
-	model = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model = [0.13, 0.13, 0.13, 0.13].fold(started, |m, dt| step(m, up_held, [], dt).model)
 	model.keys_left == 1 and model.collected.contains({ x: 0, y: 1, z: 7 })
 }
 
@@ -192,16 +201,16 @@ at_pose = |model, pose| { ..model, ball: Ball.start(pose) }
 before_exit : World.Pose
 before_exit = { cell: { x: 0, y: 1, z: 1 }, up: { x: 0, y: 1, z: 0 }, forward: { x: 0, y: 0, z: -1 } }
 
-expect step(at_pose(init(test_config), before_exit), up_held, [], 0.1).model.phase == Playing
+expect step(at_pose(started, before_exit), up_held, [], 0.1).model.phase == Playing
 
 expect {
-	open = { ..at_pose(init(test_config), before_exit), keys_left: 0 }
+	open = { ..at_pose(started, before_exit), keys_left: 0 }
 	step(open, up_held, [], 0.1).model.phase == Won
 }
 
 # In Won the ball ignores input, and Escape still quits.
 expect {
-	won = { ..init(test_config), phase: Won }
+	won = { ..started, phase: Won }
 	after = step(won, up_held, [], 0.1)
 	{ ..after.model.ball, bob: won.ball.bob } == won.ball and step(won, { ..idle, pressed: [Key.code(Escape)] }, [], 0.1).commands == [Quit]
 }
@@ -209,7 +218,7 @@ expect {
 # A jump off the side from S falls, then the level restarts.
 expect {
 	space = { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
-	facing_out = { ..at_pose(init(test_config), { ..init(test_config).level.start, forward: { x: -1, y: 0, z: 0 } }), keys_left: 1 }
+	facing_out = { ..at_pose(started, { ..started.level.start, forward: { x: -1, y: 0, z: 0 } }), keys_left: 1 }
 	jumped = step(facing_out, space, [], 0.25).model
 	still_falling = step(jumped, idle, [], 0.25).model
 	landed = step(still_falling, idle, [], 0.5).model
@@ -217,40 +226,40 @@ expect {
 		Falling({ from, offset, over, drop, seconds, .. }) => from == facing_out.ball.pose and offset == 0.0 and over == { ..facing_out.ball.pose, cell: { x: -2, y: 1, z: 9 } } and drop == Off(3) and seconds == 0.25
 		_ => False
 	}
-	fell and still_falling.ball.pose == jumped.ball.pose and landed == init(test_config)
+	fell and still_falling.ball.pose == jumped.ball.pose and landed == started
 }
 
 expect {
-	collected = [0.13, 0.13, 0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	collected = [0.13, 0.13, 0.13, 0.13].fold(started, |m, dt| step(m, up_held, [], dt).model)
 	keys = view(collected).draws.keep_if(|d| d.tint == key_tint)
 	keys.map(|d| d.pos) == [{ x: 0.0, y: 2.0, z: 5.0 }] and keys.map(|d| d.id) == [key_ids + 1]
 }
 
 expect {
-	draws = view({ ..init(test_config), keys_left: 0 }).draws
+	draws = view({ ..started, keys_left: 0 }).draws
 	draws.keep_if(|d| d.tint == open_exit_tint).len() == 5 and !draws.any(|d| d.tint == closed_exit_tint)
 }
 
 expect {
-	won = { ..init(test_config), phase: Won }
+	won = { ..started, phase: Won }
 	view(won).draws.keep_if(|d| d.mesh == won.meshes.ball).map(|d| d.tint) == [won_ball_tint]
 }
 
 space : Input
 space = { ..idle, pressed: [Key.code(Space)] }
 
-expect step(init(test_config), space, [], 0.27).model.ball.motion == JumpingInPlace({ t: 0.5 })
+expect step(started, space, [], 0.27).model.ball.motion == JumpingInPlace({ t: 0.5 })
 
 # Up and Space jump the level1 gap from the cell before it.
 expect {
-	before_gap = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 1, z: 4 } })
+	before_gap = at_pose(started, { ..started.level.start, cell: { x: 0, y: 1, z: 4 } })
 	jumped = step(before_gap, { ..space, held: [Key.code(Up)] }, [], 0.1).model
 	jumped.ball.pose.cell == { x: 0, y: 1, z: 2 } and jumped.ball.motion == Jumping({ from: before_gap.ball.pose, offset: 0.0, t: 0.1 / 0.54 })
 }
 
 # A key in the roll's target cell is collected, though the jump starts from the cell behind it.
 expect {
-	on_layer1 = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 2, z: 6 } })
+	on_layer1 = at_pose(started, { ..started.level.start, cell: { x: 0, y: 2, z: 6 } })
 	rolling = step(on_layer1, up_held, [], 0.05).model
 	jumped = step(rolling, space, [], 0.01).model
 	jumped.collected.contains({ x: 0, y: 2, z: 5 }) and jumped.keys_left == 1 and match jumped.ball.motion {
@@ -261,7 +270,7 @@ expect {
 
 # The jump from the raised block lands on the floor one cell below its target.
 expect {
-	on_layer1 = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 2, z: 6 } })
+	on_layer1 = at_pose(started, { ..started.level.start, cell: { x: 0, y: 2, z: 6 } })
 	rolling = step(on_layer1, up_held, [], 0.05).model
 	jumped = step(rolling, space, [], 0.01).model
 	landed = step(jumped, idle, [], 1.0).model
@@ -270,13 +279,13 @@ expect {
 
 # Held Up rolls on through the cell with no step at rest.
 expect {
-	model = [0.13, 0.13].fold(init(test_config), |m, dt| step(m, up_held, [], dt).model)
+	model = [0.13, 0.13].fold(started, |m, dt| step(m, up_held, [], dt).model)
 	model.ball.pose.cell == { x: 0, y: 1, z: 7 } and model.ball.motion != Still
 }
 
 # Held Up runs the ball to the level1 gap. Space on the approach to the edge clears it.
 expect {
-	two_before = at_pose(init(test_config), { ..init(test_config).level.start, cell: { x: 0, y: 1, z: 5 } })
+	two_before = at_pose(started, { ..started.level.start, cell: { x: 0, y: 1, z: 5 } })
 	at_edge = step(two_before, up_held, [], 0.26).model
 	jumped = step(at_edge, { ..space, held: [Key.code(Up)] }, [], 0.06).model
 	jumped.ball.pose.cell == { x: 0, y: 1, z: 2 } and match jumped.ball.motion {

@@ -50,6 +50,26 @@ test_mesh_table_logs_each_fallback_id_once :: proc(t: ^testing.T) {
 	testing.expect(t, 0 in table.logged)
 }
 
+// packages/mesh/Mesh.roc pins the same ids, so a change to the slot order fails a test on each side.
+@(test)
+test_each_primitive_has_its_fixed_id_by_name :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	Case :: struct {
+		name: string,
+		id:   u32,
+	}
+	for c in ([]Case{{"primitive/fallback", 0}, {"primitive/cube", 1}, {"primitive/sphere", 2}, {"primitive/plane", 3}}) {
+		id, found := mesh_table_find(&table, c.name)
+		testing.expectf(t, found, "expected %v in the mesh table", c.name)
+		testing.expect_value(t, id, c.id)
+	}
+	_, found := mesh_table_find(&table, "cube")
+	testing.expect(t, !found)
+}
+
 @(test)
 test_a_first_generation_id_is_the_slot_index :: proc(t: ^testing.T) {
 	table: Mesh_Table

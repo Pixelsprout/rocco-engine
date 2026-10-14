@@ -1,6 +1,7 @@
 package engine
 
 import "core:os"
+import "core:slice"
 import "core:testing"
 
 // Each file path is relative to the new directory. Remove it with os.remove_all.
@@ -17,7 +18,7 @@ temp_mesh_dir :: proc(t: ^testing.T, files: map[string][]byte) -> string {
 }
 
 @(test)
-test_mesh_dir_loads_each_glb_by_stem_in_sorted_order_after_the_primitives :: proc(t: ^testing.T) {
+test_mesh_names_on_disk_are_each_glb_stem_in_sorted_order :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
@@ -26,48 +27,56 @@ test_mesh_dir_loads_each_glb_by_stem_in_sorted_order_after_the_primitives :: pro
 	dir := temp_mesh_dir(t, files)
 	defer os.remove_all(dir)
 
-	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
-	defer mesh_table_destroy(&table)
-	mesh_table_load_dir(&table, dir, context.temp_allocator)
-
-	testing.expect_value(t, table.count, len(Primitive) + 2)
-	testing.expect_value(t, table.meshes[len(Primitive)].name, "a")
-	testing.expect_value(t, table.meshes[len(Primitive) + 1].name, "b")
-	testing.expect_value(t, len(table.meshes[len(Primitive)].data.vertices), 3)
-	testing.expect_value(t, len(table.meshes[len(Primitive)].data.indices), 3)
+	names := mesh_names_on_disk(dir, context.temp_allocator)
+	testing.expect(t, slice.equal(names, []string{"a", "b"}))
 }
 
 @(test)
-test_mesh_dir_skips_a_file_that_fails_and_loads_the_rest :: proc(t: ^testing.T) {
+test_mesh_names_on_disk_of_a_missing_dir_are_empty :: proc(t: ^testing.T) {
+	testing.expect_value(t, len(mesh_names_on_disk("no/such/rocco/dir", context.temp_allocator)), 0)
+}
+
+@(test)
+test_mesh_load_file_adds_the_mesh_after_the_primitives :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
-	files["bad.glb"] = transmute([]byte)string("not a glb")
-	files["flat.glb"] = triangle_glb(`[{"attributes":{"POSITION":0},"indices":2}]`)
-	files["good.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
+	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	dir := temp_mesh_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
-	mesh_table_load_dir(&table, dir, context.temp_allocator)
+	id, _, ok := mesh_load_file(&table, dir, "a", context.temp_allocator)
 
-	testing.expect_value(t, table.count, len(Primitive) + 1)
-	testing.expect_value(t, table.meshes[len(Primitive)].name, "good")
+	testing.expect(t, ok)
+	testing.expect_value(t, id, len(Primitive))
+	testing.expect_value(t, table.meshes[len(Primitive)].name, "a")
+	testing.expect_value(t, len(table.meshes[len(Primitive)].data.vertices), 3)
+	testing.expect_value(t, len(table.meshes[len(Primitive)].data.indices), 3)
 }
 
 @(test)
-test_mesh_dir_that_does_not_exist_loads_nothing :: proc(t: ^testing.T) {
+test_mesh_load_file_that_fails_adds_nothing_and_gives_the_reason :: proc(t: ^testing.T) {
+	files := make(map[string][]byte, context.temp_allocator)
+	files["bad.glb"] = transmute([]byte)string("not a glb")
+	files["flat.glb"] = triangle_glb(`[{"attributes":{"POSITION":0},"indices":2}]`)
+	dir := temp_mesh_dir(t, files)
+	defer os.remove_all(dir)
+
 	table: Mesh_Table
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
-	mesh_table_load_dir(&table, "no/such/rocco/dir", context.temp_allocator)
 
+	for name in ([]string{"bad", "flat", "gone"}) {
+		_, reason, ok := mesh_load_file(&table, dir, name, context.temp_allocator)
+		testing.expectf(t, !ok, "expected %v to fail", name)
+		testing.expect(t, reason != "")
+	}
 	testing.expect_value(t, table.count, len(Primitive))
 }
 
 @(test)
-test_mesh_dir_stops_at_mesh_capacity :: proc(t: ^testing.T) {
+test_mesh_load_file_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	files["b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
@@ -78,14 +87,17 @@ test_mesh_dir_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
 	table.count = MESH_CAPACITY - 1
-	mesh_table_load_dir(&table, dir, context.temp_allocator)
+	_, _, a_ok := mesh_load_file(&table, dir, "a", context.temp_allocator)
+	_, _, b_ok := mesh_load_file(&table, dir, "b", context.temp_allocator)
 
+	testing.expect(t, a_ok)
+	testing.expect(t, !b_ok)
 	testing.expect_value(t, table.count, MESH_CAPACITY)
 	testing.expect_value(t, table.meshes[MESH_CAPACITY - 1].name, "a")
 }
 
 @(test)
-test_a_reloaded_mesh_dir_gives_new_ids_and_old_ids_draw_the_fallback :: proc(t: ^testing.T) {
+test_a_reloaded_mesh_gets_a_new_id_and_the_old_id_draws_the_fallback :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	dir := temp_mesh_dir(t, files)
@@ -94,12 +106,11 @@ test_a_reloaded_mesh_dir_gives_new_ids_and_old_ids_draw_the_fallback :: proc(t: 
 	table: Mesh_Table
 	mesh_table_init(&table, context.allocator)
 	defer mesh_table_destroy(&table)
-	mesh_table_load_dir(&table, dir, context.temp_allocator)
-	old := mesh_id(&table, len(Primitive))
+	old, _, _ := mesh_load_file(&table, dir, "a", context.temp_allocator)
 	mesh_table_unload_level(&table)
-	mesh_table_load_dir(&table, dir, context.temp_allocator)
+	fresh, _, _ := mesh_load_file(&table, dir, "a", context.temp_allocator)
 
-	testing.expect(t, mesh_id(&table, len(Primitive)) != old)
+	testing.expect(t, fresh != old)
 	_, fallback := mesh_resolve(&table, old, 4)
 	testing.expect(t, fallback)
 }

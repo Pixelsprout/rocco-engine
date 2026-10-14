@@ -7,6 +7,7 @@ import "core:os"
 ROC_GAME :: Game_Calls {
 	init       = roc_game_init,
 	step       = roc_game_step,
+	loaded     = roc_game_loaded,
 	view       = roc_game_view,
 	drop_model = roc_game_drop_model,
 }
@@ -74,12 +75,26 @@ roc_heap_report_line :: proc(step: u64, before: Roc_Heap_Counters, step_us, view
 	)
 }
 
+// A view of the bytes, valid while s lives. A short string lives inside the Roc_Str itself.
+roc_str_string :: proc(s: ^Roc_Str) -> string {
+	if int(s.length) < 0 {
+		raw := ([^]u8)(s)
+		return string(raw[:raw[size_of(Roc_Str) - 1] & 0x7f])
+	}
+	return string(s.bytes[:s.length])
+}
+
 @(private = "file")
-roc_game_init :: proc(config: Config) -> rawptr {return roc_init(config)}
+roc_game_init :: proc(config: Config) -> Init_Result {return roc_init(config)}
 
 @(private = "file")
 roc_game_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result {
 	return roc_step(model, input, contacts, dt)
+}
+
+@(private = "file")
+roc_game_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr {
+	return roc_loaded(model, pack, manifest)
 }
 
 @(private = "file")

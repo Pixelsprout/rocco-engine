@@ -2,12 +2,15 @@ package engine
 
 // Host names for the generated vocabulary types. The glue names each record
 // by the path that reaches it from a provided function. A record shared by
-// several paths takes the name of the first, so Vec3 is a Contact normal.
+// several paths takes the name of the first, so Vec3 is a Contact normal
+// and a step result is a Roc_Init.
 Config :: Roc_Init_Arg0
-Mesh_Entry :: Roc_Init_Arg0_Meshes
+Init_Result :: Roc_Init
 Input :: Roc_Step_Arg1
 Step_Result :: Roc_Step
-Command :: Roc_Step_Commands
+Command :: Roc_Init_Commands
+Load_Command :: Roc_Init_Commands_Load
+Manifest_Entry :: Roc_Loaded_Arg2
 Contact :: Roc_Step_Arg2
 Scene :: Roc_View
 Draw :: Roc_View_Draws

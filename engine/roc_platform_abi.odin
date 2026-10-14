@@ -173,27 +173,57 @@ roc_incref_box :: proc(box: rawptr) {
 
 Roc_Init_Arg0 :: struct {
 	seed: u64,
-	meshes: Roc_List(Roc_Init_Arg0_Meshes),
+	assets: Roc_List(Roc_Str),
 }
 
 #assert(size_of(Roc_Init_Arg0) == 32)
 #assert(align_of(Roc_Init_Arg0) == 8)
 #assert(offset_of(Roc_Init_Arg0, seed) == 0)
 #assert(size_of(type_of(Roc_Init_Arg0{}.seed)) == 8)
-#assert(offset_of(Roc_Init_Arg0, meshes) == 8)
-#assert(size_of(type_of(Roc_Init_Arg0{}.meshes)) == 24)
+#assert(offset_of(Roc_Init_Arg0, assets) == 8)
+#assert(size_of(type_of(Roc_Init_Arg0{}.assets)) == 24)
 
-Roc_Init_Arg0_Meshes :: struct {
-	name: Roc_Str,
-	id: u32,
+Roc_Init :: struct {
+	commands: Roc_List(Roc_Init_Commands),
+	model: rawptr,
 }
 
-#assert(size_of(Roc_Init_Arg0_Meshes) == 32)
-#assert(align_of(Roc_Init_Arg0_Meshes) == 8)
-#assert(offset_of(Roc_Init_Arg0_Meshes, name) == 0)
-#assert(size_of(type_of(Roc_Init_Arg0_Meshes{}.name)) == 24)
-#assert(offset_of(Roc_Init_Arg0_Meshes, id) == 24)
-#assert(size_of(type_of(Roc_Init_Arg0_Meshes{}.id)) == 4)
+#assert(size_of(Roc_Init) == 32)
+#assert(align_of(Roc_Init) == 8)
+#assert(offset_of(Roc_Init, commands) == 0)
+#assert(size_of(type_of(Roc_Init{}.commands)) == 24)
+#assert(offset_of(Roc_Init, model) == 24)
+#assert(size_of(type_of(Roc_Init{}.model)) == 8)
+
+Roc_Init_Commands_Tag :: enum u8 {
+	Load = 0,
+	Quit = 1,
+}
+
+Roc_Init_Commands_Payload :: struct #raw_union {
+	load: Roc_Init_Commands_Load,
+}
+
+Roc_Init_Commands :: struct {
+	payload: Roc_Init_Commands_Payload,
+	tag: Roc_Init_Commands_Tag,
+}
+
+#assert(size_of(Roc_Init_Commands) == 56)
+#assert(align_of(Roc_Init_Commands) == 8)
+#assert(offset_of(Roc_Init_Commands, tag) == 48)
+
+Roc_Init_Commands_Load :: struct {
+	assets: Roc_List(Roc_Str),
+	pack: Roc_Str,
+}
+
+#assert(size_of(Roc_Init_Commands_Load) == 48)
+#assert(align_of(Roc_Init_Commands_Load) == 8)
+#assert(offset_of(Roc_Init_Commands_Load, assets) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Load{}.assets)) == 24)
+#assert(offset_of(Roc_Init_Commands_Load, pack) == 24)
+#assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == 24)
 
 Roc_Step_Arg1 :: struct {
 	held: Roc_List(u16),
@@ -255,22 +285,20 @@ Roc_Step_Arg2_Normal :: struct {
 #assert(offset_of(Roc_Step_Arg2_Normal, z) == 8)
 #assert(size_of(type_of(Roc_Step_Arg2_Normal{}.z)) == 4)
 
-Roc_Step :: struct {
-	commands: Roc_List(Roc_Step_Commands),
-	model: rawptr,
+Roc_Step :: Roc_Init
+Roc_Step_Commands :: Roc_Init_Commands
+Roc_Step_Commands_Load :: Roc_Init_Commands_Load
+Roc_Loaded_Arg2 :: struct {
+	name: Roc_Str,
+	id: u32,
 }
 
-#assert(size_of(Roc_Step) == 32)
-#assert(align_of(Roc_Step) == 8)
-#assert(offset_of(Roc_Step, commands) == 0)
-#assert(size_of(type_of(Roc_Step{}.commands)) == 24)
-#assert(offset_of(Roc_Step, model) == 24)
-#assert(size_of(type_of(Roc_Step{}.model)) == 8)
-
-Roc_Step_Commands :: struct {}
-
-#assert(size_of(Roc_Step_Commands) == 0)
-#assert(align_of(Roc_Step_Commands) == 1)
+#assert(size_of(Roc_Loaded_Arg2) == 32)
+#assert(align_of(Roc_Loaded_Arg2) == 8)
+#assert(offset_of(Roc_Loaded_Arg2, name) == 0)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
+#assert(offset_of(Roc_Loaded_Arg2, id) == 24)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
 
 Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
@@ -493,11 +521,23 @@ Roc_View_Cursor :: enum u8 {
 
 
 roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
-	roc_list_decref_roc_init_arg0_meshes(value.meshes)
+	roc_list_decref_roc_str(value.assets)
 }
 
-roc_init_arg0_meshes_decref :: proc(value: Roc_Init_Arg0_Meshes) {
-	roc_str_decref(value.name)
+roc_init_decref :: proc(value: Roc_Init) {
+	roc_list_decref_roc_init_commands(value.commands)
+}
+
+roc_init_commands_decref :: proc(value: Roc_Init_Commands) {
+	#partial switch value.tag {
+	case .Load:
+		roc_init_commands_load_decref(value.payload.load)
+	}
+}
+
+roc_init_commands_load_decref :: proc(value: Roc_Init_Commands_Load) {
+	roc_list_decref_roc_str(value.assets)
+	roc_str_decref(value.pack)
 }
 
 roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
@@ -505,8 +545,8 @@ roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 	roc_list_decref_u16(value.pressed)
 }
 
-roc_step_decref :: proc(value: Roc_Step) {
-	roc_list_decref_roc_step_commands(value.commands)
+roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
+	roc_str_decref(value.name)
 }
 
 roc_view_decref :: proc(value: Roc_View) {
@@ -515,11 +555,19 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_lights(value.lights)
 }
 
-roc_list_decref_roc_init_arg0_meshes :: proc(list: Roc_List(Roc_Init_Arg0_Meshes)) {
-	roc_list_decref_elements(list, roc_init_arg0_meshes_decref)
+roc_list_decref_roc_str :: proc(list: Roc_List(Roc_Str)) {
+	roc_list_decref_elements(list, roc_str_decref)
 }
 
-roc_list_from_slice_roc_init_arg0_meshes :: proc(elems: []Roc_Init_Arg0_Meshes) -> Roc_List(Roc_Init_Arg0_Meshes) {
+roc_list_from_slice_roc_str :: proc(elems: []Roc_Str) -> Roc_List(Roc_Str) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_roc_init_commands :: proc(list: Roc_List(Roc_Init_Commands)) {
+	roc_list_decref_elements(list, roc_init_commands_decref)
+}
+
+roc_list_from_slice_roc_init_commands :: proc(elems: []Roc_Init_Commands) -> Roc_List(Roc_Init_Commands) {
 	return roc_list_from_slice_with(elems, true)
 }
 
@@ -539,12 +587,12 @@ roc_list_from_slice_roc_step_arg2 :: proc(elems: []Roc_Step_Arg2) -> Roc_List(Ro
 	return roc_list_from_slice_with(elems, false)
 }
 
-roc_list_decref_roc_step_commands :: proc(list: Roc_List(Roc_Step_Commands)) {
-	roc_list_decref_flat(list)
+roc_list_decref_roc_loaded_arg2 :: proc(list: Roc_List(Roc_Loaded_Arg2)) {
+	roc_list_decref_elements(list, roc_loaded_arg2_decref)
 }
 
-roc_list_from_slice_roc_step_commands :: proc(elems: []Roc_Step_Commands) -> Roc_List(Roc_Step_Commands) {
-	return roc_list_from_slice_with(elems, false)
+roc_list_from_slice_roc_loaded_arg2 :: proc(elems: []Roc_Loaded_Arg2) -> Roc_List(Roc_Loaded_Arg2) {
+	return roc_list_from_slice_with(elems, true)
 }
 
 roc_list_decref_roc_view_colliders :: proc(list: Roc_List(Roc_View_Colliders)) {
@@ -574,27 +622,31 @@ roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_Lis
 roc_decref :: proc {
 	roc_str_decref,
 	roc_init_arg0_decref,
-	roc_init_arg0_meshes_decref,
+	roc_init_decref,
+	roc_init_commands_decref,
+	roc_init_commands_load_decref,
 	roc_step_arg1_decref,
-	roc_step_decref,
+	roc_loaded_arg2_decref,
 	roc_view_decref,
 }
 
 roc_list_decref :: proc {
-	roc_list_decref_roc_init_arg0_meshes,
+	roc_list_decref_roc_str,
+	roc_list_decref_roc_init_commands,
 	roc_list_decref_u16,
 	roc_list_decref_roc_step_arg2,
-	roc_list_decref_roc_step_commands,
+	roc_list_decref_roc_loaded_arg2,
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
 }
 
 roc_list_from_slice :: proc {
-	roc_list_from_slice_roc_init_arg0_meshes,
+	roc_list_from_slice_roc_str,
+	roc_list_from_slice_roc_init_commands,
 	roc_list_from_slice_u16,
 	roc_list_from_slice_roc_step_arg2,
-	roc_list_from_slice_roc_step_commands,
+	roc_list_from_slice_roc_loaded_arg2,
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
@@ -603,8 +655,9 @@ roc_list_from_slice :: proc {
 // The Roc app defines these symbols at the final link.
 @(default_calling_convention = "c")
 foreign {
-	roc_init :: proc(arg0: Roc_Init_Arg0) -> rawptr ---
-	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> Roc_Step ---
+	roc_init :: proc(arg0: Roc_Init_Arg0) -> Roc_Init ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> Roc_Init ---
+	roc_loaded :: proc(arg0: rawptr, arg1: Roc_Str, arg2: Roc_List(Roc_Loaded_Arg2)) -> rawptr ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 	roc_drop_model :: proc(arg0: rawptr) ---
 }

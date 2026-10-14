@@ -20,34 +20,41 @@ mesh_dir_from :: proc(assets, program: string, allocator: mem.Allocator) -> stri
 	return fmt.aprintf("%v/%v/meshes", dir, DEFAULT_ASSETS, allocator = allocator)
 }
 
-// Sorted, so mesh ids are stable across runs. A file that fails is skipped
-// and logged, so its name resolves to the fallback.
-mesh_table_load_dir :: proc(t: ^Mesh_Table, dir: string, level: mem.Allocator) {
+// The stem of each .glb file in dir, sorted. These are the mesh names a Load can ask for.
+mesh_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
 	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil {
 		if err != .Not_Exist {
-			fmt.eprintfln("cannot read %v: %v; loading no meshes from it", dir, os.error_string(err))
+			fmt.eprintfln("cannot read %v: %v; no mesh can load from it", dir, os.error_string(err))
 		}
-		return
+		return nil
 	}
-	slice.sort_by(entries, proc(a, b: os.File_Info) -> bool {return a.name < b.name})
 
+	names := make([dynamic]string, 0, len(entries), allocator)
 	for e in entries {
-		if e.type == .Directory || os.ext(e.name) != ".glb" || os.stem(e.name) == "" {
-			continue
-		}
-		bytes, read_err := os.read_entire_file(e.fullpath, context.temp_allocator)
-		if read_err != nil {
-			fmt.eprintfln("skipping %v: %v", e.fullpath, os.error_string(read_err))
-			continue
-		}
-		data, glb_err := glb_parse(bytes, level)
-		if glb_err != .None {
-			fmt.eprintfln("skipping %v: %v", e.fullpath, GLB_ERROR_REASONS[glb_err])
-			continue
-		}
-		if _, ok := mesh_table_add(t, strings.clone(os.stem(e.name), level), data); !ok {
-			fmt.eprintfln("skipping %v: the mesh table is full at %v meshes", e.fullpath, MESH_CAPACITY)
+		if e.type != .Directory && os.ext(e.name) == ".glb" && os.stem(e.name) != "" {
+			append(&names, strings.clone(os.stem(e.name), allocator))
 		}
 	}
+	slice.sort(names[:])
+	return names[:]
+}
+
+// Loads dir/name.glb into the next free slot. On failure the table does not
+// change and reason says why.
+mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string, allocator: mem.Allocator) -> (id: u32, reason: string, ok: bool) {
+	path := fmt.tprintf("%v/%v.glb", dir, name)
+	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
+	if read_err != nil {
+		return 0, os.error_string(read_err), false
+	}
+	data, glb_err := glb_parse(bytes, allocator)
+	if glb_err != .None {
+		return 0, GLB_ERROR_REASONS[glb_err], false
+	}
+	slot, added := mesh_table_add(t, strings.clone(name, allocator), data)
+	if !added {
+		return 0, fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY), false
+	}
+	return mesh_id(t, slot), "", true
 }

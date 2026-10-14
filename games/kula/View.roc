@@ -1,15 +1,21 @@
 import linalg.Quat
 import linalg.Vec3
 import mesh.Mesh
-import pf.Vocabulary exposing [Camera, Config, Draw, Rgb]
+import pf.Vocabulary exposing [Camera, Draw, Manifest, Rgb]
 import World
 import Grid
 import Ball
 
 View := [].{
-	# Keys stay primitive cubes until a key mesh exists.
-	meshes : Config -> World.Meshes
-	meshes = |config| { cube: Mesh.primitive(config, Cube), face: Mesh.resolve(config, "face"), ball: Mesh.resolve(config, "ball") }
+	assets : List(Str)
+	assets = ["ball", "face"]
+
+	# Keys stay primitive cubes until a key mesh exists. face and ball are 0, the fallback, until loaded.
+	primitive_meshes : World.Meshes
+	primitive_meshes = { cube: Mesh.primitive(Cube), face: 0, ball: 0 }
+
+	meshes : Manifest -> World.Meshes
+	meshes = |manifest| { ..primitive_meshes, face: Mesh.resolve(manifest, "face"), ball: Mesh.resolve(manifest, "ball") }
 
 	Placement : { pos : Vec3.Vec3, up : Vec3.Vec3, forward : Vec3.Vec3 }
 

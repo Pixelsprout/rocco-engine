@@ -106,11 +106,12 @@ Mesh :: struct {
 	generation:  u16,
 }
 
-// Slots past count are empty.
+// Slots past count are empty. After mesh_table_upload, a new mesh uploads when it is added.
 Mesh_Table :: struct {
-	meshes: [MESH_CAPACITY]Mesh,
-	count:  int,
-	logged: map[u32]struct {},
+	meshes:   [MESH_CAPACITY]Mesh,
+	count:    int,
+	logged:   map[u32]struct {},
+	uploaded: bool,
 }
 
 Mesh_Data :: struct {
@@ -135,6 +136,15 @@ mesh_id :: proc(t: ^Mesh_Table, slot: int) -> u32 {
 	return u32(t.meshes[slot].generation) << MESH_SLOT_BITS | u32(slot)
 }
 
+mesh_table_find :: proc(t: ^Mesh_Table, name: string) -> (id: u32, found: bool) {
+	for m, slot in t.meshes[:t.count] {
+		if m.name == name {
+			return mesh_id(t, slot), true
+		}
+	}
+	return 0, false
+}
+
 // Keeps the slot's generation, so a mesh in a reused slot gets a new id.
 mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: int, ok: bool) {
 	if t.count == MESH_CAPACITY {
@@ -143,6 +153,9 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 	slot = t.count
 	t.meshes[slot] = {name = name, data = data, generation = t.meshes[slot].generation}
 	t.count += 1
+	if t.uploaded {
+		mesh_upload(&t.meshes[slot], data)
+	}
 	return slot, true
 }
 
@@ -168,6 +181,7 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 	for &m in t.meshes[len(Primitive):t.count] {
 		mesh_upload(&m, m.data)
 	}
+	t.uploaded = true
 }
 
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
