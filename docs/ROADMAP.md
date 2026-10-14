@@ -724,7 +724,13 @@ opposite it and an ambient, and drops the placeholder point light.
 
 Check: finish level one, see level two under a new Theme, with no magenta.
 
-## Milestone 13: shadows
+## Milestone 13: shadows (done)
+
+Results, 2026-10-15: the user jumped gaps in Kula on `arm64mac` and saw the
+ball's shadow on the landing block. Cards and entity-game draw as before.
+The shadow edge is a little soft, and the settings task z851lo4y records
+it. The Odin tests and `scripts/host-check.sh` pass. The full spec is the
+dex task cxtqbqrl.
 
 Done when the ball casts a shadow on the blocks from the Kula sun.
 
