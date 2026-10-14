@@ -18,5 +18,5 @@ Vocabulary := [].{
     Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
     Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor }
     Cursor : [Free, Locked]
-    Command : [Quit, Load({ pack : Str, assets : List(Str) })]
+    Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 }

@@ -83,7 +83,7 @@ CUBE_INDICES := [36]u16{
 	20, 21, 22, 20, 22, 23, // -x
 }
 
-// The primitives are the first slots of the mesh table and are never unloaded, so each value is its mesh id.
+// The primitives are the first slots of the mesh table and never go on the free list, so each value is its mesh id.
 Primitive :: enum u32 {
 	Fallback,
 	Cube,
@@ -99,19 +99,24 @@ Vertex :: struct {
 
 Mesh :: struct {
 	name:        string,
-	data:        Mesh_Data, // Loaded files only. Primitives build theirs at upload.
+	data:        Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
+	live:        bool,
 	vertices:    sg.Buffer,
 	indices:     sg.Buffer,
 	index_count: int,
 	generation:  u16,
 }
 
-// Slots past count are empty. After mesh_table_upload, a new mesh uploads when it is added.
+// After mesh_table_upload, a new mesh uploads when it is added. The table
+// owns each loaded mesh's name and data.
 Mesh_Table :: struct {
-	meshes:   [MESH_CAPACITY]Mesh,
-	count:    int,
-	logged:   map[u32]struct {},
-	uploaded: bool,
+	meshes:     [MESH_CAPACITY]Mesh,
+	count:      int,
+	free:       [MESH_CAPACITY]int,
+	free_count: int,
+	logged:     map[u32]struct {},
+	uploaded:   bool,
+	allocator:  mem.Allocator,
 }
 
 Mesh_Data :: struct {
@@ -121,14 +126,22 @@ Mesh_Data :: struct {
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
 mesh_table_init :: proc(t: ^Mesh_Table, allocator: mem.Allocator) {
+	t.allocator = allocator
 	t.logged = make(map[u32]struct {}, allocator)
 	for p in Primitive {
-		t.meshes[p].name = PRIMITIVE_NAMES[p]
+		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true}
 	}
 	t.count = len(Primitive)
 }
 
+// Frees the names and data of the loaded meshes. sg.shutdown destroys their buffers.
 mesh_table_destroy :: proc(t: ^Mesh_Table) {
+	for &m in t.meshes[len(Primitive):t.count] {
+		if m.live {
+			delete(m.name, t.allocator)
+			mesh_data_delete(t, m.data)
+		}
+	}
 	delete(t.logged)
 }
 
@@ -136,9 +149,17 @@ mesh_id :: proc(t: ^Mesh_Table, slot: int) -> u32 {
 	return u32(t.meshes[slot].generation) << MESH_SLOT_BITS | u32(slot)
 }
 
+mesh_slot :: proc(id: u32) -> int {
+	return int(id & (1 << MESH_SLOT_BITS - 1))
+}
+
+mesh_table_full :: proc(t: ^Mesh_Table) -> bool {
+	return t.free_count == 0 && t.count == MESH_CAPACITY
+}
+
 mesh_table_find :: proc(t: ^Mesh_Table, name: string) -> (id: u32, found: bool) {
 	for m, slot in t.meshes[:t.count] {
-		if m.name == name {
+		if m.live && m.name == name {
 			return mesh_id(t, slot), true
 		}
 	}
@@ -146,31 +167,39 @@ mesh_table_find :: proc(t: ^Mesh_Table, name: string) -> (id: u32, found: bool) 
 }
 
 // Keeps the slot's generation, so a mesh in a reused slot gets a new id.
+// name and data must come from t.allocator.
 mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: int, ok: bool) {
-	if t.count == MESH_CAPACITY {
+	if mesh_table_full(t) {
 		return 0, false
 	}
-	slot = t.count
-	t.meshes[slot] = {name = name, data = data, generation = t.meshes[slot].generation}
-	t.count += 1
+	if t.free_count > 0 {
+		t.free_count -= 1
+		slot = t.free[t.free_count]
+	} else {
+		slot = t.count
+		t.count += 1
+	}
+	t.meshes[slot] = {name = name, data = data, live = true, generation = t.meshes[slot].generation}
 	if t.uploaded {
-		mesh_upload(&t.meshes[slot], data)
+		mesh_upload_loaded(t, &t.meshes[slot])
 	}
 	return slot, true
 }
 
-// Empties every slot past the primitives. A slot's next mesh gets a new
-// generation, so an id kept from this level resolves to the fallback.
-// Call it before level_unload frees the names and vertex data.
-mesh_table_unload_level :: proc(t: ^Mesh_Table) {
-	for &m in t.meshes[len(Primitive):t.count] {
-		if m.vertices.id != 0 {
-			sg.destroy_buffer(m.vertices)
-			sg.destroy_buffer(m.indices)
-		}
-		m = {generation = m.generation + 1}
+// Empties the slot and adds 1 to its generation, so an id kept from it
+// resolves to the fallback.
+mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
+	fmt.assertf(slot >= len(Primitive) && slot < t.count && t.meshes[slot].live, "mesh slot %v holds no loaded mesh", slot)
+	m := &t.meshes[slot]
+	if m.vertices.id != 0 {
+		sg.destroy_buffer(m.vertices)
+		sg.destroy_buffer(m.indices)
 	}
-	t.count = len(Primitive)
+	delete(m.name, t.allocator)
+	mesh_data_delete(t, m.data)
+	m^ = {generation = m.generation + 1}
+	t.free[t.free_count] = slot
+	t.free_count += 1
 }
 
 // Needs sokol set up. The primitive vertex data is scratch and dies with the frame.
@@ -179,9 +208,25 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 		mesh_upload(&t.meshes[p], primitive_build(p, context.temp_allocator))
 	}
 	for &m in t.meshes[len(Primitive):t.count] {
-		mesh_upload(&m, m.data)
+		if m.live {
+			mesh_upload_loaded(t, &m)
+		}
 	}
 	t.uploaded = true
+}
+
+// The vertex data is scratch once the GPU has it.
+@(private = "file")
+mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
+	mesh_upload(m, m.data)
+	mesh_data_delete(t, m.data)
+	m.data = {}
+}
+
+@(private = "file")
+mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
+	delete(data.vertices, t.allocator)
+	delete(data.indices, t.allocator)
 }
 
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
@@ -200,9 +245,9 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.
 mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fallback: bool) {
-	slot := int(id & (1 << MESH_SLOT_BITS - 1))
+	slot := mesh_slot(id)
 	generation := id >> MESH_SLOT_BITS
-	if id != 0 && slot < t.count && mesh_id(t, slot) == id {
+	if id != 0 && slot < t.count && t.meshes[slot].live && mesh_id(t, slot) == id {
 		return &t.meshes[slot], false
 	}
 	stale := slot >= len(Primitive) && slot < MESH_CAPACITY && generation != u32(t.meshes[slot].generation)
@@ -211,7 +256,7 @@ mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fal
 		if id == 0 {
 			fmt.eprintfln("mesh id 0 is the fallback; drawing the fallback (first seen on draw id %v)", draw_id)
 		} else if stale {
-			fmt.eprintfln("mesh id %v is from an unloaded level; drawing the fallback (first seen on draw id %v)", id, draw_id)
+			fmt.eprintfln("mesh id %v is from an unloaded pack; drawing the fallback (first seen on draw id %v)", id, draw_id)
 		} else {
 			fmt.eprintfln("mesh id %v is not in the table; drawing the fallback (first seen on draw id %v)", id, draw_id)
 		}

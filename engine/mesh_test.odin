@@ -80,44 +80,6 @@ test_a_first_generation_id_is_the_slot_index :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_a_stale_id_resolves_to_the_fallback_after_its_slot_is_reused :: proc(t: ^testing.T) {
-	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
-	defer mesh_table_destroy(&table)
-
-	slot, _ := mesh_table_add(&table, "old", {})
-	stale := mesh_id(&table, slot)
-
-	mesh_table_unload_level(&table)
-	testing.expect_value(t, table.count, len(Primitive))
-	reused, _ := mesh_table_add(&table, "new", {})
-	testing.expect_value(t, reused, slot)
-	fresh := mesh_id(&table, slot)
-
-	testing.expect(t, fresh != stale)
-	mesh, fallback := mesh_resolve(&table, stale, 4)
-	testing.expect(t, fallback)
-	testing.expect_value(t, mesh, &table.meshes[Primitive.Fallback])
-	mesh, fallback = mesh_resolve(&table, fresh, 4)
-	testing.expect(t, !fallback)
-	testing.expect_value(t, mesh.name, "new")
-}
-
-@(test)
-test_unloading_a_level_keeps_the_primitive_ids :: proc(t: ^testing.T) {
-	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
-	defer mesh_table_destroy(&table)
-
-	mesh_table_unload_level(&table)
-	for p in Primitive {
-		testing.expect_value(t, mesh_id(&table, int(p)), u32(p))
-	}
-	_, fallback := mesh_resolve(&table, u32(Primitive.Cube), 4)
-	testing.expect(t, !fallback)
-}
-
-@(test)
 test_sphere_has_16_rings_of_32_segments :: proc(t: ^testing.T) {
 	data := primitive_build(.Sphere, context.temp_allocator)
 	testing.expect_value(t, len(data.vertices), 561)

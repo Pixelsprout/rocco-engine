@@ -92,6 +92,14 @@ fake_load :: proc(pack: string, assets: ..string) -> Command {
 	return command
 }
 
+fake_unload :: proc(pack: string) -> Command {
+	command := Command {
+		tag = .Unload,
+	}
+	command.payload.unload = roc_str_from_slice(pack)
+	return command
+}
+
 fake_init :: proc(config: Config) -> Init_Result {
 	g_fake.inits += 1
 	g_fake.seed = config.seed
@@ -169,9 +177,15 @@ fake_run_command :: proc(command: Command) {
 
 fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, mesh_dir := NO_MESH_DIR, init_commands: []Command = nil) {
 	g_fake = {colliders = colliders, init_commands = init_commands}
-	mesh_table_init(&g_fake.meshes, context.temp_allocator)
-	packs_init(&g_fake.packs, &g_fake.meshes, mesh_dir, context.temp_allocator)
+	mesh_table_init(&g_fake.meshes, context.allocator)
+	packs_init(&g_fake.packs, &g_fake.meshes, mesh_dir, context.allocator)
 	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk), &g_fake.packs)
+}
+
+fake_seam_shutdown :: proc(s: ^Seam) {
+	seam_shutdown(s)
+	packs_destroy(&g_fake.packs)
+	mesh_table_destroy(&g_fake.meshes)
 }
 
 // a.glb and b.glb load; broken.glb is on disk but fails.
@@ -183,6 +197,23 @@ fake_mesh_dir :: proc(t: ^testing.T) -> string {
 	return temp_mesh_dir(t, files)
 }
 
+// Steps once with commands and returns the Manifest of the last loaded.
+fake_step_with :: proc(s: ^Seam, commands: ..Command) -> []Manifest_Line {
+	g_fake.next_commands = slice.clone(commands, context.temp_allocator)
+	seam_step(s, {}, 1.0 / 60)
+	return g_fake.loaded_manifest
+}
+
+fake_draws_fallback :: proc(id: u32) -> bool {
+	_, fallback := mesh_resolve(&g_fake.meshes, id, 1)
+	return fallback
+}
+
+fake_mesh_name :: proc(id: u32) -> string {
+	mesh, _ := mesh_resolve(&g_fake.meshes, id, 1)
+	return mesh.name
+}
+
 @(test)
 test_seam_init_pairs_the_first_scene_with_itself :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
@@ -190,7 +221,7 @@ test_seam_init_pairs_the_first_scene_with_itself :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s, 42)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	prev, curr := seam_scenes(&s)
 	testing.expect_value(t, prev.draws.elements, curr.draws.elements)
@@ -207,7 +238,7 @@ test_seam_step_rotates_the_scenes_and_hands_the_new_box_to_view :: proc(t: ^test
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 	_, first := seam_scenes(&s)
 
 	seam_step(&s, {}, 1.0 / 60)
@@ -230,7 +261,7 @@ test_seam_step_never_passes_a_consumed_box :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	last := g_fake.init_box
 	for i in 0 ..< 5 {
@@ -250,7 +281,7 @@ test_seam_step_with_empty_input_makes_two_allocs_and_two_frees :: proc(t: ^testi
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	live: uint
 	for i in 0 ..< 5 {
@@ -278,7 +309,7 @@ test_seam_step_delivers_the_held_and_pressed_keys :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 	seam_step(&s, {}, 1.0 / 60)
 
 	held := []u16{3, 4}
@@ -300,7 +331,7 @@ test_seam_step_hands_the_pending_contacts_to_step_once :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.contacts_len, 0)
@@ -322,7 +353,7 @@ test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) 
 	touching := []Collider{test_sphere(7, {0, 0, 0}, 1), test_sphere(3, {1, 0, 0}, 1)}
 	s: Seam
 	fake_seam_init(&s, colliders = touching)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	// The Scene from init touches, but the first step still gets no contacts.
 	seam_step(&s, {}, 1.0 / 60)
@@ -347,7 +378,7 @@ test_seam_shutdown_releases_contacts_no_step_took :: proc(t: ^testing.T) {
 	s: Seam
 	fake_seam_init(&s)
 	s.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2}})
-	seam_shutdown(&s)
+	fake_seam_shutdown(&s)
 
 	testing.expect_value(t, roc_heap_counters().live, 0)
 }
@@ -361,7 +392,7 @@ test_seam_shutdown_drops_the_model_once_and_leaves_no_live_block :: proc(t: ^tes
 	fake_seam_init(&s)
 	seam_step(&s, {}, 1.0 / 60)
 	seam_step(&s, {}, 1.0 / 60)
-	seam_shutdown(&s)
+	fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.drops, 1)
 	testing.expect_value(t, g_fake.drop_box, g_fake.step_out)
@@ -376,7 +407,7 @@ test_seam_step_runs_each_command_after_step_and_before_view :: proc(t: ^testing.
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	g_fake.commands_out = 3
 	seam_step(&s, {}, 1.0 / 60)
@@ -398,7 +429,7 @@ test_seam_step_releases_the_commands_list :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 	seam_step(&s, {}, 1.0 / 60)
 
 	g_fake.commands_out = 2
@@ -418,7 +449,7 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 
 	s: Seam
 	fake_seam_init(&s)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	step_time, view_time := seam_step(&s, {}, 1.0 / 60)
 	testing.expect(t, step_time >= 0)
@@ -434,7 +465,7 @@ test_seam_init_runs_its_load_and_calls_loaded_before_the_first_view :: proc(t: ^
 
 	s: Seam
 	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.loadeds, 1)
 	testing.expect_value(t, g_fake.loaded_at, Fake_Command_Run{steps = 0, views = 0})
@@ -453,7 +484,7 @@ test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: pro
 
 	s: Seam
 	fake_seam_init(&s, 42, mesh_dir = dir)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.seed, 42)
 	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken"}))
@@ -470,7 +501,7 @@ test_seam_step_runs_a_load_after_step_and_calls_loaded_before_view :: proc(t: ^t
 
 	s: Seam
 	fake_seam_init(&s, mesh_dir = dir)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b")}
 	seam_step(&s, {}, 1.0 / 60)
@@ -490,7 +521,7 @@ test_loaded_gets_every_asked_for_name_and_a_missing_or_broken_one_has_id_0 :: pr
 
 	s: Seam
 	fake_seam_init(&s, mesh_dir = dir)
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b", "nope", "primitive/cube", "broken", "a")}
 	seam_step(&s, {}, 1.0 / 60)
@@ -516,7 +547,7 @@ test_a_repeated_load_logs_once_and_does_not_call_loaded_again :: proc(t: ^testin
 
 	s: Seam
 	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("start", "a")})
-	defer seam_shutdown(&s)
+	defer fake_seam_shutdown(&s)
 
 	g_fake.next_commands = {fake_load("room", "b"), fake_load("room", "b")}
 	seam_step(&s, {}, 1.0 / 60)
@@ -542,7 +573,156 @@ test_loads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
 	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load(long_name, "a", "a mesh name longer than twenty-three bytes")})
 	g_fake.next_commands = {fake_load(long_name, "b"), fake_load("room", "b")}
 	seam_step(&s, {}, 1.0 / 60)
-	seam_shutdown(&s)
+	fake_seam_shutdown(&s)
 
 	testing.expect_value(t, roc_heap_counters().live, 0)
+}
+
+@(test)
+test_a_swap_draws_the_fallback_for_the_old_pack_and_the_new_pack_meshes :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	defer fake_seam_shutdown(&s)
+	a := g_fake.loaded_manifest[0].id
+
+	b := fake_step_with(&s, fake_load("B", "b"))[0].id
+	fake_step_with(&s, fake_unload("A"))
+
+	testing.expect(t, fake_draws_fallback(a))
+	testing.expect(t, !fake_draws_fallback(b))
+	testing.expect_value(t, fake_mesh_name(b), "b")
+}
+
+@(test)
+test_an_asset_in_two_packs_keeps_one_id_until_its_last_pack_unloads :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	defer fake_seam_shutdown(&s)
+	in_a := g_fake.loaded_manifest[0].id
+
+	in_b := fake_step_with(&s, fake_load("B", "b", "a"))[1].id
+	testing.expect_value(t, in_b, in_a)
+
+	fake_step_with(&s, fake_unload("A"))
+	testing.expect(t, !fake_draws_fallback(in_a))
+	testing.expect_value(t, fake_mesh_name(in_a), "a")
+
+	fake_step_with(&s, fake_unload("B"))
+	testing.expect(t, fake_draws_fallback(in_a))
+}
+
+@(test)
+test_a_freed_slot_is_reused_and_the_old_id_stays_stale :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	defer fake_seam_shutdown(&s)
+	old := g_fake.loaded_manifest[0].id
+
+	fake_step_with(&s, fake_unload("A"))
+	fresh := fake_step_with(&s, fake_load("C", "b"))[0].id
+
+	testing.expect_value(t, mesh_slot(fresh), mesh_slot(old))
+	testing.expect(t, fresh != old)
+	testing.expect(t, fake_draws_fallback(old))
+	testing.expect_value(t, fake_mesh_name(fresh), "b")
+}
+
+@(test)
+test_an_unload_of_an_unknown_pack_logs_once_and_does_nothing :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a")})
+	defer fake_seam_shutdown(&s)
+	a := g_fake.loaded_manifest[0].id
+
+	fake_step_with(&s, fake_unload("nope"), fake_unload("nope"))
+	fake_step_with(&s, fake_unload("nope"))
+	testing.expect_value(t, len(g_fake.packs.logged_unloads), 1)
+	testing.expect_value(t, fake_mesh_name(a), "a")
+
+	fake_step_with(&s, fake_unload("A"), fake_unload("A"))
+	testing.expect_value(t, len(g_fake.packs.logged_unloads), 2)
+	testing.expect_value(t, g_fake.loadeds, 1)
+}
+
+@(test)
+test_unloading_every_pack_keeps_the_primitive_ids :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load("A", "a", "primitive/cube")})
+	defer fake_seam_shutdown(&s)
+	fake_step_with(&s, fake_load("B", "primitive/sphere", "b", "primitive/fallback"))
+	fake_step_with(&s, fake_unload("B"), fake_unload("A"))
+
+	for name, want in ([]string{"primitive/fallback", "primitive/cube", "primitive/sphere", "primitive/plane"}) {
+		id, found := mesh_table_find(&g_fake.meshes, name)
+		testing.expectf(t, found, "expected %v in the mesh table", name)
+		testing.expect_value(t, id, u32(want))
+		testing.expect_value(t, fake_mesh_name(id), name)
+	}
+	again := fake_step_with(&s, fake_load("C", "a", "b"))
+	for line in again {
+		testing.expectf(t, mesh_slot(line.id) >= len(Primitive), "%v took a primitive slot", line)
+	}
+}
+
+@(test)
+test_unloads_release_every_roc_block_by_shutdown :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	long_name := "a pack name longer than twenty-three bytes"
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir, init_commands = {fake_load(long_name, "a")})
+	fake_step_with(&s, fake_unload(long_name), fake_unload(long_name))
+	fake_seam_shutdown(&s)
+
+	testing.expect_value(t, roc_heap_counters().live, 0)
+}
+
+@(test)
+test_a_name_that_found_the_table_full_loads_after_an_unload_frees_a_slot :: proc(t: ^testing.T) {
+	dir := fake_mesh_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, mesh_dir = dir)
+	defer fake_seam_shutdown(&s)
+	g_fake.meshes.count = MESH_CAPACITY - 1
+
+	fake_step_with(&s, fake_load("A", "a"))
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "b"))[0].id, 0)
+	testing.expect_value(t, fake_step_with(&s, fake_load("C", "b"))[0].id, 0)
+	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
+
+	fake_step_with(&s, fake_unload("A"))
+	b := fake_step_with(&s, fake_load("D", "b"))[0].id
+	testing.expect_value(t, fake_mesh_name(b), "b")
 }

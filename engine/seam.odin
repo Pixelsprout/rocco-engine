@@ -10,8 +10,8 @@ Game_Calls :: struct {
 	drop_model: proc(model: rawptr),
 }
 
-// Runs every Command but Load. The Seam runs Load itself, because loaded must
-// reach the game before the next view.
+// Runs Quit. The Seam runs Load and Unload itself, because loaded must reach
+// the game before the next view.
 Command_Runner :: #type proc(command: Command)
 
 Seam :: struct {
@@ -82,6 +82,8 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) {
 		switch command.tag {
 		case .Load:
 			seam_load(s, &command.payload.load)
+		case .Unload:
+			pack_unload(s.packs, roc_str_string(&command.payload.unload))
 		case .Quit:
 			s.run_command(command)
 		}

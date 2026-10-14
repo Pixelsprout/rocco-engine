@@ -10,8 +10,8 @@ the design first.
 Built and running:
 
 - Fixed-timestep loop with an accumulator and interpolation.
-- Three arenas by lifetime: permanent, level, frame. The level arena holds
-  the meshes loaded from disk.
+- Two arenas by lifetime: permanent and frame. Each loaded mesh lives on
+  the heap from the first Pack that names it to the unload of the last one.
 - Rendering through sokol: one pipeline, a mesh table, index buffers,
   back-face culling, reversed-Z depth, Lambert lighting from
   `Scene.lights`. The backend is Metal on macOS, GL core on Linux and D3D11
@@ -699,7 +699,9 @@ opposite it and an ambient, and drops the placeholder point light.
    it. Only the primitives load at startup.
 3. The host tables. Packs are independent. A shared asset loads once and
    is refcounted. The mesh table and a 16-slot sky table reuse slots
-   through a free list and the generation (done: jzvojfn9).
+   through a free list and the generation (done: jzvojfn9). Done for the
+   mesh table: `Unload(pack)`, the free list and per-pack lifetimes
+   (7zk6yajs). The sky table comes with the sky.
 4. Textures and PBR. UVs, the glTF base colour texture and sampler, sRGB
    images and linear-light mipmaps. The loader reads roughness, metallic,
    the metallic-roughness texture and the unlit extension. The shader uses

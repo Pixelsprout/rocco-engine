@@ -198,10 +198,12 @@ Roc_Init :: struct {
 Roc_Init_Commands_Tag :: enum u8 {
 	Load = 0,
 	Quit = 1,
+	Unload = 2,
 }
 
 Roc_Init_Commands_Payload :: struct #raw_union {
 	load: Roc_Init_Commands_Load,
+	unload: Roc_Str,
 }
 
 Roc_Init_Commands :: struct {
@@ -532,6 +534,8 @@ roc_init_commands_decref :: proc(value: Roc_Init_Commands) {
 	#partial switch value.tag {
 	case .Load:
 		roc_init_commands_load_decref(value.payload.load)
+	case .Unload:
+		roc_str_decref(value.payload.unload)
 	}
 }
 

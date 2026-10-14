@@ -122,9 +122,6 @@ Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), li
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
 
-`Unload` is a Milestone 12 decision. Until its task lands, `Command` is
-`[Quit, Load({ pack : Str, assets : List(Str) })]`.
-
 | Type | Carries | Does not carry |
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
@@ -273,7 +270,8 @@ change.
 
 GPU resources belong to the asset. Vertex and image data are scratch until
 the upload, and no arena holds an asset, because packs unload in any order.
-The level arena goes.
+The mesh table owns each mesh's name and data on the heap and frees the
+vertex data after the upload. The engine has no level arena.
 
 ### Assets are organised by type
 
@@ -307,8 +305,9 @@ The low 16 bits of a mesh id are the slot in the mesh table. The high 16
 bits are the slot's generation. Unloading a mesh empties its slot and adds
 1 to its generation. An id kept from an unloaded pack then resolves to the
 fallback and is logged once, instead of drawing the mesh that took its
-slot. Today `mesh_table_unload_level` unloads every slot past the
-primitives. Milestone 12 makes the unload per pack. The first generation is
+slot. A mesh unloads when the last pack that holds it unloads, and its slot
+goes on the free list. The next mesh takes a freed slot before a new one.
+The first generation is
 0, so before any unload an id is its slot. The primitives never unload. The
 generation wraps after 65536 unloads of one slot, and then a very old id can
 match again. Decision.

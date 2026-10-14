@@ -42,19 +42,19 @@ mesh_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
 
 // Loads dir/name.glb into the next free slot. On failure the table does not
 // change and reason says why.
-mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string, allocator: mem.Allocator) -> (id: u32, reason: string, ok: bool) {
+mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string) -> (id: u32, reason: string, ok: bool) {
 	path := fmt.tprintf("%v/%v.glb", dir, name)
 	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {
 		return 0, os.error_string(read_err), false
 	}
-	data, glb_err := glb_parse(bytes, allocator)
+	if mesh_table_full(t) {
+		return 0, fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY), false
+	}
+	data, glb_err := glb_parse(bytes, t.allocator)
 	if glb_err != .None {
 		return 0, GLB_ERROR_REASONS[glb_err], false
 	}
-	slot, added := mesh_table_add(t, strings.clone(name, allocator), data)
-	if !added {
-		return 0, fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY), false
-	}
+	slot, _ := mesh_table_add(t, strings.clone(name, t.allocator), data)
 	return mesh_id(t, slot), "", true
 }
