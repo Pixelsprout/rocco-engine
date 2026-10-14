@@ -20,8 +20,8 @@ FACE_BORDER = (1.0, 1.0, 1.0, 1.0)
 FACE_TEXTURE_SIZE = 64
 FACE_BORDER_TEXELS = 4
 
-# Low enough that the sun leaves a small, sharp highlight on the ball.
-BALL_ROUGHNESS = 0.2
+# Low enough that the sun leaves a soft highlight on the ball.
+BALL_ROUGHNESS = 0.4
 BALL_WHITE = (0.9, 0.9, 0.9, 1.0)
 BALL_RED = (0.8, 0.05, 0.03, 1.0)
 BALL_SEGMENTS = 32
