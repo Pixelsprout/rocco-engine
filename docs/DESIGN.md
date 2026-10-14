@@ -204,6 +204,22 @@ shader.
 The host uses the current `Scene`'s lights for the whole frame. Lights have
 no id and do not interpolate. A light that moves jumps once per fixed step.
 
+### The look is Scene data, proposed
+
+Today the shader uses one fixed ACES fit. A later change can let a game
+choose the tone map, for example ACES, AgX or Khronos PBR Neutral.
+
+The choice goes in `Scene`, like the Lights. `Config` cannot carry it,
+because `Config` goes from the host to the game. A start-up `Command` locks
+the choice for the whole game, but a Theme can change the look per level.
+
+The tone map, the exposure and the fog go in one `Scene` record for the
+look. Then `Scene` does not gain one field for each effect, and a game
+builds the record once per Theme. The host passes the tone map as an int in
+`fs_params`, and the fragment shader branches on it.
+
+Proposed, not decided. The dex task `yjtqgdd4` holds the decision.
+
 ### Meshes are ids
 
 The engine loads every asset it finds at startup and registers its own
