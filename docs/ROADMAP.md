@@ -677,7 +677,13 @@ and the host has no light of its own.
 
 Check: an empty list draws black. A point light falls off with range.
 
-## Milestone 12: packs, textures and PBR
+## Milestone 12: packs, textures and PBR (done)
+
+Results, 2026-10-15: the user played Kula through all three levels on
+`arm64mac`. Each level draws under its own Theme, with textured faces and a
+sky, and the level swap shows no magenta. The Odin tests,
+`scripts/host-check.sh`, the build script tests and the Roc tests of every
+game pass.
 
 Done when a Pack unloads and the next loads with no stale id drawn, and
 Kula plays three textured, sky-lit levels with no magenta. The full spec
