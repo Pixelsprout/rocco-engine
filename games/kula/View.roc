@@ -78,7 +78,11 @@ View := [].{
 	cut_by_near_plane = |face, cam| {
 		centre_of_face = Vec3.add(Grid.to_vec3(face.block), Vec3.scale(Grid.to_vec3(face.normal), 0.5))
 		n = Grid.to_vec3(face.normal)
-		closest = |e, c, axis_normal| if axis_normal != 0.0 { c } else { clamp(e, c - 0.5, c + 0.5) }
+		closest = |e, c, axis_normal| if axis_normal != 0.0 {
+			c
+		} else {
+			clamp(e, c - 0.5, c + 0.5)
+		}
 		nearest = {
 			x: closest(cam.eye.x, centre_of_face.x, n.x),
 			y: closest(cam.eye.y, centre_of_face.y, n.y),
@@ -122,7 +126,13 @@ near_window_reach : F32
 near_window_reach = 0.2
 
 clamp : F32, F32, F32 -> F32
-clamp = |v, lo, hi| if v < lo { lo } else if v > hi { hi } else { v }
+clamp = |v, lo, hi| if v < lo {
+	lo
+} else if v > hi {
+	hi
+} else {
+	v
+}
 
 pi : F32
 pi = 3.1415927
@@ -288,10 +298,12 @@ expect {
 }
 
 inside_block : Set(World.Cell), Vec3.Vec3 -> Bool
-inside_block = |blocks, v| blocks.to_list().any(|b| {
-	c = Grid.to_vec3(b)
-	(v.x - c.x).abs() < 0.5 and (v.y - c.y).abs() < 0.5 and (v.z - c.z).abs() < 0.5
-})
+inside_block = |blocks, v| blocks.to_list().any(
+	|b| {
+		c = Grid.to_vec3(b)
+		(v.x - c.x).abs() < 0.5 and (v.y - c.y).abs() < 0.5 and (v.z - c.z).abs() < 0.5
+	},
+)
 
 # After a climb the eye is inside the floor block behind the ball, as in the original.
 expect {
@@ -312,17 +324,23 @@ expect {
 # Each face turns the plane's +y onto its normal and sits on the block's surface.
 expect {
 	up = { x: 0.0, y: 1.0, z: 0.0 }
-	View.faces(Set.from_list([cell(2, 0, 0)])).all(|face| {
-		draw = View.face_draw(1, 3, face, white)
-		n = Grid.to_vec3(face.normal)
-		near(Quat.rotate(up, draw.rot), n) and near(draw.pos, Vec3.add({ x: 2.0, y: 0.0, z: 0.0 }, Vec3.scale(n, 0.5)))
-	})
+	View.faces(Set.from_list([cell(2, 0, 0)])).all(
+		|face| {
+			draw = View.face_draw(1, 3, face, white)
+			n = Grid.to_vec3(face.normal)
+			near(Quat.rotate(up, draw.rot), n) and near(draw.pos, Vec3.add({ x: 2.0, y: 0.0, z: 0.0 }, Vec3.scale(n, 0.5)))
+		},
+	)
 }
 
 # Distance from a point to the surface of the unit block at the origin, 0 inside.
 outside_origin_block : Vec3.Vec3 -> F32
 outside_origin_block = |v| {
-	gap = |c| if c.abs() > 0.5 { c.abs() - 0.5 } else { 0.0 }
+	gap = |c| if c.abs() > 0.5 {
+		c.abs() - 0.5
+	} else {
+		0.0
+	}
 	Vec3.length({ x: gap(v.x), y: gap(v.y), z: gap(v.z) })
 }
 
@@ -396,10 +414,12 @@ expect {
 }
 
 # The bottom of the ball stays on the floor through the bob.
-expect [0.0, 0.25, 0.5, 0.75].all(|bob| {
-	draw = View.ball_draw({ ..Ball.start(on_origin), bob }, 2, white)
-	(draw.pos.y - draw.scale.y / 2.0 - 0.5).abs() < 0.0001
-})
+expect [0.0, 0.25, 0.5, 0.75].all(
+	|bob| {
+		draw = View.ball_draw({ ..Ball.start(on_origin), bob }, 2, white)
+		(draw.pos.y - draw.scale.y / 2.0 - 0.5).abs() < 0.0001
+	},
+)
 
 # The squash acts along up, whatever the spin.
 expect {

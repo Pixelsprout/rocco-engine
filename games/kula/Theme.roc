@@ -61,14 +61,21 @@ pi = 3.14159265
 
 # The sum of all lights on a face with this normal, over the three channels.
 shade : List(Vocabulary.Light), Vec3.Vec3 -> F32
-shade = |lights, normal| lights.fold(0.0, |sum, light| match light {
-	Ambient(c) => sum + c.r + c.g + c.b
-	Directional({ dir, color, shadow: _ }) => {
-		facing = Vec3.dot(normal, Vec3.neg(dir))
-		if facing > 0.0 { sum + (color.r + color.g + color.b) * facing } else { sum }
-	}
-	Point(_) => sum
-})
+shade = |lights, normal| lights.fold(
+	0.0,
+	|sum, light| match light {
+		Ambient(c) => sum + c.r + c.g + c.b
+		Directional({ dir, color, shadow: _ }) => {
+			facing = Vec3.dot(normal, Vec3.neg(dir))
+			if facing > 0.0 {
+				sum + (color.r + color.g + color.b) * facing
+			} else {
+				sum
+			}
+		}
+		Point(_) => sum
+	},
+)
 
 normals : List(Vec3.Vec3)
 normals = [{ x: 1.0, y: 0.0, z: 0.0 }, { x: -1.0, y: 0.0, z: 0.0 }, { x: 0.0, y: 1.0, z: 0.0 }, { x: 0.0, y: -1.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 1.0 }, { x: 0.0, y: 0.0, z: -1.0 }]
@@ -77,10 +84,12 @@ expect Theme.count == Level.count
 expect themes.map(|t| t.pack) == ["haze", "inca", "arctic"]
 expect Theme.of_level(1).pack == "haze" and Theme.of_level(3).pack == "arctic" and Theme.of_level(4).pack == "arctic"
 
-expect themes.all(|t| {
-	shades = normals.map(|n| shade(t.lights, n))
-	shades.all(|a| shades.keep_if(|b| (a - b).abs() < 0.06).len() == 1)
-})
+expect themes.all(
+	|t| {
+		shades = normals.map(|n| shade(t.lights, n))
+		shades.all(|a| shades.keep_if(|b| (a - b).abs() < 0.06).len() == 1)
+	},
+)
 
 expect themes.all(|a| themes.keep_if(|b| b.sun == a.sun).len() == 1)
 expect themes.all(|t| t.assets == [t.face, t.sky])

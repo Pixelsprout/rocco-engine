@@ -7,34 +7,38 @@ import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
 import pf.Key
 
 Ball : { id : U64, x : F32, z : F32, vx : F32, vz : F32 }
+
 Score : { left : U64, right : U64 }
+
 GameState : [Running, Paused, EndGame]
 
-Model : {
-    state: GameState,
-    cube : U32,
-    left : F32,
-    right : F32,
-    ball : Ball,
-    score : Score,
-    rng : U64,
-    serves : U64
-}
+Model : { state : GameState, cube : U32, left : F32, right : F32, ball : Ball, score : Score, rng : U64, serves : U64 }
 
 # Constants
 half_width = 8.0 # F32
+
 half_depth = 5.0 # F32
+
 paddle_x = 7.0 # F32
+
 paddle_half_len = 1.0 # F32
+
 paddle_half_thick = 0.15 # F32
+
 paddle_limit = half_depth - paddle_half_len # F32
+
 paddle_speed = 9.0 # F32
+
 ball_half = 0.2 # F32
+
 ball_id_base = 1_000_000 # U64
+
 wall_limit : F32
 wall_limit = half_depth - ball_half
+
 serve_speed : F32
 serve_speed = 8.0
+
 max_score = 7
 
 manifest : Config
@@ -46,7 +50,7 @@ idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 init : Config -> Model
 init = |config| {
 	model = {
-    	state: Running,
+		state: Running,
 		cube: Mesh.primitive(config, Cube),
 		left: 0.0,
 		right: 0.0,
@@ -64,11 +68,11 @@ step = |m, input, dt| {
 	next = game_state(m, input)
 	if next.state == Running {
 		next
-		    |> move_paddles(input, dt)
-	        |> move_ball(dt)
-	        |> bounce_walls
-	        |> hit_paddles
-	        |> score_point
+			|> move_paddles(input, dt)
+			|> move_ball(dt)
+			|> bounce_walls
+			|> hit_paddles
+			|> score_point
 	} else {
 		next
 	}
@@ -117,8 +121,8 @@ view = |m| {
 	]
 
 	draws = fixed
-	    |> pips(c, m.score.left, 1000, -1.0, pip_tint(m.state, m.score.left, m.score.right))
-	    |> pips(c, m.score.right, 2000, 1.0, pip_tint(m.state, m.score.right, m.score.left))
+		|> pips(c, m.score.left, 1000, -1.0, pip_tint(m.state, m.score.left, m.score.right))
+		|> pips(c, m.score.right, 2000, 1.0, pip_tint(m.state, m.score.right, m.score.left))
 
 	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws }
 }
@@ -158,27 +162,27 @@ pips = |draws, mesh, count, id_base, side, tint| {
 
 serve : Model, F32 -> Model
 serve = |m, dir| {
-    rng = next_rng(m.rng)
-    serves = m.serves + 1
-    ball = { id: ball_id_base + serves, x: 0.0, z: 0.0, vx: dir * serve_speed, vz: (unit(rng) - 0.5) * 6.0 }
+	rng = next_rng(m.rng)
+	serves = m.serves + 1
+	ball = { id: ball_id_base + serves, x: 0.0, z: 0.0, vx: dir * serve_speed, vz: (unit(rng) - 0.5) * 6.0 }
 
-    { ..m, ball, serves, rng }
+	{ ..m, ball, serves, rng }
 }
 
 end_game : Model -> Model
 end_game = |m| {
-    if m.score.left >= max_score or m.score.right >= max_score {
-        m
-    } else m
+	if m.score.left >= max_score or m.score.right >= max_score {
+		m
+	} else m
 }
 
 score_point : Model -> Model
 score_point = |m| {
-    if m.ball.x > half_width {
-        serve({ ..m, score: { ..m.score, left: m.score.left + 1 } }, -1.0)
-    } else if m.ball.x < -half_width {
-        serve({ ..m, score: { ..m.score, right: m.score.right + 1 } }, 1.0)
-    } else m
+	if m.ball.x > half_width {
+		serve({ ..m, score: { ..m.score, left: m.score.left + 1 } }, -1.0)
+	} else if m.ball.x < -half_width {
+		serve({ ..m, score: { ..m.score, right: m.score.right + 1 } }, 1.0)
+	} else m
 }
 
 move_paddles : Model, Input, F32 -> Model
@@ -208,13 +212,13 @@ bounce_walls = |m| {
 
 touches : Ball, F32, F32 -> Bool
 touches = |b, px, pz| {
-    (b.x - px).abs() < ball_half + paddle_half_thick
-        and (b.z - pz).abs() < ball_half + paddle_half_len
+	(b.x - px).abs() < ball_half + paddle_half_thick
+		and (b.z - pz).abs() < ball_half + paddle_half_len
 }
 
 return_ball : Ball, F32 -> Ball
 return_ball = |b, pz| {
-    { ..b, vx: -b.vx * 1.05, vz: b.vz + (b.z - pz) * 3.0 }
+	{ ..b, vx: -b.vx * 1.05, vz: b.vz + (b.z - pz) * 3.0 }
 }
 
 hit_paddles : Model -> Model
@@ -240,7 +244,6 @@ next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1)
 unit : U64 -> F32
 unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 
-
 # =======================================
 # Tests
 # =======================================
@@ -263,29 +266,29 @@ expect {
 
 # A ball past the top wall moving outward bounces once, and a second call is a no-op.
 expect {
-    m = init(manifest)
-    going_out = { ..m, ball: { ..m.ball, z: wall_limit + 0.01, vz: 2.0 }}
-    once = bounce_walls(going_out)
-    twice = bounce_walls(once)
-    once.ball.vz == -2.0 and twice.ball.vz == -2.0
+	m = init(manifest)
+	going_out = { ..m, ball: { ..m.ball, z: wall_limit + 0.01, vz: 2.0 } }
+	once = bounce_walls(going_out)
+	twice = bounce_walls(once)
+	once.ball.vz == -2.0 and twice.ball.vz == -2.0
 }
 
 # The same for the bottom wall, which needs the opposite sign on vz.
 expect {
-    m = init(manifest)
-    going_out = { ..m, ball: { ..m.ball, z: -wall_limit - 0.01, vz: -2.0 }}
-    once = bounce_walls(going_out)
-    twice = bounce_walls(once)
-    once.ball.vz == 2.0 and twice.ball.vz == 2.0
+	m = init(manifest)
+	going_out = { ..m, ball: { ..m.ball, z: -wall_limit - 0.01, vz: -2.0 } }
+	once = bounce_walls(going_out)
+	twice = bounce_walls(once)
+	once.ball.vz == 2.0 and twice.ball.vz == 2.0
 }
 
 # A ball reaching the right paddle is returned faster and angled by where it hit.
 expect {
-    m = init(manifest)
-    at_right = { ..m, ball: {..m.ball, x: paddle_x - 0.2, z: 0.5, vx: 8.0, vz: 0.0 } }
-    once = hit_paddles(at_right)
-    twice = hit_paddles(once)
-    once.ball.vx == -8.4 and once.ball.vz == 1.5 and twice.ball.vx == -8.4
+	m = init(manifest)
+	at_right = { ..m, ball: { ..m.ball, x: paddle_x - 0.2, z: 0.5, vx: 8.0, vz: 0.0 } }
+	once = hit_paddles(at_right)
+	twice = hit_paddles(once)
+	once.ball.vx == -8.4 and once.ball.vz == 1.5 and twice.ball.vx == -8.4
 }
 
 # A ball past the right wall scores for the left and is served again with a new id.
@@ -342,6 +345,6 @@ expect {
 	running = { ..m, score: { left: 3, right: 2 } }
 	ended = { ..running, state: EndGame }
 	pip_tint(running.state, running.score.left, running.score.right) == gray
-	    and pip_tint(ended.state, ended.score.left, ended.score.right) == green
-	    and pip_tint(ended.state, ended.score.right, ended.score.left) == red
+		and pip_tint(ended.state, ended.score.left, ended.score.right) == green
+			and pip_tint(ended.state, ended.score.right, ended.score.left) == red
 }

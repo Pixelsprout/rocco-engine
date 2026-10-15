@@ -2,17 +2,17 @@ import Vocabulary exposing [Rgb, Vec3]
 
 # Builds the Lights a game returns in its Scene.
 Light := [].{
-    ambient : Rgb -> Vocabulary.Light
-    ambient = |color| Ambient(color)
+	ambient : Rgb -> Vocabulary.Light
+	ambient = |color| Ambient(color)
 
-    directional : Vec3, Rgb -> Vocabulary.Light
-    directional = |dir, color| Directional({ dir, color, shadow: False })
+	directional : Vec3, Rgb -> Vocabulary.Light
+	directional = |dir, color| Directional({ dir, color, shadow: False })
 
-    sun : Vec3, Rgb -> Vocabulary.Light
-    sun = |dir, color| Directional({ dir, color, shadow: True })
+	sun : Vec3, Rgb -> Vocabulary.Light
+	sun = |dir, color| Directional({ dir, color, shadow: True })
 
-    point : Vec3, Rgb, F32 -> Vocabulary.Light
-    point = |pos, color, range| Point({ pos, color, range })
+	point : Vec3, Rgb, F32 -> Vocabulary.Light
+	point = |pos, color, range| Point({ pos, color, range })
 }
 
 grey : Rgb

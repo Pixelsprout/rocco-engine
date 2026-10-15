@@ -28,7 +28,11 @@ Rules := [].{
 
 	count_down : F32 -> (Model -> Model)
 	count_down = |dt| |model| match model.phase {
-		Starting(seconds) => if seconds - dt > 0.0 { { ..model, phase: Starting(seconds - dt) } } else { { ..model, phase: Playing } }
+		Starting(seconds) => if seconds - dt > 0.0 {
+			{ ..model, phase: Starting(seconds - dt) }
+		} else {
+			{ ..model, phase: Playing }
+		}
 		_ => model
 	}
 
@@ -49,14 +53,25 @@ Rules := [].{
 	exit : Model -> Model
 	exit = |model|
 		if model.phase == Playing and exit_open(model) and has_item(model.level, model.ball.pose.cell, Exit) {
-			{ ..model, phase: if model.level_number < Level.count { Cleared } else { Won } }
+			{
+				..model,
+				phase: if model.level_number < Level.count {
+					Cleared
+				} else {
+					Won
+				},
+			}
 		} else {
 			model
 		}
 
 	fall : Model -> Model
 	# A restart in Cleared would leave the next Theme's pack loaded with no level to take it.
-	fall = |model| if model.phase != Cleared and Ball.fell_off(model.ball) { restart(model) } else { model }
+	fall = |model| if model.phase != Cleared and Ball.fell_off(model.ball) {
+		restart(model)
+	} else {
+		model
+	}
 }
 
 parse_or_crash : Str -> World.Level

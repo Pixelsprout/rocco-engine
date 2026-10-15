@@ -1,4 +1,4 @@
-app [init, step, loaded, view] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "../../platform/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", ui: "../../packages/ui/main.roc" }
 
 import linalg.Quat
 import linalg.Vec3
@@ -52,8 +52,16 @@ step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Comm
 step = |model, input, _contacts, dt| {
 	stages = [Rules.count_down(dt), read_input(input), move_ball(input, dt), Rules.collect, Rules.exit, Rules.fall]
 	after = stages.fold(model, |m, stage| stage(m))
-	quit = if Key.pressed(input, Escape) { [Quit] } else { [] }
-	load = if model.phase != Cleared and after.phase == Cleared { [load_theme(after.level_number + 1)] } else { [] }
+	quit = if Key.pressed(input, Escape) {
+		[Quit]
+	} else {
+		[]
+	}
+	load = if model.phase != Cleared and after.phase == Cleared {
+		[load_theme(after.level_number + 1)]
+	} else {
+		[]
+	}
 	unloads = model.unloads.map(|pack| Unload(pack))
 	{ model: { ..after, unloads: [] }, commands: quit.concat(load).concat(unloads) }
 }
@@ -93,23 +101,37 @@ view : Model -> Scene
 view = |model| {
 	theme = Theme.of_level(model.level_number)
 	exits = model.level.items.keep_if(|entry| entry.item == Exit).map(|entry| below(entry.cell))
-	exit_tint = if Rules.exit_open(model) { open_exit_tint } else { closed_exit_tint }
+	exit_tint = if Rules.exit_open(model) {
+		open_exit_tint
+	} else {
+		closed_exit_tint
+	}
 	camera = View.camera(model.ball)
 	# Ids come before the near-plane filter, so a face keeps its id while others drop out.
 	blocks = View.faces(model.level.blocks)
 		.map_with_index(|face, i| { face, id: 1 + i.to_u64() })
 		.keep_if(|entry| !View.cut_by_near_plane(entry.face, camera))
-		.map(|entry| {
-			tint = if exits.contains(entry.face.block) { exit_tint } else { face_tint }
-			View.face_draw(entry.id, model.meshes.face, entry.face, tint)
-		})
+		.map(
+			|entry| {
+				tint = if exits.contains(entry.face.block) {
+					exit_tint
+				} else {
+					face_tint
+				}
+				View.face_draw(entry.id, model.meshes.face, entry.face, tint)
+			},
+		)
 	# Ids come before the collected filter too, so a key keeps its id.
 	keys = model.level.items
 		.keep_if(|entry| entry.item == Key)
 		.map_with_index(|entry, i| { cell: entry.cell, id: key_ids + i.to_u64() })
 		.keep_if(|key| !model.collected.contains(key.cell))
 		.map(|key| cube(model.meshes, key.id, key.cell, 0.3, key_tint))
-	ball_tint = if model.phase == Won { won_ball_tint } else { playing_ball_tint }
+	ball_tint = if model.phase == Won {
+		won_ball_tint
+	} else {
+		playing_ball_tint
+	}
 	ball = View.ball_draw(model.ball, model.meshes.ball, ball_tint)
 	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free, sky: model.meshes.sky, ui: Hud.ui(model) }
 }
@@ -317,12 +339,12 @@ expect {
 	switched = loaded(finished.model, "inca", [{ name: "inca_face", id: 7 }, { name: "sky/inca", id: 2 }])
 	after = step(switched, idle, [], 0.1)
 	finished.commands == [Load({ pack: "inca", assets: ["inca_face", "sky/inca"] })]
-	and finished.model.phase == Cleared
-	and switched.meshes == { cube: 1, face: 7, ball: 4, sky: 2 }
-	and switched.level_number == 2
-	and switched.phase == Starting(Rules.start_pause)
-	and after.commands == [Unload("haze")]
-	and step(after.model, idle, [], 0.1).commands == []
+		and finished.model.phase == Cleared
+			and switched.meshes == { cube: 1, face: 7, ball: 4, sky: 2 }
+				and switched.level_number == 2
+					and switched.phase == Starting(Rules.start_pause)
+						and after.commands == [Unload("haze")]
+							and step(after.model, idle, [], 0.1).commands == []
 }
 
 # A Cleared level sends its Load once.
@@ -349,15 +371,18 @@ Move : [Roll, Left, Right, Leap]
 
 # Each move starts with a short step that presses its keys. A long idle step then finishes it.
 play : Model, List(Move) -> Model
-play = |model, moves| moves.fold(model, |m, move| {
-	keys = match move {
-		Roll => { ..idle, held: [Key.code(Up)] }
-		Left => { ..idle, pressed: [Key.code(Left)] }
-		Right => { ..idle, pressed: [Key.code(Right)] }
-		Leap => { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
-	}
-	step(step(m, keys, [], 0.01).model, idle, [], 1.0).model
-})
+play = |model, moves| moves.fold(
+	model,
+	|m, move| {
+		keys = match move {
+			Roll => { ..idle, held: [Key.code(Up)] }
+			Left => { ..idle, pressed: [Key.code(Left)] }
+			Right => { ..idle, pressed: [Key.code(Right)] }
+			Leap => { ..idle, held: [Key.code(Up)], pressed: [Key.code(Space)] }
+		}
+		step(step(m, keys, [], 0.01).model, idle, [], 1.0).model
+	},
+)
 
 on_level : U64 -> Model
 on_level = |number| Rules.start(started.meshes, number)

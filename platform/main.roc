@@ -1,65 +1,25 @@
 platform ""
-    requires {} {
-        [Model: model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
-        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
-        loaded : Model, Str, Vocabulary.Manifest -> Model,
-        view : Model -> Vocabulary.Scene,
-    }
-    exposes [Vocabulary, Key, Collider, Light]
-    packages { roc: "nightly-2026-09-27-a3ce7f1" }
-    provides {
-        "roc_init": init_for_host,
-        "roc_step": step_for_host,
-        "roc_loaded": loaded_for_host,
-        "roc_view": view_for_host,
-        "roc_drop_model": drop_model_for_host,
-    }
-    targets: {
-        inputs_dir: "targets/",
-        arm64mac: { inputs: [
-            "libhost.a",
-            "sokol_app_macos_arm64_metal_debug.a",
-            "sokol_gfx_macos_arm64_metal_debug.a",
-            "sokol_glue_macos_arm64_metal_debug.a",
-            "sokol_log_macos_arm64_metal_debug.a",
-            "clay.a",
-            "libclang_rt.osx.a",
-            app,
-        ] },
-        x64glibc: { inputs: [
-            "Scrt1.o",
-            "crti.o",
-            "libhost.a",
-            "sokol_app_linux_x64_gl_debug.a",
-            "sokol_gfx_linux_x64_gl_debug.a",
-            "sokol_glue_linux_x64_gl_debug.a",
-            "sokol_log_linux_x64_gl_debug.a",
-            "clay.a",
-            app,
-            "libX11.so.6",
-            "libXi.so.6",
-            "libXcursor.so.1",
-            "libGL.so.1",
-            "libc.so.6",
-            "libm.so.6",
-            "crtn.o",
-        ] },
-        x64win: { inputs: [
-            "host.lib",
-            "sokol_app_windows_x64_d3d11_debug.lib",
-            "sokol_gfx_windows_x64_d3d11_debug.lib",
-            "sokol_glue_windows_x64_d3d11_debug.lib",
-            "sokol_log_windows_x64_d3d11_debug.lib",
-            app,
-            "kernel32.lib",
-            "user32.lib",
-            "gdi32.lib",
-            "shell32.lib",
-            "ole32.lib",
-            "d3d11.lib",
-            "dxgi.lib",
-        ] },
-    }
+	requires {
+		[Model : model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
+		step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
+		loaded : Model, Str, Vocabulary.Manifest -> Model,
+		view : Model -> Vocabulary.Scene
+	}
+	exposes [Vocabulary, Key, Collider, Light]
+	packages { roc: "nightly-2026-09-27-a3ce7f1" }
+	provides {
+		"roc_init": init_for_host,
+		"roc_step": step_for_host,
+		"roc_loaded": loaded_for_host,
+		"roc_view": view_for_host,
+		"roc_drop_model": drop_model_for_host,
+	}
+	targets: {
+		inputs_dir: "targets/",
+		arm64mac: { inputs: ["libhost.a", "sokol_app_macos_arm64_metal_debug.a", "sokol_gfx_macos_arm64_metal_debug.a", "sokol_glue_macos_arm64_metal_debug.a", "sokol_log_macos_arm64_metal_debug.a", "clay.a", "libclang_rt.osx.a", app] },
+		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app_linux_x64_gl_debug.a", "sokol_gfx_linux_x64_gl_debug.a", "sokol_glue_linux_x64_gl_debug.a", "sokol_log_linux_x64_gl_debug.a", "clay.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
+		x64win: { inputs: ["host.lib", "sokol_app_windows_x64_d3d11_debug.lib", "sokol_gfx_windows_x64_d3d11_debug.lib", "sokol_glue_windows_x64_d3d11_debug.lib", "sokol_log_windows_x64_d3d11_debug.lib", app, "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "d3d11.lib", "dxgi.lib"] },
+	}
 
 import Vocabulary exposing [Command, Config, Contact, Input, Manifest, Scene]
 
@@ -75,14 +35,14 @@ import Light
 # a previous Model or an alpha.
 init_for_host : Config -> { model : Box(Model), commands : List(Command) }
 init_for_host = |config| {
-    started = init(config)
-    { model: Box.box(started.model), commands: started.commands }
+	started = init(config)
+	{ model: Box.box(started.model), commands: started.commands }
 }
 
 step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
 step_for_host = |boxed, input, contacts, dt| {
-    stepped = step(Box.unbox(boxed), input, contacts, dt)
-    { model: Box.box(stepped.model), commands: stepped.commands }
+	stepped = step(Box.unbox(boxed), input, contacts, dt)
+	{ model: Box.box(stepped.model), commands: stepped.commands }
 }
 
 loaded_for_host : Box(Model), Str, Manifest -> Box(Model)

@@ -1014,13 +1014,11 @@ expect {
 	# A child's world pos is its local pos turned by the parent yaw, plus the
 	# parent pos. Yaws add. Depth is unbounded.
 	scene = view(
-		with_entities(
-			[
-				entity_at(10, Root, { x: 1.0, y: 0.0, z: 0.0 }, pi / 2.0),
-				entity_at(11, Child(10), { x: 0.0, y: 2.0, z: 1.0 }, 0.5),
-				entity_at(12, Child(11), { x: 0.0, y: 0.0, z: 1.0 }, 0.0),
-			],
-		),
+		with_entities([
+			entity_at(10, Root, { x: 1.0, y: 0.0, z: 0.0 }, pi / 2.0),
+			entity_at(11, Child(10), { x: 0.0, y: 2.0, z: 1.0 }, 0.5),
+			entity_at(12, Child(11), { x: 0.0, y: 0.0, z: 1.0 }, 0.0),
+		]),
 	)
 	match (draw_of(scene, 11), draw_of(scene, 12)) {
 		(Ok(child), Ok(grandchild)) => {
@@ -1052,13 +1050,11 @@ expect {
 	# A child whose parent is missing, or later in the list, draws at its local values.
 	local = { x: 3.0, y: 1.0, z: 2.0 }
 	scene = view(
-		with_entities(
-			[
-				entity_at(10, Child(99), local, 0.25),
-				entity_at(11, Child(12), local, 0.25),
-				entity_at(12, Root, { x: 5.0, y: 0.0, z: 0.0 }, 1.0),
-			],
-		),
+		with_entities([
+			entity_at(10, Child(99), local, 0.25),
+			entity_at(11, Child(12), local, 0.25),
+			entity_at(12, Root, { x: 5.0, y: 0.0, z: 0.0 }, 1.0),
+		]),
 	)
 	at_local = |id| draw_of(scene, id).map_ok(|d| d.pos == local and d.rot == Quat.from_yaw(0.25)) ?? Bool.False
 	at_local(10) and at_local(11)
@@ -1082,15 +1078,13 @@ expect {
 	# Sweep drops a dead entity, then every descendant of it in the same pass.
 	dead = { ..entity_at(10, Root, V.zero, 0.0), alive: Bool.False }
 	swept = sweep(
-		with_entities(
-			[
-				dead,
-				entity_at(11, Child(10), V.zero, 0.0),
-				entity_at(12, Child(11), V.zero, 0.0),
-				entity_at(13, Root, V.zero, 0.0),
-				entity_at(14, Child(13), V.zero, 0.0),
-			],
-		),
+		with_entities([
+			dead,
+			entity_at(11, Child(10), V.zero, 0.0),
+			entity_at(12, Child(11), V.zero, 0.0),
+			entity_at(13, Root, V.zero, 0.0),
+			entity_at(14, Child(13), V.zero, 0.0),
+		]),
 	)
 	swept.entities.map(|e| e.id) == [13, 14]
 }
@@ -1325,7 +1319,12 @@ expect {
 	dry = run_steps(new_game(test_meshes, 0, 0), idle, 60, dt)
 	drops = List.keep_if(raining.entities, is_drop)
 	on_player = List.all(drops, |e| e.parent == Child(0))
-	phases = drops.map(|e| match e.kind { Drop(d) => d.phase, _ => -1.0 })
+	phases = drops.map(
+		|e| match e.kind {
+			Drop(d) => d.phase
+			_ => -1.0
+		},
+	)
 	varied = List.any(phases, |a| a != List.first(phases) ?? a)
 	List.len(drops) == 6 and on_player and varied and drop_count(dry) == 0
 }

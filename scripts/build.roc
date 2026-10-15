@@ -1,4 +1,4 @@
-app [main!] { roc: "nightly-2026-09-27-a3ce7f1", pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst" }
+app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst", roc: "nightly-2026-09-27-a3ce7f1" }
 
 import pf.Cmd
 import pf.Env
@@ -100,10 +100,12 @@ font_run = {
 Copy : { from : Str, to : Str }
 
 sokol_copies : Target -> List(Copy)
-sokol_copies = |target| ["app", "gfx", "glue", "log"].map(|part| {
-	name = "sokol_${part}_${target.sokol_suffix}"
-	{ from: "sokol-odin/sokol/${part}/${name}", to: "${target.dir}/${name}" }
-})
+sokol_copies = |target| ["app", "gfx", "glue", "log"].map(
+	|part| {
+		name = "sokol_${part}_${target.sokol_suffix}"
+		{ from: "sokol-odin/sokol/${part}/${name}", to: "${target.dir}/${name}" }
+	},
+)
 
 clay_odin_dir : Str
 clay_odin_dir = "clay/bindings/odin/clay-odin"
@@ -154,11 +156,18 @@ linux_copies = |lib_dir, target| linux_libs.map(|lib| { from: "${lib_dir}/${lib}
 newest_sdk : List(Str) -> Try(Str, [NoSdk])
 newest_sdk = |names| {
 	best : Try((U64, Str), [NoSdk])
-	best = names.fold(Err(NoSdk), |acc, name| match (version_key(name), acc) {
-		(Err(_), _) => acc
-		(Ok(key), Err(_)) => Ok((key, name))
-		(Ok(key), Ok((best_key, _))) => if key > best_key { Ok((key, name)) } else { acc }
-	})
+	best = names.fold(
+		Err(NoSdk),
+		|acc, name| match (version_key(name), acc) {
+			(Err(_), _) => acc
+			(Ok(key), Err(_)) => Ok((key, name))
+			(Ok(key), Ok((best_key, _))) => if key > best_key {
+				Ok((key, name))
+			} else {
+				acc
+			}
+		},
+	)
 	best.map_ok(|(_, name)| name)
 }
 
@@ -169,10 +178,17 @@ version_key = |name| {
 	if parts.len() != 4 {
 		Err(NotVersion)
 	} else {
-		parts.fold(Ok(0), |acc, part| match (acc, U64.from_str(part)) {
-			(Ok(key), Ok(n)) => if n < 100_000 { Ok(key * 100_000 + n) } else { Err(NotVersion) }
-			_ => Err(NotVersion)
-		})
+		parts.fold(
+			Ok(0),
+			|acc, part| match (acc, U64.from_str(part)) {
+				(Ok(key), Ok(n)) => if n < 100_000 {
+					Ok(key * 100_000 + n)
+				} else {
+					Err(NotVersion)
+				}
+				_ => Err(NotVersion)
+			},
+		)
 	}
 }
 
@@ -364,7 +380,9 @@ expect parse(["host", "extra"]) == Err(Usage)
 expect parse(["deploy"]) == Err(Usage)
 
 mac = { arch: AARCH64, os: MACOS }
+
 linux = { arch: X64, os: LINUX }
+
 windows = { arch: X64, os: WINDOWS }
 
 expect target_for(mac).map_ok(|target| target.roc_target) == Ok("arm64mac")
