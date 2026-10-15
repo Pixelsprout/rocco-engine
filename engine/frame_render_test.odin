@@ -42,14 +42,21 @@ Recorder :: struct {
 	sky_view_proj: Mat4,
 	sky_calls:     int,
 	sky_after:     int,
+	ui_quads:      [dynamic]Ui_Quad,
+	ui_screen:     [2]f32,
+	ui_calls:      int,
+	ui_after_sky:  int,
 }
 
-// The table is never uploaded, so the tests need no sokol setup.
+// The table is never uploaded, so the tests need no sokol setup. ui is nil
+// unless frame_fixture_init_ui ran.
 Frame_Fixture :: struct {
 	fr:     Frame_Render,
 	meshes: Mesh_Table,
 	skies:  Sky_Table,
 	rec:    Recorder,
+	ui:     ^Ui,
+	window: Ui_Window,
 }
 
 @(test)
@@ -238,6 +245,14 @@ record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r.sky_after = len(r.submits)
 }
 
+record_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
+	r := (^Recorder)(ctx)
+	append(&r.ui_quads, ..quads)
+	r.ui_screen = screen
+	r.ui_calls += 1
+	r.ui_after_sky = r.sky_calls
+}
+
 record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
 	r := (^Recorder)(ctx)
 	append(&r.passes, Pass_Begun{pass, view})
@@ -266,13 +281,16 @@ frame_fixture_init :: proc(f: ^Frame_Fixture) {
 	f.fr.submit = record_submit
 	f.fr.submit_lights = record_lights
 	f.fr.submit_sky = record_sky
+	f.fr.submit_ui = record_ui
 	f.fr.submit_ctx = &f.rec
+	f.window = {size = {960, 540}, dpi = 1}
 }
 
 frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
 	delete(f.rec.submits)
 	delete(f.rec.passes)
 	delete(f.rec.shadows)
+	delete(f.rec.ui_quads)
 	mesh_table_destroy(&f.meshes)
 	sky_table_destroy(&f.skies)
 	frame_render_destroy(&f.fr)
@@ -285,7 +303,9 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	f.rec.pass_ends = 0
 	f.rec.lights_calls = 0
 	f.rec.sky_calls = 0
-	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes, &f.skies)
+	clear(&f.rec.ui_quads)
+	f.rec.ui_calls = 0
+	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes, &f.skies, f.ui, f.window)
 	return f.rec.submits[:]
 }
 

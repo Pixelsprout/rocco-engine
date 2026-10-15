@@ -32,14 +32,16 @@ Pass :: enum {
 
 // Lets tests run without sokol. Each frame begins and ends one Shadow pass
 // per shadow view, then one Main pass. submit_shadow runs only in a Shadow
-// pass. In the Main pass, submit_lights runs before any submit, and
-// submit_sky runs at most once, after every submit.
+// pass. In the Main pass, submit_lights runs before any submit,
+// submit_sky runs at most once, after every submit, and submit_ui runs at
+// most once, last.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
+Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
 
 Light_Drop :: enum {
 	Second_Ambient,
@@ -58,6 +60,7 @@ Frame_Render :: struct {
 	submit:             Submit,
 	submit_lights:      Submit_Lights,
 	submit_sky:         Submit_Sky,
+	submit_ui:          Submit_Ui,
 	submit_ctx:         rawptr,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
@@ -118,8 +121,8 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever
 // the game asked for. The sky draws last, so the depth test hides it behind
-// every mesh.
-frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table) {
+// every mesh. The UI draws over everything. A nil ui draws none.
+frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table, ui: ^Ui, window: Ui_Window) {
 	lights, sun := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
@@ -152,6 +155,12 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
+	}
+	if ui != nil {
+		quads := ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
+		if len(quads) > 0 {
+			fr.submit_ui(fr.submit_ctx, quads, window.size)
+		}
 	}
 	fr.end_pass(fr.submit_ctx)
 }

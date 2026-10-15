@@ -85,12 +85,15 @@ init_cb :: proc "c" () {
 	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, g_state.mem.perm_allocator)
 	fmt.assertf(ui_err == nil, "the Clay arena did not allocate: %v", ui_err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
+	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, UI_QUAD_CAPACITY, g_state.mem.perm_allocator)
+	fmt.assertf(ui_gpu_err == nil, "the UI vertices did not allocate: %v", ui_gpu_err)
 	g_state.frame_render.begin_pass = renderer_begin_pass
 	g_state.frame_render.end_pass = renderer_end_pass
 	g_state.frame_render.submit_shadow = renderer_shadow
 	g_state.frame_render.submit = renderer_draw
 	g_state.frame_render.submit_lights = renderer_lights
 	g_state.frame_render.submit_sky = renderer_sky
+	g_state.frame_render.submit_ui = renderer_ui
 	g_state.frame_render.submit_ctx = &g_state.renderer
 }
 
@@ -125,7 +128,8 @@ frame_cb :: proc "c" () {
 		sapp.lock_mouse(cursor == .Locked)
 	}
 
-	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies)
+	window := Ui_Window{size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()}
+	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.ui, window)
 
 	sg.commit()
 	g_state.frame_count += 1

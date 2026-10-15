@@ -7,9 +7,9 @@ import sglue "../sokol-odin/sokol/glue"
 SAMPLE_COUNT :: 4
 
 // Each loaded mesh can own a base colour and a metallic-roughness texture,
-// each with its own image, view and sampler. The white image, each sky and
-// the shadow map need one more.
-TEXTURE_POOL_SIZE :: 2 * MESH_CAPACITY + 1 + SKY_CAPACITY + 1
+// each with its own image, view and sampler. The white image, each sky, the
+// shadow map and the font atlas need one more.
+TEXTURE_POOL_SIZE :: 2 * MESH_CAPACITY + 1 + SKY_CAPACITY + 1 + 1
 
 SHADOW_MAP_SIZE :: 2048
 SHADOW_DEPTH_BIAS :: f32(0)
@@ -27,6 +27,7 @@ Renderer :: struct {
 	skies:       Sky_Table,
 	white:       Mesh_Texture,
 	shadow:      Shadow_Map,
+	ui:          Ui_Gpu,
 	pass_action: sg.Pass_Action,
 }
 

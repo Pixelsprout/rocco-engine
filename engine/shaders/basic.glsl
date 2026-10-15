@@ -2,6 +2,7 @@
 // unlit mesh draws its base colour with no lights and no tone map.
 // sky: a cubemap on a cube around the camera, at its authored colour.
 // shadow: depth only, from the Sun.
+// ui: rounded rectangles and SDF glyphs in window pixels, at their authored colour.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -285,3 +286,63 @@ void main() {
 @end
 
 @program shadow shadow_vs shadow_fs
+
+@vs ui_vs
+layout(binding = 0) uniform ui_vs_params {
+    // xy is the window size in pixels.
+    vec4 screen;
+};
+
+in vec2 pos;
+in vec2 uv;
+in vec4 color;
+in vec4 shape;
+
+out vec2 v_uv;
+out vec4 v_color;
+out vec4 v_shape;
+
+// Window pixels run down from the top left. Clip space runs up from the centre.
+void main() {
+    vec2 ndc = pos / screen.xy * 2.0 - 1.0;
+    gl_Position = vec4(ndc.x, -ndc.y, 0.5, 1.0);
+    v_uv = uv;
+    v_color = color;
+    v_shape = shape;
+}
+@end
+
+@fs ui_fs
+layout(binding = 0) uniform texture2D font_tex;
+layout(binding = 0) uniform sampler font_smp;
+
+in vec2 v_uv;
+in vec4 v_color;
+in vec4 v_shape;
+
+out vec4 frag_color;
+
+@include_block srgb
+
+// FONT_SDF_ON_EDGE / 255 in engine/font_baked.odin.
+const float SDF_ON_EDGE = 180.0 / 255.0;
+
+void main() {
+    float coverage;
+    if (v_shape.w > 0.5) {
+        float d = texture(sampler2D(font_tex, font_smp), v_uv).r;
+        float w = max(fwidth(d), 1e-4);
+        coverage = smoothstep(SDF_ON_EDGE - w, SDF_ON_EDGE + w, d);
+    } else {
+        // v_uv is the offset from the centre, so d is the distance outside the rounded rect.
+        vec2 half_size = v_shape.xy;
+        float r = min(v_shape.z, min(half_size.x, half_size.y));
+        vec2 q = abs(v_uv) - half_size + r;
+        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+        coverage = 1.0 - smoothstep(-0.5, 0.5, d);
+    }
+    frag_color = vec4(linear_to_srgb(v_color.rgb), v_color.a * coverage);
+}
+@end
+
+@program ui ui_vs ui_fs

@@ -327,10 +327,12 @@ cannot run, the committed file stays, as for `engine/shader_basic.odin`.
 The host draws Clay's render commands inside the Main pass, after the sky.
 The UI pipeline has no depth test and no depth write. It blends by alpha
 and uses sample count 4. Every rectangle and glyph goes into one dynamic
-vertex buffer per frame, sized at init for about 16k quads. The host makes
-one draw call for each change of scissor or texture. A new `ui` program in
-`engine/shaders/basic.glsl` draws rounded rectangles and SDF glyphs with
-`smoothstep`. UI colours skip the tone map and go through the sRGB encode,
+vertex buffer per frame, sized at init for 16384 quads. Rectangles and
+glyphs share one program and the atlas is the only texture, so the UI is
+one draw call. Clay emits scissor commands only for clip elements, which
+the vocabulary does not have yet. A clip element adds one draw per scissor
+change. A `ui` program in `engine/shaders/basic.glsl` draws rounded
+rectangles and SDF glyphs with `smoothstep`. UI colours skip the tone map and go through the sRGB encode,
 like the sky, so the UI draws at its authored colour. The Frame render owns
 the UI draw. It submits the quads through a submit procedure, like the
 meshes, so a test can record them without sokol.
