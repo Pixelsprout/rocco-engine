@@ -3,6 +3,7 @@
 Run from the repository root:
   python3 scripts/make_macos_sysroot.py           writes the sysroot
   python3 scripts/make_macos_sysroot.py --audit   lists archive references the catalog lacks
+  python3 scripts/make_macos_sysroot.py --audit <archive>...   also audits these archives
 
 The generator reads only scripts/macos-sysroot/interfaces.json. It reads no
 SDK file. scripts/macos-sysroot/PROVENANCE.md says how to change the catalog.
@@ -35,9 +36,8 @@ COMPILER_RT = "libclang_rt.osx.a"
 LIBSYSTEM_PATH = "usr/lib/libSystem.tbd"
 FRAMEWORK_PATH = re.compile(r"System/Library/Frameworks/([A-Za-z0-9_]+)\.framework/\1\.tbd")
 INSTALL_NAME = re.compile(r"/(usr/lib|System/Library/Frameworks)/[A-Za-z0-9_./+-]+")
-# A selector stub such as _objc_msgSend$init is made by the linker from
-# _objc_msgSend, so the catalog never lists one.
-SYMBOL = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\$_[A-Za-z0-9_]+)?")
+# A $ suffix such as $NOCANCEL or $INODE64 names an ABI variant of a libc call.
+SYMBOL = re.compile(r"_OBJC_(META)?CLASS_\$_[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*(\$[A-Z][A-Z0-9_]*)?")
 EVIDENCE_KINDS = {
     "exact_C_identifier",
     "exact_function_name_in_manpage_synopsis",
@@ -78,8 +78,8 @@ def check_symbol(record, seen):
     name = record.get("name", "")
     if set(record) != {"name", "sources"} or not SYMBOL.fullmatch(name):
         raise ValueError(f"{name}: a symbol is a name and its sources")
-    if "$" in name and not name.startswith(("_OBJC_CLASS_$_", "_OBJC_METACLASS_$_")):
-        raise ValueError(f"{name}: only ObjC class names hold a $")
+    if name.startswith("_objc_msgSend$"):
+        raise ValueError(f"{name}: the linker makes selector stubs from _objc_msgSend")
     if name in seen:
         raise ValueError(f"{name}: listed twice")
     seen.add(name)
@@ -137,22 +137,28 @@ def nm_names(archive, flag):
     return [line for line in out.stdout.splitlines() if line and not line.endswith(":")]
 
 
-def audit(catalog):
+def audit(catalog, extra):
     undefined, defined = [], []
-    for name in AUDITED:
-        undefined += nm_names(ARCHIVES / name, "-u")
-        defined += nm_names(ARCHIVES / name, "-U")
+    for path in [ARCHIVES / name for name in AUDITED] + extra:
+        undefined += nm_names(path, "-u")
+        defined += nm_names(path, "-U")
     defined += nm_names(ARCHIVES / COMPILER_RT, "-U")
     return uncovered(catalog, undefined, defined)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--audit", action="store_true", help=f"list references in {ARCHIVES} that the catalog lacks")
+    parser.add_argument(
+        "--audit",
+        nargs="*",
+        type=Path,
+        metavar="ARCHIVE",
+        help=f"list references in {ARCHIVES} and in each ARCHIVE that the catalog lacks",
+    )
     args = parser.parse_args()
     catalog = validate(json.loads(CATALOG.read_text()))
-    if args.audit:
-        missing = audit(catalog)
+    if args.audit is not None:
+        missing = audit(catalog, args.audit)
         for name in missing:
             print(name)
         sys.exit(1 if missing else 0)

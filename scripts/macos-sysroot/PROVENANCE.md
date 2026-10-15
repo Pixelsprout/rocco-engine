@@ -39,15 +39,18 @@ which library owns a symbol. Ownership comes from the evidence only.
 1. Build the host and run `python3 scripts/make_macos_sysroot.py --audit`.
    It lists the undefined references in `platform/targets/arm64mac/` that
    the catalog does not cover.
-2. For each new symbol, find the public page or pinned source that declares
+2. Run a game with `roc main.roc`, then audit Roc's dev shim too:
+   `python3 scripts/make_macos_sysroot.py --audit $TMPDIR/roc/<version>/<hash>/libroc_machine_code_shim.a`.
+   `roc main.roc` links this shim, and `roc build` does not.
+3. For each new symbol, find the public page or pinned source that declares
    it, and the library that owns it.
-3. Run `python3 scripts/macos-sysroot/evidence.py <library> <symbol> <url>`.
+4. Run `python3 scripts/macos-sysroot/evidence.py <library> <symbol> <url>`.
    The script fetches the page, checks that it names the symbol, and adds the
    record.
-4. Review the diff of `interfaces.json`.
-5. Run `python3 scripts/make_macos_sysroot.py`, then build and run every
-   example.
-6. Commit the catalog and the sysroot together.
+5. Review the diff of `interfaces.json`.
+6. Run `python3 scripts/make_macos_sysroot.py`. Build and run every
+   example with `roc build` in debug and release, and with `roc main.roc`.
+7. Commit the catalog and the sysroot together.
 
 A link error can name a symbol that the archives do not show. For example,
 compiler-rt and the linker add their own references. Find evidence for these

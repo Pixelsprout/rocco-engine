@@ -1157,6 +1157,18 @@
           ]
         },
         {
+          "name": "__NSGetExecutablePath",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dyld.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:10:08.287057+00:00",
+              "response_sha256": "ce0e9a29982829f663ad744ab84fdb79db58bd27d5b65f79adad2385527f9e74"
+            }
+          ]
+        },
+        {
           "name": "___assert_rtn",
           "sources": [
             {
@@ -1272,6 +1284,20 @@
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "source_license": "APSL-2.0; additional source notices may apply",
               "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "___ulock_wait",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/ulock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__ulock_wait",
+              "line": 68,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "2e073d2d2e06290755a5a9a7e9ded52974f32727fb27cf9d769e831e74f06499"
             }
           ]
         },
@@ -1436,6 +1462,26 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:06:42.791960+00:00",
               "response_sha256": "c031af9b25d8eb579911b7ef16362717e43d050f398e98a683f15cf95085c4a1"
+            }
+          ]
+        },
+        {
+          "name": "_close$NOCANCEL",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/unistd.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "close",
+              "source_license": "APSL-2.0 and additional BSD-style source notices",
+              "response_sha256": "e5b597caa8cbd84dbfc927b50b1e0d95a89a4bbb6c97ba552824df81b8a370fa",
+              "abi_mapping": "Declaration alias and cdefs symbol-versioning macros establish the suffix; archive inventory supplies the exact Mach-O spelling."
+            },
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/cdefs.h",
+              "evidence_kind": "public_open_source_ABI_suffix",
+              "identifier": "$NOCANCEL",
+              "source_license": "APSL-2.0 and BSD-style source notices",
+              "response_sha256": "6bab328310e9d4f9ff47f763f1fa8cf0000e25ce6be04a9743bf176ccdf94682"
             }
           ]
         },
@@ -1658,6 +1704,30 @@
               "line": 177,
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "response_sha256": "d4509c79ea7f394f246ef9082818496107503390c04a73b889e57100e21c2613"
+            }
+          ]
+        },
+        {
+          "name": "_fmod",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/fmod.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T04:04:52+00:00",
+              "response_sha256": "2ff1c282fbfb53959121f589df6322bc4aa0423e8d8226d28d58cf66562fd250"
+            }
+          ]
+        },
+        {
+          "name": "_fmodf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/fmod.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T04:04:53+00:00",
+              "response_sha256": "2ff1c282fbfb53959121f589df6322bc4aa0423e8d8226d28d58cf66562fd250"
             }
           ]
         },
@@ -2018,6 +2088,62 @@
           ]
         },
         {
+          "name": "_openat",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/fcntl.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "openat",
+              "line": 736,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0 and additional BSD-style source notices",
+              "response_sha256": "0f93c8918a70ffafe20bfe9c72e671fde67438cbee9f9de8c2f87b5c704c9a9e"
+            }
+          ]
+        },
+        {
+          "name": "_os_unfair_lock_lock",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/libplatform/blob/2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3/include/os/lock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "os_unfair_lock_lock",
+              "line": 115,
+              "revision": "2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3",
+              "source_license": "APSL-2.0",
+              "response_sha256": "6eca61843ad39ff9220e8c554849ece4c59010689688b07a7f69fffc5d78d778"
+            }
+          ]
+        },
+        {
+          "name": "_os_unfair_lock_trylock",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/libplatform/blob/2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3/include/os/lock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "os_unfair_lock_trylock",
+              "line": 134,
+              "revision": "2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3",
+              "source_license": "APSL-2.0",
+              "response_sha256": "6eca61843ad39ff9220e8c554849ece4c59010689688b07a7f69fffc5d78d778"
+            }
+          ]
+        },
+        {
+          "name": "_os_unfair_lock_unlock",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/libplatform/blob/2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3/include/os/lock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "os_unfair_lock_unlock",
+              "line": 155,
+              "revision": "2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3",
+              "source_license": "APSL-2.0",
+              "response_sha256": "6eca61843ad39ff9220e8c554849ece4c59010689688b07a7f69fffc5d78d778"
+            }
+          ]
+        },
+        {
           "name": "_powf",
           "sources": [
             {
@@ -2071,6 +2197,20 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:07:23.170638+00:00",
               "response_sha256": "637c7709c94b69914b096c271f70eff543b260a82be2a5c35ae176b585fdc7c5"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_threadid_np",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/libpthread/blob/42d026df5b07825070f60134b980a1ec2552dfee/include/pthread/pthread.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "pthread_threadid_np",
+              "line": 527,
+              "revision": "42d026df5b07825070f60134b980a1ec2552dfee",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "c14ac88c6c17f6eaea94ecd5a6fed5bb2a509cc154be43bfea44e6a4430468ca"
             }
           ]
         },
@@ -2259,6 +2399,20 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-10-15T03:50:02+00:00",
               "response_sha256": "58c7d6e1c81b5c528c04e3621d29a125550b9254beb7079e727651298a863738"
+            }
+          ]
+        },
+        {
+          "name": "_sys_icache_invalidate",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/libplatform/blob/2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3/include/libkern/OSCacheControl.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "sys_icache_invalidate",
+              "line": 58,
+              "revision": "2512ffd8bb5c6caff3c8ea83331ab8a0adc820c3",
+              "source_license": "APSL-2.0",
+              "response_sha256": "1a2c799bcf2286343814dbc910760ee2660dd5baf385a2262fb6986842dede0b"
             }
           ]
         },

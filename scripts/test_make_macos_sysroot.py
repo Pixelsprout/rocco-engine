@@ -126,6 +126,14 @@ class ValidateTest(unittest.TestCase):
     def test_rejects_an_unknown_evidence_kind(self):
         self.rejects(lambda c: c["libraries"][0]["symbols"][0]["sources"][0].update(evidence_kind="linker_error"))
 
+    def test_accepts_an_abi_variant_suffix(self):
+        ok = catalog()
+        ok["libraries"][3]["symbols"][0]["name"] = "_close$NOCANCEL"
+        sysroot.validate(ok)
+
+    def test_rejects_a_compiler_selector_stub_with_an_upper_case_selector(self):
+        self.rejects(lambda c: c["libraries"][2]["symbols"][0].update(name="_objc_msgSend$UTF8String"))
+
     def test_rejects_a_compiler_selector_stub(self):
         self.rejects(lambda c: c["libraries"][2]["symbols"][0].update(name="_objc_msgSend$init"))
 
