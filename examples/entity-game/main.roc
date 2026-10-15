@@ -1349,7 +1349,6 @@ expect {
 }
 
 expect {
-	# Kula leaves this repo, so entity-game is the game that shows the Sun's shadow.
 	shadows = List.keep_oks(
 		view(new_game(test_meshes, 1, 0)).lights,
 		|l| match l {
