@@ -20,7 +20,7 @@ parse = |args| match args {
 	["font"] => Ok([Font])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
-	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("kula")])
+	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
 	_ => Err(Usage)
 }
 
@@ -204,7 +204,8 @@ usage =
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
-	\\  all             glue, host, inputs, game cards, game entity-game, game kula
+	\\  all             glue, host, inputs, game cards, game entity-game, game pong,
+	\\                  game kula
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 
@@ -373,7 +374,7 @@ expect parse(["glue"]) == Ok([Glue])
 expect parse(["host"]) == Ok([Host])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("kula")])
+expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
 expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)

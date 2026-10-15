@@ -76,7 +76,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game kula` |
+| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game kula` |
 
 The script stops at the first step that fails. After a change, run `glue`,
 `host` and `game` in that order. Each tool consumes the previous one's output
@@ -293,8 +293,7 @@ the Docker image, and the image sees only this checkout.
 
 Milestones 1 to 10 of `docs/ROADMAP.md` are done. The engine builds and runs
 on macOS, Linux and Windows from one checkout. The platform names no game:
-three games (`cards`, `entity-game`, `kula`) link against one host library.
-`examples/pong` does not compile against the current platform.
+four games (`cards`, `entity-game`, `pong`, `kula`) link against one host library.
 Each draw carries a mesh id from a Manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.

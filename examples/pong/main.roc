@@ -1,10 +1,11 @@
-app [init, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
+app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Quat
-import pf.Vocabulary exposing [Config, Draw, Input, Rgb, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, Rgb, Scene, Vec3]
 import pf.Key
+import pf.Light
 
 Ball : { id : U64, x : F32, z : F32, vx : F32, vz : F32 }
 
@@ -41,17 +42,17 @@ serve_speed = 8.0
 
 max_score = 7
 
-manifest : Config
-manifest = { seed: 0, meshes: [{ name: "primitive/fallback", id: 0 }, { name: "primitive/cube", id: 1 }] }
+no_assets : Config
+no_assets = { seed: 0, assets: [] }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
-init : Config -> Model
+init : Config -> { model : Model, commands : List(Command) }
 init = |config| {
 	model = {
 		state: Running,
-		cube: Mesh.primitive(config, Cube),
+		cube: Mesh.primitive(Cube),
 		left: 0.0,
 		right: 0.0,
 		ball: { id: ball_id_base, x: 0.0, z: 0.0, vx: 0.0, vz: 0.0 },
@@ -60,11 +61,18 @@ init = |config| {
 		serves: 0,
 	}
 
-	serve(model, 1.0)
+	{ model: serve(model, 1.0), commands: [] }
 }
 
-step : Model, Input, F32 -> Model
-step = |m, input, dt| {
+# Pong draws only the cube primitive, so it loads no pack.
+loaded : Model, Str, Manifest -> Model
+loaded = |m, _pack, _manifest| m
+
+step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
+step = |m, input, _contacts, dt| { model: update(m, input, dt), commands: [] }
+
+update : Model, Input, F32 -> Model
+update = |m, input, dt| {
 	next = game_state(m, input)
 	if next.state == Running {
 		next
@@ -105,6 +113,13 @@ pip_tint = |state, own, other| {
 	}
 }
 
+# The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
+lights : List(Vocabulary.Light)
+lights = [
+	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
+	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
+]
+
 box : U32, U64, Vec3, Vec3, Rgb -> Draw
 box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, rot: Quat.identity, scale_rot: Quat.identity, tint }
 
@@ -124,7 +139,7 @@ view = |m| {
 		|> pips(c, m.score.left, 1000, -1.0, pip_tint(m.state, m.score.left, m.score.right))
 		|> pips(c, m.score.right, 2000, 1.0, pip_tint(m.state, m.score.right, m.score.left))
 
-	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws }
+	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], lights, cursor: Free, sky: 0, ui: [] }
 }
 
 game_state : Model, Input -> Model
@@ -248,11 +263,11 @@ unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 # Tests
 # =======================================
 # Paddle movement, wall and paddle bounces, scoring and serve state.
-# The manifest names a cube, so init resolves its mesh id.
-expect init(manifest).cube == 1
+expect init(no_assets).commands == []
+expect loaded(init(no_assets).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
 
 # A fresh scene draws the floor, two walls, two paddles and the ball.
-expect List.len(view(init(manifest)).draws) == 6
+expect List.len(view(init(no_assets).model).draws) == 6
 
 # clamp caps above the top and below the bottom.
 expect clamp(1.0, 2.0, 2.1) == 2.0
@@ -260,13 +275,14 @@ expect clamp(1.0, 2.0, 0.5) == 1.0
 
 # Holding W for a long step drives the left paddle to its limit, the right stays put.
 expect {
-	m = step(init(manifest), { ..idle, held: [Key.code(W)] }, 10.0)
-	m.left == -paddle_limit and m.right == 0.0
+	stepped = step(init(no_assets).model, { ..idle, held: [Key.code(W)] }, [], 10.0)
+	m = stepped.model
+	stepped.commands == [] and m.left == -paddle_limit and m.right == 0.0
 }
 
 # A ball past the top wall moving outward bounces once, and a second call is a no-op.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	going_out = { ..m, ball: { ..m.ball, z: wall_limit + 0.01, vz: 2.0 } }
 	once = bounce_walls(going_out)
 	twice = bounce_walls(once)
@@ -275,7 +291,7 @@ expect {
 
 # The same for the bottom wall, which needs the opposite sign on vz.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	going_out = { ..m, ball: { ..m.ball, z: -wall_limit - 0.01, vz: -2.0 } }
 	once = bounce_walls(going_out)
 	twice = bounce_walls(once)
@@ -284,7 +300,7 @@ expect {
 
 # A ball reaching the right paddle is returned faster and angled by where it hit.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	at_right = { ..m, ball: { ..m.ball, x: paddle_x - 0.2, z: 0.5, vx: 8.0, vz: 0.0 } }
 	once = hit_paddles(at_right)
 	twice = hit_paddles(once)
@@ -293,7 +309,7 @@ expect {
 
 # A ball past the right wall scores for the left and is served again with a new id.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	past_right = { ..m, ball: { ..m.ball, x: half_width + 0.1 } }
 	after = score_point(past_right)
 	after.score.left == 1 and after.ball.x == 0.0 and after.ball.id == m.ball.id + 1
@@ -301,21 +317,21 @@ expect {
 
 # The seed picks the serve angle, and the first serve id is one past the base.
 expect {
-	a = init(manifest)
-	b = init({ ..manifest, seed: 7 })
+	a = init(no_assets).model
+	b = init({ ..no_assets, seed: 7 }).model
 	a.ball.vz != b.ball.vz and a.ball.id == ball_id_base + 1
 }
 
 # Each scored point adds one pip, so 3 + 2 pips join the six fixed draws.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	scored = { ..m, score: { left: 3, right: 2 } }
 	List.len(view(scored).draws) == 11
 }
 
 # Space pauses a running game and resumes it without touching the score.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	press = { ..idle, pressed: [Key.code(Space)] }
 	paused = game_state(m, press)
 	resumed = game_state(paused, press)
@@ -324,15 +340,15 @@ expect {
 
 # A score of 7 ends the game, and the paddles and ball freeze there.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	ended = { ..m, score: { left: max_score, right: 0 } }
-	after = step(ended, { ..idle, held: [Key.code(W)] }, 1.0)
+	after = step(ended, { ..idle, held: [Key.code(W)] }, [], 1.0).model
 	after.state == EndGame and after.left == ended.left and after.ball.x == ended.ball.x
 }
 
 # Space on an ended game starts a fresh one: score cleared, ball served again.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	ended = { ..m, state: EndGame, score: { left: max_score, right: 0 } }
 	after = game_state(ended, { ..idle, pressed: [Key.code(Space)] })
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
@@ -341,7 +357,7 @@ expect {
 # Once the game ends the winner's pips go green and the loser's red, and a
 # running game keeps both sides gray.
 expect {
-	m = init(manifest)
+	m = init(no_assets).model
 	running = { ..m, score: { left: 3, right: 2 } }
 	ended = { ..running, state: EndGame }
 	pip_tint(running.state, running.score.left, running.score.right) == gray

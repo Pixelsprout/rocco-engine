@@ -54,10 +54,10 @@ Built and running:
 - `examples/cards`, `examples/entity-game` and `games/kula` build and run
   from one checkout on `arm64mac` and `x64glibc`. cards and entity-game last
   ran on `x64win` at milestone 2. Nobody has checked `x64win` since then.
-  `examples/pong` does not compile against the current platform, and the
-  checks do not build it. `scripts/build.roc` runs every step. `ROCCO_EXIT_AFTER_FRAMES` makes
-  a run end cleanly for checks. `scripts/alloc-check.sh` and
-  `scripts/host-check.sh` check the seam.
+  `examples/pong` builds and runs on `arm64mac`, and the check scripts do
+  not build it yet. `scripts/build.roc` runs every step.
+  `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
+  `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 
 ## Milestone 1: one source tree, three desktop targets (done)
 
