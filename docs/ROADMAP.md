@@ -781,7 +781,8 @@ Done when Kula builds on a clean machine with only Roc installed. Grilled
 2026-10-15. The dex task pa2v63ro holds the decisions and the tasks.
 
 1. Pong moves to the current seam and joins `all`. CI here runs cards,
-   entity-game and pong.
+   entity-game and pong. Pong's score, banner and key hints replace Kula
+   as the UI test.
 2. `x64win` links Clay. Windows links with no Visual Studio: sokol, Clay
    and the host build with no default C runtime, and the C runtime comes
    from `ucrtbase.dll`.

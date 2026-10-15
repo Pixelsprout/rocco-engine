@@ -1,9 +1,10 @@
-app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
+app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc", ui: "../../packages/ui/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Quat
-import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, Rgb, Scene, Vec3]
+import ui.Ui
+import pf.Vocabulary exposing [Command, Config, Contact, Draw, Element, Input, Manifest, Rgb, Rgba, Scene, Vec3]
 import pf.Key
 import pf.Light
 
@@ -89,29 +90,73 @@ update = |m, input, dt| {
 white : Rgb
 white = { r: 0.89, g: 0.89, b: 0.89 }
 
-gray : Rgb
-gray = { r: 0.319, g: 0.319, b: 0.319 }
+white_text : Rgba
+white_text = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
 
-green : Rgb
-green = { r: 0.033, g: 0.787, b: 0.073 }
+green_text : Rgba
+green_text = { r: 0.033, g: 0.787, b: 0.073, a: 1.0 }
 
-red : Rgb
-red = { r: 0.787, g: 0.033, b: 0.033 }
+red_text : Rgba
+red_text = { r: 0.787, g: 0.033, b: 0.033, a: 1.0 }
 
-# The winning side's pips turn green and the loser's red, but only once the
-# game has ended. Otherwise both sides stay gray.
-pip_tint : GameState, U64, U64 -> Rgb
-pip_tint = |state, own, other| {
+label : Ui.TextStyle
+label = { size: 24.0, color: white_text, wrap: Words }
+
+panel : Ui.AttachPoint, Ui.Offset -> Ui.BoxConfig
+panel = |attach, offset| { ..Ui.float_at(attach, offset), pad: Ui.pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
+
+centred : Ui.BoxConfig
+centred = { ..Ui.default_box, child_align: { x: Center, y: Center } }
+
+score_color : GameState, U64, U64 -> Rgba
+score_color = |state, own, other| {
 	if state == EndGame {
 		if own > other {
-			green
+			green_text
 		} else {
-			red
+			red_text
 		}
 	} else {
-		gray
+		white_text
 	}
 }
+
+# Fixed cells keep the colon still when a score gains a digit.
+scoreboard : GameState, Score -> List(Element)
+scoreboard = |state, score| {
+	cell = |own, other| Ui.box({ ..centred, width: Fixed(48.0) }, [Ui.text(own.to_str(), { ..label, color: score_color(state, own, other) })])
+	Ui.box(
+		{ ..panel(CenterTop, { x: 0.0, y: 16.0 }), gap: 8.0, child_align: { x: Center, y: Center } },
+		[cell(score.left, score.right), Ui.text(":", label), cell(score.right, score.left)],
+	)
+}
+
+banner : GameState, Score -> List(Element)
+banner = |state, score| match state {
+	Running => []
+	Paused => banner_box("Paused", white_text, "Space to resume")
+	EndGame => {
+		winner = if score.left > score.right "Left" else "Right"
+		banner_box("${winner} wins", green_text, "Space to play again")
+	}
+}
+
+# Percent sizes the banner against the window. Grow stretches each row across
+# the banner, so the text centres and the hint wraps inside it.
+banner_box : Str, Rgba, Str -> List(Element)
+banner_box = |title, color, hint| {
+	row = |child| Ui.box({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
+	Ui.box(
+		{ ..panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
+		[row(Ui.text(title, { ..label, size: 40.0, color })), row(Ui.text(hint, label))],
+	)
+}
+
+# The engine adds the offset at the same corner of the window and the box, so
+# a bottom or right corner needs a negative offset.
+hints : List(Element)
+hints = Ui.box(panel(LeftBottom, { x: 16.0, y: -16.0 }), [Ui.text("W / S", label)])
+	.concat(Ui.box(panel(RightBottom, { x: -16.0, y: -16.0 }), [Ui.text("Up / Down", label)]))
 
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
 lights : List(Vocabulary.Light)
@@ -135,11 +180,9 @@ view = |m| {
 		box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white),
 	]
 
-	draws = fixed
-		|> pips(c, m.score.left, 1000, -1.0, pip_tint(m.state, m.score.left, m.score.right))
-		|> pips(c, m.score.right, 2000, 1.0, pip_tint(m.state, m.score.right, m.score.left))
+	ui = scoreboard(m.state, m.score).concat(banner(m.state, m.score)).concat(hints)
 
-	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], lights, cursor: Free, sky: 0, ui: [] }
+	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, colliders: [], lights, cursor: Free, sky: 0, ui }
 }
 
 game_state : Model, Input -> Model
@@ -161,18 +204,6 @@ reset : Model -> Model
 reset = |m| {
 	cleared = { ..m, state: Running, left: 0.0, right: 0.0, score: { left: 0, right: 0 } }
 	serve(cleared, 1.0)
-}
-
-pips : List(Draw), U32, U64, U64, F32, Rgb -> List(Draw)
-pips = |draws, mesh, count, id_base, side, tint| {
-	var $out = draws
-	var $i = 0
-	while $i < count {
-		pos = { x: side * (1.0 + $i.to_f32() * 0.6), y: 0.2, z: -half_depth - 1.0 }
-		$out = List.append($out, box(mesh, id_base + $i, pos, { x: 0.3, y: 0.3, z: 0.3 }, tint))
-		$i = $i + 1
-	}
-	$out
 }
 
 serve : Model, F32 -> Model
@@ -322,11 +353,11 @@ expect {
 	a.ball.vz != b.ball.vz and a.ball.id == ball_id_base + 1
 }
 
-# Each scored point adds one pip, so 3 + 2 pips join the six fixed draws.
+# The scoreboard shows the score, so scoring adds no draws.
 expect {
 	m = init(no_assets).model
 	scored = { ..m, score: { left: 3, right: 2 } }
-	List.len(view(scored).draws) == 11
+	List.len(view(scored).draws) == 6
 }
 
 # Space pauses a running game and resumes it without touching the score.
@@ -354,13 +385,62 @@ expect {
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
 }
 
-# Once the game ends the winner's pips go green and the loser's red, and a
-# running game keeps both sides gray.
+shows : List(Element), Str, Rgba -> Bool
+shows = |ui, str, color| ui.any(
+	|e| match e {
+		Text(t) => t.str == str and t.color == color
+		_ => Bool.False
+	},
+)
+
+balanced : List(Element) -> Bool
+balanced = |ui| ui.count_if(|e| e == Close) == ui.count_if(
+	|e| match e {
+		Open(_) => Bool.True
+		_ => Bool.False
+	},
+)
+
+floats_at : List(Element), Ui.AttachPoint -> Bool
+floats_at = |ui, point| ui.any(
+	|e| match e {
+		Open({ floating: Float({ attach, .. }), .. }) => attach == point
+		_ => Bool.False
+	},
+)
+
+expect floats_at(scoreboard(Running, { left: 0, right: 0 }), CenterTop)
+expect floats_at(banner(Paused, { left: 0, right: 0 }), CenterCenter)
+expect floats_at(hints, LeftBottom) and floats_at(hints, RightBottom)
+
+expect {
+	ui = scoreboard(Running, { left: 3, right: 2 })
+	shows(ui, "3", white_text) and shows(ui, "2", white_text) and shows(ui, ":", white_text) and balanced(ui)
+}
+
+expect {
+	ui = scoreboard(EndGame, { left: 2, right: max_score })
+	shows(ui, max_score.to_str(), green_text) and shows(ui, "2", red_text)
+}
+
+expect banner(Running, { left: 0, right: 0 }) == []
+
+expect {
+	ui = banner(Paused, { left: 1, right: 0 })
+	shows(ui, "Paused", white_text) and shows(ui, "Space to resume", white_text) and balanced(ui)
+}
+
+expect shows(banner(EndGame, { left: max_score, right: 2 }), "Left wins", green_text)
+expect {
+	ui = banner(EndGame, { left: 2, right: max_score })
+	shows(ui, "Right wins", green_text) and shows(ui, "Space to play again", white_text)
+}
+
+expect shows(hints, "W / S", white_text) and shows(hints, "Up / Down", white_text) and balanced(hints)
+
 expect {
 	m = init(no_assets).model
-	running = { ..m, score: { left: 3, right: 2 } }
-	ended = { ..running, state: EndGame }
-	pip_tint(running.state, running.score.left, running.score.right) == gray
-		and pip_tint(ended.state, ended.score.left, ended.score.right) == green
-			and pip_tint(ended.state, ended.score.right, ended.score.left) == red
+	running = view(m).ui
+	paused = view({ ..m, state: Paused }).ui
+	balanced(running) and shows(running, "W / S", white_text) and !shows(running, "Paused", white_text) and shows(paused, "Paused", white_text)
 }
