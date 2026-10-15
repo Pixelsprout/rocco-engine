@@ -1,4 +1,4 @@
-app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst", roc: "nightly-2026-09-27-a3ce7f1" }
+app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.26.0-rc1/GMezHWvmUP42Leqg8YkABvEk27cMUSVM6p7oz3XPj11N.tar.zst", roc: "nightly-2026-10-11-7d256b9" }
 
 import pf.Cmd
 import pf.Env

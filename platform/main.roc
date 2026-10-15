@@ -6,7 +6,7 @@ platform ""
 		view : Model -> Vocabulary.Scene
 	}
 	exposes [Vocabulary, Key, Collider, Light]
-	packages { roc: "nightly-2026-09-27-a3ce7f1" }
+	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_init": init_for_host,
 		"roc_step": step_for_host,

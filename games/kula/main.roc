@@ -1,4 +1,4 @@
-app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-09-27-a3ce7f1", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", ui: "../../packages/ui/main.roc" }
 
 import linalg.Quat
 import linalg.Vec3
