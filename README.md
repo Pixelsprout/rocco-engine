@@ -35,7 +35,7 @@ In an existing clone, run `git submodule update --init`.
 |---|---|---|---|
 | Odin | `dev-2026-08`, on `PATH` | In the Docker image | `dev-2026-08` windows-amd64 release, on `PATH` |
 | Roc | `nightly-2026-10-11-7d256b9`, on `PATH` | In the Docker image | `nightly-2026-10-11-7d256b9` windows_x86_64 zip, on `PATH` |
-| System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload, a Windows SDK, Python 3 and Zig 0.16.0 |
+| System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
 
@@ -70,7 +70,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it adds `-o:speed`. |
-| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies the SDK import libraries. |
+| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
 | `game <name>` | When anything changes. | `roc build` in `games/<name>/`, or else `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
@@ -217,12 +217,17 @@ Tools Command Prompt.
 Roc links x64win with no Visual Studio CRT. `build_sokol.cmd` builds the
 sokol libraries with `/Zl /GS-`, so they name no CRT library. sokol's own
 `build_clibs_windows.cmd` does not, and its libraries fail that link.
-`make_windows_import_libs.py` writes `ucrtbase.lib` with Zig 0.16.0, so the C
-runtime comes from `ucrtbase.dll`.
+The C runtime comes from `ucrtbase.dll`.
+
+The import libraries in `platform/targets/x64win/` are committed, so the link
+needs no Windows SDK and no `LIB` variable. `make_windows_import_libs.py`
+writes them from `scripts/windows-import-libs/` with Zig 0.16.0. `python
+scripts\make_windows_import_libs.py --check` fails if a committed library
+differs from its `.def` file. The sokol build still needs the Windows SDK for
+`windows.h`, `d3d11.h` and `dxgi.h`.
 
 ```bat
 scripts\windows\build_sokol.cmd
-python scripts\make_windows_import_libs.py
 roc scripts\build.roc -- all
 examples\entity-game\entity-game.exe
 ```
@@ -236,8 +241,7 @@ MSVC 14.51.
 - Roc refuses `x64glibc` from a machine that does not run Linux.
 - `x64musl` cross-links from macOS but is always static. sokol needs the
   shared X11 and GL libraries, so `x64musl` cannot open a window.
-- `x64win` needs a Windows SDK for the import libraries, and sokol's Windows
-  script needs `cl`.
+- sokol's Windows build needs `cl` and the Windows SDK headers.
 
 So each machine builds its own target. The Roc linker takes only files listed
 in the `targets:` block of `platform/main.roc`, from
@@ -273,7 +277,7 @@ a change to the `Model` type, restart the game.
 | `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives and compiler-rt. Not committed. |
 | `platform/targets/macos-sysroot/` | The stubs the macOS link reads. `scripts/make_macos_sysroot.py` writes them. Committed. Do not edit. |
 | `platform/targets/x64glibc/` | `libhost.a` and the sokol GL archives are not committed. `scripts/make_linux_stubs.py` writes the CRT objects and the stub shared libraries. They are committed. Do not edit them. |
-| `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and the SDK import libraries. Not committed. |
+| `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and `clay.lib` are not committed. `scripts/make_windows_import_libs.py` writes the import libraries. They are committed. Do not edit them. |
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
@@ -289,7 +293,7 @@ a change to the `Model` type, restart the game.
 | `scripts/macos-sysroot/` | The reviewed catalog of macOS system symbols, its `PROVENANCE.md`, and `evidence.py`, which adds a symbol with its evidence. |
 | `scripts/make_linux_stubs.py` | Writes the CRT objects and stub shared libraries in `platform/targets/x64glibc/` with Zig. `--audit` lists the archive references that the catalog does not cover. |
 | `scripts/linux-stubs/` | The CRT assembly sources, the catalog `stubs.json`, and a `README.md` that says how to change a stub. |
-| `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. |
+| `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. `--check` fails if a committed library differs. |
 | `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
 | `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
 | `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |

@@ -1,13 +1,15 @@
 """Write the x64win import libraries from the .def files in scripts/windows-import-libs/.
 
 Run from the repository root:
-  python3 scripts/make_windows_import_libs.py    writes one .lib for each .def file
+  python3 scripts/make_windows_import_libs.py            writes one .lib for each .def file
+  python3 scripts/make_windows_import_libs.py --check    fails if a committed .lib differs
 
-Writing needs the pinned Zig.
+Both need the pinned Zig.
 scripts/windows-import-libs/README.md says what a .def file holds and how to
 change one.
 """
 
+import argparse
 import re
 import shutil
 import subprocess
@@ -18,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ROOT / "scripts/windows-import-libs"
 OUTPUT = ROOT / "platform/targets/x64win"
-# Another Zig can write other bytes, and CI fails on any diff.
+# Another Zig can write other bytes, and --check fails on any diff.
 ZIG_VERSION = "0.16.0"
 LIBRARY = re.compile(r'LIBRARY\s+"([^"]+)"')
 SYMBOL = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -97,9 +99,35 @@ def build(definitions, out):
             shutil.copyfile(Path(tmp) / f"{stem}.lib", out / f"{stem}.lib")
 
 
+# The .lib names in committed whose bytes differ from built, or that are missing.
+def stale(stems, built, committed):
+    names = [f"{stem}.lib" for stem in stems]
+    return [
+        name
+        for name in names
+        if not (committed / name).is_file() or (built / name).read_bytes() != (committed / name).read_bytes()
+    ]
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--check", action="store_true", help=f"rebuild in a temporary folder and compare with {OUTPUT.relative_to(ROOT)}")
+    args = parser.parse_args()
     definitions = load()
     check_zig()
+    if args.check:
+        with tempfile.TemporaryDirectory() as tmp:
+            build(definitions, Path(tmp))
+            differ = stale(list(definitions), Path(tmp), OUTPUT)
+        for name in differ:
+            if (OUTPUT / name).is_file():
+                print(f"{OUTPUT.relative_to(ROOT) / name} differs from its .def file")
+            else:
+                print(f"{OUTPUT.relative_to(ROOT) / name} is missing")
+        if differ:
+            sys.exit("Run python3 scripts/make_windows_import_libs.py and commit the result.")
+        print(f"{OUTPUT.relative_to(ROOT)}: {len(definitions)} import libraries match")
+        return
     build(definitions, OUTPUT)
     count = sum(len(definition["exports"]) for definition in definitions.values())
     print(f"{OUTPUT.relative_to(ROOT)}: {len(definitions)} import libraries, {count} names")

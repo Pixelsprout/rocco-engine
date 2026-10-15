@@ -1,0 +1,5 @@
+; The one d3d11.dll function that sokol calls. sokol reaches the rest of
+; Direct3D 11 and DXGI through COM interfaces, so no other name is needed.
+LIBRARY "d3d11.dll"
+EXPORTS
+D3D11CreateDeviceAndSwapChain

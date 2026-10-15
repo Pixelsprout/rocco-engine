@@ -48,7 +48,7 @@ Target : {
 	sokol_platform : Str,
 	lib_ext : Str,
 	exe : Str,
-	extra_inputs : [MacSdk, WindowsSdk, LinuxStubs],
+	extra_inputs : [MacSdk, WindowsImportLibs, LinuxStubs],
 }
 
 Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WINDOWS, OTHER(Str)] }
@@ -60,11 +60,11 @@ target_for = |machine| match (machine.os, machine.arch) {
 	# Roc links x64win with /nodefaultlib, so the host takes no CRT either. With
 	# no CRT, nothing writes the TLS directory, so Odin's thread_local variables
 	# must be plain globals.
-	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", ["-no-crt", "-no-thread-local"], "windows_x64_d3d11", ".lib", ".exe", WindowsSdk))
+	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", ["-no-crt", "-no-thread-local"], "windows_x64_d3d11", ".lib", ".exe", WindowsImportLibs))
 	_ => Err(UnsupportedMachine)
 }
 
-make_target : Str, Str, List(Str), Str, Str, Str, [MacSdk, WindowsSdk, LinuxStubs] -> Target
+make_target : Str, Str, List(Str), Str, Str, Str, [MacSdk, WindowsImportLibs, LinuxStubs] -> Target
 make_target = |roc_target, host_lib, host_flags, sokol_platform, lib_ext, exe, extra_inputs| {
 	roc_target,
 	dir: "platform/targets/${roc_target}",
@@ -144,7 +144,7 @@ clay_copies : Target -> List(Copy)
 clay_copies = |target| match target.extra_inputs {
 	MacSdk => [clay_copy("macos-arm64", target)]
 	LinuxStubs => [clay_copy("linux", target)]
-	WindowsSdk => [clay_copy("windows", target)]
+	WindowsImportLibs => [clay_copy("windows", target)]
 }
 
 clay_copy : Str, Target -> Copy
@@ -156,57 +156,11 @@ compiler_rt_copy = |resource_dir, target| {
 	to: "${target.dir}/libclang_rt.osx.a",
 }
 
-windows_sdk_libs : List(Str)
-windows_sdk_libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "d3d11.lib", "dxgi.lib"]
-
-windows_sdk_copies : Str, Target -> List(Copy)
-windows_sdk_copies = |sdk_dir, target| windows_sdk_libs.map(|lib| { from: "${sdk_dir}/um/x64/${lib}", to: "${target.dir}/${lib}" })
-
-# Same rule as basic-cli's find_windows_sdk_lib_dir: the highest version wins.
-newest_sdk : List(Str) -> Try(Str, [NoSdk])
-newest_sdk = |names| {
-	best : Try((U64, Str), [NoSdk])
-	best = names.fold(
-		Err(NoSdk),
-		|acc, name| match (version_key(name), acc) {
-			(Err(_), _) => acc
-			(Ok(key), Err(_)) => Ok((key, name))
-			(Ok(key), Ok((best_key, _))) => if key > best_key {
-				Ok((key, name))
-			} else {
-				acc
-			}
-		},
-	)
-	best.map_ok(|(_, name)| name)
-}
-
-# Four dot-separated parts of at most five digits each fit in a U64.
-version_key : Str -> Try(U64, [NotVersion])
-version_key = |name| {
-	parts = Str.split_on(name, ".")
-	if parts.len() != 4 {
-		Err(NotVersion)
-	} else {
-		parts.fold(
-			Ok(0),
-			|acc, part| match (acc, U64.from_str(part)) {
-				(Ok(key), Ok(n)) => if n < 100_000 {
-					Ok(key * 100_000 + n)
-				} else {
-					Err(NotVersion)
-				}
-				_ => Err(NotVersion)
-			},
-		)
-	}
-}
-
 usage : Str
 usage =
 	\\Usage: roc scripts/build.roc -- <command>
 	\\
-	\\  inputs          copy sokol, Clay, compiler-rt or SDK libraries into platform/targets/<target>/
+	\\  inputs          copy sokol, Clay and compiler-rt libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <name>     link games/<name>, or else examples/<name>, against the platform
@@ -352,17 +306,8 @@ inputs! = |target, mode| {
 			out = Cmd.new("xcrun").args(["clang", "-print-resource-dir"]).exec_output!()?
 			copy!(compiler_rt_copy(Str.trim(out.stdout_utf8), target))
 		}
-		WindowsSdk => {
-			program_files = Env.var_str!("ProgramFiles(x86)") ? |_| Failed("ProgramFiles(x86) is not set, so the Windows SDK cannot be found.")
-			lib_root = "${program_files}/Windows Kits/10/Lib"
-			entries = Path.utf8(lib_root).list!() ? |_| Failed("${lib_root} does not exist. Install the Windows SDK.")
-			names = entries.map(|entry| entry.filename().map_ok(Path.display) ?? "")
-			sdk = newest_sdk(names) ? |_| Failed("${lib_root} has no SDK version directory.")
-			for file in windows_sdk_copies("${lib_root}/${sdk}", target) {
-				copy!(file)?
-			}
-			Ok({})
-		}
+		# scripts/make_windows_import_libs.py writes these inputs, and they are committed.
+		WindowsImportLibs => Ok({})
 		# scripts/make_linux_stubs.py writes these inputs, and they are committed.
 		LinuxStubs => Ok({})
 	}
@@ -481,23 +426,12 @@ expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/sha
 
 expect target_for(mac).map_ok(|target| target.extra_inputs) == Ok(MacSdk)
 expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(LinuxStubs)
-expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsSdk)
+expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsImportLibs)
 
 expect {
 	# The Linux image mounts the checkout, so the Mac binary must survive a Linux build.
 	out = target_for(linux).map_ok(|target| game_run(target, "examples/entity-game", "entity-game").args.get(2))
 	out == Ok(Ok("--output=./entity-game_linux.bin"))
-}
-
-expect newest_sdk(["10.0.19041.0", "10.0.22621.0", "10.0.20348.0"]) == Ok("10.0.22621.0")
-expect newest_sdk(["10.0.9.0", "10.0.10.0"]) == Ok("10.0.10.0")
-expect newest_sdk(["wdf", "10.0.22621.0"]) == Ok("10.0.22621.0")
-expect newest_sdk(["wdf"]) == Err(NoSdk)
-expect newest_sdk([]) == Err(NoSdk)
-
-expect {
-	copies = target_for(windows).map_ok(|target| windows_sdk_copies("C:/Kits/10/Lib/10.0.22621.0", target))
-	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "C:/Kits/10/Lib/10.0.22621.0/um/x64/kernel32.lib", to: "platform/targets/x64win/kernel32.lib" }))
 }
 
 expect {

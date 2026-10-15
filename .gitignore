@@ -16,8 +16,15 @@ platform/targets/*/*.o
 platform/targets/*/*.so*
 !platform/targets/x64glibc/*.o
 !platform/targets/x64glibc/*.so.*
-# Host library, sokol libraries and SDK import libraries on Windows.
+# Host library, sokol libraries and Clay on Windows.
 platform/targets/*/*.lib
+# scripts/make_windows_import_libs.py writes the committed x64win import libraries.
+!platform/targets/x64win/ucrtbase.lib
+!platform/targets/x64win/kernel32.lib
+!platform/targets/x64win/user32.lib
+!platform/targets/x64win/gdi32.lib
+!platform/targets/x64win/shell32.lib
+!platform/targets/x64win/d3d11.lib
 platform/targets/*/*.pdb
 # Roc's linker output.
 examples/*/*.bin

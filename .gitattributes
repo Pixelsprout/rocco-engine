@@ -4,3 +4,5 @@ engine/roc_platform_abi.odin text eol=lf
 engine/shader_basic.odin text eol=lf
 # An editor on Windows can save CRLF. Keep Roc sources LF in the repo.
 *.roc text eol=lf
+# make_windows_import_libs.py --check compares these bytes exactly.
+platform/targets/x64win/*.lib binary

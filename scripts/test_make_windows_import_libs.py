@@ -2,7 +2,9 @@
 
 import os
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -74,6 +76,35 @@ class RenderTest(unittest.TestCase):
             libs.render(libs.parse(UCRTBASE)),
             "LIBRARY \"ucrtbase.dll\"\nEXPORTS\nfree\nmalloc\n",
         )
+
+
+class StaleTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.built = Path(tmp.name) / "built"
+        self.committed = Path(tmp.name) / "committed"
+        self.built.mkdir()
+        self.committed.mkdir()
+
+    def write(self, folder, name, data):
+        (folder / name).write_bytes(data)
+
+    def test_finds_nothing_when_the_bytes_match(self):
+        self.write(self.built, "user32.lib", b"a")
+        self.write(self.committed, "user32.lib", b"a")
+        self.assertEqual(libs.stale(["user32"], self.built, self.committed), [])
+
+    def test_finds_a_library_with_other_bytes(self):
+        self.write(self.built, "gdi32.lib", b"a")
+        self.write(self.committed, "gdi32.lib", b"a")
+        self.write(self.built, "user32.lib", b"a")
+        self.write(self.committed, "user32.lib", b"b")
+        self.assertEqual(libs.stale(["gdi32", "user32"], self.built, self.committed), ["user32.lib"])
+
+    def test_finds_a_library_that_is_not_committed(self):
+        self.write(self.built, "user32.lib", b"a")
+        self.assertEqual(libs.stale(["user32"], self.built, self.committed), ["user32.lib"])
 
 
 if __name__ == "__main__":

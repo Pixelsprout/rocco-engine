@@ -1,0 +1,6 @@
+; The gdi32.dll functions that the host, sokol and Clay call.
+LIBRARY "gdi32.dll"
+EXPORTS
+CreateBitmap
+CreateDIBSection
+DeleteObject

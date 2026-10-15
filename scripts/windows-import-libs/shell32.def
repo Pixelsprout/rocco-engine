@@ -1,0 +1,7 @@
+; The shell32.dll functions that the host, sokol and Clay call.
+LIBRARY "shell32.dll"
+EXPORTS
+CommandLineToArgvW
+DragAcceptFiles
+DragFinish
+DragQueryFileW
