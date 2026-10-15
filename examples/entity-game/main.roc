@@ -535,7 +535,7 @@ camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 lights : List(Vocabulary.Light)
 lights = [
 	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
+	Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
 view : Model -> Scene
@@ -1346,4 +1346,16 @@ expect {
 	won = placed({ ..new_game(test_meshes, 0, 0), phase: Won(1.0) }, { x: 1.0, y: 0.0, z: -2.0 })
 	cam = view(won).camera
 	near_vec(cam.target, { x: 1.0, y: 0.0, z: -2.0 }) and near_vec(cam.eye, { x: 5.30414, y: 3.0, z: 2.18024 })
+}
+
+expect {
+	# Kula leaves this repo, so entity-game is the game that shows the Sun's shadow.
+	shadows = List.keep_oks(
+		view(new_game(test_meshes, 1, 0)).lights,
+		|l| match l {
+			Directional(d) => Ok(d.shadow)
+			_ => Err(NotDirectional)
+		},
+	)
+	shadows == [Bool.True]
 }
