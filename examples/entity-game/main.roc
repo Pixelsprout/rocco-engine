@@ -20,7 +20,7 @@ Entity : { id : U64, kind : Kind, parent : [Root, Child(U64)], pos : Vec3, vel :
 
 # The ids this game resolved from the Manifest in loaded. Resolved once, kept
 # in the Model, never looked up per step.
-MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32 }
+MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32, sky : U32 }
 
 # next_id only grows, so an id is never reused and the host never pairs a
 # new entity with a dead one.
@@ -36,22 +36,26 @@ Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshI
 # decided here. The host runs the Load and calls loaded before the first view.
 
 init : Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: new_game(primitive_meshes, round_pickups, 0), commands: [Load({ pack: "sprout", assets: ["sprout"] })] }
+init = |_config| { model: new_game(primitive_meshes, round_pickups, 0), commands: [Load({ pack: "sprout", assets: ["sprout", sky_name] })] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, meshes: resolve_meshes(manifest) }
 
-# sprout is 0, the fallback, until loaded.
+sky_name : Str
+sky_name = "sky/meadow"
+
+# sprout is 0, the fallback, until loaded. A sky of 0 draws no sky.
 primitive_meshes : MeshIds
 primitive_meshes = {
 	cube: Mesh.primitive(Cube),
 	sphere: Mesh.primitive(Sphere),
 	plane: Mesh.primitive(Plane),
 	sprout: 0,
+	sky: 0,
 }
 
 resolve_meshes : Manifest -> MeshIds
-resolve_meshes = |manifest| { ..primitive_meshes, sprout: Mesh.resolve(manifest, "sprout") }
+resolve_meshes = |manifest| { ..primitive_meshes, sprout: Mesh.resolve(manifest, "sprout"), sky: Mesh.resolve(manifest, sky_name) }
 
 # Fills the first `pickups` pickup spots.
 new_game : MeshIds, U64, U64 -> Model
@@ -586,7 +590,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: 0, ui: [] }
+	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [] }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -734,13 +738,15 @@ pi = 3.1415927
 
 # What the engine would hand loaded on this machine.
 manifest : Manifest
-manifest = [{ name: "sprout", id: 4 }]
+manifest = [{ name: "sprout", id: 4 }, { name: "sky/meadow", id: 1 }]
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
 
-expect init({ seed: 0, assets: ["sprout"] }).commands == [Load({ pack: "sprout", assets: ["sprout"] })]
-expect loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4 }
+expect init({ seed: 0, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
+expect loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
+expect view(init({ seed: 0, assets: [] }).model).sky == 0
+expect view(loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest)).sky == 1
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
