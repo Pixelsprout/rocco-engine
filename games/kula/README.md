@@ -135,6 +135,8 @@ back and the exit closes.
   colour.
 - In `Won`, every input except Escape does nothing.
 - A closed exit does nothing. The ball can roll over it.
+- A panel at the top-left shows the keys collected out of the level's
+  total, such as `Keys 1 / 2`. It shows in every phase.
 
 ## Levels and Themes
 

@@ -744,7 +744,13 @@ Done when the ball casts a shadow on the blocks from the Kula sun.
 Check: jump over a gap and see the shadow on the landing block. A Scene
 with no sun draws as before.
 
-## Milestone 14: the HUD
+## Milestone 14: the HUD (done)
+
+Results, 2026-10-15: Kula shows "Keys 0 / 2" in a panel at the top-left.
+Screenshots at 960x540 and 1280x800 show the panel in the same corner, and
+both show "Keys 0 / 2". A Roc expect shows "Keys 1 / 2" after the ball
+collects one key. The Linux container run exits 0. The full spec is the dex
+task w0y0eore.
 
 Done when the key count changes on screen without a 3D draw. Grilled
 2026-10-15; `docs/adr/0004-ui-layout-runs-in-the-host.md` records the
