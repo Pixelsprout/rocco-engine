@@ -531,22 +531,27 @@ floor_id = U64.highest
 camera_offset : Vec3
 camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
 
+ambient : Vocabulary.Light
+ambient = Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })
+
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
-lights : List(Vocabulary.Light)
-lights = [
-	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-	Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
-]
+sun : Vocabulary.Light
+sun = Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })
+
+pickup_light : Vec3 -> Vocabulary.Light
+pickup_light = |pos| Light.point(pos, { r: 3.0, g: 1.5, b: 0.5 }, 3.0)
 
 view : Model -> Scene
 view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
-	# One allocation for the draws and one for the colliders. A parent
+	# One allocation each for the draws, the colliders and the lights. A parent
 	# precedes its child, so the parent's Draw is already in acc.
+	# The engine keeps the first 8 directional and point lights, so the Sun goes before the Points.
 	first = {
 		draws: List.with_capacity(List.len(curr.entities) + 1).append(floor),
 		colliders: List.with_capacity(List.len(curr.entities)),
+		lights: List.with_capacity(List.len(curr.entities) + 2).append(ambient).append(sun),
 	}
 	built = List.fold(
 		curr.entities,
@@ -566,7 +571,7 @@ view = |curr| {
 			if waiting(e) {
 				acc
 			} else {
-				{ draws: acc.draws.append(draw(curr.meshes, e, world)), colliders: with_collider(acc.colliders, e, world) }
+				{ draws: acc.draws.append(draw(curr.meshes, e, world)), colliders: with_collider(acc.colliders, e, world), lights: with_light(acc.lights, e, world) }
 			}
 		},
 	)
@@ -581,7 +586,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, lights, cursor: Free, sky: 0, ui: [] }
+	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: 0, ui: [] }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -646,6 +651,12 @@ with_collider = |colliders, e, world| match e.kind {
 	Goal => colliders.append(Collider.box(e.id, world.pos, world.yaw, goal_half))
 	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
 	Drop(_) => colliders
+}
+
+with_light : List(Vocabulary.Light), Entity, World -> List(Vocabulary.Light)
+with_light = |lights, e, world| match e.kind {
+	Pickup => lights.append(pickup_light(world.pos))
+	_ => lights
 }
 
 # ---- helpers -------------------------------------------------------------
@@ -1357,4 +1368,33 @@ expect {
 		},
 	)
 	shadows == [Bool.True]
+}
+
+point_positions : Scene -> List(Vec3)
+point_positions = |scene| List.keep_oks(
+	scene.lights,
+	|l| match l {
+		Point(p) => Ok(p.pos)
+		_ => Err(NotPoint)
+	},
+)
+
+expect {
+	# A fresh round has one Point per pickup, at the pickup.
+	m = new_game(test_meshes, round_pickups, 0)
+	pickup_pos = List.keep_if(m.entities, is_pickup).map(|e| e.pos)
+	point_positions(view(m)) == pickup_pos and List.len(pickup_pos) == round_pickups
+}
+
+expect {
+	# Collecting a pickup removes its Point.
+	m = new_game(test_meshes, 2, 0)
+	after = update(m, idle, [touch(0, 2)], 1.0 / 120.0)
+	point_positions(view(after)) == [pickup_spot(1)]
+}
+
+expect {
+	# The engine keeps 8 directional and point lights, so it drops the last one: the Point on the block.
+	lights = view(new_game(test_meshes, round_pickups, 0)).lights
+	List.len(lights) == 10 and List.take_first(lights, 2) == [ambient, sun] and List.last(lights) == Ok(pickup_light(pickup_spot(arc_pickups)))
 }

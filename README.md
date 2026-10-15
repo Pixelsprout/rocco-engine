@@ -110,7 +110,7 @@ The other variables the engine reads:
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 3, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
+entity-game 4, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
 because `Ui.box` builds `Scene.ui` with concat and append. Build
 the host library first. Each game opens a window. Do not type into it during the
 check, because a key press allocates the `Input` lists.
