@@ -42,7 +42,7 @@ alloc_report_from_env :: proc() -> bool {
 }
 
 assets_dir_from_env :: proc() -> string {
-	program := os.args[0] if len(os.args) > 0 else ""
+	program := platform_program_name(context.temp_allocator)
 	return assets_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
 }
 
