@@ -8,7 +8,7 @@ import pf.Stderr
 import pf.Stdout
 import Keys
 
-Step : [Inputs, Glue, Host, Game(Str), Shaders, Keys, Target]
+Step : [Inputs, Glue, Host, Game(Str), Shaders, Font, Keys, Target]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -17,6 +17,7 @@ parse = |args| match args {
 	["host"] => Ok([Host])
 	["game", name] => Ok([Game(name)])
 	["shaders"] => Ok([Shaders])
+	["font"] => Ok([Font])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
 	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("kula")])
@@ -85,6 +86,14 @@ shaders_run : Run
 shaders_run = {
 	program: "sokol-shdc",
 	args: ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"],
+	cwd: ".",
+}
+
+# The tool binary goes in build/ so it stays out of the checkout.
+font_run : Run
+font_run = {
+	program: "odin",
+	args: ["run", "scripts/font_bake", "-out:build/font_bake", "--", "scripts/fonts/AtkinsonHyperlegible-Regular.ttf", "engine/font_baked.odin"],
 	cwd: ".",
 }
 
@@ -176,6 +185,7 @@ usage =
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <name>     link games/<name>, or else examples/<name>, against the platform
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
+	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  all             glue, host, inputs, game cards, game entity-game, game kula
@@ -233,6 +243,18 @@ run_step! = |step, target| match step {
 			exec!(shaders_run)
 		} else {
 			Stdout.line!("== shaders: sokol-shdc is not on PATH, keeping the committed engine/shader_basic.odin")
+		}
+	Font =>
+		if Cmd.check_available!(font_run.program) {
+			Path.utf8("build").create_all!()?
+			# The tool writes only after a full bake, so a failed run leaves the committed file whole.
+			# On Linux it fails until Odin's stb libraries are built.
+			match exec!(font_run) {
+				Ok({}) => Ok({})
+				Err(_) => Stdout.line!("== font: the bake tool did not run, keeping the committed engine/font_baked.odin")
+			}
+		} else {
+			Stdout.line!("== font: odin is not on PATH, keeping the committed engine/font_baked.odin")
 		}
 	Keys => keys!()
 	Target => Stdout.line!(target_lines(target))
@@ -401,6 +423,9 @@ expect {
 		"platform/targets/x64win/sokol_log_windows_x64_d3d11_debug.lib",
 	])
 }
+
+expect parse(["font"]) == Ok([Font])
+expect font_run.args == ["run", "scripts/font_bake", "-out:build/font_bake", "--", "scripts/fonts/AtkinsonHyperlegible-Regular.ttf", "engine/font_baked.odin"]
 
 expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"]
 
