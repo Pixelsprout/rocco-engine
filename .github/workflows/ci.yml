@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
+      - name: Read the toolchain pins
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+
+      - name: Install Odin and Roc
+        run: |
+          mkdir -p "$RUNNER_TEMP/odin" "$RUNNER_TEMP/roc"
+          curl -fsSL "https://github.com/odin-lang/Odin/releases/download/${ODIN_RELEASE}/odin-macos-arm64-${ODIN_RELEASE}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/odin" --strip-components=1
+          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-macos_apple_silicon-${ROC_NIGHTLY}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/odin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+
+      - name: Print the toolchain versions
+        run: |
+          odin version
+          roc version
+
+      # Same flags as build_lib_arm64_debug and build_lib_arm64_release in
+      # sokol-odin/sokol/build_clibs_macos.sh, for only the four modules the
+      # engine links. The engine tests link the debug archives.
+      - name: Build the sokol Metal archives
+        working-directory: sokol-odin/sokol
+        run: |
+          for m in log gfx app glue; do
+            o="$RUNNER_TEMP/sokol_$m.o"
+            MACOSX_DEPLOYMENT_TARGET=10.13 clang -c -g -x objective-c -arch arm64 -DIMPL -DSOKOL_METAL "c/sokol_$m.c" -o "$o"
+            ar rcs "$m/sokol_${m}_macos_arm64_metal_debug.a" "$o"
+            MACOSX_DEPLOYMENT_TARGET=10.13 clang -c -O2 -x objective-c -arch arm64 -DNDEBUG -DIMPL -DSOKOL_METAL "c/sokol_$m.c" -o "$o"
+            ar rcs "$m/sokol_${m}_macos_arm64_metal_release.a" "$o"
+          done
+
+      - name: Build
+        run: roc scripts/build.roc all --release
+
+      - name: Check for changes to committed files
+        run: git diff --exit-code
+
+      # Kula moves to its own repo, so CI here runs only the examples.
+      - name: Run the games
+        run: sh scripts/run-games.sh 1 cards entity-game pong
+
+      - name: Test
+        run: sh scripts/test-all.sh
+
+      - name: Regenerate the macOS sysroot
+        run: |
+          python3 scripts/make_macos_sysroot.py
+          git diff --exit-code
+
+      - name: Audit the macOS sysroot
+        run: python3 scripts/make_macos_sysroot.py --audit
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the Linux image
+        uses: docker/build-push-action@v6
+        with:
+          context: scripts/linux
+          platforms: linux/amd64
+          tags: rocco-linux
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build, run and test in the Linux image
+        run: docker run --rm -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
+
+      - name: Check for changes to committed files
+        run: git diff --exit-code
+
+      - name: Audit the Linux stubs
+        run: python3 scripts/make_linux_stubs.py --audit
+
+  generated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Test the generators
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py
+
+      - name: Regenerate the Linux stubs
+        run: |
+          python3 scripts/make_linux_stubs.py
+          git diff --exit-code

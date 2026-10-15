@@ -96,6 +96,16 @@ scripts/test_make_macos_sysroot.py` runs the tests of the sysroot generator.
 `python3 -m unittest scripts/test_make_linux_stubs.py` runs the tests of the
 stub generator. `python3 -m unittest scripts/test_make_windows_import_libs.py`
 runs the tests of the Windows import library generator.
+`./scripts/test-all.sh` runs `roc check` and `roc test` on every app, every
+package and the build scripts, then the engine tests.
+
+`.github/workflows/ci.yml` runs on each push to `main` and on each pull
+request. The macOS job builds with `--release`, runs cards, entity-game and
+pong for one frame, and runs `scripts/test-all.sh`. It regenerates the macOS
+sysroot, fails on a diff and runs the audit. The Linux job runs
+`scripts/linux/in-container.sh --release` in the Docker image and runs the
+stub audit. A third job runs the generator tests, regenerates the Linux stubs
+and fails on a diff.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py
@@ -171,8 +181,8 @@ Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
 archives. Then it runs the `all` command of the build script. Then it runs
 each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
 Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
-the alloc check and the host check. The script builds the debug and the
-release sokol archives. `./scripts/linux/check.sh --release` checks the
+`scripts/test-all.sh`, the alloc check and the host check. The script builds
+the debug and the release sokol archives. `./scripts/linux/check.sh --release` checks the
 release build.
 
 The first run builds the Docker image. On Apple silicon, Docker emulates
@@ -287,6 +297,8 @@ a change to the `Model` type, restart the game.
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
+| `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
+| `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game and pong. |
 | `scripts/host-check.sh` | Checks that linking cards, entity-game, pong and kula does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |

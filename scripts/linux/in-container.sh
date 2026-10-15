@@ -1,5 +1,6 @@
 #!/bin/sh
 # Runs inside the image from scripts/linux/Dockerfile with the repo at /work.
+# Builds every game, runs it, runs the tests, the alloc check and the host check.
 # Pass --release to build the release host and inputs.
 set -eu
 cd /work
@@ -27,24 +28,9 @@ roc scripts/build.roc all "$@"
 
 # The timeout turns a hang into a failure instead of a stuck container.
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
-EXPECTED="Frame Count: $FRAMES"
-for game in cards entity-game pong kula; do
-	echo "== run $game for $FRAMES frames under xvfb"
-	RUN_LOG=/tmp/$game.log
-	dir=examples/$game
-	if [ -f "games/$game/main.roc" ]; then dir=games/$game; fi
-	set +e
-	(cd "$dir" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES $RUN "./${game}_linux.bin") > "$RUN_LOG" 2>&1
-	code=$?
-	set -e
-	frame_count_lines=$(grep -c '^Frame Count: ' "$RUN_LOG" || true)
-	if [ "$code" -ne 0 ] || [ "$frame_count_lines" -ne 1 ] || ! grep -qx "$EXPECTED" "$RUN_LOG"; then
-		tail -40 "$RUN_LOG" >&2
-		echo "FAIL: $game exit=$code, frame count lines=$frame_count_lines, expected '$EXPECTED'" >&2
-		exit 1
-	fi
-	echo "PASS: $game exit=0, $EXPECTED"
-done
+RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong kula
+
+sh scripts/test-all.sh
 
 echo "== alloc check"
 RUN_PREFIX="$RUN" sh scripts/alloc-check.sh
