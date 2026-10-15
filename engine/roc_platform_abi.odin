@@ -306,12 +306,13 @@ Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
 	lights: Roc_List(Roc_View_Lights),
+	ui: Roc_List(Roc_View_Ui),
 	camera: Roc_View_Camera,
 	sky: u32,
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 120)
+#assert(size_of(Roc_View) == 144)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, colliders) == 0)
 #assert(size_of(type_of(Roc_View{}.colliders)) == 24)
@@ -319,11 +320,13 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
 #assert(offset_of(Roc_View, lights) == 48)
 #assert(size_of(type_of(Roc_View{}.lights)) == 24)
-#assert(offset_of(Roc_View, camera) == 72)
+#assert(offset_of(Roc_View, ui) == 72)
+#assert(size_of(type_of(Roc_View{}.ui)) == 24)
+#assert(offset_of(Roc_View, camera) == 96)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, sky) == 112)
+#assert(offset_of(Roc_View, sky) == 136)
 #assert(size_of(type_of(Roc_View{}.sky)) == 4)
-#assert(offset_of(Roc_View, cursor) == 116)
+#assert(offset_of(Roc_View, cursor) == 140)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
@@ -498,6 +501,251 @@ Roc_View_Lights_Point :: struct {
 
 Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
 Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Ui_Tag :: enum u8 {
+	Close = 0,
+	Open = 1,
+	Text = 2,
+}
+
+Roc_View_Ui_Payload :: struct #raw_union {
+	open: Roc_View_Ui_Open,
+	text: Roc_View_Ui_Text,
+}
+
+Roc_View_Ui :: struct #raw_union {
+	payload: Roc_View_Ui_Payload,
+	using _: struct {
+		_: [84]u8,
+		tag: Roc_View_Ui_Tag,
+	},
+}
+
+#assert(size_of(Roc_View_Ui) == 88)
+#assert(align_of(Roc_View_Ui) == 8)
+#assert(offset_of(Roc_View_Ui, tag) == 84)
+
+Roc_View_Ui_Open :: struct {
+	background: Roc_View_Ui_Open_Background,
+	floating: Roc_View_Ui_Open_Floating,
+	gap: f32,
+	height: Roc_View_Ui_Open_Height,
+	pad: Roc_View_Ui_Open_Pad,
+	radius: f32,
+	width: Roc_View_Ui_Open_Height,
+	child_align: Roc_View_Ui_Open_ChildAlign,
+	direction: Roc_View_Ui_Open_Direction,
+}
+
+#assert(size_of(Roc_View_Ui_Open) == 84)
+#assert(align_of(Roc_View_Ui_Open) == 4)
+#assert(offset_of(Roc_View_Ui_Open, background) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.background)) == 16)
+#assert(offset_of(Roc_View_Ui_Open, floating) == 16)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.floating)) == 16)
+#assert(offset_of(Roc_View_Ui_Open, gap) == 32)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.gap)) == 4)
+#assert(offset_of(Roc_View_Ui_Open, height) == 36)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.height)) == 12)
+#assert(offset_of(Roc_View_Ui_Open, pad) == 48)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.pad)) == 16)
+#assert(offset_of(Roc_View_Ui_Open, radius) == 64)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.radius)) == 4)
+#assert(offset_of(Roc_View_Ui_Open, width) == 68)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.width)) == 12)
+#assert(offset_of(Roc_View_Ui_Open, child_align) == 80)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.child_align)) == 2)
+#assert(offset_of(Roc_View_Ui_Open, direction) == 82)
+#assert(size_of(type_of(Roc_View_Ui_Open{}.direction)) == 1)
+
+Roc_View_Ui_Open_Background :: struct {
+	a: f32,
+	b: f32,
+	g: f32,
+	r: f32,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Background) == 16)
+#assert(align_of(Roc_View_Ui_Open_Background) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Background, a) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.a)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Background, b) == 4)
+#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.b)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Background, g) == 8)
+#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.g)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Background, r) == 12)
+#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.r)) == 4)
+
+Roc_View_Ui_Open_Floating_Tag :: enum u8 {
+	Float = 0,
+	NoFloat = 1,
+}
+
+Roc_View_Ui_Open_Floating_Payload :: struct #raw_union {
+	float: Roc_View_Ui_Open_Floating_Float,
+}
+
+Roc_View_Ui_Open_Floating :: struct {
+	payload: Roc_View_Ui_Open_Floating_Payload,
+	tag: Roc_View_Ui_Open_Floating_Tag,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Floating) == 16)
+#assert(align_of(Roc_View_Ui_Open_Floating) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Floating, tag) == 12)
+
+Roc_View_Ui_Open_Floating_Float :: struct {
+	offset: Roc_View_Ui_Open_Floating_Float_Offset,
+	attach: Roc_View_Ui_Open_Floating_Float_Attach,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Floating_Float) == 12)
+#assert(align_of(Roc_View_Ui_Open_Floating_Float) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Floating_Float, offset) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float{}.offset)) == 8)
+#assert(offset_of(Roc_View_Ui_Open_Floating_Float, attach) == 8)
+#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float{}.attach)) == 1)
+
+Roc_View_Ui_Open_Floating_Float_Offset :: struct {
+	x: f32,
+	y: f32,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Floating_Float_Offset) == 8)
+#assert(align_of(Roc_View_Ui_Open_Floating_Float_Offset) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Floating_Float_Offset, x) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float_Offset{}.x)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Floating_Float_Offset, y) == 4)
+#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float_Offset{}.y)) == 4)
+
+Roc_View_Ui_Open_Floating_Float_Attach :: enum u8 {
+	CenterBottom = 0,
+	CenterCenter = 1,
+	CenterTop = 2,
+	LeftBottom = 3,
+	LeftCenter = 4,
+	LeftTop = 5,
+	RightBottom = 6,
+	RightCenter = 7,
+	RightTop = 8,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Floating_Float_Attach) == 1)
+#assert(align_of(Roc_View_Ui_Open_Floating_Float_Attach) == 1)
+
+Roc_View_Ui_Open_Height_Tag :: enum u8 {
+	Fit = 0,
+	Fixed = 1,
+	Grow = 2,
+	Percent = 3,
+}
+
+Roc_View_Ui_Open_Height_Payload :: struct #raw_union {
+	fit: Roc_View_Ui_Open_Height_Fit,
+	fixed: f32,
+	grow: Roc_View_Ui_Open_Height_Fit,
+	percent: f32,
+}
+
+Roc_View_Ui_Open_Height :: struct {
+	payload: Roc_View_Ui_Open_Height_Payload,
+	tag: Roc_View_Ui_Open_Height_Tag,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Height) == 12)
+#assert(align_of(Roc_View_Ui_Open_Height) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Height, tag) == 8)
+
+Roc_View_Ui_Open_Height_Fit :: struct {
+	max: f32,
+	min: f32,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Height_Fit) == 8)
+#assert(align_of(Roc_View_Ui_Open_Height_Fit) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Height_Fit, max) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_Height_Fit{}.max)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Height_Fit, min) == 4)
+#assert(size_of(type_of(Roc_View_Ui_Open_Height_Fit{}.min)) == 4)
+
+Roc_View_Ui_Open_Height_Grow :: Roc_View_Ui_Open_Height_Fit
+Roc_View_Ui_Open_Pad :: struct {
+	bottom: f32,
+	left: f32,
+	right: f32,
+	top: f32,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Pad) == 16)
+#assert(align_of(Roc_View_Ui_Open_Pad) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Pad, bottom) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.bottom)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Pad, left) == 4)
+#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.left)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Pad, right) == 8)
+#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.right)) == 4)
+#assert(offset_of(Roc_View_Ui_Open_Pad, top) == 12)
+#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.top)) == 4)
+
+Roc_View_Ui_Open_Width :: Roc_View_Ui_Open_Height
+Roc_View_Ui_Open_Width_Fit :: Roc_View_Ui_Open_Height_Fit
+Roc_View_Ui_Open_Width_Grow :: Roc_View_Ui_Open_Height_Fit
+Roc_View_Ui_Open_ChildAlign :: struct {
+	x: Roc_View_Ui_Open_ChildAlign_X,
+	y: Roc_View_Ui_Open_ChildAlign_X,
+}
+
+#assert(size_of(Roc_View_Ui_Open_ChildAlign) == 2)
+#assert(align_of(Roc_View_Ui_Open_ChildAlign) == 1)
+#assert(offset_of(Roc_View_Ui_Open_ChildAlign, x) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Open_ChildAlign{}.x)) == 1)
+#assert(offset_of(Roc_View_Ui_Open_ChildAlign, y) == 1)
+#assert(size_of(type_of(Roc_View_Ui_Open_ChildAlign{}.y)) == 1)
+
+Roc_View_Ui_Open_ChildAlign_X :: enum u8 {
+	Center = 0,
+	End = 1,
+	Start = 2,
+}
+
+#assert(size_of(Roc_View_Ui_Open_ChildAlign_X) == 1)
+#assert(align_of(Roc_View_Ui_Open_ChildAlign_X) == 1)
+
+Roc_View_Ui_Open_ChildAlign_Y :: Roc_View_Ui_Open_ChildAlign_X
+Roc_View_Ui_Open_Direction :: enum u8 {
+	Col = 0,
+	Row = 1,
+}
+
+#assert(size_of(Roc_View_Ui_Open_Direction) == 1)
+#assert(align_of(Roc_View_Ui_Open_Direction) == 1)
+
+Roc_View_Ui_Text :: struct {
+	str: Roc_Str,
+	color: Roc_View_Ui_Open_Background,
+	size: f32,
+	wrap: Roc_View_Ui_Text_Wrap,
+}
+
+#assert(size_of(Roc_View_Ui_Text) == 48)
+#assert(align_of(Roc_View_Ui_Text) == 8)
+#assert(offset_of(Roc_View_Ui_Text, str) == 0)
+#assert(size_of(type_of(Roc_View_Ui_Text{}.str)) == 24)
+#assert(offset_of(Roc_View_Ui_Text, color) == 24)
+#assert(size_of(type_of(Roc_View_Ui_Text{}.color)) == 16)
+#assert(offset_of(Roc_View_Ui_Text, size) == 40)
+#assert(size_of(type_of(Roc_View_Ui_Text{}.size)) == 4)
+#assert(offset_of(Roc_View_Ui_Text, wrap) == 44)
+#assert(size_of(type_of(Roc_View_Ui_Text{}.wrap)) == 1)
+
+Roc_View_Ui_Text_Color :: Roc_View_Ui_Open_Background
+Roc_View_Ui_Text_Wrap :: enum u8 {
+	None = 0,
+	Words = 1,
+}
+
+#assert(size_of(Roc_View_Ui_Text_Wrap) == 1)
+#assert(align_of(Roc_View_Ui_Text_Wrap) == 1)
+
 Roc_View_Camera :: struct {
 	eye: Roc_Step_Arg2_Normal,
 	fov_y: f32,
@@ -563,6 +811,18 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_colliders(value.colliders)
 	roc_list_decref_roc_view_draws(value.draws)
 	roc_list_decref_roc_view_lights(value.lights)
+	roc_list_decref_roc_view_ui(value.ui)
+}
+
+roc_view_ui_decref :: proc(value: Roc_View_Ui) {
+	#partial switch value.tag {
+	case .Text:
+		roc_view_ui_text_decref(value.payload.text)
+	}
+}
+
+roc_view_ui_text_decref :: proc(value: Roc_View_Ui_Text) {
+	roc_str_decref(value.str)
 }
 
 roc_list_decref_roc_str :: proc(list: Roc_List(Roc_Str)) {
@@ -629,6 +889,14 @@ roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_Lis
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_view_ui :: proc(list: Roc_List(Roc_View_Ui)) {
+	roc_list_decref_elements(list, roc_view_ui_decref)
+}
+
+roc_list_from_slice_roc_view_ui :: proc(elems: []Roc_View_Ui) -> Roc_List(Roc_View_Ui) {
+	return roc_list_from_slice_with(elems, true)
+}
+
 roc_decref :: proc {
 	roc_str_decref,
 	roc_init_arg0_decref,
@@ -638,6 +906,8 @@ roc_decref :: proc {
 	roc_step_arg1_decref,
 	roc_loaded_arg2_decref,
 	roc_view_decref,
+	roc_view_ui_decref,
+	roc_view_ui_text_decref,
 }
 
 roc_list_decref :: proc {
@@ -649,6 +919,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
+	roc_list_decref_roc_view_ui,
 }
 
 roc_list_from_slice :: proc {
@@ -660,6 +931,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
+	roc_list_from_slice_roc_view_ui,
 }
 
 // The Roc app defines these symbols at the final link.

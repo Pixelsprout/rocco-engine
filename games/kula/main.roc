@@ -110,7 +110,7 @@ view = |model| {
 		.map(|key| cube(model.meshes, key.id, key.cell, 0.3, key_tint))
 	ball_tint = if model.phase == Won { won_ball_tint } else { playing_ball_tint }
 	ball = View.ball_draw(model.ball, model.meshes.ball, ball_tint)
-	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free, sky: model.meshes.sky }
+	{ camera, draws: blocks.concat(keys).append(ball), colliders: [], lights: theme.lights, cursor: Free, sky: model.meshes.sky, ui: [] }
 }
 
 # Face draw ids count up from 1, so the key ids start well past any level's faces.

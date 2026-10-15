@@ -581,7 +581,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, lights, cursor: Free, sky: 0 }
+	{ camera, draws: built.draws, colliders: built.colliders, lights, cursor: Free, sky: 0, ui: [] }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.

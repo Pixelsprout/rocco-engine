@@ -54,7 +54,7 @@ view = |m| {
         # The slot index is the draw id: a card slides to its slot when dealt.
         { id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, rot: Quat.identity, scale_rot: Quat.identity, tint }
     })
-    { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], lights, cursor: Free, sky: 0 }
+    { camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, colliders: [], lights, cursor: Free, sky: 0, ui: [] }
 }
 
 expect {

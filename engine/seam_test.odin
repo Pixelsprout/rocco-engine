@@ -48,6 +48,7 @@ Fake_Game :: struct {
 	drop_box:        rawptr,
 	drop_rc:         int,
 	colliders:       []Collider,
+	ui_texts:        []string,
 	commands_out:    int,
 	next_commands:   []Command,
 	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -159,9 +160,19 @@ fake_view :: proc(model: rawptr) -> Scene {
 	g_fake.view_box = model
 	g_fake.view_rc = fake_refcount(model)^
 	fake_refcount(model)^ -= 1
+	ui := make([dynamic]Element, context.temp_allocator)
+	for str in g_fake.ui_texts {
+		append(&ui, Element{tag = .Open})
+		text := Element {
+			tag = .Text,
+		}
+		text.payload.text = {str = roc_str_from_slice(str)}
+		append(&ui, text, Element{tag = .Close})
+	}
 	return {
 		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
 		colliders = roc_list_from_slice(g_fake.colliders),
+		ui = roc_list_from_slice(ui[:]),
 	}
 }
 
@@ -318,6 +329,35 @@ test_seam_step_with_empty_input_makes_two_allocs_and_two_frees :: proc(t: ^testi
 			testing.expect_value(t, after.live, live)
 		}
 	}
+}
+
+@(test)
+test_seam_step_frees_the_text_strings_of_the_last_scene :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	g_fake.ui_texts = {"a string longer than twenty-three bytes", "Keys"}
+	seam_step(&s, {}, 1.0 / 60)
+	seam_step(&s, {}, 1.0 / 60)
+
+	_, curr := seam_scenes(&s)
+	testing.expect_value(t, curr.ui.length, 6)
+	testing.expect_value(t, curr.ui.elements[1].tag, Element_Tag.Text)
+	testing.expect_value(t, roc_str_string(&curr.ui.elements[1].payload.text.str), "a string longer than twenty-three bytes")
+
+	// Each step frees the box, the draws list, the ui list and one long string.
+	before := roc_heap_counters()
+	seam_step(&s, {}, 1.0 / 60)
+	after := roc_heap_counters()
+	testing.expect_value(t, after.allocs - before.allocs, 4)
+	testing.expect_value(t, after.deallocs - before.deallocs, 4)
+	testing.expect_value(t, after.reallocs - before.reallocs, 0)
+	testing.expect_value(t, after.live, before.live)
+
+	fake_seam_shutdown(&s)
+	testing.expect_value(t, roc_heap_counters().live, 0)
 }
 
 @(test)

@@ -123,9 +123,9 @@ Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
 AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
-Box      : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
+BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
-Element  : [Open(Box), Text(Text), Close]
+Element  : [Open(BoxConfig), Text(Text), Close]
 Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element) }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
@@ -270,7 +270,8 @@ the UI package in `packages/ui/`, for example `box(config, children)` and
 A game with no UI returns `ui: []`. Decision.
 `docs/adr/0004-ui-layout-runs-in-the-host.md` records the options.
 
-A Box carries Clay's layout fields and Clay's defaults. The tag names are
+A Box carries Clay's layout fields and Clay's defaults. Its type is
+`BoxConfig`, because Roc's builtin `Box` takes the name. The tag names are
 short forms of Clay's, such as `Row` for `LEFT_TO_RIGHT`:
 
 | Field | Values | Default |

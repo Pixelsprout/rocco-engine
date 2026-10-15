@@ -198,7 +198,8 @@ _Avoid_: widget, node, control, view (the call), parent index
 The rectangle an Open starts. It carries its sizing, padding, gap,
 direction, child alignment, background and corner radius. A floating Box
 attaches to a point of the window, such as a corner, and ignores its
-parent's layout.
+parent's layout. Its type is `BoxConfig`, because Roc's builtin `Box` takes
+the name.
 _Avoid_: panel, div, container, frame
 
 **Text**:
