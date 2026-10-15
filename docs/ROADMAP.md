@@ -777,20 +777,36 @@ count reads right at two window sizes.
 
 ## Milestone 15: CI and the bundle
 
-Done when Kula builds on a clean machine with only Roc installed.
+Done when Kula builds on a clean machine with only Roc installed. Grilled
+2026-10-15. The dex task pa2v63ro holds the decisions and the tasks.
 
-1. Three GitHub Actions runners: macOS arm64, Ubuntu and Windows. Each
-   builds the host library for its OS, runs both games under a virtual
-   display with `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check` and
-   `roc test` on every app. The Linux job reuses
-   `scripts/linux/Dockerfile`.
-2. The Linux CRT objects and library stubs are committed to the repo, so a
-   diff is the reproducibility check. Windows import libraries come from
-   MinGW `.def` files through `zig dlltool`.
-3. A release workflow on a tag gathers the three host archives into the
-   target directories and runs `roc bundle` to a release asset, as roc-ray
-   does with a script.
-4. Kula moves to its own repo and its header names the bundle URL.
+1. Pong moves to the current seam and joins `all`. CI here runs cards,
+   entity-game and pong.
+2. `x64win` links Clay. Windows links with no Visual Studio: sokol, Clay
+   and the host build with no default C runtime, and the C runtime comes
+   from `ucrtbase.dll`.
+3. `platform/main.roc` names the archives without a debug or release
+   suffix. `inputs --release` copies the release archives. Local work stays
+   debug. CI and the bundle use release.
+4. The Linux CRT objects and library stubs, and the MinGW `.def` files for
+   the Windows import libraries, are committed with their `.so` and `.lib`
+   outputs. CI makes them again, and a diff is the reproducibility check.
+5. A reviewed catalog makes the macOS sysroot, as in roc-ray. No file
+   taken from Apple's SDK goes in the bundle.
+6. Three GitHub Actions runners: macOS arm64, Ubuntu and Windows. Each
+   builds the host for its OS, runs the examples with
+   `ROCCO_EXIT_AFTER_FRAMES`, and runs `roc check`, `roc test` and
+   `odin test`. The Linux job reuses `scripts/linux/Dockerfile` and keeps
+   the alloc check and the host check.
+7. A release workflow runs on a `v*` tag. It collects the three host
+   archives into the target directories and runs `roc bundle` for the
+   platform and for `linalg`, `mesh` and `ui`. It publishes a prerelease,
+   runs cards from those URLs on clean runners, then makes the release
+   final. The release notes name the Roc nightly.
+8. Kula moves to `Pixelsprout/kula` with its history. Its header names the
+   four bundle URLs. Its README names the Roc nightly. `scripts/local.sh`
+   points the header at a local checkout of this repo. `games/` leaves
+   this repo.
 
 Check: clone the Kula repo on a machine with Roc and nothing else, run
 `roc main.roc`, play level one.
