@@ -88,6 +88,10 @@ scripts/Keys.roc` runs only the tests of the Key generator.
 engine -debug` runs the engine's tests. `odin test scripts/font_bake` runs
 the tests of the font bake tool.
 
+Roc files follow `roc fmt`. Run `git config core.hooksPath .githooks` once
+per clone. The pre-commit hook then stops a commit that stages a `.roc` file
+that `roc fmt --check` rejects.
+
 `ROCCO_EXIT_AFTER_FRAMES=N` makes the game quit after N rendered frames. The
 game then prints `Frame Count: N` and exits with code 0. Without the variable,
 the game runs until it returns `Quit` or you close the window. The entity

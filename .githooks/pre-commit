@@ -1,0 +1,21 @@
+#!/bin/sh
+# Blocks a commit that stages a .roc file roc fmt would change.
+# Enable once per clone: git config core.hooksPath .githooks
+set -eu
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.roc')
+[ -n "$files" ] || exit 0
+
+if ! command -v roc >/dev/null 2>&1; then
+	echo "pre-commit: roc is not on PATH, skipping the format check" >&2
+	exit 0
+fi
+
+# roc fmt reads the working tree, so a partly staged file is checked as it is on disk.
+# shellcheck disable=SC2086
+if ! roc fmt --check $files >/dev/null 2>&1; then
+	echo "pre-commit: some staged .roc files are not formatted. Run:" >&2
+	echo "  roc fmt $(echo $files)" >&2
+	echo "Then stage the changes and commit again. A file can need two passes." >&2
+	exit 1
+fi
