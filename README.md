@@ -35,8 +35,8 @@ In an existing clone, run `git submodule update --init`.
 |---|---|---|---|
 | Odin | `dev-2026-08`, on `PATH` | In the Docker image | `dev-2026-08` windows-amd64 release, on `PATH` |
 | Roc | `nightly-2026-10-11-7d256b9`, on `PATH` | In the Docker image | `nightly-2026-10-11-7d256b9` windows_x86_64 zip, on `PATH` |
-| System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload, and a Windows SDK |
-| sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `build_clibs_windows.cmd` in `sokol-odin/sokol/`, once |
+| System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload, a Windows SDK, Python 3 and Zig 0.16.0 |
+| sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
 
 The tested macOS Odin is build `dev-2026-08:251d8eb0b`. The Docker image
@@ -94,7 +94,8 @@ engine -debug` runs the engine's tests. `odin test scripts/font_bake` runs
 the tests of the font bake tool. `python3 -m unittest
 scripts/test_make_macos_sysroot.py` runs the tests of the sysroot generator.
 `python3 -m unittest scripts/test_make_linux_stubs.py` runs the tests of the
-stub generator.
+stub generator. `python3 -m unittest scripts/test_make_windows_import_libs.py`
+runs the tests of the Windows import library generator.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py
@@ -213,10 +214,15 @@ Run every step in one `cmd` window where `vcvars64.bat` has run, so that `cl`
 and `lib` are on `PATH`. The Start menu calls this window the x64 Native
 Tools Command Prompt.
 
+Roc links x64win with no Visual Studio CRT. `build_sokol.cmd` builds the
+sokol libraries with `/Zl /GS-`, so they name no CRT library. sokol's own
+`build_clibs_windows.cmd` does not, and its libraries fail that link.
+`make_windows_import_libs.py` writes `ucrtbase.lib` with Zig 0.16.0, so the C
+runtime comes from `ucrtbase.dll`.
+
 ```bat
-cd sokol-odin\sokol
-build_clibs_windows.cmd
-cd ..\..
+scripts\windows\build_sokol.cmd
+python scripts\make_windows_import_libs.py
 roc scripts\build.roc -- all
 examples\entity-game\entity-game.exe
 ```
@@ -283,6 +289,9 @@ a change to the `Model` type, restart the game.
 | `scripts/macos-sysroot/` | The reviewed catalog of macOS system symbols, its `PROVENANCE.md`, and `evidence.py`, which adds a symbol with its evidence. |
 | `scripts/make_linux_stubs.py` | Writes the CRT objects and stub shared libraries in `platform/targets/x64glibc/` with Zig. `--audit` lists the archive references that the catalog does not cover. |
 | `scripts/linux-stubs/` | The CRT assembly sources, the catalog `stubs.json`, and a `README.md` that says how to change a stub. |
+| `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. |
+| `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
+| `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
 | `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |
 | `scripts/macos/wincap.swift` | The window capture tool that `screenshot.sh` builds and runs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |

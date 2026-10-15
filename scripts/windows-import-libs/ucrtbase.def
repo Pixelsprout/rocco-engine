@@ -1,0 +1,26 @@
+; The C runtime functions that sokol, Clay, the Odin host and Roc's dev shim
+; call. Names from mingw-w64-crt/lib-common/ucrtbase-common.def.in.
+LIBRARY "ucrtbase.dll"
+EXPORTS
+__acrt_iob_func
+_wassert
+abort
+ceil
+ceilf
+cosf
+fabs
+floor
+floorf
+fmod
+fmodf
+fputs
+free
+freopen_s
+malloc
+powf
+roundf
+sinf
+strlen
+strncpy_s
+trunc
+truncf

@@ -39,10 +39,12 @@ mode_name = |mode| match mode {
 }
 
 # extra_inputs names what inputs copies besides the sokol and Clay archives.
+# host_flags are the Odin flags that only this target's host build takes.
 Target : {
 	roc_target : Str,
 	dir : Str,
 	host_lib : Str,
+	host_flags : List(Str),
 	sokol_platform : Str,
 	lib_ext : Str,
 	exe : Str,
@@ -53,17 +55,21 @@ Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WIN
 
 target_for : Machine -> Try(Target, [UnsupportedMachine])
 target_for = |machine| match (machine.os, machine.arch) {
-	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", "macos_arm64_metal", ".a", ".bin", MacSdk))
-	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl", ".a", "_linux.bin", LinuxStubs))
-	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", "windows_x64_d3d11", ".lib", ".exe", WindowsSdk))
+	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", [], "macos_arm64_metal", ".a", ".bin", MacSdk))
+	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", [], "linux_x64_gl", ".a", "_linux.bin", LinuxStubs))
+	# Roc links x64win with /nodefaultlib, so the host takes no CRT either. With
+	# no CRT, nothing writes the TLS directory, so Odin's thread_local variables
+	# must be plain globals.
+	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", ["-no-crt", "-no-thread-local"], "windows_x64_d3d11", ".lib", ".exe", WindowsSdk))
 	_ => Err(UnsupportedMachine)
 }
 
-make_target : Str, Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxStubs] -> Target
-make_target = |roc_target, host_lib, sokol_platform, lib_ext, exe, extra_inputs| {
+make_target : Str, Str, List(Str), Str, Str, Str, [MacSdk, WindowsSdk, LinuxStubs] -> Target
+make_target = |roc_target, host_lib, host_flags, sokol_platform, lib_ext, exe, extra_inputs| {
 	roc_target,
 	dir: "platform/targets/${roc_target}",
 	host_lib,
+	host_flags,
 	sokol_platform,
 	lib_ext,
 	exe,
@@ -88,7 +94,7 @@ host_run = |target, mode| {
 	}
 	{
 		program: "odin",
-		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(opt).concat(["-debug", "-vet", "-strict-style"]),
+		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(["-debug", "-vet", "-strict-style"]),
 		cwd: ".",
 	}
 }
@@ -133,16 +139,16 @@ sokol_copies = |target, mode| ["app", "gfx", "glue", "log"].map(
 clay_odin_dir : Str
 clay_odin_dir = "clay/bindings/odin/clay-odin"
 
-# Clay ships one prebuilt archive per OS beside its Odin bindings. x64win does not link Clay yet.
+# Clay ships one prebuilt archive per OS beside its Odin bindings.
 clay_copies : Target -> List(Copy)
 clay_copies = |target| match target.extra_inputs {
 	MacSdk => [clay_copy("macos-arm64", target)]
 	LinuxStubs => [clay_copy("linux", target)]
-	WindowsSdk => []
+	WindowsSdk => [clay_copy("windows", target)]
 }
 
 clay_copy : Str, Target -> Copy
-clay_copy = |os_dir, target| { from: "${clay_odin_dir}/${os_dir}/clay.a", to: "${target.dir}/clay.a" }
+clay_copy = |os_dir, target| { from: "${clay_odin_dir}/${os_dir}/clay${target.lib_ext}", to: "${target.dir}/clay${target.lib_ext}" }
 
 compiler_rt_copy : Str, Target -> Copy
 compiler_rt_copy = |resource_dir, target| {
@@ -409,6 +415,13 @@ expect {
 }
 
 expect {
+	run = target_for(windows).map_ok(|target| host_run(target, Release))
+	run.map_ok(|r| r.args) == Ok(["build", "engine", "-build-mode:static", "-out:platform/targets/x64win/host.lib", "-no-crt", "-no-thread-local", "-o:speed", "-debug", "-vet", "-strict-style"])
+}
+
+expect target_for(linux).map_ok(|target| target.host_flags) == Ok([])
+
+expect {
 	run = target_for(mac).map_ok(|target| game_run(target, "examples/cards", "cards"))
 	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./cards.bin", "main.roc"], cwd: "examples/cards" })
 }
@@ -444,7 +457,7 @@ expect target_for(mac).map_ok(|target| sokol_copies(target, Debug).len()) == Ok(
 
 expect target_for(mac).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/macos-arm64/clay.a", to: "platform/targets/arm64mac/clay.a" }])
 expect target_for(linux).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/linux/clay.a", to: "platform/targets/x64glibc/clay.a" }])
-expect target_for(windows).map_ok(|target| clay_copies(target).len()) == Ok(0)
+expect target_for(windows).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/windows/clay.lib", to: "platform/targets/x64win/clay.lib" }])
 
 expect {
 	names = target_for(windows).map_ok(|target| sokol_copies(target, Debug).map(|file| file.to))
