@@ -138,10 +138,13 @@ def parse_nm(text):
     return undefined, defined
 
 
+# Odin names package symbols package::name, so no stub defines one.
 def uncovered(catalog, undefined, defined):
     known = {name for library in catalog["libraries"] for name in names(library)}
     skip = known | set(defined)
-    return sorted({name for name in undefined if name not in skip and not name.startswith(AUDIT_SKIPS)})
+    return sorted(
+        {name for name in undefined if name not in skip and not name.startswith(AUDIT_SKIPS) and "::" not in name}
+    )
 
 
 def audit(catalog, extra):

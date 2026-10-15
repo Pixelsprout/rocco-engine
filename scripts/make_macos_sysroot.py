@@ -120,6 +120,7 @@ def write(files, out):
         file.write_text(text)
 
 
+# Odin names package symbols package::name, so no system library defines one.
 def uncovered(catalog, undefined, defined):
     known = {record["name"] for library in catalog["libraries"] for record in library["symbols"]}
     skip = known | set(defined)
@@ -127,7 +128,7 @@ def uncovered(catalog, undefined, defined):
         {
             name
             for name in undefined
-            if name not in skip and not name.startswith(("_roc", "_objc_msgSend$"))
+            if name not in skip and not name.startswith(("_roc", "_objc_msgSend$")) and "::" not in name
         }
     )
 

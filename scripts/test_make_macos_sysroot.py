@@ -144,6 +144,10 @@ class UncoveredTest(unittest.TestCase):
         defined = ["_clay_layout"]
         self.assertEqual(sysroot.uncovered(sysroot.validate(catalog()), undefined, defined), ["_free"])
 
+    def test_skips_odin_package_symbols(self):
+        undefined = ["_os::is_tty", "_log::[file_console_logger.odin]::global_subtract_stderr_options", "_free"]
+        self.assertEqual(sysroot.uncovered(sysroot.validate(catalog()), undefined, []), ["_free"])
+
 
 if __name__ == "__main__":
     unittest.main()

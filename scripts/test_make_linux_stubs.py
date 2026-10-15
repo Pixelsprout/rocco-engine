@@ -113,6 +113,10 @@ class AuditTest(unittest.TestCase):
         defined = ["clay_layout"]
         self.assertEqual(stubs.uncovered(stubs.validate(catalog()), undefined, defined), ["calloc"])
 
+    def test_skips_odin_package_symbols(self):
+        undefined = ["os::is_tty", "log::[file_console_logger.odin]::global_subtract_stderr_options", "calloc"]
+        self.assertEqual(stubs.uncovered(stubs.validate(catalog()), undefined, []), ["calloc"])
+
 
 if __name__ == "__main__":
     unittest.main()
