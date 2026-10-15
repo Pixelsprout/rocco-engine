@@ -1,0 +1,17 @@
+--- !tapi-tbd
+tbd-version: 4
+targets: [ arm64-macos ]
+install-name: '/System/Library/Frameworks/Foundation.framework/Foundation'
+exports:
+  - targets: [ arm64-macos ]
+    symbols:
+      - '_NSRunLoopCommonModes'
+      - '_NSZeroPoint'
+      - '_OBJC_CLASS_$_NSArray'
+      - '_OBJC_CLASS_$_NSMutableArray'
+      - '_OBJC_CLASS_$_NSNull'
+      - '_OBJC_CLASS_$_NSRunLoop'
+      - '_OBJC_CLASS_$_NSString'
+      - '_OBJC_CLASS_$_NSTimer'
+      - '_OBJC_CLASS_$_NSURL'
+...

@@ -1,0 +1,17 @@
+--- !tapi-tbd
+tbd-version: 4
+targets: [ arm64-macos ]
+install-name: '/System/Library/Frameworks/Metal.framework/Metal'
+exports:
+  - targets: [ arm64-macos ]
+    symbols:
+      - '_MTLCreateSystemDefaultDevice'
+      - '_OBJC_CLASS_$_MTLComputePipelineDescriptor'
+      - '_OBJC_CLASS_$_MTLDepthStencilDescriptor'
+      - '_OBJC_CLASS_$_MTLRenderPassDescriptor'
+      - '_OBJC_CLASS_$_MTLRenderPipelineDescriptor'
+      - '_OBJC_CLASS_$_MTLSamplerDescriptor'
+      - '_OBJC_CLASS_$_MTLStencilDescriptor'
+      - '_OBJC_CLASS_$_MTLTextureDescriptor'
+      - '_OBJC_CLASS_$_MTLVertexDescriptor'
+...

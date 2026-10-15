@@ -17,8 +17,6 @@ platform/targets/*/*.so*
 # Host library, sokol libraries and SDK import libraries on Windows.
 platform/targets/*/*.lib
 platform/targets/*/*.pdb
-# Generated from the installed SDK by scripts/make-macos-sysroot.sh.
-platform/targets/macos-sysroot/
 # Roc's linker output.
 examples/*/*.bin
 examples/*/*.exe
@@ -31,3 +29,4 @@ games/*/*.pdb
 games/*/*.lib
 
 .DS_Store
+__pycache__/

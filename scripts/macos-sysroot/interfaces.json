@@ -1,0 +1,2319 @@
+{
+  "schema_version": 1,
+  "target": "arm64-macos",
+  "libraries": [
+    {
+      "name": "AppKit",
+      "path": "System/Library/Frameworks/AppKit.framework/AppKit.tbd",
+      "install_name": "/System/Library/Frameworks/AppKit.framework/AppKit",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_NSApp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsapp",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsapp.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSApp",
+              "title": "NSApp",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "7b6097091e50b5e8aa85ba4addecd2b456f714c1ef65e29436693957cb28e4ec"
+            }
+          ]
+        },
+        {
+          "name": "_NSCalibratedRGBColorSpace",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nscolorspacename/calibratedrgb",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nscolorspacename/calibratedrgb.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSColorSpaceName/calibratedRGB",
+              "title": "calibratedRGB",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "fba8622c5b1c852b3993e31f6d439fb6583f5d14c8edbd6c7c5a4a80fe9052af"
+            }
+          ]
+        },
+        {
+          "name": "_NSPasteboardTypeFileURL",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nspasteboard/pasteboardtype/fileurl",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard/pasteboardtype/fileurl.json",
+              "external_id": "c:@NSPasteboardTypeFileURL",
+              "title": "fileURL",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:45+00:00",
+              "response_sha256": "7fdf44f814d180b910515517ae0d5a61590f57237d4a3fb366bb66ce0484f7a4"
+            }
+          ]
+        },
+        {
+          "name": "_NSPasteboardTypeString",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nspasteboard/pasteboardtype/string",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard/pasteboardtype/string.json",
+              "external_id": "c:@NSPasteboardTypeString",
+              "title": "string",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:05:05.576745+00:00",
+              "response_sha256": "ac9dce8d3308938d122429ec3c6c6c58c2de73d464c724713935749d6662d43e"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSApplication",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsapplication",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsapplication.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSApplication",
+              "title": "NSApplication",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "07b1ce0b25ea893ac6e53c8eb79aa0e912cb29846b9b88487d74572611a260b9",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSBitmapImageRep",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsbitmapimagerep",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsbitmapimagerep.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSBitmapImageRep",
+              "title": "NSBitmapImageRep",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "e34641f69efe217e87c3544126f7ebb988a739bb0b34be71c6379c887170d66b",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSColor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nscolor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nscolor.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSColor",
+              "title": "NSColor",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "bfca6d61760f55e0539604972f676b5f3ab07862d895d1eb438e33c195d84c2a",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSCursor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nscursor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nscursor.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSCursor",
+              "title": "NSCursor",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "c8b69481e75d51b92df691888298ea5879a3f48a58875c7412d2b0dce01894f3",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSEvent",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsevent",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsevent.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSEvent",
+              "title": "NSEvent",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "3cfee4239c637b183721020f8cea4fc43cfe2c14cdfa1ddcc287544af1882691",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSImage",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsimage",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsimage.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSImage",
+              "title": "NSImage",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "3840dabadbd27fc986e073d87f2c771dbc5920201350922c4e96fa22a6f0786e",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSImageView",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsimageview",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsimageview.json",
+              "external_id": "c:objc(cs)NSImageView",
+              "title": "NSImageView",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:44+00:00",
+              "response_sha256": "496fb9dabcc1c98a2793d471edc4a3ff325542181709302a9515e77d41604b15"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSPasteboard",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nspasteboard",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nspasteboard.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSPasteboard",
+              "title": "NSPasteboard",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "83a5b70043430013bd73381b593f04436b016d74cd9875d577fdb6a6e0b654f8",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSScreen",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsscreen",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsscreen.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSScreen",
+              "title": "NSScreen",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "774f0ef6c8939f7221a2d273b2f2016b3d0e886c4342a52351c61661dfbb0302",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSTrackingArea",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nstrackingarea",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nstrackingarea.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSTrackingArea",
+              "title": "NSTrackingArea",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "c00e667a163865194ecc69723d19eee07d95e6d0164555f4819cb930761cde8b",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSView",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsview",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsview.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSView",
+              "title": "NSView",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "cc8d6b4c8fb36d994d470a3b9b5b9bfc20eed049a3ab9d864d09a4aeba3dd031"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSWindow",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nswindow",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nswindow.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSWindow",
+              "title": "NSWindow",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "4784dc0db8711dcb51e376d73610d08cd263d99d72fcab62d54565eacc57270a",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_METACLASS_$_NSView",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nsview",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nsview.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSView",
+              "title": "NSView",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "cc8d6b4c8fb36d994d470a3b9b5b9bfc20eed049a3ab9d864d09a4aeba3dd031"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_METACLASS_$_NSWindow",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/appkit/nswindow",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/appkit/nswindow.json",
+              "external_id": "doc://com.apple.appkit/documentation/AppKit/NSWindow",
+              "title": "NSWindow",
+              "documented_modules": [
+                "AppKit"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "4784dc0db8711dcb51e376d73610d08cd263d99d72fcab62d54565eacc57270a",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cocoa",
+      "path": "System/Library/Frameworks/Cocoa.framework/Cocoa.tbd",
+      "install_name": "/System/Library/Frameworks/Cocoa.framework/Cocoa",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": []
+    },
+    {
+      "name": "CoreFoundation",
+      "path": "System/Library/Frameworks/CoreFoundation.framework/CoreFoundation.tbd",
+      "install_name": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_CFBundleGetVersionNumber",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/corefoundation/cfbundlegetversionnumber(_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/corefoundation/cfbundlegetversionnumber(_:).json",
+              "external_id": "c:@F@CFBundleGetVersionNumber",
+              "title": "CFBundleGetVersionNumber(_:)",
+              "documented_modules": [
+                "Core Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:51+00:00",
+              "response_sha256": "550bc012938857b2064ab448de529a308d4af6ea16ed5428b51ecefacaa64c1d"
+            }
+          ]
+        },
+        {
+          "name": "_CFDataCreate",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/corefoundation/cfdatacreate(_:_:_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/corefoundation/cfdatacreate(_:_:_:).json",
+              "external_id": "c:@F@CFDataCreate",
+              "title": "CFDataCreate(_:_:_:)",
+              "documented_modules": [
+                "Core Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:52+00:00",
+              "response_sha256": "1cba358828021d9b643a71d04c19f6a05a965e1d227a239478abd69060fcaac2"
+            }
+          ]
+        },
+        {
+          "name": "_CFRelease",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/corefoundation/cfrelease",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/corefoundation/cfrelease.json",
+              "external_id": "c:@F@CFRelease",
+              "title": "CFRelease",
+              "documented_modules": [
+                "Core Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:05:13.527110+00:00",
+              "response_sha256": "7238449e8c6594f269d4ec3853c245608ec29067f6ed64d0e38ec33205140820"
+            }
+          ]
+        },
+        {
+          "name": "___CFConstantStringClassReference",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/CF/blob/dc54c6bb1c1e5e0b9486c1d26dd5bef110b20bf3/CFInternal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__CFConstantStringClassReference",
+              "revision": "dc54c6bb1c1e5e0b9486c1d26dd5bef110b20bf3",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "502f0e8976217693c0c725a06a23dab86e33cbd8a7e3e04c4be3ad2cb76bf0a5"
+            }
+          ]
+        },
+        {
+          "name": "_kCFAllocatorDefault",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/corefoundation/kcfallocatordefault",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/corefoundation/kcfallocatordefault.json",
+              "external_id": "c:@kCFAllocatorDefault",
+              "title": "kCFAllocatorDefault",
+              "documented_modules": [
+                "Core Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:05:18.147807+00:00",
+              "response_sha256": "1290e9884b619b6e5b99829c22ea9f457e873e8edbe4b9742acbf89d391895fa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CoreGraphics",
+      "path": "System/Library/Frameworks/CoreGraphics.framework/CoreGraphics.tbd",
+      "install_name": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_CGAssociateMouseAndMouseCursorPosition",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/core-graphics-functions",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/core-graphics-functions.json",
+              "external_id": "c:@F@CGAssociateMouseAndMouseCursorPosition",
+              "title": "CGAssociateMouseAndMouseCursorPosition",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "fcee67d3d6d77204e0fedfe6b1f64347651b7c4880232a8f32b28c521b5b6abd"
+            }
+          ]
+        },
+        {
+          "name": "_CGColorSpaceCreateDeviceRGB",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgcolorspacecreatedevicergb()",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgcolorspacecreatedevicergb().json",
+              "external_id": "c:@F@CGColorSpaceCreateDeviceRGB",
+              "title": "CGColorSpaceCreateDeviceRGB()",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:53+00:00",
+              "response_sha256": "f6d3cc9753730da530e53fb2c679e25bcddea0728793b41c9735b0e3ec0a33fa"
+            }
+          ]
+        },
+        {
+          "name": "_CGColorSpaceCreateWithName",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgcolorspace/init(name:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgcolorspace/init(name:).json",
+              "external_id": "c:@F@CGColorSpaceCreateWithName",
+              "title": "init(name:)",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:54+00:00",
+              "response_sha256": "17335ab1136a0dbfa6fd049510bc16c2eefbedd99c2d4f5016bcba9b0914865f"
+            }
+          ]
+        },
+        {
+          "name": "_CGColorSpaceRelease",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgcolorspacerelease",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgcolorspacerelease.json",
+              "external_id": "c:@F@CGColorSpaceRelease",
+              "title": "CGColorSpaceRelease",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:55+00:00",
+              "response_sha256": "048fbf62c94bb699fbdab6585b61ecb6c1f9cfd28f5a2f4c833ca885860358a7"
+            }
+          ]
+        },
+        {
+          "name": "_CGDataProviderCreateWithCFData",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgdataprovider/init(data:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgdataprovider/init(data:).json",
+              "external_id": "c:@F@CGDataProviderCreateWithCFData",
+              "title": "init(data:)",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:56+00:00",
+              "response_sha256": "dfaa59d61b1e61862292b9562a5abe7c933820140719cb03a356969bdc52e7de"
+            }
+          ]
+        },
+        {
+          "name": "_CGDataProviderRelease",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgdataproviderrelease",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgdataproviderrelease.json",
+              "external_id": "c:@F@CGDataProviderRelease",
+              "title": "CGDataProviderRelease",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:57+00:00",
+              "response_sha256": "dc108db3e8f18d5900688630d8bc3645d4792441961f165e3594c90b93ea5e2e"
+            }
+          ]
+        },
+        {
+          "name": "_CGImageCreate",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgimage/init(width:height:bitspercomponent:bitsperpixel:bytesperrow:space:bitmapinfo:provider:decode:shouldinterpolate:intent:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgimage/init(width:height:bitspercomponent:bitsperpixel:bytesperrow:space:bitmapinfo:provider:decode:shouldinterpolate:intent:).json",
+              "external_id": "c:@F@CGImageCreate",
+              "title": "init(width:height:bitsPerComponent:bitsPerPixel:bytesPerRow:space:bitmapInfo:provider:decode:shouldInterpolate:intent:)",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:58+00:00",
+              "response_sha256": "66336aaba5ac9342b184f36e1ac16c0ea76d06a16ecf33aeff3f992de51516c1"
+            }
+          ]
+        },
+        {
+          "name": "_CGImageRelease",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgimagerelease",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgimagerelease.json",
+              "external_id": "c:@F@CGImageRelease",
+              "title": "CGImageRelease",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:59+00:00",
+              "response_sha256": "62897eedbe613d6024550105c94089d02a2fee3ef18dc8da71a635998b9939cb"
+            }
+          ]
+        },
+        {
+          "name": "_kCGColorSpaceExtendedLinearDisplayP3",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgcolorspace/extendedlineardisplayp3",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgcolorspace/extendedlineardisplayp3.json",
+              "external_id": "c:@kCGColorSpaceExtendedLinearDisplayP3",
+              "title": "extendedLinearDisplayP3",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:22+00:00",
+              "response_sha256": "8fd85e923ff52f7fc38978d29a2678cfb21e05c6f1a61510d9a3f7be21451862"
+            }
+          ]
+        },
+        {
+          "name": "_kCGColorSpaceSRGB",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/coregraphics/cgcolorspace/srgb",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/coregraphics/cgcolorspace/srgb.json",
+              "external_id": "c:@kCGColorSpaceSRGB",
+              "title": "sRGB",
+              "documented_modules": [
+                "Core Graphics"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:21+00:00",
+              "response_sha256": "3224fd3d122c2fc08a7bd97f52785867e63ecdbd9f872e62e65736da72b39482"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Foundation",
+      "path": "System/Library/Frameworks/Foundation.framework/Foundation.tbd",
+      "install_name": "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_NSRunLoopCommonModes",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/runloop/mode/common",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/runloop/mode/common.json",
+              "external_id": "c:@NSRunLoopCommonModes",
+              "title": "common",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:49+00:00",
+              "response_sha256": "4a405b4ba48e3abc1b53a14851fd6f38a9e4627d9d2c47eda50ba0533f1120bb"
+            }
+          ]
+        },
+        {
+          "name": "_NSZeroPoint",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nszeropoint",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nszeropoint.json",
+              "external_id": "c:@NSZeroPoint",
+              "title": "NSZeroPoint",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:50+00:00",
+              "response_sha256": "0ff051257ad88bb560d888f89ef148de28b9cf4a2375fbcc6bf783abf4d14a33"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSArray",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nsarray",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nsarray.json",
+              "external_id": "doc://com.apple.foundation/documentation/Foundation/NSArray",
+              "title": "NSArray",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "f5afd7e441f5fd79dc0eb8655e6659a35bc9a0074a8fa4062ea49916e8a16c94",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSMutableArray",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nsmutablearray",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nsmutablearray.json",
+              "external_id": "c:objc(cs)NSMutableArray",
+              "title": "NSMutableArray",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:46+00:00",
+              "response_sha256": "22747933d35dc4f2d6b364858163a7595632f4827fd005d6f9343811f2ba92d9"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSNull",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nsnull",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nsnull.json",
+              "external_id": "c:objc(cs)NSNull",
+              "title": "NSNull",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:47+00:00",
+              "response_sha256": "b36d8910f8176d47ad4bdcdca24e843a92e523c2bb9d429646c018f8cd641198"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSRunLoop",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/runloop",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/runloop.json",
+              "external_id": "c:objc(cs)NSRunLoop",
+              "title": "RunLoop",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:47+00:00",
+              "response_sha256": "d5d90062136a760e301daf146ed2aaaa024e50898eabb61bf3f6f7cd356c2dad"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSString",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nsstring",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nsstring.json",
+              "external_id": "doc://com.apple.foundation/documentation/Foundation/NSString",
+              "title": "NSString",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "30a3c76f74ef887b2659f193db990e86440520016561c0e7c4161595b7eabf1b",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSTimer",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/timer",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/timer.json",
+              "external_id": "c:objc(cs)NSTimer",
+              "title": "Timer",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:48+00:00",
+              "response_sha256": "def4601d5c5874eb6c53d0934e45cfc512b5e5ee8db4dc655baa27b6ac5f436d"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_NSURL",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/foundation/nsurl",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/foundation/nsurl.json",
+              "external_id": "doc://com.apple.foundation/documentation/Foundation/NSURL",
+              "title": "NSURL",
+              "documented_modules": [
+                "Foundation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-22T07:00:00+00:00",
+              "response_sha256": "61c6979f402af6bff1e5797392e3ae0bd12c4eb4d1e4326c234ad5fc715c06ba",
+              "abi_mapping": "Objective-C class and metaclass linker spellings are derived from this exact documented class name."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Metal",
+      "path": "System/Library/Frameworks/Metal.framework/Metal.tbd",
+      "install_name": "/System/Library/Frameworks/Metal.framework/Metal",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_MTLCreateSystemDefaultDevice",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlcreatesystemdefaultdevice()",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlcreatesystemdefaultdevice().json",
+              "external_id": "c:@F@MTLCreateSystemDefaultDevice",
+              "title": "MTLCreateSystemDefaultDevice()",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:20+00:00",
+              "response_sha256": "2a308e2e344f6d902aea003f9459a4bb6c2e6fe666b62117c02afe61d00db552"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLComputePipelineDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlcomputepipelinedescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlcomputepipelinedescriptor.json",
+              "external_id": "c:objc(cs)MTLComputePipelineDescriptor",
+              "title": "MTLComputePipelineDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:35+00:00",
+              "response_sha256": "e92b1c3e55f49e725e891311b3c2adefb4831f75b10e8e7c30814d20dc4fa9ad"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLDepthStencilDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtldepthstencildescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtldepthstencildescriptor.json",
+              "external_id": "c:objc(cs)MTLDepthStencilDescriptor",
+              "title": "MTLDepthStencilDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:36+00:00",
+              "response_sha256": "4873fb92543e4e8738739ede282d2edc72f27ff40c61273d7cb3243ab805a970"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLRenderPassDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlrenderpassdescriptor.json",
+              "external_id": "c:objc(cs)MTLRenderPassDescriptor",
+              "title": "MTLRenderPassDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:21+00:00",
+              "response_sha256": "a29ead9499b70abdfaba7b4d48b576e6ac77af60c1fea18bb9e09059e167518f"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLRenderPipelineDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlrenderpipelinedescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlrenderpipelinedescriptor.json",
+              "external_id": "c:objc(cs)MTLRenderPipelineDescriptor",
+              "title": "MTLRenderPipelineDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:38+00:00",
+              "response_sha256": "db458307ce04b6e05516389afe17b8e9bd9aa516dfa1fc0b76e5fea20735348a"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLSamplerDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlsamplerdescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlsamplerdescriptor.json",
+              "external_id": "c:objc(cs)MTLSamplerDescriptor",
+              "title": "MTLSamplerDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:38+00:00",
+              "response_sha256": "c50813f1a3f7d8c18fb6bb79dc83381a110f0b03b06ac4ef5140a95f1d2570fc"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLStencilDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlstencildescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlstencildescriptor.json",
+              "external_id": "c:objc(cs)MTLStencilDescriptor",
+              "title": "MTLStencilDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:39+00:00",
+              "response_sha256": "eaff9cb3702f010c7211ebbe35ec0a94d78ee6ae7c542aa15b149c0300697105"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLTextureDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtltexturedescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtltexturedescriptor.json",
+              "external_id": "c:objc(cs)MTLTextureDescriptor",
+              "title": "MTLTextureDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:40+00:00",
+              "response_sha256": "dc1cea5411bcc051266f867cd63a5f9ad0d32109d5218774f3ab092afabddb68"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_CLASS_$_MTLVertexDescriptor",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/metal/mtlvertexdescriptor",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/metal/mtlvertexdescriptor.json",
+              "external_id": "c:objc(cs)MTLVertexDescriptor",
+              "title": "MTLVertexDescriptor",
+              "documented_modules": [
+                "Metal"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:41+00:00",
+              "response_sha256": "9b6f7526beab36ca1585fe93384ae2ed936b46daada8f1402ca9c68e380f8742"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "QuartzCore",
+      "path": "System/Library/Frameworks/QuartzCore.framework/QuartzCore.tbd",
+      "install_name": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html",
+        "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html"
+      ],
+      "symbols": [
+        {
+          "name": "_OBJC_CLASS_$_CAMetalLayer",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/quartzcore/cametallayer",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/quartzcore/cametallayer.json",
+              "external_id": "c:objc(cs)CAMetalLayer",
+              "title": "CAMetalLayer",
+              "documented_modules": [
+                "Core Animation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:49:42+00:00",
+              "response_sha256": "57b94d273e0dac40d5a9320119bd7e8d4f6e3c312d985fde2481cea41a5ed6e6"
+            }
+          ]
+        },
+        {
+          "name": "_kCAFilterNearest",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/quartzcore/calayercontentsfilter/nearest",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/quartzcore/calayercontentsfilter/nearest.json",
+              "external_id": "c:@kCAFilterNearest",
+              "title": "nearest",
+              "documented_modules": [
+                "Core Animation"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:21+00:00",
+              "response_sha256": "60da995889888452889a18af526448a0092be7f4aec66358c6676e8ddea9906c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "libobjc",
+      "path": "System/Library/Frameworks/objc.framework/objc.tbd",
+      "install_name": "/usr/lib/libobjc.A.dylib",
+      "path_sources": [
+        "https://developer.apple.com/documentation/objectivec/objective-c-runtime",
+        "https://raw.githubusercontent.com/apple-oss-distributions/objc4/ebfe77e64331034c867285a95d3ac205203291d5/objc.xcodeproj/project.pbxproj"
+      ],
+      "symbols": [
+        {
+          "name": "_OBJC_CLASS_$_NSObject",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/objc4/57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0/runtime/NSObject.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "NSObject",
+              "revision": "57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "1b64bbe77a3840e3795222d160889d30052eb0a087d860d99e274a561b784e14"
+            }
+          ]
+        },
+        {
+          "name": "_OBJC_METACLASS_$_NSObject",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/objc4/57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0/runtime/NSObject.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "NSObject",
+              "revision": "57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "1b64bbe77a3840e3795222d160889d30052eb0a087d860d99e274a561b784e14"
+            }
+          ]
+        },
+        {
+          "name": "__objc_empty_cache",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/objc4/57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0/runtime/objc-abi.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_empty_cache",
+              "revision": "57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "595086246ac0a0634e8396464032c0c12a283c2f9d6c9d38c49fdb7744c37be2"
+            }
+          ]
+        },
+        {
+          "name": "_objc_alloc",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/objc4/blob/objc4-950/runtime/objc-internal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_alloc",
+              "revision": "objc4-950",
+              "source_license": "Apple Public Source License 2.0",
+              "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_objc_autoreleasePoolPop",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/objc4/blob/objc4-950/runtime/objc-internal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_autoreleasePoolPop",
+              "revision": "objc4-950",
+              "source_license": "Apple Public Source License 2.0",
+              "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_objc_autoreleasePoolPush",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/objc4/blob/objc4-950/runtime/objc-internal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_autoreleasePoolPush",
+              "revision": "objc4-950",
+              "source_license": "Apple Public Source License 2.0",
+              "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_objc_msgSend",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/objectivec/objc_msgsend",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/objectivec/objc_msgsend.json",
+              "external_id": "c:@F@objc_msgSend",
+              "title": "objc_msgSend",
+              "documented_modules": [
+                "Objective-C Runtime"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:06:57.397205+00:00",
+              "response_sha256": "ca46e9303e5e44ae18fbc7b9e504f08037b23fd6b96295353e238f66e043b41f"
+            }
+          ]
+        },
+        {
+          "name": "_objc_msgSendSuper2",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/objc4/57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0/runtime/objc-abi.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_msgSendSuper2",
+              "revision": "57f912aa1c1ff4cd3622a6bb3a148ad6e6e458b0",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "595086246ac0a0634e8396464032c0c12a283c2f9d6c9d38c49fdb7744c37be2"
+            }
+          ]
+        },
+        {
+          "name": "_objc_release",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/objc4/blob/objc4-950/runtime/objc-internal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_release",
+              "revision": "objc4-950",
+              "source_license": "Apple Public Source License 2.0",
+              "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_objc_retain",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/objc4/blob/objc4-950/runtime/objc-internal.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "objc_retain",
+              "revision": "objc4-950",
+              "source_license": "Apple Public Source License 2.0",
+              "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "libSystem",
+      "path": "usr/lib/libSystem.tbd",
+      "install_name": "/usr/lib/libSystem.B.dylib",
+      "path_sources": [
+        "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/intro.3.html",
+        "https://raw.githubusercontent.com/apple-oss-distributions/Libsystem/c23b51183e46e613375dc7639fb4bf11fbf59ba8/Libsystem.xcconfig"
+      ],
+      "symbols": [
+        {
+          "name": "__NSConcreteGlobalBlock",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libclosure/07a76ae0cf302a0f2190d7be2564eb0ad9483f73/Block_private.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "_NSConcreteGlobalBlock",
+              "revision": "07a76ae0cf302a0f2190d7be2564eb0ad9483f73",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "ddb79aa1f1e52cf49307c23579465e9a4bf499735279ccce9d1299015d1a8436"
+            }
+          ]
+        },
+        {
+          "name": "___assert_rtn",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_assert.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__assert_rtn",
+              "line": 64,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "a448dbcce05868865553f523ccfcd059eee4dad6fb2f066addff48c4778d83d6"
+            }
+          ]
+        },
+        {
+          "name": "___chkstk_darwin",
+          "sources": [
+            {
+              "url": "https://github.com/llvm/llvm-project/blob/llvmorg-21.1.8/llvm/include/llvm/IR/RuntimeLibcalls.td",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "stack probe",
+              "revision": "llvmorg-21.1.8",
+              "source_license": "Apache-2.0 WITH LLVM-exception",
+              "response_sha256": "14fd890c32e957a5637368a6cc3d36abe4e4da9beb66ca5b06e16fa378a6e8de"
+            }
+          ]
+        },
+        {
+          "name": "___error",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/errno.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__error",
+              "line": 81,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "b16e5eb195f153793b14c3826e6b04db945e9ed6a37c5a9046196555bded6906"
+            }
+          ]
+        },
+        {
+          "name": "___memcpy_chk",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/secure/memcpy_chk.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__memcpy_chk",
+              "line": 29,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "response_sha256": "1937bc365b0b2a34c6ad930066b9d252b21207b10ed15a4ba26fd5b5e1706af3"
+            }
+          ]
+        },
+        {
+          "name": "___memset_chk",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/secure/memset_chk.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__memset_chk",
+              "line": 29,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "response_sha256": "3e1bee683509583b5814dac955a2abc582ce52d02af28b88adde7e64ea2b6ef4"
+            }
+          ]
+        },
+        {
+          "name": "___sincosf_stret",
+          "sources": [
+            {
+              "url": "https://github.com/llvm/llvm-project/blob/llvmorg-21.1.8/llvm/include/llvm/IR/RuntimeLibcalls.td",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__sincosf_stret",
+              "source_license": "Apache-2.0 WITH LLVM-exception",
+              "response_sha256": "14fd890c32e957a5637368a6cc3d36abe4e4da9beb66ca5b06e16fa378a6e8de"
+            }
+          ]
+        },
+        {
+          "name": "___stack_chk_fail",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/sys/OpenBSD/stack_protector.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__stack_chk_fail",
+              "line": 49,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "response_sha256": "6a1ec2ced39d5abe6a962dd155d830fdc46787c9136132c80edf99d72406d8df"
+            }
+          ]
+        },
+        {
+          "name": "___stack_chk_guard",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/sys/OpenBSD/stack_protector.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__stack_chk_guard",
+              "line": 46,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "response_sha256": "6a1ec2ced39d5abe6a962dd155d830fdc46787c9136132c80edf99d72406d8df"
+            }
+          ]
+        },
+        {
+          "name": "___stderrp",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__stderrp",
+              "line": 170,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "___ulock_wait2",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/ulock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__ulock_wait2",
+              "line": 72,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "2e073d2d2e06290755a5a9a7e9ded52974f32727fb27cf9d769e831e74f06499"
+            }
+          ]
+        },
+        {
+          "name": "___ulock_wake",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/ulock.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__ulock_wake",
+              "line": 74,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "2e073d2d2e06290755a5a9a7e9ded52974f32727fb27cf9d769e831e74f06499"
+            }
+          ]
+        },
+        {
+          "name": "__availability_version_check",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-19.1.7/compiler-rt/lib/builtins/os_version_check.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "_availability_version_check",
+              "revision": "llvmorg-19.1.7",
+              "source_license": "Apache-2.0 WITH LLVM-exception",
+              "response_sha256": "bc0b9f10e8d1a1ac5905d710f1c9fead23878e31233748d580393edc4e3bfc18"
+            }
+          ]
+        },
+        {
+          "name": "__tlv_bootstrap",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/dyld/blob/fd8d0c4d52320ebf64db34f3cb280310d905c5ae/libdyld/threadLocalHelpers.s",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "_tlv_bootstrap",
+              "line": 54,
+              "revision": "fd8d0c4d52320ebf64db34f3cb280310d905c5ae",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "50699dd3758b8e770a20e98626855677a932ddbc59160e66c1cbfeb87d5f758f"
+            }
+          ]
+        },
+        {
+          "name": "_abort",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/abort.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:37.817453+00:00",
+              "response_sha256": "fb2eecf9ff003e2243fcc2a00f3a6fd4c9f4447747160f99041a9d1f2a02694e"
+            }
+          ]
+        },
+        {
+          "name": "_arc4random_buf",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdlib.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "arc4random_buf",
+              "line": 375,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e03cd70f7fc6c8658c4fb245fb53456506deeff751af80af165b509835545ab4"
+            }
+          ]
+        },
+        {
+          "name": "_bzero",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/kernel/1579350-bzero",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/kernel/1579350-bzero.json",
+              "external_id": "c:@F@bzero",
+              "title": "bzero",
+              "documented_modules": [
+                "Kernel"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:06:25.381046+00:00",
+              "response_sha256": "ee03549312ab19f98ed12fbccb7bbb039d252d472fecac69608114c04ea8d93a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/bzero.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:40.572520+00:00",
+              "response_sha256": "886620c069deaed3bf51a67ee2cb58e4aa37bd41825f4a746562578fba509c01"
+            }
+          ]
+        },
+        {
+          "name": "_calloc",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/calloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:40.694952+00:00",
+              "response_sha256": "9a5ffc5c3bb8bf962555dcec19f42e9861a496d9706acd5da743a28f5d2e39b6"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/free.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:51.897682+00:00",
+              "response_sha256": "2fff725ec35274120198010a4139f6acf0f8bb454fefc16c7aecfb33c480347a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/malloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:06.585982+00:00",
+              "response_sha256": "ff8e7c5223993e48a7e4e2a4e1cf56591b2410cc80b37826b48e6db258029d01"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/realloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.848192+00:00",
+              "response_sha256": "e202a44a3014e191396f7f82c0ac8058d196fa20ba28398171d7bd274b4abae7"
+            }
+          ]
+        },
+        {
+          "name": "_clock_gettime",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_time.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "clock_gettime",
+              "line": 236,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "42762c009edb73b054f83be3075935adc846fd88f0a7201dab2e02887a81fa82"
+            }
+          ]
+        },
+        {
+          "name": "_close",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/close.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:42.791960+00:00",
+              "response_sha256": "c031af9b25d8eb579911b7ef16362717e43d050f398e98a683f15cf95085c4a1"
+            }
+          ]
+        },
+        {
+          "name": "_closedir",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/closedir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:42.700117+00:00",
+              "response_sha256": "2c0a99e4488e830016103a33212f7ee8e783defe31ba997205065f1c5b259a61"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dirfd.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:45.413193+00:00",
+              "response_sha256": "4f0a888ac597c124c656321ab15a96d6cfa23f5310359f32bef1b70fb57c7948"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/opendir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:11.952126+00:00",
+              "response_sha256": "19a8c92d2240d867d252034b58f0bdcd790ab81b860146b96698c89dcc16ab82"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/readdir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:22.289134+00:00",
+              "response_sha256": "709c2821cc81f2eadd7d69ef355417d40c56c7c758dc9253c54c914528c3b2e2"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/readdir_r.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:22.589583+00:00",
+              "response_sha256": "fe265e38b400fe06347ababa68cbe0828e7c135b7c9c5dcf50cc63fbb31dda54"
+            }
+          ]
+        },
+        {
+          "name": "_cosf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/cos.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:05+00:00",
+              "response_sha256": "85dc04586f180c9a7f117c0a41342d4293ed4b923094dc23e972a045dc5381be"
+            }
+          ]
+        },
+        {
+          "name": "_dirfd",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/directory.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:05+00:00",
+              "response_sha256": "4d86fea79762094c020e0c3b69fdd575fa5fd86df28317579478068cb1c76b5b"
+            }
+          ]
+        },
+        {
+          "name": "_dispatch_data_create",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/dispatch/dispatch_data_create",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/dispatch/dispatch_data_create.json",
+              "external_id": "c:@F@dispatch_data_create",
+              "title": "dispatch_data_create",
+              "documented_modules": [
+                "Dispatch"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:07+00:00",
+              "response_sha256": "c54984d0164539bacbff8ad5a832836b01de5dd12442467134fea486cceaac4b"
+            }
+          ]
+        },
+        {
+          "name": "_dispatch_once_f",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libdispatch/701f4d1a24ae9c6863901bbbb22624b7d1b87321/dispatch/once.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "dispatch_once_f",
+              "line": 101,
+              "revision": "701f4d1a24ae9c6863901bbbb22624b7d1b87321",
+              "response_sha256": "98092c716cadd3c13e53fb9d3506df841132abb29d9d7bfa51f123726c339a87"
+            }
+          ]
+        },
+        {
+          "name": "_dispatch_semaphore_create",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libdispatch/701f4d1a24ae9c6863901bbbb22624b7d1b87321/dispatch/semaphore.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "dispatch_semaphore_create",
+              "line": 43,
+              "revision": "701f4d1a24ae9c6863901bbbb22624b7d1b87321",
+              "response_sha256": "ee4d4b6aa2a6c4839540984224fdafb9241ebd2c435701ece5c7298f12c55559"
+            }
+          ]
+        },
+        {
+          "name": "_dispatch_semaphore_signal",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/dispatch/dispatch_semaphore_signal",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/dispatch/dispatch_semaphore_signal.json",
+              "external_id": "c:@F@dispatch_semaphore_signal",
+              "title": "dispatch_semaphore_signal",
+              "documented_modules": [
+                "Dispatch"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:09+00:00",
+              "response_sha256": "6ef8c2e8fb7ba1d5eb604b5a5f1f41268d10695536a209abcfa38f0459fc8abf"
+            }
+          ]
+        },
+        {
+          "name": "_dispatch_semaphore_wait",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/dispatch/dispatch_semaphore_wait",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/dispatch/dispatch_semaphore_wait.json",
+              "external_id": "c:@F@dispatch_semaphore_wait",
+              "title": "dispatch_semaphore_wait",
+              "documented_modules": [
+                "Dispatch"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-15T03:50:09+00:00",
+              "response_sha256": "238232b08c5632764941af054b6cece9a5c0f71a8bb8921f2d86c0503faf6a6a"
+            }
+          ]
+        },
+        {
+          "name": "_dlsym",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dlsym.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:46.096091+00:00",
+              "response_sha256": "ed1ff9639cbcaa20147934ebe0a43526a1fbb325cf28ed70fd87fba3c2e5ac12"
+            }
+          ]
+        },
+        {
+          "name": "_dup",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/dup.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:03+00:00",
+              "response_sha256": "55c89cfe489b39ad44ccff9a3f279d737083a039feade85d2aa4010e80d7e147"
+            }
+          ]
+        },
+        {
+          "name": "_exit",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/_exit.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:38.438540+00:00",
+              "response_sha256": "b607b2371a3a8329149cac50c7f211124cd90e29364af3c2c6b24db8b84602a9"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/exit.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:47.381273+00:00",
+              "response_sha256": "bd37705d23ea9025dcf504a74c03abf1a1a9e87b1888113cd5c1ec08caa370a8"
+            }
+          ]
+        },
+        {
+          "name": "_fclose",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fclose",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_fcntl",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fcntl.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:49.295579+00:00",
+              "response_sha256": "7c307662cd92f2abbbcd47aa9a036e3d9d9ec88bbc9b177643dc331fd99d8577"
+            }
+          ]
+        },
+        {
+          "name": "_fdopendir",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/include/dirent.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fdopendir",
+              "line": 177,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "response_sha256": "d4509c79ea7f394f246ef9082818496107503390c04a73b889e57100e21c2613"
+            }
+          ]
+        },
+        {
+          "name": "_fopen",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fopen",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_fputs",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/fputs.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:04+00:00",
+              "response_sha256": "0d157c83e4b98b4015b485739870f9643a412ffbe35bb237a6f516437dec607e"
+            }
+          ]
+        },
+        {
+          "name": "_fread",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fread",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_free",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/calloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:40.694952+00:00",
+              "response_sha256": "9a5ffc5c3bb8bf962555dcec19f42e9861a496d9706acd5da743a28f5d2e39b6"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/free.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:51.897682+00:00",
+              "response_sha256": "2fff725ec35274120198010a4139f6acf0f8bb454fefc16c7aecfb33c480347a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/malloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:06.585982+00:00",
+              "response_sha256": "ff8e7c5223993e48a7e4e2a4e1cf56591b2410cc80b37826b48e6db258029d01"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/realloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.848192+00:00",
+              "response_sha256": "e202a44a3014e191396f7f82c0ac8058d196fa20ba28398171d7bd274b4abae7"
+            }
+          ]
+        },
+        {
+          "name": "_fseek",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fseek",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_fstat",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fstat.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:53.628462+00:00",
+              "response_sha256": "0f06812c4ba6605cc8a4a4fe940b1dccb3cc62703ad7251262912bd68c9cda4b"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/lstat.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:05.984748+00:00",
+              "response_sha256": "53dc2b8df2e62135ba2b57aa5afc013a7cc29d772dcac3855a92e0887f4b14d1"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/stat.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:30.589506+00:00",
+              "response_sha256": "7061e093257e5c2038b2544b35f0563cbeeb19885b73ecbf3ad91d75ff1a3908"
+            }
+          ]
+        },
+        {
+          "name": "_fstatat",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/stat.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "fstatat",
+              "line": 573,
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0 and additional BSD-style source notices",
+              "response_sha256": "dd8154be80f467ba57d4edaa7c6617bd32db54bfebdda892b390f9b0364fe488"
+            }
+          ]
+        },
+        {
+          "name": "_fsync",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fsync.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:54.786818+00:00",
+              "response_sha256": "6f2812ad0289bff54203ea3912be236d48f3aaf87db41bb3afe5af85aa7fd1f7"
+            }
+          ]
+        },
+        {
+          "name": "_ftell",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "ftell",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_getenv",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/getenv.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:56.692707+00:00",
+              "response_sha256": "f883435e654fe6008cb7cec4025836377158260b44a3dd0e8cc22229dc38e704"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/setenv.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:27.181741+00:00",
+              "response_sha256": "02c72b2d17d6ec3875de688f9e4dd2849e3e78ad23e56f6287592e840c50c41e"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/unsetenv.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:34.284741+00:00",
+              "response_sha256": "211f670541d86a5b2139f64e6d1ff949c3c9b508e9f0bd12d36ea78625768cbc"
+            }
+          ]
+        },
+        {
+          "name": "_isatty",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/unistd.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "isatty",
+              "line": 487,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5b597caa8cbd84dbfc927b50b1e0d95a89a4bbb6c97ba552824df81b8a370fa"
+            }
+          ]
+        },
+        {
+          "name": "_lseek",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/lseek.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:05.406385+00:00",
+              "response_sha256": "d52e9bd80d329d75c3185a748828959e182578dedf5a28b562ac67374dc225c2"
+            }
+          ]
+        },
+        {
+          "name": "_mach_absolute_time",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/mach/mach_time.h",
+              "evidence_kind": "public_open_source_identifier",
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0",
+              "response_sha256": "4b434edff915c8e22c24add9dd8d2def675be35b1c55c4ebfbaef62431a69107",
+              "identifier": "mach_absolute_time"
+            }
+          ]
+        },
+        {
+          "name": "_mach_timebase_info",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/mach/mach_time.h",
+              "evidence_kind": "public_open_source_identifier",
+              "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+              "source_license": "APSL-2.0",
+              "response_sha256": "4b434edff915c8e22c24add9dd8d2def675be35b1c55c4ebfbaef62431a69107",
+              "identifier": "mach_timebase_info"
+            }
+          ]
+        },
+        {
+          "name": "_malloc",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/calloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:40.694952+00:00",
+              "response_sha256": "9a5ffc5c3bb8bf962555dcec19f42e9861a496d9706acd5da743a28f5d2e39b6"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/free.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:51.897682+00:00",
+              "response_sha256": "2fff725ec35274120198010a4139f6acf0f8bb454fefc16c7aecfb33c480347a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/malloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:06.585982+00:00",
+              "response_sha256": "ff8e7c5223993e48a7e4e2a4e1cf56591b2410cc80b37826b48e6db258029d01"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/realloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.848192+00:00",
+              "response_sha256": "e202a44a3014e191396f7f82c0ac8058d196fa20ba28398171d7bd274b4abae7"
+            }
+          ]
+        },
+        {
+          "name": "_memcpy",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/memcpy.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:49:21+00:00",
+              "response_sha256": "a1e3672b65ba3d9ae1bd43f45d542aafdaf7eceaf688e9bbdfa441eb484252ec"
+            }
+          ]
+        },
+        {
+          "name": "_memmove",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/memmove.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:01+00:00",
+              "response_sha256": "201226cfdf0d1e4e17f5ba06684b772ff1113651230dd6dba6cc290a96b76a56"
+            }
+          ]
+        },
+        {
+          "name": "_memset",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/memset.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:02+00:00",
+              "response_sha256": "fab7f1114ac41ec699a3ea02013abb2cf450eca2156f6426da68f5cb89d6ee0d"
+            }
+          ]
+        },
+        {
+          "name": "_memset_pattern16",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/memset_pattern16.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:52:55+00:00",
+              "response_sha256": "18d90b047aa4f292c6973f16d078e7c19ee9a75695301bf8cf3ceac16c8ccb34"
+            }
+          ]
+        },
+        {
+          "name": "_mmap",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mmap.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:09.570945+00:00",
+              "response_sha256": "ce1fa07910b26db97a28cae3dc11fbf9e21b5bfe2050f137c0c95c0d14ca6193"
+            }
+          ]
+        },
+        {
+          "name": "_mprotect",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mprotect.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:09.993536+00:00",
+              "response_sha256": "a6bfdb2768bee760f730738f74fd909a01250f7654b0e3aa6447a4145b4cf3b3"
+            }
+          ]
+        },
+        {
+          "name": "_munmap",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/munmap.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:10.417202+00:00",
+              "response_sha256": "1564fa49157a22bb804e0a4a45d45f6ddf416d1065baab79a3b74ab6eb0049c3"
+            }
+          ]
+        },
+        {
+          "name": "_open",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/open.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:10.687982+00:00",
+              "response_sha256": "c2ec41ee07fc90bcb1deb3ec8a3487629538cf1e12e2b9a9e96daa6fe015e61a"
+            }
+          ]
+        },
+        {
+          "name": "_powf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/kernel/1557297-powf",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/kernel/1557297-powf.json",
+              "external_id": "c:@F@powf",
+              "title": "powf",
+              "documented_modules": [
+                "Kernel"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-09-09T10:06:24.917470+00:00",
+              "response_sha256": "9deec77c9b9aa1e21a4d09ad9135775824e8e2f46fb730fb7a598d235d2c7693"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pow.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:15.306522+00:00",
+              "response_sha256": "7e821aee9d92b61719810f93f25f878af42003944da061cf230b32ba0f1c795a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/powf.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:14.970959+00:00",
+              "response_sha256": "bb1d8fa74347cf17141044c3e2d9a45adb5f5046789525843fdc8106db64ad79"
+            }
+          ]
+        },
+        {
+          "name": "_pread",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pread.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:15.213669+00:00",
+              "response_sha256": "49fb5fce90e99983f6892b21df4debd08f8e0a94ba00ade0aaaae2b7d5edb27c"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/read.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:21.678282+00:00",
+              "response_sha256": "b4c4494b74510741842e14da444002581478e6600231dfddefb52b52c93bd233"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/readv.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.170638+00:00",
+              "response_sha256": "637c7709c94b69914b096c271f70eff543b260a82be2a5c35ae176b585fdc7c5"
+            }
+          ]
+        },
+        {
+          "name": "_pwrite",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pwrite.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:21.432443+00:00",
+              "response_sha256": "a1c47c3e1f3a5d625af14c26f02caa2f1153317f462ca5c458c25bf7782de58e"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/write.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:35.183185+00:00",
+              "response_sha256": "80e5f00d9294cf0b5459f91aedbff97b2a6401307e066aea85359bb83cca98ac"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/writev.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:35.010458+00:00",
+              "response_sha256": "0bbea8c8ca5d4fdaa2084c0bda069c543dadcf41100edcccc973e86715be7c49"
+            }
+          ]
+        },
+        {
+          "name": "_read",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pread.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:15.213669+00:00",
+              "response_sha256": "49fb5fce90e99983f6892b21df4debd08f8e0a94ba00ade0aaaae2b7d5edb27c"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/read.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:21.678282+00:00",
+              "response_sha256": "b4c4494b74510741842e14da444002581478e6600231dfddefb52b52c93bd233"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/readv.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.170638+00:00",
+              "response_sha256": "637c7709c94b69914b096c271f70eff543b260a82be2a5c35ae176b585fdc7c5"
+            }
+          ]
+        },
+        {
+          "name": "_readdir",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/closedir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:42.700117+00:00",
+              "response_sha256": "2c0a99e4488e830016103a33212f7ee8e783defe31ba997205065f1c5b259a61"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dirfd.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:45.413193+00:00",
+              "response_sha256": "4f0a888ac597c124c656321ab15a96d6cfa23f5310359f32bef1b70fb57c7948"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/opendir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:11.952126+00:00",
+              "response_sha256": "19a8c92d2240d867d252034b58f0bdcd790ab81b860146b96698c89dcc16ab82"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/readdir.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:22.289134+00:00",
+              "response_sha256": "709c2821cc81f2eadd7d69ef355417d40c56c7c758dc9253c54c914528c3b2e2"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/readdir_r.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:22.589583+00:00",
+              "response_sha256": "fe265e38b400fe06347ababa68cbe0828e7c135b7c9c5dcf50cc63fbb31dda54"
+            }
+          ]
+        },
+        {
+          "name": "_realloc",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/calloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:40.694952+00:00",
+              "response_sha256": "9a5ffc5c3bb8bf962555dcec19f42e9861a496d9706acd5da743a28f5d2e39b6"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/free.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:06:51.897682+00:00",
+              "response_sha256": "2fff725ec35274120198010a4139f6acf0f8bb454fefc16c7aecfb33c480347a"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/malloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:06.585982+00:00",
+              "response_sha256": "ff8e7c5223993e48a7e4e2a4e1cf56591b2410cc80b37826b48e6db258029d01"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/realloc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:23.848192+00:00",
+              "response_sha256": "e202a44a3014e191396f7f82c0ac8058d196fa20ba28398171d7bd274b4abae7"
+            }
+          ]
+        },
+        {
+          "name": "_rewind",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/0ef5ecb01f25edd801d06d624fcc35740294c589/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "rewind",
+              "revision": "0ef5ecb01f25edd801d06d624fcc35740294c589",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_sinf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sin.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:04+00:00",
+              "response_sha256": "e69a1a2afb9b9752ac71c7de95dd537bfe836cddc31c0a2edabb8c6391de3c5b"
+            }
+          ]
+        },
+        {
+          "name": "_sscanf",
+          "sources": [
+            {
+              "url": "https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/include/_stdio.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "sscanf",
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "source_license": "APSL-2.0; additional source notices may apply",
+              "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_strerror",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/0ef5ecb01f25edd801d06d624fcc35740294c589/include/_string.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "strerror",
+              "revision": "0ef5ecb01f25edd801d06d624fcc35740294c589",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "e95ef7486c2c8a4903868c72140d71b43b1d3f1ca8ff39edc9d5beabc3f623ea"
+            }
+          ]
+        },
+        {
+          "name": "_strlen",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/strlen.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-15T03:50:02+00:00",
+              "response_sha256": "58c7d6e1c81b5c528c04e3621d29a125550b9254beb7079e727651298a863738"
+            }
+          ]
+        },
+        {
+          "name": "_sysconf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sysconf.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:32.612478+00:00",
+              "response_sha256": "f7b3f0df40400c4054a09c42d012014fb94d242ad16db4b1256068f04caddcc9"
+            }
+          ]
+        },
+        {
+          "name": "_write",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pwrite.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:21.432443+00:00",
+              "response_sha256": "a1c47c3e1f3a5d625af14c26f02caa2f1153317f462ca5c458c25bf7782de58e"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/write.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:35.183185+00:00",
+              "response_sha256": "80e5f00d9294cf0b5459f91aedbff97b2a6401307e066aea85359bb83cca98ac"
+            },
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/writev.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-09-09T10:07:35.010458+00:00",
+              "response_sha256": "0bbea8c8ca5d4fdaa2084c0bda069c543dadcf41100edcccc973e86715be7c49"
+            }
+          ]
+        },
+        {
+          "name": "dyld_stub_binder",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/dyld/79fdd08288695d6dbbdac41f022a2851d20fa647/include/mach-o/dyld_priv.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "dyld_stub_binder",
+              "revision": "79fdd08288695d6dbbdac41f022a2851d20fa647",
+              "source_license": "APSL-2.0; file notices may apply",
+              "response_sha256": "294d29f6175896e3c173ce7a5a77924f015bb5fb674dcc6f0394211c09c69e0b"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

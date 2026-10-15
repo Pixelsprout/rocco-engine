@@ -362,10 +362,8 @@ inputs! = |target, mode| {
 	}
 	match target.extra_inputs {
 		MacSdk => {
-			# xcrun picks Xcode's clang, whose compiler-rt matches the SDK the sysroot comes from.
 			out = Cmd.new("xcrun").args(["clang", "-print-resource-dir"]).exec_output!()?
-			copy!(compiler_rt_copy(Str.trim(out.stdout_utf8), target))?
-			exec!({ program: "./scripts/make-macos-sysroot.sh", args: ["platform/targets/macos-sysroot"], cwd: "." })
+			copy!(compiler_rt_copy(Str.trim(out.stdout_utf8), target))
 		}
 		WindowsSdk => {
 			program_files = Env.var_str!("ProgramFiles(x86)") ? |_| Failed("ProgramFiles(x86) is not set, so the Windows SDK cannot be found.")
