@@ -93,11 +93,18 @@ scripts/Keys.roc` runs only the tests of the Key generator.
 engine -debug` runs the engine's tests. `odin test scripts/font_bake` runs
 the tests of the font bake tool. `python3 -m unittest
 scripts/test_make_macos_sysroot.py` runs the tests of the sysroot generator.
+`python3 -m unittest scripts/test_make_linux_stubs.py` runs the tests of the
+stub generator.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py
 --audit`. If it lists a symbol, add the symbol to the catalog as
 `scripts/macos-sysroot/PROVENANCE.md` says.
+
+The Linux CRT objects and stubs in `platform/targets/x64glibc/` are
+committed. After a sokol, Clay or engine change, run `python3
+scripts/make_linux_stubs.py --audit`. If it lists a symbol, add the symbol to
+the catalog as `scripts/linux-stubs/README.md` says.
 
 Roc files follow `roc fmt`. Run `git config core.hooksPath .githooks` once
 per clone. The pre-commit hook then stops a commit that stages a `.roc` file
@@ -193,9 +200,9 @@ roc scripts/build.roc -- all
 ./examples/entity-game/entity-game_linux.bin
 ```
 
-The `inputs` step copies the CRT objects and the shared libraries from the
-first of `/usr/lib/x86_64-linux-gnu`, `/usr/lib64` and `/usr/lib` that holds
-`Scrt1.o`. `build_clibs_linux.sh` builds the debug and the release
+The link reads the committed CRT objects and stub shared libraries in
+`platform/targets/x64glibc/`. The system libraries load at run time.
+`build_clibs_linux.sh` builds the debug and the release
 archives. It also builds modules the engine does not use, and it needs the
 ALSA headers. `scripts/linux/in-container.sh` shows how to build only the
 four archives the engine links.
@@ -259,7 +266,7 @@ a change to the `Model` type, restart the game.
 | `platform/Vocabulary.roc` | The vocabulary types. Games import them as `import pf.Vocabulary exposing [...]`. |
 | `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives and compiler-rt. Not committed. |
 | `platform/targets/macos-sysroot/` | The stubs the macOS link reads. `scripts/make_macos_sysroot.py` writes them. Committed. Do not edit. |
-| `platform/targets/x64glibc/` | `libhost.a`, the sokol GL archives, the CRT objects and the shared libraries from the Docker image. Not committed. |
+| `platform/targets/x64glibc/` | `libhost.a` and the sokol GL archives are not committed. `scripts/make_linux_stubs.py` writes the CRT objects and the stub shared libraries. They are committed. Do not edit them. |
 | `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and the SDK import libraries. Not committed. |
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
@@ -274,6 +281,8 @@ a change to the `Model` type, restart the game.
 | `scripts/host-check.sh` | Checks that linking cards, entity-game, pong and kula does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |
 | `scripts/macos-sysroot/` | The reviewed catalog of macOS system symbols, its `PROVENANCE.md`, and `evidence.py`, which adds a symbol with its evidence. |
+| `scripts/make_linux_stubs.py` | Writes the CRT objects and stub shared libraries in `platform/targets/x64glibc/` with Zig. `--audit` lists the archive references that the catalog does not cover. |
+| `scripts/linux-stubs/` | The CRT assembly sources, the catalog `stubs.json`, and a `README.md` that says how to change a stub. |
 | `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |
 | `scripts/macos/wincap.swift` | The window capture tool that `screenshot.sh` builds and runs. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |

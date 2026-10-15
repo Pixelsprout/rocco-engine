@@ -46,7 +46,7 @@ Target : {
 	sokol_platform : Str,
 	lib_ext : Str,
 	exe : Str,
-	extra_inputs : [MacSdk, WindowsSdk, LinuxSystem],
+	extra_inputs : [MacSdk, WindowsSdk, LinuxStubs],
 }
 
 Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WINDOWS, OTHER(Str)] }
@@ -54,12 +54,12 @@ Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WIN
 target_for : Machine -> Try(Target, [UnsupportedMachine])
 target_for = |machine| match (machine.os, machine.arch) {
 	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", "macos_arm64_metal", ".a", ".bin", MacSdk))
-	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl", ".a", "_linux.bin", LinuxSystem))
+	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl", ".a", "_linux.bin", LinuxStubs))
 	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", "windows_x64_d3d11", ".lib", ".exe", WindowsSdk))
 	_ => Err(UnsupportedMachine)
 }
 
-make_target : Str, Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxSystem] -> Target
+make_target : Str, Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxStubs] -> Target
 make_target = |roc_target, host_lib, sokol_platform, lib_ext, exe, extra_inputs| {
 	roc_target,
 	dir: "platform/targets/${roc_target}",
@@ -137,7 +137,7 @@ clay_odin_dir = "clay/bindings/odin/clay-odin"
 clay_copies : Target -> List(Copy)
 clay_copies = |target| match target.extra_inputs {
 	MacSdk => [clay_copy("macos-arm64", target)]
-	LinuxSystem => [clay_copy("linux", target)]
+	LinuxStubs => [clay_copy("linux", target)]
 	WindowsSdk => []
 }
 
@@ -155,25 +155,6 @@ windows_sdk_libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "o
 
 windows_sdk_copies : Str, Target -> List(Copy)
 windows_sdk_copies = |sdk_dir, target| windows_sdk_libs.map(|lib| { from: "${sdk_dir}/um/x64/${lib}", to: "${target.dir}/${lib}" })
-
-# Debian and Ubuntu, then Fedora, then Arch. Each keeps Scrt1.o, the CRT
-# objects and the shared libraries in one directory.
-linux_lib_dirs : List(Str)
-linux_lib_dirs = ["/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib"]
-
-# found holds the candidates that contain Scrt1.o. The first in linux_lib_dirs wins.
-linux_lib_dir_from : List(Str) -> Try(Str, [NoLibDir])
-linux_lib_dir_from = |found| match linux_lib_dirs.keep_if(|dir| found.contains(dir)).first() {
-	Ok(dir) => Ok(dir)
-	Err(_) => Err(NoLibDir)
-}
-
-# lld records the soname as DT_NEEDED, so copy the versioned files, not the dev symlinks.
-linux_libs : List(Str)
-linux_libs = ["Scrt1.o", "crti.o", "crtn.o", "libc.so.6", "libm.so.6", "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1"]
-
-linux_copies : Str, Target -> List(Copy)
-linux_copies = |lib_dir, target| linux_libs.map(|lib| { from: "${lib_dir}/${lib}", to: "${target.dir}/${lib}" })
 
 # Same rule as basic-cli's find_windows_sdk_lib_dir: the highest version wins.
 newest_sdk : List(Str) -> Try(Str, [NoSdk])
@@ -376,20 +357,8 @@ inputs! = |target, mode| {
 			}
 			Ok({})
 		}
-		LinuxSystem => {
-			var $found = []
-			for dir in linux_lib_dirs {
-				if Path.utf8("${dir}/Scrt1.o").is_file!() ?? Bool.False {
-					$found = $found.append(dir)
-				}
-			}
-			lib_dir = linux_lib_dir_from($found) ? |_| Failed("No Scrt1.o in ${Str.join_with(linux_lib_dirs, ", ")}. Install the C development package, for example libc6-dev or glibc.")
-			Stdout.line!("== system libraries from ${lib_dir}")?
-			for file in linux_copies(lib_dir, target) {
-				copy!(file) ? |_| Failed("${file.from} is missing. Install the X11, Xi, Xcursor and GL libraries. scripts/linux/Dockerfile lists the Ubuntu packages.")
-			}
-			Ok({})
-		}
+		# scripts/make_linux_stubs.py writes these inputs, and they are committed.
+		LinuxStubs => Ok({})
 	}
 }
 
@@ -498,33 +467,13 @@ expect font_run.args == ["run", "scripts/font_bake", "-out:build/font_bake", "--
 expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"]
 
 expect target_for(mac).map_ok(|target| target.extra_inputs) == Ok(MacSdk)
-expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(LinuxSystem)
+expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(LinuxStubs)
 expect target_for(windows).map_ok(|target| target.extra_inputs) == Ok(WindowsSdk)
 
 expect {
 	# The Linux image mounts the checkout, so the Mac binary must survive a Linux build.
 	out = target_for(linux).map_ok(|target| game_run(target, "examples/entity-game", "entity-game").args.get(2))
 	out == Ok(Ok("--output=./entity-game_linux.bin"))
-}
-
-expect {
-	names = target_for(linux).map_ok(|target| linux_copies("/usr/lib/x86_64-linux-gnu", target).map(|file| file.to))
-	names == Ok([
-		"platform/targets/x64glibc/Scrt1.o",
-		"platform/targets/x64glibc/crti.o",
-		"platform/targets/x64glibc/crtn.o",
-		"platform/targets/x64glibc/libc.so.6",
-		"platform/targets/x64glibc/libm.so.6",
-		"platform/targets/x64glibc/libX11.so.6",
-		"platform/targets/x64glibc/libXi.so.6",
-		"platform/targets/x64glibc/libXcursor.so.1",
-		"platform/targets/x64glibc/libGL.so.1",
-	])
-}
-
-expect {
-	copies = target_for(linux).map_ok(|target| linux_copies("/usr/lib/x86_64-linux-gnu", target))
-	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "/usr/lib/x86_64-linux-gnu/Scrt1.o", to: "platform/targets/x64glibc/Scrt1.o" }))
 }
 
 expect newest_sdk(["10.0.19041.0", "10.0.22621.0", "10.0.20348.0"]) == Ok("10.0.22621.0")
@@ -542,11 +491,6 @@ expect {
 	copy = target_for(mac).map_ok(|target| compiler_rt_copy("/Xcode/usr/lib/clang/21", target))
 	copy == Ok({ from: "/Xcode/usr/lib/clang/21/lib/darwin/libclang_rt.osx.a", to: "platform/targets/arm64mac/libclang_rt.osx.a" })
 }
-
-expect linux_lib_dir_from(["/usr/lib/x86_64-linux-gnu", "/usr/lib"]) == Ok("/usr/lib/x86_64-linux-gnu")
-expect linux_lib_dir_from(["/usr/lib"]) == Ok("/usr/lib")
-expect linux_lib_dir_from(["/usr/lib64", "/usr/lib"]) == Ok("/usr/lib64")
-expect linux_lib_dir_from([]) == Err(NoLibDir)
 
 expect parse(["keys"]) == Ok([Keys])
 
