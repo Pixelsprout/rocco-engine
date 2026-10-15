@@ -108,13 +108,15 @@ The other variables the engine reads:
 
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first
-10: the game's expected allocs and as many deallocs, 0 reallocs and a
-constant live block count. cards expects 2 allocs and entity-game 3. Build
+10: the game's expected allocs and as many deallocs, the game's expected
+reallocs and a constant live block count. cards expects 2 allocs and
+entity-game 3, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
+because `Ui.box` builds `Scene.ui` with concat and append. Build
 the host library first. Each game opens a window. Do not type into it during the
 check, because a key press allocates the `Input` lists.
 
-`./scripts/host-check.sh` regenerates the glue and links cards, entity-game
-and kula, then checks that the host library and the glue did not change.
+`./scripts/host-check.sh` regenerates the glue and links cards, entity-game,
+pong and kula, then checks that the host library and the glue did not change.
 
 ### Screenshots
 
@@ -254,8 +256,8 @@ a change to the `Model` type, restart the game.
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
-| `scripts/alloc-check.sh` | Checks the allocations per fixed step of both games. |
-| `scripts/host-check.sh` | Checks that linking cards, entity-game and kula does not change the host library or the glue. |
+| `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game and pong. |
+| `scripts/host-check.sh` | Checks that linking cards, entity-game, pong and kula does not change the host library or the glue. |
 | `scripts/make-macos-sysroot.sh` | Copies the SDK stubs the macOS link needs. |
 | `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |
 | `scripts/macos/wincap.swift` | The window capture tool that `screenshot.sh` builds and runs. |

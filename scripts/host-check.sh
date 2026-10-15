@@ -30,6 +30,7 @@ roc scripts/build.roc -- keys > /dev/null
 roc test platform/Key.roc > /dev/null
 roc scripts/build.roc -- game cards > /dev/null
 roc scripts/build.roc -- game entity-game > /dev/null
+roc scripts/build.roc -- game pong > /dev/null
 roc scripts/build.roc -- game kula > /dev/null
 
 failed=0

@@ -51,11 +51,11 @@ Built and running:
   `roc run` on macOS when the `Model` type does not change.
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
-- `examples/cards`, `examples/entity-game` and `games/kula` build and run
-  from one checkout on `arm64mac` and `x64glibc`. cards and entity-game last
-  ran on `x64win` at milestone 2. Nobody has checked `x64win` since then.
-  `examples/pong` builds and runs on `arm64mac`, and the check scripts do
-  not build it yet. `scripts/build.roc` runs every step.
+- `examples/cards`, `examples/entity-game`, `examples/pong` and
+  `games/kula` build and run from one checkout on `arm64mac` and
+  `x64glibc`. cards and entity-game last ran on `x64win` at milestone 2.
+  Nobody has checked `x64win` since then. `scripts/build.roc` runs every
+  step.
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 

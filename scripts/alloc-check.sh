@@ -1,9 +1,11 @@
 #!/bin/sh
 # Build each game under --opt=dev and --opt=speed, run it with no input and
 # ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10: the
-# game's expected allocs and as many deallocs, 0 reallocs and a constant live
-# block count. cards expects 2: the box shell and the draws list. entity-game
-# expects 3, because it also returns a colliders list.
+# game's expected allocs and as many deallocs, its expected reallocs and a
+# constant live block count. cards expects 2 allocs: the box shell and the
+# draws list. entity-game expects 3, because it also returns a colliders list.
+# pong expects 13 allocs and 6 reallocs, because Ui.box concats and appends
+# to build Scene.ui every frame.
 # The host library must already be built for this machine. Each game opens a
 # window. Do not type into it: a key press allocates the Input lists.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
@@ -20,9 +22,11 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2 entity-game:3; do
+for entry in cards:2:0 entity-game:3:0 pong:13:6; do
 	game=${entry%%:*}
-	want=${entry##*:}
+	rest=${entry#*:}
+	want=${rest%%:*}
+	want_re=${rest##*:}
 	for opt in dev speed; do
 		bin="./${game}_alloc_${opt}${suffix}"
 		# Exit 2 is warnings only, such as the dbg in packages/mesh. build.roc allows it too.
@@ -46,15 +50,15 @@ for entry in cards:2 entity-game:3; do
 			continue
 		fi
 		# Fields: alloc step=N allocs=N deallocs=N reallocs=N live=N step_us=F view_us=F
-		if awk -v skip=$SKIP -v want="$want" '
+		if awk -v skip=$SKIP -v want="$want" -v want_re="$want_re" '
 			$1 != "alloc" { next }
 			{ for (i = 2; i <= NF; i++) { split($i, kv, "="); v[kv[1]] = kv[2] } }
 			v["step"] <= skip { next }
 			{
 				checked++
 				if (live == "") live = v["live"]
-				if (v["allocs"] != want || v["deallocs"] != want || v["reallocs"] != 0 || v["live"] != live) {
-					if (++bad <= 5) print "step " v["step"] ": allocs=" v["allocs"] " deallocs=" v["deallocs"] " reallocs=" v["reallocs"] " live=" v["live"] ", expected " want " " want " 0 " live > "/dev/stderr"
+				if (v["allocs"] != want || v["deallocs"] != want || v["reallocs"] != want_re || v["live"] != live) {
+					if (++bad <= 5) print "step " v["step"] ": allocs=" v["allocs"] " deallocs=" v["deallocs"] " reallocs=" v["reallocs"] " live=" v["live"] ", expected " want " " want " " want_re " " live > "/dev/stderr"
 				}
 				step_us += v["step_us"]; view_us += v["view_us"]
 			}
