@@ -5,3 +5,6 @@
 	path = sokol-odin
 	url = https://github.com/floooh/sokol-odin.git
 	ignore = untracked
+[submodule "clay"]
+	path = clay
+	url = https://github.com/nicbarker/clay.git

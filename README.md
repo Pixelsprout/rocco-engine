@@ -23,7 +23,7 @@ backend per OS.
 
 ## Requirements
 
-Clone with both submodules:
+Clone with the submodules:
 
 ```sh
 git clone --recurse-submodules https://github.com/Pixelsprout/rocco-engine.git
@@ -52,6 +52,9 @@ The submodules:
   Built archives stay untracked in the submodule.
 - `glue/` is roc-odin-glue. `roc glue` uses it to generate
   `engine/roc_platform_abi.odin`.
+- `clay/` is nicbarker/clay, pinned to a commit on main. The engine imports
+  its Odin bindings, and the `inputs` step copies their prebuilt `clay.a`.
+  The x64win target does not link Clay yet.
 
 You need `sokol-shdc` only to change the shader. The generated
 `engine/shader_basic.odin` is committed. The tested setup is a clone of
@@ -67,7 +70,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
-| `inputs` | Once, and after a sokol or SDK update. | Copies the sokol archives into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
+| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
 | `game <name>` | When anything changes. | `roc build` in `games/<name>/`, or else `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
@@ -250,6 +253,7 @@ a change to the `Model` type, restart the game.
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
+| `clay/` | Submodule: nicbarker/clay. The engine imports `bindings/odin/clay-odin/`. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |

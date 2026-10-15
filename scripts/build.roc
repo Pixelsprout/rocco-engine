@@ -23,7 +23,7 @@ parse = |args| match args {
 	_ => Err(Usage)
 }
 
-# extra_inputs names what inputs copies besides the sokol archives.
+# extra_inputs names what inputs copies besides the sokol and Clay archives.
 Target : {
 	roc_target : Str,
 	dir : Str,
@@ -96,6 +96,20 @@ sokol_copies = |target| ["app", "gfx", "glue", "log"].map(|part| {
 	{ from: "sokol-odin/sokol/${part}/${name}", to: "${target.dir}/${name}" }
 })
 
+clay_odin_dir : Str
+clay_odin_dir = "clay/bindings/odin/clay-odin"
+
+# Clay ships one prebuilt archive per OS beside its Odin bindings. x64win does not link Clay yet.
+clay_copies : Target -> List(Copy)
+clay_copies = |target| match target.extra_inputs {
+	MacSdk => [clay_copy("macos-arm64", target)]
+	LinuxSystem => [clay_copy("linux", target)]
+	WindowsSdk => []
+}
+
+clay_copy : Str, Target -> Copy
+clay_copy = |os_dir, target| { from: "${clay_odin_dir}/${os_dir}/clay.a", to: "${target.dir}/clay.a" }
+
 compiler_rt_copy : Str, Target -> Copy
 compiler_rt_copy = |resource_dir, target| {
 	from: "${resource_dir}/lib/darwin/libclang_rt.osx.a",
@@ -157,7 +171,7 @@ usage : Str
 usage =
 	\\Usage: roc scripts/build.roc -- <command>
 	\\
-	\\  inputs          copy sokol, compiler-rt or SDK libraries into platform/targets/<target>/
+	\\  inputs          copy sokol, Clay, compiler-rt or SDK libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <name>     link games/<name>, or else examples/<name>, against the platform
@@ -278,6 +292,9 @@ inputs! = |target| {
 	for file in sokol_copies(target) {
 		copy!(file) ? |_| Failed("${file.from} is missing. Build it with sokol's build_clibs script for this OS.")
 	}
+	for file in clay_copies(target) {
+		copy!(file) ? |_| Failed("${file.from} is missing. Run git submodule update --init.")
+	}
 	match target.extra_inputs {
 		MacSdk => {
 			# xcrun picks Xcode's clang, whose compiler-rt matches the SDK the sysroot comes from.
@@ -370,6 +387,10 @@ expect {
 }
 
 expect target_for(mac).map_ok(|target| sokol_copies(target).len()) == Ok(4)
+
+expect target_for(mac).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/macos-arm64/clay.a", to: "platform/targets/arm64mac/clay.a" }])
+expect target_for(linux).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/linux/clay.a", to: "platform/targets/x64glibc/clay.a" }])
+expect target_for(windows).map_ok(|target| clay_copies(target).len()) == Ok(0)
 
 expect {
 	names = target_for(windows).map_ok(|target| sokol_copies(target).map(|file| file.to))

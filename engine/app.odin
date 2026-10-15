@@ -25,6 +25,7 @@ State :: struct {
 	alloc_report:      bool,
 	steps:             u64,
 	frame_render:      Frame_Render,
+	ui:                Ui,
 	exit_after_frames: int, // 0 runs forever
 }
 
@@ -81,6 +82,9 @@ init_cb :: proc "c" () {
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
 	renderer_init(&g_state.renderer)
+	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, g_state.mem.perm_allocator)
+	fmt.assertf(ui_err == nil, "the Clay arena did not allocate: %v", ui_err)
+	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
 	g_state.frame_render.begin_pass = renderer_begin_pass
 	g_state.frame_render.end_pass = renderer_end_pass
 	g_state.frame_render.submit_shadow = renderer_shadow
