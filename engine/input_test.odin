@@ -1,3 +1,4 @@
+#+test
 package engine
 
 import sapp "../sokol-odin/sokol/app"

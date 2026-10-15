@@ -1,3 +1,4 @@
+#+test
 package engine
 
 import clay "../clay/bindings/odin/clay-odin"
