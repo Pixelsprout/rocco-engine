@@ -8,20 +8,34 @@ import pf.Stderr
 import pf.Stdout
 import Keys
 
-Step : [Inputs, Glue, Host, Game(Str), Shaders, Font, Keys, Target]
+Mode : [Debug, Release]
+
+Step : [Inputs(Mode), Glue, Host(Mode), Game(Str), Shaders, Font, Keys, Target]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
-	["inputs"] => Ok([Inputs])
+	["inputs"] => Ok([Inputs(Debug)])
+	["inputs", "--release"] => Ok([Inputs(Release)])
 	["glue"] => Ok([Glue])
-	["host"] => Ok([Host])
+	["host"] => Ok([Host(Debug)])
+	["host", "--release"] => Ok([Host(Release)])
 	["game", name] => Ok([Game(name)])
 	["shaders"] => Ok([Shaders])
 	["font"] => Ok([Font])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
-	["all"] => Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
+	["all"] => Ok(all_steps(Debug))
+	["all", "--release"] => Ok(all_steps(Release))
 	_ => Err(Usage)
+}
+
+all_steps : Mode -> List(Step)
+all_steps = |mode| [Glue, Host(mode), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")]
+
+mode_name : Mode -> Str
+mode_name = |mode| match mode {
+	Debug => "debug"
+	Release => "release"
 }
 
 # extra_inputs names what inputs copies besides the sokol and Clay archives.
@@ -29,7 +43,8 @@ Target : {
 	roc_target : Str,
 	dir : Str,
 	host_lib : Str,
-	sokol_suffix : Str,
+	sokol_platform : Str,
+	lib_ext : Str,
 	exe : Str,
 	extra_inputs : [MacSdk, WindowsSdk, LinuxSystem],
 }
@@ -38,18 +53,19 @@ Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WIN
 
 target_for : Machine -> Try(Target, [UnsupportedMachine])
 target_for = |machine| match (machine.os, machine.arch) {
-	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", "macos_arm64_metal_debug.a", ".bin", MacSdk))
-	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl_debug.a", "_linux.bin", LinuxSystem))
-	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", "windows_x64_d3d11_debug.lib", ".exe", WindowsSdk))
+	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", "macos_arm64_metal", ".a", ".bin", MacSdk))
+	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", "linux_x64_gl", ".a", "_linux.bin", LinuxSystem))
+	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", "windows_x64_d3d11", ".lib", ".exe", WindowsSdk))
 	_ => Err(UnsupportedMachine)
 }
 
-make_target : Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxSystem] -> Target
-make_target = |roc_target, host_lib, sokol_suffix, exe, extra_inputs| {
+make_target : Str, Str, Str, Str, Str, [MacSdk, WindowsSdk, LinuxSystem] -> Target
+make_target = |roc_target, host_lib, sokol_platform, lib_ext, exe, extra_inputs| {
 	roc_target,
 	dir: "platform/targets/${roc_target}",
 	host_lib,
-	sokol_suffix,
+	sokol_platform,
+	lib_ext,
 	exe,
 	extra_inputs,
 }
@@ -64,11 +80,17 @@ Run : { program : Str, args : List(Str), cwd : Str }
 glue_run : Run
 glue_run = { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
-host_run : Target -> Run
-host_run = |target| {
-	program: "odin",
-	args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}", "-debug", "-vet", "-strict-style"],
-	cwd: ".",
+host_run : Target, Mode -> Run
+host_run = |target, mode| {
+	opt = match mode {
+		Debug => []
+		Release => ["-o:speed"]
+	}
+	{
+		program: "odin",
+		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(opt).concat(["-debug", "-vet", "-strict-style"]),
+		cwd: ".",
+	}
 }
 
 # A game under games/ wins over an example of the same name.
@@ -99,11 +121,12 @@ font_run = {
 
 Copy : { from : Str, to : Str }
 
-sokol_copies : Target -> List(Copy)
-sokol_copies = |target| ["app", "gfx", "glue", "log"].map(
+# platform/main.roc names sokol_<part><ext>, so the copy drops the mode.
+sokol_copies : Target, Mode -> List(Copy)
+sokol_copies = |target, mode| ["app", "gfx", "glue", "log"].map(
 	|part| {
-		name = "sokol_${part}_${target.sokol_suffix}"
-		{ from: "sokol-odin/sokol/${part}/${name}", to: "${target.dir}/${name}" }
+		built = "sokol_${part}_${target.sokol_platform}_${mode_name(mode)}${target.lib_ext}"
+		{ from: "sokol-odin/sokol/${part}/${built}", to: "${target.dir}/sokol_${part}${target.lib_ext}" }
 	},
 )
 
@@ -207,6 +230,9 @@ usage =
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong,
 	\\                  game kula
 	\\
+	\\inputs, host and all take --release to use the release sokol archives and build
+	\\the host with -o:speed. Without it they use debug.
+	\\
 	\\Run from the repository root. The target is the machine running the script.
 
 main! : List(OsStr) => Try({}, [Exit(I32)])
@@ -243,11 +269,11 @@ fail! = |message| {
 
 run_step! : Step, Target => Try({}, _)
 run_step! = |step, target| match step {
-	Inputs => inputs!(target)
+	Inputs(mode) => inputs!(target, mode)
 	Glue => exec!(glue_run)
-	Host => {
+	Host(mode) => {
 		Path.utf8(target.dir).create_all!()?
-		exec!(host_run(target))
+		exec!(host_run(target, mode))
 	}
 	# roc build exits 2 when it wrote the binary with warnings and no errors.
 	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
@@ -324,11 +350,11 @@ keys! = || {
 copy! : Copy => Try({}, _)
 copy! = |file| Path.copy!(Path.utf8(file.from), Path.utf8(file.to))
 
-inputs! : Target => Try({}, _)
-inputs! = |target| {
-	Stdout.line!("== inputs for ${target.roc_target}")?
+inputs! : Target, Mode => Try({}, _)
+inputs! = |target, mode| {
+	Stdout.line!("== ${mode_name(mode)} inputs for ${target.roc_target}")?
 	Path.utf8(target.dir).create_all!()?
-	for file in sokol_copies(target) {
+	for file in sokol_copies(target, mode) {
 		copy!(file) ? |_| Failed("${file.from} is missing. Build it with sokol's build_clibs script for this OS.")
 	}
 	for file in clay_copies(target) {
@@ -369,12 +395,17 @@ inputs! = |target| {
 	}
 }
 
-expect parse(["inputs"]) == Ok([Inputs])
+expect parse(["inputs"]) == Ok([Inputs(Debug)])
+expect parse(["inputs", "--release"]) == Ok([Inputs(Release)])
 expect parse(["glue"]) == Ok([Glue])
-expect parse(["host"]) == Ok([Host])
+expect parse(["host"]) == Ok([Host(Debug)])
+expect parse(["host", "--release"]) == Ok([Host(Release)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host, Inputs, Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
+expect parse(["all"]) == Ok([Glue, Host(Debug), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
+expect parse(["all", "--release"]) == Ok([Glue, Host(Release), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
+expect parse(["glue", "--release"]) == Err(Usage)
+expect parse(["inputs", "--debug"]) == Err(Usage)
 expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
@@ -395,13 +426,18 @@ expect target_for({ arch: X64, os: OTHER("freebsd") }) == Err(UnsupportedMachine
 expect glue_run == { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
 expect {
-	run = target_for(mac).map_ok(host_run)
+	run = target_for(mac).map_ok(|target| host_run(target, Debug))
 	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-debug", "-vet", "-strict-style"], cwd: "." })
 }
 
 expect {
+	run = target_for(mac).map_ok(|target| host_run(target, Release))
+	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-o:speed", "-debug", "-vet", "-strict-style"], cwd: "." })
+}
+
+expect {
 	# basic-cli names the Windows host host.lib, which is what lld-link looks for.
-	out = target_for(windows).map_ok(|target| host_run(target).args.get(3))
+	out = target_for(windows).map_ok(|target| host_run(target, Debug).args.get(3))
 	out == Ok(Ok("-out:platform/targets/x64win/host.lib"))
 }
 
@@ -423,24 +459,39 @@ expect {
 }
 
 expect {
-	copies = target_for(mac).map_ok(sokol_copies)
-	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_macos_arm64_metal_debug.a", to: "platform/targets/arm64mac/sokol_app_macos_arm64_metal_debug.a" }))
+	copies = target_for(mac).map_ok(|target| sokol_copies(target, Debug))
+	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_macos_arm64_metal_debug.a", to: "platform/targets/arm64mac/sokol_app.a" }))
 }
 
-expect target_for(mac).map_ok(|target| sokol_copies(target).len()) == Ok(4)
+expect {
+	copies = target_for(mac).map_ok(|target| sokol_copies(target, Release))
+	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_macos_arm64_metal_release.a", to: "platform/targets/arm64mac/sokol_app.a" }))
+}
+
+expect {
+	copies = target_for(linux).map_ok(|target| sokol_copies(target, Release))
+	copies.map_ok(|all| all.last()) == Ok(Ok({ from: "sokol-odin/sokol/log/sokol_log_linux_x64_gl_release.a", to: "platform/targets/x64glibc/sokol_log.a" }))
+}
+
+expect target_for(mac).map_ok(|target| sokol_copies(target, Debug).len()) == Ok(4)
 
 expect target_for(mac).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/macos-arm64/clay.a", to: "platform/targets/arm64mac/clay.a" }])
 expect target_for(linux).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/linux/clay.a", to: "platform/targets/x64glibc/clay.a" }])
 expect target_for(windows).map_ok(|target| clay_copies(target).len()) == Ok(0)
 
 expect {
-	names = target_for(windows).map_ok(|target| sokol_copies(target).map(|file| file.to))
+	names = target_for(windows).map_ok(|target| sokol_copies(target, Debug).map(|file| file.to))
 	names == Ok([
-		"platform/targets/x64win/sokol_app_windows_x64_d3d11_debug.lib",
-		"platform/targets/x64win/sokol_gfx_windows_x64_d3d11_debug.lib",
-		"platform/targets/x64win/sokol_glue_windows_x64_d3d11_debug.lib",
-		"platform/targets/x64win/sokol_log_windows_x64_d3d11_debug.lib",
+		"platform/targets/x64win/sokol_app.lib",
+		"platform/targets/x64win/sokol_gfx.lib",
+		"platform/targets/x64win/sokol_glue.lib",
+		"platform/targets/x64win/sokol_log.lib",
 	])
+}
+
+expect {
+	copies = target_for(windows).map_ok(|target| sokol_copies(target, Release))
+	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_windows_x64_d3d11_release.lib", to: "platform/targets/x64win/sokol_app.lib" }))
 }
 
 expect parse(["font"]) == Ok([Font])

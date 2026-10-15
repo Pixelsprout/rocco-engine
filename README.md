@@ -69,14 +69,19 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | Command | When | What it runs |
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
-| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/` |
-| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
+| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it adds `-o:speed`. |
+| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt and runs `scripts/make-macos-sysroot.sh`. On Linux, copies the CRT objects and shared libraries. On Windows, copies the SDK import libraries. |
 | `game <name>` | When anything changes. | `roc build` in `games/<name>/`, or else `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game kula` |
+| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game kula`. With `--release`, it passes `--release` to `host` and `inputs`. |
+
+Use debug for local work. Use `--release` for CI and the bundle, so CI tests
+the files that ship. `platform/main.roc` names the sokol archives with no
+mode, so it links the mode that `inputs` copied last. Run `host` and `inputs`
+with the same mode.
 
 The script stops at the first step that fails. After a change, run `glue`,
 `host` and `game` in that order. Each tool consumes the previous one's output
@@ -152,7 +157,9 @@ Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
 archives. Then it runs the `all` command of the build script. Then it runs
 each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
 Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
-the alloc check and the host check.
+the alloc check and the host check. The script builds the debug and the
+release sokol archives. `./scripts/linux/check.sh --release` checks the
+release build.
 
 The first run builds the Docker image. On Apple silicon, Docker emulates
 x86_64, so that first run takes several minutes. Later runs take about 15
@@ -182,9 +189,10 @@ roc scripts/build.roc -- all
 
 The `inputs` step copies the CRT objects and the shared libraries from the
 first of `/usr/lib/x86_64-linux-gnu`, `/usr/lib64` and `/usr/lib` that holds
-`Scrt1.o`. `build_clibs_linux.sh` also builds modules the engine does not
-use, and it needs the ALSA headers. `scripts/linux/in-container.sh` shows how
-to build only the four archives the engine links.
+`Scrt1.o`. `build_clibs_linux.sh` builds the debug and the release
+archives. It also builds modules the engine does not use, and it needs the
+ALSA headers. `scripts/linux/in-container.sh` shows how to build only the
+four archives the engine links.
 
 ### Windows
 

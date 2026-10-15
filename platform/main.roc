@@ -16,9 +16,9 @@ platform ""
 	}
 	targets: {
 		inputs_dir: "targets/",
-		arm64mac: { inputs: ["libhost.a", "sokol_app_macos_arm64_metal_debug.a", "sokol_gfx_macos_arm64_metal_debug.a", "sokol_glue_macos_arm64_metal_debug.a", "sokol_log_macos_arm64_metal_debug.a", "clay.a", "libclang_rt.osx.a", app] },
-		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app_linux_x64_gl_debug.a", "sokol_gfx_linux_x64_gl_debug.a", "sokol_glue_linux_x64_gl_debug.a", "sokol_log_linux_x64_gl_debug.a", "clay.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
-		x64win: { inputs: ["host.lib", "sokol_app_windows_x64_d3d11_debug.lib", "sokol_gfx_windows_x64_d3d11_debug.lib", "sokol_glue_windows_x64_d3d11_debug.lib", "sokol_log_windows_x64_d3d11_debug.lib", app, "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "d3d11.lib", "dxgi.lib"] },
+		arm64mac: { inputs: ["libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "libclang_rt.osx.a", app] },
+		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
+		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", app, "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "ole32.lib", "d3d11.lib", "dxgi.lib"] },
 	}
 
 import Vocabulary exposing [Command, Config, Contact, Input, Manifest, Scene]
