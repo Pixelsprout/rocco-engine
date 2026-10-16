@@ -26,7 +26,6 @@ expected="Frame Count: $frames"
 for game in "$@"; do
 	echo "== run $game for $frames frames"
 	dir=examples/$game
-	if [ -f "games/$game/main.roc" ]; then dir=games/$game; fi
 	set +e
 	(cd "$dir" && ROCCO_EXIT_AFTER_FRAMES=$frames ${RUN_PREFIX:-} "./${game}${suffix}") > "$log" 2> "$err"
 	code=$?

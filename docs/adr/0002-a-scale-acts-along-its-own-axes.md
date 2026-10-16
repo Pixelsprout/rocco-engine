@@ -7,7 +7,7 @@ Status: accepted, 2026-10-14.
 The host built each model matrix as `T · R · S`. The scale acted along the
 mesh's axes, before `rot`.
 
-Kula squashes its ball along the ball's up (`games/kula/SPEC.md`, "Idle
+Kula squashes its ball along the ball's up (`SPEC.md` in `Pixelsprout/kula`, "Idle
 bob"). The ball's `rot` is its spin. A scale along a mesh axis turns with
 the spin, so `T · R · S` cannot keep the squash along up. The original
 builds `Orient · Morph · Spin` for this.

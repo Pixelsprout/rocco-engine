@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: scripts/screenshot.sh <game> <out.png> [delay seconds]
-# Runs a built game from games/ or examples/, waits, saves its window to
+# Runs a built game from examples/, waits, saves its window to
 # out.png and stops the game. ROCCO_* variables pass through to the game.
 # macOS only. Builds scripts/macos/wincap.swift into build/ when it changes.
 set -eu
@@ -14,8 +14,7 @@ game=$1
 out=$(cd "$(dirname "$2")" && pwd)/$(basename "$2")
 delay=${3:-3}
 
-dir=games/$game
-[ -d "$dir" ] || dir=examples/$game
+dir=examples/$game
 bin=$dir/$game.bin
 if [ ! -x "$bin" ]; then
 	echo "screenshot: $bin is missing. Run roc scripts/build.roc -- game $game first." >&2

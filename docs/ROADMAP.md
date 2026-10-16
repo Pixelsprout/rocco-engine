@@ -35,8 +35,9 @@ Built and running:
 - The entity game is playable start to finish: jump, collect the pickups,
   pass the door, win on the goal pad and start a new round. Two strangers
   finished it with no instructions.
-- `games/kula` is playable start to finish: roll, climb, edge rolls, jump,
+- Kula is playable start to finish: roll, climb, edge rolls, jump,
   keys, the exit, falling and the restart, on one level from a text file.
+  Kula lives in `Pixelsprout/kula`.
 - Each draw carries `rot`, a quaternion. The camera carries `up`.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
@@ -51,8 +52,8 @@ Built and running:
   `roc run` on macOS when the `Model` type does not change.
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
-- `examples/cards`, `examples/entity-game`, `examples/pong` and
-  `games/kula` build and run from one checkout on `arm64mac` and
+- `examples/cards`, `examples/entity-game` and `examples/pong` build and
+  run from one checkout on `arm64mac` and
   `x64glibc`. cards and entity-game last ran on `x64win` at milestone 2.
   Nobody has checked `x64win` since then. `scripts/build.roc` runs every
   step.
@@ -562,7 +563,8 @@ time limit, bonus levels and sound come after.
 
 The clone starts in this repo under `games/kula/` on the local platform. It
 moves to its own repo on the published bundle URL as the last milestone, so
-it is the bundle's first consumer. Levels are ASCII layer maps in `.txt`
+it is the bundle's first consumer. Kula now lives in `Pixelsprout/kula`
+on the v0.1.0 bundle URLs. Levels are ASCII layer maps in `.txt`
 files, embedded at compile time with Roc's file import and parsed by a
 tested `Level` module. The game is laid out by concern: `main.roc` holds
 the two pipelines, `World` the types, and `Level`, `Grid`, `Ball`, `Rules`,

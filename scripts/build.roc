@@ -30,7 +30,7 @@ parse = |args| match args {
 }
 
 all_steps : Mode -> List(Step)
-all_steps = |mode| [Glue, Host(mode), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")]
+all_steps = |mode| [Glue, Host(mode), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong")]
 
 mode_name : Mode -> Str
 mode_name = |mode| match mode {
@@ -99,10 +99,6 @@ host_run = |target, mode| {
 	}
 }
 
-# A game under games/ wins over an example of the same name.
-game_dirs : Str -> List(Str)
-game_dirs = |name| ["games/${name}", "examples/${name}"]
-
 game_run : Target, Str, Str -> Run
 game_run = |target, dir, name| {
 	program: "roc",
@@ -163,13 +159,12 @@ usage =
 	\\  inputs          copy sokol, Clay and compiler-rt libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
-	\\  game <name>     link games/<name>, or else examples/<name>, against the platform
+	\\  game <name>     link examples/<name> against the platform
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
-	\\  all             glue, host, inputs, game cards, game entity-game, game pong,
-	\\                  game kula
+	\\  all             glue, host, inputs, game cards, game entity-game, game pong
 	\\
 	\\inputs, host and all take --release to use the release sokol archives and build
 	\\the host with -o:speed. Without it they use debug.
@@ -219,7 +214,10 @@ run_step! = |step, target| match step {
 	# roc build exits 2 when it wrote the binary with warnings and no errors.
 	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
 	Game(name) => {
-		dir = find_game_dir!(name) ? |_| Failed("Neither games/${name}/main.roc nor examples/${name}/main.roc exists.")
+		dir = "examples/${name}"
+		if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {
+			return Err(Failed("${dir}/main.roc does not exist."))
+		}
 		exec_allowing!(game_run(target, dir, name), [2])
 	}
 	Shaders =>
@@ -242,16 +240,6 @@ run_step! = |step, target| match step {
 		}
 	Keys => keys!()
 	Target => Stdout.line!(target_lines(target))
-}
-
-find_game_dir! : Str => Try(Str, [NoGame])
-find_game_dir! = |name| {
-	for dir in game_dirs(name) {
-		if Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False {
-			return Ok(dir)
-		}
-	}
-	Err(NoGame)
 }
 
 exec! : Run => Try({}, _)
@@ -320,8 +308,8 @@ expect parse(["host"]) == Ok([Host(Debug)])
 expect parse(["host", "--release"]) == Ok([Host(Release)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host(Debug), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
-expect parse(["all", "--release"]) == Ok([Glue, Host(Release), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("kula")])
+expect parse(["all"]) == Ok([Glue, Host(Debug), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong")])
+expect parse(["all", "--release"]) == Ok([Glue, Host(Release), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong")])
 expect parse(["glue", "--release"]) == Err(Usage)
 expect parse(["inputs", "--debug"]) == Err(Usage)
 expect parse([]) == Err(Usage)
@@ -370,13 +358,6 @@ expect {
 	run = target_for(mac).map_ok(|target| game_run(target, "examples/cards", "cards"))
 	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./cards.bin", "main.roc"], cwd: "examples/cards" })
 }
-
-expect {
-	run = target_for(mac).map_ok(|target| game_run(target, "games/kula", "kula"))
-	run == Ok({ program: "roc", args: ["build", "--target=arm64mac", "--output=./kula.bin", "main.roc"], cwd: "games/kula" })
-}
-
-expect game_dirs("kula") == ["games/kula", "examples/kula"]
 
 expect {
 	out = target_for(windows).map_ok(|target| game_run(target, "examples/cards", "cards").args.get(2))

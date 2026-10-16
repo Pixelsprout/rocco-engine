@@ -49,7 +49,6 @@ jobs:
       - name: Check for changes to committed files
         run: git diff --exit-code
 
-      # Kula moves to its own repo, so CI here runs only the examples.
       - name: Run the games
         run: sh scripts/run-games.sh 1 cards entity-game pong
 

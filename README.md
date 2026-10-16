@@ -71,12 +71,12 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it adds `-o:speed`. |
 | `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
-| `game <name>` | When anything changes. | `roc build` in `games/<name>/`, or else `examples/<name>/` |
+| `game <name>` | When anything changes. | `roc build` in `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game kula`. With `--release`, it passes `--release` to `host` and `inputs`. |
+| `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
 the files that ship. `platform/main.roc` names the sokol archives with no
@@ -160,8 +160,8 @@ because `Ui.box` builds `Scene.ui` with concat and append. Build
 the host library first. Each game opens a window. Do not type into it during the
 check, because a key press allocates the `Input` lists.
 
-`./scripts/host-check.sh` regenerates the glue and links cards, entity-game,
-pong and kula, then checks that the host library and the glue did not change.
+`./scripts/host-check.sh` regenerates the glue and links cards, entity-game
+and pong, then checks that the host library and the glue did not change.
 
 ### Screenshots
 
@@ -309,7 +309,6 @@ a change to the `Model` type, restart the game.
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
-| `games/kula/` | A Kula World clone: a ball rolls over blocks, collects keys and rolls into the exit. Its `README.md` has the rules and the level format. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
@@ -318,7 +317,7 @@ a change to the `Model` type, restart the game.
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game and pong. |
-| `scripts/host-check.sh` | Checks that linking cards, entity-game, pong and kula does not change the host library or the glue. |
+| `scripts/host-check.sh` | Checks that linking cards, entity-game and pong does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |
 | `scripts/macos-sysroot/` | The reviewed catalog of macOS system symbols, its `PROVENANCE.md`, and `evidence.py`, which adds a symbol with its evidence. |
 | `scripts/make_linux_stubs.py` | Writes the CRT objects and stub shared libraries in `platform/targets/x64glibc/` with Zig. `--audit` lists the archive references that the catalog does not cover. |
@@ -362,7 +361,10 @@ the Docker image, and the image sees only this checkout.
 
 Milestones 1 to 10 of `docs/ROADMAP.md` are done. The engine builds and runs
 on macOS, Linux and Windows from one checkout. The platform names no game:
-four games (`cards`, `entity-game`, `pong`, `kula`) link against one host library.
+three games (`cards`, `entity-game`, `pong`) link against one host library.
+Kula, a Kula World clone, lives in
+[Pixelsprout/kula](https://github.com/Pixelsprout/kula) and runs on the
+release bundles.
 Each draw carries a mesh id from a Manifest, and an unknown id draws the
 magenta fallback mesh. Games import the seam types from `pf.Vocabulary` and
 name keys with `pf.Key`.

@@ -17,7 +17,7 @@ roc scripts/build.roc all "$@"
 
 # The timeout turns a hang into a failure instead of a stuck container.
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
-RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong kula
+RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong
 
 sh scripts/test-all.sh
 

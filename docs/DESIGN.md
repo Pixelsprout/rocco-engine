@@ -613,7 +613,7 @@ so they stay publishable. The aliases are structural, so a package's
 
 Evidence: three unrelated games link and run against one host library on
 `nightly-2026-10-11-7d256b9`. See `examples/cards`, `examples/entity-game`
-and `games/kula`. `scripts/host-check.sh` links all three and checks that
+and `examples/pong`. `scripts/host-check.sh` links all three and checks that
 the host library and the glue do not change. The Zig glue output for that
 platform contains no game word.
 
