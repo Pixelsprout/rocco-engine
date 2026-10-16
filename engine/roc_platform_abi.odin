@@ -227,6 +227,18 @@ Roc_Init_Commands_Load :: struct {
 #assert(offset_of(Roc_Init_Commands_Load, pack) == 24)
 #assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == 24)
 
+Roc_Loaded_Arg2 :: struct {
+	name: Roc_Str,
+	id: u32,
+}
+
+#assert(size_of(Roc_Loaded_Arg2) == 32)
+#assert(align_of(Roc_Loaded_Arg2) == 8)
+#assert(offset_of(Roc_Loaded_Arg2, name) == 0)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
+#assert(offset_of(Roc_Loaded_Arg2, id) == 24)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
+
 Roc_Step_Arg1 :: struct {
 	held: Roc_List(u16),
 	pressed: Roc_List(u16),
@@ -346,18 +358,6 @@ Roc_Step_Arg2_Rays_Point :: Roc_Step_Arg2_Contacts_Normal
 Roc_Step :: Roc_Init
 Roc_Step_Commands :: Roc_Init_Commands
 Roc_Step_Commands_Load :: Roc_Init_Commands_Load
-Roc_Loaded_Arg2 :: struct {
-	name: Roc_Str,
-	id: u32,
-}
-
-#assert(size_of(Roc_Loaded_Arg2) == 32)
-#assert(align_of(Roc_Loaded_Arg2) == 8)
-#assert(offset_of(Roc_Loaded_Arg2, name) == 0)
-#assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2, id) == 24)
-#assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
-
 Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
@@ -902,6 +902,10 @@ roc_init_commands_load_decref :: proc(value: Roc_Init_Commands_Load) {
 	roc_str_decref(value.pack)
 }
 
+roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
+	roc_str_decref(value.name)
+}
+
 roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 	roc_list_decref_u16(value.held)
 	roc_list_decref_u16(value.pressed)
@@ -911,10 +915,6 @@ roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
 	roc_list_decref_roc_step_arg2_contacts(value.contacts)
 	roc_list_decref_roc_step_arg2_overlaps(value.overlaps)
 	roc_list_decref_roc_step_arg2_rays(value.rays)
-}
-
-roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
-	roc_str_decref(value.name)
 }
 
 roc_view_decref :: proc(value: Roc_View) {
@@ -963,6 +963,14 @@ roc_list_from_slice_roc_init_commands :: proc(elems: []Roc_Init_Commands) -> Roc
 	return roc_list_from_slice_with(elems, true)
 }
 
+roc_list_decref_roc_loaded_arg2 :: proc(list: Roc_List(Roc_Loaded_Arg2)) {
+	roc_list_decref_elements(list, roc_loaded_arg2_decref)
+}
+
+roc_list_from_slice_roc_loaded_arg2 :: proc(elems: []Roc_Loaded_Arg2) -> Roc_List(Roc_Loaded_Arg2) {
+	return roc_list_from_slice_with(elems, true)
+}
+
 roc_list_decref_u16 :: proc(list: Roc_List(u16)) {
 	roc_list_decref_flat(list)
 }
@@ -993,14 +1001,6 @@ roc_list_decref_roc_step_arg2_rays :: proc(list: Roc_List(Roc_Step_Arg2_Rays)) {
 
 roc_list_from_slice_roc_step_arg2_rays :: proc(elems: []Roc_Step_Arg2_Rays) -> Roc_List(Roc_Step_Arg2_Rays) {
 	return roc_list_from_slice_with(elems, false)
-}
-
-roc_list_decref_roc_loaded_arg2 :: proc(list: Roc_List(Roc_Loaded_Arg2)) {
-	roc_list_decref_elements(list, roc_loaded_arg2_decref)
-}
-
-roc_list_from_slice_roc_loaded_arg2 :: proc(elems: []Roc_Loaded_Arg2) -> Roc_List(Roc_Loaded_Arg2) {
-	return roc_list_from_slice_with(elems, true)
 }
 
 roc_list_decref_roc_view_colliders :: proc(list: Roc_List(Roc_View_Colliders)) {
@@ -1057,9 +1057,9 @@ roc_decref :: proc {
 	roc_init_decref,
 	roc_init_commands_decref,
 	roc_init_commands_load_decref,
+	roc_loaded_arg2_decref,
 	roc_step_arg1_decref,
 	roc_step_arg2_decref,
-	roc_loaded_arg2_decref,
 	roc_view_decref,
 	roc_view_queries_decref,
 	roc_view_queries_raycast_decref,
@@ -1070,11 +1070,11 @@ roc_decref :: proc {
 roc_list_decref :: proc {
 	roc_list_decref_roc_str,
 	roc_list_decref_roc_init_commands,
+	roc_list_decref_roc_loaded_arg2,
 	roc_list_decref_u16,
 	roc_list_decref_roc_step_arg2_contacts,
 	roc_list_decref_roc_step_arg2_overlaps,
 	roc_list_decref_roc_step_arg2_rays,
-	roc_list_decref_roc_loaded_arg2,
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
@@ -1086,11 +1086,11 @@ roc_list_decref :: proc {
 roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_str,
 	roc_list_from_slice_roc_init_commands,
+	roc_list_from_slice_roc_loaded_arg2,
 	roc_list_from_slice_u16,
 	roc_list_from_slice_roc_step_arg2_contacts,
 	roc_list_from_slice_roc_step_arg2_overlaps,
 	roc_list_from_slice_roc_step_arg2_rays,
-	roc_list_from_slice_roc_loaded_arg2,
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
@@ -1102,9 +1102,9 @@ roc_list_from_slice :: proc {
 // The Roc app defines these symbols at the final link.
 @(default_calling_convention = "c")
 foreign {
-	roc_init :: proc(arg0: Roc_Init_Arg0) -> Roc_Init ---
-	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_Step_Arg2, arg3: f32) -> Roc_Init ---
-	roc_loaded :: proc(arg0: rawptr, arg1: Roc_Str, arg2: Roc_List(Roc_Loaded_Arg2)) -> rawptr ---
-	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 	roc_drop_model :: proc(arg0: rawptr) ---
+	roc_init :: proc(arg0: Roc_Init_Arg0) -> Roc_Init ---
+	roc_loaded :: proc(arg0: rawptr, arg1: Roc_Str, arg2: Roc_List(Roc_Loaded_Arg2)) -> rawptr ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_Step_Arg2, arg3: f32) -> Roc_Init ---
+	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 }

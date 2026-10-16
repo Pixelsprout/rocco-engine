@@ -1,18 +1,18 @@
 platform ""
 	requires {
 		[Model : model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
-		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		loaded : Model, Str, Vocabulary.Manifest -> Model,
+		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Vocabulary, Key, Collider, Light, Query, QueryResults]
+	exposes [Collider, Key, Light, Query, QueryResults, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
-		"roc_init": init_for_host,
-		"roc_step": step_for_host,
-		"roc_loaded": loaded_for_host,
-		"roc_view": view_for_host,
 		"roc_drop_model": drop_model_for_host,
+		"roc_init": init_for_host,
+		"roc_loaded": loaded_for_host,
+		"roc_step": step_for_host,
+		"roc_view": view_for_host,
 	}
 	targets: {
 		inputs_dir: "targets/",
