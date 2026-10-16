@@ -104,7 +104,11 @@ request. The macOS job builds with `--release`, runs cards, entity-game and
 pong for one frame, and runs `scripts/test-all.sh`. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
-stub audit. A third job runs the generator tests, regenerates the Linux stubs
+stub audit. The Windows job builds sokol with `scripts\windows\build_sokol.cmd`,
+then builds with `--release`, runs the same three games and
+`scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
+the sokol step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
+fourth job runs the generator tests, regenerates the Linux stubs
 and fails on a diff.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After

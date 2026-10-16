@@ -104,6 +104,69 @@ jobs:
       - name: Audit the Linux stubs
         run: python3 scripts/make_linux_stubs.py --audit
 
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
+      - name: Read the toolchain pins
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+
+      # The Odin zip holds dist/. The Roc zip holds one folder named after the nightly.
+      - name: Install Odin and Roc
+        shell: pwsh
+        run: |
+          $odin = "$env:RUNNER_TEMP\odin"
+          $roc = "$env:RUNNER_TEMP\roc"
+          Invoke-WebRequest "https://github.com/odin-lang/Odin/releases/download/$env:ODIN_RELEASE/odin-windows-amd64-$env:ODIN_RELEASE.zip" -OutFile "$env:RUNNER_TEMP\odin.zip"
+          Invoke-WebRequest "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/roc_nightly-windows_x86_64-$env:ROC_NIGHTLY.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
+          Expand-Archive "$env:RUNNER_TEMP\odin.zip" -DestinationPath $odin
+          Expand-Archive "$env:RUNNER_TEMP\roc.zip" -DestinationPath $roc
+          "$odin\dist" >> $env:GITHUB_PATH
+          "$roc\roc_nightly-windows_x86_64-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Print the toolchain versions
+        run: |
+          odin version
+          roc version
+          zig version
+
+      # vcvars64 runs only in this step. The Roc link reads the committed
+      # import libraries, so later steps run with LIB unset.
+      - name: Build the sokol D3D11 libraries
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set vs=%%i
+          call "%vs%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          scripts\windows\build_sokol.cmd
+
+      - name: Build
+        run: roc scripts/build.roc all --release
+
+      - name: Check for changes to committed files
+        run: git diff --exit-code
+
+      # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
+      - name: Run the games
+        run: sh scripts/run-games.sh 1 cards entity-game pong
+
+      - name: Test
+        run: sh scripts/test-all.sh
+
+      - name: Regenerate the Windows import libraries
+        run: python scripts/make_windows_import_libs.py --check
+
   generated:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
