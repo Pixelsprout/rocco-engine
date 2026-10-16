@@ -115,7 +115,8 @@ and fails on a diff.
 host and inputs with `--release` and uploads `platform/targets/<target>/`. A
 Linux job runs `roc bundle` for the platform and for `packages/linalg`,
 `packages/mesh` and `packages/ui`. It publishes the four bundles in a
-prerelease. The notes name each bundle URL and the Roc nightly. Next, a job on
+prerelease, each named `<name>-<hash>.tar.zst`. Roc takes URLs that differ
+only in the hash as one package, so the name must stay in front. The notes name each bundle URL and the Roc nightly. Next, a job on
 each OS installs only Roc and runs cards from the bundle URLs. If all three
 pass, the last job marks the release final and latest. If one fails, the
 release stays a prerelease. `scripts/release.py` points the header of

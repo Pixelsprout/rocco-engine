@@ -168,7 +168,8 @@ jobs:
           path: platform/targets/x64win
 
       # roc bundle packs only the files it is given, so the platform bundle
-      # names every file under targets/. Each bundle is named by its content hash.
+      # names every file under targets/. Roc takes URLs that differ only in
+      # the hash as one package, so each bundle is renamed <name>-<hash>.
       - name: Bundle the platform and the packages
         run: |
           out="$RUNNER_TEMP/bundles"
@@ -182,7 +183,9 @@ jobs:
           done
           base="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
           for name in platform linalg mesh ui; do
-            file=$(ls "$out/$name"/*.tar.zst)
+            hashed=$(ls "$out/$name"/*.tar.zst)
+            file="$out/$name/$name-$(basename "$hashed")"
+            mv "$hashed" "$file"
             echo "$file" >> "$RUNNER_TEMP/assets"
             echo "--url=$name=$base/$(basename "$file")" >> "$RUNNER_TEMP/urls"
           done
