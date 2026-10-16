@@ -3,10 +3,18 @@ package engine
 import "core:fmt"
 import "core:math"
 import "core:mem"
+import "core:slice"
 
 // What the host has logged this run, so each problem logs once.
-Contact_Search :: struct {
-	logged_ids: map[u64]struct {},
+Query_Search :: struct {
+	logged_ids:     map[u64]struct {},
+	logged_slots:   map[Owner_Slot]struct {},
+	logged_capsule: bool,
+}
+
+Owner_Slot :: struct {
+	owner: u64,
+	slot:  u32,
 }
 
 // Sorting these instead of Shapes moves 8 bytes per swap, not 80.
@@ -28,37 +36,24 @@ Shape :: struct {
 	min, max: [3]f32,
 }
 
-contact_search_init :: proc(search: ^Contact_Search, allocator: mem.Allocator) {
+query_search_init :: proc(search: ^Query_Search, allocator: mem.Allocator) {
 	search.logged_ids = make(map[u64]struct {}, allocator)
+	search.logged_slots = make(map[Owner_Slot]struct {}, allocator)
 }
 
-contact_search_destroy :: proc(search: ^Contact_Search) {
+query_search_destroy :: proc(search: ^Query_Search) {
 	delete(search.logged_ids)
+	delete(search.logged_slots)
 }
 
 // One Contact per overlapping pair, with a < b, sorted by (a, b). Everything
 // it allocates, the result included, comes from allocator.
-contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator: mem.Allocator) -> []Contact {
+contacts_find :: proc(search: ^Query_Search, colliders: []Collider, allocator: mem.Allocator) -> []Contact {
 	if len(colliders) == 0 {
 		return nil
 	}
 
-	shapes := make([dynamic]Shape, 0, len(colliders), allocator)
-	seen := make(map[u64]struct {}, allocator)
-	reserve(&seen, len(colliders))
-	for col in colliders {
-		// A skipped Collider does not claim its id.
-		shape := shape_make(col) or_continue
-		if col.id in seen {
-			if col.id not_in search.logged_ids {
-				search.logged_ids[col.id] = {}
-				fmt.eprintfln("two colliders share id %v; the first one collides", col.id)
-			}
-			continue
-		}
-		seen[col.id] = {}
-		append(&shapes, shape)
-	}
+	shapes := shapes_make(search, colliders, allocator)
 
 	// Sweep and prune on x: once b starts past a's end, so does every later Shape.
 	sweep := make([]Sweep_Key, len(shapes), allocator)
@@ -92,13 +87,15 @@ contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator:
 
 // The Contacts that involve an owner of a ContactsOf Query, in the order
 // contacts_find gives. With no such Query, it does no search.
-contacts_asked :: proc(search: ^Contact_Search, colliders: []Collider, queries: []Query, allocator: mem.Allocator) -> []Contact {
-	if len(queries) == 0 {
-		return nil
-	}
+contacts_asked :: proc(search: ^Query_Search, colliders: []Collider, queries: []Query, allocator: mem.Allocator) -> []Contact {
 	owners := make(map[u64]struct {}, allocator)
 	for query in queries {
-		owners[query.contacts_of] = {}
+		if query.tag == .ContactsOf {
+			owners[query.payload.contacts_of] = {}
+		}
+	}
+	if len(owners) == 0 {
+		return nil
 	}
 	contacts := contacts_find(search, colliders, allocator)
 	kept := 0
@@ -109,6 +106,178 @@ contacts_asked :: proc(search: ^Contact_Search, colliders: []Collider, queries: 
 		}
 	}
 	return contacts[:kept]
+}
+
+// One RayHit for each Raycast that hits, in Query order. A ray that starts
+// inside a Collider hits it at its origin, with the normal against dir.
+rays_find :: proc(search: ^Query_Search, colliders: []Collider, queries: []Query, allocator: mem.Allocator) -> []Ray_Hit {
+	shapes: [dynamic]Shape
+	shapes_made := false
+	hits := make([dynamic]Ray_Hit, allocator)
+	asked := make(map[Owner_Slot]struct {}, allocator)
+	for query in queries {
+		if query.tag != .Raycast {
+			continue
+		}
+		ray := query.payload.raycast
+		if !query_slot_claim(search, &asked, {ray.owner, ray.slot}) {
+			continue
+		}
+		if !shapes_made {
+			shapes = shapes_make(search, colliders, allocator)
+			shapes_made = true
+		}
+		hit, ok := ray_nearest(ray, shapes[:])
+		if ok {
+			append(&hits, hit)
+		}
+	}
+	return hits[:]
+}
+
+// false for a second Query with the same owner and slot. It logs each once.
+@(private = "file")
+query_slot_claim :: proc(search: ^Query_Search, asked: ^map[Owner_Slot]struct {}, key: Owner_Slot) -> bool {
+	if key in asked {
+		if key not_in search.logged_slots {
+			search.logged_slots[key] = {}
+			fmt.eprintfln("two queries share owner %v and slot %v; the first one is answered", key.owner, key.slot)
+		}
+		return false
+	}
+	asked[key] = {}
+	return true
+}
+
+@(private = "file")
+ray_nearest :: proc(ray: Query_Raycast, shapes: []Shape) -> (hit: Ray_Hit, ok: bool) {
+	dir := [3]f32{ray.dir.x, ray.dir.y, ray.dir.z}
+	length := v3_length(dir)
+	if length == 0 {
+		return {}, false
+	}
+	dir /= length
+	origin := [3]f32{ray.origin.x, ray.origin.y, ray.origin.z}
+	exclude := ray.exclude.elements[:ray.exclude.length]
+
+	nearest := ray.max_distance
+	normal: [3]f32
+	for &shape in shapes {
+		if shape.id == ray.owner || slice.contains(exclude, shape.id) {
+			continue
+		}
+		distance, n := ray_shape(origin, dir, shape) or_continue
+		// Equal distances go to the lower id, so the Collider order does not matter.
+		if distance < nearest || (distance == nearest && (!ok || shape.id < hit.id)) {
+			nearest = distance
+			normal = n
+			hit.id = shape.id
+			ok = true
+		}
+	}
+	if !ok {
+		return {}, false
+	}
+	hit.owner = ray.owner
+	hit.slot = ray.slot
+	hit.point = to_vec3(origin + dir * nearest)
+	hit.normal = to_vec3(normal)
+	hit.distance = nearest
+	return hit, true
+}
+
+// dir is a unit vector. shape_make never makes a capsule.
+@(private = "file")
+ray_shape :: proc(origin, dir: [3]f32, shape: Shape) -> (distance: f32, normal: [3]f32, ok: bool) {
+	switch shape.tag {
+	case .Box:
+		return ray_box(origin, dir, shape)
+	case .Sphere:
+		return ray_sphere(origin, dir, shape)
+	case .Capsule:
+	}
+	return 0, {}, false
+}
+
+// A slab test in the box's frame.
+@(private = "file")
+ray_box :: proc(origin, dir: [3]f32, box: Shape) -> (distance: f32, normal: [3]f32, ok: bool) {
+	d := origin - box.centre
+	local_origin := [3]f32{v3_dot(d, box.axes[0]), d.y, v3_dot(d, box.axes[1])}
+	local_dir := [3]f32{v3_dot(dir, box.axes[0]), dir.y, v3_dot(dir, box.axes[1])}
+
+	enter, exit := min(f32), max(f32)
+	local_normal: [3]f32
+	for i in 0 ..< 3 {
+		if local_dir[i] == 0 {
+			if abs(local_origin[i]) > box.extent[i] {
+				return 0, {}, false
+			}
+			continue
+		}
+		near := (-math.sign(local_dir[i]) * box.extent[i] - local_origin[i]) / local_dir[i]
+		far := (math.sign(local_dir[i]) * box.extent[i] - local_origin[i]) / local_dir[i]
+		if near > enter {
+			enter = near
+			local_normal = {}
+			local_normal[i] = -math.sign(local_dir[i])
+		}
+		exit = min(exit, far)
+	}
+	if exit < max(enter, 0) {
+		return 0, {}, false
+	}
+	if enter <= 0 {
+		return 0, -dir, true
+	}
+	return enter, local_normal.x * box.axes[0] + local_normal.y * UP + local_normal.z * box.axes[1], true
+}
+
+@(private = "file")
+ray_sphere :: proc(origin, dir: [3]f32, sphere: Shape) -> (distance: f32, normal: [3]f32, ok: bool) {
+	d := origin - sphere.centre
+	radius := sphere.extent.x
+	inside := v3_dot(d, d) - radius * radius
+	if inside <= 0 {
+		return 0, -dir, true
+	}
+	along := v3_dot(d, dir)
+	disc := along * along - inside
+	if along >= 0 || disc < 0 {
+		return 0, {}, false
+	}
+	distance = -along - math.sqrt(disc)
+	return distance, (d + dir * distance) / radius, true
+}
+
+// Each Collider the host can test, with each id once. It logs a capsule and
+// a shared id once each.
+@(private = "file")
+shapes_make :: proc(search: ^Query_Search, colliders: []Collider, allocator: mem.Allocator) -> [dynamic]Shape {
+	shapes := make([dynamic]Shape, 0, len(colliders), allocator)
+	seen := make(map[u64]struct {}, allocator)
+	reserve(&seen, len(colliders))
+	for col in colliders {
+		// A skipped Collider does not claim its id.
+		shape, ok := shape_make(col)
+		if !ok {
+			if !search.logged_capsule {
+				search.logged_capsule = true
+				fmt.eprintfln("collider %v is a capsule; queries skip capsules", col.id)
+			}
+			continue
+		}
+		if col.id in seen {
+			if col.id not_in search.logged_ids {
+				search.logged_ids[col.id] = {}
+				fmt.eprintfln("two colliders share id %v; the first one collides", col.id)
+			}
+			continue
+		}
+		seen[col.id] = {}
+		append(&shapes, shape)
+	}
+	return shapes
 }
 
 // ok is false for a capsule: the host does not test capsules yet.

@@ -560,13 +560,51 @@ Roc_View_Lights_Point :: struct {
 
 Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
 Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Contacts_Normal
-Roc_View_Queries :: struct {
-	contacts_of: u64,
+Roc_View_Queries_Tag :: enum u8 {
+	ContactsOf = 0,
+	Raycast = 1,
 }
 
-#assert(size_of(Roc_View_Queries) == 8)
-#assert(align_of(Roc_View_Queries) == 8)
+Roc_View_Queries_Payload :: struct #raw_union {
+	contacts_of: u64,
+	raycast: Roc_View_Queries_Raycast,
+}
 
+Roc_View_Queries :: struct {
+	payload: Roc_View_Queries_Payload,
+	tag: Roc_View_Queries_Tag,
+}
+
+#assert(size_of(Roc_View_Queries) == 72)
+#assert(align_of(Roc_View_Queries) == 8)
+#assert(offset_of(Roc_View_Queries, tag) == 64)
+
+Roc_View_Queries_Raycast :: struct {
+	owner: u64,
+	exclude: Roc_List(u64),
+	dir: Roc_Step_Arg2_Contacts_Normal,
+	max_distance: f32,
+	origin: Roc_Step_Arg2_Contacts_Normal,
+	slot: u32,
+}
+
+#assert(size_of(Roc_View_Queries_Raycast) == 64)
+#assert(align_of(Roc_View_Queries_Raycast) == 8)
+#assert(offset_of(Roc_View_Queries_Raycast, owner) == 0)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.owner)) == 8)
+#assert(offset_of(Roc_View_Queries_Raycast, exclude) == 8)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.exclude)) == 24)
+#assert(offset_of(Roc_View_Queries_Raycast, dir) == 32)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.dir)) == 12)
+#assert(offset_of(Roc_View_Queries_Raycast, max_distance) == 44)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.max_distance)) == 4)
+#assert(offset_of(Roc_View_Queries_Raycast, origin) == 48)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.origin)) == 12)
+#assert(offset_of(Roc_View_Queries_Raycast, slot) == 60)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.slot)) == 4)
+
+Roc_View_Queries_Raycast_Dir :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries_Raycast_Origin :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Ui_Tag :: enum u8 {
 	Close = 0,
 	Open = 1,
@@ -887,6 +925,17 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_ui(value.ui)
 }
 
+roc_view_queries_decref :: proc(value: Roc_View_Queries) {
+	#partial switch value.tag {
+	case .Raycast:
+		roc_view_queries_raycast_decref(value.payload.raycast)
+	}
+}
+
+roc_view_queries_raycast_decref :: proc(value: Roc_View_Queries_Raycast) {
+	roc_list_decref_u64(value.exclude)
+}
+
 roc_view_ui_decref :: proc(value: Roc_View_Ui) {
 	#partial switch value.tag {
 	case .Text:
@@ -979,10 +1028,18 @@ roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_Lis
 }
 
 roc_list_decref_roc_view_queries :: proc(list: Roc_List(Roc_View_Queries)) {
-	roc_list_decref_flat(list)
+	roc_list_decref_elements(list, roc_view_queries_decref)
 }
 
 roc_list_from_slice_roc_view_queries :: proc(elems: []Roc_View_Queries) -> Roc_List(Roc_View_Queries) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_u64 :: proc(list: Roc_List(u64)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_u64 :: proc(elems: []u64) -> Roc_List(u64) {
 	return roc_list_from_slice_with(elems, false)
 }
 
@@ -1004,6 +1061,8 @@ roc_decref :: proc {
 	roc_step_arg2_decref,
 	roc_loaded_arg2_decref,
 	roc_view_decref,
+	roc_view_queries_decref,
+	roc_view_queries_raycast_decref,
 	roc_view_ui_decref,
 	roc_view_ui_text_decref,
 }
@@ -1020,6 +1079,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
 	roc_list_decref_roc_view_queries,
+	roc_list_decref_u64,
 	roc_list_decref_roc_view_ui,
 }
 
@@ -1035,6 +1095,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
 	roc_list_from_slice_roc_view_queries,
+	roc_list_from_slice_u64,
 	roc_list_from_slice_roc_view_ui,
 }
 

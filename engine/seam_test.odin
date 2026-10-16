@@ -9,6 +9,7 @@ import "core:testing"
 
 FAKE_KEYS_MAX :: 8
 FAKE_CONTACTS_MAX :: 4
+FAKE_RAYS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
@@ -42,6 +43,8 @@ Fake_Game :: struct {
 	pressed_len:     int,
 	contacts:        [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:    int,
+	rays:            [FAKE_RAYS_MAX]Ray_Hit,
+	rays_len:        int,
 	views:           int,
 	view_box:        rawptr,
 	view_rc:         int,
@@ -127,6 +130,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
+	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
 	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()
@@ -413,7 +417,7 @@ test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) 
 
 	touching := []Collider{test_sphere(7, {0, 0, 0}, 1), test_sphere(3, {1, 0, 0}, 1)}
 	s: Seam
-	fake_seam_init(&s, colliders = touching, queries = []Query{{contacts_of = 7}})
+	fake_seam_init(&s, colliders = touching, queries = []Query{test_contacts_of(7)})
 	defer fake_seam_shutdown(&s)
 
 	// The Scene from init touches, but the first step still gets no contacts.
@@ -429,6 +433,25 @@ test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) 
 	testing.expect_value(t, g_fake.contacts_len, 1)
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.contacts_len, 0)
+}
+
+@(test)
+test_seam_step_hands_step_the_ray_hits_of_the_last_scene :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, 0, {1, 1, 1})}
+	fake_seam_init(&s, colliders = colliders, queries = []Query{test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10)})
+	defer fake_seam_shutdown(&s)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.rays_len, 0)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.rays_len, 1)
+	testing.expect_value(t, g_fake.rays[0].id, 2)
+	testing.expect_value(t, g_fake.rays[0].distance, 1.5)
 }
 
 @(test)

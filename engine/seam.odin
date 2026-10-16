@@ -25,7 +25,7 @@ Seam :: struct {
 	has_prev: bool,
 	// The next step takes these. They answer curr's queries.
 	results: Query_Results,
-	search:  Contact_Search,
+	search:  Query_Search,
 }
 
 // Owns the one reference to the Model, the last two Scenes and the QueryResults.
@@ -35,7 +35,7 @@ seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, conf
 	s.calls = calls
 	s.run_command = run_command
 	s.packs = packs
-	contact_search_init(&s.search, context.allocator)
+	query_search_init(&s.search, context.allocator)
 	started := s.calls.init(config)
 	s.model = started.model
 	seam_run_commands(s, started.commands)
@@ -77,7 +77,10 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 seam_query_results :: proc(s: ^Seam) -> Query_Results {
 	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
 	queries := s.curr.queries.elements[:s.curr.queries.length]
-	return {contacts = roc_list_from_slice(contacts_asked(&s.search, colliders, queries, context.temp_allocator))}
+	return {
+		contacts = roc_list_from_slice(contacts_asked(&s.search, colliders, queries, context.temp_allocator)),
+		rays = roc_list_from_slice(rays_find(&s.search, colliders, queries, context.temp_allocator)),
+	}
 }
 
 // The host owns the commands list and frees it after running it, so every
@@ -131,5 +134,5 @@ seam_shutdown :: proc(s: ^Seam) {
 	roc_decref(s.curr)
 	roc_decref(s.results)
 	s.calls.drop_model(s.model)
-	contact_search_destroy(&s.search)
+	query_search_destroy(&s.search)
 }

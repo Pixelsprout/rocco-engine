@@ -26,7 +26,7 @@ Vocabulary := [].{
 	RayHit : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 	OverlapHit : { owner : U64, slot : U32, id : U64 }
 	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
-	Query : [ContactsOf(U64)]
+	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) })]
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 	Align : [Start, Center, End]

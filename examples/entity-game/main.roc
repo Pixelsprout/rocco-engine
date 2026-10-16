@@ -29,7 +29,8 @@ MeshIds : { cube : U32, sphere : U32, plane : U32, sprout : U32, sky : U32 }
 # Won holds the seconds since the win.
 Phase : [Playing, Won(F32)]
 
-Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64) }
+# The player's shadow sits on ground_below, the height its ground ray last hit.
+Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64), ground_below : F32 }
 
 # ---- init : Config -> { model, commands } -------------------------------
 #
@@ -74,7 +75,7 @@ new_game = |meshes, pickups, first_id| {
 		$i = $i + 1
 	}
 
-	{ steps: 0, score: 0, next_id: first_id + 4 + pickups, phase: Playing, meshes, entities: $entities.append(block_entity).append(goal), orphans_logged: [] }
+	{ steps: 0, score: 0, next_id: first_id + 4 + pickups, phase: Playing, meshes, entities: $entities.append(block_entity).append(goal), orphans_logged: [], ground_below: 0.0 }
 }
 
 block_pos : Vec3
@@ -135,7 +136,20 @@ update = |model, input, contacts, dt| {
 }
 
 step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
-step = |model, input, results, dt| { model: update(model, input, results.contacts, dt), commands: quit_on_escape(input) }
+step = |model, input, results, dt| { model: update(model, input, results.contacts, dt) |> see_ground(results), commands: quit_on_escape(input) }
+
+# The floor has no collider, so a miss means the floor.
+see_ground : Model, Vocabulary.QueryResults -> Model
+see_ground = |m, results| match player(m) {
+	Ok(p) => {
+		ground_below = match QueryResults.ray(results, p.id) {
+			Ok(hit) => hit.point.y
+			Err(Miss) => 0.0
+		}
+		{ ..m, ground_below }
+	}
+	Err(NotFound) => m
+}
 
 # Seconds from the win to the next round.
 celebration : F32
@@ -552,10 +566,11 @@ view = |curr| {
 	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation each for the draws, the colliders and the lights. A parent
-	# precedes its child, so the parent's Draw is already in acc.
+	# precedes its child, so the parent's Draw is already in acc. The shadow
+	# takes the last draw.
 	# The engine keeps the first 8 directional and point lights, so the Sun goes before the Points.
 	first = {
-		draws: List.with_capacity(List.len(curr.entities) + 1).append(floor),
+		draws: List.with_capacity(List.len(curr.entities) + 2).append(floor),
 		colliders: List.with_capacity(List.len(curr.entities)),
 		lights: List.with_capacity(List.len(curr.entities) + 2).append(ambient).append(sun),
 	}
@@ -589,8 +604,13 @@ view = |curr| {
 
 	# Every Contact the game reads involves the player.
 	queries = match player(curr) {
-		Ok(p) => [Query.contacts_of(p.id)]
+		Ok(p) => [Query.contacts_of(p.id), ground_ray(p)]
 		Err(NotFound) => []
+	}
+
+	draws = match player(curr) {
+		Ok(p) => built.draws.append(shadow(curr, p))
+		Err(NotFound) => built.draws
 	}
 
 	camera = match curr.phase {
@@ -598,7 +618,27 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [], queries }
+	{ camera, draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [], queries }
+}
+
+# Starts at the middle of the player's box, which the host skips.
+ground_ray : Entity -> Vocabulary.Query
+ground_ray = |p| Query.ray(p.id, { ..p.pos, y: p.pos.y + player_half.y }, { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length)
+
+ground_ray_length : F32
+ground_ray_length = 20.0
+
+shadow_id : U64
+shadow_id = floor_id - 1
+
+# Lifts the shadow off the ground so it does not z-fight the surface under it.
+shadow_lift : F32
+shadow_lift = 0.01
+
+shadow : Model, Entity -> Draw
+shadow = |m, p| {
+	pos = { x: p.pos.x, y: m.ground_below + shadow_lift, z: p.pos.z }
+	{ id: shadow_id, mesh: m.meshes.sphere, pos, scale: { x: 0.6, y: 0.01, z: 0.6 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.01, g: 0.01, b: 0.01 } }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -774,7 +814,34 @@ expect {
 	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.cube
 }
 
-expect view(new_game(test_meshes, 1, 0)).queries == [Query.contacts_of(0)]
+expect view(new_game(test_meshes, 1, 0)).queries == [Query.contacts_of(0), Query.ray(0, { x: 0.0, y: 0.5, z: 0.0 }, { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length)]
+
+shadow_y : Scene -> F32
+shadow_y = |scene| List.find_first(scene.draws, |d| d.id == shadow_id).map_ok(|d| d.pos.y) ?? -100.0
+
+ground_hit : U64, F32 -> Vocabulary.RayHit
+ground_hit = |owner, y| { owner, slot: 0, id: 3, point: { x: 0.0, y, z: 0.0 }, normal: { x: 0.0, y: 1.0, z: 0.0 }, distance: player_half.y - y }
+
+expect {
+	# The first step gets empty QueryResults, so the shadow is on the floor.
+	m = step(new_game(test_meshes, 1, 0), idle, QueryResults.empty, 1.0 / 120.0).model
+	m.ground_below == 0.0 and near(shadow_y(view(m)), shadow_lift)
+}
+
+expect {
+	# A hit on the block puts the shadow on its top.
+	hit = { ..QueryResults.empty, rays: [ground_hit(0, 1.0)] }
+	m = step(new_game(test_meshes, 1, 0), idle, hit, 1.0 / 120.0).model
+	m.ground_below == 1.0 and near(shadow_y(view(m)), 1.0 + shadow_lift)
+}
+
+expect {
+	# A miss after a hit puts the shadow back on the floor.
+	hit = { ..QueryResults.empty, rays: [ground_hit(0, 1.0)] }
+	over_block = step(new_game(test_meshes, 1, 0), idle, hit, 1.0 / 120.0).model
+	missed = step(over_block, idle, { ..QueryResults.empty, rays: [ground_hit(5, 1.0)] }, 1.0 / 120.0).model
+	missed.ground_below == 0.0 and near(shadow_y(view(missed)), shadow_lift)
+}
 
 expect {
 	# The sprout carries its own colours, so its tint is white.
@@ -980,7 +1047,7 @@ expect {
 	m = new_game(test_meshes, 1, 0)
 	scene = view(update(m, right, [], 1.0))
 	player_draw = List.find_first(scene.draws, |d| d.id == 0)
-	ids_unique = List.len(scene.draws) == 6 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
+	ids_unique = List.len(scene.draws) == 7 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
 	match player_draw {
 		Ok(d) => d.pos.x == 6.0 and ids_unique
 		Err(_) => Bool.False
