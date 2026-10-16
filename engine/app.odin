@@ -100,6 +100,12 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
+	// The win32 loop runs one more frame after request_quit, before it reads
+	// WM_CLOSE. Skip it, so Frame Count matches the limit on every OS.
+	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
+		return
+	}
+
 	clock_add_frame(&g_state.clock, sapp.frame_duration())
 	for dt in clock_next_step(&g_state.clock) {
 		before := roc_heap_counters()
@@ -134,7 +140,7 @@ frame_cb :: proc "c" () {
 	sg.commit()
 	g_state.frame_count += 1
 
-	if g_state.exit_after_frames > 0 && g_state.frame_count >= g_state.exit_after_frames {
+	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
 		sapp.request_quit()
 	}
 

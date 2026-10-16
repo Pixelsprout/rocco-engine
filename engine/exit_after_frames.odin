@@ -28,3 +28,8 @@ exit_after_frames_parse :: proc(value: string) -> (limit: int, ok: bool) {
 	}
 	return n, true
 }
+
+// A limit of 0 is never reached.
+exit_after_frames_reached :: proc(limit, count: int) -> bool {
+	return limit > 0 && count >= limit
+}

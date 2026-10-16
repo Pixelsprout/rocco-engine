@@ -24,3 +24,11 @@ test_exit_after_frames_rejects_bad_values :: proc(t: ^testing.T) {
 		testing.expectf(t, !ok, "expected %q to be rejected", value)
 	}
 }
+
+@(test)
+test_exit_after_frames_reached_at_the_limit :: proc(t: ^testing.T) {
+	testing.expect(t, !exit_after_frames_reached(0, 5))
+	testing.expect(t, !exit_after_frames_reached(2, 1))
+	testing.expect(t, exit_after_frames_reached(2, 2))
+	testing.expect(t, exit_after_frames_reached(2, 3))
+}
