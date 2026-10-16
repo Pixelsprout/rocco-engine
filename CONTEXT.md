@@ -57,9 +57,9 @@ Commands. Called once, at startup. Its Commands can load the first Pack.
 _Avoid_: setup, start, new
 
 **step**:
-The game's function from Model, Input, the Contacts and dt to a record of
+The game's function from Model, Input, QueryResults and dt to a record of
 the next Model and a list of Commands. Called once per fixed step. Pure: the
-same Model, Input and Contacts give the same Model and Commands.
+same Model, Input and QueryResults give the same Model and Commands.
 _Avoid_: tick, simulate, advance, update (the game's Stage pipeline)
 
 **loaded**:
@@ -82,13 +82,13 @@ _Avoid_: system, pass, phase
 ## The vocabulary
 
 **Vocabulary**:
-The types that cross the seam: Config, Input, Contact, Scene and Command.
+The types that cross the seam: Config, Input, QueryResults, Scene and Command.
 They are the engine's public API. Nothing in them names a game. Games import
 them, and the records inside them, from `pf.Vocabulary`.
 _Avoid_: protocol, schema, contract, ABI
 
 **Vocabulary change**:
-Any edit to Config, Input, Contact, Scene or Command. It rebuilds the host
+Any edit to Config, Input, QueryResults, Scene or Command. It rebuilds the host
 and every game.
 Adding an asset, an entity kind or a game rule is never one.
 _Avoid_: breaking change, API change
@@ -129,7 +129,7 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of Draws, a list of
-Colliders, a list of Lights, a Cursor and the UI. It describes what should be on
+Colliders, a list of Lights, a Cursor, the UI and a list of Queries. It describes what should be on
 screen now and what can touch. Derived from the Model, rebuilt every step,
 stored by the host and never by the game.
 _Avoid_: world, level, frame, render state, render list, scene graph
@@ -328,21 +328,60 @@ does nothing. A swap sends it from a step after `loaded`.
 _Avoid_: close, free, release
 
 **Contact**:
-A fact the host computes from the previous Scene: two Colliders overlapped,
-with the normal and depth that separate them. The game decides what a contact
+A fact the host computes from the previous Scene for a ContactsOf Query: two
+Colliders overlapped, with the normal and depth that separate them. The game decides what a contact
 means; the engine never does.
 _Avoid_: collision (the game's response), hit, overlap event, trigger
 
 **Contacts**:
-The list of Contacts the host hands `step`, one per overlapping pair, in id
-order. Not part of Input, which is what the person did.
+The `contacts` list in QueryResults: each overlapping pair that involves an
+owner of a ContactsOf Query, once, in id order. With no ContactsOf Query,
+the host finds no Contacts. Not part of Input, which is what the person did.
 _Avoid_: collision list, events, physics state
 
 **Collider**:
-A shape with a draw id that a game returns in its Scene so the host can find
-its Contacts. The shape is a tag union of box, sphere and capsule. The host
-does not test capsules yet. An entity with no Collider touches nothing.
+A shape with a draw id that a game returns in its Scene so that Queries can
+test it. The shape is a tag union of box, sphere and capsule. The host does
+not test capsules yet. The host finds Contacts only for a ContactsOf Query.
+An entity with no Collider touches nothing.
 _Avoid_: hitbox, body, rigidbody, bounds
+
+## Queries
+
+`docs/adr/0005-queries-ask-the-engine.md` records the decision.
+
+**Query**:
+A value in `Scene.queries` that asks the engine about the Colliders:
+`ContactsOf`, `Raycast` or `Overlap`. The host answers it against this Scene
+and gives the result to the next `step`. A Query asks; a Command tells. It
+is not Bevy's ECS query.
+_Avoid_: request, question, Answer, Event
+
+**Owner**:
+The draw id that a Query belongs to. The host skips the owner's own
+Collider. An owner and a slot link a result to its Query.
+_Avoid_: source, caller, query id
+
+**Slot**:
+A number that tells apart the Raycast or Overlap Queries of one owner. Two
+Queries with the same owner and slot: the host keeps the first.
+_Avoid_: index, channel, query id
+
+**QueryResults**:
+What the host gives `step` each fixed step: the record `{ contacts, rays,
+overlaps }`, with one flat list for each kind of Query. A miss has no row.
+The first step gets empty QueryResults.
+_Avoid_: Answer, Answers, Result, Response, Event
+
+**RayHit**:
+One row in `QueryResults.rays`: the nearest Collider that a Raycast hit, with
+the owner and slot of its Query.
+_Avoid_: Answer, Result, Response, Event, hit
+
+**OverlapHit**:
+One row in `QueryResults.overlaps`: one Collider that an Overlap touched,
+with the owner and slot of its Query.
+_Avoid_: Answer, Result, Response, Event, overlap event
 
 ## Memory lifetimes
 
