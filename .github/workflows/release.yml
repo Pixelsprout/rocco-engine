@@ -1,0 +1,292 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
+      - name: Read the toolchain pins
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+
+      - name: Install Odin and Roc
+        run: |
+          mkdir -p "$RUNNER_TEMP/odin" "$RUNNER_TEMP/roc"
+          curl -fsSL "https://github.com/odin-lang/Odin/releases/download/${ODIN_RELEASE}/odin-macos-arm64-${ODIN_RELEASE}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/odin" --strip-components=1
+          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-macos_apple_silicon-${ROC_NIGHTLY}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/odin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+
+      - name: Build the sokol Metal archives
+        run: sh scripts/macos/build-sokol.sh
+
+      - name: Build the host and inputs
+        run: |
+          roc scripts/build.roc host --release
+          roc scripts/build.roc inputs --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-arm64mac
+          path: platform/targets/arm64mac/
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the Linux image
+        uses: docker/build-push-action@v6
+        with:
+          context: scripts/linux
+          platforms: linux/amd64
+          tags: rocco-linux
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the host and inputs in the Linux image
+        run: |
+          docker run --rm -v "$PWD":/work rocco-linux sh -c \
+            'sh scripts/linux/build-sokol.sh && roc scripts/build.roc host --release && roc scripts/build.roc inputs --release'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-x64glibc
+          path: platform/targets/x64glibc/
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
+      - name: Read the toolchain pins
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+
+      # The Odin zip holds dist/. The Roc zip holds one folder named after the nightly.
+      - name: Install Odin and Roc
+        shell: pwsh
+        run: |
+          $odin = "$env:RUNNER_TEMP\odin"
+          $roc = "$env:RUNNER_TEMP\roc"
+          Invoke-WebRequest "https://github.com/odin-lang/Odin/releases/download/$env:ODIN_RELEASE/odin-windows-amd64-$env:ODIN_RELEASE.zip" -OutFile "$env:RUNNER_TEMP\odin.zip"
+          Invoke-WebRequest "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/roc_nightly-windows_x86_64-$env:ROC_NIGHTLY.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
+          Expand-Archive "$env:RUNNER_TEMP\odin.zip" -DestinationPath $odin
+          Expand-Archive "$env:RUNNER_TEMP\roc.zip" -DestinationPath $roc
+          "$odin\dist" >> $env:GITHUB_PATH
+          "$roc\roc_nightly-windows_x86_64-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+
+      - name: Build the sokol D3D11 libraries
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set vs=%%i
+          call "%vs%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          scripts\windows\build_sokol.cmd
+
+      - name: Build the host and inputs
+        run: |
+          roc scripts/build.roc host --release
+          roc scripts/build.roc inputs --release
+
+      # The bundle holds only the files platform/main.roc names, not debug info.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-x64win
+          path: |
+            platform/targets/x64win/
+            !platform/targets/x64win/*.pdb
+          if-no-files-found: error
+
+  bundle:
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      roc_nightly: ${{ steps.pins.outputs.roc_nightly }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read the Roc pin
+        id: pins
+        run: |
+          nightly=$(sed -n 's/^ARG ROC_NIGHTLY=//p' scripts/linux/Dockerfile)
+          echo "ROC_NIGHTLY=$nightly" >> "$GITHUB_ENV"
+          echo "roc_nightly=$nightly" >> "$GITHUB_OUTPUT"
+
+      - name: Install Roc
+        run: |
+          mkdir -p "$RUNNER_TEMP/roc"
+          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-linux_x86_64-${ROC_NIGHTLY}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+
+      # The checkout holds the committed macOS sysroot, Linux stubs and Windows
+      # import libraries. Each artifact adds what its OS built.
+      - uses: actions/download-artifact@v5
+        with:
+          name: target-arm64mac
+          path: platform/targets/arm64mac
+      - uses: actions/download-artifact@v5
+        with:
+          name: target-x64glibc
+          path: platform/targets/x64glibc
+      - uses: actions/download-artifact@v5
+        with:
+          name: target-x64win
+          path: platform/targets/x64win
+
+      # roc bundle packs only the files it is given, so the platform bundle
+      # names every file under targets/. Each bundle is named by its content hash.
+      - name: Bundle the platform and the packages
+        run: |
+          out="$RUNNER_TEMP/bundles"
+          mkdir -p "$out/platform" "$out/linalg" "$out/mesh" "$out/ui"
+          cd platform
+          mapfile -t targets < <(find targets -type f | sort)
+          roc bundle ./*.roc "${targets[@]}" --output-dir "$out/platform"
+          cd ..
+          for name in linalg mesh ui; do
+            (cd "packages/$name" && roc bundle ./*.roc --output-dir "$out/$name")
+          done
+          base="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          for name in platform linalg mesh ui; do
+            file=$(ls "$out/$name"/*.tar.zst)
+            echo "$file" >> "$RUNNER_TEMP/assets"
+            echo "--url=$name=$base/$(basename "$file")" >> "$RUNNER_TEMP/urls"
+          done
+          cat "$RUNNER_TEMP/urls"
+
+      # Cards has no checkout on the test runners, so its header points at the
+      # bundle URLs. The camera package is not bundled and goes beside the app.
+      - name: Prepare cards for the test runners
+        run: |
+          mapfile -t urls < "$RUNNER_TEMP/urls"
+          python3 scripts/release.py app examples/cards "$RUNNER_TEMP/cards" "${urls[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cards-app
+          path: ${{ runner.temp }}/cards/
+          if-no-files-found: error
+
+      - name: Publish the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t urls < "$RUNNER_TEMP/urls"
+          mapfile -t assets < "$RUNNER_TEMP/assets"
+          python3 scripts/release.py notes "${{ github.ref_name }}" "nightly-${ROC_NIGHTLY}" "${urls[@]}" > "$RUNNER_TEMP/notes.md"
+          gh release create "${{ github.ref_name }}" --verify-tag --prerelease \
+            --title "${{ github.ref_name }}" --notes-file "$RUNNER_TEMP/notes.md" "${assets[@]}"
+
+  # Fresh runners with only Roc installed and no checkout, so every platform
+  # file comes from the release URLs.
+  test-bundle:
+    needs: bundle
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            roc: roc_nightly-macos_apple_silicon
+          - os: ubuntu-24.04
+            roc: roc_nightly-linux_x86_64
+          - os: windows-2022
+            roc: roc_nightly-windows_x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      ROC_NIGHTLY: ${{ needs.bundle.outputs.roc_nightly }}
+    steps:
+      - name: Install Roc
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p "$RUNNER_TEMP/roc"
+          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/${{ matrix.roc }}-${ROC_NIGHTLY}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+
+      - name: Install Roc
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $roc = "$env:RUNNER_TEMP\roc"
+          Invoke-WebRequest "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/${{ matrix.roc }}-$env:ROC_NIGHTLY.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
+          Expand-Archive "$env:RUNNER_TEMP\roc.zip" -DestinationPath $roc
+          "$roc\${{ matrix.roc }}-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+
+      # The game needs an X server and a GL driver to run, not to link.
+      - name: Install the X server and Mesa
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb libgl1 libgl1-mesa-dri libx11-6 libxi6 libxcursor1
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: cards-app
+          path: cards
+
+      # On Windows the link must not find a Visual Studio library through LIB.
+      - name: Run cards from the bundle URLs
+        working-directory: cards
+        run: |
+          unset LIB
+          run=""
+          if [ "$RUNNER_OS" = Linux ]; then run="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"; fi
+          set +e
+          ROCCO_EXIT_AFTER_FRAMES=30 $run roc main.roc > out.txt 2> err.txt
+          code=$?
+          set -e
+          tail -40 err.txt
+          cat out.txt
+          if [ "$code" -ne 0 ] || [ "$(grep -c '^Frame Count: ' out.txt)" -ne 1 ] || ! grep -qx 'Frame Count: 30' out.txt; then
+            echo "FAIL: cards exit=$code, expected one 'Frame Count: 30' line" >&2
+            exit 1
+          fi
+
+  # A failed test leaves the release as a prerelease.
+  promote:
+    needs: test-bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Mark the release final and latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --prerelease=false --latest

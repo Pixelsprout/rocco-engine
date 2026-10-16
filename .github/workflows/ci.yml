@@ -40,19 +40,8 @@ jobs:
           odin version
           roc version
 
-      # Same flags as build_lib_arm64_debug and build_lib_arm64_release in
-      # sokol-odin/sokol/build_clibs_macos.sh, for only the four modules the
-      # engine links. The engine tests link the debug archives.
       - name: Build the sokol Metal archives
-        working-directory: sokol-odin/sokol
-        run: |
-          for m in log gfx app glue; do
-            o="$RUNNER_TEMP/sokol_$m.o"
-            MACOSX_DEPLOYMENT_TARGET=10.13 clang -c -g -x objective-c -arch arm64 -DIMPL -DSOKOL_METAL "c/sokol_$m.c" -o "$o"
-            ar rcs "$m/sokol_${m}_macos_arm64_metal_debug.a" "$o"
-            MACOSX_DEPLOYMENT_TARGET=10.13 clang -c -O2 -x objective-c -arch arm64 -DNDEBUG -DIMPL -DSOKOL_METAL "c/sokol_$m.c" -o "$o"
-            ar rcs "$m/sokol_${m}_macos_arm64_metal_release.a" "$o"
-          done
+        run: sh scripts/macos/build-sokol.sh
 
       - name: Build
         run: roc scripts/build.roc all --release
@@ -178,7 +167,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py
 
       - name: Regenerate the Linux stubs
         run: |

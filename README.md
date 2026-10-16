@@ -111,6 +111,17 @@ the sokol step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
 and fails on a diff.
 
+`.github/workflows/release.yml` runs on each `v*` tag. Each OS builds its
+host and inputs with `--release` and uploads `platform/targets/<target>/`. A
+Linux job runs `roc bundle` for the platform and for `packages/linalg`,
+`packages/mesh` and `packages/ui`. It publishes the four bundles in a
+prerelease. The notes name each bundle URL and the Roc nightly. Next, a job on
+each OS installs only Roc and runs cards from the bundle URLs. If all three
+pass, the last job marks the release final and latest. If one fails, the
+release stays a prerelease. `scripts/release.py` points the header of
+`examples/cards/main.roc` at the bundle URLs and writes the notes. `python3 -m
+unittest scripts/test_release.py` runs its tests.
+
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py
 --audit`. If it lists a symbol, add the symbol to the catalog as
