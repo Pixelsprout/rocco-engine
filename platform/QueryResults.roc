@@ -15,6 +15,18 @@ QueryResults := [].{
 		Ok(hit) => Ok(hit)
 		Err(NotFound) => Err(Miss)
 	}
+
+	# The ids the owner's Overlap in slot touched, in id order.
+	overlaps : Vocabulary.QueryResults, U64, U32 -> List(U64)
+	overlaps = |results, owner, slot| List.fold(
+		results.overlaps,
+		[],
+		|ids, row| if row.owner == owner and row.slot == slot {
+			ids.append(row.id)
+		} else {
+			ids
+		},
+	)
 }
 
 hit : U64, U32 -> RayHit
@@ -25,3 +37,8 @@ expect QueryResults.ray(QueryResults.empty, 7) == Err(Miss)
 expect QueryResults.ray({ ..QueryResults.empty, rays: [hit(3, 0), hit(7, 1), hit(7, 0)] }, 7) == Ok(hit(7, 0))
 expect QueryResults.ray_slot({ ..QueryResults.empty, rays: [hit(7, 0), hit(7, 1)] }, 7, 1) == Ok(hit(7, 1))
 expect QueryResults.ray_slot({ ..QueryResults.empty, rays: [hit(7, 0)] }, 7, 1) == Err(Miss)
+expect QueryResults.overlaps(QueryResults.empty, 7, 0) == []
+expect {
+	rows = [{ owner: 7, slot: 0, id: 2 }, { owner: 3, slot: 0, id: 4 }, { owner: 7, slot: 1, id: 5 }, { owner: 7, slot: 0, id: 6 }]
+	QueryResults.overlaps({ ..QueryResults.empty, overlaps: rows }, 7, 0) == [2, 6]
+}

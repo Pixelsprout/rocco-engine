@@ -12,7 +12,9 @@ Query_Search :: struct {
 	logged_capsule: bool,
 }
 
+// A Raycast and an Overlap may share an owner and a slot.
 Owner_Slot :: struct {
+	kind:  Query_Tag,
 	owner: u64,
 	slot:  u32,
 }
@@ -120,7 +122,7 @@ rays_find :: proc(search: ^Query_Search, colliders: []Collider, queries: []Query
 			continue
 		}
 		ray := query.payload.raycast
-		if !query_slot_claim(search, &asked, {ray.owner, ray.slot}) {
+		if !query_slot_claim(search, &asked, {.Raycast, ray.owner, ray.slot}) {
 			continue
 		}
 		if !shapes_made {
@@ -131,6 +133,41 @@ rays_find :: proc(search: ^Query_Search, colliders: []Collider, queries: []Query
 		if ok {
 			append(&hits, hit)
 		}
+	}
+	return hits[:]
+}
+
+// One OverlapHit for each Collider an Overlap touches, in Query order and
+// then id order. Touching faces do not overlap.
+overlaps_find :: proc(search: ^Query_Search, colliders: []Collider, queries: []Query, allocator: mem.Allocator) -> []Overlap_Hit {
+	shapes: [dynamic]Shape
+	shapes_made := false
+	hits := make([dynamic]Overlap_Hit, allocator)
+	asked := make(map[Owner_Slot]struct {}, allocator)
+	for query in queries {
+		if query.tag != .Overlap {
+			continue
+		}
+		overlap := query.payload.overlap
+		if !query_slot_claim(search, &asked, {.Overlap, overlap.owner, overlap.slot}) {
+			continue
+		}
+		if !shapes_made {
+			shapes = shapes_make(search, colliders, allocator)
+			shapes_made = true
+		}
+		probe := overlap_shape_make(overlap)
+		exclude := overlap.exclude.elements[:overlap.exclude.length]
+		first := len(hits)
+		for &shape in shapes {
+			if shape.id == overlap.owner || slice.contains(exclude, shape.id) {
+				continue
+			}
+			if _, _, ok := narrowphase(probe, shape); ok {
+				append(&hits, Overlap_Hit{owner = overlap.owner, slot = overlap.slot, id = shape.id})
+			}
+		}
+		heap_sort(hits[first:], proc(x, y: Overlap_Hit) -> bool {return x.id < y.id})
 	}
 	return hits[:]
 }
@@ -306,6 +343,25 @@ shape_make :: proc(col: Collider) -> (b: Shape, ok: bool) {
 	b.min = b.centre - reach
 	b.max = b.centre + reach
 	return b, true
+}
+
+// An Overlap box does not turn.
+@(private = "file")
+overlap_shape_make :: proc(overlap: Query_Overlap) -> Shape {
+	shape := Shape {
+		centre = {overlap.pos.x, overlap.pos.y, overlap.pos.z},
+		axes   = {{1, 0, 0}, {0, 0, 1}},
+	}
+	switch overlap.shape.tag {
+	case .Box:
+		half := overlap.shape.payload.box
+		shape.tag = .Box
+		shape.extent = {half.x, half.y, half.z}
+	case .Sphere:
+		shape.tag = .Sphere
+		shape.extent.x = overlap.shape.payload.sphere
+	}
+	return shape
 }
 
 // The normal points from a to b. shape_make never makes a capsule.

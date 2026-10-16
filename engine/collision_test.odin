@@ -66,6 +66,41 @@ expect_ray_hit :: proc(t: ^testing.T, got: Ray_Hit, owner: u64, slot: u32, id: u
 	testing.expectf(t, abs(got.distance - distance) < COLLISION_EPS, "distance %v, expected %v", got.distance, distance, loc = loc)
 }
 
+test_overlap_box :: proc(owner: u64, slot: u32, pos, half: [3]f32, exclude: []u64 = nil) -> Query {
+	overlap := Query_Overlap {
+		owner   = owner,
+		slot    = slot,
+		shape   = {payload = {box = {half.x, half.y, half.z}}, tag = .Box},
+		pos     = {pos.x, pos.y, pos.z},
+		exclude = {elements = raw_data(exclude), length = uint(len(exclude))},
+	}
+	return {payload = {overlap = overlap}, tag = .Overlap}
+}
+
+test_overlap_sphere :: proc(owner: u64, slot: u32, pos: [3]f32, radius: f32, exclude: []u64 = nil) -> Query {
+	overlap := Query_Overlap {
+		owner   = owner,
+		slot    = slot,
+		shape   = {payload = {sphere = radius}, tag = .Sphere},
+		pos     = {pos.x, pos.y, pos.z},
+		exclude = {elements = raw_data(exclude), length = uint(len(exclude))},
+	}
+	return {payload = {overlap = overlap}, tag = .Overlap}
+}
+
+overlaps_of :: proc(search: ^Query_Search, colliders: []Collider, queries: ..Query) -> []Overlap_Hit {
+	return overlaps_find(search, colliders, queries, context.temp_allocator)
+}
+
+expect_overlap_hits :: proc(t: ^testing.T, got: []Overlap_Hit, want: []Overlap_Hit, loc := #caller_location) {
+	if !testing.expect_value(t, len(got), len(want), loc = loc) {
+		return
+	}
+	for hit, i in want {
+		testing.expect_value(t, got[i], hit, loc = loc)
+	}
+}
+
 @(test)
 test_contact_search_box_box_overlap_takes_the_least_overlap_axis :: proc(t: ^testing.T) {
 	search: Query_Search
@@ -561,5 +596,142 @@ test_rays_find_skips_a_capsule_and_logs_it :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, len(got), 1)
 	expect_ray_hit(t, got[0], 7, 0, 4, {2, 0, 0}, {-1, 0, 0}, 7)
+	testing.expect(t, search.logged_capsule)
+}
+
+@(test)
+test_overlaps_find_box_touches_boxes_and_spheres :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider {
+		test_box(3, {1.5, 0, 0}, 0, {1, 1, 1}),
+		test_sphere(4, {0, 1.5, 0}, 1),
+		test_box(5, {2.5, 0, 0}, 0, {0.4, 1, 1}),
+		test_sphere(6, {0, 0, 2.5}, 1),
+	}
+	got := overlaps_of(&search, colliders, test_overlap_box(9, 0, {0, 0, 0}, {1, 1, 1}))
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 3}, {owner = 9, slot = 0, id = 4}})
+}
+
+@(test)
+test_overlaps_find_box_does_not_turn :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	// The corner of an unturned 2 by 2 box reaches (1, 1); a turned one would not.
+	colliders := []Collider{test_sphere(3, {1.2, 0, 1.2}, 0.3)}
+	got := overlaps_of(&search, colliders, test_overlap_box(9, 0, {0, 0, 0}, {1, 1, 1}))
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 3}})
+}
+
+@(test)
+test_overlaps_find_sphere_touches_boxes_and_spheres :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider {
+		test_sphere(3, {2.5, 0, 0}, 1),
+		test_box(4, {0, 0, 2.5}, 0, {1, 1, 1}),
+		test_sphere(5, {3.5, 0, 0}, 1),
+		test_box(6, {2, 0, 2}, 0, {0.5, 0.5, 0.5}),
+	}
+	got := overlaps_of(&search, colliders, test_overlap_sphere(9, 0, {0, 0, 0}, 2))
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 3}, {owner = 9, slot = 0, id = 4}})
+}
+
+@(test)
+test_overlaps_find_skips_the_owners_collider :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_box(9, {0, 0, 0}, 0, {0.5, 0.5, 0.5}), test_sphere(3, {1, 0, 0}, 0.5)}
+	got := overlaps_of(&search, colliders, test_overlap_sphere(9, 0, {0, 0, 0}, 2))
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 3}})
+}
+
+@(test)
+test_overlaps_find_skips_each_excluded_id :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_sphere(3, {1, 0, 0}, 0.5), test_sphere(4, {-1, 0, 0}, 0.5), test_sphere(5, {0, 1, 0}, 0.5)}
+	got := overlaps_of(&search, colliders, test_overlap_sphere(9, 0, {0, 0, 0}, 2, {3, 5}))
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 4}})
+}
+
+@(test)
+test_overlaps_find_gives_rows_in_query_order_then_id_order :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_sphere(5, {1, 0, 0}, 0.5), test_sphere(3, {-1, 0, 0}, 0.5), test_sphere(4, {10, 0, 0}, 0.5)}
+	got := overlaps_of(
+		&search,
+		colliders,
+		test_overlap_sphere(9, 1, {0, 0, 0}, 2),
+		test_ray(9, 1, {0, 5, 0}, {0, -1, 0}, 10),
+		test_overlap_sphere(8, 0, {20, 0, 0}, 1),
+		test_overlap_box(8, 1, {10, 0, 0}, {1, 1, 1}),
+	)
+
+	expect_overlap_hits(t, got, {{owner = 9, slot = 1, id = 3}, {owner = 9, slot = 1, id = 5}, {owner = 8, slot = 1, id = 4}})
+}
+
+@(test)
+test_overlaps_find_duplicate_owner_and_slot_keeps_the_first_and_logs_once :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_sphere(3, {1, 0, 0}, 0.5), test_sphere(4, {10, 0, 0}, 0.5)}
+	queries := []Query {
+		test_overlap_sphere(7, 0, {0, 0, 0}, 1),
+		test_overlap_sphere(7, 0, {10, 0, 0}, 1),
+		test_overlap_sphere(7, 1, {10, 0, 0}, 1),
+	}
+
+	for _ in 0 ..< 2 {
+		got := overlaps_find(&search, colliders, queries, context.temp_allocator)
+		expect_overlap_hits(t, got, {{owner = 7, slot = 0, id = 3}, {owner = 7, slot = 1, id = 4}})
+	}
+	testing.expect_value(t, len(search.logged_slots), 1)
+}
+
+@(test)
+test_overlaps_find_and_rays_find_keep_their_slots_apart :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_sphere(3, {0, 0, 0}, 1)}
+	queries := []Query{test_ray(7, 0, {-5, 0, 0}, {1, 0, 0}, 10), test_overlap_sphere(7, 0, {0, 0, 0}, 1)}
+
+	testing.expect_value(t, len(rays_find(&search, colliders, queries, context.temp_allocator)), 1)
+	expect_overlap_hits(t, overlaps_find(&search, colliders, queries, context.temp_allocator), {{owner = 7, slot = 0, id = 3}})
+	testing.expect_value(t, len(search.logged_slots), 0)
+}
+
+@(test)
+test_overlaps_find_skips_a_capsule_and_logs_it :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_capsule(3, {0, 0, 0}), test_sphere(4, {1, 0, 0}, 0.5)}
+	got := overlaps_of(&search, colliders, test_overlap_sphere(7, 0, {0, 0, 0}, 2))
+
+	expect_overlap_hits(t, got, {{owner = 7, slot = 0, id = 4}})
 	testing.expect(t, search.logged_capsule)
 }

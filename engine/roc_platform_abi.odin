@@ -562,11 +562,13 @@ Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
 Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Queries_Tag :: enum u8 {
 	ContactsOf = 0,
-	Raycast = 1,
+	Overlap = 1,
+	Raycast = 2,
 }
 
 Roc_View_Queries_Payload :: struct #raw_union {
 	contacts_of: u64,
+	overlap: Roc_View_Queries_Overlap,
 	raycast: Roc_View_Queries_Raycast,
 }
 
@@ -579,6 +581,48 @@ Roc_View_Queries :: struct {
 #assert(align_of(Roc_View_Queries) == 8)
 #assert(offset_of(Roc_View_Queries, tag) == 64)
 
+Roc_View_Queries_Overlap :: struct {
+	owner: u64,
+	exclude: Roc_List(u64),
+	pos: Roc_Step_Arg2_Contacts_Normal,
+	shape: Roc_View_Queries_Overlap_Shape,
+	slot: u32,
+}
+
+#assert(size_of(Roc_View_Queries_Overlap) == 64)
+#assert(align_of(Roc_View_Queries_Overlap) == 8)
+#assert(offset_of(Roc_View_Queries_Overlap, owner) == 0)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.owner)) == 8)
+#assert(offset_of(Roc_View_Queries_Overlap, exclude) == 8)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.exclude)) == 24)
+#assert(offset_of(Roc_View_Queries_Overlap, pos) == 32)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.pos)) == 12)
+#assert(offset_of(Roc_View_Queries_Overlap, shape) == 44)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.shape)) == 16)
+#assert(offset_of(Roc_View_Queries_Overlap, slot) == 60)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.slot)) == 4)
+
+Roc_View_Queries_Overlap_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries_Overlap_Shape_Tag :: enum u8 {
+	Box = 0,
+	Sphere = 1,
+}
+
+Roc_View_Queries_Overlap_Shape_Payload :: struct #raw_union {
+	box: Roc_Step_Arg2_Contacts_Normal,
+	sphere: f32,
+}
+
+Roc_View_Queries_Overlap_Shape :: struct {
+	payload: Roc_View_Queries_Overlap_Shape_Payload,
+	tag: Roc_View_Queries_Overlap_Shape_Tag,
+}
+
+#assert(size_of(Roc_View_Queries_Overlap_Shape) == 16)
+#assert(align_of(Roc_View_Queries_Overlap_Shape) == 4)
+#assert(offset_of(Roc_View_Queries_Overlap_Shape, tag) == 12)
+
+Roc_View_Queries_Overlap_Shape_Box :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Queries_Raycast :: struct {
 	owner: u64,
 	exclude: Roc_List(u64),
@@ -927,9 +971,15 @@ roc_view_decref :: proc(value: Roc_View) {
 
 roc_view_queries_decref :: proc(value: Roc_View_Queries) {
 	#partial switch value.tag {
+	case .Overlap:
+		roc_view_queries_overlap_decref(value.payload.overlap)
 	case .Raycast:
 		roc_view_queries_raycast_decref(value.payload.raycast)
 	}
+}
+
+roc_view_queries_overlap_decref :: proc(value: Roc_View_Queries_Overlap) {
+	roc_list_decref_u64(value.exclude)
 }
 
 roc_view_queries_raycast_decref :: proc(value: Roc_View_Queries_Raycast) {
@@ -1062,6 +1112,7 @@ roc_decref :: proc {
 	roc_step_arg2_decref,
 	roc_view_decref,
 	roc_view_queries_decref,
+	roc_view_queries_overlap_decref,
 	roc_view_queries_raycast_decref,
 	roc_view_ui_decref,
 	roc_view_ui_text_decref,

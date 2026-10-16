@@ -10,6 +10,7 @@ import "core:testing"
 FAKE_KEYS_MAX :: 8
 FAKE_CONTACTS_MAX :: 4
 FAKE_RAYS_MAX :: 4
+FAKE_OVERLAPS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
@@ -45,6 +46,8 @@ Fake_Game :: struct {
 	contacts_len:    int,
 	rays:            [FAKE_RAYS_MAX]Ray_Hit,
 	rays_len:        int,
+	overlaps:        [FAKE_OVERLAPS_MAX]Overlap_Hit,
+	overlaps_len:    int,
 	views:           int,
 	view_box:        rawptr,
 	view_rc:         int,
@@ -131,6 +134,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
+	g_fake.overlaps_len = copy(g_fake.overlaps[:], results.overlaps.elements[:results.overlaps.length])
 	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()
@@ -452,6 +456,24 @@ test_seam_step_hands_step_the_ray_hits_of_the_last_scene :: proc(t: ^testing.T) 
 	testing.expect_value(t, g_fake.rays_len, 1)
 	testing.expect_value(t, g_fake.rays[0].id, 2)
 	testing.expect_value(t, g_fake.rays[0].distance, 1.5)
+}
+
+@(test)
+test_seam_step_hands_step_the_overlaps_of_the_last_scene :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_sphere(2, {1, 0.5, 0}, 0.4)}
+	fake_seam_init(&s, colliders = colliders, queries = []Query{test_overlap_sphere(7, 0, {0, 0.5, 0}, 1)})
+	defer fake_seam_shutdown(&s)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.overlaps_len, 0)
+
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.overlaps_len, 1)
+	testing.expect_value(t, g_fake.overlaps[0], Overlap_Hit{owner = 7, slot = 0, id = 2})
 }
 
 @(test)

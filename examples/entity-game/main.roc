@@ -136,7 +136,7 @@ update = |model, input, contacts, dt| {
 }
 
 step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
-step = |model, input, results, dt| { model: update(model, input, results.contacts, dt) |> see_ground(results), commands: quit_on_escape(input) }
+step = |model, input, results, dt| { model: update(model, input, results.contacts, dt) |> see_ground(results) |> magnet(results, dt), commands: quit_on_escape(input) }
 
 # The floor has no collider, so a miss means the floor.
 see_ground : Model, Vocabulary.QueryResults -> Model
@@ -149,6 +149,45 @@ see_ground = |m, results| match player(m) {
 		{ ..m, ground_below }
 	}
 	Err(NotFound) => m
+}
+
+magnet_radius : F32
+magnet_radius = 2.0
+
+# Units per second.
+magnet_speed : F32
+magnet_speed = 4.0
+
+magnet : Model, Vocabulary.QueryResults, F32 -> Model
+magnet = |m, results, dt| match player(m) {
+	Ok(p) => {
+		caught = QueryResults.overlaps(results, p.id, 0)
+		if List.is_empty(caught) {
+			m
+		} else {
+			map_entities(
+				m,
+				|e| if is_pickup(e) and List.contains(caught, e.id) {
+					{ ..e, pos: toward(e.pos, player_middle(p), magnet_speed * dt) }
+				} else {
+					e
+				},
+			)
+		}
+	}
+	Err(NotFound) => m
+}
+
+# Moves at most max_step, so it stops at to.
+toward : Vec3, Vec3, F32 -> Vec3
+toward = |from, to, max_step| {
+	gap = V.sub(to, from)
+	dist = V.length(gap)
+	if dist <= max_step {
+		to
+	} else {
+		V.add(from, V.scale(gap, max_step / dist))
+	}
 }
 
 # Seconds from the win to the next round.
@@ -604,7 +643,7 @@ view = |curr| {
 
 	# Every Contact the game reads involves the player.
 	queries = match player(curr) {
-		Ok(p) => [Query.contacts_of(p.id), ground_ray(p)]
+		Ok(p) => [Query.contacts_of(p.id), ground_ray(p), Query.overlap(p.id, Sphere(magnet_radius), player_middle(p))]
 		Err(NotFound) => []
 	}
 
@@ -623,7 +662,7 @@ view = |curr| {
 
 # Starts at the middle of the player's box, which the host skips.
 ground_ray : Entity -> Vocabulary.Query
-ground_ray = |p| Query.ray(p.id, { ..p.pos, y: p.pos.y + player_half.y }, { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length)
+ground_ray = |p| Query.ray(p.id, player_middle(p), { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length)
 
 ground_ray_length : F32
 ground_ray_length = 20.0
@@ -727,6 +766,9 @@ map_entities = |m, f| {
 	{ ..m, entities: $entities }
 }
 
+player_middle : Entity -> Vec3
+player_middle = |p| { ..p.pos, y: p.pos.y + player_half.y }
+
 player : Model -> Try(Entity, [NotFound])
 player = |m| List.find_first(
 	m.entities,
@@ -814,7 +856,36 @@ expect {
 	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.cube
 }
 
-expect view(new_game(test_meshes, 1, 0)).queries == [Query.contacts_of(0), Query.ray(0, { x: 0.0, y: 0.5, z: 0.0 }, { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length)]
+expect {
+	centre = { x: 0.0, y: 0.5, z: 0.0 }
+	view(new_game(test_meshes, 1, 0)).queries == [Query.contacts_of(0), Query.ray(0, centre, { x: 0.0, y: -1.0, z: 0.0 }, ground_ray_length), Query.overlap(0, Sphere(magnet_radius), centre)]
+}
+
+pos_of : Model, U64 -> Vec3
+pos_of = |m, id| List.find_first(m.entities, |e| e.id == id).map_ok(|e| e.pos) ?? { x: -100.0, y: -100.0, z: -100.0 }
+
+caught : List(U64) -> Vocabulary.QueryResults
+caught = |ids| { ..QueryResults.empty, overlaps: List.map(ids, |id| { owner: 0, slot: 0, id }) }
+
+expect {
+	m = step(new_game(test_meshes, 2, 0), idle, caught([2]), 0.1).model
+	near_vec(pos_of(m, 2), { x: -3.6, y: 0.5, z: 0.0 }) and pos_of(m, 3) == pickup_spot(1)
+}
+
+expect {
+	# The magnet pulls pickups only, so the block stays.
+	m = step(new_game(test_meshes, 1, 0), idle, caught([3]), 0.1).model
+	pos_of(m, 3) == block_pos
+}
+
+expect {
+	# Another owner's overlap does not pull.
+	other = { ..QueryResults.empty, overlaps: [{ owner: 5, slot: 0, id: 2 }] }
+	m = step(new_game(test_meshes, 1, 0), idle, other, 0.1).model
+	pos_of(m, 2) == pickup_spot(0)
+}
+
+expect toward({ x: 1.0, y: 0.0, z: 0.0 }, V.zero, 4.0) == V.zero
 
 shadow_y : Scene -> F32
 shadow_y = |scene| List.find_first(scene.draws, |d| d.id == shadow_id).map_ok(|d| d.pos.y) ?? -100.0

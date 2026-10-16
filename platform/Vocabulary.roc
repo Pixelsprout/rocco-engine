@@ -3,9 +3,10 @@
 # with no ids. Mesh ids come from the Manifest that loaded gets after a Load.
 # An id the engine does not know draws the fallback mesh. Scene.sky is a sky
 # id from a Manifest; 0 or an id the engine does not know draws no sky. A Box
-# shape carries its half extents. A Light colour carries its intensity and
-# can exceed 1. A Directional dir is the way the light travels. The first
-# Directional that sets shadow is the Sun, the only Light that casts a shadow.
+# shape carries its half extents. An Overlap box does not turn. A Light
+# colour carries its intensity and can exceed 1. A Directional dir is the way
+# the light travels. The first Directional that sets shadow is the Sun, the
+# only Light that casts a shadow.
 # Scene.ui is a flat pre-order list of Elements: an Open starts a Box and its
 # Close ends it. The glue cannot carry a recursive union. Box and Text use
 # Clay's names and defaults. UI sizes are logical pixels. Rgba channels are
@@ -26,7 +27,7 @@ Vocabulary := [].{
 	RayHit : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 	OverlapHit : { owner : U64, slot : U32, id : U64 }
 	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
-	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) })]
+	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 	Align : [Start, Center, End]

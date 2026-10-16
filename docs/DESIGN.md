@@ -71,6 +71,14 @@ hits it at the origin, with the normal against `dir`. Equal distances go to
 the lower id. The host skips a capsule Collider and logs one line. If two
 Raycasts share an owner and a slot, the host logs once and answers the first.
 
+The host tests each Overlap against every box and sphere Collider. An
+Overlap box does not turn. The host skips the owner's Collider and each
+excluded id. Shapes that only touch at a face do not overlap. The host gives
+the hits of one Overlap in id order. The host skips a capsule Collider and
+logs one line. If two Overlaps share an owner and a slot, the host logs once
+and answers the first. A Raycast and an Overlap can use the same owner and
+slot.
+
 The host finds the Contacts in `engine/collision.odin`. A sweep and prune
 on x finds the pairs whose world boxes overlap. A test for each pair of
 shapes then gives the normal and depth. Two boxes get a separating axis
@@ -133,7 +141,7 @@ Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 OverlapHit : { owner : U64, slot : U32, id : U64 }
 QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
-Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) })]
+Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
@@ -151,7 +159,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
-| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` stays empty for now | what the Contact means; a time of impact; a Contact that no Query asked for |
+| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
 
@@ -182,7 +190,10 @@ A game puts its Queries in `Scene.queries` and builds them with `pf.Query`,
 for example `Query.contacts_of(owner)` or `Query.ray(owner, origin, dir,
 max_distance)`. `Query.ray` uses slot 0, and `Query.ray_slot` takes a slot.
 `QueryResults.ray(results, owner)` gives the RayHit in slot 0, or `Err(Miss)`.
-`QueryResults.ray_slot` takes a slot. A game with no Queries gets empty
+`QueryResults.ray_slot` takes a slot. `Query.overlap(owner, shape, pos)`
+uses slot 0, and `Query.overlap_slot` takes a slot.
+`QueryResults.overlaps(results, owner, slot)` gives the ids that Overlap
+touched. A game with no Queries gets empty
 QueryResults. `QueryResults.empty` gives empty QueryResults for tests.
 
 The host latches input between fixed steps. A key press waits in a pending

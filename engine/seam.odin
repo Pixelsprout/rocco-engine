@@ -80,6 +80,7 @@ seam_query_results :: proc(s: ^Seam) -> Query_Results {
 	return {
 		contacts = roc_list_from_slice(contacts_asked(&s.search, colliders, queries, context.temp_allocator)),
 		rays = roc_list_from_slice(rays_find(&s.search, colliders, queries, context.temp_allocator)),
+		overlaps = roc_list_from_slice(overlaps_find(&s.search, colliders, queries, context.temp_allocator)),
 	}
 }
 

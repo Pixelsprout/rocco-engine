@@ -21,6 +21,7 @@ Collider :: Roc_View_Colliders
 Query :: Roc_View_Queries
 Query_Tag :: Roc_View_Queries_Tag
 Query_Raycast :: Roc_View_Queries_Raycast
+Query_Overlap :: Roc_View_Queries_Overlap
 Light :: Roc_View_Lights
 Collider_Shape :: Roc_View_Colliders_Shape
 Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag

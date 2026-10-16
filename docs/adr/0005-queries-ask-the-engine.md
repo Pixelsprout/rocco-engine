@@ -28,8 +28,8 @@ in the host (ADR 0004).
   - `Overlap`: each Collider that a shape touches.
 - Raycast and Overlap take an owner, a slot and an exclude list.
 - An owner and a slot link a result to its query. The host skips the
-  owner's own Collider. If two queries have the same owner and slot, the
-  host logs once and keeps the first.
+  owner's own Collider. If two queries of one kind have the same owner and
+  slot, the host logs once and keeps the first.
 - A miss has no row.
 - QueryResults is a record of flat lists: `{ contacts, rays, overlaps }`.
   A `contacts` row is a Contact, a `rays` row is a RayHit, and an

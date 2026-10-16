@@ -364,7 +364,7 @@ _Avoid_: source, caller, query id
 
 **Slot**:
 A number that tells apart the Raycast or Overlap Queries of one owner. Two
-Queries with the same owner and slot: the host keeps the first.
+Queries of one kind with the same owner and slot: the host keeps the first.
 _Avoid_: index, channel, query id
 
 **QueryResults**:
