@@ -1,11 +1,11 @@
 platform ""
 	requires {
 		[Model : model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
-		step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
+		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		loaded : Model, Str, Vocabulary.Manifest -> Model,
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Vocabulary, Key, Collider, Light]
+	exposes [Vocabulary, Key, Collider, Light, Query, QueryResults]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_init": init_for_host,
@@ -21,12 +21,14 @@ platform ""
 		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", "clay.lib", app, "ucrtbase.lib", "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "d3d11.lib"] },
 	}
 
-import Vocabulary exposing [Command, Config, Contact, Input, Manifest, Scene]
+import Vocabulary exposing [Command, Config, Input, Manifest, Scene]
 
 # Only here because every exposes entry needs a matching import.
 import Key
 import Collider
 import Light
+import Query
+import QueryResults
 
 # Model is whatever the app declares under that name. The host holds it as
 # one pointer and never reads inside. The host keeps exactly one reference,
@@ -39,9 +41,9 @@ init_for_host = |config| {
 	{ model: Box.box(started.model), commands: started.commands }
 }
 
-step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
-step_for_host = |boxed, input, contacts, dt| {
-	stepped = step(Box.unbox(boxed), input, contacts, dt)
+step_for_host : Box(Model), Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host = |boxed, input, results, dt| {
+	stepped = step(Box.unbox(boxed), input, results, dt)
 	{ model: Box.box(stepped.model), commands: stepped.commands }
 }
 

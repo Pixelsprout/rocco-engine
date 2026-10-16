@@ -4,9 +4,10 @@ import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Quat
 import ui.Ui
-import pf.Vocabulary exposing [Command, Config, Contact, Draw, Element, Input, Manifest, Rgb, Rgba, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgb, Rgba, Scene, Vec3]
 import pf.Key
 import pf.Light
+import pf.QueryResults
 
 Ball : { id : U64, x : F32, z : F32, vx : F32, vz : F32 }
 
@@ -69,8 +70,8 @@ init = |config| {
 loaded : Model, Str, Manifest -> Model
 loaded = |m, _pack, _manifest| m
 
-step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
-step = |m, input, _contacts, dt| { model: update(m, input, dt), commands: [] }
+step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step = |m, input, _results, dt| { model: update(m, input, dt), commands: [] }
 
 update : Model, Input, F32 -> Model
 update = |m, input, dt| {
@@ -182,7 +183,7 @@ view = |m| {
 
 	ui = scoreboard(m.state, m.score).concat(banner(m.state, m.score)).concat(hints)
 
-	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, colliders: [], lights, cursor: Free, sky: 0, ui }
+	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, colliders: [], lights, cursor: Free, sky: 0, ui, queries: [] }
 }
 
 game_state : Model, Input -> Model
@@ -306,7 +307,7 @@ expect clamp(1.0, 2.0, 0.5) == 1.0
 
 # Holding W for a long step drives the left paddle to its limit, the right stays put.
 expect {
-	stepped = step(init(no_assets).model, { ..idle, held: [Key.code(W)] }, [], 10.0)
+	stepped = step(init(no_assets).model, { ..idle, held: [Key.code(W)] }, QueryResults.empty, 10.0)
 	m = stepped.model
 	stepped.commands == [] and m.left == -paddle_limit and m.right == 0.0
 }
@@ -373,7 +374,7 @@ expect {
 expect {
 	m = init(no_assets).model
 	ended = { ..m, score: { left: max_score, right: 0 } }
-	after = step(ended, { ..idle, held: [Key.code(W)] }, [], 1.0).model
+	after = step(ended, { ..idle, held: [Key.code(W)] }, QueryResults.empty, 1.0).model
 	after.state == EndGame and after.left == ended.left and after.ball.x == ended.ball.x
 }
 

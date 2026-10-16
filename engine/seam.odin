@@ -4,7 +4,7 @@ import "core:time"
 
 Game_Calls :: struct {
 	init:       proc(config: Config) -> Init_Result,
-	step:       proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result,
+	step:       proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result,
 	loaded:     proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr,
 	view:       proc(model: rawptr) -> Scene,
 	drop_model: proc(model: rawptr),
@@ -23,12 +23,12 @@ Seam :: struct {
 	prev:     Scene,
 	curr:     Scene,
 	has_prev: bool,
-	// The next step takes these. They come from curr's colliders.
-	contacts: Roc_List(Contact),
-	search:   Contact_Search,
+	// The next step takes these. They answer curr's queries.
+	results: Query_Results,
+	search:  Contact_Search,
 }
 
-// Owns the one reference to the Model, the last two Scenes and the contacts.
+// Owns the one reference to the Model, the last two Scenes and the QueryResults.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
 seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, config: Config, packs: ^Packs) {
@@ -50,10 +50,10 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 		pressed = roc_list_from_slice(keys.pressed),
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
-	// step frees the old box and consumes the contacts. Never touch either again.
-	result := s.calls.step(s.model, input, s.contacts, dt)
+	// step frees the old box and consumes the results. Never touch either again.
+	result := s.calls.step(s.model, input, s.results, dt)
 	s.model = result.model
-	s.contacts = {}
+	s.results = {}
 	stepped := time.tick_now()
 	seam_run_commands(s, result.commands)
 	if s.has_prev {
@@ -63,8 +63,7 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 	s.has_prev = true
 	s.curr = seam_view(s)
 	viewed := time.tick_now()
-	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
-	s.contacts = roc_list_from_slice(contacts_find(&s.search, colliders, context.temp_allocator))
+	s.results = seam_query_results(s)
 
 	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed)
 }
@@ -72,6 +71,13 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: 
 // Before the first step there is one Scene, and it pairs with itself.
 seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
+}
+
+@(private = "file")
+seam_query_results :: proc(s: ^Seam) -> Query_Results {
+	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
+	queries := s.curr.queries.elements[:s.curr.queries.length]
+	return {contacts = roc_list_from_slice(contacts_asked(&s.search, colliders, queries, context.temp_allocator))}
 }
 
 // The host owns the commands list and frees it after running it, so every
@@ -123,7 +129,7 @@ seam_shutdown :: proc(s: ^Seam) {
 		roc_decref(s.prev)
 	}
 	roc_decref(s.curr)
-	roc_list_decref(s.contacts)
+	roc_decref(s.results)
 	s.calls.drop_model(s.model)
 	contact_search_destroy(&s.search)
 }

@@ -49,6 +49,7 @@ Fake_Game :: struct {
 	drop_box:        rawptr,
 	drop_rc:         int,
 	colliders:       []Collider,
+	queries:         []Query,
 	ui_texts:        []string,
 	commands_out:    int,
 	next_commands:   []Command,
@@ -116,7 +117,7 @@ fake_init :: proc(config: Config) -> Init_Result {
 	return {model = g_fake.init_box, commands = roc_list_from_slice(g_fake.init_commands)}
 }
 
-fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result {
+fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result {
 	g_fake.steps += 1
 	g_fake.step_in = model
 	g_fake.step_in_rc = fake_refcount(model)^
@@ -125,8 +126,8 @@ fake_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
 	roc_decref(input)
-	g_fake.contacts_len = copy(g_fake.contacts[:], contacts.elements[:contacts.length])
-	roc_list_decref(contacts)
+	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
+	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()
 	commands := make([dynamic]Command, context.temp_allocator)
@@ -173,6 +174,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 	return {
 		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
 		colliders = roc_list_from_slice(g_fake.colliders),
+		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
 	}
 }
@@ -189,8 +191,8 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil) {
-	g_fake = {colliders = colliders, init_commands = init_commands}
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil) {
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands}
 	mesh_table_init(&g_fake.meshes, context.allocator)
 	sky_table_init(&g_fake.skies, context.allocator)
 	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)
@@ -384,7 +386,7 @@ test_seam_step_delivers_the_held_and_pressed_keys :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_seam_step_hands_the_pending_contacts_to_step_once :: proc(t: ^testing.T) {
+test_seam_step_hands_the_pending_results_to_step_once :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
@@ -395,7 +397,7 @@ test_seam_step_hands_the_pending_contacts_to_step_once :: proc(t: ^testing.T) {
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.contacts_len, 0)
 
-	s.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2, depth = 0.25}})
+	s.results.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2, depth = 0.25}})
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.contacts_len, 1)
 	testing.expect_value(t, g_fake.contacts[0].b, 2)
@@ -411,7 +413,7 @@ test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) 
 
 	touching := []Collider{test_sphere(7, {0, 0, 0}, 1), test_sphere(3, {1, 0, 0}, 1)}
 	s: Seam
-	fake_seam_init(&s, colliders = touching)
+	fake_seam_init(&s, colliders = touching, queries = []Query{{contacts_of = 7}})
 	defer fake_seam_shutdown(&s)
 
 	// The Scene from init touches, but the first step still gets no contacts.
@@ -430,13 +432,28 @@ test_seam_step_hands_step_the_contacts_of_the_last_scene :: proc(t: ^testing.T) 
 }
 
 @(test)
-test_seam_shutdown_releases_contacts_no_step_took :: proc(t: ^testing.T) {
+test_seam_step_without_a_contacts_of_query_hands_step_no_contacts :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	touching := []Collider{test_sphere(7, {0, 0, 0}, 1), test_sphere(3, {1, 0, 0}, 1)}
+	s: Seam
+	fake_seam_init(&s, colliders = touching)
+	defer fake_seam_shutdown(&s)
+
+	seam_step(&s, {}, 1.0 / 60)
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 0)
+}
+
+@(test)
+test_seam_shutdown_releases_results_no_step_took :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
 	s: Seam
 	fake_seam_init(&s)
-	s.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2}})
+	s.results.contacts = roc_list_from_slice([]Contact{{a = 1, b = 2}})
 	fake_seam_shutdown(&s)
 
 	testing.expect_value(t, roc_heap_counters().live, 0)

@@ -8,6 +8,8 @@ import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, 
 import pf.Collider
 import pf.Key
 import pf.Light
+import pf.Query
+import pf.QueryResults
 
 # ---- Types only Roc reads. The host carries Model through untouched. -----
 
@@ -132,8 +134,8 @@ update = |model, input, contacts, dt| {
 		|> restart
 }
 
-step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
-step = |model, input, contacts, dt| { model: update(model, input, contacts, dt), commands: quit_on_escape(input) }
+step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step = |model, input, results, dt| { model: update(model, input, results.contacts, dt), commands: quit_on_escape(input) }
 
 # Seconds from the win to the next round.
 celebration : F32
@@ -585,12 +587,18 @@ view = |curr| {
 		Err(NotFound) => V.zero
 	}
 
+	# Every Contact the game reads involves the player.
+	queries = match player(curr) {
+		Ok(p) => [Query.contacts_of(p.id)]
+		Err(NotFound) => []
+	}
+
 	camera = match curr.phase {
 		Playing => Cam.follow(target, camera_offset)
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [] }
+	{ camera, draws: built.draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [], queries }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -765,6 +773,8 @@ expect {
 	mesh_of = |id| List.find_first(scene.draws, |d| d.id == id).map_ok(|d| d.mesh) ?? 0
 	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.cube
 }
+
+expect view(new_game(test_meshes, 1, 0)).queries == [Query.contacts_of(0)]
 
 expect {
 	# The sprout carries its own colours, so its tint is white.
@@ -943,18 +953,24 @@ expect {
 }
 
 expect {
-	out = step(new_game(test_meshes, 1, 0), { ..idle, pressed: [Key.code(Escape)] }, [], 1.0 / 120.0)
+	out = step(new_game(test_meshes, 1, 0), { ..idle, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
 	out.commands == [Quit]
 }
 
 expect {
-	out = step(new_game(test_meshes, 1, 0), idle, [], 1.0 / 120.0)
+	out = step(new_game(test_meshes, 1, 0), idle, QueryResults.empty, 1.0 / 120.0)
 	out.commands == []
 }
 
 expect {
+	m = new_game(test_meshes, 1, 0)
+	stepped = step(m, idle, { ..QueryResults.empty, contacts: [touch(0, 2)] }, 0.1).model
+	stepped.score == update(m, idle, [touch(0, 2)], 0.1).score and stepped.score != m.score
+}
+
+expect {
 	won = { ..new_game(test_meshes, 1, 0), phase: Won(0.0) }
-	out = step(won, { ..idle, pressed: [Key.code(Escape)] }, [], 1.0 / 120.0)
+	out = step(won, { ..idle, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
 	out.commands == [Quit]
 }
 

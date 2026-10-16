@@ -9,7 +9,8 @@
 # Scene.ui is a flat pre-order list of Elements: an Open starts a Box and its
 # Close ends it. The glue cannot carry a recursive union. Box and Text use
 # Clay's names and defaults. UI sizes are logical pixels. Rgba channels are
-# linear and alpha is not premultiplied.
+# linear and alpha is not premultiplied. The host answers Scene.queries
+# against that Scene and gives the QueryResults to the next step.
 Vocabulary := [].{
 	Vec3 : { x : F32, y : F32, z : F32 }
 	Quat : { x : F32, y : F32, z : F32, w : F32 }
@@ -22,6 +23,10 @@ Vocabulary := [].{
 	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
 	Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 	Contact : { a : U64, b : U64, normal : Vec3, depth : F32 }
+	RayHit : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
+	OverlapHit : { owner : U64, slot : U32, id : U64 }
+	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
+	Query : [ContactsOf(U64)]
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 	Align : [Start, Center, End]
@@ -29,7 +34,7 @@ Vocabulary := [].{
 	BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 	Element : [Open(BoxConfig), Text(Text), Close]
-	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element) }
+	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 	Cursor : [Free, Locked]
 	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 }

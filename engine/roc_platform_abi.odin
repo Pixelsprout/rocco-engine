@@ -255,38 +255,94 @@ Roc_Step_Arg1_Mouse :: struct {
 #assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dy)) == 4)
 
 Roc_Step_Arg2 :: struct {
+	contacts: Roc_List(Roc_Step_Arg2_Contacts),
+	overlaps: Roc_List(Roc_Step_Arg2_Overlaps),
+	rays: Roc_List(Roc_Step_Arg2_Rays),
+}
+
+#assert(size_of(Roc_Step_Arg2) == 72)
+#assert(align_of(Roc_Step_Arg2) == 8)
+#assert(offset_of(Roc_Step_Arg2, contacts) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2{}.contacts)) == 24)
+#assert(offset_of(Roc_Step_Arg2, overlaps) == 24)
+#assert(size_of(type_of(Roc_Step_Arg2{}.overlaps)) == 24)
+#assert(offset_of(Roc_Step_Arg2, rays) == 48)
+#assert(size_of(type_of(Roc_Step_Arg2{}.rays)) == 24)
+
+Roc_Step_Arg2_Contacts :: struct {
 	a: u64,
 	b: u64,
 	depth: f32,
-	normal: Roc_Step_Arg2_Normal,
+	normal: Roc_Step_Arg2_Contacts_Normal,
 }
 
-#assert(size_of(Roc_Step_Arg2) == 32)
-#assert(align_of(Roc_Step_Arg2) == 8)
-#assert(offset_of(Roc_Step_Arg2, a) == 0)
-#assert(size_of(type_of(Roc_Step_Arg2{}.a)) == 8)
-#assert(offset_of(Roc_Step_Arg2, b) == 8)
-#assert(size_of(type_of(Roc_Step_Arg2{}.b)) == 8)
-#assert(offset_of(Roc_Step_Arg2, depth) == 16)
-#assert(size_of(type_of(Roc_Step_Arg2{}.depth)) == 4)
-#assert(offset_of(Roc_Step_Arg2, normal) == 20)
-#assert(size_of(type_of(Roc_Step_Arg2{}.normal)) == 12)
+#assert(size_of(Roc_Step_Arg2_Contacts) == 32)
+#assert(align_of(Roc_Step_Arg2_Contacts) == 8)
+#assert(offset_of(Roc_Step_Arg2_Contacts, a) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts{}.a)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Contacts, b) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts{}.b)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Contacts, depth) == 16)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts{}.depth)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Contacts, normal) == 20)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts{}.normal)) == 12)
 
-Roc_Step_Arg2_Normal :: struct {
+Roc_Step_Arg2_Contacts_Normal :: struct {
 	x: f32,
 	y: f32,
 	z: f32,
 }
 
-#assert(size_of(Roc_Step_Arg2_Normal) == 12)
-#assert(align_of(Roc_Step_Arg2_Normal) == 4)
-#assert(offset_of(Roc_Step_Arg2_Normal, x) == 0)
-#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.x)) == 4)
-#assert(offset_of(Roc_Step_Arg2_Normal, y) == 4)
-#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.y)) == 4)
-#assert(offset_of(Roc_Step_Arg2_Normal, z) == 8)
-#assert(size_of(type_of(Roc_Step_Arg2_Normal{}.z)) == 4)
+#assert(size_of(Roc_Step_Arg2_Contacts_Normal) == 12)
+#assert(align_of(Roc_Step_Arg2_Contacts_Normal) == 4)
+#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, x) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.x)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, y) == 4)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.y)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, z) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.z)) == 4)
 
+Roc_Step_Arg2_Overlaps :: struct {
+	id: u64,
+	owner: u64,
+	slot: u32,
+}
+
+#assert(size_of(Roc_Step_Arg2_Overlaps) == 24)
+#assert(align_of(Roc_Step_Arg2_Overlaps) == 8)
+#assert(offset_of(Roc_Step_Arg2_Overlaps, id) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Overlaps{}.id)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Overlaps, owner) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Overlaps{}.owner)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Overlaps, slot) == 16)
+#assert(size_of(type_of(Roc_Step_Arg2_Overlaps{}.slot)) == 4)
+
+Roc_Step_Arg2_Rays :: struct {
+	id: u64,
+	owner: u64,
+	distance: f32,
+	normal: Roc_Step_Arg2_Contacts_Normal,
+	point: Roc_Step_Arg2_Contacts_Normal,
+	slot: u32,
+}
+
+#assert(size_of(Roc_Step_Arg2_Rays) == 48)
+#assert(align_of(Roc_Step_Arg2_Rays) == 8)
+#assert(offset_of(Roc_Step_Arg2_Rays, id) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.id)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Rays, owner) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.owner)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Rays, distance) == 16)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.distance)) == 4)
+#assert(offset_of(Roc_Step_Arg2_Rays, normal) == 20)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.normal)) == 12)
+#assert(offset_of(Roc_Step_Arg2_Rays, point) == 32)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.point)) == 12)
+#assert(offset_of(Roc_Step_Arg2_Rays, slot) == 44)
+#assert(size_of(type_of(Roc_Step_Arg2_Rays{}.slot)) == 4)
+
+Roc_Step_Arg2_Rays_Normal :: Roc_Step_Arg2_Contacts_Normal
+Roc_Step_Arg2_Rays_Point :: Roc_Step_Arg2_Contacts_Normal
 Roc_Step :: Roc_Init
 Roc_Step_Commands :: Roc_Init_Commands
 Roc_Step_Commands_Load :: Roc_Init_Commands_Load
@@ -306,13 +362,14 @@ Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
 	lights: Roc_List(Roc_View_Lights),
+	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_View_Ui),
 	camera: Roc_View_Camera,
 	sky: u32,
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 144)
+#assert(size_of(Roc_View) == 168)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, colliders) == 0)
 #assert(size_of(type_of(Roc_View{}.colliders)) == 24)
@@ -320,18 +377,20 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
 #assert(offset_of(Roc_View, lights) == 48)
 #assert(size_of(type_of(Roc_View{}.lights)) == 24)
-#assert(offset_of(Roc_View, ui) == 72)
+#assert(offset_of(Roc_View, queries) == 72)
+#assert(size_of(type_of(Roc_View{}.queries)) == 24)
+#assert(offset_of(Roc_View, ui) == 96)
 #assert(size_of(type_of(Roc_View{}.ui)) == 24)
-#assert(offset_of(Roc_View, camera) == 96)
+#assert(offset_of(Roc_View, camera) == 120)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, sky) == 136)
+#assert(offset_of(Roc_View, sky) == 160)
 #assert(size_of(type_of(Roc_View{}.sky)) == 4)
-#assert(offset_of(Roc_View, cursor) == 140)
+#assert(offset_of(Roc_View, cursor) == 164)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
 	id: u64,
-	pos: Roc_Step_Arg2_Normal,
+	pos: Roc_Step_Arg2_Contacts_Normal,
 	shape: Roc_View_Colliders_Shape,
 	yaw: f32,
 }
@@ -347,7 +406,7 @@ Roc_View_Colliders :: struct {
 #assert(offset_of(Roc_View_Colliders, yaw) == 36)
 #assert(size_of(type_of(Roc_View_Colliders{}.yaw)) == 4)
 
-Roc_View_Colliders_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Colliders_Pos :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Colliders_Shape_Tag :: enum u8 {
 	Box = 0,
 	Capsule = 1,
@@ -355,7 +414,7 @@ Roc_View_Colliders_Shape_Tag :: enum u8 {
 }
 
 Roc_View_Colliders_Shape_Payload :: struct #raw_union {
-	box: Roc_Step_Arg2_Normal,
+	box: Roc_Step_Arg2_Contacts_Normal,
 	capsule: Roc_View_Colliders_Shape_Capsule,
 	sphere: f32,
 }
@@ -369,7 +428,7 @@ Roc_View_Colliders_Shape :: struct {
 #assert(align_of(Roc_View_Colliders_Shape) == 4)
 #assert(offset_of(Roc_View_Colliders_Shape, tag) == 12)
 
-Roc_View_Colliders_Shape_Box :: Roc_Step_Arg2_Normal
+Roc_View_Colliders_Shape_Box :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Colliders_Shape_Capsule :: struct {
 	half_height: f32,
 	radius: f32,
@@ -385,9 +444,9 @@ Roc_View_Colliders_Shape_Capsule :: struct {
 Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,
-	pos: Roc_Step_Arg2_Normal,
+	pos: Roc_Step_Arg2_Contacts_Normal,
 	rot: Roc_View_Draws_Rot,
-	scale: Roc_Step_Arg2_Normal,
+	scale: Roc_Step_Arg2_Contacts_Normal,
 	scale_rot: Roc_View_Draws_Rot,
 	tint: Roc_View_Draws_Tint,
 }
@@ -409,7 +468,7 @@ Roc_View_Draws :: struct {
 #assert(offset_of(Roc_View_Draws, tint) == 68)
 #assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
 
-Roc_View_Draws_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Draws_Pos :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Draws_Rot :: struct {
 	w: f32,
 	x: f32,
@@ -428,7 +487,7 @@ Roc_View_Draws_Rot :: struct {
 #assert(offset_of(Roc_View_Draws_Rot, z) == 12)
 #assert(size_of(type_of(Roc_View_Draws_Rot{}.z)) == 4)
 
-Roc_View_Draws_Scale :: Roc_Step_Arg2_Normal
+Roc_View_Draws_Scale :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Draws_ScaleRot :: Roc_View_Draws_Rot
 Roc_View_Draws_Tint :: struct {
 	b: f32,
@@ -469,7 +528,7 @@ Roc_View_Lights :: struct {
 Roc_View_Lights_Ambient :: Roc_View_Draws_Tint
 Roc_View_Lights_Directional :: struct {
 	color: Roc_View_Draws_Tint,
-	dir: Roc_Step_Arg2_Normal,
+	dir: Roc_Step_Arg2_Contacts_Normal,
 	shadow: bool,
 }
 
@@ -483,10 +542,10 @@ Roc_View_Lights_Directional :: struct {
 #assert(size_of(type_of(Roc_View_Lights_Directional{}.shadow)) == 1)
 
 Roc_View_Lights_Directional_Color :: Roc_View_Draws_Tint
-Roc_View_Lights_Directional_Dir :: Roc_Step_Arg2_Normal
+Roc_View_Lights_Directional_Dir :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Lights_Point :: struct {
 	color: Roc_View_Draws_Tint,
-	pos: Roc_Step_Arg2_Normal,
+	pos: Roc_Step_Arg2_Contacts_Normal,
 	range: f32,
 }
 
@@ -500,7 +559,14 @@ Roc_View_Lights_Point :: struct {
 #assert(size_of(type_of(Roc_View_Lights_Point{}.range)) == 4)
 
 Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
-Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Normal
+Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries :: struct {
+	contacts_of: u64,
+}
+
+#assert(size_of(Roc_View_Queries) == 8)
+#assert(align_of(Roc_View_Queries) == 8)
+
 Roc_View_Ui_Tag :: enum u8 {
 	Close = 0,
 	Open = 1,
@@ -747,10 +813,10 @@ Roc_View_Ui_Text_Wrap :: enum u8 {
 #assert(align_of(Roc_View_Ui_Text_Wrap) == 1)
 
 Roc_View_Camera :: struct {
-	eye: Roc_Step_Arg2_Normal,
+	eye: Roc_Step_Arg2_Contacts_Normal,
 	fov_y: f32,
-	target: Roc_Step_Arg2_Normal,
-	up: Roc_Step_Arg2_Normal,
+	target: Roc_Step_Arg2_Contacts_Normal,
+	up: Roc_Step_Arg2_Contacts_Normal,
 }
 
 #assert(size_of(Roc_View_Camera) == 40)
@@ -764,9 +830,9 @@ Roc_View_Camera :: struct {
 #assert(offset_of(Roc_View_Camera, up) == 28)
 #assert(size_of(type_of(Roc_View_Camera{}.up)) == 12)
 
-Roc_View_Camera_Eye :: Roc_Step_Arg2_Normal
-Roc_View_Camera_Target :: Roc_Step_Arg2_Normal
-Roc_View_Camera_Up :: Roc_Step_Arg2_Normal
+Roc_View_Camera_Eye :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Camera_Target :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Camera_Up :: Roc_Step_Arg2_Contacts_Normal
 Roc_View_Cursor :: enum u8 {
 	Free = 0,
 	Locked = 1,
@@ -803,6 +869,12 @@ roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 	roc_list_decref_u16(value.pressed)
 }
 
+roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
+	roc_list_decref_roc_step_arg2_contacts(value.contacts)
+	roc_list_decref_roc_step_arg2_overlaps(value.overlaps)
+	roc_list_decref_roc_step_arg2_rays(value.rays)
+}
+
 roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
 	roc_str_decref(value.name)
 }
@@ -811,6 +883,7 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_colliders(value.colliders)
 	roc_list_decref_roc_view_draws(value.draws)
 	roc_list_decref_roc_view_lights(value.lights)
+	roc_list_decref_roc_view_queries(value.queries)
 	roc_list_decref_roc_view_ui(value.ui)
 }
 
@@ -849,11 +922,27 @@ roc_list_from_slice_u16 :: proc(elems: []u16) -> Roc_List(u16) {
 	return roc_list_from_slice_with(elems, false)
 }
 
-roc_list_decref_roc_step_arg2 :: proc(list: Roc_List(Roc_Step_Arg2)) {
+roc_list_decref_roc_step_arg2_contacts :: proc(list: Roc_List(Roc_Step_Arg2_Contacts)) {
 	roc_list_decref_flat(list)
 }
 
-roc_list_from_slice_roc_step_arg2 :: proc(elems: []Roc_Step_Arg2) -> Roc_List(Roc_Step_Arg2) {
+roc_list_from_slice_roc_step_arg2_contacts :: proc(elems: []Roc_Step_Arg2_Contacts) -> Roc_List(Roc_Step_Arg2_Contacts) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_step_arg2_overlaps :: proc(list: Roc_List(Roc_Step_Arg2_Overlaps)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_step_arg2_overlaps :: proc(elems: []Roc_Step_Arg2_Overlaps) -> Roc_List(Roc_Step_Arg2_Overlaps) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_step_arg2_rays :: proc(list: Roc_List(Roc_Step_Arg2_Rays)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_step_arg2_rays :: proc(elems: []Roc_Step_Arg2_Rays) -> Roc_List(Roc_Step_Arg2_Rays) {
 	return roc_list_from_slice_with(elems, false)
 }
 
@@ -889,6 +978,14 @@ roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_Lis
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_view_queries :: proc(list: Roc_List(Roc_View_Queries)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_queries :: proc(elems: []Roc_View_Queries) -> Roc_List(Roc_View_Queries) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_list_decref_roc_view_ui :: proc(list: Roc_List(Roc_View_Ui)) {
 	roc_list_decref_elements(list, roc_view_ui_decref)
 }
@@ -904,6 +1001,7 @@ roc_decref :: proc {
 	roc_init_commands_decref,
 	roc_init_commands_load_decref,
 	roc_step_arg1_decref,
+	roc_step_arg2_decref,
 	roc_loaded_arg2_decref,
 	roc_view_decref,
 	roc_view_ui_decref,
@@ -914,11 +1012,14 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_str,
 	roc_list_decref_roc_init_commands,
 	roc_list_decref_u16,
-	roc_list_decref_roc_step_arg2,
+	roc_list_decref_roc_step_arg2_contacts,
+	roc_list_decref_roc_step_arg2_overlaps,
+	roc_list_decref_roc_step_arg2_rays,
 	roc_list_decref_roc_loaded_arg2,
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
+	roc_list_decref_roc_view_queries,
 	roc_list_decref_roc_view_ui,
 }
 
@@ -926,11 +1027,14 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_str,
 	roc_list_from_slice_roc_init_commands,
 	roc_list_from_slice_u16,
-	roc_list_from_slice_roc_step_arg2,
+	roc_list_from_slice_roc_step_arg2_contacts,
+	roc_list_from_slice_roc_step_arg2_overlaps,
+	roc_list_from_slice_roc_step_arg2_rays,
 	roc_list_from_slice_roc_loaded_arg2,
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
+	roc_list_from_slice_roc_view_queries,
 	roc_list_from_slice_roc_view_ui,
 }
 
@@ -938,7 +1042,7 @@ roc_list_from_slice :: proc {
 @(default_calling_convention = "c")
 foreign {
 	roc_init :: proc(arg0: Roc_Init_Arg0) -> Roc_Init ---
-	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_List(Roc_Step_Arg2), arg3: f32) -> Roc_Init ---
+	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_Step_Arg2, arg3: f32) -> Roc_Init ---
 	roc_loaded :: proc(arg0: rawptr, arg1: Roc_Str, arg2: Roc_List(Roc_Loaded_Arg2)) -> rawptr ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---
 	roc_drop_model :: proc(arg0: rawptr) ---

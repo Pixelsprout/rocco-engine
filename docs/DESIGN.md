@@ -19,9 +19,9 @@ evidence are marked as decisions.
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio callback and its thread | what should be heard, as data |
-| finding the Contacts between Colliders | which shapes touch, as Colliders; what a Contact means |
+| answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
-| the vocabulary types: `Config`, `Input`, `Contact`, `Scene`, `Command` | the `Model` type, which the host never reads |
+| the vocabulary types: `Config`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
 
 Odin produces facts. Roc produces decisions. Both cross the seam as plain
 values. Roc never asks the engine a question mid-step. Roc never calls a draw
@@ -33,7 +33,7 @@ function.
 # once, at startup
 init : Config -> { model : Model, commands : List(Command) }
 # once per fixed step, 120 Hz
-step : Model, Input, List(Contact), F32 -> { model : Model, commands : List(Command) }
+step : Model, Input, QueryResults, F32 -> { model : Model, commands : List(Command) }
 # once per Load, before the next view
 loaded : Model, Str, Manifest -> Model
 # once per fixed step, after step
@@ -55,9 +55,14 @@ once, and `view` runs again from the same `Model`. So commands come from
 finishes. The Commands from `init` run the same way, before the first
 `view`. A `Load` calls `loaded` before the next `view`. Decision.
 
-The host computes the Contacts from the Colliders in the previous `Scene`.
-The host tests overlap, not sweep, so the normal and depth describe where
-the shapes are now. The first step gets empty Contacts. Decision.
+The host answers the Queries in the previous `Scene` against that `Scene`.
+The next `step` gets the QueryResults. The first step gets
+empty QueryResults. ADR 0005 records the decision.
+
+With no `ContactsOf` Query, the host does no contact search. With one or
+more, it searches all the Colliders. It keeps each Contact that involves an
+asking owner, once, in id order. The host tests overlap, not sweep, so the
+normal and depth describe where the shapes are now. Decision.
 
 The host finds the Contacts in `engine/collision.odin`. A sweep and prune
 on x finds the pairs whose world boxes overlap. A test for each pair of
@@ -73,12 +78,12 @@ not claim its id. Decision.
   ┌────────────── Odin ───────────────┐      ┌────────────── Odin ────────────────┐
   │ clock, key codes held and pressed │      │ accumulator remainder → alpha      │
   │ mouse delta                       │      │ Scene[n-1], Scene[n]               │
-  │ Contacts from Scene[n-1]          │      │ cursor from Scene[n] → mouse lock  │
+  │ QueryResults from Scene[n-1]      │      │ cursor from Scene[n] → mouse lock  │
   │                                   │      │ ui from Scene[n] → layout, quads   │
   └──────────────┬────────────────────┘      └──────────────┬─────────────────────┘
-                 │ Input, Contacts, dt                      │ pair draws by id, lerp
+                 │ Input, QueryResults, dt                  │ pair draws by id, lerp
                  ▼                                          ▼
-   step : Model, Input, List(Contact), F32         model matrix per draw
+   step : Model, Input, QueryResults, F32          model matrix per draw
                  │ Model (one reference, mutated in place)  mesh id → mesh handle
                  │ and List(Command)
                  ▼
@@ -118,6 +123,10 @@ Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_r
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
+RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
+OverlapHit : { owner : U64, slot : U32, id : U64 }
+QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
+Query    : [ContactsOf(U64)]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
@@ -126,7 +135,7 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  : [Open(BoxConfig), Text(Text), Close]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element) }
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 ```
 
@@ -135,8 +144,8 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
-| `List(Contact)` | each overlapping pair of Colliders, once, with `a < b`, sorted by `(a, b)`; the normal from a to b and the depth | what the Contact means; a time of impact |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` and `overlaps` stay empty for now | what the Contact means; a time of impact; a Contact that no Query asked for |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -161,6 +170,10 @@ y. The host does not test capsules yet. Games build Colliders with
 `pf.Collider`, for example `Collider.box(id, pos, yaw, half)`. The host
 switches on every tag, so a new shape breaks the Odin compile until the host
 adds a case for it. Decision.
+
+A game puts its Queries in `Scene.queries` and builds them with `pf.Query`,
+for example `Query.contacts_of(owner)`. A game with no Queries gets empty
+QueryResults. `QueryResults.empty` gives empty QueryResults for tests.
 
 The host latches input between fixed steps. A key press waits in a pending
 set until a step takes it as `pressed`. The mouse delta waits the same way.
@@ -515,11 +528,11 @@ The platform header binds `Model` with a for-clause:
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
-        step : Model, Vocabulary.Input, List(Vocabulary.Contact), F32 -> { model : Model, commands : List(Vocabulary.Command) },
+        step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary, Key, Collider, Light]
+    exposes [Vocabulary, Key, Collider, Light, Query, QueryResults]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -536,9 +549,9 @@ init_for_host = |config| {
     { model: Box.box(started.model), commands: started.commands }
 }
 
-step_for_host : Box(Model), Input, List(Contact), F32 -> { model : Box(Model), commands : List(Command) }
-step_for_host = |boxed, input, contacts, dt| {
-    stepped = step(Box.unbox(boxed), input, contacts, dt)
+step_for_host : Box(Model), Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host = |boxed, input, results, dt| {
+    stepped = step(Box.unbox(boxed), input, results, dt)
     { model: Box.box(stepped.model), commands: stepped.commands }
 }
 
@@ -553,7 +566,7 @@ The glue emits `Model` as one opaque pointer. The four entrypoints are:
 
 ```
 roc_init(Config)                          -> { ptr, List(Command) }
-roc_step(ptr, Input, List(Contact), f32)  -> { ptr, List(Command) }
+roc_step(ptr, Input, QueryResults, f32)   -> { ptr, List(Command) }
 roc_loaded(ptr, Str, Manifest)            -> ptr
 roc_view(ptr)                             -> Scene
 ```
@@ -562,7 +575,7 @@ roc_view(ptr)                             -> Scene
 decref that switches on the tag. Decision.
 
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Manifest`, `Input`, `Contact`, `Scene` or `Command`
+only when `Config`, `Manifest`, `Input`, `QueryResults`, `Scene` or `Command`
 change. Those types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
@@ -610,7 +623,7 @@ one.
 Call protocol, per fixed step:
 
 1. The host owns one box pointer `m`.
-2. Call `roc_step(m, input, contacts, dt)`. Roc consumes `m` and returns
+2. Call `roc_step(m, input, results, dt)`. Roc consumes `m` and returns
    `m'` and a commands list. The host must not use `m` again. Passing `m`
    twice is a double free. The host runs each command in list order, then
    frees the list. It frees only the list and keeps `m'`.
@@ -708,12 +721,13 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
 - One allocation per step for each non-empty `Scene` list: the draws, and
-  the colliders and the UI when a game returns any. It is the extract; it
+  the colliders, the UI and the queries when a game returns any. It is the extract; it
   would exist anyway. A long Text string built at run time adds one
   allocation. A short one fits inside the `Str` and adds none.
-- One allocation and one free per step for non-empty Contacts. Empty
-  Contacts allocate nothing.
-- The contact search costs time for each Collider, not only for each pair.
+- One allocation and one free per step for each non-empty `QueryResults`
+  list. An empty list allocates nothing.
+- The contact search runs only when a `ContactsOf` Query asks. It then costs
+  time for each Collider, not only for each pair.
   See section 10 for the cost at 1,000 Colliders.
 - One box shell allocation and free per step. The pool removes it.
 - One allocation and one free per step for each non-empty `Input` list. The

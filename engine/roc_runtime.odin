@@ -88,8 +88,8 @@ roc_str_string :: proc(s: ^Roc_Str) -> string {
 roc_game_init :: proc(config: Config) -> Init_Result {return roc_init(config)}
 
 @(private = "file")
-roc_game_step :: proc(model: rawptr, input: Input, contacts: Roc_List(Contact), dt: f32) -> Step_Result {
-	return roc_step(model, input, contacts, dt)
+roc_game_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result {
+	return roc_step(model, input, results, dt)
 }
 
 @(private = "file")

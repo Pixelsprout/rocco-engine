@@ -267,3 +267,75 @@ test_contact_search_timing_at_1000_colliders :: proc(t: ^testing.T) {
 	log.infof("%v colliders, %v contacts, mean %.1f us", TIMING_COLLIDERS, contacts, mean)
 	testing.expect(t, contacts > 0)
 }
+
+@(test)
+test_contacts_asked_with_no_contacts_of_query_is_empty :: proc(t: ^testing.T) {
+	search: Contact_Search
+	contact_search_init(&search, context.allocator)
+	defer contact_search_destroy(&search)
+
+	// A search would log the shared id.
+	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(1, {1, 0, 0}, 0, {1, 1, 1})}
+	testing.expect_value(t, len(contacts_asked(&search, colliders, nil, context.temp_allocator)), 0)
+	testing.expect_value(t, len(search.logged_ids), 0)
+}
+
+@(test)
+test_contacts_asked_keeps_only_the_pairs_of_an_asking_owner :: proc(t: ^testing.T) {
+	search: Contact_Search
+	contact_search_init(&search, context.allocator)
+	defer contact_search_destroy(&search)
+
+	// 1 touches 2, and 3 touches 4. Only 4 asks.
+	colliders := []Collider {
+		test_box(1, {0, 0, 0}, 0, {1, 1, 1}),
+		test_box(2, {1, 0, 0}, 0, {1, 1, 1}),
+		test_box(3, {10, 0, 0}, 0, {1, 1, 1}),
+		test_box(4, {11, 0, 0}, 0, {1, 1, 1}),
+	}
+	got := contacts_asked(&search, colliders, []Query{{contacts_of = 4}}, context.temp_allocator)
+
+	testing.expect_value(t, len(got), 1)
+	expect_contact(t, got[0], 3, 4, {1, 0, 0}, 1)
+}
+
+@(test)
+test_contacts_asked_gives_a_pair_of_two_asking_owners_once :: proc(t: ^testing.T) {
+	search: Contact_Search
+	contact_search_init(&search, context.allocator)
+	defer contact_search_destroy(&search)
+
+	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {1, 0, 0}, 0, {1, 1, 1})}
+	got := contacts_asked(&search, colliders, []Query{{contacts_of = 2}, {contacts_of = 1}, {contacts_of = 2}}, context.temp_allocator)
+
+	testing.expect_value(t, len(got), 1)
+	expect_contact(t, got[0], 1, 2, {1, 0, 0}, 1)
+}
+
+@(test)
+test_contacts_asked_are_in_id_order :: proc(t: ^testing.T) {
+	search: Contact_Search
+	contact_search_init(&search, context.allocator)
+	defer contact_search_destroy(&search)
+
+	colliders := []Collider {
+		test_sphere(9, {0, 0, 0}, 1),
+		test_sphere(5, {1, 0, 0}, 1),
+		test_sphere(7, {2, 0, 0}, 1),
+		test_sphere(2, {1, 1, 0}, 1),
+	}
+	got := contacts_asked(&search, colliders, []Query{{contacts_of = 9}, {contacts_of = 5}}, context.temp_allocator)
+
+	pairs := make([][2]u64, len(got), context.temp_allocator)
+	for c, i in got {
+		pairs[i] = {c.a, c.b}
+	}
+	// 7 and 2 touch, but neither asks.
+	testing.expect_value(t, len(pairs), 4)
+	want := [][2]u64{{2, 5}, {2, 9}, {5, 7}, {5, 9}}
+	for p, i in want {
+		if i < len(pairs) {
+			testing.expect_value(t, pairs[i], p)
+		}
+	}
+}

@@ -90,6 +90,27 @@ contacts_find :: proc(search: ^Contact_Search, colliders: []Collider, allocator:
 	return contacts[:]
 }
 
+// The Contacts that involve an owner of a ContactsOf Query, in the order
+// contacts_find gives. With no such Query, it does no search.
+contacts_asked :: proc(search: ^Contact_Search, colliders: []Collider, queries: []Query, allocator: mem.Allocator) -> []Contact {
+	if len(queries) == 0 {
+		return nil
+	}
+	owners := make(map[u64]struct {}, allocator)
+	for query in queries {
+		owners[query.contacts_of] = {}
+	}
+	contacts := contacts_find(search, colliders, allocator)
+	kept := 0
+	for contact in contacts {
+		if contact.a in owners || contact.b in owners {
+			contacts[kept] = contact
+			kept += 1
+		}
+	}
+	return contacts[:kept]
+}
+
 // ok is false for a capsule: the host does not test capsules yet.
 @(private = "file")
 shape_make :: proc(col: Collider) -> (b: Shape, ok: bool) {

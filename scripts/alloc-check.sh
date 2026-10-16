@@ -3,8 +3,8 @@
 # ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10: the
 # game's expected allocs and as many deallocs, its expected reallocs and a
 # constant live block count. cards expects 2 allocs: the box shell and the
-# draws list. entity-game expects 4, because it also returns a colliders list
-# and a lights list.
+# draws list. entity-game expects 5, because it also returns a colliders list,
+# a lights list and a queries list.
 # pong expects 13 allocs and 6 reallocs, because Ui.box concats and appends
 # to build Scene.ui every frame.
 # The host library must already be built for this machine. Each game opens a
@@ -23,7 +23,7 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:0 entity-game:4:0 pong:13:6; do
+for entry in cards:2:0 entity-game:5:0 pong:13:6; do
 	game=${entry%%:*}
 	rest=${entry#*:}
 	want=${rest%%:*}
