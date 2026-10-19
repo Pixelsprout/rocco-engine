@@ -272,7 +272,6 @@ nothing and exits 0 when the machine is ready.
 | `bench/headline.py [<results dir>] [--game <game>]` | Prints the median and p99 Frame budget per N and the headline figure. |
 | `bench/machine.py [--check]` | Prints the machine as JSON, or checks that it is ready for a reference run. |
 | `bench/realclock.py <csv> --game <game> --out <json>` | Summarises one real-clock run. See "Real-clock reference". |
-| `sh bench/twin-sweep.sh [n...]` | Runs the sweeps of `model-size`, `model-size-twin` and `empty-step` and draws the twin chart. |
 | `sh bench/reference-run.sh` | Runs the full reference run. See "Reference run". |
 
 The chart scripts and `headline.py` read the latest
