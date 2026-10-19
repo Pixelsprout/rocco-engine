@@ -13,16 +13,21 @@ Mode : [Debug, Release]
 # Tracked builds the host with the host tracking allocator and its leak report.
 HostAlloc : [Tracked, Untracked]
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc), Game(Str), Shaders, Font, Keys, Target]
+# Spans builds the host with the per-Frame Span timers and the CSV sink.
+HostSpans : [Spans, NoSpans]
+
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
 	["inputs"] => Ok([Inputs(Debug)])
 	["inputs", "--release"] => Ok([Inputs(Release)])
 	["glue"] => Ok([Glue])
-	["host"] => Ok([Host(Debug, default_host_alloc(Debug))])
-	["host", "--release"] => Ok([Host(Release, default_host_alloc(Release))])
-	["host", "--release", "--track-alloc"] => Ok([Host(Release, Tracked)])
+	["host"] => Ok([Host(Debug, default_host_alloc(Debug), NoSpans)])
+	["host", "--spans"] => Ok([Host(Debug, default_host_alloc(Debug), Spans)])
+	["host", "--release"] => Ok([Host(Release, default_host_alloc(Release), NoSpans)])
+	["host", "--release", "--spans"] => Ok([Host(Release, default_host_alloc(Release), Spans)])
+	["host", "--release", "--track-alloc"] => Ok([Host(Release, Tracked, NoSpans)])
 	["game", name] => Ok([Game(name)])
 	["shaders"] => Ok([Shaders])
 	["font"] => Ok([Font])
@@ -34,7 +39,7 @@ parse = |args| match args {
 }
 
 all_steps : Mode -> List(Step)
-all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode)), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong")]
+all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong")]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
@@ -96,8 +101,8 @@ Run : { program : Str, args : List(Str), cwd : Str }
 glue_run : Run
 glue_run = { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
-host_run : Target, Mode, HostAlloc -> Run
-host_run = |target, mode, alloc| {
+host_run : Target, Mode, HostAlloc, HostSpans -> Run
+host_run = |target, mode, alloc, spans| {
 	opt = match mode {
 		Debug => ["-debug"]
 		Release => ["-o:speed"]
@@ -106,9 +111,13 @@ host_run = |target, mode, alloc| {
 		Tracked => ["-define:ROCCO_TRACK_ALLOC=true"]
 		Untracked => []
 	}
+	span_defines = match spans {
+		Spans => ["-define:ROCCO_SPANS=true"]
+		NoSpans => []
+	}
 	{
 		program: "odin",
-		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(track).concat(["-vet", "-strict-style"]),
+		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(track).concat(span_defines).concat(["-vet", "-strict-style"]),
 		cwd: ".",
 	}
 }
@@ -186,6 +195,9 @@ usage =
 	\\A debug host has the host tracking allocator and its leak report. A release
 	\\host has it only with host --release --track-alloc.
 	\\
+	\\host --spans and host --release --spans add the per-Frame Span timers. Such a
+	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV.
+	\\
 	\\Run from the repository root. The target is the machine running the script.
 
 main! : List(OsStr) => Try({}, [Exit(I32)])
@@ -224,7 +236,7 @@ run_step! : Step, Target => Try({}, _)
 run_step! = |step, target| match step {
 	Inputs(mode) => inputs!(target, mode)
 	Glue => exec!(glue_run)
-	Host(mode, alloc) => {
+	Host(mode, alloc, spans) => {
 		Path.utf8(target.dir).create_all!()?
 		# odin adds members to an existing archive, so an object from an older
 		# build with other defines can survive.
@@ -233,7 +245,7 @@ run_step! = |step, target| match step {
 			Err(PathErr(NotFound, _)) => {}
 			Err(err) => return Err(err)
 		}
-		exec!(host_run(target, mode, alloc))
+		exec!(host_run(target, mode, alloc, spans))
 	}
 	# roc build exits 2 when it wrote the binary with warnings and no errors.
 	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
@@ -328,17 +340,20 @@ inputs! = |target, mode| {
 expect parse(["inputs"]) == Ok([Inputs(Debug)])
 expect parse(["inputs", "--release"]) == Ok([Inputs(Release)])
 expect parse(["glue"]) == Ok([Glue])
-expect parse(["host"]) == Ok([Host(Debug, Tracked)])
-expect parse(["host", "--release"]) == Ok([Host(Release, Untracked)])
-expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked)])
+expect parse(["host"]) == Ok([Host(Debug, Tracked, NoSpans)])
+expect parse(["host", "--spans"]) == Ok([Host(Debug, Tracked, Spans)])
+expect parse(["host", "--release"]) == Ok([Host(Release, Untracked, NoSpans)])
+expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, Spans)])
+expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host(Debug, Tracked), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong")])
-expect parse(["all", "--release"]) == Ok([Glue, Host(Release, Untracked), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong")])
+expect parse(["all"]) == Ok([Glue, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong")])
+expect parse(["all", "--release"]) == Ok([Glue, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong")])
 expect parse(["glue", "--release"]) == Err(Usage)
 expect parse(["inputs", "--debug"]) == Err(Usage)
 expect parse(["inputs", "--release", "--track-alloc"]) == Err(Usage)
 expect parse(["host", "--track-alloc"]) == Err(Usage)
+expect parse(["host", "--spans", "--release"]) == Err(Usage)
 expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
@@ -359,28 +374,33 @@ expect target_for({ arch: X64, os: OTHER("freebsd") }) == Err(UnsupportedMachine
 expect glue_run == { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
 expect {
-	run = target_for(mac).map_ok(|target| host_run(target, Debug, Tracked))
+	run = target_for(mac).map_ok(|target| host_run(target, Debug, Tracked, NoSpans))
 	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-debug", "-define:ROCCO_TRACK_ALLOC=true", "-vet", "-strict-style"], cwd: "." })
 }
 
 expect {
-	run = target_for(mac).map_ok(|target| host_run(target, Release, Untracked))
+	run = target_for(mac).map_ok(|target| host_run(target, Release, Untracked, NoSpans))
 	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-o:speed", "-vet", "-strict-style"], cwd: "." })
 }
 
 expect {
-	run = target_for(mac).map_ok(|target| host_run(target, Release, Tracked))
+	run = target_for(mac).map_ok(|target| host_run(target, Release, Tracked, NoSpans))
 	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-o:speed", "-define:ROCCO_TRACK_ALLOC=true", "-vet", "-strict-style"], cwd: "." })
 }
 
 expect {
+	run = target_for(mac).map_ok(|target| host_run(target, Release, Untracked, Spans))
+	run == Ok({ program: "odin", args: ["build", "engine", "-build-mode:static", "-out:platform/targets/arm64mac/libhost.a", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"], cwd: "." })
+}
+
+expect {
 	# basic-cli names the Windows host host.lib, which is what lld-link looks for.
-	out = target_for(windows).map_ok(|target| host_run(target, Debug, Tracked).args.get(3))
+	out = target_for(windows).map_ok(|target| host_run(target, Debug, Tracked, NoSpans).args.get(3))
 	out == Ok(Ok("-out:platform/targets/x64win/host.lib"))
 }
 
 expect {
-	run = target_for(windows).map_ok(|target| host_run(target, Release, Untracked))
+	run = target_for(windows).map_ok(|target| host_run(target, Release, Untracked, NoSpans))
 	run.map_ok(|r| r.args) == Ok(["build", "engine", "-build-mode:static", "-out:platform/targets/x64win/host.lib", "-no-crt", "-no-thread-local", "-o:speed", "-vet", "-strict-style"])
 }
 
