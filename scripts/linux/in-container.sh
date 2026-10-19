@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs inside the image from scripts/linux/Dockerfile with the repo at /work.
-# Builds every game, runs it, runs the tests, the host check and the alloc check.
+# Builds every game, runs it, runs the tests, the host check, the alloc check
+# and the bench smoke test.
 # Pass --release to build the release host and inputs.
 set -eu
 cd /work
@@ -28,3 +29,9 @@ sh scripts/host-check.sh
 
 echo "== alloc check"
 RUN_PREFIX="$RUN" sh scripts/alloc-check.sh
+
+echo "== bench games"
+sh bench/check.sh
+# A smoke test only: CI makes no timing claims. It builds a release host with
+# Spans, so it runs last.
+roc scripts/build.roc bench model-size,model-size-twin 64

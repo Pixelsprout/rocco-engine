@@ -34,8 +34,10 @@ were noise, so it is deleted.
   is the cost of the Seam and of Roc.
 - **No GPU time.** The Spans measure CPU time only. `render_submit` and
   `commit` measure the CPU cost of the sokol calls, not the GPU work.
-- **No CI timing.** CI runs each bench game once at N=64 as a smoke test.
-  CI runners share their hardware, so CI makes no timing claims.
+- **No CI timing.** On macOS, CI runs each bench game once at N=64 as a
+  smoke test. On Linux and Windows, CI runs `model-size` and
+  `model-size-twin` once at N=64. CI runners share their hardware, so CI
+  makes no timing claims.
 - **No Windows numbers yet.** The harness runs on Windows with the same
   protocol. The first results come from the Mac.
 
