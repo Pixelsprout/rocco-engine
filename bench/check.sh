@@ -12,9 +12,13 @@ for file in bench/*/main.roc; do
 	roc test "$file"
 done
 
+# odin rejects an output path without .exe on Windows.
+ext=
+[ "${OS:-}" = Windows_NT ] && ext=.exe
+
 for file in bench/*/main.odin; do
 	dir=$(dirname "$file")
 	echo "== odin test $dir"
 	mkdir -p build
-	odin test "$dir" -debug -vet -strict-style "-out:build/$(basename "$dir")-test"
+	odin test "$dir" -debug -vet -strict-style "-out:build/$(basename "$dir")-test$ext"
 done
