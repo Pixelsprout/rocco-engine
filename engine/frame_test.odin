@@ -6,8 +6,11 @@ import sapp "../sokol-odin/sokol/app"
 import sg "../sokol-odin/sokol/gfx"
 import "core:sync"
 import "core:testing"
+import "core:time"
 
 FAKE_WINDOW :: HEADLESS_WINDOW
+// Far longer than the fake render work, so a Span that holds the wait shows it.
+FAKE_PASS_WAIT :: 30 * time.Millisecond
 
 Fake_Platform_Calls :: struct {
 	commits: int,
@@ -313,6 +316,27 @@ test_headless_rows_leave_the_render_spans_at_zero :: proc(t: ^testing.T) {
 			testing.expect_value(t, row.us[.Render_Submit], 0)
 			testing.expect_value(t, row.us[.Commit], 0)
 		}
+	} else {
+		testing.expect_value(t, len(span_rows(&s.spans)), 0)
+	}
+}
+
+@(test)
+test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Lockstep)
+	defer fake_frame_state_destroy(&s)
+	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {time.sleep(FAKE_PASS_WAIT)}
+
+	frame_run(&s, fake_platform(FIXED_DT))
+
+	when SPANS {
+		rows := span_rows(&s.spans)
+		testing.expect_value(t, len(rows), 1)
+		testing.expect_value(t, rows[0].closes[.Render_Submit], 1)
+		testing.expectf(t, rows[0].us[.Render_Submit] < time.duration_microseconds(FAKE_PASS_WAIT), "render_submit is %v us", rows[0].us[.Render_Submit])
 	} else {
 		testing.expect_value(t, len(span_rows(&s.spans)), 0)
 	}

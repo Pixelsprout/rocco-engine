@@ -122,6 +122,16 @@ span_close :: #force_inline proc(sink: ^Span_Sink, span: Span, opened: Span_Tick
 	}
 }
 
+// Moves the open time of a Span forward by the time since waited, so a wait
+// between waited and now does not count in the Span.
+span_skip :: #force_inline proc(opened, waited: Span_Tick) -> Span_Tick {
+	when SPANS {
+		return time.tick_add(opened, time.tick_since(waited))
+	} else {
+		return {}
+	}
+}
+
 span_frame_end :: #force_inline proc(sink: ^Span_Sink, frame, steps: int) {
 	when SPANS {
 		sink.row.frame = frame

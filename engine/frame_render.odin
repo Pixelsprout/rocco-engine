@@ -175,10 +175,10 @@ frame_render_draw :: proc(
 	}
 
 	if sun >= 0 && len(fr.placed) > 0 {
-		frame_render_shadow(fr, &lights, sun)
+		frame_render_shadow(fr, &lights, sun, &span)
 	}
 
-	fr.begin_pass(fr.submit_ctx, .Main, 0)
+	frame_render_begin_pass(fr, .Main, 0, &span)
 	fr.submit_lights(fr.submit_ctx, lights)
 	for p in fr.placed {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
@@ -201,16 +201,26 @@ frame_render_draw :: proc(
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
-frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int) {
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, span: ^Span_Tick) {
 	light_view_proj := shadow_view_proj(lights.light_pos[sun].xyz, fr.placed[:])
 	// The shader reads x as the view count, y as the Sun's slot and z as the normal offset.
 	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
-	fr.begin_pass(fr.submit_ctx, .Shadow, 0)
+	frame_render_begin_pass(fr, .Shadow, 0, span)
 	for p in fr.placed {
 		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model})
 	}
 	fr.end_pass(fr.submit_ctx)
+}
+
+// On Metal, the first begin_pass of a Frame waits for a free in-flight frame,
+// and the Main pass waits for the swapchain drawable. These waits pace the
+// Frames, so the render Span leaves every begin_pass out.
+@(private = "file")
+frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, span: ^Span_Tick) {
+	waited := span_open()
+	fr.begin_pass(fr.submit_ctx, pass, view)
+	span^ = span_skip(span^, waited)
 }
 
 // An orthographic view from the Sun over the box of every placed Draw.

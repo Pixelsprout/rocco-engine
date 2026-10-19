@@ -53,13 +53,18 @@ each run the same work.
 
 Lockstep turns vsync off on each backend:
 
-- Metal: the engine sets `disable_display_sync`, so the render does not wait
-  for a drawable. CADisplayLink still calls `frame_cb` once per display
-  refresh. A windowed Lockstep run therefore takes about
-  Frames / refresh rate seconds. The wait between Frames is outside every
-  Span, so it does not change the Span times.
+- Metal: the engine sets `disable_display_sync`. CADisplayLink still calls
+  `frame_cb` once per display refresh. A windowed Lockstep run therefore
+  takes about Frames / refresh rate seconds.
 - GL: the engine uses a swap interval of 0.
 - D3D11: the engine presents with `DXGI_PRESENT_DO_NOT_WAIT`.
+
+The wait between Frames is outside every Span, so it does not change the
+Span times. On Metal, sokol waits in the first `begin_pass` of a Frame for a
+free in-flight frame. It also waits in the Main `begin_pass` for the
+swapchain drawable. The `render_submit` Span leaves out each `begin_pass`
+call, so it does not hold these waits. On GL and D3D11, the present runs
+after `frame_cb` returns, so it is outside every Span.
 
 Headless renders nothing, so its `render_submit` and `commit` Spans are
 zero. It still runs the interpolation and the UI layout. The game still gets
@@ -86,7 +91,7 @@ fixed steps in the Frame, one column per Span in microseconds and
 | `query_results` | per fixed step | the copy of the QueryResults into Roc |
 | `interpolation` | per Frame | the Pairing and the interpolation of the Scene |
 | `ui_layout` | per Frame | Clay layout and the quad build |
-| `render_submit` | per Frame | the render pass, one draw call per Draw, the sky and the UI submit |
+| `render_submit` | per Frame | the shadow pass and the Main pass, one draw call per Draw, the sky and the UI submit, without the `begin_pass` calls |
 | `commit` | per Frame | `sg.commit` |
 
 A per-step Span sums over the fixed steps of its Frame.
