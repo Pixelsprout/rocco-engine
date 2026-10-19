@@ -190,6 +190,8 @@ uses only that N.
    bench game. For an Odin twin, it builds the one twin executable.
 2. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
    With `--windowed`, each process runs in windowed Lockstep.
+   The command sets `ROCCO_SEED=0` for each process, so a `ROCCO_SEED` in
+   your shell cannot change a run. The summary records this Seed.
 3. Each N runs in 5 separate processes.
 4. The sweep shuffles the order of all processes, so thermal drift spreads
    over all N. It pauses for 1 second after each process.

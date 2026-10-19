@@ -201,6 +201,11 @@ bench_measured_frames = 2000
 bench_out_dir : Str
 bench_out_dir = "bench/out"
 
+# Every bench process gets this Seed in ROCCO_SEED, so a ROCCO_SEED in the
+# caller's environment cannot change a run. bench_meta records it.
+bench_seed : U64
+bench_seed = 0
+
 # Powers of two from 64 to 16,384.
 sweep_ns : List(U64)
 sweep_ns = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
@@ -266,6 +271,7 @@ bench_run = |target, game, mode, n, csv, root| {
 		},
 		env: [
 			mode_env,
+			("ROCCO_SEED", bench_seed.to_str()),
 			("ROCCO_EXIT_AFTER_FRAMES", frames.to_str()),
 			("ROCCO_SPANS_CSV", "${root}/${bench_dir(game)}/${csv}"),
 		],
@@ -314,7 +320,7 @@ bench_meta = |target, meta| {
 		"  \"heap_log\": \"${bench_stem(meta.game, meta.n)}.heap.log\",",
 		"  \"cooldown_ms\": ${bench_cooldown_ms.to_str()},",
 		"  \"shuffle_seed\": ${meta.shuffle_seed.to_str()},",
-		"  \"seed\": 0,",
+		"  \"seed\": ${bench_seed.to_str()},",
 		"  \"git_hash\": \"${meta.git_hash}\",",
 		"  \"target\": \"${target.roc_target}\",",
 		"  \"odin_debug\": ${odin_debug},",
@@ -737,7 +743,7 @@ expect {
 	planned
 		== Ok({
 			run: { program: "/repo/bench/model-size/model-size.bin", args: ["64"], cwd: "bench/model-size" },
-			env: [("ROCCO_HEADLESS", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-p2.csv")],
+			env: [("ROCCO_HEADLESS", "1"), ("ROCCO_SEED", "0"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-p2.csv")],
 		})
 }
 
@@ -746,6 +752,7 @@ expect {
 	planned
 		== Ok([
 			("ROCCO_HEADLESS", "1"),
+			("ROCCO_SEED", "0"),
 			("ROCCO_EXIT_AFTER_FRAMES", "2120"),
 			("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-heap.csv"),
 			("ROCCO_ALLOC_REPORT", "1"),
@@ -800,7 +807,7 @@ expect shuffle([], 5) == []
 
 expect {
 	planned = target_for(mac).map_ok(|target| bench_run(target, "draws", Windowed, 8192, "draws-8192-p1.csv", "/repo").env)
-	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws/draws-8192-p1.csv")])
+	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_SEED", "0"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws/draws-8192-p1.csv")])
 }
 
 expect {
@@ -812,3 +819,15 @@ expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Span
 
 # A windowed sweep still takes the Roc heap counters Headless.
 expect target_for(mac).map_ok(|target| bench_heap_run(target, "ui", 64, "/repo").env.first()) == Ok(Ok(("ROCCO_HEADLESS", "1")))
+
+# The Seed in the environment of a bench process is the Seed in its run.json.
+expect {
+	checked = target_for(mac).map_ok(
+		|target| {
+			env = bench_run(target, "model-size", Headless, 64, "model-size-64-p1.csv", "/repo").env
+			meta = bench_meta(target, { game: "model-size", mode: Headless, n: 64, git_hash: "abc123", shuffle_seed: 7, machine: "{}" })
+			env.contains(("ROCCO_SEED", bench_seed.to_str())) and Str.contains(meta, "\"seed\": ${bench_seed.to_str()},")
+		},
+	)
+	checked == Ok(Bool.True)
+}
