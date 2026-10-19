@@ -6,6 +6,7 @@ Usage: python3 bench/compare_chart.py <comparison> [<results dir>] [--out <chart
 A comparison is one of:
   twin   model-size, its Odin twin model-size-twin and empty-step.
   tuned  model-size and the tuned model-size-tuned.
+  colliders  colliders and its Odin twin colliders-twin.
 
 The results dir defaults to the latest bench/results/<date>-<machine>/. The
 script reads its summaries of the games in the comparison and draws the median
@@ -32,6 +33,10 @@ COMPARISONS = {
     "tuned": {
         "model-size": ("Idiomatic Roc", "#2a6fdb"),
         "model-size-tuned": ("Tuned Roc", "#862e9c"),
+    },
+    "colliders": {
+        "colliders": ("Roc bench game", "#2a6fdb"),
+        "colliders-twin": ("Odin twin", "#d9480f"),
     },
 }
 STATS = {"median": "", "p99": "6 4"}

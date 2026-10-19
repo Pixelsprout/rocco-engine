@@ -15,6 +15,7 @@ import compare_chart
 
 TWIN = compare_chart.COMPARISONS["twin"]
 TUNED = compare_chart.COMPARISONS["tuned"]
+COLLIDERS = compare_chart.COMPARISONS["colliders"]
 
 
 def summary(game, n, median, p99, debug=False):
@@ -33,6 +34,8 @@ SUMMARIES = [
     summary("model-size-twin", 64, 1.0, 1.5),
     summary("model-size-tuned", 64, 1.5, 2.0),
     summary("empty-step", 64, 0.2, 0.4),
+    summary("colliders", 64, 3.0, 4.0),
+    summary("colliders-twin", 64, 1.0, 2.0),
     summary("draws", 64, 9.0, 9.0),
 ]
 
@@ -46,6 +49,7 @@ class SeriesTest(unittest.TestCase):
     def test_keeps_only_the_games_of_the_comparison(self):
         self.assertEqual({game for game, _ in compare_chart.series(SUMMARIES, TWIN)}, {"model-size", "model-size-twin", "empty-step"})
         self.assertEqual({game for game, _ in compare_chart.series(SUMMARIES, TUNED)}, {"model-size", "model-size-tuned"})
+        self.assertEqual({game for game, _ in compare_chart.series(SUMMARIES, COLLIDERS)}, {"colliders", "colliders-twin"})
 
     def test_refuses_a_debug_build(self):
         with self.assertRaises(analyse.DebugBuild):
@@ -54,7 +58,7 @@ class SeriesTest(unittest.TestCase):
 
 class SvgTest(unittest.TestCase):
     def test_draws_a_median_and_p99_line_per_game(self):
-        for games in [TWIN, TUNED]:
+        for games in [TWIN, TUNED, COLLIDERS]:
             text = compare_chart.svg(compare_chart.series(SUMMARIES, games), games)
             for game in games:
                 for stat in ["median", "p99"]:

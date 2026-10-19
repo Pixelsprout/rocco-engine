@@ -5,6 +5,7 @@ import pf.Collider
 import pf.Query
 import pf.Vocabulary exposing [Command, Config, Input, Manifest, Scene, Vec3]
 import pf.QueryResults
+import "colliders.golden" as golden_colliders : Str
 
 # The Colliders bench game. step moves N Colliders and view asks a fixed set of
 # Queries: 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N so
@@ -262,3 +263,23 @@ expect {
 		},
 	)
 }
+
+# bench/colliders-twin checks its Colliders against the same file, so the twin
+# and this game agree for one Seed and N after the same steps.
+run_steps : Model, U64 -> Model
+run_steps = |m, count| if count == 0 m else run_steps(step(m, idle, QueryResults.empty, 1.0 / 120.0).model, count - 1)
+
+bits_text : F32 -> Str
+bits_text = |f| f.to_bits().to_str()
+
+shape_text : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] -> Str
+shape_text = |shape| match shape {
+	Box(h) => "box ${bits_text(h.x)} ${bits_text(h.y)} ${bits_text(h.z)}"
+	Sphere(r) => "sphere ${bits_text(r)}"
+	Capsule(_) => "capsule"
+}
+
+colliders_text : List(Vocabulary.Collider) -> Str
+colliders_text = |colliders| Str.join_with(colliders.map(|c| "${c.id.to_str()} ${shape_text(c.shape)} ${bits_text(c.pos.x)} ${bits_text(c.pos.y)} ${bits_text(c.pos.z)} ${bits_text(c.yaw)}\n"), "")
+
+expect colliders_text(view(run_steps(init({ ..with_n(100), seed: 7 }).model, 600)).colliders) == golden_colliders
