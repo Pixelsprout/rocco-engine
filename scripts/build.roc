@@ -18,10 +18,10 @@ HostAlloc : [Tracked, Untracked]
 # Spans builds the host with the per-Frame Span timers and the CSV sink.
 HostSpans : [Spans, NoSpans]
 
-# One bench game run at each N, for warmup plus measured Frames, in
+# Each bench game runs at each N, for warmup plus measured Frames, in
 # bench_processes separate processes per N. Windowed runs in windowed Lockstep,
 # for the bench games that measure render submit.
-Bench : { game : Str, ns : List(U64), mode : BenchMode }
+Bench : { games : List(Str), ns : List(U64), mode : BenchMode }
 
 BenchMode : [Headless, Windowed]
 
@@ -44,26 +44,41 @@ parse = |args| match args {
 	["target"] => Ok([Target])
 	["all"] => Ok(all_steps(Debug))
 	["all", "--release"] => Ok(all_steps(Release))
-	["bench", game, "--windowed"] => Ok(bench_steps({ game, ns: sweep_ns, mode: Windowed }))
-	["bench", game] => Ok(bench_steps({ game, ns: sweep_ns, mode: Headless }))
-	["bench", game, n, "--windowed"] => bench_one_n(game, n, Windowed)
-	["bench", game, n] => bench_one_n(game, n, Headless)
+	["bench", names, .. as rest] => bench_parse(names, rest)
 	_ => Err(Usage)
 }
 
-bench_one_n : Str, Str, BenchMode -> Try(List(Step), [Usage])
-bench_one_n = |game, n, mode| match U64.from_str(n) {
-	Ok(count) if count > 0 => Ok(bench_steps({ game, ns: [count], mode }))
-	_ => Err(Usage)
+# names is a comma-separated list of bench games. rest is zero or more N, then
+# an optional --windowed.
+bench_parse : Str, List(Str) -> Try(List(Step), [Usage])
+bench_parse = |names, rest| {
+	(mode, n_words) = if rest.last() == Ok("--windowed") (Windowed, rest.drop_last(1)) else (Headless, rest)
+	games = Str.split_on(names, ",")
+	if games.any(|game| game == "") or !all_unique(games) {
+		return Err(Usage)
+	}
+	ns = if n_words.is_empty() sweep_ns else n_words.map(|word| U64.from_str(word) ?? 0)
+	if ns.contains(0) or !all_unique(ns) {
+		return Err(Usage)
+	}
+	Ok(bench_steps({ games, ns, mode }))
+}
+
+all_unique : List(a) -> Bool where [a.is_eq : a, a -> Bool]
+all_unique = |items| match items.first() {
+	Ok(item) => {
+		rest = items.drop_first(1)
+		!rest.contains(item) and all_unique(rest)
+	}
+	Err(_) => Bool.True
 }
 
 bench_steps : Bench -> List(Step)
-bench_steps = |bench|
-	if is_twin(bench.game) {
-		[BenchTwin(bench.game), BenchRun(bench)]
-	} else {
-		[bench_host, Inputs(Release), BenchGame(bench.game), BenchRun(bench)]
-	}
+bench_steps = |bench| {
+	builds = bench.games.map(|game| if is_twin(game) BenchTwin(game) else BenchGame(game))
+	prepare = if bench.games.any(|game| !is_twin(game)) [bench_host, Inputs(Release)] else []
+	prepare.concat(builds).append(BenchRun(bench))
+}
 
 all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong")]
@@ -181,14 +196,15 @@ bench_host : Step
 bench_host = Host(Release, Untracked, Spans)
 
 # An Odin twin is an Odin package that builds into one executable with the
-# engine, so it needs no host library and no roc build.
+# engine, so it needs no host library and no roc build. It takes the target's
+# host flags, so the twin and the host build the engine the same way.
 is_twin : Str -> Bool
 is_twin = |game| Str.ends_with(game, "-twin")
 
 twin_run : Target, Str -> Run
 twin_run = |target, name| {
 	program: "odin",
-	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"],
+	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}"].concat(target.host_flags).concat(["-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"]),
 	cwd: ".",
 }
 
@@ -201,6 +217,11 @@ bench_measured_frames = 2000
 bench_out_dir : Str
 bench_out_dir = "bench/out"
 
+# Every bench process gets this Seed in ROCCO_SEED, so a ROCCO_SEED in the
+# caller's environment cannot change a run. bench_meta records it.
+bench_seed : U64
+bench_seed = 0
+
 # Powers of two from 64 to 16,384.
 sweep_ns : List(U64)
 sweep_ns = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
@@ -212,15 +233,15 @@ bench_processes = [1, 2, 3, 4, 5]
 bench_cooldown_ms : U64
 bench_cooldown_ms = 1000
 
-BenchProcess : { n : U64, process : U64 }
+BenchProcess : { game : Str, n : U64, process : U64 }
 
-# Every timed process of a sweep, in a shuffled order, so thermal drift
-# spreads across all configurations.
-sweep_order : List(U64), U64 -> List(BenchProcess)
-sweep_order = |ns, seed| shuffle(ns.join_map(|n| bench_processes.map(|process| { n, process })), seed)
+# Every timed process of every game and N, in one shuffled order, so thermal
+# drift spreads across all configurations.
+sweep_order : List(Str), List(U64), U64 -> List(BenchProcess)
+sweep_order = |games, ns, seed| shuffle(games.join_map(|game| ns.join_map(|n| bench_processes.map(|process| { game, n, process }))), seed)
 
 shuffle : List(a), U64 -> List(a)
-shuffle = |items, seed| shuffle_help(items, List.with_capacity(items.len()), next_rng(seed))
+shuffle = |items, seed| shuffle_help(items, List.with_capacity(items.len()), shuffle_rng(seed))
 
 shuffle_help : List(a), List(a), U64 -> List(a)
 shuffle_help = |left, picked, rng| {
@@ -229,21 +250,21 @@ shuffle_help = |left, picked, rng| {
 	} else {
 		i = rng.shr_zf_wrap(33) % left.len()
 		match left.get(i) {
-			Ok(item) => shuffle_help(left.take_first(i).concat(left.drop_first(i + 1)), picked.append(item), next_rng(rng))
+			Ok(item) => shuffle_help(left.take_first(i).concat(left.drop_first(i + 1)), picked.append(item), shuffle_rng(rng))
 			Err(_) => picked
 		}
 	}
 }
 
-next_rng : U64 -> U64
-next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1442695040888963407)
+shuffle_rng : U64 -> U64
+shuffle_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1442695040888963407)
 
 bench_dir : Str -> Str
 bench_dir = |game| "${bench_out_dir}/${game}"
 
 # File names inside bench_dir.
-bench_csv : Str, BenchProcess -> Str
-bench_csv = |game, p| "${game}-${p.n.to_str()}-p${p.process.to_str()}.csv"
+bench_csv : BenchProcess -> Str
+bench_csv = |p| "${p.game}-${p.n.to_str()}-p${p.process.to_str()}.csv"
 
 bench_stem : Str, U64 -> Str
 bench_stem = |game, n| "${game}-${n.to_str()}"
@@ -266,6 +287,7 @@ bench_run = |target, game, mode, n, csv, root| {
 		},
 		env: [
 			mode_env,
+			("ROCCO_SEED", bench_seed.to_str()),
 			("ROCCO_EXIT_AFTER_FRAMES", frames.to_str()),
 			("ROCCO_SPANS_CSV", "${root}/${bench_dir(game)}/${csv}"),
 		],
@@ -301,7 +323,7 @@ bench_meta = |target, meta| {
 		}
 	odin_debug = if host_flags.contains("-debug") "true" else "false"
 	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
-	csvs = bench_processes.map(|process| bench_csv(meta.game, { n: meta.n, process }))
+	csvs = bench_processes.map(|process| bench_csv({ game: meta.game, n: meta.n, process }))
 	lines = [
 		"{",
 		"  \"game\": \"${meta.game}\",",
@@ -314,7 +336,7 @@ bench_meta = |target, meta| {
 		"  \"heap_log\": \"${bench_stem(meta.game, meta.n)}.heap.log\",",
 		"  \"cooldown_ms\": ${bench_cooldown_ms.to_str()},",
 		"  \"shuffle_seed\": ${meta.shuffle_seed.to_str()},",
-		"  \"seed\": 0,",
+		"  \"seed\": ${bench_seed.to_str()},",
 		"  \"git_hash\": \"${meta.git_hash}\",",
 		"  \"target\": \"${target.roc_target}\",",
 		"  \"odin_debug\": ${odin_debug},",
@@ -377,13 +399,15 @@ usage =
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong
-	\\  bench <game> [n] [--windowed]
+	\\  bench <game>[,<game>...] [n...] [--windowed]
 	\\                  build a release host with Spans, the release inputs and
-	\\                  bench/<game>, then run a sweep: N from 64 to 16384 in
-	\\                  powers of two, or only the N given. Each N runs Headless
-	\\                  in 5 processes, in a shuffled order, with N as the first
-	\\                  Arg. Raw output goes to bench/out/<game>/. bench/analyse.py
-	\\                  then writes the summaries to bench/results/<date>-<machine>/.
+	\\                  each bench/<game>, then run a sweep: N from 64 to 16384 in
+	\\                  powers of two, or only the N given. Each game and N runs
+	\\                  Headless in 5 processes, all in one shuffled order, with N
+	\\                  as the first Arg. Raw output goes to bench/out/<game>/.
+	\\                  bench/analyse.py then writes the summaries to
+	\\                  bench/out/results/<date>-<machine>/. Only
+	\\                  bench/reference-run.sh writes to bench/results/.
 	\\                  Run all again before you run the examples.
 	\\                  A <game> that ends in -twin is an Odin twin: odin builds
 	\\                  bench/<game> with the engine into one release executable
@@ -399,7 +423,8 @@ usage =
 	\\host has it only with host --release --track-alloc.
 	\\
 	\\host --spans and host --release --spans add the per-Frame Span timers. Such a
-	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV.
+	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV, and stops at
+	\\startup if ROCCO_SPANS_CSV or ROCCO_EXIT_AFTER_FRAMES is not set.
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 
@@ -496,25 +521,29 @@ bench! = |target, bench| {
 	status = Cmd.new("git").args(["status", "--porcelain"]).exec_output!() ? |_| Failed("git status failed.")
 	dirty = if Str.trim(status.stdout_utf8) == "" "" else "-dirty"
 	git_hash = "${Str.trim(git.stdout_utf8)}${dirty}"
-	dir = bench_dir(bench.game)
-	Path.utf8(dir).create_all!()?
+	for game in bench.games {
+		Path.utf8(bench_dir(game)).create_all!()?
+	}
 	machine = Cmd.new_str(target.python).args_str(["bench/machine.py"]).exec_output!() ? |_| Failed("${target.python} bench/machine.py failed. The bench needs Python 3 on PATH.")
 	shuffle_seed = Random.seed_u64!() ? |_| Failed("The OS gave no random seed.")
-	for p in sweep_order(bench.ns, shuffle_seed) {
-		planned = bench_run(target, bench.game, bench.mode, p.n, bench_csv(bench.game, p), root)
+	Stdout.line!("== shuffle seed ${shuffle_seed.to_str()}")?
+	for p in sweep_order(bench.games, bench.ns, shuffle_seed) {
+		planned = bench_run(target, p.game, bench.mode, p.n, bench_csv(p), root)
 		exec_env_allowing!(planned.run, planned.env, [])?
 		Sleep.millis!(bench_cooldown_ms)
 	}
-	for n in bench.ns {
-		stem = "${dir}/${bench_stem(bench.game, n)}"
-		heap = bench_heap_run(target, bench.game, n, root)
-		Stdout.line!("== Roc heap counters: ${heap.run.program} ${n.to_str()}")?
+	configs = bench.games.join_map(|game| bench.ns.map(|n| { game, n }))
+	for config in configs {
+		stem = "${bench_dir(config.game)}/${bench_stem(config.game, config.n)}"
+		heap = bench_heap_run(target, config.game, config.n, root)
+		Stdout.line!("== Roc heap counters: ${heap.run.program} ${config.n.to_str()}")?
 		cmd = Cmd.new_str(heap.run.program).args_str(heap.run.args).envs_str(heap.env).cwd(Path.utf8(heap.run.cwd))
-		out = cmd.exec_output!() ? |_| Failed("The Roc heap counter run at N=${n.to_str()} failed.")
+		out = cmd.exec_output!() ? |_| Failed("The Roc heap counter run of ${config.game} at N=${config.n.to_str()} failed.")
 		Path.utf8("${stem}.heap.log").write_utf8!(out.stdout_utf8)?
-		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: bench.game, mode: bench.mode, n, git_hash, shuffle_seed, machine: machine.stdout_utf8 }))?
+		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: config.game, mode: bench.mode, n: config.n, git_hash, shuffle_seed, machine: machine.stdout_utf8 }))?
 	}
-	exec!({ program: target.python, args: ["bench/analyse.py"].concat(bench.ns.map(|n| "${dir}/${bench_stem(bench.game, n)}.run.json")), cwd: "." })
+	runs = configs.map(|config| "${bench_dir(config.game)}/${bench_stem(config.game, config.n)}.run.json")
+	exec!({ program: target.python, args: ["bench/analyse.py"].concat(runs), cwd: "." })
 }
 
 exec! : Run => Try({}, _)
@@ -601,12 +630,12 @@ expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
 expect parse(["deploy"]) == Err(Usage)
-expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", ns: [64], mode: Headless })])
-expect parse(["bench", "model-size"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", ns: sweep_ns, mode: Headless })])
-expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", ns: [64], mode: Headless })])
-expect parse(["bench", "model-size-twin"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", ns: sweep_ns, mode: Headless })])
-expect parse(["bench", "draws", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ game: "draws", ns: sweep_ns, mode: Windowed })])
-expect parse(["bench", "draws", "4096", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ game: "draws", ns: [4096], mode: Windowed })])
+expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ games: ["model-size"], ns: [64], mode: Headless })])
+expect parse(["bench", "model-size"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ games: ["model-size"], ns: sweep_ns, mode: Headless })])
+expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ games: ["model-size-twin"], ns: [64], mode: Headless })])
+expect parse(["bench", "model-size-twin"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ games: ["model-size-twin"], ns: sweep_ns, mode: Headless })])
+expect parse(["bench", "draws", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ games: ["draws"], ns: sweep_ns, mode: Windowed })])
+expect parse(["bench", "draws", "4096", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ games: ["draws"], ns: [4096], mode: Windowed })])
 expect parse(["bench", "draws", "64", "--headless"]) == Err(Usage)
 expect parse(["bench", "model-size", "0"]) == Err(Usage)
 expect parse(["bench", "model-size", "many"]) == Err(Usage)
@@ -737,7 +766,7 @@ expect {
 	planned
 		== Ok({
 			run: { program: "/repo/bench/model-size/model-size.bin", args: ["64"], cwd: "bench/model-size" },
-			env: [("ROCCO_HEADLESS", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-p2.csv")],
+			env: [("ROCCO_HEADLESS", "1"), ("ROCCO_SEED", "0"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-p2.csv")],
 		})
 }
 
@@ -746,13 +775,14 @@ expect {
 	planned
 		== Ok([
 			("ROCCO_HEADLESS", "1"),
+			("ROCCO_SEED", "0"),
 			("ROCCO_EXIT_AFTER_FRAMES", "2120"),
 			("ROCCO_SPANS_CSV", "/repo/bench/out/model-size/model-size-64-heap.csv"),
 			("ROCCO_ALLOC_REPORT", "1"),
 		])
 }
 
-expect bench_csv("model-size", { n: 1024, process: 3 }) == "model-size-1024-p3.csv"
+expect bench_csv({ game: "model-size", n: 1024, process: 3 }) == "model-size-1024-p3.csv"
 
 expect {
 	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", mode: Headless, n: 64, git_hash: "abc123", shuffle_seed: 7, machine: "{\"slug\": \"apple-m5\"}\n" }))
@@ -786,21 +816,27 @@ expect {
 
 expect sweep_ns.len() == 9 and sweep_ns.first() == Ok(64) and sweep_ns.last() == Ok(16384)
 
-# Every process of every N runs once, whatever the order.
+# Every process of every game and N runs once, whatever the order.
 expect {
-	order = sweep_order([64, 128], 99)
-	all = [64, 128].join_map(|n| bench_processes.map(|process| { n, process }))
-	order.len() == 10 and all.all(|p| order.contains(p))
+	order = sweep_order(["a", "b"], [64, 128], 99)
+	all = ["a", "b"].join_map(|game| [64, 128].join_map(|n| bench_processes.map(|process| { game, n, process })))
+	order.len() == 20 and all.all(|p| order.contains(p))
 }
 
-expect sweep_order(sweep_ns, 1) == sweep_order(sweep_ns, 1)
-expect sweep_order(sweep_ns, 1) != sweep_order(sweep_ns, 2)
+# The games share one order: the first half is not all one game.
+expect {
+	first_half = sweep_order(["a", "b"], [64, 128], 99).take_first(10)
+	first_half.any(|p| p.game == "a") and first_half.any(|p| p.game == "b")
+}
+
+expect sweep_order(["a"], sweep_ns, 1) == sweep_order(["a"], sweep_ns, 1)
+expect sweep_order(["a"], sweep_ns, 1) != sweep_order(["a"], sweep_ns, 2)
 expect shuffle([1, 2, 3, 4, 5, 6, 7, 8], 5) != [1, 2, 3, 4, 5, 6, 7, 8]
 expect shuffle([], 5) == []
 
 expect {
 	planned = target_for(mac).map_ok(|target| bench_run(target, "draws", Windowed, 8192, "draws-8192-p1.csv", "/repo").env)
-	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws/draws-8192-p1.csv")])
+	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_SEED", "0"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws/draws-8192-p1.csv")])
 }
 
 expect {
@@ -808,7 +844,49 @@ expect {
 	meta.map_ok(|text| Str.contains(text, "\"mode\": \"lockstep\",")) == Ok(Bool.True)
 }
 
-expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ game: "ui", ns: sweep_ns, mode: Windowed })])
+expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ games: ["ui"], ns: sweep_ns, mode: Windowed })])
 
 # A windowed sweep still takes the Roc heap counters Headless.
 expect target_for(mac).map_ok(|target| bench_heap_run(target, "ui", 64, "/repo").env.first()) == Ok(Ok(("ROCCO_HEADLESS", "1")))
+
+# The Seed in the environment of a bench process is the Seed in its run.json.
+expect {
+	checked = target_for(mac).map_ok(
+		|target| {
+			env = bench_run(target, "model-size", Headless, 64, "model-size-64-p1.csv", "/repo").env
+			meta = bench_meta(target, { game: "model-size", mode: Headless, n: 64, git_hash: "abc123", shuffle_seed: 7, machine: "{}" })
+			env.contains(("ROCCO_SEED", bench_seed.to_str())) and Str.contains(meta, "\"seed\": ${bench_seed.to_str()},")
+		},
+	)
+	checked == Ok(Bool.True)
+}
+
+expect {
+	steps = parse(["bench", "model-size,model-size-twin,colliders", "64", "128"])
+	steps
+		== Ok([
+			Host(Release, Untracked, Spans),
+			Inputs(Release),
+			BenchGame("model-size"),
+			BenchTwin("model-size-twin"),
+			BenchGame("colliders"),
+			BenchRun({ games: ["model-size", "model-size-twin", "colliders"], ns: [64, 128], mode: Headless }),
+		])
+}
+
+expect parse(["bench", "draws,ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchGame("ui"), BenchRun({ games: ["draws", "ui"], ns: sweep_ns, mode: Windowed })])
+expect parse(["bench", "model-size-twin,colliders-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchTwin("colliders-twin"), BenchRun({ games: ["model-size-twin", "colliders-twin"], ns: [64], mode: Headless })])
+expect parse(["bench", "model-size,", "64"]) == Err(Usage)
+expect parse(["bench", "model-size,model-size"]) == Err(Usage)
+expect parse(["bench", "model-size", "64", "64"]) == Err(Usage)
+expect parse(["bench", "model-size", "--windowed", "64"]) == Err(Usage)
+
+expect {
+	run = target_for(windows).map_ok(|target| twin_run(target, "model-size-twin"))
+	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.exe", "-no-crt", "-no-thread-local", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
+}
+
+expect {
+	run = target_for(mac).map_ok(|target| twin_run(target, "model-size-twin"))
+	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.bin", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
+}

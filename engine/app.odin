@@ -6,6 +6,7 @@ import sglue "../sokol-odin/sokol/glue"
 import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
+import "core:os"
 
 import "base:runtime"
 
@@ -43,7 +44,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
 	g_state.mode = run_mode_from_env(g_state.exit_after_frames)
-	span_sink_init(&g_state.spans, spans_csv_from_env(), g_state.exit_after_frames, context.allocator)
+	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
@@ -139,10 +140,12 @@ cleanup_cb :: proc "c" () {
 	app_shutdown()
 }
 
-// A Headless run never set up sokol, so it must not shut it down.
+// A Headless run never set up sokol, so it must not shut it down. A bench run
+// with no Spans CSV must fail, so a failed write exits with 1 at the end.
 app_shutdown :: proc() {
-	if err := span_sink_write(&g_state.spans); err != nil {
-		fmt.eprintfln("the Spans CSV did not write: %v", err)
+	spans_err := span_sink_write(&g_state.spans)
+	if spans_err != nil {
+		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
 	span_sink_destroy(&g_state.spans)
 
@@ -167,6 +170,9 @@ app_shutdown :: proc() {
 			fmt.eprintfln("BAD Free at %v", bad.location)
 		}
 		mem.tracking_allocator_destroy(&g_track)
+	}
+	if spans_err != nil {
+		os.exit(1)
 	}
 }
 

@@ -12,8 +12,9 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-headless_games="model-size model-size-tuned model-size-twin empty-step colliders colliders-twin"
-windowed_games="draws ui mixed"
+# One bench command per list runs its games and N in one shuffled order.
+headless_games="model-size,model-size-tuned,model-size-twin,empty-step,colliders,colliders-twin"
+windowed_games="draws,ui,mixed"
 # Keep equal to sweep_ns in scripts/build.roc.
 full_ns="64 128 256 512 1024 2048 4096 8192 16384"
 real_clock_game=entity-game
@@ -36,44 +37,22 @@ if [ -e "$results" ]; then
 	echo "reference-run: $results already exists. Move or delete it first." >&2
 	exit 1
 fi
-mkdir -p bench/results
-before=$(ls bench/results)
 
-sweep() {
-	game=$1
-	shift
-	if [ -z "${REFERENCE_NS:-}" ]; then
-		roc scripts/build.roc bench "$game" "$@"
-	else
-		for n in $ns; do
-			roc scripts/build.roc bench "$game" "$n" "$@"
-		done
-	fi
-}
+# shellcheck disable=SC2086
+roc scripts/build.roc bench "$headless_games" ${REFERENCE_NS:-}
+# shellcheck disable=SC2086
+roc scripts/build.roc bench "$windowed_games" ${REFERENCE_NS:-} --windowed
 
-for game in $headless_games; do
-	sweep "$game"
-done
-for game in $windowed_games; do
-	sweep "$game" --windowed
-done
-
-# bench writes to the directory of the day each sweep starts. Write every
-# summary again into $results, so a run past midnight stays in one directory.
+# bench writes its summaries to bench/out/results/. Write every summary again
+# into $results, the committed directory of the day the run started.
 runs=""
-for game in $headless_games $windowed_games; do
+for game in $(echo "$headless_games,$windowed_games" | tr , ' '); do
 	for n in $ns; do
 		runs="$runs bench/out/$game/$game-$n.run.json"
 	done
 done
 # shellcheck disable=SC2086
 python3 bench/analyse.py $runs --out-dir "$results"
-for dir in bench/results/*; do
-	name=$(basename "$dir")
-	if [ "$dir" != "$results" ] && ! echo "$before" | grep -qx "$name"; then
-		rm -r "$dir"
-	fi
-done
 
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
@@ -89,7 +68,8 @@ for comparison in twin tuned colliders; do
 done
 python3 bench/headline.py "$results" | tee "$results/headline.txt"
 
-# A Spans host stops every run without ROCCO_SPANS_CSV, so put the debug host back.
+# A Spans host stops every run without ROCCO_SPANS_CSV and ROCCO_EXIT_AFTER_FRAMES,
+# so put the debug host back.
 roc scripts/build.roc all
 
 echo "reference-run: the summaries are in $results and the charts in bench/out/charts/."

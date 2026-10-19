@@ -6,7 +6,7 @@ Usage: python3 bench/headline.py [<results dir>] [--game <game>]
 The headline figure is the largest N whose p99 Frame CPU time stays under
 16.6 ms at 2 fixed steps per Frame. bench/analyse.py writes that Frame time as
 frame_budget_us: the per-step Spans times 2 plus the per-Frame Spans. The
-results dir defaults to the latest bench/results/<date>-<machine>/. Only a
+results dir defaults to the one that bench/chart.py picks. Only a
 windowed Lockstep sweep counts, because Headless renders nothing.
 """
 

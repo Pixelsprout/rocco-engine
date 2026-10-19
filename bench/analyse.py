@@ -6,8 +6,10 @@ Usage: python3 bench/analyse.py <run.json>... [--out-dir <dir>]
 `roc scripts/build.roc bench <game> [n]` writes one <game>-<n>.run.json per N
 in bench/out/<game>/, with the Spans CSV of each process and the Roc heap log
 beside it, and then runs this script. Each summary goes to
-bench/results/<date>-<machine>/<game>-<n>.json unless --out-dir names a
-directory. A debug build is refused, so a debug number cannot reach a chart.
+bench/out/results/<date>-<machine>/<game>-<n>.json, which git ignores, unless
+--out-dir names a directory. bench/reference-run.sh names a directory in
+bench/results/, the committed results. A debug build is refused, so a debug
+number cannot reach a chart.
 """
 
 import argparse
@@ -20,7 +22,7 @@ from pathlib import Path
 
 PERCENTILES = {"median": 50, "p95": 95, "p99": 99}
 
-RESULTS_DIR = Path(__file__).resolve().parent / "results"
+RESULTS_DIR = Path(__file__).resolve().parent / "out" / "results"
 
 # The run.json fields that a summary copies unchanged.
 RUN_FIELDS = [

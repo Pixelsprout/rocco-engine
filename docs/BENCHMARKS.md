@@ -34,8 +34,10 @@ were noise, so it is deleted.
   is the cost of the Seam and of Roc.
 - **No GPU time.** The Spans measure CPU time only. `render_submit` and
   `commit` measure the CPU cost of the sokol calls, not the GPU work.
-- **No CI timing.** CI runs each bench game once at N=64 as a smoke test.
-  CI runners share their hardware, so CI makes no timing claims.
+- **No CI timing.** On macOS, CI runs each bench game once at N=64 as a
+  smoke test. On Linux and Windows, CI runs `model-size` and
+  `model-size-twin` once at N=64. CI runners share their hardware, so CI
+  makes no timing claims.
 - **No Windows numbers yet.** The harness runs on Windows with the same
   protocol. The first results come from the Mac.
 
@@ -53,13 +55,18 @@ each run the same work.
 
 Lockstep turns vsync off on each backend:
 
-- Metal: the engine sets `disable_display_sync`, so the render does not wait
-  for a drawable. CADisplayLink still calls `frame_cb` once per display
-  refresh. A windowed Lockstep run therefore takes about
-  Frames / refresh rate seconds. The wait between Frames is outside every
-  Span, so it does not change the Span times.
+- Metal: the engine sets `disable_display_sync`. CADisplayLink still calls
+  `frame_cb` once per display refresh. A windowed Lockstep run therefore
+  takes about Frames / refresh rate seconds.
 - GL: the engine uses a swap interval of 0.
 - D3D11: the engine presents with `DXGI_PRESENT_DO_NOT_WAIT`.
+
+The wait between Frames is outside every Span, so it does not change the
+Span times. On Metal, sokol waits in the first `begin_pass` of a Frame for a
+free in-flight frame. It also waits in the Main `begin_pass` for the
+swapchain drawable. The `render_submit` Span leaves out each `begin_pass`
+call, so it does not hold these waits. On GL and D3D11, the present runs
+after `frame_cb` returns, so it is outside every Span.
 
 Headless renders nothing, so its `render_submit` and `commit` Spans are
 zero. It still runs the interpolation and the UI layout. The game still gets
@@ -76,6 +83,11 @@ first row is a header. Then each Frame has one row: the Frame number, the
 fixed steps in the Frame, one column per Span in microseconds and
 `span_cost_us`.
 
+A Spans host stops at startup with exit code 1 if `ROCCO_SPANS_CSV` or
+`ROCCO_EXIT_AFTER_FRAMES` is not set. The host reserves one row per Frame of
+the limit, so the Spans do not allocate during a run. If the CSV does not
+write, the host exits with code 1.
+
 | Span | Runs | Measures |
 |---|---|---|
 | `input` | per fixed step | the copy of Input into Roc |
@@ -86,7 +98,7 @@ fixed steps in the Frame, one column per Span in microseconds and
 | `query_results` | per fixed step | the copy of the QueryResults into Roc |
 | `interpolation` | per Frame | the Pairing and the interpolation of the Scene |
 | `ui_layout` | per Frame | Clay layout and the quad build |
-| `render_submit` | per Frame | the render pass, one draw call per Draw, the sky and the UI submit |
+| `render_submit` | per Frame | the shadow pass and the Main pass, one draw call per Draw, the sky and the UI submit, without the `begin_pass` calls |
 | `commit` | per Frame | `sg.commit` |
 
 A per-step Span sums over the fixed steps of its Frame.
@@ -111,7 +123,7 @@ A bench run uses a true release build:
 | Host | `roc scripts/build.roc host --release --spans` | `odin build engine -build-mode:static -o:speed -define:ROCCO_SPANS=true -vet -strict-style` |
 | sokol and Clay | `roc scripts/build.roc inputs --release` | the release sokol archives |
 | Roc bench game | `roc build` in `bench/<game>/` | Roc's default, `--opt=speed` |
-| Odin twin | `odin build bench/<game>-twin` | `-o:speed -define:ROCCO_SPANS=true -vet -strict-style`, one executable with the engine and no Roc app |
+| Odin twin | `odin build bench/<game>-twin` | the host's target flags (`-no-crt -no-thread-local` on Windows), then `-o:speed -define:ROCCO_SPANS=true -vet -strict-style`, one executable with the engine and no Roc app |
 
 - The release host has no `-debug`, so `ODIN_DEBUG` is false.
 - The release host has no host tracking allocator. Only a debug host or
@@ -127,7 +139,8 @@ backing allocator, in place when it can. An A/B comparison chose this version
 over the allocation map, and the map version is deleted. Each summary records
 `"roc_heap": "header"`.
 
-The A/B results, with `-o:speed`:
+The A/B results come from the Roc heap micro benchmark, `bench/roc-heap/`,
+with `-o:speed`:
 
 | Micro benchmark | Allocation map | Size header |
 |---|---|---|
@@ -140,10 +153,36 @@ the micro benchmarks show the realloc gain. In the Model size sweep, the size
 header was faster at N <= 512 (0.12 us against 0.21 us at N=64) and equal
 within the noise above. That sweep ran with other programs on the machine.
 
+#### Run the Roc heap micro benchmark
+
+The micro benchmark calls `roc_alloc`, `roc_dealloc` and `roc_realloc`
+directly, with no game and no window. It prints 3 rounds of ns per alloc and
+free pair and us per realloc list. To run it on the current Roc heap:
+
+```sh
+odin run bench/roc-heap -o:speed -out:build/roc-heap
+```
+
+To repeat the A/B, use commit `78ae3bd`. That commit has both versions,
+chosen with `-define:ROCCO_ROC_HEAP=map` or `header`:
+
+```sh
+git worktree add ../rocco-ab 78ae3bd
+cd ../rocco-ab
+git submodule update --init
+mkdir -p bench/roc-heap build
+git show main:bench/roc-heap/main.odin > bench/roc-heap/main.odin
+odin run bench/roc-heap -o:speed -define:ROCCO_ROC_HEAP=map -out:build/roc-heap-map
+odin run bench/roc-heap -o:speed -define:ROCCO_ROC_HEAP=header -out:build/roc-heap-header
+```
+
+No chart shows the Roc heap, because only one Roc heap version remains.
+
 ## Bench games
 
 Each bench game reads N from its first Arg and stops if N is missing or not a
-positive integer. Each bench game uses the Seed for its randomness, so a run
+positive integer. The Roc bench games share this code, the random generator
+and their test helpers in the package `bench/shared/`. Each bench game uses the Seed for its randomness, so a run
 is repeatable. Each bench game changes one axis. The bench games live in
 `bench/`, outside `examples/`, so `run-games.sh`, `test-all.sh` and
 `screenshot.sh` do not run them. `sh bench/check.sh` runs `roc check` and
@@ -177,24 +216,31 @@ in `engine/frame_render.odin`) and drops the rest.
 
 ## Protocol
 
-`roc scripts/build.roc bench <game> [n] [--windowed]` builds and runs one
-sweep. With no `n`, the sweep uses N = 64, 128, 256, ..., 16,384. With `n`, it
-uses only that N.
+`roc scripts/build.roc bench <game>[,<game>...] [n...] [--windowed]` builds
+and runs one sweep of one or more bench games. With no `n`, the sweep uses
+N = 64, 128, 256, ..., 16,384. With `n`, it uses only the N given. For
+example, `roc scripts/build.roc bench model-size,model-size-twin 64 1024`
+runs two games at two N in one sweep.
 
-1. The command builds the release host with Spans, the release inputs and the
-   bench game. For an Odin twin, it builds the one twin executable.
+1. The command builds the release host with Spans, the release inputs and
+   each bench game. For an Odin twin, it builds the one twin executable.
 2. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
    With `--windowed`, each process runs in windowed Lockstep.
-3. Each N runs in 5 separate processes.
-4. The sweep shuffles the order of all processes, so thermal drift spreads
-   over all N. It pauses for 1 second after each process.
-5. One more Headless process per N runs with `ROCCO_ALLOC_REPORT=1`. It
+   The command sets `ROCCO_SEED=0` for each process, so a `ROCCO_SEED` in
+   your shell cannot change a run. The summary records this Seed.
+3. Each game and N runs in 5 separate processes.
+4. The sweep shuffles the order of all processes of all games and N, so
+   thermal drift spreads over all configurations. It prints the shuffle seed
+   and records it in each summary. It pauses for 1 second after each process.
+5. One more Headless process per game and N runs with `ROCCO_ALLOC_REPORT=1`. It
    records the Roc heap counters. Nobody uses its times.
 6. The sweep writes the raw CSVs, the Roc heap logs and one
    `<game>-<n>.run.json` per N to `bench/out/<game>/`. Git ignores
    `bench/out/`.
 7. `bench/analyse.py` drops the warmup Frames and writes one summary per N to
-   `bench/results/<date>-<machine>/<game>-<n>.json`.
+   `bench/out/results/<date>-<machine>/<game>-<n>.json`. Git ignores these
+   summaries. Only the reference run writes to `bench/results/`, the
+   committed results. See "Reference run".
 
 A summary holds:
 
@@ -265,18 +311,20 @@ nothing and exits 0 when the machine is ready.
 
 | Tool | Use |
 |---|---|
-| `roc scripts/build.roc bench <game> [n] [--windowed]` | Builds and runs one sweep. See "Protocol". |
-| `bench/analyse.py <run.json>... [--out-dir <dir>]` | Writes the summaries. The bench command runs it. |
+| `roc scripts/build.roc bench <game>[,<game>...] [n...] [--windowed]` | Builds and runs one sweep. See "Protocol". |
+| `bench/analyse.py <run.json>... [--out-dir <dir>]` | Writes the summaries to `bench/out/results/<date>-<machine>/`, or to the directory you name. The bench command runs it. |
 | `bench/chart.py [<results dir>]` | Draws one SVG per bench game to `bench/out/charts/<game>.svg`: N against each Span and the Frame budget, on log scales. A solid line is the median, a dashed line is p99, and a bar shows the spread between processes. |
 | `bench/compare_chart.py twin\|tuned\|colliders [<results dir>]` | Draws the median and p99 `step` Span of several bench games on one chart, `bench/out/charts/<comparison>.svg`. `twin` is `model-size`, `model-size-twin` and `empty-step`. `tuned` is `model-size` and `model-size-tuned`. `colliders` is `colliders` and `colliders-twin`. |
 | `bench/headline.py [<results dir>] [--game <game>]` | Prints the median and p99 Frame budget per N and the headline figure. |
 | `bench/machine.py [--check]` | Prints the machine as JSON, or checks that it is ready for a reference run. |
+| `odin run bench/roc-heap -o:speed -out:build/roc-heap` | Runs the Roc heap micro benchmark. See "The Roc heap". |
 | `bench/realclock.py <csv> --game <game> --out <json>` | Summarises one real-clock run. See "Real-clock reference". |
-| `sh bench/twin-sweep.sh [n...]` | Runs the sweeps of `model-size`, `model-size-twin` and `empty-step` and draws the twin chart. |
 | `sh bench/reference-run.sh` | Runs the full reference run. See "Reference run". |
 
 The chart scripts and `headline.py` read the latest
-`bench/results/<date>-<machine>/` when you name no directory. They use only
+`bench/out/results/<date>-<machine>/` when you name no directory. If
+`bench/out/results/` is empty, they read the latest
+`bench/results/<date>-<machine>/`. They use only
 the Python standard library.
 
 ## Repeat a run
@@ -295,7 +343,8 @@ the Python standard library.
 7. For the headline figure, run `roc scripts/build.roc bench mixed --windowed`,
    then `python3 bench/headline.py`.
 8. Run `roc scripts/build.roc all` again. A Spans host stops every run that
-   has no `ROCCO_SPANS_CSV`, so the examples do not run until you do this.
+   has no `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so the examples
+   do not run until you do this.
 
 To repeat the full reference run, use `sh bench/reference-run.sh` (see
 "Reference run").
@@ -351,37 +400,35 @@ The script does these steps. To run them by hand, use the same order:
 
 ```sh
 python3 bench/machine.py --check
-roc scripts/build.roc bench model-size
-roc scripts/build.roc bench model-size-tuned
-roc scripts/build.roc bench model-size-twin
-roc scripts/build.roc bench empty-step
-roc scripts/build.roc bench colliders
-roc scripts/build.roc bench colliders-twin
-roc scripts/build.roc bench draws --windowed
-roc scripts/build.roc bench ui --windowed
-roc scripts/build.roc bench mixed --windowed
+roc scripts/build.roc bench model-size,model-size-tuned,model-size-twin,empty-step,colliders,colliders-twin
+roc scripts/build.roc bench draws,ui,mixed --windowed
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
 roc scripts/build.roc game entity-game
 (cd examples/entity-game && ROCCO_EXIT_AFTER_FRAMES=2120 \
   ROCCO_SPANS_CSV=$PWD/../../bench/out/real-clock/entity-game.csv ./entity-game.bin)
+python3 bench/analyse.py bench/out/*/*.run.json --out-dir bench/results/<date>-<machine>
 python3 bench/realclock.py bench/out/real-clock/entity-game.csv \
   --game entity-game --out bench/results/<date>-<machine>/real-clock/entity-game.json
-python3 bench/chart.py
-python3 bench/compare_chart.py twin
-python3 bench/compare_chart.py tuned
-python3 bench/compare_chart.py colliders
-python3 bench/headline.py
+python3 bench/chart.py bench/results/<date>-<machine>
+python3 bench/compare_chart.py twin bench/results/<date>-<machine>
+python3 bench/compare_chart.py tuned bench/results/<date>-<machine>
+python3 bench/compare_chart.py colliders bench/results/<date>-<machine>
+python3 bench/headline.py bench/results/<date>-<machine>
 roc scripts/build.roc all
 ```
 
 The script also does these things:
 
+- It runs all Headless games in one shuffled sweep, and all windowed games
+  in a second shuffled sweep.
 - It stops if `bench/machine.py --check` fails.
 - It stops if `bench/results/<date>-<machine>/` for today already exists.
   Move or delete that directory first.
-- It writes every summary again into the directory of the day the run
-  started, so a run past midnight stays in one directory.
+- Each bench command writes its summaries to `bench/out/results/`. The
+  script then writes every summary again into
+  `bench/results/<date>-<machine>/`, dated on the day the run started, so a
+  run past midnight stays in one directory.
 - It writes the output of `headline.py` to `headline.txt` in the result
   directory.
 
@@ -395,7 +442,7 @@ reference run:
 
 | Variable | Effect |
 |---|---|
-| `REFERENCE_NS="64 128"` | Runs only these N, one bench command per N, to check the script. Delete the result directory after the check. |
+| `REFERENCE_NS="64 128"` | Runs only these N, to check the script. Delete the result directory after the check. |
 | `REFERENCE_FORCE=1` | Starts the run although `bench/machine.py --check` fails. |
 
 ### Where the results go
@@ -405,6 +452,7 @@ reference run:
 | Summaries | `bench/results/<date>-<machine>/<game>-<n>.json` | yes |
 | Real-clock summary | `bench/results/<date>-<machine>/real-clock/entity-game.json` | yes |
 | Headline report | `bench/results/<date>-<machine>/headline.txt` | yes |
+| Summaries of a bench command run by hand | `bench/out/results/<date>-<machine>/<game>-<n>.json` | no |
 | Charts | `bench/out/charts/*.svg` | no |
 | Raw CSVs, Roc heap logs, run.json files | `bench/out/<game>/`, `bench/out/real-clock/` | no |
 

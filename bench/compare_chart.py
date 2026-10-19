@@ -8,7 +8,7 @@ A comparison is one of:
   tuned  model-size and the tuned model-size-tuned.
   colliders  colliders and its Odin twin colliders-twin.
 
-The results dir defaults to the latest bench/results/<date>-<machine>/. The
+The results dir defaults to the one that bench/chart.py picks. The
 script reads its summaries of the games in the comparison and draws the median
 and the p99 of the step Span against N, on log scales. The chart goes to
 bench/out/charts/<comparison>.svg unless --out names a path. A summary from a

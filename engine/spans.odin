@@ -66,25 +66,33 @@ when SPANS {
 	Span_Tick :: struct {}
 }
 
-// Exits the process when the path and the build disagree, so a bench run
-// cannot end with no CSV.
-spans_csv_from_env :: proc() -> string {
+// Exits the process when the settings and the build disagree, so a bench run
+// cannot end with no CSV and the sink cannot grow during a run.
+spans_csv_from_env :: proc(exit_after_frames: int) -> string {
 	path := os.get_env(SPANS_CSV_ENV, context.temp_allocator)
-	when SPANS {
-		if path == "" {
-			fmt.eprintfln("this build records Spans, so set %v to the CSV path", SPANS_CSV_ENV)
-			os.exit(1)
-		}
-	} else {
-		if path != "" {
-			fmt.eprintfln("%v is set, but this build has no Spans. Build the host with --spans.", SPANS_CSV_ENV)
-			os.exit(1)
-		}
+	if problem := spans_env_problem(SPANS, path, exit_after_frames); problem != "" {
+		fmt.eprintln(problem)
+		os.exit(1)
 	}
 	return path
 }
 
-// Reserves one row per Frame, so recording does not allocate during the run.
+// Returns "" when a run can start.
+spans_env_problem :: proc(spans: bool, path: string, exit_after_frames: int) -> string {
+	if !spans {
+		return "" if path == "" else SPANS_CSV_ENV + " is set, but this build has no Spans. Build the host with --spans."
+	}
+	if path == "" {
+		return "this build records Spans, so set " + SPANS_CSV_ENV + " to the CSV path"
+	}
+	if exit_after_frames == 0 {
+		return "this build records Spans, so set " + EXIT_AFTER_FRAMES_ENV + ". The sink holds one row per Frame of the limit."
+	}
+	return ""
+}
+
+// Reserves one row per Frame of the Frame limit, so recording does not
+// allocate during the run. spans_csv_from_env makes sure a Spans run has a limit.
 span_sink_init :: proc(sink: ^Span_Sink, path: string, frames: int, allocator: mem.Allocator) {
 	when SPANS {
 		sink.path = strings.clone(path, allocator)
@@ -117,6 +125,16 @@ span_close :: #force_inline proc(sink: ^Span_Sink, span: Span, opened: Span_Tick
 			sink.row.closes[span] += 1
 		}
 		return now
+	} else {
+		return {}
+	}
+}
+
+// Moves the open time of a Span forward by the time since waited, so a wait
+// between waited and now does not count in the Span.
+span_skip :: #force_inline proc(opened, waited: Span_Tick) -> Span_Tick {
+	when SPANS {
+		return time.tick_add(opened, time.tick_since(waited))
 	} else {
 		return {}
 	}

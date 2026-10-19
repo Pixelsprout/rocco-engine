@@ -72,6 +72,19 @@ class ChartTest(unittest.TestCase):
         svg = chart.svg("model-size", "2026-10-19-apple-m5", chart.curves([summary(64, 0.25)]))
         ET.fromstring(svg)
 
+    def test_latest_results_prefers_the_manual_sweeps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manual, committed = Path(tmp) / "out" / "results", Path(tmp) / "results"
+            (committed / "2026-10-21-apple-m5").mkdir(parents=True)
+            self.assertEqual(chart.latest_results([manual, committed]).name, "2026-10-21-apple-m5")
+            (manual / "2026-10-19-apple-m5").mkdir(parents=True)
+            (manual / "2026-10-20-apple-m5").mkdir()
+            self.assertEqual(chart.latest_results([manual, committed]), manual / "2026-10-20-apple-m5")
+
+    def test_latest_results_is_none_with_no_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(chart.latest_results([Path(tmp) / "out" / "results", Path(tmp) / "results"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,8 @@
 
 Usage: python3 bench/chart.py [<results dir>] [--out-dir <dir>]
 
-The results dir defaults to the latest bench/results/<date>-<machine>/. The
+The results dir defaults to the latest bench/out/results/<date>-<machine>/,
+or the latest bench/results/<date>-<machine>/ if bench/out/results/ is empty. The
 script writes one <game>.svg per bench game to bench/out/charts/ unless
 --out-dir names a directory. Each chart puts N on the x axis and the time of
 each Span on the y axis, both on log scales. A solid line is the median, a
@@ -114,9 +115,16 @@ def svg(game, machine, span_curves):
     return "\n".join(out) + "\n"
 
 
-def latest_results():
-    dirs = sorted(d for d in (BENCH_DIR / "results").glob("*") if d.is_dir())
-    return dirs[-1] if dirs else None
+# Manual sweeps write to the first root, and the reference run to the second.
+RESULTS_ROOTS = [BENCH_DIR / "out" / "results", BENCH_DIR / "results"]
+
+
+def latest_results(roots=None):
+    for root in roots or RESULTS_ROOTS:
+        dirs = sorted(d for d in root.glob("*") if d.is_dir())
+        if dirs:
+            return dirs[-1]
+    return None
 
 
 def main(argv):

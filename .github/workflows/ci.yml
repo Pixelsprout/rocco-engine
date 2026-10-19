@@ -166,6 +166,14 @@ jobs:
       - name: Regenerate the Windows import libraries
         run: python scripts/make_windows_import_libs.py --check
 
+      - name: Test the bench games
+        run: sh bench/check.sh
+
+      # A smoke test only: CI runners make no timing claims. It builds a
+      # release host with Spans, so it runs last.
+      - name: Run the bench games once Headless
+        run: roc scripts/build.roc bench model-size,model-size-twin 64
+
   generated:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
