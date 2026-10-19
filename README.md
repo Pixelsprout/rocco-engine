@@ -76,7 +76,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `bench <game> [n]` | To measure one bench game. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs a sweep over N from 64 to 16,384 in powers of two, or only the N given. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
+| `bench <game> [n] [--windowed]` | To measure one bench game. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs a sweep over N from 64 to 16,384 in powers of two, or only the N given. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
@@ -193,6 +193,7 @@ python3 bench/chart.py
 The sweep follows one protocol:
 
 1. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
+   With `--windowed`, each process runs in windowed Lockstep instead.
 2. Each N runs in 5 separate processes.
 3. The sweep shuffles the order of all processes. It pauses for 1 second
    after each one.
@@ -217,6 +218,21 @@ debug build. `bench/chart.py` reads the latest results directory, or the one
 you name, and writes one SVG per bench game to `bench/out/charts/`. CI runs
 each bench game and Odin twin once at N=64 as a smoke test. CI makes no timing
 claims.
+
+Headless renders nothing, so its interpolation, render submit and
+`sg.commit` Spans are zero. The Draws bench game measures them, so its sweep
+runs in windowed Lockstep: one fixed step and one render per Frame, with
+vsync off.
+
+```sh
+roc scripts/build.roc bench draws --windowed
+python3 bench/chart.py
+```
+
+The window must stay on a display. With the lid closed, macOS can stop
+presenting Frames and the run can hang. The Draws curve goes past 4,096
+Draws, where the Pairing map grows. The renderer draws at most 16,384 Draws
+per Frame (`DRAW_CAPACITY` in `engine/frame_render.odin`) and drops the rest.
 
 An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
 `bench <game>-twin [n]` builds `bench/<game>-twin/` and the engine into one
@@ -409,6 +425,7 @@ a change to the `Model` type, restart the game.
 | `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
 | `bench/colliders/colliders.golden` | The Colliders of `bench/colliders` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
+| `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
 | `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |

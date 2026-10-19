@@ -95,7 +95,7 @@ app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE})
+	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE, uniform_buffer_size = UNIFORM_BUFFER_SIZE})
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()
