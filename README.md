@@ -367,6 +367,7 @@ a change to the `Model` type, restart the game.
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
 | `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
+| `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
 | `bench/analyse.py` | Turns one bench run's Spans CSV into a summary JSON. |
 | `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG. |
 | `bench/twin-sweep.sh` | Runs `model-size`, its twin and `empty-step` at each N, then draws the chart. |

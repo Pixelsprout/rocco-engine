@@ -70,7 +70,7 @@ jobs:
       # release host with Spans, so it runs last.
       - name: Run the bench games once Headless
         run: |
-          for game in model-size empty-step model-size-twin; do
+          for game in model-size empty-step model-size-twin colliders; do
             roc scripts/build.roc bench "$game" 64
             python3 bench/analyse.py "bench/out/$game-64.csv"
           done
