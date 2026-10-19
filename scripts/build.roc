@@ -196,14 +196,15 @@ bench_host : Step
 bench_host = Host(Release, Untracked, Spans)
 
 # An Odin twin is an Odin package that builds into one executable with the
-# engine, so it needs no host library and no roc build.
+# engine, so it needs no host library and no roc build. It takes the target's
+# host flags, so the twin and the host build the engine the same way.
 is_twin : Str -> Bool
 is_twin = |game| Str.ends_with(game, "-twin")
 
 twin_run : Target, Str -> Run
 twin_run = |target, name| {
 	program: "odin",
-	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"],
+	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}"].concat(target.host_flags).concat(["-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"]),
 	cwd: ".",
 }
 
@@ -878,3 +879,13 @@ expect parse(["bench", "model-size,", "64"]) == Err(Usage)
 expect parse(["bench", "model-size,model-size"]) == Err(Usage)
 expect parse(["bench", "model-size", "64", "64"]) == Err(Usage)
 expect parse(["bench", "model-size", "--windowed", "64"]) == Err(Usage)
+
+expect {
+	run = target_for(windows).map_ok(|target| twin_run(target, "model-size-twin"))
+	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.exe", "-no-crt", "-no-thread-local", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
+}
+
+expect {
+	run = target_for(mac).map_ok(|target| twin_run(target, "model-size-twin"))
+	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.bin", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
+}

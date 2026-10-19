@@ -121,7 +121,7 @@ A bench run uses a true release build:
 | Host | `roc scripts/build.roc host --release --spans` | `odin build engine -build-mode:static -o:speed -define:ROCCO_SPANS=true -vet -strict-style` |
 | sokol and Clay | `roc scripts/build.roc inputs --release` | the release sokol archives |
 | Roc bench game | `roc build` in `bench/<game>/` | Roc's default, `--opt=speed` |
-| Odin twin | `odin build bench/<game>-twin` | `-o:speed -define:ROCCO_SPANS=true -vet -strict-style`, one executable with the engine and no Roc app |
+| Odin twin | `odin build bench/<game>-twin` | the host's target flags (`-no-crt -no-thread-local` on Windows), then `-o:speed -define:ROCCO_SPANS=true -vet -strict-style`, one executable with the engine and no Roc app |
 
 - The release host has no `-debug`, so `ODIN_DEBUG` is false.
 - The release host has no host tracking allocator. Only a debug host or
