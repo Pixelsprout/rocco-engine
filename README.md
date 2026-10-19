@@ -143,6 +143,11 @@ the game runs until it returns `Quit` or you close the window. The entity
 game quits on Escape. A value that is not a positive integer stops the game
 at startup with exit code 1.
 
+The words after the game's name on the command line reach the game as
+`Config.args`, in the order typed. The host does not parse them. For
+example, `./pong.bin --draws 64` gives `args: ["--draws", "64"]`. With no
+words, `args` is an empty list.
+
 The other variables the engine reads:
 
 | Variable | Effect |

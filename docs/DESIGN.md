@@ -130,7 +130,7 @@ in the app.
 Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
 Rgba     : { r : F32, g : F32, b : F32, a : F32 }
-Config   : { seed : U64, assets : List(Str) }
+Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -156,7 +156,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 
 | Type | Carries | Does not carry |
 |---|---|---|
-| `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
+| `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |

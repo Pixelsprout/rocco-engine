@@ -833,10 +833,10 @@ manifest = [{ name: "sprout", id: 4 }, { name: "sky/meadow", id: 1 }]
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
 
-expect init({ seed: 0, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
-expect loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
-expect view(init({ seed: 0, assets: [] }).model).sky == 0
-expect view(loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest)).sky == 1
+expect init({ seed: 0, assets: ["sprout", "sky/meadow"], args: [] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
+expect loaded(init({ seed: 0, assets: [], args: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
+expect view(init({ seed: 0, assets: [], args: [] }).model).sky == 0
+expect view(loaded(init({ seed: 0, assets: [], args: [] }).model, "sprout", manifest)).sky == 1
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
