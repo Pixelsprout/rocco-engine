@@ -61,14 +61,15 @@ class SvgTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    def test_writes_the_chart_beside_the_summaries(self):
+    def test_writes_the_chart_from_a_results_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for i, s in enumerate(SUMMARIES):
-                Path(tmp, f"{s['game']}-{i}.summary.json").write_text(json.dumps(s))
+            for s in SUMMARIES:
+                Path(tmp, f"{s['game']}-{s['n']}.json").write_text(json.dumps(s))
+            out = Path(tmp, "charts", "twin.svg")
             script = Path(__file__).with_name("twin_chart.py")
-            result = subprocess.run([sys.executable, str(script), tmp], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(script), tmp, "--out", str(out)], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("<svg", Path(tmp, "twin.svg").read_text())
+            self.assertIn("<svg", out.read_text())
 
 
 if __name__ == "__main__":

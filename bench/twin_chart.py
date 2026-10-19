@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Draw the step Span of the Roc bench game, its Odin twin and the empty step.
 
-Usage: python3 bench/twin_chart.py [summary dir] [--out <chart.svg>]
+Usage: python3 bench/twin_chart.py [results dir] [--out <chart.svg>]
 
-Reads every <game>-<n>.summary.json in the directory (default bench/out) for
-the games model-size, model-size-twin and empty-step. It draws the median and
-the p99 of the step Span against N, on log scales, as one SVG. A summary from a
-debug build is refused, as in analyse.py.
+Reads every <game>-<n>.json summary in the results dir (default: the latest
+bench/results/<date>-<machine>/) for the games model-size, model-size-twin and
+empty-step. It draws the median and the p99 of the step Span against N, on log
+scales, as one SVG, by default bench/out/twin.svg. A summary from a debug build
+is refused, as in analyse.py.
 """
 
 import argparse
@@ -16,6 +17,7 @@ import sys
 from pathlib import Path
 
 from analyse import DebugBuild, is_debug
+from chart import BENCH_DIR, latest_results
 
 GAMES = {
     "model-size": ("Roc bench game", "#2a6fdb"),
@@ -98,17 +100,22 @@ def svg(lines):
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Chart the Roc bench game, its Odin twin and the empty step.")
-    parser.add_argument("dir", type=Path, nargs="?", default=Path("bench/out"))
-    parser.add_argument("--out", type=Path)
+    parser.add_argument("dir", type=Path, nargs="?")
+    parser.add_argument("--out", type=Path, default=BENCH_DIR / "out" / "twin.svg")
     args = parser.parse_args(argv)
 
-    summaries = [json.loads(p.read_text()) for p in sorted(args.dir.glob("*.summary.json"))]
+    results = args.dir or latest_results()
+    if results is None or not results.is_dir():
+        print("twin_chart: no results directory. Run roc scripts/build.roc bench first.", file=sys.stderr)
+        return 1
+    summaries = [json.loads(p.read_text()) for p in sorted(results.glob("*.json"))]
     try:
         text = svg(series(summaries))
     except ValueError as err:
-        print(f"twin_chart: {args.dir}: {err}", file=sys.stderr)
+        print(f"twin_chart: {results}: {err}", file=sys.stderr)
         return 1
-    out = args.out or args.dir / "twin.svg"
+    out = args.out
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
     print(f"twin_chart: wrote {out}")
     return 0
