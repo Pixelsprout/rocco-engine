@@ -12,6 +12,7 @@ FAKE_WINDOW :: HEADLESS_WINDOW
 Fake_Platform_Calls :: struct {
 	commits: int,
 	quits:   int,
+	submits: int,
 }
 
 // Guarded by the Roc heap test lock, as g_fake is.
@@ -33,6 +34,13 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	sync.mutex_lock(&g_clay_lock)
 	ui_err := headless_init(s, context.allocator)
 	assert(ui_err == nil)
+	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {}
+	s.frame_render.end_pass = proc(ctx: rawptr) {}
+	s.frame_render.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {}
+	s.frame_render.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {}
+	s.frame_render.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
+	s.frame_render.submit_sky = proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
+	s.frame_render.submit_ui = proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
 }
 
 fake_frame_state_destroy :: proc(s: ^State) {
@@ -170,6 +178,7 @@ test_headless_run_never_calls_sokol :: proc(t: ^testing.T) {
 	headless_run(&s)
 
 	testing.expect_value(t, s.frame_count, 3)
+	testing.expect_value(t, g_fake_platform.submits, 0)
 	testing.expect_value(t, g_fake_platform.commits, 0)
 	testing.expect_value(t, g_fake_platform.quits, 0)
 	testing.expect(t, !sapp.isvalid())
@@ -231,6 +240,7 @@ test_frame_run_records_one_span_row_per_frame_only_in_a_spans_build :: proc(t: ^
 	} else {
 		testing.expect_value(t, len(rows), 0)
 		testing.expect_value(t, size_of(Span_Sink), 0)
+		testing.expect_value(t, size_of(Span_Tick), 0)
 	}
 }
 
@@ -250,7 +260,59 @@ test_frame_run_span_row_counts_every_fixed_step_of_the_frame :: proc(t: ^testing
 		testing.expect_value(t, len(rows), 2)
 		testing.expect_value(t, rows[0].steps, 3)
 		testing.expect_value(t, rows[1].steps, 0)
-		testing.expect_value(t, rows[1].us, [Span]f64{})
+		testing.expect_value(t, rows[0].closes[.Step], 3)
+		testing.expect_value(t, rows[1].closes[.Step], 0)
+		testing.expect_value(t, rows[1].us[.Step], 0)
+		testing.expect_value(t, rows[1].closes[.Commit], 1)
+	} else {
+		testing.expect_value(t, len(span_rows(&s.spans)), 0)
+	}
+}
+
+@(test)
+test_frame_run_closes_every_span_once_per_frame_and_per_step :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Lockstep)
+	defer fake_frame_state_destroy(&s)
+
+	for _ in 0 ..< 3 {
+		frame_run(&s, fake_platform(FIXED_DT))
+	}
+
+	rows := span_rows(&s.spans)
+	when SPANS {
+		testing.expect_value(t, len(rows), 3)
+		for row in rows {
+			testing.expect_value(t, row.closes, [Span]int{.Input ..= .Commit = 1})
+			for us, span in row.us {
+				testing.expectf(t, us >= 0, "frame %v span %v is %v", row.frame, span, us)
+			}
+		}
+	} else {
+		testing.expect_value(t, len(rows), 0)
+	}
+}
+
+@(test)
+test_headless_rows_leave_the_render_spans_at_zero :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Headless)
+	defer fake_frame_state_destroy(&s)
+
+	headless_run(&s)
+
+	when SPANS {
+		rows := span_rows(&s.spans)
+		testing.expect_value(t, len(rows), 3)
+		for row in rows {
+			testing.expect_value(t, row.closes, #partial [Span]int{.Input ..= .Ui_Layout = 1})
+			testing.expect_value(t, row.us[.Render_Submit], 0)
+			testing.expect_value(t, row.us[.Commit], 0)
+		}
 	} else {
 		testing.expect_value(t, len(span_rows(&s.spans)), 0)
 	}

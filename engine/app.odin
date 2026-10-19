@@ -67,21 +67,29 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 		return
 	}
 
-	sapp.run(
-		sapp.Desc {
-			init_cb = init_cb,
-			frame_cb = frame_cb,
-			cleanup_cb = cleanup_cb,
-			width = 960,
-			height = 540,
-			sample_count = SAMPLE_COUNT,
-			window_title = "rocco",
-			logger = {func = slog.func},
-			event_cb = event_cb,
-		},
-	)
+	sapp.run(app_desc(g_state.mode))
 
 	return
+}
+
+// Lockstep turns vsync off, so frame pacing does not wait inside the render
+// Spans. sokol turns a swap_interval of 0 into 1, so it needs the flags. On
+// Metal, CADisplayLink still calls frame_cb once per display refresh.
+app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
+	vsync_off := mode == .Lockstep
+	return {
+		init_cb = init_cb,
+		frame_cb = frame_cb,
+		cleanup_cb = cleanup_cb,
+		width = 960,
+		height = 540,
+		sample_count = SAMPLE_COUNT,
+		window_title = "rocco",
+		logger = {func = slog.func},
+		event_cb = event_cb,
+		disable_vsync = vsync_off,
+		metal = {disable_display_sync = vsync_off},
+	}
 }
 
 init_cb :: proc "c" () {
