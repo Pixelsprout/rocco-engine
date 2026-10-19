@@ -139,7 +139,8 @@ backing allocator, in place when it can. An A/B comparison chose this version
 over the allocation map, and the map version is deleted. Each summary records
 `"roc_heap": "header"`.
 
-The A/B results, with `-o:speed`:
+The A/B results come from the Roc heap micro benchmark, `bench/roc-heap/`,
+with `-o:speed`:
 
 | Micro benchmark | Allocation map | Size header |
 |---|---|---|
@@ -151,6 +152,31 @@ The Model size bench game makes 2 allocs and no reallocs per step. So only
 the micro benchmarks show the realloc gain. In the Model size sweep, the size
 header was faster at N <= 512 (0.12 us against 0.21 us at N=64) and equal
 within the noise above. That sweep ran with other programs on the machine.
+
+#### Run the Roc heap micro benchmark
+
+The micro benchmark calls `roc_alloc`, `roc_dealloc` and `roc_realloc`
+directly, with no game and no window. It prints 3 rounds of ns per alloc and
+free pair and us per realloc list. To run it on the current Roc heap:
+
+```sh
+odin run bench/roc-heap -o:speed -out:build/roc-heap
+```
+
+To repeat the A/B, use commit `78ae3bd`. That commit has both versions,
+chosen with `-define:ROCCO_ROC_HEAP=map` or `header`:
+
+```sh
+git worktree add ../rocco-ab 78ae3bd
+cd ../rocco-ab
+git submodule update --init
+mkdir -p bench/roc-heap build
+git show main:bench/roc-heap/main.odin > bench/roc-heap/main.odin
+odin run bench/roc-heap -o:speed -define:ROCCO_ROC_HEAP=map -out:build/roc-heap-map
+odin run bench/roc-heap -o:speed -define:ROCCO_ROC_HEAP=header -out:build/roc-heap-header
+```
+
+No chart shows the Roc heap, because only one Roc heap version remains.
 
 ## Bench games
 
@@ -288,6 +314,7 @@ nothing and exits 0 when the machine is ready.
 | `bench/compare_chart.py twin\|tuned\|colliders [<results dir>]` | Draws the median and p99 `step` Span of several bench games on one chart, `bench/out/charts/<comparison>.svg`. `twin` is `model-size`, `model-size-twin` and `empty-step`. `tuned` is `model-size` and `model-size-tuned`. `colliders` is `colliders` and `colliders-twin`. |
 | `bench/headline.py [<results dir>] [--game <game>]` | Prints the median and p99 Frame budget per N and the headline figure. |
 | `bench/machine.py [--check]` | Prints the machine as JSON, or checks that it is ready for a reference run. |
+| `odin run bench/roc-heap -o:speed -out:build/roc-heap` | Runs the Roc heap micro benchmark. See "The Roc heap". |
 | `bench/realclock.py <csv> --game <game> --out <json>` | Summarises one real-clock run. See "Real-clock reference". |
 | `sh bench/reference-run.sh` | Runs the full reference run. See "Reference run". |
 

@@ -471,6 +471,7 @@ a change to the `Model` type, restart the game.
 | `bench/results/` | The committed summaries, one directory per date and machine. |
 | `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
+| `bench/roc-heap/` | The Roc heap micro benchmark: alloc and free pairs and realloc lists through the Roc heap hooks. `odin run bench/roc-heap -o:speed -out:build/roc-heap` runs it. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |

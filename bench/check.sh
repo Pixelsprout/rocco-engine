@@ -1,6 +1,7 @@
 #!/bin/sh
-# Type-checks and tests each bench game and Odin twin. scripts/test-all.sh
-# reads only examples/ and packages/, so the bench games need this script.
+# Type-checks and tests each bench game, Odin twin and the Roc heap micro
+# benchmark. scripts/test-all.sh reads only examples/ and packages/, so the
+# bench games need this script.
 set -eu
 cd "$(dirname "$0")/.."
 
