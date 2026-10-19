@@ -6,6 +6,7 @@ import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Vec3]
 import pf.Light
 import pf.QueryResults
+import "positions.golden" as golden_positions : Str
 
 # The idiomatic Model size bench game. step moves N entities with ordinary Roc
 # list code. view always returns draw_count Draws, so the render cost stays
@@ -210,3 +211,16 @@ expect {
 }
 
 expect view(init(with_n(1000)).model).draws.first().map_ok(|d| d.mesh) == Ok(Mesh.primitive(Cube))
+
+# bench/model-size-twin checks its positions against the same file, so the
+# twin and this game agree for one Seed and N after the same steps.
+run_steps : Model, U64 -> Model
+run_steps = |m, count| if count == 0 m else run_steps(update(m, 1.0 / 120.0), count - 1)
+
+positions_text : List(Draw) -> Str
+positions_text = |draws| Str.join_with(draws.map(|d| "${d.pos.x.to_bits().to_str()} ${d.pos.z.to_bits().to_str()}\n"), "")
+
+expect {
+	m = run_steps(init({ ..with_n(100), seed: 7 }).model, 600)
+	positions_text(view(m).draws) == golden_positions
+}

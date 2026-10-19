@@ -99,9 +99,10 @@ stub generator. `python3 -m unittest scripts/test_make_windows_import_libs.py`
 runs the tests of the Windows import library generator.
 `./scripts/test-all.sh` runs `roc check` and `roc test` on every app, every
 package and the build scripts, then the engine tests.
-`sh bench/check.sh` runs `roc check` and `roc test` on every bench game.
-`python3 -m unittest bench/test_analyse.py` runs the tests of the analysis
-script.
+`sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
+`odin test` on every Odin twin.
+`python3 -m unittest bench/test_analyse.py bench/test_twin_chart.py` runs the
+tests of the analysis and chart scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game and
@@ -192,8 +193,26 @@ python3 bench/analyse.py bench/out/model-size-1024.csv
 warmup Frames and writes `bench/out/model-size-1024.summary.json`. The
 summary holds the median, p95, p99 and max of each Span, N, the run mode, the
 git hash and the build flags. The script refuses a run from a debug build.
-`bench/out/` is not committed. CI runs `bench model-size 64` once as a smoke
-test. CI makes no timing claims.
+`bench/out/` is not committed. CI runs each bench game and Odin twin once at
+N=64 as a smoke test. CI makes no timing claims.
+
+An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
+`bench <game>-twin <n>` builds `bench/<game>-twin/` and the engine into one
+release executable with Spans, with no Roc app and no host library. The run is
+the same as for a Roc bench game. `bench/model-size-twin/` is the twin of
+`bench/model-size/`. `bench/empty-step/` holds the same Model and returns the
+same Scene, but its `step` returns the Model unchanged. It gives the lower
+limit of the seam.
+
+To compare the three over N from 64 to 16,384:
+
+```sh
+sh bench/twin-sweep.sh
+```
+
+The sweep writes a summary per run and `bench/out/twin.svg`, a chart of the
+median and p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs
+only the N values you give.
 
 ### Screenshots
 
@@ -345,8 +364,13 @@ a change to the `Model` type, restart the game.
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
+| `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
+| `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
+| `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
 | `bench/analyse.py` | Turns one bench run's Spans CSV into a summary JSON. |
-| `bench/check.sh` | Runs `roc check` and `roc test` on every bench game. |
+| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG. |
+| `bench/twin-sweep.sh` | Runs `model-size`, its twin and `empty-step` at each N, then draws the chart. |
+| `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |

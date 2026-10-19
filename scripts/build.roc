@@ -19,7 +19,7 @@ HostSpans : [Spans, NoSpans]
 # One bench game run at one N, Headless, for warmup plus measured Frames.
 Bench : { game : Str, n : U64 }
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchRun(Bench)]
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -40,7 +40,12 @@ parse = |args| match args {
 	["all", "--release"] => Ok(all_steps(Release))
 	["bench", game, n] =>
 		match U64.from_str(n) {
-			Ok(count) if count > 0 => Ok([bench_host, Inputs(Release), BenchGame(game), BenchRun({ game, n: count })])
+			Ok(count) if count > 0 =>
+				if is_twin(game) {
+					Ok([BenchTwin(game), BenchRun({ game, n: count })])
+				} else {
+					Ok([bench_host, Inputs(Release), BenchGame(game), BenchRun({ game, n: count })])
+				}
 			_ => Err(Usage)
 		}
 	_ => Err(Usage)
@@ -155,6 +160,18 @@ font_run = {
 bench_host : Step
 bench_host = Host(Release, Untracked, Spans)
 
+# An Odin twin is an Odin package that builds into one executable with the
+# engine, so it needs no host library and no roc build.
+is_twin : Str -> Bool
+is_twin = |game| Str.ends_with(game, "-twin")
+
+twin_run : Target, Str -> Run
+twin_run = |target, name| {
+	program: "odin",
+	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"],
+	cwd: ".",
+}
+
 bench_warmup_frames : U64
 bench_warmup_frames = 120
 
@@ -190,8 +207,12 @@ bench_run = |target, bench, root| {
 # odin sets it only for -debug.
 bench_meta : Target, Bench, Str -> Str
 bench_meta = |target, bench, git_hash| {
-	host_flags = host_run(target, Release, Untracked, Spans).args
-	game_flags = game_run(target, "bench/${bench.game}", bench.game).args
+	(host_flags, game_flags) =
+		if is_twin(bench.game) {
+			(twin_run(target, bench.game).args, [])
+		} else {
+			(host_run(target, Release, Untracked, Spans).args, game_run(target, "bench/${bench.game}", bench.game).args)
+		}
 	odin_debug = if host_flags.contains("-debug") "true" else "false"
 	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
 	lines = [
@@ -261,6 +282,9 @@ usage =
 	\\                  bench/<game>, then run it Headless with N as its first Arg.
 	\\                  Writes bench/out/<game>-<n>.csv and <game>-<n>.run.json.
 	\\                  Run all again before you run the examples.
+	\\                  A <game> that ends in -twin is an Odin twin: odin builds
+	\\                  bench/<game> with the engine into one release executable
+	\\                  with Spans, and the run is the same.
 	\\
 	\\inputs, host and all take --release to use the release sokol archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
@@ -312,6 +336,7 @@ run_step! = |step, target| match step {
 	Host(mode, alloc, spans) => host!(target, host_run(target, mode, alloc, spans))
 	Game(name) => link_game!(target, "examples/${name}", name)
 	BenchGame(name) => link_game!(target, "bench/${name}", name)
+	BenchTwin(name) => exec!(twin_run(target, name))
 	BenchRun(bench) => bench!(target, bench)
 	Shaders =>
 		if Cmd.check_available!(shaders_run.program) {
@@ -457,6 +482,7 @@ expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
 expect parse(["deploy"]) == Err(Usage)
 expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", n: 64 })])
+expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", n: 64 })])
 expect parse(["bench", "model-size", "0"]) == Err(Usage)
 expect parse(["bench", "model-size", "many"]) == Err(Usage)
 expect parse(["bench", "model-size"]) == Err(Usage)
@@ -598,6 +624,17 @@ expect {
 				and Str.contains(text, "\"git_hash\": \"abc123\",")
 					and Str.contains(text, "\"odin_debug\": false,")
 						and Str.contains(text, "\"-define:ROCCO_SPANS=true\"")
+		Err(_) => Bool.False
+	}
+}
+
+expect {
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size-twin", n: 64 }, "abc123"))
+	match meta {
+		Ok(text) =>
+			Str.contains(text, "\"host\": [\"build\", \"bench/model-size-twin\"")
+				and Str.contains(text, "\"game\": []")
+					and Str.contains(text, "\"odin_debug\": false,")
 		Err(_) => Bool.False
 	}
 }

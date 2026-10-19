@@ -35,7 +35,7 @@ State :: struct {
 // State is global because the sokol callbacks are "c" procs with no user data.
 g_state: State
 
-app_run :: proc() -> (err: mem.Allocator_Error) {
+app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	memory_init(&g_state.mem) or_return
 
 	g_state.ctx = context
@@ -58,7 +58,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
 	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
-	seam_init(&g_state.seam, ROC_GAME, app_run_command, config, &g_state.packs)
+	seam_init(&g_state.seam, calls, app_run_command, config, &g_state.packs)
 
 	if g_state.mode == .Headless {
 		headless_init(&g_state, g_state.mem.perm_allocator) or_return
