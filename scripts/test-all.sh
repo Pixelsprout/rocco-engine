@@ -17,3 +17,5 @@ odin test engine -debug
 # A Spans build compiles other code, so its tests run in a build of their own.
 echo "== odin test engine with Spans"
 odin test engine -debug -define:ROCCO_SPANS=true
+echo "== odin test engine with the size header Roc heap"
+odin test engine -debug -define:ROCCO_ROC_HEAP=header

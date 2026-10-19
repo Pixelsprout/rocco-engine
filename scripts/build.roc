@@ -117,6 +117,15 @@ make_target = |roc_target, host_lib, host_flags, sokol_platform, lib_ext, exe, e
 	},
 }
 
+# ROCCO_ROC_HEAP chooses the Roc heap version of every host this script builds.
+with_roc_heap : Target, Str -> Try(Target, [UnknownRocHeap])
+with_roc_heap = |target, heap| match heap {
+	"" => Ok(target)
+	"map" => Ok(target)
+	"header" => Ok({ ..target, host_flags: target.host_flags.append("-define:ROCCO_ROC_HEAP=header") })
+	_ => Err(UnknownRocHeap)
+}
+
 # The check scripts eval these lines, so they must stay shell-safe.
 target_lines : Target -> Str
 target_lines = |target| "target=${target.roc_target}\nsuffix=${target.exe}\nhost_lib=${target.dir}/${target.host_lib}"
@@ -375,6 +384,9 @@ usage =
 	\\host --spans and host --release --spans add the per-Frame Span timers. Such a
 	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV.
 	\\
+	\\ROCCO_ROC_HEAP=header builds the host with the size header Roc heap. The
+	\\default is map.
+	\\
 	\\Run from the repository root. The target is the machine running the script.
 
 main! : List(OsStr) => Try({}, [Exit(I32)])
@@ -386,9 +398,13 @@ main! = |args| {
 			return Err(Exit(2))
 		}
 	}
-	target = match target_for(Env.platform!()) {
+	found_target = match target_for(Env.platform!()) {
 		Ok(found) => found
 		Err(UnsupportedMachine) => fail!("This machine has no rocco target. Use macOS arm64, Linux x64 or Windows x64.")?
+	}
+	target = match with_roc_heap(found_target, (Env.var!("ROCCO_ROC_HEAP") ?? OsStr.from_str("")).display()) {
+		Ok(found) => found
+		Err(UnknownRocHeap) => fail!("ROCCO_ROC_HEAP must be map or header.")?
 	}
 	if !(Path.utf8("platform/main.roc").is_file!() ?? Bool.False) {
 		fail!("Run the script from the repository root.")?
@@ -594,6 +610,21 @@ expect target_for(linux).map_ok(|target| target.roc_target) == Ok("x64glibc")
 expect target_for(windows).map_ok(|target| target.roc_target) == Ok("x64win")
 expect target_for({ arch: X64, os: MACOS }) == Err(UnsupportedMachine)
 expect target_for({ arch: X64, os: OTHER("freebsd") }) == Err(UnsupportedMachine)
+
+expect match target_for(mac) {
+	Ok(target) => with_roc_heap(target, "header").map_ok(|t| host_run(t, Release, Untracked, Spans).args.contains("-define:ROCCO_ROC_HEAP=header")) == Ok(Bool.True)
+	Err(_) => Bool.False
+}
+
+expect match target_for(mac) {
+	Ok(target) => with_roc_heap(target, "map").map_ok(|t| t.host_flags) == Ok([]) and with_roc_heap(target, "").map_ok(|t| t.host_flags) == Ok([])
+	Err(_) => Bool.False
+}
+
+expect match target_for(mac) {
+	Ok(target) => with_roc_heap(target, "pool").map_ok(|t| t.host_flags) == Err(UnknownRocHeap)
+	Err(_) => Bool.False
+}
 
 expect glue_run == { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
