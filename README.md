@@ -76,7 +76,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `bench <game> <n>` | To measure one bench game at one N. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs the game Headless for 120 warmup and 2,000 measured Frames, with N as its first Arg. It writes `bench/out/<game>-<n>.csv` and `bench/out/<game>-<n>.run.json`. A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
+| `bench <game> [n] [--windowed]` | To measure one bench game. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs a sweep over N from 64 to 16,384 in powers of two, or only the N given. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
@@ -101,8 +101,8 @@ runs the tests of the Windows import library generator.
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
 `odin test` on every Odin twin.
-`python3 -m unittest bench/test_analyse.py bench/test_twin_chart.py` runs the
-tests of the analysis and chart scripts.
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_machine.py bench/test_twin_chart.py`
+runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game and
@@ -181,23 +181,61 @@ and pong, then checks that the host library and the glue did not change.
 ### Benchmarks
 
 The bench games live in `bench/`, outside `examples/`. `run-games.sh`,
-`test-all.sh` and `screenshot.sh` do not run them. To measure one bench game
-at one N:
+`test-all.sh` and `screenshot.sh` do not run them. To run a sweep of one bench
+game and draw its curve:
 
 ```sh
-roc scripts/build.roc bench model-size 1024
-python3 bench/analyse.py bench/out/model-size-1024.csv
+roc scripts/build.roc bench model-size        # N = 64, 128, ..., 16384
+roc scripts/build.roc bench model-size 1024   # only N = 1024
+python3 bench/chart.py
 ```
 
-`bench/analyse.py` reads the CSV and the `.run.json` beside it, drops the
-warmup Frames and writes `bench/out/model-size-1024.summary.json`. The
-summary holds the median, p95, p99 and max of each Span, N, the run mode, the
-git hash and the build flags. The script refuses a run from a debug build.
-`bench/out/` is not committed. CI runs each bench game and Odin twin once at
-N=64 as a smoke test. CI makes no timing claims.
+The sweep follows one protocol:
+
+1. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
+   With `--windowed`, each process runs in windowed Lockstep instead.
+2. Each N runs in 5 separate processes.
+3. The sweep shuffles the order of all processes. It pauses for 1 second
+   after each one.
+4. One more process per N runs with `ROCCO_ALLOC_REPORT=1` and records the
+   Roc heap counters. Nobody uses its times.
+
+The sweep writes the raw CSVs, the Roc heap logs and one `<game>-<n>.run.json`
+per N to `bench/out/<game>/`. Git ignores `bench/out/`. Then
+`bench/analyse.py` drops the warmup Frames and writes one summary per N to
+`bench/results/<date>-<machine>/<game>-<n>.json`. Commit the summaries. A
+summary holds:
+
+- The median, p95, p99 and max of each Span, over the Frames of all 5
+  processes.
+- The median of each process and the spread: the largest process median
+  minus the smallest.
+- The Roc heap counters per measured step, and the Roc heap version.
+- The machine, the OS, the power state, the git hash and the build flags.
+
+`bench/machine.py` reads the machine. `bench/analyse.py` refuses a run from a
+debug build. `bench/chart.py` reads the latest results directory, or the one
+you name, and writes one SVG per bench game to `bench/out/charts/`. CI runs
+each bench game and Odin twin once at N=64 as a smoke test. CI makes no timing
+claims.
+
+Headless renders nothing, so its interpolation, render submit and
+`sg.commit` Spans are zero. The Draws bench game measures them, so its sweep
+runs in windowed Lockstep: one fixed step and one render per Frame, with
+vsync off.
+
+```sh
+roc scripts/build.roc bench draws --windowed
+python3 bench/chart.py
+```
+
+The window must stay on a display. With the lid closed, macOS can stop
+presenting Frames and the run can hang. The Draws curve goes past 4,096
+Draws, where the Pairing map grows. The renderer draws at most 16,384 Draws
+per Frame (`DRAW_CAPACITY` in `engine/frame_render.odin`) and drops the rest.
 
 An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
-`bench <game>-twin <n>` builds `bench/<game>-twin/` and the engine into one
+`bench <game>-twin [n]` builds `bench/<game>-twin/` and the engine into one
 release executable with Spans, with no Roc app and no host library. The run is
 the same as for a Roc bench game. `bench/model-size-twin/` is the twin of
 `bench/model-size/`. `bench/empty-step/` holds the same Model and returns the
@@ -210,9 +248,11 @@ To compare the three over N from 64 to 16,384:
 sh bench/twin-sweep.sh
 ```
 
-The sweep writes a summary per run and `bench/out/twin.svg`, a chart of the
-median and p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs
-only the N values you give.
+The script runs `bench <game>` for each of the three games, with the same
+protocol, and then `bench/twin_chart.py`. The chart script reads the latest
+results directory and writes `bench/out/twin.svg`, a chart of the median and
+p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs only the N
+values you give.
 
 ### Screenshots
 
@@ -367,9 +407,14 @@ a change to the `Model` type, restart the game.
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
 | `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
-| `bench/analyse.py` | Turns one bench run's Spans CSV into a summary JSON. |
-| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG. |
-| `bench/twin-sweep.sh` | Runs `model-size`, its twin and `empty-step` at each N, then draws the chart. |
+| `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
+| `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
+| `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
+| `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
+| `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
+| `bench/results/` | The committed summaries, one directory per date and machine. |
+| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG, from the summaries. |
+| `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |

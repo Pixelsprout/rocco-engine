@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Draw the step Span of the Roc bench game, its Odin twin and the empty step.
 
-Usage: python3 bench/twin_chart.py [summary dir] [--out <chart.svg>]
+Usage: python3 bench/twin_chart.py [results dir] [--out <chart.svg>]
 
-Reads every <game>-<n>.summary.json in the directory (default bench/out) for
-the games model-size, model-size-twin and empty-step. It draws the median and
-the p99 of the step Span against N, on log scales, as one SVG. A summary from a
-debug build is refused, as in analyse.py.
+Reads every <game>-<n>.json summary in the results dir (default: the latest
+bench/results/<date>-<machine>/) for the games model-size, model-size-twin and
+empty-step. It draws the median and the p99 of the step Span against N, on log
+scales, as one SVG, by default bench/out/twin.svg. A summary from a debug build
+is refused, as in analyse.py.
 """
 
 import argparse
@@ -16,6 +17,7 @@ import sys
 from pathlib import Path
 
 from analyse import DebugBuild, is_debug
+from chart import BENCH_DIR, latest_results
 
 GAMES = {
     "model-size": ("Roc bench game", "#2a6fdb"),
@@ -51,14 +53,10 @@ def log_ticks(low, high, base):
     return [base**k for k in range(first, last + 1)]
 
 
-def svg(lines, legend=GAMES, title="step Span per Frame against N", marker=None):
-    """Draw {(key, stat): [(n, us), ...]} as one SVG, with legend {key: (label, color)}.
-
-    marker is an optional (n, label) pair drawn as a vertical line.
-    """
+def svg(lines):
     points = [p for pts in lines.values() for p in pts]
     if not points:
-        raise ValueError("no summaries to chart")
+        raise ValueError("no summaries of the twin games")
     xs = log_ticks(min(n for n, _ in points), max(n for n, _ in points), 2)
     ys = log_ticks(max(min(us for _, us in points), 0.01), max(us for _, us in points), 10)
     plot_w, plot_h = WIDTH - LEFT - RIGHT, HEIGHT - TOP - BOTTOM
@@ -74,7 +72,7 @@ def svg(lines, legend=GAMES, title="step Span per Frame against N", marker=None)
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" font-family="sans-serif" font-size="12">',
         f'<rect width="{WIDTH}" height="{HEIGHT}" fill="white"/>',
-        f'<text x="{LEFT}" y="22" font-size="14">{title} (median solid, p99 dashed)</text>',
+        f'<text x="{LEFT}" y="22" font-size="14">step Span per Frame against N (median solid, p99 dashed)</text>',
     ]
     for n in xs:
         x = x_at(n)
@@ -87,17 +85,12 @@ def svg(lines, legend=GAMES, title="step Span per Frame against N", marker=None)
     parts.append(f'<text x="{LEFT + plot_w / 2}" y="{HEIGHT - 10}" text-anchor="middle">N (entities)</text>')
     parts.append(f'<text transform="translate(16 {TOP + plot_h / 2}) rotate(-90)" text-anchor="middle">microseconds</text>')
 
-    if marker and xs[0] <= marker[0] <= xs[-1]:
-        x = x_at(marker[0])
-        parts.append(f'<line data-marker="{marker[0]}" x1="{x:.1f}" y1="{TOP}" x2="{x:.1f}" y2="{TOP + plot_h}" stroke="#888" stroke-dasharray="2 3"/>')
-        parts.append(f'<text x="{x + 4:.1f}" y="{TOP + 12}" fill="#555">{marker[1]}</text>')
-
     for (game, stat), pts in sorted(lines.items()):
-        _, color = legend[game]
+        _, color = GAMES[game]
         coords = " ".join(f"{x_at(n):.1f},{y_at(us):.1f}" for n, us in pts)
         dash = f' stroke-dasharray="{STATS[stat]}"' if STATS[stat] else ""
         parts.append(f'<polyline data-series="{game} {stat}" points="{coords}" fill="none" stroke="{color}" stroke-width="2"{dash}/>')
-    for i, (game, (label, color)) in enumerate(legend.items()):
+    for i, (game, (label, color)) in enumerate(GAMES.items()):
         y = TOP + 10 + i * 20
         parts.append(f'<line x1="{WIDTH - RIGHT + 16}" y1="{y}" x2="{WIDTH - RIGHT + 40}" y2="{y}" stroke="{color}" stroke-width="2"/>')
         parts.append(f'<text x="{WIDTH - RIGHT + 46}" y="{y + 4}">{label}</text>')
@@ -107,17 +100,22 @@ def svg(lines, legend=GAMES, title="step Span per Frame against N", marker=None)
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Chart the Roc bench game, its Odin twin and the empty step.")
-    parser.add_argument("dir", type=Path, nargs="?", default=Path("bench/out"))
-    parser.add_argument("--out", type=Path)
+    parser.add_argument("dir", type=Path, nargs="?")
+    parser.add_argument("--out", type=Path, default=BENCH_DIR / "out" / "twin.svg")
     args = parser.parse_args(argv)
 
-    summaries = [json.loads(p.read_text()) for p in sorted(args.dir.glob("*.summary.json"))]
+    results = args.dir or latest_results()
+    if results is None or not results.is_dir():
+        print("twin_chart: no results directory. Run roc scripts/build.roc bench first.", file=sys.stderr)
+        return 1
+    summaries = [json.loads(p.read_text()) for p in sorted(results.glob("*.json"))]
     try:
         text = svg(series(summaries))
     except ValueError as err:
-        print(f"twin_chart: {args.dir}: {err}", file=sys.stderr)
+        print(f"twin_chart: {results}: {err}", file=sys.stderr)
         return 1
-    out = args.out or args.dir / "twin.svg"
+    out = args.out
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
     print(f"twin_chart: wrote {out}")
     return 0
