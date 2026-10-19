@@ -1,5 +1,6 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
 
+import shared.Bench
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Quat
@@ -20,26 +21,10 @@ half_extent = 20.0 # F32
 
 max_speed = 4.0 # F32
 
-no_args : Config
-no_args = { seed: 0, assets: [], args: [] }
-
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
 init : Config -> { model : Model, commands : List(Command) }
-init = |config| match entity_count(config.args) {
+init = |config| match Bench.n_arg(config.args) {
 	Ok(n) => { model: spawn(config.seed, n), commands: [] }
 	Err(BadCount) => crash "The model-size-tuned bench game needs N, a positive integer, as its first Arg."
-}
-
-entity_count : List(Str) -> Try(U64, [BadCount])
-entity_count = |args| match args.first() {
-	Ok(word) =>
-		match U64.from_str(word) {
-			Ok(n) if n > 0 => Ok(n)
-			_ => Err(BadCount)
-		}
-	Err(_) => Err(BadCount)
 }
 
 loaded : Model, Str, Manifest -> Model
@@ -61,16 +46,16 @@ spawn = |seed, n| {
 	var $rng = seed
 	var $entities = List.with_capacity(n)
 	while List.len($entities) < n {
-		r1 = next_rng($rng)
-		r2 = next_rng(r1)
-		r3 = next_rng(r2)
-		r4 = next_rng(r3)
+		r1 = Bench.next_rng($rng)
+		r2 = Bench.next_rng(r1)
+		r3 = Bench.next_rng(r2)
+		r4 = Bench.next_rng(r3)
 		$entities = List.append(
 			$entities,
 			{
 				id: List.len($entities),
-				pos: { x: spread(r1, half_extent), y: 0.0, z: spread(r2, half_extent) },
-				vel: { x: spread(r3, max_speed), y: 0.0, z: spread(r4, max_speed) },
+				pos: { x: Bench.spread(r1, half_extent), y: 0.0, z: Bench.spread(r2, half_extent) },
+				vel: { x: Bench.spread(r3, max_speed), y: 0.0, z: Bench.spread(r4, max_speed) },
 			},
 		)
 		$rng = r4
@@ -139,26 +124,12 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
-next_rng : U64 -> U64
-next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1)
-
-# A value in [-limit, limit) from the top bits of the generator state.
-spread : U64, F32 -> F32
-spread = |s, limit| ((s.shr_zf_wrap(40) % 1000).to_f32() / 500.0 - 1.0) * limit
-
 # =======================================
 # Tests
 # =======================================
-with_n : U64 -> Config
-with_n = |n| { ..no_args, args: [n.to_str()] }
 
-expect entity_count(["64"]) == Ok(64)
-expect entity_count([]) == Err(BadCount)
-expect entity_count(["0"]) == Err(BadCount)
-expect entity_count(["many"]) == Err(BadCount)
-
-expect init(with_n(64)).model.entities.len() == 64
-expect init(with_n(8)).model != init({ ..with_n(8), seed: 7 }).model
+expect init(Bench.with_n(64)).model.entities.len() == 64
+expect init(Bench.with_n(8)).model != init({ ..Bench.with_n(8), seed: 7 }).model
 
 expect {
 	e = { id: 0, pos: { x: 1.0, y: 0.0, z: 2.0 }, vel: { x: 2.0, y: 0.0, z: -4.0 } }
@@ -177,8 +148,8 @@ expect {
 }
 
 expect {
-	small = view(init(with_n(64)).model).draws
-	large = view(init(with_n(1000)).model).draws
+	small = view(init(Bench.with_n(64)).model).draws
+	large = view(init(Bench.with_n(1000)).model).draws
 	small.len() == draw_count and large.len() == draw_count
 }
 
@@ -196,4 +167,4 @@ model_text = |m| {
 	Str.join_with(List.concat(["${m.cube.to_str()} ${m.rng.to_str()}\n"], entity_lines), "")
 }
 
-expect model_text(run_steps(init({ ..with_n(100), seed: 7 }).model, 600)) == golden_model
+expect model_text(run_steps(init({ ..Bench.with_n(100), seed: 7 }).model, 600)) == golden_model

@@ -181,7 +181,8 @@ No chart shows the Roc heap, because only one Roc heap version remains.
 ## Bench games
 
 Each bench game reads N from its first Arg and stops if N is missing or not a
-positive integer. Each bench game uses the Seed for its randomness, so a run
+positive integer. The Roc bench games share this code, the random generator
+and their test helpers in the package `bench/shared/`. Each bench game uses the Seed for its randomness, so a run
 is repeatable. Each bench game changes one axis. The bench games live in
 `bench/`, outside `examples/`, so `run-games.sh`, `test-all.sh` and
 `screenshot.sh` do not run them. `sh bench/check.sh` runs `roc check` and

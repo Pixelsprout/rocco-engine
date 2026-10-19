@@ -1,5 +1,6 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
 
+import shared.Bench
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Quat
@@ -20,26 +21,10 @@ half_extent = 20.0 # F32
 
 max_speed = 4.0 # F32
 
-no_args : Config
-no_args = { seed: 0, assets: [], args: [] }
-
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
 init : Config -> { model : Model, commands : List(Command) }
-init = |config| match entity_count(config.args) {
+init = |config| match Bench.n_arg(config.args) {
 	Ok(n) => { model: spawn(config.seed, n), commands: [] }
 	Err(BadCount) => crash "The empty-step bench game needs N, a positive integer, as its first Arg."
-}
-
-entity_count : List(Str) -> Try(U64, [BadCount])
-entity_count = |args| match args.first() {
-	Ok(word) =>
-		match U64.from_str(word) {
-			Ok(n) if n > 0 => Ok(n)
-			_ => Err(BadCount)
-		}
-	Err(_) => Err(BadCount)
 }
 
 loaded : Model, Str, Manifest -> Model
@@ -56,14 +41,14 @@ spawn_help = |m, n| {
 	if m.entities.len() >= n {
 		m
 	} else {
-		r1 = next_rng(m.rng)
-		r2 = next_rng(r1)
-		r3 = next_rng(r2)
-		r4 = next_rng(r3)
+		r1 = Bench.next_rng(m.rng)
+		r2 = Bench.next_rng(r1)
+		r3 = Bench.next_rng(r2)
+		r4 = Bench.next_rng(r3)
 		entity = {
 			id: m.entities.len(),
-			pos: { x: spread(r1, half_extent), y: 0.0, z: spread(r2, half_extent) },
-			vel: { x: spread(r3, max_speed), y: 0.0, z: spread(r4, max_speed) },
+			pos: { x: Bench.spread(r1, half_extent), y: 0.0, z: Bench.spread(r2, half_extent) },
+			vel: { x: Bench.spread(r3, max_speed), y: 0.0, z: Bench.spread(r4, max_speed) },
 		}
 		spawn_help({ ..m, rng: r4, entities: m.entities.append(entity) }, n)
 	}
@@ -107,35 +92,19 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
-next_rng : U64 -> U64
-next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1)
-
-spread : U64, F32 -> F32
-spread = |s, limit| ((s.shr_zf_wrap(40) % 1000).to_f32() / 500.0 - 1.0) * limit
-
 # =======================================
 # Tests
 # =======================================
-with_n : U64 -> Config
-with_n = |n| { ..no_args, args: [n.to_str()] }
 
-counts_up : List(U64) -> Bool
-counts_up = |ids| ids.map_with_index(|id, i| id == i).all(|ok| ok)
-
-expect entity_count(["64"]) == Ok(64)
-expect entity_count([]) == Err(BadCount)
-expect entity_count(["0"]) == Err(BadCount)
-expect entity_count(["many"]) == Err(BadCount)
-
-expect init(with_n(64)).model.entities.len() == 64
-expect init(with_n(8)).model != init({ ..with_n(8), seed: 7 }).model
+expect init(Bench.with_n(64)).model.entities.len() == 64
+expect init(Bench.with_n(8)).model != init({ ..Bench.with_n(8), seed: 7 }).model
 
 expect {
-	m = init(with_n(64)).model
-	step(m, idle, QueryResults.empty, 1.0 / 120.0) == { model: m, commands: [] }
+	m = init(Bench.with_n(64)).model
+	step(m, Bench.idle, QueryResults.empty, 1.0 / 120.0) == { model: m, commands: [] }
 }
 
 expect {
-	draws = view(init(with_n(1000)).model).draws
-	draws.len() == draw_count and counts_up(draws.map(|d| d.id))
+	draws = view(init(Bench.with_n(1000)).model).draws
+	draws.len() == draw_count and Bench.counts_up(draws.map(|d| d.id))
 }

@@ -241,7 +241,7 @@ sweep_order : List(Str), List(U64), U64 -> List(BenchProcess)
 sweep_order = |games, ns, seed| shuffle(games.join_map(|game| ns.join_map(|n| bench_processes.map(|process| { game, n, process }))), seed)
 
 shuffle : List(a), U64 -> List(a)
-shuffle = |items, seed| shuffle_help(items, List.with_capacity(items.len()), next_rng(seed))
+shuffle = |items, seed| shuffle_help(items, List.with_capacity(items.len()), shuffle_rng(seed))
 
 shuffle_help : List(a), List(a), U64 -> List(a)
 shuffle_help = |left, picked, rng| {
@@ -250,14 +250,14 @@ shuffle_help = |left, picked, rng| {
 	} else {
 		i = rng.shr_zf_wrap(33) % left.len()
 		match left.get(i) {
-			Ok(item) => shuffle_help(left.take_first(i).concat(left.drop_first(i + 1)), picked.append(item), next_rng(rng))
+			Ok(item) => shuffle_help(left.take_first(i).concat(left.drop_first(i + 1)), picked.append(item), shuffle_rng(rng))
 			Err(_) => picked
 		}
 	}
 }
 
-next_rng : U64 -> U64
-next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1442695040888963407)
+shuffle_rng : U64 -> U64
+shuffle_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1442695040888963407)
 
 bench_dir : Str -> Str
 bench_dir = |game| "${bench_out_dir}/${game}"

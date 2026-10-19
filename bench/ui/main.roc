@@ -1,5 +1,6 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
+import shared.Bench
 import cam.Camera as Cam
 import ui.Ui
 import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, Scene]
@@ -10,12 +11,6 @@ import pf.QueryResults
 # one empty Box when N is odd. One cell is lit, and it moves on each step, so
 # the UI changes every step but its size does not.
 Model : { labels : List(Str), lit : U64 }
-
-no_args : Config
-no_args = { seed: 0, assets: [], args: [] }
-
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
 
 cell_box : Ui.BoxConfig
 cell_box = { ..Ui.default_box, width: Fixed(120.0), height: Fixed(16.0), pad: { left: 4.0, right: 4.0, top: 0.0, bottom: 0.0 }, background: { r: 0.15, g: 0.15, b: 0.2, a: 1.0 } }
@@ -32,19 +27,9 @@ label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
 init : Config -> { model : Model, commands : List(Command) }
-init = |config| match element_count(config.args) {
+init = |config| match Bench.n_arg(config.args) {
 	Ok(n) => { model: spawn(n), commands: [] }
 	Err(BadCount) => crash "The ui bench game needs N, a positive integer, as its first Arg."
-}
-
-element_count : List(Str) -> Try(U64, [BadCount])
-element_count = |args| match args.first() {
-	Ok(word) =>
-		match U64.from_str(word) {
-			Ok(n) if n > 0 => Ok(n)
-			_ => Err(BadCount)
-		}
-	Err(_) => Err(BadCount)
 }
 
 # The labels are built once, so view copies no text.
@@ -102,11 +87,9 @@ cell = |text, lit| {
 # =======================================
 # Tests
 # =======================================
-with_n : U64 -> Config
-with_n = |n| { ..no_args, args: [n.to_str()] }
 
 ui_of : U64 -> List(Element)
-ui_of = |n| view(init(with_n(n)).model).ui
+ui_of = |n| view(init(Bench.with_n(n)).model).ui
 
 opens : List(Element) -> U64
 opens = |ui| ui.count_if(
@@ -131,14 +114,7 @@ box_and_text_count = |ui| opens(ui) + texts(ui) - 1
 balanced : List(Element) -> Bool
 balanced = |ui| ui.count_if(|e| e == Close) == opens(ui)
 
-expect element_count(["64"]) == Ok(64)
-expect element_count(["16384", "extra"]) == Ok(16384)
-expect element_count([]) == Err(BadCount)
-expect element_count(["0"]) == Err(BadCount)
-expect element_count(["-3"]) == Err(BadCount)
-expect element_count(["many"]) == Err(BadCount)
-
-expect init(with_n(64)).commands == []
+expect init(Bench.with_n(64)).commands == []
 
 expect box_and_text_count(ui_of(64)) == 64 and texts(ui_of(64)) == 32
 expect box_and_text_count(ui_of(1)) == 1 and texts(ui_of(1)) == 0
@@ -146,16 +122,16 @@ expect box_and_text_count(ui_of(7)) == 7 and texts(ui_of(7)) == 3
 expect box_and_text_count(ui_of(16384)) == 16384
 expect balanced(ui_of(64)) and balanced(ui_of(7))
 
-expect view(init(with_n(64)).model).draws == []
+expect view(init(Bench.with_n(64)).model).draws == []
 
 expect {
-	m = init(with_n(6)).model
+	m = init(Bench.with_n(6)).model
 	[1, 2, 0, 1] == [move_light(m), move_light(move_light(m)), move_light(move_light(move_light(m))), move_light(move_light(move_light(move_light(m))))].map(|x| x.lit)
 }
 
 expect {
-	m = init(with_n(64)).model
-	after = step(m, idle, QueryResults.empty, 1.0 / 120.0)
+	m = init(Bench.with_n(64)).model
+	after = step(m, Bench.idle, QueryResults.empty, 1.0 / 120.0)
 	after.model.lit == 1 and after.model.labels == m.labels and after.commands == []
 }
 
@@ -164,7 +140,7 @@ lit_count = |ui| ui.count_if(|e| e == Open({ ..cell_box, background: lit_backgro
 
 # A step changes which cell is lit, not the number of elements.
 expect {
-	m = init(with_n(64)).model
+	m = init(Bench.with_n(64)).model
 	before = elements(m)
 	after = elements(move_light(m))
 	lit_count(before) == 1 and lit_count(after) == 1 and before != after and before.len() == after.len()

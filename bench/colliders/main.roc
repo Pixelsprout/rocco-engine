@@ -1,5 +1,6 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
 
+import shared.Bench
 import cam.Camera as Cam
 import pf.Collider
 import pf.Query
@@ -32,28 +33,12 @@ owner = 0 # U64
 # ContactsOf asks about the first Body.
 watched = 1 # U64
 
-no_args : Config
-no_args = { seed: 0, assets: [], args: [] }
-
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
 init : Config -> { model : Model, commands : List(Command) }
-init = |config| match collider_count(config.args) {
+init = |config| match Bench.n_arg(config.args) {
 	Ok(n) => { model: spawn(config.seed, n), commands: [] }
 	Err(BadCount) => crash "The colliders bench game needs N, a positive integer, as its first Arg."
-}
-
-collider_count : List(Str) -> Try(U64, [BadCount])
-collider_count = |args| match args.first() {
-	Ok(word) =>
-		match U64.from_str(word) {
-			Ok(n) if n > 0 => Ok(n)
-			_ => Err(BadCount)
-		}
-	Err(_) => Err(BadCount)
 }
 
 loaded : Model, Str, Manifest -> Model
@@ -71,16 +56,16 @@ spawn_help = |m, n| {
 	if m.bodies.len() >= n {
 		m
 	} else {
-		r1 = next_rng(m.rng)
-		r2 = next_rng(r1)
-		r3 = next_rng(r2)
-		r4 = next_rng(r3)
-		r5 = next_rng(r4)
+		r1 = Bench.next_rng(m.rng)
+		r2 = Bench.next_rng(r1)
+		r3 = Bench.next_rng(r2)
+		r4 = Bench.next_rng(r3)
+		r5 = Bench.next_rng(r4)
 		body = {
 			id: m.bodies.len() + 1,
-			pos: { x: spread(r1, m.half), y: 0.0, z: spread(r2, m.half) },
-			vel: { x: spread(r3, max_speed), y: 0.0, z: spread(r4, max_speed) },
-			yaw: spread(r5, 3.0),
+			pos: { x: Bench.spread(r1, m.half), y: 0.0, z: Bench.spread(r2, m.half) },
+			vel: { x: Bench.spread(r3, max_speed), y: 0.0, z: Bench.spread(r4, max_speed) },
+			yaw: Bench.spread(r5, 3.0),
 		}
 		spawn_help({ ..m, rng: r5, bodies: m.bodies.append(body) }, n)
 	}
@@ -154,38 +139,22 @@ queries = |half| {
 lane : U32, F32 -> F32
 lane = |k, half| ((2 * k + 1).to_f32() / slots.len().to_f32() - 1.0) * half
 
-next_rng : U64 -> U64
-next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1)
-
-# A value in [-limit, limit) from the top bits of the generator state.
-spread : U64, F32 -> F32
-spread = |s, limit| ((s.shr_zf_wrap(40) % 1000).to_f32() / 500.0 - 1.0) * limit
-
 # =======================================
 # Tests
 # =======================================
-with_n : U64 -> Config
-with_n = |n| { ..no_args, args: [n.to_str()] }
 
-expect collider_count(["64"]) == Ok(64)
-expect collider_count(["16384", "extra"]) == Ok(16384)
-expect collider_count([]) == Err(BadCount)
-expect collider_count(["0"]) == Err(BadCount)
-expect collider_count(["-3"]) == Err(BadCount)
-expect collider_count(["many"]) == Err(BadCount)
-
-expect init(with_n(64)).model.bodies.len() == 64
-expect init(with_n(64)).commands == []
-expect init(with_n(64)).model.half == 8.0
+expect init(Bench.with_n(64)).model.bodies.len() == 64
+expect init(Bench.with_n(64)).commands == []
+expect init(Bench.with_n(64)).model.half == 8.0
 
 # The Seed decides the Bodies, so one Seed always gives the same run.
-expect init(with_n(8)).model == init(with_n(8)).model
-expect init(with_n(8)).model != init({ ..with_n(8), seed: 7 }).model
+expect init(Bench.with_n(8)).model == init(Bench.with_n(8)).model
+expect init(Bench.with_n(8)).model != init({ ..Bench.with_n(8), seed: 7 }).model
 
 counts_from_one : List(U64) -> Bool
 counts_from_one = |ids| ids.map_with_index(|id, i| id == i + 1).all(|ok| ok)
 
-expect counts_from_one(init(with_n(32)).model.bodies.map(|b| b.id))
+expect counts_from_one(init(Bench.with_n(32)).model.bodies.map(|b| b.id))
 
 expect {
 	m = spawn(3, 16)
@@ -212,22 +181,22 @@ expect {
 
 expect {
 	results = { ..QueryResults.empty, rays: [{ owner, slot: 0, id: 3, point: { x: 0.0, y: 0.0, z: 0.0 }, normal: { x: -1.0, y: 0.0, z: 0.0 }, distance: 1.0 }], overlaps: [{ owner, slot: 1, id: 4 }, { owner, slot: 1, id: 6 }] }
-	count_answers(init(with_n(8)).model, results).answered == 3
+	count_answers(init(Bench.with_n(8)).model, results).answered == 3
 }
 
 expect {
-	m = init(with_n(64)).model
-	after = step(m, idle, QueryResults.empty, 1.0 / 120.0).model
+	m = init(Bench.with_n(64)).model
+	after = step(m, Bench.idle, QueryResults.empty, 1.0 / 120.0).model
 	after.bodies.len() == 64 and after != m
 }
 
-expect view(init(with_n(64)).model).colliders.len() == 64
-expect view(init(with_n(1000)).model).colliders.len() == 1000
+expect view(init(Bench.with_n(64)).model).colliders.len() == 64
+expect view(init(Bench.with_n(1000)).model).colliders.len() == 1000
 
-expect view(init(with_n(64)).model).colliders.map(|c| c.id) == init(with_n(64)).model.bodies.map(|b| b.id)
+expect view(init(Bench.with_n(64)).model).colliders.map(|c| c.id) == init(Bench.with_n(64)).model.bodies.map(|b| b.id)
 
 expect {
-	colliders = view(init(with_n(4)).model).colliders
+	colliders = view(init(Bench.with_n(4)).model).colliders
 	colliders.map(|c| c.shape) == [Box({ x: radius, y: radius, z: radius }), Sphere(radius), Box({ x: radius, y: radius, z: radius }), Sphere(radius)]
 }
 
@@ -242,13 +211,13 @@ query_kinds = |qs| qs.map(
 )
 
 expect {
-	small = view(init(with_n(64)).model).queries
-	large = view(init(with_n(4096)).model).queries
+	small = view(init(Bench.with_n(64)).model).queries
+	large = view(init(Bench.with_n(4096)).model).queries
 	kinds = List.repeat(Ray, slots.len()).concat(List.repeat(Overlap, slots.len())).append(Contacts)
 	query_kinds(small) == kinds and query_kinds(large) == kinds
 }
 
-expect view(init(with_n(64)).model).queries.last() == Ok(ContactsOf(watched))
+expect view(init(Bench.with_n(64)).model).queries.last() == Ok(ContactsOf(watched))
 
 expect lane(0, 8.0) == -7.0
 expect lane(7, 8.0) == 7.0
@@ -267,7 +236,7 @@ expect {
 # bench/colliders-twin checks its Colliders against the same file, so the twin
 # and this game agree for one Seed and N after the same steps.
 run_steps : Model, U64 -> Model
-run_steps = |m, count| if count == 0 m else run_steps(step(m, idle, QueryResults.empty, 1.0 / 120.0).model, count - 1)
+run_steps = |m, count| if count == 0 m else run_steps(step(m, Bench.idle, QueryResults.empty, 1.0 / 120.0).model, count - 1)
 
 bits_text : F32 -> Str
 bits_text = |f| f.to_bits().to_str()
@@ -282,4 +251,4 @@ shape_text = |shape| match shape {
 colliders_text : List(Vocabulary.Collider) -> Str
 colliders_text = |colliders| Str.join_with(colliders.map(|c| "${c.id.to_str()} ${shape_text(c.shape)} ${bits_text(c.pos.x)} ${bits_text(c.pos.y)} ${bits_text(c.pos.z)} ${bits_text(c.yaw)}\n"), "")
 
-expect colliders_text(view(run_steps(init({ ..with_n(100), seed: 7 }).model, 600)).colliders) == golden_colliders
+expect colliders_text(view(run_steps(init({ ..Bench.with_n(100), seed: 7 }).model, 600)).colliders) == golden_colliders
