@@ -44,6 +44,16 @@ RUN_FIELDS = [
 # The engine repeats the timer cost of one Span on every row. It is not a Span.
 SPAN_COST = "span_cost_us"
 
+# The headline budget is for this many fixed steps per Frame. A Lockstep Frame
+# runs one fixed step, so the budget scales the per-step Spans to it.
+BUDGET_STEPS = 2
+
+# The engine sums these Spans over the fixed steps of a Frame.
+STEP_SPANS = {"input_us", "step_us", "commands_us", "view_us", "queries_us", "query_results_us"}
+
+# These Spans run once per Frame.
+FRAME_SPANS = {"interpolation_us", "ui_layout_us", "render_submit_us", "commit_us"}
+
 HEAP_LINE = re.compile(r"^alloc step=(\d+) allocs=(\d+) deallocs=(\d+) reallocs=(\d+) live=(\d+)")
 
 
@@ -91,6 +101,31 @@ def heap_counters(log_text, warmup, measured):
     return counters
 
 
+def frame_budget(row, span_names):
+    """The Frame CPU time at BUDGET_STEPS fixed steps: each per-step Span over
+    one fixed step times BUDGET_STEPS, plus the per-Frame Spans."""
+    unknown = [name for name in span_names if name not in STEP_SPANS | FRAME_SPANS]
+    if unknown:
+        raise ValueError(f"the CSV has Spans that are neither per step nor per Frame: {', '.join(unknown)}")
+    steps = int(row["steps"])
+    if steps < 1:
+        raise ValueError(f"Frame {row['frame']} ran no fixed step")
+    per_step = sum(float(row[name]) for name in span_names if name in STEP_SPANS) / steps
+    per_frame = sum(float(row[name]) for name in span_names if name in FRAME_SPANS)
+    return BUDGET_STEPS * per_step + per_frame
+
+
+def stats_of(per_process):
+    """Pooled percentiles and max, and the median of each process."""
+    pooled = [value for values in per_process for value in values]
+    stats = {key: round(percentile(pooled, p), 3) for key, p in PERCENTILES.items()}
+    stats["max"] = round(max(pooled), 3)
+    medians = [round(percentile(values, 50), 3) for values in per_process]
+    stats["process_medians"] = medians
+    stats["spread"] = round(max(medians) - min(medians), 3)
+    return stats
+
+
 def summarise(process_csvs, meta, heap_log):
     if is_debug(meta):
         raise DebugBuild("the run is from a debug build, so its numbers are not valid")
@@ -102,20 +137,14 @@ def summarise(process_csvs, meta, heap_log):
 
     columns = processes[0][0]
     span_names = [name for name in columns if name.endswith("_us") and name != SPAN_COST]
-    spans = {}
-    for name in span_names:
-        per_process = [[float(row[name]) for row in rows] for rows in processes]
-        pooled = [value for values in per_process for value in values]
-        stats = {key: round(percentile(pooled, p), 3) for key, p in PERCENTILES.items()}
-        stats["max"] = max(pooled)
-        medians = [round(percentile(values, 50), 3) for values in per_process]
-        stats["process_medians"] = medians
-        stats["spread"] = round(max(medians) - min(medians), 3)
-        spans[name] = stats
+    spans = {name: stats_of([[float(row[name]) for row in rows] for rows in processes]) for name in span_names}
+    budget = stats_of([[frame_budget(row, span_names) for row in rows] for rows in processes])
 
     summary = {key: meta[key] for key in RUN_FIELDS}
     summary["span_cost_us"] = float(columns[SPAN_COST]) if SPAN_COST in columns else None
     summary["spans"] = spans
+    summary["frame_budget_steps"] = BUDGET_STEPS
+    summary["frame_budget_us"] = budget
     summary["roc_heap_counters"] = heap_counters(heap_log, warmup, measured)
     return summary
 

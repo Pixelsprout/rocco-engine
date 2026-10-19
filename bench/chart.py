@@ -39,24 +39,19 @@ def load(results_dir):
     return games
 
 
+def point(n, stats):
+    return {"n": n, "median": stats["median"], "p99": stats["p99"], "low": min(stats["process_medians"]), "high": max(stats["process_medians"])}
+
+
 def curves(summaries):
     """One curve per Span: N against median, p99 and the process-median range.
-    A Span that is zero at every N, such as render submit in Headless, has no curve."""
+    A Span that is zero at every N, such as render submit in Headless, has no
+    curve. Summaries with a Frame budget add it as one more curve."""
     names = [name for name in summaries[0]["spans"] if any(s["spans"].get(name, {}).get("max", 0) > 0 for s in summaries)]
-    return {
-        name: [
-            {
-                "n": s["n"],
-                "median": s["spans"][name]["median"],
-                "p99": s["spans"][name]["p99"],
-                "low": min(s["spans"][name]["process_medians"]),
-                "high": max(s["spans"][name]["process_medians"]),
-            }
-            for s in summaries
-            if name in s["spans"]
-        ]
-        for name in names
-    }
+    out = {name: [point(s["n"], s["spans"][name]) for s in summaries if name in s["spans"]] for name in names}
+    if all("frame_budget_us" in s for s in summaries):
+        out[f"frame_budget_{summaries[0]['frame_budget_steps']}_steps_us"] = [point(s["n"], s["frame_budget_us"]) for s in summaries]
+    return out
 
 
 def log_scale(lo, hi, start, end):
