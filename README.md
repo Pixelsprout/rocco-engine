@@ -222,9 +222,12 @@ An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
 `bench <game>-twin [n]` builds `bench/<game>-twin/` and the engine into one
 release executable with Spans, with no Roc app and no host library. The run is
 the same as for a Roc bench game. `bench/model-size-twin/` is the twin of
-`bench/model-size/`. `bench/empty-step/` holds the same Model and returns the
-same Scene, but its `step` returns the Model unchanged. It gives the lower
-limit of the seam.
+`bench/model-size/`. `bench/colliders-twin/` is the twin of `bench/colliders/`:
+the same Colliders, the same motion and the same Queries. It and the Roc game
+check their Colliders after 600 steps at Seed 7 and N=100 against
+`bench/colliders/colliders.golden`. `bench/empty-step/` holds the same Model
+and returns the same Scene, but its `step` returns the Model unchanged. It
+gives the lower limit of the seam.
 
 `bench/model-size-tuned/` has the behaviour of `bench/model-size/`, but its
 `step` takes the Model apart, so the entity list has one reference, and runs
@@ -239,6 +242,7 @@ roc scripts/build.roc bench model-size
 roc scripts/build.roc bench model-size-tuned
 python3 bench/compare_chart.py tuned   # model-size against model-size-tuned
 python3 bench/compare_chart.py twin    # model-size, model-size-twin and empty-step
+python3 bench/compare_chart.py colliders   # colliders against colliders-twin
 ```
 
 `bench/compare_chart.py` reads the latest results directory, or the one you
@@ -403,11 +407,13 @@ a change to the `Model` type, restart the game.
 | `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
 | `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
 | `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
+| `bench/colliders/colliders.golden` | The Colliders of `bench/colliders` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
+| `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
 | `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
 | `bench/results/` | The committed summaries, one directory per date and machine. |
-| `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin` or `tuned`. |
+| `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
 | `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
