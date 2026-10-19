@@ -121,8 +121,23 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever
 // the game asked for. The sky draws last, so the depth test hides it behind
-// every mesh. The UI draws over everything. A nil ui draws none.
-frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table, ui: ^Ui, window: Ui_Window) {
+// every mesh. The UI draws over everything. A nil ui draws none. With submit
+// false, the Frame still places the Draws and lays out the UI, but submits
+// nothing.
+frame_render_draw :: proc(
+	fr: ^Frame_Render,
+	prev, curr: Scene,
+	alpha: f32,
+	view_proj: Mat4,
+	eye: [3]f32,
+	meshes: ^Mesh_Table,
+	skies: ^Sky_Table,
+	ui: ^Ui,
+	window: Ui_Window,
+	spans: ^Span_Sink = nil,
+	submit := true,
+) {
+	span := span_open()
 	lights, sun := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
@@ -135,6 +150,16 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 		x := draw_transform(from, d, alpha)
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
 		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
+	}
+	span = span_close(spans, .Interpolation, span)
+
+	quads: []Ui_Quad
+	if ui != nil {
+		quads = ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
+		span = span_close(spans, .Ui_Layout, span)
+	}
+	if !submit {
+		return
 	}
 
 	if sun >= 0 && len(fr.placed) > 0 {
@@ -156,13 +181,11 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
 	}
-	if ui != nil {
-		quads := ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
-		if len(quads) > 0 {
-			fr.submit_ui(fr.submit_ctx, quads, window.size)
-		}
+	if len(quads) > 0 {
+		fr.submit_ui(fr.submit_ctx, quads, window.size)
 	}
 	fr.end_pass(fr.submit_ctx)
+	span_close(spans, .Render_Submit, span)
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
