@@ -94,9 +94,15 @@ Adding an asset, an entity kind or a game rule is never one.
 _Avoid_: breaking change, API change
 
 **Config**:
-What the host gives `init` once: a seed and the asset names found on disk,
-with no ids.
+What the host gives `init` once: a seed, the Args and the asset names found
+on disk, with no ids.
 _Avoid_: settings, options, init args, environment
+
+**Args**:
+The words after the game's name on the command line, in the order typed, as
+a list of strings in Config. The host does not parse them; what they mean is
+the game's decision.
+_Avoid_: flags, options, parameters, argv
 
 **Seed**:
 The number in Config that starts the game's randomness. The game keeps a
@@ -404,3 +410,30 @@ The host allocator behind roc_alloc, roc_dealloc and roc_realloc. Its
 tracking allocator records every size, because roc_realloc carries no old
 size.
 _Avoid_: Roc allocator, host heap, seam heap
+
+## Benchmarks
+
+**Lockstep**:
+A run mode in which each Frame runs exactly one fixed step and one render,
+whatever the wall-clock time. The same run always does the same work.
+_Avoid_: fixed mode, deterministic mode, frame lock
+
+**Headless**:
+A run with no window and no GPU: the host calls the game and runs the
+queries, but renders nothing. It always runs in lockstep.
+_Avoid_: offscreen, no-render, server mode
+
+**Bench game**:
+A game that exists only to stress one axis, such as Draw count or Collider
+count, while every other axis stays fixed.
+_Avoid_: stress test, benchmark example, perf game
+
+**Odin twin**:
+An Odin stand-in for one bench game, behind the same Game calls, with the
+same logic and the same Model layout. It isolates the cost of the seam.
+_Avoid_: native version, baseline game, control
+
+**Span**:
+One named, timed section of a Frame, such as the step span or the render
+submit span. A build has Spans only when it asks for them.
+_Avoid_: phase, section, lap, timer
