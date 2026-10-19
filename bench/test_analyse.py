@@ -78,6 +78,13 @@ class SummariseTest(unittest.TestCase):
         self.assertEqual(summary["build_flags"], META["build_flags"])
         self.assertFalse(summary["odin_debug"])
 
+    def test_reports_span_cost_as_the_run_timer_cost_not_as_a_span(self):
+        lines = CSV.splitlines()
+        costed = "\n".join([lines[0] + ",span_cost_us"] + [line + ",0.042" for line in lines[1:]]) + "\n"
+        summary = analyse.summarise(costed, META)
+        self.assertEqual(sorted(summary["spans"]), ["step_us", "view_us"])
+        self.assertEqual(summary["span_cost_us"], 0.042)
+
     def test_refuses_a_debug_build(self):
         with self.assertRaises(analyse.DebugBuild):
             analyse.summarise(CSV, {**META, "odin_debug": True})

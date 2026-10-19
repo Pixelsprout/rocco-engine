@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 PERCENTILES = {"median": 50, "p95": 95, "p99": 99}
+# The host repeats its one startup measure of a span_close on every row. It is not a Span.
+SPAN_COST = "span_cost_us"
 
 
 class DebugBuild(ValueError):
@@ -46,7 +48,7 @@ def summarise(csv_text, meta):
         raise ValueError(f"the CSV has {len(rows)} Frames, expected {expected}")
     measured = rows[warmup:]
 
-    span_names = [name for name in measured[0] if name.endswith("_us")]
+    span_names = [name for name in measured[0] if name.endswith("_us") and name != SPAN_COST]
     spans = {}
     for name in span_names:
         values = [float(row[name]) for row in measured]
@@ -58,6 +60,8 @@ def summarise(csv_text, meta):
     summary = {key: meta[key] for key in keep}
     summary["measured_frames"] = len(measured)
     summary["spans"] = spans
+    if SPAN_COST in measured[0]:
+        summary[SPAN_COST] = float(measured[0][SPAN_COST])
     return summary
 
 
