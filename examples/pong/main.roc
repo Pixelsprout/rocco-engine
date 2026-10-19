@@ -1,4 +1,4 @@
-app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -45,7 +45,7 @@ serve_speed = 8.0
 max_score = 7
 
 no_assets : Config
-no_assets = { seed: 0, assets: [] }
+no_assets = { seed: 0, assets: [], args: [] }
 
 idle : Input
 idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }

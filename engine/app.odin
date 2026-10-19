@@ -52,7 +52,7 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	packs_init(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, assets_dir_from_env(), context.allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	config := config_make(seed_from_env(), g_state.packs.on_disk)
+	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
 	seam_init(&g_state.seam, ROC_GAME, app_run_command, config, &g_state.packs)
 
 	sapp.run(

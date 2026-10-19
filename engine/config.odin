@@ -42,7 +42,8 @@ alloc_report_from_env :: proc() -> bool {
 }
 
 assets_dir_from_env :: proc() -> string {
-	program := platform_program_name(context.temp_allocator)
+	command_line := platform_command_line(context.temp_allocator)
+	program := command_line[0] if len(command_line) > 0 else ""
 	return assets_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
 }
 
@@ -60,11 +61,24 @@ assets_dir_from :: proc(assets, program: string, allocator: mem.Allocator) -> st
 	return fmt.aprintf("%v/%v", dir, DEFAULT_ASSETS, allocator = allocator)
 }
 
+args_from_env :: proc() -> []string {
+	return args_from(platform_command_line(context.temp_allocator))
+}
+
+// The Args are the words after the program name. The host does not parse them.
+args_from :: proc(command_line: []string) -> []string {
+	return command_line[1:] if len(command_line) > 1 else nil
+}
+
 // Every string and list is a fresh roc_alloc at refcount 1; the game init call consumes them.
-config_make :: proc(seed: u64, assets: []string) -> Config {
-	names := make([]Roc_Str, len(assets), context.temp_allocator)
-	for name, i in assets {
-		names[i] = roc_str_from_slice(name)
+config_make :: proc(seed: u64, assets: []string, args: []string = nil) -> Config {
+	return {seed = seed, assets = roc_str_list_make(assets), args = roc_str_list_make(args)}
+}
+
+roc_str_list_make :: proc(words: []string) -> Roc_List(Roc_Str) {
+	strs := make([]Roc_Str, len(words), context.temp_allocator)
+	for word, i in words {
+		strs[i] = roc_str_from_slice(word)
 	}
-	return {seed = seed, assets = roc_list_from_slice(names)}
+	return roc_list_from_slice(strs)
 }

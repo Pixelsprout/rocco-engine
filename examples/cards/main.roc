@@ -1,4 +1,4 @@
-app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -68,11 +68,11 @@ view = |m| {
 
 expect {
 	press = { held: [], pressed: [Key.code(Space)], mouse: { dx: 0.0, dy: 0.0 } }
-	after = update(init({ seed: 0, assets: [] }).model, press, QueryResults.empty, 0.1)
+	after = update(init({ seed: 0, assets: [], args: [] }).model, press, QueryResults.empty, 0.1)
 	List.len(after.hand) == 3 and after.turns == 1 and after.card_mesh == Mesh.primitive(Plane)
 }
 
-expect init({ seed: 0, assets: [] }).commands == [Load({ pack: "cards", assets: [] })]
-expect init({ seed: 0, assets: ["card"] }).commands == [Load({ pack: "cards", assets: ["card"] })]
-expect loaded(init({ seed: 0, assets: ["card"] }).model, "cards", [{ name: "card", id: 4 }]).card_mesh == 4
-expect loaded(init({ seed: 0, assets: [] }).model, "cards", []).card_mesh == Mesh.primitive(Plane)
+expect init({ seed: 0, assets: [], args: [] }).commands == [Load({ pack: "cards", assets: [] })]
+expect init({ seed: 0, assets: ["card"], args: [] }).commands == [Load({ pack: "cards", assets: ["card"] })]
+expect loaded(init({ seed: 0, assets: ["card"], args: [] }).model, "cards", [{ name: "card", id: 4 }]).card_mesh == 4
+expect loaded(init({ seed: 0, assets: [], args: [] }).model, "cards", []).card_mesh == Mesh.primitive(Plane)

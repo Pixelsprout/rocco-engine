@@ -1,6 +1,7 @@
 #+test
 package engine
 
+import "core:slice"
 import "core:testing"
 
 @(test)
@@ -35,6 +36,24 @@ test_config_carries_the_seed_and_the_asset_names_with_no_ids :: proc(t: ^testing
 	testing.expect_value(t, int(config.assets.length), len(names))
 	for &name, i in config.assets.elements[:config.assets.length] {
 		testing.expect_value(t, roc_str_string(&name), names[i])
+	}
+	testing.expect_value(t, config.args.length, 0)
+}
+
+@(test)
+test_args_are_the_words_after_the_program_name :: proc(t: ^testing.T) {
+	Case :: struct {
+		command_line, want: []string,
+	}
+	cases := []Case {
+		{nil, nil},
+		{{"pong.bin"}, nil},
+		{{"bench.bin", "4096"}, {"4096"}},
+		{{"bench.bin", "--draws", "64", "", "a b"}, {"--draws", "64", "", "a b"}},
+	}
+	for c in cases {
+		got := args_from(c.command_line)
+		testing.expectf(t, slice.equal(got, c.want), "args_from(%v) = %v, want %v", c.command_line, got, c.want)
 	}
 }
 
