@@ -101,7 +101,7 @@ runs the tests of the Windows import library generator.
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
 `odin test` on every Odin twin.
-`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_machine.py bench/test_twin_chart.py`
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_machine.py`
 runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
@@ -226,17 +226,26 @@ the same as for a Roc bench game. `bench/model-size-twin/` is the twin of
 same Scene, but its `step` returns the Model unchanged. It gives the lower
 limit of the seam.
 
-To compare the three over N from 64 to 16,384:
+`bench/model-size-tuned/` has the behaviour of `bench/model-size/`, but its
+`step` takes the Model apart, so the entity list has one reference, and runs
+both Stages in one pass. Both games check their full Model against
+`bench/model-size/model.golden`.
+
+To compare games on one chart, run a sweep of each game, then draw the
+comparison:
 
 ```sh
-sh bench/twin-sweep.sh
+roc scripts/build.roc bench model-size
+roc scripts/build.roc bench model-size-tuned
+python3 bench/compare_chart.py tuned   # model-size against model-size-tuned
+python3 bench/compare_chart.py twin    # model-size, model-size-twin and empty-step
 ```
 
-The script runs `bench <game>` for each of the three games, with the same
-protocol, and then `bench/twin_chart.py`. The chart script reads the latest
-results directory and writes `bench/out/twin.svg`, a chart of the median and
-p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs only the N
-values you give.
+`bench/compare_chart.py` reads the latest results directory, or the one you
+name, and writes `bench/out/charts/<comparison>.svg`: the median and p99
+`step` Span against N. `sh bench/twin-sweep.sh` runs the sweeps of the three
+twin games and draws the twin chart. `sh bench/twin-sweep.sh 64 1024` runs
+only the N values you give.
 
 ### Screenshots
 
@@ -389,6 +398,8 @@ a change to the `Model` type, restart the game.
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
+| `bench/model-size/model.golden` | The full Model of `bench/model-size` after 600 steps at Seed 7 and N=100. The idiomatic and the tuned game both check it. |
+| `bench/model-size-tuned/` | The tuned Model size bench game: the behaviour of `bench/model-size`, with a `step` that keeps the entity list unique and walks it once. |
 | `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
 | `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
 | `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
@@ -396,7 +407,7 @@ a change to the `Model` type, restart the game.
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
 | `bench/results/` | The committed summaries, one directory per date and machine. |
-| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG, from the summaries. |
+| `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin` or `tuned`. |
 | `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |

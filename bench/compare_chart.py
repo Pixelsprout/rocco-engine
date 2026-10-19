@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Draw the step Span of the Roc bench game, its Odin twin and the empty step.
+"""Draw the step Span of several bench games against N on one chart.
 
-Usage: python3 bench/twin_chart.py [results dir] [--out <chart.svg>]
+Usage: python3 bench/compare_chart.py <comparison> [<results dir>] [--out <chart.svg>]
 
-Reads every <game>-<n>.json summary in the results dir (default: the latest
-bench/results/<date>-<machine>/) for the games model-size, model-size-twin and
-empty-step. It draws the median and the p99 of the step Span against N, on log
-scales, as one SVG, by default bench/out/twin.svg. A summary from a debug build
-is refused, as in analyse.py.
+A comparison is one of:
+  twin   model-size, its Odin twin model-size-twin and empty-step.
+  tuned  model-size and the tuned model-size-tuned.
+
+The results dir defaults to the latest bench/results/<date>-<machine>/. The
+script reads its summaries of the games in the comparison and draws the median
+and the p99 of the step Span against N, on log scales. The chart goes to
+bench/out/charts/<comparison>.svg unless --out names a path. A summary from a
+debug build is refused, as in analyse.py.
 """
 
 import argparse
@@ -19,10 +23,16 @@ from pathlib import Path
 from analyse import DebugBuild, is_debug
 from chart import BENCH_DIR, latest_results
 
-GAMES = {
-    "model-size": ("Roc bench game", "#2a6fdb"),
-    "model-size-twin": ("Odin twin", "#d9480f"),
-    "empty-step": ("Empty step", "#5c940d"),
+COMPARISONS = {
+    "twin": {
+        "model-size": ("Roc bench game", "#2a6fdb"),
+        "model-size-twin": ("Odin twin", "#d9480f"),
+        "empty-step": ("Empty step", "#5c940d"),
+    },
+    "tuned": {
+        "model-size": ("Idiomatic Roc", "#2a6fdb"),
+        "model-size-tuned": ("Tuned Roc", "#862e9c"),
+    },
 }
 STATS = {"median": "", "p99": "6 4"}
 SPAN = "step_us"
@@ -31,13 +41,13 @@ WIDTH, HEIGHT = 720, 440
 LEFT, RIGHT, TOP, BOTTOM = 70, 180, 40, 50
 
 
-def series(summaries):
-    """{(game, stat): [(n, us), ...]} sorted by N, for the known games."""
+def series(summaries, games):
+    """{(game, stat): [(n, us), ...]} sorted by N, for the games named."""
     out = {}
     for summary in summaries:
         if is_debug(summary):
             raise DebugBuild(f"{summary['game']} at N={summary['n']} is from a debug build")
-        if summary["game"] not in GAMES:
+        if summary["game"] not in games:
             continue
         for stat in STATS:
             us = summary["spans"][SPAN][stat]
@@ -53,10 +63,10 @@ def log_ticks(low, high, base):
     return [base**k for k in range(first, last + 1)]
 
 
-def svg(lines):
+def svg(lines, games):
     points = [p for pts in lines.values() for p in pts]
     if not points:
-        raise ValueError("no summaries of the twin games")
+        raise ValueError(f"no summaries of {', '.join(games)}")
     xs = log_ticks(min(n for n, _ in points), max(n for n, _ in points), 2)
     ys = log_ticks(max(min(us for _, us in points), 0.01), max(us for _, us in points), 10)
     plot_w, plot_h = WIDTH - LEFT - RIGHT, HEIGHT - TOP - BOTTOM
@@ -86,11 +96,11 @@ def svg(lines):
     parts.append(f'<text transform="translate(16 {TOP + plot_h / 2}) rotate(-90)" text-anchor="middle">microseconds</text>')
 
     for (game, stat), pts in sorted(lines.items()):
-        _, color = GAMES[game]
+        _, color = games[game]
         coords = " ".join(f"{x_at(n):.1f},{y_at(us):.1f}" for n, us in pts)
         dash = f' stroke-dasharray="{STATS[stat]}"' if STATS[stat] else ""
         parts.append(f'<polyline data-series="{game} {stat}" points="{coords}" fill="none" stroke="{color}" stroke-width="2"{dash}/>')
-    for i, (game, (label, color)) in enumerate(GAMES.items()):
+    for i, (game, (label, color)) in enumerate(games.items()):
         y = TOP + 10 + i * 20
         parts.append(f'<line x1="{WIDTH - RIGHT + 16}" y1="{y}" x2="{WIDTH - RIGHT + 40}" y2="{y}" stroke="{color}" stroke-width="2"/>')
         parts.append(f'<text x="{WIDTH - RIGHT + 46}" y="{y + 4}">{label}</text>')
@@ -99,25 +109,27 @@ def svg(lines):
 
 
 def main(argv):
-    parser = argparse.ArgumentParser(description="Chart the Roc bench game, its Odin twin and the empty step.")
-    parser.add_argument("dir", type=Path, nargs="?")
-    parser.add_argument("--out", type=Path, default=BENCH_DIR / "out" / "twin.svg")
+    parser = argparse.ArgumentParser(description="Chart the step Span of several bench games against N.")
+    parser.add_argument("comparison", choices=sorted(COMPARISONS))
+    parser.add_argument("results", type=Path, nargs="?")
+    parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
 
-    results = args.dir or latest_results()
+    results = args.results or latest_results()
     if results is None or not results.is_dir():
-        print("twin_chart: no results directory. Run roc scripts/build.roc bench first.", file=sys.stderr)
+        print("compare_chart: no results directory. Run roc scripts/build.roc bench first.", file=sys.stderr)
         return 1
+    games = COMPARISONS[args.comparison]
     summaries = [json.loads(p.read_text()) for p in sorted(results.glob("*.json"))]
     try:
-        text = svg(series(summaries))
+        text = svg(series(summaries, games), games)
     except ValueError as err:
-        print(f"twin_chart: {results}: {err}", file=sys.stderr)
+        print(f"compare_chart: {results}: {err}", file=sys.stderr)
         return 1
-    out = args.out
+    out = args.out or BENCH_DIR / "out" / "charts" / f"{args.comparison}.svg"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
-    print(f"twin_chart: wrote {out}")
+    print(f"compare_chart: wrote {out}")
     return 0
 
 
