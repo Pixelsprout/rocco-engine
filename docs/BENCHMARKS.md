@@ -81,6 +81,11 @@ first row is a header. Then each Frame has one row: the Frame number, the
 fixed steps in the Frame, one column per Span in microseconds and
 `span_cost_us`.
 
+A Spans host stops at startup with exit code 1 if `ROCCO_SPANS_CSV` or
+`ROCCO_EXIT_AFTER_FRAMES` is not set. The host reserves one row per Frame of
+the limit, so the Spans do not allocate during a run. If the CSV does not
+write, the host exits with code 1.
+
 | Span | Runs | Measures |
 |---|---|---|
 | `input` | per fixed step | the copy of Input into Roc |
@@ -304,7 +309,8 @@ the Python standard library.
 7. For the headline figure, run `roc scripts/build.roc bench mixed --windowed`,
    then `python3 bench/headline.py`.
 8. Run `roc scripts/build.roc all` again. A Spans host stops every run that
-   has no `ROCCO_SPANS_CSV`, so the examples do not run until you do this.
+   has no `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so the examples
+   do not run until you do this.
 
 To repeat the full reference run, use `sh bench/reference-run.sh` (see
 "Reference run").

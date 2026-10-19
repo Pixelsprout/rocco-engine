@@ -37,3 +37,32 @@ test_span_cost_is_measured_once_per_run_only_in_a_spans_build :: proc(t: ^testin
 		testing.expect_value(t, span_cost_us(&sink), 0)
 	}
 }
+
+@(test)
+test_a_spans_build_needs_a_csv_path_and_a_frame_limit :: proc(t: ^testing.T) {
+	testing.expect_value(t, spans_env_problem(true, "out.csv", 2120), "")
+	testing.expect(t, spans_env_problem(true, "", 2120) != "")
+	testing.expect(t, spans_env_problem(true, "out.csv", 0) != "")
+}
+
+@(test)
+test_a_build_without_spans_refuses_a_csv_path :: proc(t: ^testing.T) {
+	testing.expect_value(t, spans_env_problem(false, "", 0), "")
+	testing.expect_value(t, spans_env_problem(false, "", 2120), "")
+	testing.expect(t, spans_env_problem(false, "out.csv", 2120) != "")
+}
+
+@(test)
+test_span_sink_write_to_a_missing_directory_fails_only_in_a_spans_build :: proc(t: ^testing.T) {
+	sink: Span_Sink
+	span_sink_init(&sink, "no-such-directory/spans.csv", 1, context.allocator)
+	defer span_sink_destroy(&sink)
+
+	err := span_sink_write(&sink)
+
+	when SPANS {
+		testing.expect(t, err != nil)
+	} else {
+		testing.expect_value(t, err, nil)
+	}
+}

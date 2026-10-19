@@ -421,7 +421,8 @@ usage =
 	\\host has it only with host --release --track-alloc.
 	\\
 	\\host --spans and host --release --spans add the per-Frame Span timers. Such a
-	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV.
+	\\host writes one CSV row per Frame to the path in ROCCO_SPANS_CSV, and stops at
+	\\startup if ROCCO_SPANS_CSV or ROCCO_EXIT_AFTER_FRAMES is not set.
 	\\
 	\\Run from the repository root. The target is the machine running the script.
 

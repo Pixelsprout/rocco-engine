@@ -76,7 +76,8 @@ for comparison in twin tuned colliders; do
 done
 python3 bench/headline.py "$results" | tee "$results/headline.txt"
 
-# A Spans host stops every run without ROCCO_SPANS_CSV, so put the debug host back.
+# A Spans host stops every run without ROCCO_SPANS_CSV and ROCCO_EXIT_AFTER_FRAMES,
+# so put the debug host back.
 roc scripts/build.roc all
 
 echo "reference-run: the summaries are in $results and the charts in bench/out/charts/."
