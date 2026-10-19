@@ -180,6 +180,11 @@ and pong, then checks that the host library and the glue did not change.
 
 ### Benchmarks
 
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) is the method document: the
+protocol, the Spans, the build flags, the hardware rules, the headline figure
+and the reference run. `sh bench/reference-run.sh` runs the full reference
+run.
+
 The bench games live in `bench/`, outside `examples/`. `run-games.sh`,
 `test-all.sh` and `screenshot.sh` do not run them. To run a sweep of one bench
 game and draw its curve:
@@ -219,8 +224,8 @@ you name, and writes one SVG per bench game to `bench/out/charts/`. CI runs
 each bench game and Odin twin once at N=64 as a smoke test. CI makes no timing
 claims.
 
-Headless renders nothing, so its interpolation, render submit and
-`sg.commit` Spans are zero. The Draws bench game measures them, so its sweep
+Headless renders nothing, so its render submit and `sg.commit` Spans are
+zero. The Draws bench game measures them, so its sweep
 runs in windowed Lockstep: one fixed step and one render per Frame, with
 vsync off.
 
@@ -462,7 +467,9 @@ a change to the `Model` type, restart the game.
 | `bench/ui/` | The UI bench game: N Box and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
 | `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
-| `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
+| `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. `--check` fails unless the machine is ready for a reference run. |
+| `bench/realclock.py` | Summarises one real-clock run of an example with the Spans. |
+| `bench/reference-run.sh` | Runs the reference run in `docs/BENCHMARKS.md`: every bench game and Odin twin, the real-clock run, the charts and the headline figure. |
 | `bench/results/` | The committed summaries, one directory per date and machine. |
 | `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
 | `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
@@ -488,6 +495,7 @@ a change to the `Model` type, restart the game.
 | `clay/` | Submodule: nicbarker/clay. The engine imports `bindings/odin/clay-odin/`. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
+| `docs/BENCHMARKS.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
 
 ## A game outside this repo
