@@ -101,7 +101,7 @@ runs the tests of the Windows import library generator.
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
 `odin test` on every Odin twin.
-`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_machine.py`
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py`
 runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
@@ -233,6 +233,31 @@ The window must stay on a display. With the lid closed, macOS can stop
 presenting Frames and the run can hang. The Draws curve goes past 4,096
 Draws, where the Pairing map grows. The renderer draws at most 16,384 Draws
 per Frame (`DRAW_CAPACITY` in `engine/frame_render.odin`) and drops the rest.
+
+The mixed bench game, `bench/mixed/`, scales every axis with one N. Each
+entity has one Draw and one Collider. Every 10 entities add one UI element,
+counted as the UI bench game counts its Box and Text elements. The Queries
+stay at 8 raycasts, 8 overlaps and one ContactsOf. There are 4 Lights: one
+Ambient, one Sun with shadows and two Points. The arena grows with N, so each
+entity keeps 4 square units. The headline figure comes from its sweep in
+windowed Lockstep:
+
+```sh
+roc scripts/build.roc bench mixed --windowed
+python3 bench/headline.py
+```
+
+Each summary holds `frame_budget_us`: the Frame CPU time at 2 fixed steps per
+Frame. A Lockstep Frame runs one fixed step, so `bench/analyse.py` takes each
+Frame's per-step Spans (`input`, `step`, `commands`, `view`, `queries`,
+`query_results`) times 2, plus its per-Frame Spans (`interpolation`,
+`ui_layout`, `render_submit`, `commit`). The percentiles come from these
+per-Frame sums, not from the sums of Span percentiles. `bench/headline.py`
+reads the latest results directory, or the one you name. It prints the median
+and p99 of that budget for each N. The headline is the largest N whose p99 is
+under 16.6 ms, with every smaller N also under. The script refuses a Headless
+summary, because Headless renders nothing. `bench/chart.py` draws the budget as
+one more curve.
 
 An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
 `bench <game>-twin [n]` builds `bench/<game>-twin/` and the engine into one

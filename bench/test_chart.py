@@ -50,6 +50,17 @@ class ChartTest(unittest.TestCase):
         self.assertEqual([p["n"] for p in curves["step_us"]], [64, 128])
         self.assertAlmostEqual(curves["step_us"][0]["high"], 0.275)
 
+    def test_the_frame_budget_is_one_more_curve(self):
+        with_budget = []
+        for n, step in [(64, 0.25), (128, 0.5)]:
+            s = summary(n, step)
+            s["frame_budget_steps"] = 2
+            s["frame_budget_us"] = {**s["spans"]["step_us"], "median": step * 2}
+            with_budget.append(s)
+        curves = chart.curves(with_budget)
+        self.assertEqual(list(curves), ["step_us", "frame_budget_2_steps_us"])
+        self.assertEqual([p["median"] for p in curves["frame_budget_2_steps_us"]], [0.5, 1.0])
+
     def test_refuses_a_debug_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

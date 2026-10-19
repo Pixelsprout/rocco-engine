@@ -157,7 +157,7 @@ class HeapCountersTest(unittest.TestCase):
 
 class SummaryShapeTest(unittest.TestCase):
     def test_has_the_run_fields_spans_and_heap_counters(self):
-        self.assertEqual(sorted(summary()), sorted(analyse.RUN_FIELDS + ["span_cost_us", "spans", "roc_heap_counters"]))
+        self.assertEqual(sorted(summary()), sorted(analyse.RUN_FIELDS + ["span_cost_us", "spans", "frame_budget_steps", "frame_budget_us", "roc_heap_counters"]))
 
     def test_each_span_has_the_same_statistics(self):
         for stats in summary()["spans"].values():
@@ -176,6 +176,53 @@ class SummaryShapeTest(unittest.TestCase):
 
     def test_the_summary_is_json(self):
         self.assertEqual(json.loads(json.dumps(summary())), summary())
+
+
+FULL_ROW = {
+    "frame": "1",
+    "steps": "1",
+    "input_us": "1.0",
+    "step_us": "100.0",
+    "commands_us": "2.0",
+    "view_us": "50.0",
+    "queries_us": "40.0",
+    "query_results_us": "7.0",
+    "interpolation_us": "300.0",
+    "ui_layout_us": "200.0",
+    "render_submit_us": "1000.0",
+    "commit_us": "10.0",
+}
+
+
+class FrameBudgetTest(unittest.TestCase):
+    def test_doubles_the_per_step_spans_and_adds_the_per_frame_spans_once(self):
+        names = [name for name in FULL_ROW if name.endswith("_us")]
+        # Per step: 1 + 100 + 2 + 50 + 40 + 7 = 200. Per Frame: 300 + 200 + 1000 + 10 = 1510.
+        self.assertEqual(analyse.frame_budget(FULL_ROW, names), 2 * 200.0 + 1510.0)
+
+    def test_divides_the_per_step_spans_by_the_steps_of_the_frame(self):
+        names = [name for name in FULL_ROW if name.endswith("_us")]
+        two_steps = {**FULL_ROW, "steps": "2"}
+        self.assertEqual(analyse.frame_budget(two_steps, names), 200.0 + 1510.0)
+
+    def test_refuses_a_span_it_cannot_place(self):
+        with self.assertRaises(ValueError):
+            analyse.frame_budget({**FULL_ROW, "physics_us": "1.0"}, ["step_us", "physics_us"])
+
+    def test_the_summary_holds_the_budget_statistics_over_all_processes(self):
+        s = summary()
+        self.assertEqual(s["frame_budget_steps"], 2)
+        budget = s["frame_budget_us"]
+        # CSV_A gives 30, 42, 68, 84, 106 and CSV_B gives 50, 62, 88, 104, 126.
+        self.assertEqual(budget["process_medians"], [68.0, 88.0])
+        self.assertEqual(budget["spread"], 20.0)
+        self.assertEqual(budget["max"], 126.0)
+        self.assertEqual(budget["median"], 76.0)
+        self.assertEqual(sorted(budget), ["max", "median", "p95", "p99", "process_medians", "spread"])
+
+    def test_the_p99_of_the_budget_is_not_the_sum_of_span_p99s(self):
+        s = summary()
+        self.assertLess(s["frame_budget_us"]["p99"], 2 * (s["spans"]["step_us"]["p99"] + s["spans"]["view_us"]["p99"]))
 
 
 class SpanCostTest(unittest.TestCase):
