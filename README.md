@@ -76,7 +76,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
-| `bench <game> <n>` | To measure one bench game at one N. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs the game Headless for 120 warmup and 2,000 measured Frames, with N as its first Arg. It writes `bench/out/<game>-<n>.csv` and `bench/out/<game>-<n>.run.json`. A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
+| `bench <game> [n]` | To measure one bench game. | `host --release --spans`, `inputs --release` and `roc build` in `bench/<game>/`. Then it runs a sweep over N from 64 to 16,384 in powers of two, or only the N given. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
@@ -100,8 +100,8 @@ runs the tests of the Windows import library generator.
 `./scripts/test-all.sh` runs `roc check` and `roc test` on every app, every
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game.
-`python3 -m unittest bench/test_analyse.py` runs the tests of the analysis
-script.
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_machine.py`
+runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game and
@@ -180,20 +180,41 @@ and pong, then checks that the host library and the glue did not change.
 ### Benchmarks
 
 The bench games live in `bench/`, outside `examples/`. `run-games.sh`,
-`test-all.sh` and `screenshot.sh` do not run them. To measure one bench game
-at one N:
+`test-all.sh` and `screenshot.sh` do not run them. To run a sweep of one bench
+game and draw its curve:
 
 ```sh
-roc scripts/build.roc bench model-size 1024
-python3 bench/analyse.py bench/out/model-size-1024.csv
+roc scripts/build.roc bench model-size        # N = 64, 128, ..., 16384
+roc scripts/build.roc bench model-size 1024   # only N = 1024
+python3 bench/chart.py
 ```
 
-`bench/analyse.py` reads the CSV and the `.run.json` beside it, drops the
-warmup Frames and writes `bench/out/model-size-1024.summary.json`. The
-summary holds the median, p95, p99 and max of each Span, N, the run mode, the
-git hash and the build flags. The script refuses a run from a debug build.
-`bench/out/` is not committed. CI runs `bench model-size 64` once as a smoke
-test. CI makes no timing claims.
+The sweep follows one protocol:
+
+1. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
+2. Each N runs in 5 separate processes.
+3. The sweep shuffles the order of all processes. It pauses for 1 second
+   after each one.
+4. One more process per N runs with `ROCCO_ALLOC_REPORT=1` and records the
+   Roc heap counters. Nobody uses its times.
+
+The sweep writes the raw CSVs, the Roc heap logs and one `<game>-<n>.run.json`
+per N to `bench/out/<game>/`. Git ignores `bench/out/`. Then
+`bench/analyse.py` drops the warmup Frames and writes one summary per N to
+`bench/results/<date>-<machine>/<game>-<n>.json`. Commit the summaries. A
+summary holds:
+
+- The median, p95, p99 and max of each Span, over the Frames of all 5
+  processes.
+- The median of each process and the spread: the largest process median
+  minus the smallest.
+- The Roc heap counters per measured step, and the Roc heap version.
+- The machine, the OS, the power state, the git hash and the build flags.
+
+`bench/machine.py` reads the machine. `bench/analyse.py` refuses a run from a
+debug build. `bench/chart.py` reads the latest results directory, or the one
+you name, and writes one SVG per bench game to `bench/out/charts/`. CI runs
+`bench model-size 64` once as a smoke test. CI makes no timing claims.
 
 ### Screenshots
 
@@ -345,7 +366,10 @@ a change to the `Model` type, restart the game.
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
-| `bench/analyse.py` | Turns one bench run's Spans CSV into a summary JSON. |
+| `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
+| `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
+| `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
+| `bench/results/` | The committed summaries, one directory per date and machine. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |

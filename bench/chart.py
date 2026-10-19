@@ -23,7 +23,7 @@ import analyse
 BENCH_DIR = Path(__file__).resolve().parent
 WIDTH, HEIGHT = 720, 440
 LEFT, RIGHT, TOP, BOTTOM = 70, 150, 40, 50
-COLOURS = ["#2a6fdb", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#1098ad", "#e67700", "#495057"]
+COLOURS = ["#2a6fdb", "#d9480f", "#2b8a3e", "#862e9c", "#c2255c", "#1098ad", "#b08900", "#495057"]
 
 
 def load(results_dir):

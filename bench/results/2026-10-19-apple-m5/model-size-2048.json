@@ -1,0 +1,196 @@
+{
+  "game": "model-size",
+  "n": 2048,
+  "mode": "headless",
+  "seed": 0,
+  "git_hash": "ec3c5947486a7b4ec247e28057180ed254ce05ab",
+  "target": "arm64mac",
+  "odin_debug": false,
+  "roc_heap": "map",
+  "build_flags": {
+    "host": [
+      "build",
+      "engine",
+      "-build-mode:static",
+      "-out:platform/targets/arm64mac/libhost.a",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": [
+      "build",
+      "--target=arm64mac",
+      "--output=./model-size.bin",
+      "main.roc"
+    ]
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 770011435314493202,
+  "machine": {
+    "date": "2026-10-19",
+    "slug": "apple-m5",
+    "chip": "Apple M5",
+    "model": "Mac17,2",
+    "memory_bytes": 17179869184,
+    "os": "macOS 26.5.1 (25F80)",
+    "power": "battery",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0106,
+  "spans": {
+    "input_us": {
+      "median": 0.0,
+      "p95": 0.042,
+      "p99": 0.042,
+      "max": 0.083,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 2.833,
+      "p95": 3.0,
+      "p99": 3.542,
+      "max": 43.0,
+      "process_medians": [
+        2.833,
+        2.834,
+        2.833,
+        2.792,
+        2.875
+      ],
+      "spread": 0.083
+    },
+    "commands_us": {
+      "median": 0.042,
+      "p95": 0.042,
+      "p99": 0.084,
+      "max": 7.75,
+      "process_medians": [
+        0.042,
+        0.042,
+        0.042,
+        0.042,
+        0.042
+      ],
+      "spread": 0.0
+    },
+    "view_us": {
+      "median": 0.333,
+      "p95": 0.375,
+      "p99": 0.417,
+      "max": 34.916,
+      "process_medians": [
+        0.333,
+        0.333,
+        0.333,
+        0.292,
+        0.333
+      ],
+      "spread": 0.041
+    },
+    "queries_us": {
+      "median": 0.042,
+      "p95": 0.042,
+      "p99": 0.042,
+      "max": 0.25,
+      "process_medians": [
+        0.042,
+        0.042,
+        0.042,
+        0.042,
+        0.042
+      ],
+      "spread": 0.0
+    },
+    "query_results_us": {
+      "median": 0.041,
+      "p95": 0.042,
+      "p99": 0.042,
+      "max": 0.125,
+      "process_medians": [
+        0.041,
+        0.041,
+        0.041,
+        0.041,
+        0.041
+      ],
+      "spread": 0.0
+    },
+    "interpolation_us": {
+      "median": 4.708,
+      "p95": 5.25,
+      "p99": 5.958,
+      "max": 35.542,
+      "process_medians": [
+        4.584,
+        4.833,
+        4.667,
+        4.875,
+        4.584
+      ],
+      "spread": 0.291
+    },
+    "ui_layout_us": {
+      "median": 7.667,
+      "p95": 8.125,
+      "p99": 9.5,
+      "max": 46.916,
+      "process_medians": [
+        7.667,
+        7.667,
+        7.625,
+        7.625,
+        7.708
+      ],
+      "spread": 0.083
+    },
+    "render_submit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "commit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    }
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 2.0,
+    "deallocs_per_step": 2.0,
+    "reallocs_per_step": 0.0,
+    "allocs": 4000,
+    "deallocs": 4000,
+    "reallocs": 0,
+    "live_max": 4,
+    "live_last": 4
+  }
+}
