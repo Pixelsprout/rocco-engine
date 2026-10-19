@@ -14,6 +14,9 @@ UP_EPSILON :: f32(1e-6)
 
 // The pairing map holds this many draws without allocating.
 PAIRING_CAPACITY :: 4096
+// The renderer sizes its uniform buffer for this many draws per Frame. The
+// host drops the rest, because a release sokol writes past a full buffer.
+DRAW_CAPACITY :: 16384
 
 // The light_view_proj array in engine/shaders/basic.glsl has this size.
 MAX_CASCADES :: 1
@@ -64,6 +67,7 @@ Frame_Render :: struct {
 	submit_ctx:         rawptr,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
+	draws_logged:       bool,
 }
 
 Draw_Transform :: struct {
@@ -142,7 +146,15 @@ frame_render_draw :: proc(
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	clear(&fr.placed)
-	for d in curr.draws.elements[:curr.draws.length] {
+	draws := curr.draws.elements[:curr.draws.length]
+	if len(draws) > DRAW_CAPACITY {
+		if !fr.draws_logged {
+			fr.draws_logged = true
+			fmt.eprintfln("a Scene has %v draws; the host draws the first %v", len(draws), DRAW_CAPACITY)
+		}
+		draws = draws[:DRAW_CAPACITY]
+	}
+	for d in draws {
 		from := d
 		if i, ok := pairing_find(&fr.pairing, d.id); ok {
 			from = prev.draws.elements[i]

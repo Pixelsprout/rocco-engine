@@ -681,12 +681,14 @@ The host honours `roc_dealloc`. Every allocation Roc frees goes back to the
 Roc heap the same frame. There is no arena and no harvest. Evidence: one live
 block at steady state over 888 steps, zero bad frees over 899.
 
-`roc_realloc` carries no old size. The copy length must come from the
-allocator's own record. The tracking allocator is load-bearing for this
-reason, not for observability. The Roc heap in `engine/roc_runtime.odin`
-manages the tracking allocator, the alloc counters and the six hooks; the
-Seam in `engine/seam.odin` manages only the game calls and the call protocol
-above.
+`roc_realloc` carries no old size. The Roc heap writes the size in a header
+of at least 16 bytes, and at least the alignment, before each block.
+`roc_realloc` reads the old size there and resizes the block in the backing
+allocator, so a block can grow in place. An allocation map version measured
+about 3 times slower per alloc and free pair, and it always copied on
+realloc. The Roc heap in `engine/roc_runtime.odin` keeps the header, the
+alloc counters and the six hooks. The Seam in `engine/seam.odin` keeps only
+the game calls and the call protocol above.
 
 The box shell costs one allocation and one free per step. The pool described
 in the roadmap removes the system heap from that path.

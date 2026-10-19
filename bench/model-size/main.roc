@@ -7,6 +7,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Ve
 import pf.Light
 import pf.QueryResults
 import "positions.golden" as golden_positions : Str
+import "model.golden" as golden_model : Str
 
 # The idiomatic Model size bench game. step moves N entities with ordinary Roc
 # list code. view always returns draw_count Draws, so the render cost stays
@@ -224,3 +225,16 @@ expect {
 	m = run_steps(init({ ..with_n(100), seed: 7 }).model, 600)
 	positions_text(view(m).draws) == golden_positions
 }
+
+# bench/model-size-tuned checks its Model against the same file, so both
+# versions give the same Model for one Seed and N after the same steps.
+f32_text : F32 -> Str
+f32_text = |f| f.to_bits().to_str()
+
+model_text : Model -> Str
+model_text = |m| {
+	entity_lines = m.entities.map(|e| "${e.id.to_str()} ${f32_text(e.pos.x)} ${f32_text(e.pos.y)} ${f32_text(e.pos.z)} ${f32_text(e.vel.x)} ${f32_text(e.vel.y)} ${f32_text(e.vel.z)}\n")
+	Str.join_with(List.concat(["${m.cube.to_str()} ${m.rng.to_str()}\n"], entity_lines), "")
+}
+
+expect model_text(run_steps(init({ ..with_n(100), seed: 7 }).model, 600)) == golden_model

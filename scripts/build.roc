@@ -19,10 +19,10 @@ HostAlloc : [Tracked, Untracked]
 HostSpans : [Spans, NoSpans]
 
 # One bench game run at each N, for warmup plus measured Frames, in
-# bench_processes separate processes per N.
+# bench_processes separate processes per N. Windowed runs in windowed Lockstep,
+# for the bench games that measure render submit.
 Bench : { game : Str, ns : List(U64), mode : BenchMode }
 
-# Windowed runs in Lockstep with a window, so the render Spans count.
 BenchMode : [Headless, Windowed]
 
 Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
@@ -44,15 +44,15 @@ parse = |args| match args {
 	["target"] => Ok([Target])
 	["all"] => Ok(all_steps(Debug))
 	["all", "--release"] => Ok(all_steps(Release))
-	["bench", game] => Ok(bench_steps({ game, ns: sweep_ns, mode: Headless }))
 	["bench", game, "--windowed"] => Ok(bench_steps({ game, ns: sweep_ns, mode: Windowed }))
-	["bench", game, n] => bench_one(game, n, Headless)
-	["bench", game, n, "--windowed"] => bench_one(game, n, Windowed)
+	["bench", game] => Ok(bench_steps({ game, ns: sweep_ns, mode: Headless }))
+	["bench", game, n, "--windowed"] => bench_one_n(game, n, Windowed)
+	["bench", game, n] => bench_one_n(game, n, Headless)
 	_ => Err(Usage)
 }
 
-bench_one : Str, Str, BenchMode -> Try(List(Step), [Usage])
-bench_one = |game, n, mode| match U64.from_str(n) {
+bench_one_n : Str, Str, BenchMode -> Try(List(Step), [Usage])
+bench_one_n = |game, n, mode| match U64.from_str(n) {
 	Ok(count) if count > 0 => Ok(bench_steps({ game, ns: [count], mode }))
 	_ => Err(Usage)
 }
@@ -249,10 +249,15 @@ bench_stem : Str, U64 -> Str
 bench_stem = |game, n| "${game}-${n.to_str()}"
 
 # root is the absolute repository root. The engine writes the Spans CSV to
-# ROCCO_SPANS_CSV and runs in Lockstep for ROCCO_EXIT_AFTER_FRAMES Frames.
-bench_run : Target, Str, U64, BenchMode, Str, Str -> { run : Run, env : List((Str, Str)) }
-bench_run = |target, game, n, mode, csv, root| {
+# ROCCO_SPANS_CSV and runs Headless or windowed Lockstep for
+# ROCCO_EXIT_AFTER_FRAMES Frames.
+bench_run : Target, Str, BenchMode, U64, Str, Str -> { run : Run, env : List((Str, Str)) }
+bench_run = |target, game, mode, n, csv, root| {
 	frames = bench_warmup_frames + bench_measured_frames
+	mode_env = match mode {
+		Headless => ("ROCCO_HEADLESS", "1")
+		Windowed => ("ROCCO_LOCKSTEP", "1")
+	}
 	{
 		run: {
 			program: "${root}/bench/${game}/${game}${target.exe}",
@@ -260,10 +265,7 @@ bench_run = |target, game, n, mode, csv, root| {
 			cwd: "bench/${game}",
 		},
 		env: [
-			match mode {
-				Headless => ("ROCCO_HEADLESS", "1")
-				Windowed => ("ROCCO_LOCKSTEP", "1")
-			},
+			mode_env,
 			("ROCCO_EXIT_AFTER_FRAMES", frames.to_str()),
 			("ROCCO_SPANS_CSV", "${root}/${bench_dir(game)}/${csv}"),
 		],
@@ -275,14 +277,19 @@ bench_run = |target, game, n, mode, csv, root| {
 # window, so this process always runs Headless.
 bench_heap_run : Target, Str, U64, Str -> { run : Run, env : List((Str, Str)) }
 bench_heap_run = |target, game, n, root| {
-	planned = bench_run(target, game, n, Headless, "${bench_stem(game, n)}-heap.csv", root)
+	planned = bench_run(target, game, Headless, n, "${bench_stem(game, n)}-heap.csv", root)
 	{ ..planned, env: planned.env.append(("ROCCO_ALLOC_REPORT", "1")) }
 }
 
 # What bench/analyse.py needs beside the CSVs. The host flags decide ODIN_DEBUG:
 # odin sets it only for -debug. machine is the JSON object that
 # bench/machine.py printed.
-BenchMeta : { game : Str, n : U64, mode : BenchMode, git_hash : Str, shuffle_seed : U64, machine : Str }
+BenchMeta : { game : Str, mode : BenchMode, n : U64, git_hash : Str, shuffle_seed : U64, machine : Str }
+
+# The Roc heap stores each block's size in a header before it. The
+# allocation map version lost the comparison and is gone.
+roc_heap_version : Str
+roc_heap_version = "header"
 
 bench_meta : Target, BenchMeta -> Str
 bench_meta = |target, meta| {
@@ -293,18 +300,13 @@ bench_meta = |target, meta| {
 			(host_run(target, Release, Untracked, Spans).args, game_run(target, "bench/${meta.game}", meta.game).args)
 		}
 	odin_debug = if host_flags.contains("-debug") "true" else "false"
-	roc_heap = if host_flags.contains("-define:ROCCO_ROC_HEAP=header") "header" else "map"
-	mode = match meta.mode {
-		Headless => "headless"
-		Windowed => "lockstep"
-	}
 	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
 	csvs = bench_processes.map(|process| bench_csv(meta.game, { n: meta.n, process }))
 	lines = [
 		"{",
 		"  \"game\": \"${meta.game}\",",
 		"  \"n\": ${meta.n.to_str()},",
-		"  \"mode\": \"${mode}\",",
+		"  \"mode\": \"${bench_mode_name(meta.mode)}\",",
 		"  \"warmup_frames\": ${bench_warmup_frames.to_str()},",
 		"  \"measured_frames\": ${bench_measured_frames.to_str()},",
 		"  \"processes\": ${bench_processes.len().to_str()},",
@@ -316,13 +318,19 @@ bench_meta = |target, meta| {
 		"  \"git_hash\": \"${meta.git_hash}\",",
 		"  \"target\": \"${target.roc_target}\",",
 		"  \"odin_debug\": ${odin_debug},",
-		"  \"roc_heap\": \"${roc_heap}\",",
+		"  \"roc_heap\": \"${roc_heap_version}\",",
 		"  \"build_flags\": { \"host\": ${json_list(host_flags)}, \"game\": ${json_list(game_flags)} },",
 		"  \"machine\": ${Str.trim(meta.machine)}",
 		"}",
 		"",
 	]
 	Str.join_with(lines, "\n")
+}
+
+bench_mode_name : BenchMode -> Str
+bench_mode_name = |mode| match mode {
+	Headless => "headless"
+	Windowed => "lockstep"
 }
 
 Copy : { from : Str, to : Str }
@@ -380,8 +388,9 @@ usage =
 	\\                  A <game> that ends in -twin is an Odin twin: odin builds
 	\\                  bench/<game> with the engine into one release executable
 	\\                  with Spans, and the run is the same.
-	\\                  --windowed runs each timed process in Lockstep with a
-	\\                  window instead of Headless, so the render Spans count.
+	\\                  --windowed runs each process in windowed Lockstep with
+	\\                  vsync off instead of Headless, so the render Spans are
+	\\                  measured.
 	\\
 	\\inputs, host and all take --release to use the release sokol archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
@@ -492,7 +501,7 @@ bench! = |target, bench| {
 	machine = Cmd.new_str(target.python).args_str(["bench/machine.py"]).exec_output!() ? |_| Failed("${target.python} bench/machine.py failed. The bench needs Python 3 on PATH.")
 	shuffle_seed = Random.seed_u64!() ? |_| Failed("The OS gave no random seed.")
 	for p in sweep_order(bench.ns, shuffle_seed) {
-		planned = bench_run(target, bench.game, p.n, bench.mode, bench_csv(bench.game, p), root)
+		planned = bench_run(target, bench.game, bench.mode, p.n, bench_csv(bench.game, p), root)
 		exec_env_allowing!(planned.run, planned.env, [])?
 		Sleep.millis!(bench_cooldown_ms)
 	}
@@ -503,7 +512,7 @@ bench! = |target, bench| {
 		cmd = Cmd.new_str(heap.run.program).args_str(heap.run.args).envs_str(heap.env).cwd(Path.utf8(heap.run.cwd))
 		out = cmd.exec_output!() ? |_| Failed("The Roc heap counter run at N=${n.to_str()} failed.")
 		Path.utf8("${stem}.heap.log").write_utf8!(out.stdout_utf8)?
-		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: bench.game, n, mode: bench.mode, git_hash, shuffle_seed, machine: machine.stdout_utf8 }))?
+		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: bench.game, mode: bench.mode, n, git_hash, shuffle_seed, machine: machine.stdout_utf8 }))?
 	}
 	exec!({ program: target.python, args: ["bench/analyse.py"].concat(bench.ns.map(|n| "${dir}/${bench_stem(bench.game, n)}.run.json")), cwd: "." })
 }
@@ -596,9 +605,9 @@ expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Span
 expect parse(["bench", "model-size"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", ns: sweep_ns, mode: Headless })])
 expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", ns: [64], mode: Headless })])
 expect parse(["bench", "model-size-twin"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", ns: sweep_ns, mode: Headless })])
-expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ game: "ui", ns: sweep_ns, mode: Windowed })])
-expect parse(["bench", "ui", "64", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ game: "ui", ns: [64], mode: Windowed })])
-expect parse(["bench", "ui", "64", "--headless"]) == Err(Usage)
+expect parse(["bench", "draws", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ game: "draws", ns: sweep_ns, mode: Windowed })])
+expect parse(["bench", "draws", "4096", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ game: "draws", ns: [4096], mode: Windowed })])
+expect parse(["bench", "draws", "64", "--headless"]) == Err(Usage)
 expect parse(["bench", "model-size", "0"]) == Err(Usage)
 expect parse(["bench", "model-size", "many"]) == Err(Usage)
 expect parse(["bench"]) == Err(Usage)
@@ -724,7 +733,7 @@ expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_li
 expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib")
 
 expect {
-	planned = target_for(mac).map_ok(|target| bench_run(target, "model-size", 64, Headless, "model-size-64-p2.csv", "/repo"))
+	planned = target_for(mac).map_ok(|target| bench_run(target, "model-size", Headless, 64, "model-size-64-p2.csv", "/repo"))
 	planned
 		== Ok({
 			run: { program: "/repo/bench/model-size/model-size.bin", args: ["64"], cwd: "bench/model-size" },
@@ -746,23 +755,13 @@ expect {
 expect bench_csv("model-size", { n: 1024, process: 3 }) == "model-size-1024-p3.csv"
 
 expect {
-	planned = target_for(mac).map_ok(|target| bench_run(target, "ui", 64, Windowed, "ui-64-p1.csv", "/repo").env)
-	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/ui/ui-64-p1.csv")])
-}
-
-expect {
-	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "ui", n: 64, mode: Windowed, git_hash: "abc123", shuffle_seed: 7, machine: "{}" }))
-	meta.map_ok(|text| Str.contains(text, "\"mode\": \"lockstep\",")) == Ok(Bool.True)
-}
-
-expect {
-	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", n: 64, mode: Headless, git_hash: "abc123", shuffle_seed: 7, machine: "{\"slug\": \"apple-m5\"}\n" }))
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", mode: Headless, n: 64, git_hash: "abc123", shuffle_seed: 7, machine: "{\"slug\": \"apple-m5\"}\n" }))
 	match meta {
 		Ok(text) =>
 			Str.contains(text, "\"n\": 64,")
 				and Str.contains(text, "\"git_hash\": \"abc123\",")
 					and Str.contains(text, "\"odin_debug\": false,")
-						and Str.contains(text, "\"roc_heap\": \"map\",")
+						and Str.contains(text, "\"roc_heap\": \"header\",")
 							and Str.contains(text, "\"processes\": 5,")
 								and Str.contains(text, "\"csvs\": [\"model-size-64-p1.csv\", \"model-size-64-p2.csv\", \"model-size-64-p3.csv\", \"model-size-64-p4.csv\", \"model-size-64-p5.csv\"],")
 									and Str.contains(text, "\"heap_log\": \"model-size-64.heap.log\",")
@@ -775,7 +774,7 @@ expect {
 }
 
 expect {
-	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size-twin", n: 64, mode: Headless, git_hash: "abc123", shuffle_seed: 7, machine: "{}" }))
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size-twin", mode: Headless, n: 64, git_hash: "abc123", shuffle_seed: 7, machine: "{}" }))
 	match meta {
 		Ok(text) =>
 			Str.contains(text, "\"host\": [\"build\", \"bench/model-size-twin\"")
@@ -798,3 +797,18 @@ expect sweep_order(sweep_ns, 1) == sweep_order(sweep_ns, 1)
 expect sweep_order(sweep_ns, 1) != sweep_order(sweep_ns, 2)
 expect shuffle([1, 2, 3, 4, 5, 6, 7, 8], 5) != [1, 2, 3, 4, 5, 6, 7, 8]
 expect shuffle([], 5) == []
+
+expect {
+	planned = target_for(mac).map_ok(|target| bench_run(target, "draws", Windowed, 8192, "draws-8192-p1.csv", "/repo").env)
+	planned == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws/draws-8192-p1.csv")])
+}
+
+expect {
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "draws", mode: Windowed, n: 8192, git_hash: "abc123", shuffle_seed: 7, machine: "{}" }))
+	meta.map_ok(|text| Str.contains(text, "\"mode\": \"lockstep\",")) == Ok(Bool.True)
+}
+
+expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ game: "ui", ns: sweep_ns, mode: Windowed })])
+
+# A windowed sweep still takes the Roc heap counters Headless.
+expect target_for(mac).map_ok(|target| bench_heap_run(target, "ui", 64, "/repo").env.first()) == Ok(Ok(("ROCCO_HEADLESS", "1")))

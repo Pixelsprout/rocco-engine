@@ -701,6 +701,28 @@ test_frame_render_draws_every_draw_from_the_sun_before_the_main_pass :: proc(t: 
 }
 
 @(test)
+test_frame_render_draws_at_most_its_draw_capacity_and_logs_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := make([]Draw, DRAW_CAPACITY + 1)
+	defer delete(draws)
+	for &d, i in draws {
+		d = {id = u64(i), mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}
+	}
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	scene := scene_lit(draws, lights)
+	got := frame_fixture_draw(&f, scene, scene, 0.5)
+
+	testing.expect_value(t, len(got), DRAW_CAPACITY)
+	testing.expect_value(t, len(f.rec.shadows), DRAW_CAPACITY)
+	testing.expect(t, f.fr.draws_logged)
+	got = frame_fixture_draw(&f, scene_lit(draws[:DRAW_CAPACITY], lights), scene, 0.5)
+	testing.expect_value(t, len(got), DRAW_CAPACITY)
+}
+
+@(test)
 test_frame_render_skips_the_shadow_pass_with_no_sun :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
