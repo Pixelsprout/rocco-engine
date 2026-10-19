@@ -101,7 +101,7 @@ runs the tests of the Windows import library generator.
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
 `odin test` on every Odin twin.
-`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py`
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py`
 runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
@@ -180,128 +180,23 @@ and pong, then checks that the host library and the glue did not change.
 
 ### Benchmarks
 
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md) is the method document: the
-protocol, the Spans, the build flags, the hardware rules, the headline figure
-and the reference run. `sh bench/reference-run.sh` runs the full reference
-run.
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) is the single source for the
+benchmarks: the run modes, the Spans, the build flags, the bench games, the
+protocol, the headline figure, the hardware rules and the reference run.
 
 The bench games live in `bench/`, outside `examples/`. `run-games.sh`,
-`test-all.sh` and `screenshot.sh` do not run them. To run a sweep of one bench
-game and draw its curve:
+`test-all.sh` and `screenshot.sh` do not run them. To run a quick sweep and
+draw its curves:
 
 ```sh
-roc scripts/build.roc bench model-size        # N = 64, 128, ..., 16384
-roc scripts/build.roc bench model-size 1024   # only N = 1024
+roc scripts/build.roc bench model-size,model-size-twin 64 1024
 python3 bench/chart.py
+roc scripts/build.roc all   # a Spans host stops the examples, so rebuild
 ```
 
-The sweep follows one protocol:
-
-1. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
-   With `--windowed`, each process runs in windowed Lockstep instead.
-2. Each N runs in 5 separate processes.
-3. The sweep shuffles the order of all processes. It pauses for 1 second
-   after each one.
-4. One more process per N runs Headless with `ROCCO_ALLOC_REPORT=1` and
-   records the Roc heap counters. Nobody uses its times.
-
-The sweep writes the raw CSVs, the Roc heap logs and one `<game>-<n>.run.json`
-per N to `bench/out/<game>/`. Git ignores `bench/out/`. Then
-`bench/analyse.py` drops the warmup Frames and writes one summary per N to
-`bench/results/<date>-<machine>/<game>-<n>.json`. Commit the summaries. A
-summary holds:
-
-- The median, p95, p99 and max of each Span, over the Frames of all 5
-  processes.
-- The median of each process and the spread: the largest process median
-  minus the smallest.
-- The Roc heap counters per measured step, and the Roc heap version.
-- The machine, the OS, the power state, the git hash and the build flags.
-
-`bench/machine.py` reads the machine. `bench/analyse.py` refuses a run from a
-debug build. `bench/chart.py` reads the latest results directory, or the one
-you name, and writes one SVG per bench game to `bench/out/charts/`. CI runs
-each bench game and Odin twin once at N=64 as a smoke test. CI makes no timing
-claims.
-
-Headless renders nothing, so its render submit and `sg.commit` Spans are
-zero. The Draws bench game measures them, so its sweep
-runs in windowed Lockstep: one fixed step and one render per Frame, with
-vsync off.
-
-```sh
-roc scripts/build.roc bench draws --windowed
-python3 bench/chart.py
-```
-
-The window must stay on a display. With the lid closed, macOS can stop
-presenting Frames and the run can hang. The Draws curve goes past 4,096
-Draws, where the Pairing map grows. The renderer draws at most 16,384 Draws
-per Frame (`DRAW_CAPACITY` in `engine/frame_render.odin`) and drops the rest.
-
-The UI bench game, `bench/ui/`, also runs in windowed Lockstep. Its curve
-shows the UI layout Span, which covers Clay layout and the quad build:
-
-```sh
-roc scripts/build.roc bench ui --windowed
-python3 bench/chart.py
-```
-
-The mixed bench game, `bench/mixed/`, scales every axis with one N. Each
-entity has one Draw and one Collider. Every 10 entities add one UI element,
-counted as the UI bench game counts its Box and Text elements. The Queries
-stay at 8 raycasts, 8 overlaps and one ContactsOf. There are 4 Lights: one
-Ambient, one Sun with shadows and two Points. The arena grows with N, so each
-entity keeps 4 square units. The headline figure comes from its sweep in
-windowed Lockstep:
-
-```sh
-roc scripts/build.roc bench mixed --windowed
-python3 bench/headline.py
-```
-
-Each summary holds `frame_budget_us`: the Frame CPU time at 2 fixed steps per
-Frame. A Lockstep Frame runs one fixed step, so `bench/analyse.py` takes each
-Frame's per-step Spans (`input`, `step`, `commands`, `view`, `queries`,
-`query_results`) times 2, plus its per-Frame Spans (`interpolation`,
-`ui_layout`, `render_submit`, `commit`). The percentiles come from these
-per-Frame sums, not from the sums of Span percentiles. `bench/headline.py`
-reads the latest results directory, or the one you name. It prints the median
-and p99 of that budget for each N. The headline is the largest N whose p99 is
-under 16.6 ms, with every smaller N also under. The script refuses a Headless
-summary, because Headless renders nothing. `bench/chart.py` draws the budget as
-one more curve.
-
-An Odin twin is a bench game written in Odin. Its name ends in `-twin`.
-`bench <game>-twin [n]` builds `bench/<game>-twin/` and the engine into one
-release executable with Spans, with no Roc app and no host library. The run is
-the same as for a Roc bench game. `bench/model-size-twin/` is the twin of
-`bench/model-size/`. `bench/colliders-twin/` is the twin of `bench/colliders/`:
-the same Colliders, the same motion and the same Queries. It and the Roc game
-check their Colliders after 600 steps at Seed 7 and N=100 against
-`bench/colliders/colliders.golden`. `bench/empty-step/` holds the same Model
-and returns the same Scene, but its `step` returns the Model unchanged. It
-gives the lower limit of the seam.
-
-`bench/model-size-tuned/` has the behaviour of `bench/model-size/`, but its
-`step` takes the Model apart, so the entity list has one reference, and runs
-both Stages in one pass. Both games check their full Model against
-`bench/model-size/model.golden`.
-
-To compare games on one chart, run a sweep of each game, then draw the
-comparison:
-
-```sh
-roc scripts/build.roc bench model-size
-roc scripts/build.roc bench model-size-tuned
-python3 bench/compare_chart.py tuned   # model-size against model-size-tuned
-python3 bench/compare_chart.py twin    # model-size, model-size-twin and empty-step
-python3 bench/compare_chart.py colliders   # colliders against colliders-twin
-```
-
-`bench/compare_chart.py` reads the latest results directory, or the one you
-name, and writes `bench/out/charts/<comparison>.svg`: the median and p99
-`step` Span against N.
+A manual sweep writes its summaries to `bench/out/results/`, which git
+ignores. Only `sh bench/reference-run.sh` writes the committed results in
+`bench/results/`.
 
 ### Screenshots
 
