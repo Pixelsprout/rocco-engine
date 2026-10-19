@@ -182,20 +182,23 @@ in `engine/frame_render.odin`) and drops the rest.
 
 ## Protocol
 
-`roc scripts/build.roc bench <game> [n] [--windowed]` builds and runs one
-sweep. With no `n`, the sweep uses N = 64, 128, 256, ..., 16,384. With `n`, it
-uses only that N.
+`roc scripts/build.roc bench <game>[,<game>...] [n...] [--windowed]` builds
+and runs one sweep of one or more bench games. With no `n`, the sweep uses
+N = 64, 128, 256, ..., 16,384. With `n`, it uses only the N given. For
+example, `roc scripts/build.roc bench model-size,model-size-twin 64 1024`
+runs two games at two N in one sweep.
 
-1. The command builds the release host with Spans, the release inputs and the
-   bench game. For an Odin twin, it builds the one twin executable.
+1. The command builds the release host with Spans, the release inputs and
+   each bench game. For an Odin twin, it builds the one twin executable.
 2. Each process runs 120 warmup Frames and 2,000 measured Frames, Headless.
    With `--windowed`, each process runs in windowed Lockstep.
    The command sets `ROCCO_SEED=0` for each process, so a `ROCCO_SEED` in
    your shell cannot change a run. The summary records this Seed.
-3. Each N runs in 5 separate processes.
-4. The sweep shuffles the order of all processes, so thermal drift spreads
-   over all N. It pauses for 1 second after each process.
-5. One more Headless process per N runs with `ROCCO_ALLOC_REPORT=1`. It
+3. Each game and N runs in 5 separate processes.
+4. The sweep shuffles the order of all processes of all games and N, so
+   thermal drift spreads over all configurations. It prints the shuffle seed
+   and records it in each summary. It pauses for 1 second after each process.
+5. One more Headless process per game and N runs with `ROCCO_ALLOC_REPORT=1`. It
    records the Roc heap counters. Nobody uses its times.
 6. The sweep writes the raw CSVs, the Roc heap logs and one
    `<game>-<n>.run.json` per N to `bench/out/<game>/`. Git ignores
@@ -272,7 +275,7 @@ nothing and exits 0 when the machine is ready.
 
 | Tool | Use |
 |---|---|
-| `roc scripts/build.roc bench <game> [n] [--windowed]` | Builds and runs one sweep. See "Protocol". |
+| `roc scripts/build.roc bench <game>[,<game>...] [n...] [--windowed]` | Builds and runs one sweep. See "Protocol". |
 | `bench/analyse.py <run.json>... [--out-dir <dir>]` | Writes the summaries. The bench command runs it. |
 | `bench/chart.py [<results dir>]` | Draws one SVG per bench game to `bench/out/charts/<game>.svg`: N against each Span and the Frame budget, on log scales. A solid line is the median, a dashed line is p99, and a bar shows the spread between processes. |
 | `bench/compare_chart.py twin\|tuned\|colliders [<results dir>]` | Draws the median and p99 `step` Span of several bench games on one chart, `bench/out/charts/<comparison>.svg`. `twin` is `model-size`, `model-size-twin` and `empty-step`. `tuned` is `model-size` and `model-size-tuned`. `colliders` is `colliders` and `colliders-twin`. |
@@ -357,15 +360,8 @@ The script does these steps. To run them by hand, use the same order:
 
 ```sh
 python3 bench/machine.py --check
-roc scripts/build.roc bench model-size
-roc scripts/build.roc bench model-size-tuned
-roc scripts/build.roc bench model-size-twin
-roc scripts/build.roc bench empty-step
-roc scripts/build.roc bench colliders
-roc scripts/build.roc bench colliders-twin
-roc scripts/build.roc bench draws --windowed
-roc scripts/build.roc bench ui --windowed
-roc scripts/build.roc bench mixed --windowed
+roc scripts/build.roc bench model-size,model-size-tuned,model-size-twin,empty-step,colliders,colliders-twin
+roc scripts/build.roc bench draws,ui,mixed --windowed
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
 roc scripts/build.roc game entity-game
@@ -383,6 +379,8 @@ roc scripts/build.roc all
 
 The script also does these things:
 
+- It runs all Headless games in one shuffled sweep, and all windowed games
+  in a second shuffled sweep.
 - It stops if `bench/machine.py --check` fails.
 - It stops if `bench/results/<date>-<machine>/` for today already exists.
   Move or delete that directory first.
@@ -401,7 +399,7 @@ reference run:
 
 | Variable | Effect |
 |---|---|
-| `REFERENCE_NS="64 128"` | Runs only these N, one bench command per N, to check the script. Delete the result directory after the check. |
+| `REFERENCE_NS="64 128"` | Runs only these N, to check the script. Delete the result directory after the check. |
 | `REFERENCE_FORCE=1` | Starts the run although `bench/machine.py --check` fails. |
 
 ### Where the results go

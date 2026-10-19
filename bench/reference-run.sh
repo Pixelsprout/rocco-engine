@@ -12,8 +12,9 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-headless_games="model-size model-size-tuned model-size-twin empty-step colliders colliders-twin"
-windowed_games="draws ui mixed"
+# One bench command per list runs its games and N in one shuffled order.
+headless_games="model-size,model-size-tuned,model-size-twin,empty-step,colliders,colliders-twin"
+windowed_games="draws,ui,mixed"
 # Keep equal to sweep_ns in scripts/build.roc.
 full_ns="64 128 256 512 1024 2048 4096 8192 16384"
 real_clock_game=entity-game
@@ -39,29 +40,15 @@ fi
 mkdir -p bench/results
 before=$(ls bench/results)
 
-sweep() {
-	game=$1
-	shift
-	if [ -z "${REFERENCE_NS:-}" ]; then
-		roc scripts/build.roc bench "$game" "$@"
-	else
-		for n in $ns; do
-			roc scripts/build.roc bench "$game" "$n" "$@"
-		done
-	fi
-}
-
-for game in $headless_games; do
-	sweep "$game"
-done
-for game in $windowed_games; do
-	sweep "$game" --windowed
-done
+# shellcheck disable=SC2086
+roc scripts/build.roc bench "$headless_games" ${REFERENCE_NS:-}
+# shellcheck disable=SC2086
+roc scripts/build.roc bench "$windowed_games" ${REFERENCE_NS:-} --windowed
 
 # bench writes to the directory of the day each sweep starts. Write every
 # summary again into $results, so a run past midnight stays in one directory.
 runs=""
-for game in $headless_games $windowed_games; do
+for game in $(echo "$headless_games,$windowed_games" | tr , ' '); do
 	for n in $ns; do
 		runs="$runs bench/out/$game/$game-$n.run.json"
 	done
