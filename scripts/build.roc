@@ -16,7 +16,10 @@ HostAlloc : [Tracked, Untracked]
 # Spans builds the host with the per-Frame Span timers and the CSV sink.
 HostSpans : [Spans, NoSpans]
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target]
+# One bench game run at one N, Headless, for warmup plus measured Frames.
+Bench : { game : Str, n : U64 }
+
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchRun(Bench)]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -35,6 +38,11 @@ parse = |args| match args {
 	["target"] => Ok([Target])
 	["all"] => Ok(all_steps(Debug))
 	["all", "--release"] => Ok(all_steps(Release))
+	["bench", game, n] =>
+		match U64.from_str(n) {
+			Ok(count) if count > 0 => Ok([bench_host, Inputs(Release), BenchGame(game), BenchRun({ game, n: count })])
+			_ => Err(Usage)
+		}
 	_ => Err(Usage)
 }
 
@@ -144,6 +152,66 @@ font_run = {
 	cwd: ".",
 }
 
+bench_host : Step
+bench_host = Host(Release, Untracked, Spans)
+
+bench_warmup_frames : U64
+bench_warmup_frames = 120
+
+bench_measured_frames : U64
+bench_measured_frames = 2000
+
+bench_out_dir : Str
+bench_out_dir = "bench/out"
+
+bench_stem : Bench -> Str
+bench_stem = |bench| "${bench_out_dir}/${bench.game}-${bench.n.to_str()}"
+
+# root is the absolute repository root. The engine writes the Spans CSV to
+# ROCCO_SPANS_CSV and runs Headless for ROCCO_EXIT_AFTER_FRAMES Frames.
+bench_run : Target, Bench, Str -> { run : Run, env : List((Str, Str)) }
+bench_run = |target, bench, root| {
+	frames = bench_warmup_frames + bench_measured_frames
+	{
+		run: {
+			program: "${root}/bench/${bench.game}/${bench.game}${target.exe}",
+			args: [bench.n.to_str()],
+			cwd: "bench/${bench.game}",
+		},
+		env: [
+			("ROCCO_HEADLESS", "1"),
+			("ROCCO_EXIT_AFTER_FRAMES", frames.to_str()),
+			("ROCCO_SPANS_CSV", "${root}/${bench_stem(bench)}.csv"),
+		],
+	}
+}
+
+# What bench/analyse.py needs beside the CSV. The host flags decide ODIN_DEBUG:
+# odin sets it only for -debug.
+bench_meta : Target, Bench, Str -> Str
+bench_meta = |target, bench, git_hash| {
+	host_flags = host_run(target, Release, Untracked, Spans).args
+	game_flags = game_run(target, "bench/${bench.game}", bench.game).args
+	odin_debug = if host_flags.contains("-debug") "true" else "false"
+	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
+	lines = [
+		"{",
+		"  \"game\": \"${bench.game}\",",
+		"  \"n\": ${bench.n.to_str()},",
+		"  \"mode\": \"headless\",",
+		"  \"warmup_frames\": ${bench_warmup_frames.to_str()},",
+		"  \"measured_frames\": ${bench_measured_frames.to_str()},",
+		"  \"seed\": 0,",
+		"  \"git_hash\": \"${git_hash}\",",
+		"  \"target\": \"${target.roc_target}\",",
+		"  \"odin_debug\": ${odin_debug},",
+		"  \"build_flags\": { \"host\": ${json_list(host_flags)}, \"game\": ${json_list(game_flags)} }",
+		"}",
+		"",
+	]
+	Str.join_with(lines, "\n")
+}
+
 Copy : { from : Str, to : Str }
 
 # platform/main.roc names sokol_<part><ext>, so the copy drops the mode.
@@ -188,6 +256,11 @@ usage =
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong
+	\\  bench <game> <n>
+	\\                  build a release host with Spans, the release inputs and
+	\\                  bench/<game>, then run it Headless with N as its first Arg.
+	\\                  Writes bench/out/<game>-<n>.csv and <game>-<n>.run.json.
+	\\                  Run all again before you run the examples.
 	\\
 	\\inputs, host and all take --release to use the release sokol archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
@@ -236,26 +309,10 @@ run_step! : Step, Target => Try({}, _)
 run_step! = |step, target| match step {
 	Inputs(mode) => inputs!(target, mode)
 	Glue => exec!(glue_run)
-	Host(mode, alloc, spans) => {
-		Path.utf8(target.dir).create_all!()?
-		# odin adds members to an existing archive, so an object from an older
-		# build with other defines can survive.
-		match Path.utf8("${target.dir}/${target.host_lib}").delete!() {
-			Ok({}) => {}
-			Err(PathErr(NotFound, _)) => {}
-			Err(err) => return Err(err)
-		}
-		exec!(host_run(target, mode, alloc, spans))
-	}
-	# roc build exits 2 when it wrote the binary with warnings and no errors.
-	# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
-	Game(name) => {
-		dir = "examples/${name}"
-		if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {
-			return Err(Failed("${dir}/main.roc does not exist."))
-		}
-		exec_allowing!(game_run(target, dir, name), [2])
-	}
+	Host(mode, alloc, spans) => host!(target, host_run(target, mode, alloc, spans))
+	Game(name) => link_game!(target, "examples/${name}", name)
+	BenchGame(name) => link_game!(target, "bench/${name}", name)
+	BenchRun(bench) => bench!(target, bench)
 	Shaders =>
 		if Cmd.check_available!(shaders_run.program) {
 			exec!(shaders_run)
@@ -278,13 +335,54 @@ run_step! = |step, target| match step {
 	Target => Stdout.line!(target_lines(target))
 }
 
+host! : Target, Run => Try({}, _)
+host! = |target, run| {
+	Path.utf8(target.dir).create_all!()?
+	# odin adds members to an existing archive, so an object from an older
+	# build with other defines can survive.
+	match Path.utf8("${target.dir}/${target.host_lib}").delete!() {
+		Ok({}) => {}
+		Err(PathErr(NotFound, _)) => {}
+		Err(err) => return Err(err)
+	}
+	exec!(run)
+}
+
+# roc build exits 2 when it wrote the binary with warnings and no errors.
+# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
+link_game! : Target, Str, Str => Try({}, _)
+link_game! = |target, dir, name| {
+	if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {
+		return Err(Failed("${dir}/main.roc does not exist."))
+	}
+	exec_allowing!(game_run(target, dir, name), [2])
+}
+
+bench! : Target, Bench => Try({}, _)
+bench! = |target, bench| {
+	root = Env.cwd!() ? |_| Failed("The working directory is unavailable.")
+	git = Cmd.new("git").args(["rev-parse", "HEAD"]).exec_output!() ? |_| Failed("git rev-parse HEAD failed.")
+	status = Cmd.new("git").args(["status", "--porcelain"]).exec_output!() ? |_| Failed("git status failed.")
+	dirty = if Str.trim(status.stdout_utf8) == "" "" else "-dirty"
+	Path.utf8(bench_out_dir).create_all!()?
+	planned = bench_run(target, bench, root.display())
+	exec_env_allowing!(planned.run, planned.env, [])?
+	meta_path = "${bench_stem(bench)}.run.json"
+	Path.utf8(meta_path).write_utf8!(bench_meta(target, bench, "${Str.trim(git.stdout_utf8)}${dirty}"))?
+	Stdout.line!("== bench: wrote ${bench_stem(bench)}.csv and ${meta_path}")
+}
+
 exec! : Run => Try({}, _)
 exec! = |run| exec_allowing!(run, [])
 
 exec_allowing! : Run, List(I32) => Try({}, _)
-exec_allowing! = |run, ok_codes| {
-	Stdout.line!("== ${run.program} ${Str.join_with(run.args, " ")}")?
-	cmd = Cmd.new_str(run.program).args(run.args.map(OsStr.from_str)).cwd(Path.utf8(run.cwd))
+exec_allowing! = |run, ok_codes| exec_env_allowing!(run, [], ok_codes)
+
+exec_env_allowing! : Run, List((Str, Str)), List(I32) => Try({}, _)
+exec_env_allowing! = |run, env, ok_codes| {
+	env_words = env.map(|(name, value)| "${name}=${value} ")
+	Stdout.line!("== ${Str.join_with(env_words, "")}${run.program} ${Str.join_with(run.args, " ")}")?
+	cmd = Cmd.new_str(run.program).args(run.args.map(OsStr.from_str)).envs_str(env).cwd(Path.utf8(run.cwd))
 	match cmd.exec_cmd!() {
 		Ok({}) => Ok({})
 		Err(ExecCmdFailed({ exit_code, .. })) =>
@@ -358,6 +456,10 @@ expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
 expect parse(["deploy"]) == Err(Usage)
+expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", n: 64 })])
+expect parse(["bench", "model-size", "0"]) == Err(Usage)
+expect parse(["bench", "model-size", "many"]) == Err(Usage)
+expect parse(["bench", "model-size"]) == Err(Usage)
 
 mac = { arch: AARCH64, os: MACOS }
 
@@ -478,3 +580,24 @@ expect parse(["target"]) == Ok([Target])
 expect target_for(mac).map_ok(target_lines) == Ok("target=arm64mac\nsuffix=.bin\nhost_lib=platform/targets/arm64mac/libhost.a")
 expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_linux.bin\nhost_lib=platform/targets/x64glibc/libhost.a")
 expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib")
+
+expect {
+	planned = target_for(mac).map_ok(|target| bench_run(target, { game: "model-size", n: 64 }, "/repo"))
+	planned
+		== Ok({
+			run: { program: "/repo/bench/model-size/model-size.bin", args: ["64"], cwd: "bench/model-size" },
+			env: [("ROCCO_HEADLESS", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/model-size-64.csv")],
+		})
+}
+
+expect {
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", n: 64 }, "abc123"))
+	match meta {
+		Ok(text) =>
+			Str.contains(text, "\"n\": 64,")
+				and Str.contains(text, "\"git_hash\": \"abc123\",")
+					and Str.contains(text, "\"odin_debug\": false,")
+						and Str.contains(text, "\"-define:ROCCO_SPANS=true\"")
+		Err(_) => Bool.False
+	}
+}

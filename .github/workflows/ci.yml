@@ -63,6 +63,16 @@ jobs:
       - name: Audit the macOS sysroot
         run: python3 scripts/make_macos_sysroot.py --audit
 
+      - name: Test the bench games
+        run: sh bench/check.sh
+
+      # A smoke test only: CI runners make no timing claims. It builds a
+      # release host with Spans, so it runs last.
+      - name: Run the bench game once Headless
+        run: |
+          roc scripts/build.roc bench model-size 64
+          python3 bench/analyse.py bench/out/model-size-64.csv
+
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -166,7 +176,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py bench/test_analyse.py
 
       - name: Regenerate the Linux stubs
         run: |
