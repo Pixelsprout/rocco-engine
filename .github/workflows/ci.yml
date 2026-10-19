@@ -72,7 +72,6 @@ jobs:
         run: |
           for game in model-size empty-step model-size-twin colliders; do
             roc scripts/build.roc bench "$game" 64
-            python3 bench/analyse.py "bench/out/$game-64.csv"
           done
 
   linux:
@@ -178,7 +177,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py bench/test_analyse.py bench/test_twin_chart.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py bench/test_analyse.py bench/test_chart.py bench/test_machine.py bench/test_twin_chart.py
 
       - name: Regenerate the Linux stubs
         run: |
