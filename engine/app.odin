@@ -26,6 +26,10 @@ State :: struct {
 	frame_render:      Frame_Render,
 	ui:                Ui,
 	exit_after_frames: int, // 0 runs forever
+	mode:              Run_Mode,
+	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
+	quit:              bool,
+	spans:             Span_Sink,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
@@ -38,6 +42,8 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	g_state.ctx.temp_allocator = g_state.mem.frame_allocator
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
+	g_state.mode = run_mode_from_env(g_state.exit_after_frames)
+	span_sink_init(&g_state.spans, spans_csv_from_env(), g_state.exit_after_frames, context.allocator)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
@@ -53,6 +59,13 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	roc_heap_init(context.allocator)
 	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
 	seam_init(&g_state.seam, ROC_GAME, app_run_command, config, &g_state.packs)
+
+	if g_state.mode == .Headless {
+		headless_init(&g_state, g_state.mem.perm_allocator) or_return
+		headless_run(&g_state)
+		app_shutdown()
+		return
+	}
 
 	sapp.run(
 		sapp.Desc {
@@ -115,13 +128,25 @@ frame_cb :: proc "c" () {
 cleanup_cb :: proc "c" () {
 	context = g_state.ctx
 
+	app_shutdown()
+}
+
+// A Headless run never set up sokol, so it must not shut it down.
+app_shutdown :: proc() {
+	if err := span_sink_write(&g_state.spans); err != nil {
+		fmt.eprintfln("the Spans CSV did not write: %v", err)
+	}
+	span_sink_destroy(&g_state.spans)
+
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
 	packs_destroy(&g_state.packs)
 	roc_heap_shutdown()
 	frame_render_destroy(&g_state.frame_render)
 
-	sg.shutdown()
+	if g_state.mode != .Headless {
+		sg.shutdown()
+	}
 	memory_shutdown(&g_state.mem)
 
 	fmt.printfln("Frame Count: %v", g_state.frame_count)
@@ -145,7 +170,12 @@ event_cb :: proc "c" (event: ^sapp.Event) {
 
 // Quit lets the current frame finish.
 app_run_command :: proc(command: Command) {
-	if command.tag == .Quit {
+	if command.tag != .Quit {
+		return
+	}
+	if g_state.mode == .Headless {
+		g_state.quit = true
+	} else {
 		sapp.request_quit()
 	}
 }

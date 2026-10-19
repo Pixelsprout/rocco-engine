@@ -69,7 +69,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | Command | When | What it runs |
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
-| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. The step deletes the old library first. |
+| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. `--spans` and `--release --spans` add `-define:ROCCO_SPANS=true`, which turns on the Span timers. The step deletes the old library first. |
 | `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
 | `game <name>` | When anything changes. | `roc build` in `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
@@ -155,6 +155,9 @@ The other variables the engine reads:
 | `ROCCO_SEED=N` | The seed in `Config`. The default is 0. A value that is not an unsigned 64-bit integer stops the game with exit code 1. |
 | `ROCCO_DEBUG_CAMERA=1` | A fly camera on WASD and the mouse, with the mouse locked. The host ignores `Scene.camera`. The game still gets all input. |
 | `ROCCO_ALLOC_REPORT=1` | One line per fixed step: Roc allocs, deallocs, reallocs, live blocks, and `step` and `view` time in microseconds. |
+| `ROCCO_LOCKSTEP=1` | Lockstep: one fixed step and one render per Frame, whatever the time. `0` or unset is the real clock. Any other value stops the game with exit code 1. |
+| `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. The game still gets Queries answered and `loaded` with the Manifest. It needs `ROCCO_EXIT_AFTER_FRAMES`. Without it, or with a value other than `0` or `1`, the game stops with exit code 1. |
+| `ROCCO_SPANS_CSV=path` | A host built with `host --spans` writes the Spans there at exit: a header row, then one row per Frame with the Frame number, the fixed steps and the `step` and `view` Spans in microseconds. A Spans host stops with exit code 1 without it. Any other host stops with exit code 1 if it is set. |
 
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first

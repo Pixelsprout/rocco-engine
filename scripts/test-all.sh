@@ -14,3 +14,6 @@ done
 
 echo "== odin test engine"
 odin test engine -debug
+# A Spans build compiles other code, so its tests run in a build of their own.
+echo "== odin test engine with Spans"
+odin test engine -debug -define:ROCCO_SPANS=true
