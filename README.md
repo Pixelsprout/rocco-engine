@@ -232,9 +232,11 @@ To compare the three over N from 64 to 16,384:
 sh bench/twin-sweep.sh
 ```
 
-The sweep writes a summary per run and `bench/out/twin.svg`, a chart of the
-median and p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs
-only the N values you give.
+The script runs `bench <game>` for each of the three games, with the same
+protocol, and then `bench/twin_chart.py`. The chart script reads the latest
+results directory and writes `bench/out/twin.svg`, a chart of the median and
+p99 `step` Span against N. `sh bench/twin-sweep.sh 64 1024` runs only the N
+values you give.
 
 ### Screenshots
 
@@ -394,8 +396,8 @@ a change to the `Model` type, restart the game.
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
 | `bench/results/` | The committed summaries, one directory per date and machine. |
-| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG. |
-| `bench/twin-sweep.sh` | Runs `model-size`, its twin and `empty-step` at each N, then draws the chart. |
+| `bench/twin_chart.py` | Draws the `step` Span of `model-size`, its twin and `empty-step` against N as an SVG, from the summaries. |
+| `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
