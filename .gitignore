@@ -35,3 +35,10 @@ examples/*/*.lib
 
 .DS_Store
 __pycache__/
+
+# Bench game binaries and raw bench output. Summaries are committed elsewhere.
+bench/*/*.bin
+bench/*/*.exe
+bench/*/*.pdb
+bench/*/*.lib
+bench/out/
