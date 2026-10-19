@@ -285,6 +285,11 @@ bench_heap_run = |target, game, mode, n, root| {
 # bench/machine.py printed.
 BenchMeta : { game : Str, mode : BenchMode, n : U64, git_hash : Str, shuffle_seed : U64, machine : Str }
 
+# The Roc heap stores each block's size in a header before it. The
+# allocation map version lost the comparison and is gone.
+roc_heap_version : Str
+roc_heap_version = "header"
+
 bench_meta : Target, BenchMeta -> Str
 bench_meta = |target, meta| {
 	(host_flags, game_flags) =
@@ -294,7 +299,6 @@ bench_meta = |target, meta| {
 			(host_run(target, Release, Untracked, Spans).args, game_run(target, "bench/${meta.game}", meta.game).args)
 		}
 	odin_debug = if host_flags.contains("-debug") "true" else "false"
-	roc_heap = if host_flags.contains("-define:ROCCO_ROC_HEAP=header") "header" else "map"
 	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
 	csvs = bench_processes.map(|process| bench_csv(meta.game, { n: meta.n, process }))
 	lines = [
@@ -313,7 +317,7 @@ bench_meta = |target, meta| {
 		"  \"git_hash\": \"${meta.git_hash}\",",
 		"  \"target\": \"${target.roc_target}\",",
 		"  \"odin_debug\": ${odin_debug},",
-		"  \"roc_heap\": \"${roc_heap}\",",
+		"  \"roc_heap\": \"${roc_heap_version}\",",
 		"  \"build_flags\": { \"host\": ${json_list(host_flags)}, \"game\": ${json_list(game_flags)} },",
 		"  \"machine\": ${Str.trim(meta.machine)}",
 		"}",
@@ -756,7 +760,7 @@ expect {
 			Str.contains(text, "\"n\": 64,")
 				and Str.contains(text, "\"git_hash\": \"abc123\",")
 					and Str.contains(text, "\"odin_debug\": false,")
-						and Str.contains(text, "\"roc_heap\": \"map\",")
+						and Str.contains(text, "\"roc_heap\": \"header\",")
 							and Str.contains(text, "\"processes\": 5,")
 								and Str.contains(text, "\"csvs\": [\"model-size-64-p1.csv\", \"model-size-64-p2.csv\", \"model-size-64-p3.csv\", \"model-size-64-p4.csv\", \"model-size-64-p5.csv\"],")
 									and Str.contains(text, "\"heap_log\": \"model-size-64.heap.log\",")
