@@ -14,7 +14,6 @@ HEADLESS_PLATFORM :: Frame_Platform {
 	frame_duration = FIXED_DT,
 	window         = HEADLESS_WINDOW,
 	lock_mouse     = headless_lock_mouse,
-	commit         = headless_commit,
 	request_quit   = headless_request_quit,
 }
 
@@ -45,9 +44,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	steps := 0
 	for dt in clock_next_step(&s.clock) {
 		before := roc_heap_counters()
-		step_time, view_time := seam_step(&s.seam, input_take(&s.input, &s.keys), dt)
-		span_add(&s.spans, .Step, step_time)
-		span_add(&s.spans, .View, view_time)
+		step_time, view_time := seam_step(&s.seam, input_take(&s.input, &s.keys), dt, &s.spans)
 		steps += 1
 		s.steps += 1
 		if s.alloc_report {
@@ -73,9 +70,14 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		platform.lock_mouse(cursor == .Locked)
 	}
 
-	frame_render_draw(&s.frame_render, prev, curr, alpha, view_proj, eye, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window)
-
-	platform.commit()
+	// Headless submits nothing, so its render Spans stay at zero.
+	renders := s.mode != .Headless
+	frame_render_draw(&s.frame_render, prev, curr, alpha, view_proj, eye, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window, &s.spans, renders)
+	if renders {
+		span := span_open()
+		platform.commit()
+		span_close(&s.spans, .Commit, span)
+	}
 	s.frame_count += 1
 	span_frame_end(&s.spans, s.frame_count, steps)
 
@@ -87,15 +89,8 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	input_end_frame(&s.input)
 }
 
-// Points the render at no-op submits and lays out the UI with no window.
+// Lays out the UI with no window. frame_run never submits in Headless.
 headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {}
-	s.frame_render.end_pass = proc(ctx: rawptr) {}
-	s.frame_render.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {}
-	s.frame_render.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {}
-	s.frame_render.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {}
-	s.frame_render.submit_sky = proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
-	s.frame_render.submit_ui = proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
 	return ui_init(&s.ui, HEADLESS_WINDOW.size, allocator)
 }
 
@@ -108,9 +103,6 @@ headless_run :: proc(s: ^State) {
 
 @(private = "file")
 headless_lock_mouse :: proc(locked: bool) {}
-
-@(private = "file")
-headless_commit :: proc() {}
 
 // headless_run stops at the Frame limit itself.
 @(private = "file")

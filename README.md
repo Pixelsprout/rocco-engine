@@ -159,9 +159,9 @@ The other variables the engine reads:
 | `ROCCO_SEED=N` | The seed in `Config`. The default is 0. A value that is not an unsigned 64-bit integer stops the game with exit code 1. |
 | `ROCCO_DEBUG_CAMERA=1` | A fly camera on WASD and the mouse, with the mouse locked. The host ignores `Scene.camera`. The game still gets all input. |
 | `ROCCO_ALLOC_REPORT=1` | One line per fixed step: Roc allocs, deallocs, reallocs, live blocks, and `step` and `view` time in microseconds. |
-| `ROCCO_LOCKSTEP=1` | Lockstep: one fixed step and one render per Frame, whatever the time. `0` or unset is the real clock. Any other value stops the game with exit code 1. |
+| `ROCCO_LOCKSTEP=1` | Lockstep: one fixed step and one render per Frame, whatever the time, with vsync off. On macOS the display link still starts one Frame per display refresh, but the render no longer waits for a drawable. `0` or unset is the real clock. Any other value stops the game with exit code 1. |
 | `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. The game still gets Queries answered and `loaded` with the Manifest. It needs `ROCCO_EXIT_AFTER_FRAMES`. Without it, or with a value other than `0` or `1`, the game stops with exit code 1. |
-| `ROCCO_SPANS_CSV=path` | A host built with `host --spans` writes the Spans there at exit: a header row, then one row per Frame with the Frame number, the fixed steps and the `step` and `view` Spans in microseconds. A Spans host stops with exit code 1 without it. Any other host stops with exit code 1 if it is set. |
+| `ROCCO_SPANS_CSV=path` | A host built with `host --spans` writes the Spans there at exit: a header row, then one row per Frame with the Frame number, the fixed steps, the Spans in microseconds and `span_cost_us`. The Spans are `input`, `step`, `commands`, `view`, `queries` and `query_results`, summed over the fixed steps of the Frame, then `interpolation`, `ui_layout` (Clay and the quad build), `render_submit` and `commit` (`sg.commit`). Headless rows have zero `render_submit` and `commit`. `span_cost_us` is the time one Span adds, measured once at startup. A Spans host stops with exit code 1 without it. Any other host stops with exit code 1 if it is set. |
 
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first

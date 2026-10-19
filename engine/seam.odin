@@ -28,6 +28,13 @@ Seam :: struct {
 	search:  Query_Search,
 }
 
+// The Queries' answers before the copy into Roc lists.
+Query_Answers :: struct {
+	contacts: []Contact,
+	rays:     []Ray_Hit,
+	overlaps: []Overlap_Hit,
+}
+
 // Owns the one reference to the Model, the last two Scenes and the QueryResults.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
@@ -42,28 +49,42 @@ seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, conf
 	s.curr = seam_view(s)
 }
 
-seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32) -> (step_time, view_time: time.Duration) {
+// The Spans split the work finer than step_time and view_time, which the
+// alloc report keeps.
+seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil) -> (step_time, view_time: time.Duration) {
 	start := time.tick_now()
+	span := span_open()
 
 	input := Input {
 		held    = roc_list_from_slice(keys.held),
 		pressed = roc_list_from_slice(keys.pressed),
 		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
 	}
+	span = span_close(spans, .Input, span)
 	// step frees the old box and consumes the results. Never touch either again.
 	result := s.calls.step(s.model, input, s.results, dt)
 	s.model = result.model
 	s.results = {}
+	span = span_close(spans, .Step, span)
 	stepped := time.tick_now()
 	seam_run_commands(s, result.commands)
+	span = span_close(spans, .Commands, span)
 	if s.has_prev {
 		roc_decref(s.prev)
 	}
 	s.prev = s.curr
 	s.has_prev = true
 	s.curr = seam_view(s)
+	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
-	s.results = seam_query_results(s)
+	answers := seam_query_search(s)
+	span = span_close(spans, .Queries, span)
+	s.results = {
+		contacts = roc_list_from_slice(answers.contacts),
+		rays     = roc_list_from_slice(answers.rays),
+		overlaps = roc_list_from_slice(answers.overlaps),
+	}
+	span_close(spans, .Query_Results, span)
 
 	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed)
 }
@@ -73,14 +94,15 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
 }
 
+// The answers live in the Frame allocator until the copy into Roc.
 @(private = "file")
-seam_query_results :: proc(s: ^Seam) -> Query_Results {
+seam_query_search :: proc(s: ^Seam) -> Query_Answers {
 	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
 	queries := s.curr.queries.elements[:s.curr.queries.length]
 	return {
-		contacts = roc_list_from_slice(contacts_asked(&s.search, colliders, queries, context.temp_allocator)),
-		rays = roc_list_from_slice(rays_find(&s.search, colliders, queries, context.temp_allocator)),
-		overlaps = roc_list_from_slice(overlaps_find(&s.search, colliders, queries, context.temp_allocator)),
+		contacts = contacts_asked(&s.search, colliders, queries, context.temp_allocator),
+		rays = rays_find(&s.search, colliders, queries, context.temp_allocator),
+		overlaps = overlaps_find(&s.search, colliders, queries, context.temp_allocator),
 	}
 }
 
