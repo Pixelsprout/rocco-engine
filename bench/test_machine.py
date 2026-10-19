@@ -10,6 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import machine
 
 
+READY = {"power": "ac", "low_power_mode": False}
+
+
 class MachineTest(unittest.TestCase):
     def test_slug_names_a_directory(self):
         self.assertEqual(machine.slug("Apple M5 Pro"), "apple-m5-pro")
@@ -32,6 +35,27 @@ class MachineTest(unittest.TestCase):
         self.assertEqual(machine.power_from_supplies([("Battery", "0"), ("Mains", "1")]), "ac")
         self.assertEqual(machine.power_from_supplies([("Mains", "0")]), "battery")
         self.assertEqual(machine.power_from_supplies([]), "unknown")
+
+    def test_reads_the_lid_from_ioreg(self):
+        self.assertTrue(machine.lid_closed_from_ioreg('  |   "AppleClamshellState" = Yes\n'))
+        self.assertFalse(machine.lid_closed_from_ioreg('  |   "AppleClamshellCausesSleep" = Yes\n  |   "AppleClamshellState" = No\n'))
+        self.assertIsNone(machine.lid_closed_from_ioreg(""))
+
+    def test_a_quiet_machine_on_ac_power_has_no_problems(self):
+        self.assertEqual(machine.problems(READY, load=0.5, lid_closed=False), [])
+        self.assertEqual(machine.problems({**READY, "low_power_mode": None}, load=None, lid_closed=None), [])
+
+    def test_names_each_reason_a_reference_run_cannot_start(self):
+        found = {**READY, "power": "battery", "low_power_mode": True}
+        reasons = machine.problems(found, load=machine.MAX_LOAD + 0.01, lid_closed=True)
+        self.assertEqual(len(reasons), 4)
+        self.assertIn("battery", reasons[0])
+        self.assertIn("Low Power Mode", reasons[1])
+        self.assertIn("load average", reasons[2])
+        self.assertIn("lid", reasons[3])
+
+    def test_unknown_power_is_a_problem(self):
+        self.assertEqual(len(machine.problems({**READY, "power": "unknown"}, load=None, lid_closed=None)), 1)
 
     def test_this_machine_has_every_field(self):
         found = machine.machine(datetime.date(2026, 10, 19))
