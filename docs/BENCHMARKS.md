@@ -238,7 +238,9 @@ runs two games at two N in one sweep.
    `<game>-<n>.run.json` per N to `bench/out/<game>/`. Git ignores
    `bench/out/`.
 7. `bench/analyse.py` drops the warmup Frames and writes one summary per N to
-   `bench/results/<date>-<machine>/<game>-<n>.json`.
+   `bench/out/results/<date>-<machine>/<game>-<n>.json`. Git ignores these
+   summaries. Only the reference run writes to `bench/results/`, the
+   committed results. See "Reference run".
 
 A summary holds:
 
@@ -310,7 +312,7 @@ nothing and exits 0 when the machine is ready.
 | Tool | Use |
 |---|---|
 | `roc scripts/build.roc bench <game>[,<game>...] [n...] [--windowed]` | Builds and runs one sweep. See "Protocol". |
-| `bench/analyse.py <run.json>... [--out-dir <dir>]` | Writes the summaries. The bench command runs it. |
+| `bench/analyse.py <run.json>... [--out-dir <dir>]` | Writes the summaries to `bench/out/results/<date>-<machine>/`, or to the directory you name. The bench command runs it. |
 | `bench/chart.py [<results dir>]` | Draws one SVG per bench game to `bench/out/charts/<game>.svg`: N against each Span and the Frame budget, on log scales. A solid line is the median, a dashed line is p99, and a bar shows the spread between processes. |
 | `bench/compare_chart.py twin\|tuned\|colliders [<results dir>]` | Draws the median and p99 `step` Span of several bench games on one chart, `bench/out/charts/<comparison>.svg`. `twin` is `model-size`, `model-size-twin` and `empty-step`. `tuned` is `model-size` and `model-size-tuned`. `colliders` is `colliders` and `colliders-twin`. |
 | `bench/headline.py [<results dir>] [--game <game>]` | Prints the median and p99 Frame budget per N and the headline figure. |
@@ -320,7 +322,9 @@ nothing and exits 0 when the machine is ready.
 | `sh bench/reference-run.sh` | Runs the full reference run. See "Reference run". |
 
 The chart scripts and `headline.py` read the latest
-`bench/results/<date>-<machine>/` when you name no directory. They use only
+`bench/out/results/<date>-<machine>/` when you name no directory. If
+`bench/out/results/` is empty, they read the latest
+`bench/results/<date>-<machine>/`. They use only
 the Python standard library.
 
 ## Repeat a run
@@ -403,13 +407,14 @@ roc scripts/build.roc inputs --release
 roc scripts/build.roc game entity-game
 (cd examples/entity-game && ROCCO_EXIT_AFTER_FRAMES=2120 \
   ROCCO_SPANS_CSV=$PWD/../../bench/out/real-clock/entity-game.csv ./entity-game.bin)
+python3 bench/analyse.py bench/out/*/*.run.json --out-dir bench/results/<date>-<machine>
 python3 bench/realclock.py bench/out/real-clock/entity-game.csv \
   --game entity-game --out bench/results/<date>-<machine>/real-clock/entity-game.json
-python3 bench/chart.py
-python3 bench/compare_chart.py twin
-python3 bench/compare_chart.py tuned
-python3 bench/compare_chart.py colliders
-python3 bench/headline.py
+python3 bench/chart.py bench/results/<date>-<machine>
+python3 bench/compare_chart.py twin bench/results/<date>-<machine>
+python3 bench/compare_chart.py tuned bench/results/<date>-<machine>
+python3 bench/compare_chart.py colliders bench/results/<date>-<machine>
+python3 bench/headline.py bench/results/<date>-<machine>
 roc scripts/build.roc all
 ```
 
@@ -420,8 +425,10 @@ The script also does these things:
 - It stops if `bench/machine.py --check` fails.
 - It stops if `bench/results/<date>-<machine>/` for today already exists.
   Move or delete that directory first.
-- It writes every summary again into the directory of the day the run
-  started, so a run past midnight stays in one directory.
+- Each bench command writes its summaries to `bench/out/results/`. The
+  script then writes every summary again into
+  `bench/results/<date>-<machine>/`, dated on the day the run started, so a
+  run past midnight stays in one directory.
 - It writes the output of `headline.py` to `headline.txt` in the result
   directory.
 
@@ -445,6 +452,7 @@ reference run:
 | Summaries | `bench/results/<date>-<machine>/<game>-<n>.json` | yes |
 | Real-clock summary | `bench/results/<date>-<machine>/real-clock/entity-game.json` | yes |
 | Headline report | `bench/results/<date>-<machine>/headline.txt` | yes |
+| Summaries of a bench command run by hand | `bench/out/results/<date>-<machine>/<game>-<n>.json` | no |
 | Charts | `bench/out/charts/*.svg` | no |
 | Raw CSVs, Roc heap logs, run.json files | `bench/out/<game>/`, `bench/out/real-clock/` | no |
 

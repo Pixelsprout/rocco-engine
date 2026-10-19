@@ -406,7 +406,8 @@ usage =
 	\\                  Headless in 5 processes, all in one shuffled order, with N
 	\\                  as the first Arg. Raw output goes to bench/out/<game>/.
 	\\                  bench/analyse.py then writes the summaries to
-	\\                  bench/results/<date>-<machine>/.
+	\\                  bench/out/results/<date>-<machine>/. Only
+	\\                  bench/reference-run.sh writes to bench/results/.
 	\\                  Run all again before you run the examples.
 	\\                  A <game> that ends in -twin is an Odin twin: odin builds
 	\\                  bench/<game> with the engine into one release executable

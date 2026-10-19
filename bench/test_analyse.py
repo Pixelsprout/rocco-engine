@@ -274,6 +274,7 @@ class CommandLineTest(unittest.TestCase):
     def test_names_the_results_dir_by_date_and_machine(self):
         self.assertEqual(analyse.results_dir(META).name, "2026-10-19-apple-m5")
         self.assertEqual(analyse.results_dir(META).parent.name, "results")
+        self.assertEqual(analyse.results_dir(META).parent.parent.name, "out")
 
     def test_fails_on_a_debug_build_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:

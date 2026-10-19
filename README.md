@@ -463,12 +463,12 @@ a change to the `Model` type, restart the game.
 | `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
 | `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
 | `bench/ui/` | The UI bench game: N Box and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
-| `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
+| `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/out/results/`, or in the directory you name. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. `--check` fails unless the machine is ready for a reference run. |
 | `bench/realclock.py` | Summarises one real-clock run of an example with the Spans. |
 | `bench/reference-run.sh` | Runs the reference run in `docs/BENCHMARKS.md`: every bench game and Odin twin, the real-clock run, the charts and the headline figure. |
-| `bench/results/` | The committed summaries, one directory per date and machine. |
+| `bench/results/` | The committed summaries of the reference runs, one directory per date and machine. |
 | `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `bench/shared/` | The Roc package that every Roc bench game imports: the N Arg, the random generator and the test helpers. |

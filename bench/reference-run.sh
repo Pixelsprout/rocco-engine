@@ -37,16 +37,14 @@ if [ -e "$results" ]; then
 	echo "reference-run: $results already exists. Move or delete it first." >&2
 	exit 1
 fi
-mkdir -p bench/results
-before=$(ls bench/results)
 
 # shellcheck disable=SC2086
 roc scripts/build.roc bench "$headless_games" ${REFERENCE_NS:-}
 # shellcheck disable=SC2086
 roc scripts/build.roc bench "$windowed_games" ${REFERENCE_NS:-} --windowed
 
-# bench writes to the directory of the day each sweep starts. Write every
-# summary again into $results, so a run past midnight stays in one directory.
+# bench writes its summaries to bench/out/results/. Write every summary again
+# into $results, the committed directory of the day the run started.
 runs=""
 for game in $(echo "$headless_games,$windowed_games" | tr , ' '); do
 	for n in $ns; do
@@ -55,12 +53,6 @@ for game in $(echo "$headless_games,$windowed_games" | tr , ' '); do
 done
 # shellcheck disable=SC2086
 python3 bench/analyse.py $runs --out-dir "$results"
-for dir in bench/results/*; do
-	name=$(basename "$dir")
-	if [ "$dir" != "$results" ] && ! echo "$before" | grep -qx "$name"; then
-		rm -r "$dir"
-	fi
-done
 
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
