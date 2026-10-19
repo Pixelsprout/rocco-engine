@@ -243,7 +243,9 @@ python3 bench/compare_chart.py twin    # model-size, model-size-twin and empty-s
 
 `bench/compare_chart.py` reads the latest results directory, or the one you
 name, and writes `bench/out/charts/<comparison>.svg`: the median and p99
-`step` Span against N.
+`step` Span against N. `sh bench/twin-sweep.sh` runs the sweeps of the three
+twin games and draws the twin chart. `sh bench/twin-sweep.sh 64 1024` runs
+only the N values you give.
 
 ### Screenshots
 
@@ -406,6 +408,7 @@ a change to the `Model` type, restart the game.
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |
 | `bench/results/` | The committed summaries, one directory per date and machine. |
 | `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin` or `tuned`. |
+| `bench/twin-sweep.sh` | Runs the bench protocol for `model-size`, its twin and `empty-step`, then draws the twin chart. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
