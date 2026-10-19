@@ -6,7 +6,6 @@ import sglue "../sokol-odin/sokol/glue"
 import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
-import "core:time"
 
 import "base:runtime"
 
@@ -100,52 +99,17 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
-	// The win32 loop runs one more frame after request_quit, before it reads
-	// WM_CLOSE. Skip it, so Frame Count matches the limit on every OS.
-	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
-		return
-	}
-
-	clock_add_frame(&g_state.clock, sapp.frame_duration())
-	for dt in clock_next_step(&g_state.clock) {
-		before := roc_heap_counters()
-		step_time, view_time := seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
-		g_state.steps += 1
-		if g_state.alloc_report {
-			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
-		}
-	}
-
-	alpha := clock_alpha(&g_state.clock)
-	prev, curr := seam_scenes(&g_state.seam)
-	aspect := f32(sapp.width()) / f32(sapp.height())
-	view_proj: Mat4
-	eye: [3]f32
-	if g_state.use_debug_camera {
-		camera_look(&g_state.debug_camera, &g_state.input)
-		camera_fly(&g_state.debug_camera, &g_state.input, f32(min(sapp.frame_duration(), MAX_FRAME_TIME)))
-		view_proj = camera_proj(&g_state.debug_camera, aspect) * camera_view(&g_state.debug_camera)
-		eye = g_state.debug_camera.eye
-	} else {
-		view_proj, eye = frame_render_camera(&g_state.frame_render, prev, curr, alpha, aspect)
-	}
-	cursor := Cursor.Locked if g_state.use_debug_camera else curr.cursor
-	if (cursor == .Locked) != sapp.mouse_locked() {
-		sapp.lock_mouse(cursor == .Locked)
-	}
-
-	window := Ui_Window{size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()}
-	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.ui, window)
-
-	sg.commit()
-	g_state.frame_count += 1
-
-	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
-		sapp.request_quit()
-	}
-
-	frame_end(&g_state.mem)
-	input_end_frame(&g_state.input)
+	frame_run(
+		&g_state,
+		{
+			frame_duration = sapp.frame_duration(),
+			window = {size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()},
+			mouse_locked = sapp.mouse_locked(),
+			lock_mouse = app_lock_mouse,
+			commit = app_commit,
+			request_quit = app_request_quit,
+		},
+	)
 }
 
 cleanup_cb :: proc "c" () {
@@ -184,4 +148,16 @@ app_run_command :: proc(command: Command) {
 	if command.tag == .Quit {
 		sapp.request_quit()
 	}
+}
+
+app_lock_mouse :: proc(locked: bool) {
+	sapp.lock_mouse(locked)
+}
+
+app_commit :: proc() {
+	sg.commit()
+}
+
+app_request_quit :: proc() {
+	sapp.request_quit()
 }
