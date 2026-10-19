@@ -5,6 +5,9 @@
 # Pass --release to build the release host and inputs.
 set -eu
 cd /work
+# The bench records the git hash. The mounted checkout has another owner, so
+# git refuses it without this.
+git config --global --add safe.directory /work
 
 FRAMES=120
 
