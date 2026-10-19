@@ -1,0 +1,171 @@
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
+
+import cam.Camera as Cam
+import ui.Ui
+import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, Scene]
+import pf.QueryResults
+
+# The UI bench game. Its Scene has no Draws, and its UI holds exactly N Box and
+# Text elements inside one root Box: N / 2 cells of one Box and one Text, plus
+# one empty Box when N is odd. One cell is lit, and it moves on each step, so
+# the UI changes every step but its size does not.
+Model : { labels : List(Str), lit : U64 }
+
+no_args : Config
+no_args = { seed: 0, assets: [], args: [] }
+
+idle : Input
+idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
+
+cell_box : Ui.BoxConfig
+cell_box = { ..Ui.default_box, width: Fixed(120.0), height: Fixed(16.0), pad: { left: 4.0, right: 4.0, top: 0.0, bottom: 0.0 }, background: { r: 0.15, g: 0.15, b: 0.2, a: 1.0 } }
+
+lit_background : Rgba
+lit_background = { r: 0.8, g: 0.5, b: 0.1, a: 1.0 }
+
+root_box : Ui.BoxConfig
+root_box = { ..Ui.default_box, width: Grow({ min: 0.0, max: 0.0 }), height: Grow({ min: 0.0, max: 0.0 }), direction: Col, gap: 2.0, pad: Ui.pad_all(8.0) }
+
+label : Ui.TextStyle
+label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
+
+# N is the first Arg. A missing or bad N must stop the run, so a typo cannot
+# give a benchmark at the wrong size.
+init : Config -> { model : Model, commands : List(Command) }
+init = |config| match element_count(config.args) {
+	Ok(n) => { model: spawn(n), commands: [] }
+	Err(BadCount) => crash "The ui bench game needs N, a positive integer, as its first Arg."
+}
+
+element_count : List(Str) -> Try(U64, [BadCount])
+element_count = |args| match args.first() {
+	Ok(word) =>
+		match U64.from_str(word) {
+			Ok(n) if n > 0 => Ok(n)
+			_ => Err(BadCount)
+		}
+	Err(_) => Err(BadCount)
+}
+
+# The labels are built once, so view copies no text.
+spawn : U64 -> Model
+spawn = |n| {
+	labels = add_labels(List.with_capacity(n // 2 + 1), n // 2)
+	{ labels: if n % 2 == 1 labels.append("") else labels, lit: 0 }
+}
+
+add_labels : List(Str), U64 -> List(Str)
+add_labels = |labels, count| {
+	if labels.len() >= count {
+		labels
+	} else {
+		add_labels(labels.append("Cell ${labels.len().to_str()}"), count)
+	}
+}
+
+loaded : Model, Str, Manifest -> Model
+loaded = |m, _pack, _manifest| m
+
+step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step = |m, _input, _results, _dt| { model: move_light(m), commands: [] }
+
+# Stage: the lit cell moves to the next cell, and wraps after the last.
+move_light : Model -> Model
+move_light = |m| { ..m, lit: (m.lit + 1) % m.labels.len() }
+
+view : Model -> Scene
+view = |m| {
+	camera: Cam.look_at({ x: 0.0, y: 10.0, z: 10.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
+	draws: [],
+	colliders: [],
+	lights: [],
+	cursor: Free,
+	sky: 0,
+	ui: elements(m),
+	queries: [],
+}
+
+elements : Model -> List(Element)
+elements = |m| {
+	cells = m.labels.map_with_index(|text, i| cell(text, i == m.lit))
+	Ui.box(root_box, cells)
+}
+
+# The empty label marks the lone Box of an odd N.
+cell : Str, Bool -> List(Element)
+cell = |text, lit| {
+	config = if lit { ..cell_box, background: lit_background } else cell_box
+	children = if text == "" [] else [Ui.text(text, label)]
+	Ui.box(config, children)
+}
+
+# =======================================
+# Tests
+# =======================================
+with_n : U64 -> Config
+with_n = |n| { ..no_args, args: [n.to_str()] }
+
+ui_of : U64 -> List(Element)
+ui_of = |n| view(init(with_n(n)).model).ui
+
+opens : List(Element) -> U64
+opens = |ui| ui.count_if(
+	|e| match e {
+		Open(_) => Bool.True
+		_ => Bool.False
+	},
+)
+
+texts : List(Element) -> U64
+texts = |ui| ui.count_if(
+	|e| match e {
+		Text(_) => Bool.True
+		_ => Bool.False
+	},
+)
+
+# The root Box is not one of the N elements.
+box_and_text_count : List(Element) -> U64
+box_and_text_count = |ui| opens(ui) + texts(ui) - 1
+
+balanced : List(Element) -> Bool
+balanced = |ui| ui.count_if(|e| e == Close) == opens(ui)
+
+expect element_count(["64"]) == Ok(64)
+expect element_count(["16384", "extra"]) == Ok(16384)
+expect element_count([]) == Err(BadCount)
+expect element_count(["0"]) == Err(BadCount)
+expect element_count(["-3"]) == Err(BadCount)
+expect element_count(["many"]) == Err(BadCount)
+
+expect init(with_n(64)).commands == []
+
+expect box_and_text_count(ui_of(64)) == 64 and texts(ui_of(64)) == 32
+expect box_and_text_count(ui_of(1)) == 1 and texts(ui_of(1)) == 0
+expect box_and_text_count(ui_of(7)) == 7 and texts(ui_of(7)) == 3
+expect box_and_text_count(ui_of(16384)) == 16384
+expect balanced(ui_of(64)) and balanced(ui_of(7))
+
+expect view(init(with_n(64)).model).draws == []
+
+expect {
+	m = init(with_n(6)).model
+	[1, 2, 0, 1] == [move_light(m), move_light(move_light(m)), move_light(move_light(move_light(m))), move_light(move_light(move_light(move_light(m))))].map(|x| x.lit)
+}
+
+expect {
+	m = init(with_n(64)).model
+	after = step(m, idle, QueryResults.empty, 1.0 / 120.0)
+	after.model.lit == 1 and after.model.labels == m.labels and after.commands == []
+}
+
+lit_count : List(Element) -> U64
+lit_count = |ui| ui.count_if(|e| e == Open({ ..cell_box, background: lit_background }))
+
+# A step changes which cell is lit, not the number of elements.
+expect {
+	m = init(with_n(64)).model
+	before = elements(m)
+	after = elements(move_light(m))
+	lit_count(before) == 1 and lit_count(after) == 1 and before != after and before.len() == after.len()
+}

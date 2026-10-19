@@ -7,6 +7,10 @@ import "core:math"
 import "core:mem"
 
 UI_QUAD_CAPACITY :: 16384
+// Clay's default of 8192 elements is below the largest N of the UI bench game.
+UI_ELEMENT_CAPACITY :: 32768
+// Clay keeps the same ratio of measured words to elements by default.
+UI_TEXT_WORD_CAPACITY :: 2 * UI_ELEMENT_CAPACITY
 UI_QUAD_INDICES :: [6]u16{0, 1, 2, 0, 2, 3}
 // A u16 index reaches every vertex of a full buffer.
 #assert(UI_QUAD_CAPACITY * 4 <= 1 << 16)
@@ -81,6 +85,10 @@ Ui :: struct {
 
 // The arena lives as long as the allocator, so there is no ui_destroy.
 ui_init :: proc(ui: ^Ui, size: [2]f32, allocator: mem.Allocator, quad_capacity := UI_QUAD_CAPACITY) -> mem.Allocator_Error {
+	// Clay sets these on the current context, or on its defaults when there is
+	// none. Initialize copies them from either, so set both before sizing.
+	clay.SetMaxElementCount(UI_ELEMENT_CAPACITY)
+	clay.SetMaxMeasureTextCacheWordCount(UI_TEXT_WORD_CAPACITY)
 	capacity := clay.MinMemorySize()
 	ui.memory = make([]u8, capacity, allocator) or_return
 	ui.quads = make([]Ui_Quad, quad_capacity, allocator) or_return
