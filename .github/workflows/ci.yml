@@ -68,10 +68,12 @@ jobs:
 
       # A smoke test only: CI runners make no timing claims. It builds a
       # release host with Spans, so it runs last.
-      - name: Run the bench game once Headless
+      - name: Run the bench games once Headless
         run: |
           roc scripts/build.roc bench model-size 64
           python3 bench/analyse.py bench/out/model-size-64.csv
+          roc scripts/build.roc bench colliders 64
+          python3 bench/analyse.py bench/out/colliders-64.csv
 
   linux:
     runs-on: ubuntu-24.04

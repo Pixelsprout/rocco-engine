@@ -192,8 +192,8 @@ python3 bench/analyse.py bench/out/model-size-1024.csv
 warmup Frames and writes `bench/out/model-size-1024.summary.json`. The
 summary holds the median, p95, p99 and max of each Span, N, the run mode, the
 git hash and the build flags. The script refuses a run from a debug build.
-`bench/out/` is not committed. CI runs `bench model-size 64` once as a smoke
-test. CI makes no timing claims.
+`bench/out/` is not committed. CI runs each bench game once at N = 64 as a
+smoke test. CI makes no timing claims.
 
 ### Screenshots
 
@@ -345,6 +345,7 @@ a change to the `Model` type, restart the game.
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
+| `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
 | `bench/analyse.py` | Turns one bench run's Spans CSV into a summary JSON. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
