@@ -61,14 +61,12 @@ spawn_help = |m, n| {
 	}
 }
 
-# Stage: each entity moves by its velocity.
 move : Model, F32 -> Model
 move = |m, dt| {
 	moved = m.entities.map(|e| { ..e, pos: { x: e.pos.x + e.vel.x * dt, y: e.pos.y, z: e.pos.z + e.vel.z * dt } })
 	{ ..m, entities: moved }
 }
 
-# Stage: an entity past the edge turns back inside.
 bounce : Model -> Model
 bounce = |m| { ..m, entities: m.entities.map(bounce_entity) }
 
@@ -127,10 +125,6 @@ lights = [
 	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
-
-# =======================================
-# Tests
-# =======================================
 
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []

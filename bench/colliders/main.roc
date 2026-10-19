@@ -71,18 +71,15 @@ spawn_help = |m, n| {
 	}
 }
 
-# Stage: the answers to the last Queries.
 count_answers : Model, Vocabulary.QueryResults -> Model
 count_answers = |m, results| { ..m, answered: results.contacts.len() + results.rays.len() + results.overlaps.len() }
 
-# Stage: each Body moves by its velocity.
 move : Model, F32 -> Model
 move = |m, dt| {
 	moved = m.bodies.map(|b| { ..b, pos: { x: b.pos.x + b.vel.x * dt, y: b.pos.y, z: b.pos.z + b.vel.z * dt } })
 	{ ..m, bodies: moved }
 }
 
-# Stage: a Body past the edge turns back inside.
 bounce : Model -> Model
 bounce = |m| { ..m, bodies: m.bodies.map(|b| bounce_body(b, m.half)) }
 
@@ -138,10 +135,6 @@ queries = |half| {
 # The centre of lane k of the equal lanes across [-half, half].
 lane : U32, F32 -> F32
 lane = |k, half| ((2 * k + 1).to_f32() / slots.len().to_f32() - 1.0) * half
-
-# =======================================
-# Tests
-# =======================================
 
 expect init(Bench.with_n(64)).model.bodies.len() == 64
 expect init(Bench.with_n(64)).commands == []

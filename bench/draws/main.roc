@@ -57,14 +57,12 @@ spawn_help = |m, n| {
 	}
 }
 
-# Stage: each cube moves by its velocity.
 move : Model, F32 -> Model
 move = |m, dt| {
 	moved = m.entities.map(|e| { ..e, pos: { x: e.pos.x + e.vel.x * dt, y: e.pos.y, z: e.pos.z + e.vel.z * dt } })
 	{ ..m, entities: moved }
 }
 
-# Stage: a cube past the edge turns back inside.
 bounce : Model -> Model
 bounce = |m| { ..m, entities: m.entities.map(bounce_entity) }
 
@@ -84,7 +82,7 @@ turn_back = |pos, vel| {
 	}
 }
 
-# Stage: one Draw per cube, with the entity id as the Draw id.
+# The entity id is the Draw id, so the Pairing finds each cube in the last Scene.
 view : Model -> Scene
 view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: 40.0, z: 30.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
@@ -102,10 +100,6 @@ cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cu
 
 lights : List(Vocabulary.Light)
 lights = [Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })]
-
-# =======================================
-# Tests
-# =======================================
 
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []

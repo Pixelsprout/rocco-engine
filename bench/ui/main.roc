@@ -54,7 +54,6 @@ loaded = |m, _pack, _manifest| m
 step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |m, _input, _results, _dt| { model: move_light(m), commands: [] }
 
-# Stage: the lit cell moves to the next cell, and wraps after the last.
 move_light : Model -> Model
 move_light = |m| { ..m, lit: (m.lit + 1) % m.labels.len() }
 
@@ -83,10 +82,6 @@ cell = |text, lit| {
 	children = if text == "" [] else [Ui.text(text, label)]
 	Ui.box(config, children)
 }
-
-# =======================================
-# Tests
-# =======================================
 
 ui_of : U64 -> List(Element)
 ui_of = |n| view(init(Bench.with_n(n)).model).ui

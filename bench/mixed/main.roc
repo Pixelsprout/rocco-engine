@@ -118,18 +118,15 @@ add_labels = |labels, count| {
 	}
 }
 
-# Stage: the answers to the last Queries.
 count_answers : Model, Vocabulary.QueryResults -> Model
 count_answers = |m, results| { ..m, answered: results.contacts.len() + results.rays.len() + results.overlaps.len() }
 
-# Stage: each entity moves by its velocity.
 move : Model, F32 -> Model
 move = |m, dt| {
 	moved = m.entities.map(|e| { ..e, pos: { x: e.pos.x + e.vel.x * dt, y: e.pos.y, z: e.pos.z + e.vel.z * dt } })
 	{ ..m, entities: moved }
 }
 
-# Stage: an entity past the edge turns back inside.
 bounce : Model -> Model
 bounce = |m| { ..m, entities: m.entities.map(|e| bounce_entity(e, m.half)) }
 
@@ -149,7 +146,6 @@ turn_back = |pos, vel, half| {
 	}
 }
 
-# Stage: the lit UI cell moves to the next cell, and wraps after the last.
 move_light : Model -> Model
 move_light = |m| if m.labels.is_empty() m else { ..m, lit: (m.lit + 1) % m.labels.len() }
 
@@ -221,10 +217,6 @@ cell = |text, lit| {
 	children = if text == "" [] else [Ui.text(text, label)]
 	Ui.box(config, children)
 }
-
-# =======================================
-# Tests
-# =======================================
 
 scene_of : U64 -> Scene
 scene_of = |n| view(init(Bench.with_n(n)).model)

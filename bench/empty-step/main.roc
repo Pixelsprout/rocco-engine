@@ -92,10 +92,6 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
-# =======================================
-# Tests
-# =======================================
-
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(8)).model != init({ ..Bench.with_n(8), seed: 7 }).model
 

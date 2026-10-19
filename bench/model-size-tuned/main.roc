@@ -34,7 +34,7 @@ step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands :
 step = |m, _input, _results, dt| { model: update(m, dt), commands: [] }
 
 # The record is taken apart so the list has one reference and map can write it
-# in place. One pass runs both Stages on each entity.
+# in place. One pass moves and bounces each entity.
 update : Model, F32 -> Model
 update = |m, dt| {
 	{ cube, rng, entities } = m
@@ -63,11 +63,9 @@ spawn = |seed, n| {
 	{ cube: Mesh.primitive(Cube), rng: $rng, entities: $entities }
 }
 
-# Stage: the entity moves by its velocity.
 move : Entity, F32 -> Entity
 move = |e, dt| { ..e, pos: { x: e.pos.x + e.vel.x * dt, y: e.pos.y, z: e.pos.z + e.vel.z * dt } }
 
-# Stage: an entity past the edge turns back inside.
 bounce : Entity -> Entity
 bounce = |e| {
 	vx = turn_back(e.pos.x, e.vel.x)
@@ -123,10 +121,6 @@ lights = [
 	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
-
-# =======================================
-# Tests
-# =======================================
 
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(8)).model != init({ ..Bench.with_n(8), seed: 7 }).model
