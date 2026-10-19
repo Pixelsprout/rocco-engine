@@ -74,7 +74,7 @@ META = {
     "git_hash": "abc123",
     "target": "arm64mac",
     "odin_debug": False,
-    "roc_heap": "map",
+    "roc_heap": "header",
     "build_flags": {
         "host": ["build", "engine", "-o:speed", "-define:ROCCO_SPANS=true"],
         "game": ["build", "--target=arm64mac", "main.roc"],
@@ -169,7 +169,7 @@ class SummaryShapeTest(unittest.TestCase):
         self.assertEqual(s["mode"], "headless")
         self.assertEqual(s["git_hash"], "abc123")
         self.assertEqual(s["build_flags"], META["build_flags"])
-        self.assertEqual(s["roc_heap"], "map")
+        self.assertEqual(s["roc_heap"], "header")
         self.assertEqual(s["processes"], 2)
         self.assertEqual(s["machine"]["power"], "ac")
         self.assertFalse(s["odin_debug"])
