@@ -101,6 +101,29 @@ test_ui_init_sizes_the_arena_from_clay :: proc(t: ^testing.T) {
 	testing.expect(t, ui.ctx != nil)
 }
 
+// The UI bench game lays out up to 16,384 Boxes and Texts, as many as the
+// largest N of a sweep.
+@(test)
+test_ui_lays_out_16384_boxes_and_texts_with_no_clay_error :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+
+	root := ui_box()
+	root.direction = .Col
+	elements := make([dynamic]Element, context.temp_allocator)
+	append(&elements, ui_open(root))
+	for i in 0 ..< 16384 / 2 {
+		append(&elements, ui_open(ui_rect(120, 16)), ui_text(i % 2 == 0 ? "Cell 1" : "Cell 22", 12), ui_close())
+	}
+	append(&elements, ui_close())
+	quads := ui_frame(f.ui, elements[:], f.window)
+	testing.expect_value(t, f.ui.errors_logged, bit_set[clay.ErrorType]{})
+	testing.expect(t, len(quads) > 0)
+}
+
 @(test)
 test_ui_box_floating_at_right_bottom_sits_in_that_corner_at_two_window_sizes :: proc(t: ^testing.T) {
 	f: Frame_Fixture

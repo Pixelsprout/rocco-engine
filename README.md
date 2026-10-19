@@ -197,8 +197,8 @@ The sweep follows one protocol:
 2. Each N runs in 5 separate processes.
 3. The sweep shuffles the order of all processes. It pauses for 1 second
    after each one.
-4. One more process per N runs with `ROCCO_ALLOC_REPORT=1` and records the
-   Roc heap counters. Nobody uses its times.
+4. One more process per N runs Headless with `ROCCO_ALLOC_REPORT=1` and
+   records the Roc heap counters. Nobody uses its times.
 
 The sweep writes the raw CSVs, the Roc heap logs and one `<game>-<n>.run.json`
 per N to `bench/out/<game>/`. Git ignores `bench/out/`. Then
@@ -233,6 +233,14 @@ The window must stay on a display. With the lid closed, macOS can stop
 presenting Frames and the run can hang. The Draws curve goes past 4,096
 Draws, where the Pairing map grows. The renderer draws at most 16,384 Draws
 per Frame (`DRAW_CAPACITY` in `engine/frame_render.odin`) and drops the rest.
+
+The UI bench game, `bench/ui/`, also runs in windowed Lockstep. Its curve
+shows the UI layout Span, which covers Clay layout and the quad build:
+
+```sh
+roc scripts/build.roc bench ui --windowed
+python3 bench/chart.py
+```
 
 The mixed bench game, `bench/mixed/`, scales every axis with one N. Each
 entity has one Draw and one Collider. Every 10 entities add one UI element,
@@ -451,6 +459,7 @@ a change to the `Model` type, restart the game.
 | `bench/colliders/colliders.golden` | The Colliders of `bench/colliders` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
 | `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
+| `bench/ui/` | The UI bench game: N Box and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
 | `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/results/`. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. |

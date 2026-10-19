@@ -341,7 +341,9 @@ layout result flows back to the game. The host multiplies each size by
 The host runs C Clay through its Odin bindings. Clay is a git submodule
 pinned to a commit. The `inputs` step copies its prebuilt lib per target,
 like sokol's. The Clay arena comes from the permanent arena at init, sized
-by `MinMemorySize()` with the default element cap. The host allocates
+by `MinMemorySize()` with a cap of 32,768 elements and 65,536 measured
+words. Clay's default of 8,192 elements is below the largest N of the UI
+bench game. The host allocates
 nothing per frame for the UI.
 
 Once per frame, the host lays out the current Scene's UI against

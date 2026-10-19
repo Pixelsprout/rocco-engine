@@ -273,10 +273,11 @@ bench_run = |target, game, mode, n, csv, root| {
 }
 
 # The Roc heap counters come from an extra, untimed process, because the
-# alloc report prints a line on every step.
-bench_heap_run : Target, Str, BenchMode, U64, Str -> { run : Run, env : List((Str, Str)) }
-bench_heap_run = |target, game, mode, n, root| {
-	planned = bench_run(target, game, mode, n, "${bench_stem(game, n)}-heap.csv", root)
+# alloc report prints a line on every step. The counters do not depend on the
+# window, so this process always runs Headless.
+bench_heap_run : Target, Str, U64, Str -> { run : Run, env : List((Str, Str)) }
+bench_heap_run = |target, game, n, root| {
+	planned = bench_run(target, game, Headless, n, "${bench_stem(game, n)}-heap.csv", root)
 	{ ..planned, env: planned.env.append(("ROCCO_ALLOC_REPORT", "1")) }
 }
 
@@ -506,7 +507,7 @@ bench! = |target, bench| {
 	}
 	for n in bench.ns {
 		stem = "${dir}/${bench_stem(bench.game, n)}"
-		heap = bench_heap_run(target, bench.game, bench.mode, n, root)
+		heap = bench_heap_run(target, bench.game, n, root)
 		Stdout.line!("== Roc heap counters: ${heap.run.program} ${n.to_str()}")?
 		cmd = Cmd.new_str(heap.run.program).args_str(heap.run.args).envs_str(heap.env).cwd(Path.utf8(heap.run.cwd))
 		out = cmd.exec_output!() ? |_| Failed("The Roc heap counter run at N=${n.to_str()} failed.")
@@ -741,7 +742,7 @@ expect {
 }
 
 expect {
-	planned = target_for(mac).map_ok(|target| bench_heap_run(target, "model-size", Headless, 64, "/repo").env)
+	planned = target_for(mac).map_ok(|target| bench_heap_run(target, "model-size", 64, "/repo").env)
 	planned
 		== Ok([
 			("ROCCO_HEADLESS", "1"),
@@ -806,3 +807,8 @@ expect {
 	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "draws", mode: Windowed, n: 8192, git_hash: "abc123", shuffle_seed: 7, machine: "{}" }))
 	meta.map_ok(|text| Str.contains(text, "\"mode\": \"lockstep\",")) == Ok(Bool.True)
 }
+
+expect parse(["bench", "ui", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("ui"), BenchRun({ game: "ui", ns: sweep_ns, mode: Windowed })])
+
+# A windowed sweep still takes the Roc heap counters Headless.
+expect target_for(mac).map_ok(|target| bench_heap_run(target, "ui", 64, "/repo").env.first()) == Ok(Ok(("ROCCO_HEADLESS", "1")))
