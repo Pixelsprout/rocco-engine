@@ -814,7 +814,7 @@ spheres, and finds 191 Contacts.
 
 | Build | Mean per step, microseconds |
 |---|---|
-| `-debug`, as `scripts/build.roc` builds the host | about 1,300 |
+| `-debug`, as `scripts/build.roc` builds the debug host | about 1,300 |
 | `-o:speed` | about 230 |
 
 The cost does not come from the pairs. The same Colliders spread apart cost

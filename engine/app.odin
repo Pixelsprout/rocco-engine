@@ -162,8 +162,7 @@ cleanup_cb :: proc "c" () {
 
 	fmt.printfln("Frame Count: %v", g_state.frame_count)
 
-	// Here we can check for any memory leaks or bad free calls
-	when ODIN_DEBUG {
+	when TRACK_ALLOC {
 		for _, entry in g_track.allocation_map {
 			fmt.eprintfln("LEAK %v bytes at %v", entry.size, entry.location)
 		}

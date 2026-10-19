@@ -69,7 +69,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | Command | When | What it runs |
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
-| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it adds `-o:speed`. |
+| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. The step deletes the old library first. |
 | `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
 | `game <name>` | When anything changes. | `roc build` in `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
@@ -156,9 +156,11 @@ The other variables the engine reads:
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
 entity-game 5, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
-because `Ui.box` builds `Scene.ui` with concat and append. Build
-the host library first. Each game opens a window. Do not type into it during the
-check, because a key press allocates the `Input` lists.
+because `Ui.box` builds `Scene.ui` with concat and append. The script
+rebuilds the host with `host --release --track-alloc` and fails on a `LEAK`
+or `BAD Free` line. It leaves that host in place, so run `host` again after
+it. Run `inputs` first. Each game opens a window. Do not type into it during
+the check, because a key press allocates the `Input` lists.
 
 `./scripts/host-check.sh` regenerates the glue and links cards, entity-game
 and pong, then checks that the host library and the glue did not change.
@@ -197,7 +199,7 @@ Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
 archives. Then it runs the `all` command of the build script. Then it runs
 each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
 Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
-`scripts/test-all.sh`, the alloc check and the host check. The script builds
+`scripts/test-all.sh`, the host check and the alloc check. The script builds
 the debug and the release sokol archives. `./scripts/linux/check.sh --release` checks the
 release build.
 

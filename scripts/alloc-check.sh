@@ -7,8 +7,11 @@
 # a lights list and a queries list.
 # pong expects 13 allocs and 6 reallocs, because Ui.box concats and appends
 # to build Scene.ui every frame.
-# The host library must already be built for this machine. Each game opens a
-# window. Do not type into it: a key press allocates the Input lists.
+# The script rebuilds the host library with the host tracking allocator, and
+# fails on a LEAK or BAD Free line in its report. It leaves that host library
+# in place. The sokol and Clay inputs must
+# already be in place for this machine. Each game opens a window. Do not type
+# into it: a key press allocates the Input lists.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
 set -eu
 cd "$(dirname "$0")/.."
@@ -18,6 +21,8 @@ SKIP=10
 # eval "$(...)" would hide a build.roc failure from set -e.
 target_lines=$(roc scripts/build.roc -- target)
 eval "$target_lines"
+
+roc scripts/build.roc -- host --release --track-alloc
 
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
@@ -47,6 +52,11 @@ for entry in cards:2:0 entity-game:5:0 pong:13:6; do
 		if [ "$code" -ne 0 ]; then
 			tail -20 "$log" >&2
 			echo "FAIL: $game --opt=$opt exited with $code" >&2
+			failed=1
+			continue
+		fi
+		if grep -E '^(LEAK|BAD Free)' "$log" >&2; then
+			echo "FAIL: $game --opt=$opt has a host leak or bad free" >&2
 			failed=1
 			continue
 		fi
