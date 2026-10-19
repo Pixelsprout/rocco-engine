@@ -16,8 +16,11 @@ HostAlloc : [Tracked, Untracked]
 # Spans builds the host with the per-Frame Span timers and the CSV sink.
 HostSpans : [Spans, NoSpans]
 
-# One bench game run at one N, Headless, for warmup plus measured Frames.
-Bench : { game : Str, n : U64 }
+# One bench game run at one N for warmup plus measured Frames. Windowed runs
+# in windowed Lockstep, for the bench games that measure render submit.
+Bench : { game : Str, n : U64, mode : BenchMode }
+
+BenchMode : [Headless, Windowed]
 
 Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
 
@@ -38,15 +41,18 @@ parse = |args| match args {
 	["target"] => Ok([Target])
 	["all"] => Ok(all_steps(Debug))
 	["all", "--release"] => Ok(all_steps(Release))
-	["bench", game, n] =>
-		match U64.from_str(n) {
-			Ok(count) if count > 0 =>
-				if is_twin(game) {
-					Ok([BenchTwin(game), BenchRun({ game, n: count })])
-				} else {
-					Ok([bench_host, Inputs(Release), BenchGame(game), BenchRun({ game, n: count })])
-				}
-			_ => Err(Usage)
+	["bench", game, n] => bench_steps(game, n, Headless)
+	["bench", game, n, "--windowed"] => bench_steps(game, n, Windowed)
+	_ => Err(Usage)
+}
+
+bench_steps : Str, Str, BenchMode -> Try(List(Step), [Usage])
+bench_steps = |game, n, mode| match U64.from_str(n) {
+	Ok(count) if count > 0 =>
+		if is_twin(game) {
+			Ok([BenchTwin(game), BenchRun({ game, n: count, mode })])
+		} else {
+			Ok([bench_host, Inputs(Release), BenchGame(game), BenchRun({ game, n: count, mode })])
 		}
 	_ => Err(Usage)
 }
@@ -185,10 +191,15 @@ bench_stem : Bench -> Str
 bench_stem = |bench| "${bench_out_dir}/${bench.game}-${bench.n.to_str()}"
 
 # root is the absolute repository root. The engine writes the Spans CSV to
-# ROCCO_SPANS_CSV and runs Headless for ROCCO_EXIT_AFTER_FRAMES Frames.
+# ROCCO_SPANS_CSV and runs Headless or windowed Lockstep for
+# ROCCO_EXIT_AFTER_FRAMES Frames.
 bench_run : Target, Bench, Str -> { run : Run, env : List((Str, Str)) }
 bench_run = |target, bench, root| {
 	frames = bench_warmup_frames + bench_measured_frames
+	mode_env = match bench.mode {
+		Headless => ("ROCCO_HEADLESS", "1")
+		Windowed => ("ROCCO_LOCKSTEP", "1")
+	}
 	{
 		run: {
 			program: "${root}/bench/${bench.game}/${bench.game}${target.exe}",
@@ -196,7 +207,7 @@ bench_run = |target, bench, root| {
 			cwd: "bench/${bench.game}",
 		},
 		env: [
-			("ROCCO_HEADLESS", "1"),
+			mode_env,
 			("ROCCO_EXIT_AFTER_FRAMES", frames.to_str()),
 			("ROCCO_SPANS_CSV", "${root}/${bench_stem(bench)}.csv"),
 		],
@@ -219,7 +230,7 @@ bench_meta = |target, bench, git_hash| {
 		"{",
 		"  \"game\": \"${bench.game}\",",
 		"  \"n\": ${bench.n.to_str()},",
-		"  \"mode\": \"headless\",",
+		"  \"mode\": \"${bench_mode_name(bench.mode)}\",",
 		"  \"warmup_frames\": ${bench_warmup_frames.to_str()},",
 		"  \"measured_frames\": ${bench_measured_frames.to_str()},",
 		"  \"seed\": 0,",
@@ -231,6 +242,12 @@ bench_meta = |target, bench, git_hash| {
 		"",
 	]
 	Str.join_with(lines, "\n")
+}
+
+bench_mode_name : BenchMode -> Str
+bench_mode_name = |mode| match mode {
+	Headless => "headless"
+	Windowed => "lockstep"
 }
 
 Copy : { from : Str, to : Str }
@@ -285,6 +302,9 @@ usage =
 	\\                  A <game> that ends in -twin is an Odin twin: odin builds
 	\\                  bench/<game> with the engine into one release executable
 	\\                  with Spans, and the run is the same.
+	\\  bench <game> <n> --windowed
+	\\                  the same, but the run opens a window in Lockstep with
+	\\                  vsync off, so the render Spans are measured.
 	\\
 	\\inputs, host and all take --release to use the release sokol archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
@@ -481,8 +501,10 @@ expect parse([]) == Err(Usage)
 expect parse(["game"]) == Err(Usage)
 expect parse(["host", "extra"]) == Err(Usage)
 expect parse(["deploy"]) == Err(Usage)
-expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", n: 64 })])
-expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", n: 64 })])
+expect parse(["bench", "model-size", "64"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("model-size"), BenchRun({ game: "model-size", n: 64, mode: Headless })])
+expect parse(["bench", "model-size-twin", "64"]) == Ok([BenchTwin("model-size-twin"), BenchRun({ game: "model-size-twin", n: 64, mode: Headless })])
+expect parse(["bench", "draws", "4096", "--windowed"]) == Ok([Host(Release, Untracked, Spans), Inputs(Release), BenchGame("draws"), BenchRun({ game: "draws", n: 4096, mode: Windowed })])
+expect parse(["bench", "draws", "64", "--headless"]) == Err(Usage)
 expect parse(["bench", "model-size", "0"]) == Err(Usage)
 expect parse(["bench", "model-size", "many"]) == Err(Usage)
 expect parse(["bench", "model-size"]) == Err(Usage)
@@ -608,7 +630,7 @@ expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_li
 expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib")
 
 expect {
-	planned = target_for(mac).map_ok(|target| bench_run(target, { game: "model-size", n: 64 }, "/repo"))
+	planned = target_for(mac).map_ok(|target| bench_run(target, { game: "model-size", n: 64, mode: Headless }, "/repo"))
 	planned
 		== Ok({
 			run: { program: "/repo/bench/model-size/model-size.bin", args: ["64"], cwd: "bench/model-size" },
@@ -617,19 +639,30 @@ expect {
 }
 
 expect {
-	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", n: 64 }, "abc123"))
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size", n: 64, mode: Headless }, "abc123"))
 	match meta {
 		Ok(text) =>
 			Str.contains(text, "\"n\": 64,")
 				and Str.contains(text, "\"git_hash\": \"abc123\",")
 					and Str.contains(text, "\"odin_debug\": false,")
 						and Str.contains(text, "\"-define:ROCCO_SPANS=true\"")
+							and Str.contains(text, "\"mode\": \"headless\",")
 		Err(_) => Bool.False
 	}
 }
 
 expect {
-	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size-twin", n: 64 }, "abc123"))
+	planned = target_for(mac).map_ok(|target| bench_run(target, { game: "draws", n: 8192, mode: Windowed }, "/repo"))
+	planned.map_ok(|p| p.env) == Ok([("ROCCO_LOCKSTEP", "1"), ("ROCCO_EXIT_AFTER_FRAMES", "2120"), ("ROCCO_SPANS_CSV", "/repo/bench/out/draws-8192.csv")])
+}
+
+expect {
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "draws", n: 8192, mode: Windowed }, "abc123"))
+	meta.map_ok(|text| Str.contains(text, "\"mode\": \"lockstep\",")) == Ok(Bool.True)
+}
+
+expect {
+	meta = target_for(mac).map_ok(|target| bench_meta(target, { game: "model-size-twin", n: 64, mode: Headless }, "abc123"))
 	match meta {
 		Ok(text) =>
 			Str.contains(text, "\"host\": [\"build\", \"bench/model-size-twin\"")

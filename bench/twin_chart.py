@@ -51,10 +51,14 @@ def log_ticks(low, high, base):
     return [base**k for k in range(first, last + 1)]
 
 
-def svg(lines):
+def svg(lines, legend=GAMES, title="step Span per Frame against N", marker=None):
+    """Draw {(key, stat): [(n, us), ...]} as one SVG, with legend {key: (label, color)}.
+
+    marker is an optional (n, label) pair drawn as a vertical line.
+    """
     points = [p for pts in lines.values() for p in pts]
     if not points:
-        raise ValueError("no summaries of the twin games")
+        raise ValueError("no summaries to chart")
     xs = log_ticks(min(n for n, _ in points), max(n for n, _ in points), 2)
     ys = log_ticks(max(min(us for _, us in points), 0.01), max(us for _, us in points), 10)
     plot_w, plot_h = WIDTH - LEFT - RIGHT, HEIGHT - TOP - BOTTOM
@@ -70,7 +74,7 @@ def svg(lines):
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" font-family="sans-serif" font-size="12">',
         f'<rect width="{WIDTH}" height="{HEIGHT}" fill="white"/>',
-        f'<text x="{LEFT}" y="22" font-size="14">step Span per Frame against N (median solid, p99 dashed)</text>',
+        f'<text x="{LEFT}" y="22" font-size="14">{title} (median solid, p99 dashed)</text>',
     ]
     for n in xs:
         x = x_at(n)
@@ -83,12 +87,17 @@ def svg(lines):
     parts.append(f'<text x="{LEFT + plot_w / 2}" y="{HEIGHT - 10}" text-anchor="middle">N (entities)</text>')
     parts.append(f'<text transform="translate(16 {TOP + plot_h / 2}) rotate(-90)" text-anchor="middle">microseconds</text>')
 
+    if marker and xs[0] <= marker[0] <= xs[-1]:
+        x = x_at(marker[0])
+        parts.append(f'<line data-marker="{marker[0]}" x1="{x:.1f}" y1="{TOP}" x2="{x:.1f}" y2="{TOP + plot_h}" stroke="#888" stroke-dasharray="2 3"/>')
+        parts.append(f'<text x="{x + 4:.1f}" y="{TOP + 12}" fill="#555">{marker[1]}</text>')
+
     for (game, stat), pts in sorted(lines.items()):
-        _, color = GAMES[game]
+        _, color = legend[game]
         coords = " ".join(f"{x_at(n):.1f},{y_at(us):.1f}" for n, us in pts)
         dash = f' stroke-dasharray="{STATS[stat]}"' if STATS[stat] else ""
         parts.append(f'<polyline data-series="{game} {stat}" points="{coords}" fill="none" stroke="{color}" stroke-width="2"{dash}/>')
-    for i, (game, (label, color)) in enumerate(GAMES.items()):
+    for i, (game, (label, color)) in enumerate(legend.items()):
         y = TOP + 10 + i * 20
         parts.append(f'<line x1="{WIDTH - RIGHT + 16}" y1="{y}" x2="{WIDTH - RIGHT + 40}" y2="{y}" stroke="{color}" stroke-width="2"/>')
         parts.append(f'<text x="{WIDTH - RIGHT + 46}" y="{y + 4}">{label}</text>')

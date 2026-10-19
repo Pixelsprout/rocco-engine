@@ -11,6 +11,14 @@ SAMPLE_COUNT :: 4
 // shadow map and the font atlas need one more.
 TEXTURE_POOL_SIZE :: 2 * MESH_CAPACITY + 1 + SKY_CAPACITY + 1 + 1
 
+// Metal on macOS starts each uniform block on a 256 byte boundary. A Draw
+// applies three blocks: shadow, vertex and fragment. The spare blocks cover
+// the lights, the sky and the UI.
+UNIFORM_ALIGN :: 256
+UNIFORM_BUFFER_SIZE :: (3 * DRAW_CAPACITY + 16) * UNIFORM_ALIGN
+
+#assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN)
+
 SHADOW_MAP_SIZE :: 2048
 SHADOW_DEPTH_BIAS :: f32(0)
 // Reversed-Z, so a negative bias pushes the stored depth away from the Sun.
