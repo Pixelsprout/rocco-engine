@@ -9,6 +9,7 @@ import pf.Sleep
 import pf.Stderr
 import pf.Stdout
 import Keys
+import Regions
 
 Mode : [Debug, Release]
 
@@ -25,7 +26,10 @@ Bench : { games : List(Str), ns : List(U64), mode : BenchMode }
 
 BenchMode : [Headless, Windowed]
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
+# Check writes nothing. It fails if a guide page differs from its regions.
+DocsMode : [Write, Check]
+
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -42,6 +46,8 @@ parse = |args| match args {
 	["font"] => Ok([Font])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
+	["docs"] => Ok([Docs(Write)])
+	["docs", "--check"] => Ok([Docs(Check)])
 	["all"] => Ok(all_steps(Debug))
 	["all", "--release"] => Ok(all_steps(Release))
 	["bench", names, .. as rest] => bench_parse(names, rest)
@@ -191,6 +197,26 @@ font_run = {
 	args: ["run", "scripts/font_bake", "-out:build/font_bake", "--", "scripts/fonts/AtkinsonHyperlegible-Regular.ttf", "engine/font_baked.odin"],
 	cwd: ".",
 }
+
+guide_dir : Str
+guide_dir = "guide"
+
+docs_out_dir : Str
+docs_out_dir = "build/docs"
+
+ApiPackage : { name : Str, main : Str }
+
+# The bundled packages. packages/camera is not bundled, so it gets no API page.
+api_packages : List(ApiPackage)
+api_packages = [
+	{ name: "platform", main: "platform/main.roc" },
+	{ name: "linalg", main: "packages/linalg/main.roc" },
+	{ name: "mesh", main: "packages/mesh/main.roc" },
+	{ name: "ui", main: "packages/ui/main.roc" },
+]
+
+api_docs_run : ApiPackage -> Run
+api_docs_run = |api| { program: "roc", args: ["docs", api.main, "--output=${docs_out_dir}/${api.name}"], cwd: "." }
 
 bench_host : Step
 bench_host = Host(Release, Untracked, Spans)
@@ -399,6 +425,9 @@ usage =
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
+	\\  docs [--check]  write the API HTML for the platform, linalg, mesh and ui into
+	\\                  build/docs/, then copy each region into the guide/ pages.
+	\\                  --check writes nothing and fails if a page differs from its source
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong
 	\\  bench <game>[,<game>...] [n...] [--windowed]
 	\\                  build a release host with Spans, the release inputs and
@@ -490,6 +519,7 @@ run_step! = |step, target| match step {
 		}
 	Keys => keys!()
 	Target => Stdout.line!(target_lines(target))
+	Docs(mode) => docs!(mode)
 }
 
 host! : Target, Run => Try({}, _)
@@ -568,6 +598,78 @@ exec_env_allowing! = |run, env, ok_codes| {
 			}
 		Err(other) => Err(other)
 	}
+}
+
+docs! : DocsMode => Try({}, _)
+docs! = |mode| {
+	match mode {
+		Write => api_docs!()?
+		Check => {}
+	}
+	var $stale = []
+	for page in markdown_files!(guide_dir)? {
+		text = Path.utf8(page).read_utf8!()?
+		sources = read_sources!(Regions.refs(text))
+		filled = Regions.fill(page, text, sources) ? |err| Failed(Regions.message(err))
+		match mode {
+			Write =>
+				if filled.text != text {
+					Path.utf8(page).write_utf8!(filled.text)?
+					Stdout.line!("== docs: updated ${page}")?
+				}
+			Check => {
+				$stale = $stale.concat(filled.stale.map(|ref| "${page}: region ${ref} differs from its source."))
+			}
+		}
+	}
+	if $stale.is_empty() {
+		Ok({})
+	} else {
+		Err(Failed(Str.join_with($stale.append("Run roc scripts/build.roc docs to copy the regions."), "\n")))
+	}
+}
+
+api_docs! : () => Try({}, _)
+api_docs! = || {
+	for api in api_packages {
+		# roc docs leaves the pages of a module that no longer exists.
+		match Path.utf8("${docs_out_dir}/${api.name}").delete_all!() {
+			Ok({}) => {}
+			Err(PathErr(NotFound, _)) => {}
+			Err(err) => return Err(err)
+		}
+		exec!(api_docs_run(api))?
+	}
+	Ok({})
+}
+
+markdown_files! : Str => Try(List(Str), _)
+markdown_files! = |dir| {
+	var $found = []
+	for entry in Path.utf8(dir).list!()? {
+		name = entry.display()
+		if entry.is_dir!()? {
+			$found = $found.concat(markdown_files!(name)?)
+		} else if Str.ends_with(name, ".md") {
+			$found = $found.append(name)
+		}
+	}
+	Ok($found)
+}
+
+# A file that cannot be read stays out of the list, so Regions reports it as missing.
+read_sources! : List(Str) => List((Str, Str))
+read_sources! = |paths| {
+	var $sources = []
+	for path in paths {
+		match Path.utf8(path).read_utf8!() {
+			Ok(text) => {
+				$sources = $sources.append((path, text))
+			}
+			Err(_) => {}
+		}
+	}
+	$sources
 }
 
 key_module_path : Str
@@ -891,3 +993,17 @@ expect {
 	run = target_for(mac).map_ok(|target| twin_run(target, "model-size-twin"))
 	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.bin", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
 }
+
+expect parse(["docs"]) == Ok([Docs(Write)])
+expect parse(["docs", "--check"]) == Ok([Docs(Check)])
+expect parse(["docs", "--write"]) == Err(Usage)
+expect parse(["docs", "--check", "extra"]) == Err(Usage)
+
+expect
+	api_packages.map(|api| api_docs_run(api).args)
+		== [
+			["docs", "platform/main.roc", "--output=build/docs/platform"],
+			["docs", "packages/linalg/main.roc", "--output=build/docs/linalg"],
+			["docs", "packages/mesh/main.roc", "--output=build/docs/mesh"],
+			["docs", "packages/ui/main.roc", "--output=build/docs/ui"],
+		]
