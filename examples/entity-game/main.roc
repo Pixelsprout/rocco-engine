@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Contact, Manifest, Vec3]
 import pf.Config
 import pf.Draw
 import pf.Input
+import pf.Launch
 import pf.Scene
 import pf.Collider
 import pf.Key
@@ -35,6 +36,9 @@ Phase : [Playing, Won(F32)]
 
 # The player's shadow sits on ground_below, the height its ground ray last hit.
 Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64), ground_below : F32 }
+
+launch : Vocabulary.Config -> Vocabulary.Launch
+launch = |_config| Launch.default
 
 # ---- init : Config -> { model, commands } -------------------------------
 #
@@ -834,6 +838,7 @@ manifest = [{ name: "sprout", id: 4 }, { name: "sky/meadow", id: 1 }]
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
 
+expect launch(Config.empty) == Launch.default
 expect init({ ..Config.empty, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
 expect loaded(init(Config.empty).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
 expect view(init(Config.empty).model).sky == 0

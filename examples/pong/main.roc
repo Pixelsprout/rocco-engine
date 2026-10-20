@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -7,6 +7,7 @@ import pf.Vocabulary exposing [Command, Element, Manifest, Rgb, Rgba, Vec3]
 import pf.Config
 import pf.Draw
 import pf.Input
+import pf.Launch
 import pf.Scene
 import pf.Key
 import pf.Light
@@ -46,6 +47,9 @@ serve_speed : F32
 serve_speed = 8.0
 
 max_score = 7
+
+launch : Vocabulary.Config -> Vocabulary.Launch
+launch = |_config| Launch.default
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |config| {
@@ -292,6 +296,7 @@ unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 # Tests
 # =======================================
 # Paddle movement, wall and paddle bounces, scoring and serve state.
+expect launch(Config.empty) == Launch.default
 expect init(Config.empty).commands == []
 expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
 

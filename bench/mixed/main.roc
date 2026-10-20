@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -10,6 +10,7 @@ import pf.Light
 import pf.Query
 import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgba, Scene, Vec3]
 import pf.QueryResults
+import pf.Launch
 
 # The mixed bench game. One N scales every axis together: each entity has one
 # Draw and one Collider, and every 10 entities add one UI element. The Queries
@@ -50,6 +51,10 @@ root_box = { ..Ui.default_box, direction: Col, gap: 2.0, pad: Ui.pad_all(8.0) }
 
 label : Ui.TextStyle
 label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
+
+# high_dpi off, so the numbers do not depend on the display.
+launch : Config -> Vocabulary.Launch
+launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -250,6 +255,7 @@ query_kinds = |qs| qs.map(
 	},
 )
 
+expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []
 expect init(Bench.with_n(64)).model.half == 8.0

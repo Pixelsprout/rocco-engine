@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -6,6 +6,7 @@ import pf.Vocabulary exposing [Command, Manifest]
 import pf.Config
 import pf.Draw
 import pf.Input
+import pf.Launch
 import pf.Scene
 import pf.Key
 import pf.Light
@@ -15,6 +16,9 @@ import pf.QueryResults
 Card : [Ace, King, Number(U8)]
 
 Model : { hand : List(Card), turns : U64, name : Str, card_mesh : U32 }
+
+launch : Vocabulary.Config -> Vocabulary.Launch
+launch = |_config| Launch.default
 
 # A plane until a card mesh is on disk. Asking only for names in Config keeps a missing card out of the log.
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
@@ -75,6 +79,7 @@ expect {
 	List.len(after.hand) == 3 and after.turns == 1 and after.card_mesh == Mesh.primitive(Plane)
 }
 
+expect launch(Config.empty) == Launch.default
 expect init(Config.empty).commands == [Load({ pack: "cards", assets: [] })]
 expect init({ ..Config.empty, assets: ["card"] }).commands == [Load({ pack: "cards", assets: ["card"] })]
 expect loaded(init({ ..Config.empty, assets: ["card"] }).model, "cards", [{ name: "card", id: 4 }]).card_mesh == 4

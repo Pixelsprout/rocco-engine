@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -7,6 +7,7 @@ import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Vec3]
 import pf.Light
 import pf.QueryResults
+import pf.Launch
 import "positions.golden" as golden_positions : Str
 import "model.golden" as golden_model : Str
 
@@ -22,6 +23,10 @@ draw_count = 100 # U64
 half_extent = 20.0 # F32
 
 max_speed = 4.0 # F32
+
+# high_dpi off, so the numbers do not depend on the display.
+launch : Config -> Vocabulary.Launch
+launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -126,6 +131,7 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
+expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []
 

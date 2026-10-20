@@ -21,6 +21,8 @@ State :: struct {
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
 	seam:              Seam,
+	// The game's Launch. The host owns it from before init until shutdown.
+	launch:            Launch,
 	packs:             Packs,
 	alloc_report:      bool,
 	steps:             u64,
@@ -58,8 +60,8 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	packs_init(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, assets_dir_from_env(), context.allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
-	seam_init(&g_state.seam, calls, app_run_command, config, &g_state.packs)
+	g_state.launch = seam_launch(&g_state.seam, calls, app_config())
+	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)
 
 	if g_state.mode == .Headless {
 		headless_init(&g_state, g_state.mem.perm_allocator) or_return
@@ -71,6 +73,11 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	sapp.run(app_desc(g_state.mode))
 
 	return
+}
+
+// launch and init get an equal Config. Each call consumes its own.
+app_config :: proc() -> Config {
+	return config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
 }
 
 // Lockstep turns vsync off, so frame pacing does not wait inside the render
@@ -151,6 +158,7 @@ app_shutdown :: proc() {
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
+	roc_decref(g_state.launch)
 	packs_destroy(&g_state.packs)
 	roc_heap_shutdown()
 	frame_render_destroy(&g_state.frame_render)

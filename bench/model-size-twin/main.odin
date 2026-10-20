@@ -15,6 +15,7 @@ MAX_SPEED :: f32(4)
 CUBE_MESH :: u32(1)
 
 TWIN :: engine.Game_Calls {
+	launch     = twin_launch,
 	init       = twin_init,
 	step       = twin_step,
 	loaded     = twin_loaded,
@@ -49,6 +50,14 @@ box_new :: proc(model: Model) -> rawptr {
 	box_refcount(box)^ = 1
 	(^Model)(box)^ = model
 	return box
+}
+
+// high_dpi off, as in the bench game, so the numbers do not depend on the display.
+twin_launch :: proc(config: engine.Config) -> engine.Launch {
+	engine.roc_decref(config)
+	launch := engine.launch_default()
+	launch.window.high_dpi = false
+	return launch
 }
 
 twin_init :: proc(config: engine.Config) -> engine.Init_Result {

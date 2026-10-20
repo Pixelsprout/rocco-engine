@@ -1,4 +1,4 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -6,6 +6,7 @@ import pf.Collider
 import pf.Query
 import pf.Vocabulary exposing [Command, Config, Input, Manifest, Scene, Vec3]
 import pf.QueryResults
+import pf.Launch
 import "colliders.golden" as golden_colliders : Str
 
 # The Colliders bench game. step moves N Colliders and view asks a fixed set of
@@ -32,6 +33,10 @@ owner = 0 # U64
 
 # ContactsOf asks about the first Body.
 watched = 1 # U64
+
+# high_dpi off, so the numbers do not depend on the display.
+launch : Config -> Vocabulary.Launch
+launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -136,6 +141,7 @@ queries = |half| {
 lane : U32, F32 -> F32
 lane = |k, half| ((2 * k + 1).to_f32() / slots.len().to_f32() - 1.0) * half
 
+expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).model.bodies.len() == 64
 expect init(Bench.with_n(64)).commands == []
 expect init(Bench.with_n(64)).model.half == 8.0

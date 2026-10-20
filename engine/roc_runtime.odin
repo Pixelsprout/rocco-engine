@@ -8,6 +8,7 @@ import "core:os"
 ROC_HEAP_HEADER_MIN :: 16
 
 ROC_GAME :: Game_Calls {
+	launch     = roc_game_launch,
 	init       = roc_game_init,
 	step       = roc_game_step,
 	loaded     = roc_game_loaded,
@@ -85,6 +86,9 @@ roc_str_string :: proc(s: ^Roc_Str) -> string {
 	}
 	return string(s.bytes[:s.length])
 }
+
+@(private = "file")
+roc_game_launch :: proc(config: Config) -> Launch {return roc_launch(config)}
 
 @(private = "file")
 roc_game_init :: proc(config: Config) -> Init_Result {return roc_init(config)}

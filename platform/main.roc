@@ -1,15 +1,17 @@
 platform ""
 	requires {
 		[Model : model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
+		launch : Vocabulary.Config -> Vocabulary.Launch,
 		loaded : Model, Str, Vocabulary.Manifest -> Model,
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Config, Draw, Input, Key, Light, Query, QueryResults, Scene, Vocabulary]
+	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Query, QueryResults, Scene, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
 		"roc_init": init_for_host,
+		"roc_launch": launch_for_host,
 		"roc_loaded": loaded_for_host,
 		"roc_step": step_for_host,
 		"roc_view": view_for_host,
@@ -32,7 +34,12 @@ import QueryResults
 import Config
 import Draw
 import Input
+import Launch
 import Scene
+
+# A Launch has no Model, so nothing is boxed.
+launch_for_host : Vocabulary.Config -> Vocabulary.Launch
+launch_for_host = |config| launch(config)
 
 # Model is whatever the app declares under that name. The host holds it as
 # one pointer and never reads inside. The host keeps exactly one reference,

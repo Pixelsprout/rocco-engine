@@ -1,8 +1,9 @@
 # The types that cross the seam; see CONTEXT.md. Nothing in them names a game.
 # Key codes are sokol's; pf.Key names them. Config names the assets on disk
 # with no ids. Config.args holds the words after the game's name on the
-# command line, in the order typed. Mesh ids come from the Manifest that
-# loaded gets after a Load.
+# command line, in the order typed. Launch is what the game decides before
+# the window opens: its Window, step rate, shadow map size and Capacity. Mesh
+# ids come from the Manifest that loaded gets after a Load.
 # An id the engine does not know draws the fallback mesh. Scene.sky is a sky
 # id from a Manifest; 0 or an id the engine does not know draws no sky. A Box
 # shape carries its half extents. An Overlap box does not turn. A Light
@@ -20,6 +21,10 @@ Vocabulary := [].{
 	Rgb : { r : F32, g : F32, b : F32 }
 	Rgba : { r : F32, g : F32, b : F32, a : F32 }
 	Config : { seed : U64, assets : List(Str), args : List(Str) }
+	Launch : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
+	Window : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
+	Msaa : [Off, X2, X4, X8]
+	Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
 	Manifest : List({ name : Str, id : U32 })
 	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 	Camera : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
