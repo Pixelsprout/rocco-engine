@@ -12,21 +12,28 @@ Built and running:
 - Fixed-timestep loop with an accumulator and interpolation.
 - Two arenas by lifetime: permanent and frame. Each loaded mesh lives on
   the heap from the first Pack that names it to the unload of the last one.
-- Rendering through sokol: one pipeline, a mesh table, index buffers,
-  back-face culling, reversed-Z depth, Lambert lighting from
-  `Scene.lights`. The backend is Metal on macOS, GL core on Linux and D3D11
-  on Windows. One shader source in `engine/shaders/basic.glsl` compiles to
-  all three with `sokol-shdc`.
+- Rendering through sokol: one mesh pipeline, a mesh table, index buffers,
+  back-face culling, reversed-Z depth, PBR shading from `Scene.lights`, a
+  shadow map from one sun, a cubemap sky and an ACES tone map. The backend
+  is Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
+  source in `engine/shaders/basic.glsl` compiles to all three with
+  `sokol-shdc`.
 - The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
   game. The host holds the `Model` as one boxed pointer. The Seam keeps the
   two `Scene`s. The Frame render pairs draws by id and interpolates them at
   the Alpha.
 - The mesh table holds the magenta fallback mesh at id 0 and the cube,
-  sphere and plane primitives, named `primitive/<name>`. After them come the
-  `.glb` files in `assets/meshes/`, loaded at startup by an Odin parser and
-  named by file stem. `ROCCO_ASSETS` replaces the `assets` path. `init` gets
-  the table as the manifest. Each draw names its mesh by id, and an unknown
+  sphere and plane primitives, named `primitive/<name>`. A game loads the
+  `.glb` files, textures and skies in `assets/` as Packs with `Load` and
+  `Unload`. `loaded` gives the game each Pack's Manifest. `ROCCO_ASSETS`
+  replaces the `assets` path. Each draw names its mesh by id, and an unknown
   id draws the fallback mesh.
+- The game defines five calls: `launch`, `init`, `step`, `loaded` and
+  `view`. `launch` sets the window, the step rate, the shadow map size and
+  the table capacities before the window opens.
+- `Scene.ui` carries a HUD that Clay lays out in the host.
+- `Scene.queries` asks for Raycasts, Overlaps and ContactsOf. The answers
+  come back in the next step's `QueryResults`.
 - Games import the seam types from `pf.Vocabulary` and name keys with
   `pf.Key`, which `scripts/build.roc` generates from sokol.
 - The game gives colliders in `Scene.colliders`. The host finds the
@@ -36,15 +43,17 @@ Built and running:
   pass the door, win on the goal pad and start a new round. Two strangers
   finished it with no instructions.
 - Kula is playable start to finish: roll, climb, edge rolls, jump,
-  keys, the exit, falling and the restart, on one level from a text file.
-  Kula lives in `Pixelsprout/kula`.
+  keys, the exit, falling and the restart, on three textured levels with a
+  keys HUD. Kula lives in `Pixelsprout/kula` and runs from the v0.1.0
+  bundle URLs.
 - Each draw carries `rot`, a quaternion. The camera carries `up`.
 - The camera comes from `Scene.camera`. `ROCCO_DEBUG_CAMERA=1` gives a fly
   camera with mouse look.
 - `step` returns a `List(Command)` with the next `Model`. The host runs each
-  command after `step` and before `view`. `Quit` is the only command. The
-  host binds no key; the entity game binds `Escape` to `Quit`. The mouse lock
-  comes from `Scene.cursor`, apart from the debug camera.
+  command after `step` and before `view`. The commands are `Quit`, `Load`
+  and `Unload`. The host binds no key; the entity game binds `Escape` to
+  `Quit`. The mouse lock comes from `Scene.cursor`, apart from the debug
+  camera.
 - The engine links as one host library per target into a Roc platform. The
   game manages its state. The host honours `roc_dealloc`. The game calls sit
   behind a struct of procedures, with a fake game in the Odin tests, so the
@@ -53,12 +62,16 @@ Built and running:
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
   the spec in the `glue/` submodule (roc-odin-glue).
 - `examples/cards`, `examples/entity-game` and `examples/pong` build and
-  run from one checkout on `arm64mac` and
-  `x64glibc`. cards and entity-game last ran on `x64win` at milestone 2.
-  Nobody has checked `x64win` since then. `scripts/build.roc` runs every
-  step.
+  run from one checkout on `arm64mac`, `x64glibc` and `x64win`. CI runs
+  them on all three for every push to main and every pull request.
+  `scripts/build.roc` runs every step.
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
+- A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
+  bundles. v0.1.0 is the only release.
+- `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
+  bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
+  gives the method.
 
 ## Milestone 1: one source tree, three desktop targets (done)
 
@@ -777,7 +790,12 @@ layout decision.
 Check: a box anchored to a corner stays there when the window resizes. The
 count reads right at two window sizes.
 
-## Milestone 15: CI and the bundle
+## Milestone 15: CI and the bundle (done)
+
+Results, 2026-10-16: the v0.1.0 tag published the platform, `linalg`, `mesh`
+and `ui` bundles. Kula moved to `Pixelsprout/kula` on those URLs. Kula's CI
+passed on clean macOS, Ubuntu and Windows runners with only the pinned Roc
+nightly installed.
 
 Done when Kula builds on a clean machine with only Roc installed. Grilled
 2026-10-15. The dex task pa2v63ro holds the decisions and the tasks.
@@ -815,47 +833,154 @@ Done when Kula builds on a clean machine with only Roc installed. Grilled
 Check: clone the Kula repo on a machine with Roc and nothing else, run
 `roc main.roc`, play level one.
 
+## Milestone 16: Benchmarks
+
+Done when `docs/BENCHMARKS.md` states the headline figure from a reference
+run. The full spec is the dex task zbygy2an.
+
+Built: true `--release` builds, `Config.args`, the Headless and Lockstep run
+modes, a Span per stage of the Frame, the bench games for Draws, Colliders,
+Model size and UI, the Odin twins, the Roc heap A/B and the mixed bench game.
+The method document is merged.
+
+Open: the reference run (dex task 3aczuxv8). It needs a machine on mains
+power that nobody uses during the run.
+
+## Milestone 17: Launch (done)
+
+Results, 2026-10-21: every game defines `launch : Config -> Launch`, the
+fifth call. The host reads the window, the sample count, vsync, the step
+rate, the shadow map size and the table capacities from it before the window
+opens. `pf.Launch.default` turns `high_dpi` on. ADR 0007 records the
+decision. The full spec is the dex task nm2ai3l5.
+
+Before it (done): every record a game builds has a default, such as
+`pf.Scene.empty` and `pf.Draw.default`. A new field then costs a game no
+edit when the game builds its records from these defaults.
+
+## The third arc: ready to announce
+
+Agreed 2026-10-21. The engine gets no announcement until a stranger can make
+a small game with it. The arc adds what such a game needs: sound, its own
+look, animated characters and a gamepad. It ends with the docs, a starter
+tutorial and a release that the announcement names. `docs/RESEARCH-SCALING.md`
+holds the research behind each milestone.
+
+Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
+from the release URLs. A person with only Roc installed follows the tutorial
+to a running game.
+
+## Milestone 18: the Bridge
+
+Done when a script plays a game over a localhost socket in Lockstep. The
+script injects Input for N steps, reads the Scene as text and saves a
+screenshot. The engine is then a harness for agents and for CI.
+
+The debug Bridge needs no Vocabulary change, because the host injects the
+Input and reads the Scene itself. The grilling decides whether game-facing
+Ports (`Tell`, `Ask` and `Listen`) join this milestone or wait for the
+extensions.
+
+## Milestone 19: Look
+
+Done when a game sets its tone map, its exposure, its fog and its shadow
+knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
+One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
+
+## Milestone 20: Audio
+
+Done when Kula plays a landing sound on all three targets. miniaudio goes in
+the host as one archive per target. A one-shot is the `Play` Command. A loop
+or music is an entry in `Scene.sounds`, paired by id. Sounds are Pack assets
+with ids in the Manifest. Closes dex tasks 79n12xde and x7mwcd0w.
+
+## Milestone 21: Animation
+
+Done when an example draws a skinned glTF character that plays a walk clip.
+The glTF loader reads skins and animation clips. The Manifest gives the clip
+ids of each mesh. A Draw names a clip and a time, so the Model owns the time
+and `step` stays pure. The host samples the skeleton and skins the mesh on
+the GPU with a second vertex layout.
+
+## Milestone 22: Gamepad
+
+Done when Kula plays with a gamepad on all three targets. sokol_app reads no
+gamepad, so this is a host module with one file per OS. `Input` gains the
+sticks, the triggers and the buttons. The grilling chooses the OS interface
+per target and counts the catalog cost of each.
+
+## Milestone 23: docs, the starter and the release
+
+Done when the release is published and a person with only Roc installed
+follows the tutorial to a running game from the release URLs.
+
+1. A reference for the five calls and the Vocabulary.
+2. A starter tutorial. Its game lives in `examples/`, so CI builds it on
+   every push and the tutorial cannot fall behind the Vocabulary.
+3. A release from the `v*` workflow. The announcement links the release, the
+   docs and Kula.
+
+The grilling decides where the pages are published.
+
+## Later arcs
+
+These arcs are a direction, not a plan. Each gets milestone numbers and its
+own grilling when it starts.
+
+**Bigger worlds.** The Zelda-style demo (dex task yzm5w6ji) pulls this arc.
+
+- Instancing, and frustum culling from the mesh boxes.
+- Scenery as a Pack: Blender as the level editor, with static colliders and
+  triangle mesh colliders (dex task 99iz77jj).
+- Particles: `Scene.emitters` and `Burst`, on the instanced pipeline.
+- Cascaded shadow maps (dex task 75ah1rr3) and light selection (dex task
+  87xcx7ms).
+- A third-person controller: capsule tests and shape casts.
+
+**Other people's games.** An outside author, or a second game in its own
+repo, pulls this arc.
+
+- Pointer input, `Scene.window` and world-space sprites (dex tasks 5rxq8tn7
+  and elqpa9x2). Decide first whether the UI crosses as a tree, which
+  reopens ADR 0004.
+- Ports and saves.
+- The extension ABI, with FMOD as its first proof.
+- Materials on the Draw and shading modes, then post-processing, then game
+  shaders as Pack assets (dex task bdathrx5).
+- The author kit: `rocco new`, `--replace-dep` in place of Kula's header
+  swap, and hot reload across a Model change.
+
 ## Beside the milestones
 
 Slot these in when they pay for themselves. Do not run them as a block.
 
 - **Debug drawing.** Lines, wireframe, text. `Scene` gains a `lines` list.
   This is a vocabulary change.
-- **Audio.** `saudio` calls back on another thread against a deadline. The
-  game returns what should be heard as data. The first command with a
-  duration probably arrives here.
-- **Fog.** The original fades distant blocks toward the Theme colour.
-  `Scene` gains a fog field. Decide it once a sky shows the horizon
-  colour. This is a vocabulary change.
-- **World-space sprites.** An orthographic camera and sprites in the world,
-  so 2D games are possible. The HUD pass is the start of it.
 - **Game-provided fonts.** Faces in `assets/fonts/`, beside the one the
   host bakes in.
 - **An equirectangular sky loader.** One panorama converted to the six
   cubemap faces at load.
-- **Blender as a level editor.** Needs the engine to publish glTF node
-  names and transforms in `Config`. A vocabulary change.
 - **A `settle` call.** Same-step contact resolution. See `docs/NOTES.md`.
-- **Shader loading and reload.** The shader is a `sokol-shdc` output.
-  Reload means re-running the compiler and swapping the pipeline; the
-  platform files decide how each OS watches the file.
 - **The allocation pool.** A fixed region reserved once at startup with a
   free list behind `roc_alloc` and `roc_dealloc`. Removes the system heap
   from the step path. Satisfies static allocation. Measure before and after
   with a bench sweep and the Roc heap counters.
 - **Debug and speed parity.** Run the allocator counters under both
   `--opt=dev` and `--opt=speed` after every memory change.
+- **Benchmark regression tracking.** Compare each reference run with the
+  last one (dex task uanu7pa4).
 
-Commands, CI and the published bundle moved into milestones 9 and 14.
+Audio and fog moved into milestones 20 and 19. World-space sprites, Blender
+as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
 
 - A Vulkan or Metal backend by hand. sokol is the floor.
-- Networking.
-- An editor. Blender as a level editor is the nearest thing, beside the
-  milestones.
-- Dynamics beyond simple collision.
+- Networking between players. The debug Bridge listens on localhost only.
+- An editor. Blender as a level editor is the nearest thing, in the later
+  arcs.
+- Dynamics beyond simple collision. Host-side bodies wait for a game that
+  needs them.
 - Web builds until Odin and sokol have a shared web path.
-- CI and a published platform bundle until milestone 15.
 - A scripting API where Roc calls the engine. Roc returns descriptions. The
   engine acts on them.
