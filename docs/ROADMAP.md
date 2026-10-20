@@ -920,7 +920,9 @@ follows the tutorial to a running game from the release URLs.
 3. A release from the `v*` workflow. The announcement links the release, the
    docs and Kula.
 
-The grilling decides where the pages are published.
+The pages live in this repo and pixelsprout.dev renders them, as it renders
+the dex tasks today. The site reads the pages at a release tag, so the docs
+match the released bundle and not `main`. Agreed 2026-10-21.
 
 ## Later arcs
 
