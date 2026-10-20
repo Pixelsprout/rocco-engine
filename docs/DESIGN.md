@@ -553,7 +553,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Vocabulary, Key, Collider, Light, Query, QueryResults]
+    exposes [Collider, Config, Draw, Input, Key, Light, Query, QueryResults, Scene, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -564,13 +564,13 @@ The host cannot hold a value whose layout differs per game. The wrappers box
 it:
 
 ```roc
-init_for_host : Config -> { model : Box(Model), commands : List(Command) }
+init_for_host : Vocabulary.Config -> { model : Box(Model), commands : List(Command) }
 init_for_host = |config| {
     started = init(config)
     { model: Box.box(started.model), commands: started.commands }
 }
 
-step_for_host : Box(Model), Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host : Box(Model), Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
 step_for_host = |boxed, input, results, dt| {
     stepped = step(Box.unbox(boxed), input, results, dt)
     { model: Box.box(stepped.model), commands: stepped.commands }
@@ -579,7 +579,7 @@ step_for_host = |boxed, input, results, dt| {
 loaded_for_host : Box(Model), Str, Manifest -> Box(Model)
 loaded_for_host = |boxed, pack, manifest| Box.box(loaded(Box.unbox(boxed), pack, manifest))
 
-view_for_host : Box(Model) -> Scene
+view_for_host : Box(Model) -> Vocabulary.Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
 ```
 
@@ -601,10 +601,17 @@ change. Those types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
 qualified names such as `Vocabulary.Config`, because it does not see the
-body's `import`. Games import the vocabulary and declare none of it:
+body's `import`. Games import the vocabulary and declare none of it. The
+modules `pf.Scene`, `pf.Draw`, `pf.Config` and `pf.Input` hold a default for
+each record a game builds, so a game writes the type qualified and starts its
+records from the default:
 
 ```roc
-import pf.Vocabulary exposing [Config, Input, Scene]
+import pf.Vocabulary exposing [Command, Manifest]
+import pf.Scene
+
+view : Model -> Vocabulary.Scene
+view = |m| { ..Scene.empty, camera: m.camera, draws: m.draws }
 ```
 
 Packages declare the types they need by shape and never import the platform,

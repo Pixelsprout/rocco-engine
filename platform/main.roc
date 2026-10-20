@@ -5,7 +5,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Key, Light, Query, QueryResults, Vocabulary]
+	exposes [Collider, Config, Draw, Input, Key, Light, Query, QueryResults, Scene, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -21,7 +21,7 @@ platform ""
 		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", "clay.lib", app, "ucrtbase.lib", "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "d3d11.lib"] },
 	}
 
-import Vocabulary exposing [Command, Config, Input, Manifest, Scene]
+import Vocabulary exposing [Command, Manifest]
 
 # Only here because every exposes entry needs a matching import.
 import Key
@@ -29,19 +29,23 @@ import Collider
 import Light
 import Query
 import QueryResults
+import Config
+import Draw
+import Input
+import Scene
 
 # Model is whatever the app declares under that name. The host holds it as
 # one pointer and never reads inside. The host keeps exactly one reference,
 # so Roc owns the Model uniquely and step mutates it in place. Interpolation
 # happens in the host between two Scenes, paired by draw id; Roc never sees
 # a previous Model or an alpha.
-init_for_host : Config -> { model : Box(Model), commands : List(Command) }
+init_for_host : Vocabulary.Config -> { model : Box(Model), commands : List(Command) }
 init_for_host = |config| {
 	started = init(config)
 	{ model: Box.box(started.model), commands: started.commands }
 }
 
-step_for_host : Box(Model), Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
+step_for_host : Box(Model), Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Box(Model), commands : List(Command) }
 step_for_host = |boxed, input, results, dt| {
 	stepped = step(Box.unbox(boxed), input, results, dt)
 	{ model: Box.box(stepped.model), commands: stepped.commands }
@@ -50,7 +54,7 @@ step_for_host = |boxed, input, results, dt| {
 loaded_for_host : Box(Model), Str, Manifest -> Box(Model)
 loaded_for_host = |boxed, pack, manifest| Box.box(loaded(Box.unbox(boxed), pack, manifest))
 
-view_for_host : Box(Model) -> Scene
+view_for_host : Box(Model) -> Vocabulary.Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
 
 # The host cannot free the Model, because only the compiler knows its layout.

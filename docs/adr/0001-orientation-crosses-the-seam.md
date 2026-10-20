@@ -29,7 +29,8 @@ on a wall looks along +y and `mat4_look_at` returns NaN.
 ## Consequences
 
 - Every game sets `rot` on each Draw. A flat game uses `Quat.identity` or
-  `Quat.from_yaw`.
+  `Quat.from_yaw`. Since the record defaults, a game that omits `rot`
+  gets the identity from `pf.Draw.default`.
 - The camera package sets `up` to world +y. A game that turns the camera
   over replaces `up` with a record update.
 - Roc does no slerp. The game sends one pose per step, and the host blends.

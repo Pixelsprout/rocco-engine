@@ -34,7 +34,8 @@ Two other options were rejected:
 
 ## Consequences
 
-- Every game sets `scale_rot` on each Draw. Most use `Quat.identity`.
+- Every game sets `scale_rot` on each Draw. Most use `Quat.identity`. Since the
+  record defaults, a game that omits it gets the identity from `pf.Draw.default`.
 - A world-frame squash costs the game one `Quat.conjugate(rot)`.
 - The host slerps `rot` and `scale_rot` apart. Between two Scenes their
   product can drift from the world axis by a second-order amount.

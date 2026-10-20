@@ -4,7 +4,11 @@ import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Vec3 as V
 import linalg.Quat
-import pf.Vocabulary exposing [Command, Config, Contact, Draw, Input, Manifest, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Contact, Manifest, Vec3]
+import pf.Config
+import pf.Draw
+import pf.Input
+import pf.Scene
 import pf.Collider
 import pf.Key
 import pf.Light
@@ -38,7 +42,7 @@ Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshI
 # this game. How many pickups a round has, and which mesh is a pickup, is
 # decided here. The host runs the Load and calls loaded before the first view.
 
-init : Config -> { model : Model, commands : List(Command) }
+init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| { model: new_game(primitive_meshes, round_pickups, 0), commands: [Load({ pack: "sprout", assets: ["sprout", sky_name] })] }
 
 loaded : Model, Str, Manifest -> Model
@@ -107,11 +111,11 @@ pickup_spot = |i|
 # The schedule is function composition. Each stage is Model -> Model and
 # testable alone. Reorder the pipeline and you reorder the stages.
 
-update : Model, Input, List(Contact), F32 -> Model
+update : Model, Vocabulary.Input, List(Contact), F32 -> Model
 update = |model, input, contacts, dt| {
 	active_input = match model.phase {
 		Playing => input
-		Won(_) => no_input
+		Won(_) => Input.empty
 	}
 	model
 		|> steer(active_input)
@@ -135,7 +139,7 @@ update = |model, input, contacts, dt| {
 		|> restart
 }
 
-step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| { model: update(model, input, results.contacts, dt) |> see_ground(results) |> magnet(results, dt), commands: quit_on_escape(input) }
 
 # The floor has no collider, so a miss means the floor.
@@ -201,18 +205,15 @@ restart = |m| match m.phase {
 	_ => m
 }
 
-no_input : Input
-no_input = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
 speed : F32
 speed = 6.0
 
 # The binding from keys to intent lives in the game, not the engine.
-move_dir : Input -> Vec3
+move_dir : Vocabulary.Input -> Vec3
 move_dir = |input| { x: Key.axis(input, A, D), y: 0.0, z: Key.axis(input, W, S) }
 
 # Reads the raw input, so ESC quits during the celebration too.
-quit_on_escape : Input -> List(Command)
+quit_on_escape : Vocabulary.Input -> List(Command)
 quit_on_escape = |input|
 	if Key.pressed(input, Escape) {
 		[Quit]
@@ -220,7 +221,7 @@ quit_on_escape = |input|
 		[]
 	}
 
-steer : Model, Input -> Model
+steer : Model, Vocabulary.Input -> Model
 steer = |m, input| map_entities(
 	m,
 	|e| match e.kind {
@@ -236,7 +237,7 @@ jump_speed = 7.0
 fall_accel : F32
 fall_accel = 20.0
 
-jump : Model, Input -> Model
+jump : Model, Vocabulary.Input -> Model
 jump = |m, input|
 	if Key.pressed(input, Space) {
 		map_entities(
@@ -600,9 +601,9 @@ sun = Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5
 pickup_light : Vec3 -> Vocabulary.Light
 pickup_light = |pos| Light.point(pos, { r: 3.0, g: 1.5, b: 0.5 }, 3.0)
 
-view : Model -> Scene
+view : Model -> Vocabulary.Scene
 view = |curr| {
-	floor = { id: floor_id, mesh: curr.meshes.plane, pos: V.zero, scale: { x: 20.0, y: 1.0, z: 20.0 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.051, g: 0.051, b: 0.064 } }
+	floor = { ..Draw.default, id: floor_id, mesh: curr.meshes.plane, scale: { x: 20.0, y: 1.0, z: 20.0 }, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
 	# One allocation each for the draws, the colliders and the lights. A parent
 	# precedes its child, so the parent's Draw is already in acc. The shadow
@@ -657,7 +658,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ camera, draws, colliders: built.colliders, lights: built.lights, cursor: Free, sky: curr.meshes.sky, ui: [], queries }
+	{ ..Scene.empty, camera, draws, colliders: built.colliders, lights: built.lights, sky: curr.meshes.sky, queries }
 }
 
 # Starts at the middle of the player's box, which the host skips.
@@ -674,10 +675,10 @@ shadow_id = floor_id - 1
 shadow_lift : F32
 shadow_lift = 0.01
 
-shadow : Model, Entity -> Draw
+shadow : Model, Entity -> Vocabulary.Draw
 shadow = |m, p| {
 	pos = { x: p.pos.x, y: m.ground_below + shadow_lift, z: p.pos.z }
-	{ id: shadow_id, mesh: m.meshes.sphere, pos, scale: { x: 0.6, y: 0.01, z: 0.6 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.01, g: 0.01, b: 0.01 } }
+	{ ..Draw.default, id: shadow_id, mesh: m.meshes.sphere, pos, scale: { x: 0.6, y: 0.01, z: 0.6 }, tint: { r: 0.01, g: 0.01, b: 0.01 } }
 }
 
 # Radians per second. At t 0 the eye is behind the player, on the follow camera's side.
@@ -700,19 +701,19 @@ local_world = |e| { pos: e.pos, yaw: e.yaw, rot: Quat.from_yaw(e.yaw) }
 rot_yaw : Quat.Quat -> F32
 rot_yaw = |q| 2.0 * F32.atan2({ y: q.y, x: q.w })
 
-draw : MeshIds, Entity, World -> Draw
+draw : MeshIds, Entity, World -> Vocabulary.Draw
 draw = |meshes, e, world| {
 	pos = world.pos
 	rot = world.rot
 	match e.kind {
-		Player(_) => { id: e.id, mesh: meshes.sprout, pos, scale: V.one, rot, scale_rot: Quat.identity, tint: { r: 1.0, g: 1.0, b: 1.0 } }
-		Pickup => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, scale_rot: Quat.identity, tint: { r: 0.033, g: 0.787, b: 0.133 } }
-		Block => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, scale_rot: Quat.identity, tint: { r: 0.28, g: 0.16, b: 0.08 } }
-		Goal => { id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, scale_rot: Quat.identity, tint: { r: 1.0, g: 0.75, b: 0.05 } }
-		Drop(_) => { id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, scale_rot: Quat.identity, tint: { r: 0.02, g: 0.3, b: 1.0 } }
+		Player(_) => { ..Draw.default, id: e.id, mesh: meshes.sprout, pos, rot, tint: { r: 1.0, g: 1.0, b: 1.0 } }
+		Pickup => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, tint: { r: 0.033, g: 0.787, b: 0.133 } }
+		Block => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, tint: { r: 0.28, g: 0.16, b: 0.08 } }
+		Goal => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, tint: { r: 1.0, g: 0.75, b: 0.05 } }
+		Drop(_) => { ..Draw.default, id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, tint: { r: 0.02, g: 0.3, b: 1.0 } }
 		Door(d) => {
 			lifted = { ..pos, y: pos.y + d.lift }
-			{ id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, scale_rot: Quat.identity, tint: { r: 0.214, g: 0.073, b: 0.604 } }
+			{ ..Draw.default, id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 		}
 	}
 }
@@ -833,16 +834,13 @@ manifest = [{ name: "sprout", id: 4 }, { name: "sky/meadow", id: 1 }]
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
 
-expect init({ seed: 0, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
-expect loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
-expect view(init({ seed: 0, assets: [] }).model).sky == 0
-expect view(loaded(init({ seed: 0, assets: [] }).model, "sprout", manifest)).sky == 1
+expect init({ ..Config.empty, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
+expect loaded(init(Config.empty).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
+expect view(init(Config.empty).model).sky == 0
+expect view(loaded(init(Config.empty).model, "sprout", manifest)).sky == 1
 
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
-right : Input
-right = { ..idle, held: [Key.code(D)] }
+right : Vocabulary.Input
+right = { ..Input.empty, held: [Key.code(D)] }
 
 expect {
 	m = new_game(test_meshes, 3, 0)
@@ -868,26 +866,26 @@ caught : List(U64) -> Vocabulary.QueryResults
 caught = |ids| { ..QueryResults.empty, overlaps: List.map(ids, |id| { owner: 0, slot: 0, id }) }
 
 expect {
-	m = step(new_game(test_meshes, 2, 0), idle, caught([2]), 0.1).model
+	m = step(new_game(test_meshes, 2, 0), Input.empty, caught([2]), 0.1).model
 	near_vec(pos_of(m, 2), { x: -3.6, y: 0.5, z: 0.0 }) and pos_of(m, 3) == pickup_spot(1)
 }
 
 expect {
 	# The magnet pulls pickups only, so the block stays.
-	m = step(new_game(test_meshes, 1, 0), idle, caught([3]), 0.1).model
+	m = step(new_game(test_meshes, 1, 0), Input.empty, caught([3]), 0.1).model
 	pos_of(m, 3) == block_pos
 }
 
 expect {
 	# Another owner's overlap does not pull.
 	other = { ..QueryResults.empty, overlaps: [{ owner: 5, slot: 0, id: 2 }] }
-	m = step(new_game(test_meshes, 1, 0), idle, other, 0.1).model
+	m = step(new_game(test_meshes, 1, 0), Input.empty, other, 0.1).model
 	pos_of(m, 2) == pickup_spot(0)
 }
 
 expect toward({ x: 1.0, y: 0.0, z: 0.0 }, V.zero, 4.0) == V.zero
 
-shadow_y : Scene -> F32
+shadow_y : Vocabulary.Scene -> F32
 shadow_y = |scene| List.find_first(scene.draws, |d| d.id == shadow_id).map_ok(|d| d.pos.y) ?? -100.0
 
 ground_hit : U64, F32 -> Vocabulary.RayHit
@@ -895,22 +893,22 @@ ground_hit = |owner, y| { owner, slot: 0, id: 3, point: { x: 0.0, y, z: 0.0 }, n
 
 expect {
 	# The first step gets empty QueryResults, so the shadow is on the floor.
-	m = step(new_game(test_meshes, 1, 0), idle, QueryResults.empty, 1.0 / 120.0).model
+	m = step(new_game(test_meshes, 1, 0), Input.empty, QueryResults.empty, 1.0 / 120.0).model
 	m.ground_below == 0.0 and near(shadow_y(view(m)), shadow_lift)
 }
 
 expect {
 	# A hit on the block puts the shadow on its top.
 	hit = { ..QueryResults.empty, rays: [ground_hit(0, 1.0)] }
-	m = step(new_game(test_meshes, 1, 0), idle, hit, 1.0 / 120.0).model
+	m = step(new_game(test_meshes, 1, 0), Input.empty, hit, 1.0 / 120.0).model
 	m.ground_below == 1.0 and near(shadow_y(view(m)), 1.0 + shadow_lift)
 }
 
 expect {
 	# A miss after a hit puts the shadow back on the floor.
 	hit = { ..QueryResults.empty, rays: [ground_hit(0, 1.0)] }
-	over_block = step(new_game(test_meshes, 1, 0), idle, hit, 1.0 / 120.0).model
-	missed = step(over_block, idle, { ..QueryResults.empty, rays: [ground_hit(5, 1.0)] }, 1.0 / 120.0).model
+	over_block = step(new_game(test_meshes, 1, 0), Input.empty, hit, 1.0 / 120.0).model
+	missed = step(over_block, Input.empty, { ..QueryResults.empty, rays: [ground_hit(5, 1.0)] }, 1.0 / 120.0).model
 	missed.ground_below == 0.0 and near(shadow_y(view(missed)), shadow_lift)
 }
 
@@ -929,7 +927,7 @@ yaw_of = |m| player(m).map_ok(|p| p.yaw) ?? -100.0
 near : F32, F32 -> Bool
 near = |a, b| (a - b).abs() < 0.0001
 
-run_steps : Model, Input, U64, F32 -> Model
+run_steps : Model, Vocabulary.Input, U64, F32 -> Model
 run_steps = |m, input, n, dt| {
 	var $m = m
 	var $i = 0
@@ -958,15 +956,15 @@ expect {
 expect {
 	# Given time, the player faces where it moves, and keeps that yaw when it stops.
 	moved = run_steps(new_game(test_meshes, 0, 0), right, 20, 0.05)
-	stopped = run_steps(moved, idle, 5, 0.05)
-	back = run_steps(stopped, { ..idle, held: [Key.code(W)] }, 20, 0.05)
+	stopped = run_steps(moved, Input.empty, 5, 0.05)
+	back = run_steps(stopped, { ..Input.empty, held: [Key.code(W)] }, 20, 0.05)
 	near(yaw_of(moved), pi / 2.0) and near(yaw_of(stopped), pi / 2.0) and near(yaw_of(back), pi)
 }
 
 expect {
 	# From 3/4 pi toward -3/4 pi, the short way is up through pi.
 	m = facing(new_game(test_meshes, 0, 0), 0.75 * pi)
-	turned = update(m, { ..idle, held: [Key.code(W), Key.code(A)] }, [], 0.05)
+	turned = update(m, { ..Input.empty, held: [Key.code(W), Key.code(A)] }, [], 0.05)
 	yaw_of(turned) > 0.75 * pi
 }
 
@@ -990,7 +988,7 @@ drop_count = |m| List.count_if(m.entities, is_drop)
 
 expect {
 	# Each collected pickup spawns its drops, and the pickup is swept.
-	after = update(new_game(test_meshes, 3, 0), idle, [touch(0, 2)], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 3, 0), Input.empty, [touch(0, 2)], 1.0 / 120.0)
 	drop_count(after) == drops_per_pickup and List.count_if(after.entities, is_pickup) == 2
 }
 
@@ -1008,14 +1006,14 @@ expect {
 	# A drop lives for its delay plus drop_life, then sweep drops it. The
 	# delays differ, so the drops die one after another.
 	watered = collected(new_game(test_meshes, 1, 0), 0.1)
-	before = run_steps(watered, idle, 8, 0.1)
-	some = run_steps(before, idle, 3, 0.1)
-	after = run_steps(some, idle, 5, 0.1)
+	before = run_steps(watered, Input.empty, 8, 0.1)
+	some = run_steps(before, Input.empty, 3, 0.1)
+	after = run_steps(some, Input.empty, 5, 0.1)
 	partly = drop_count(some) > 0 and drop_count(some) < drops_per_pickup
 	drop_count(watered) == drops_per_pickup and drop_count(before) == drops_per_pickup and partly and drop_count(after) == 0
 }
 
-drop_draws : Model -> List(Draw)
+drop_draws : Model -> List(Vocabulary.Draw)
 drop_draws = |m| List.keep_if(view(m).draws, |d| List.any(m.entities, |e| e.id == d.id and is_drop(e)))
 
 drawn_drops : Model -> U64
@@ -1024,14 +1022,14 @@ drawn_drops = |m| List.len(drop_draws(m))
 expect {
 	# Drops wait for their delays, so they appear one after another.
 	watered = collected(new_game(test_meshes, 1, 0), 1.0 / 120.0)
-	soon = run_steps(watered, idle, 2, 0.1)
-	later = run_steps(soon, idle, 3, 0.1)
+	soon = run_steps(watered, Input.empty, 2, 0.1)
+	later = run_steps(soon, Input.empty, 3, 0.1)
 	drawn_drops(watered) == 1 and drawn_drops(soon) > 1 and drawn_drops(soon) < drops_per_pickup and drawn_drops(later) == drops_per_pickup
 }
 
 expect {
 	# Pickups are cubes so the spin shows. Drops are small spheres.
-	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), idle, 5, 0.1)
+	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 5, 0.1)
 	pickup_mesh = List.find_first(view(new_game(test_meshes, 1, 0)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
 	drops = drop_draws(watered)
 	pickup_mesh == test_meshes.cube and List.len(drops) == 2 * drops_per_pickup and List.all(drops, |d| d.mesh == test_meshes.sphere)
@@ -1054,7 +1052,7 @@ door_draw_y = |m| List.find_first(view(m).draws, |d| d.id == 1).map_ok(|d| d.pos
 collected : Model, F32 -> Model
 collected = |m, dt| {
 	contacts = List.keep_if(m.entities, |e| is_pickup(e) and e.alive).map(|e| touch(0, e.id))
-	update(m, idle, contacts, dt)
+	update(m, Input.empty, contacts, dt)
 }
 
 expect {
@@ -1065,19 +1063,19 @@ expect {
 
 expect {
 	# Given time, the door stops at door_height.
-	after = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), idle, 29, 0.1)
+	after = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 29, 0.1)
 	near(door_lift(after), door_height) and near(door_draw_y(after), 1.5 + door_height)
 }
 
 expect {
 	# A shut door does not rise.
-	after = run_steps(new_game(test_meshes, 2, 0), idle, 30, 0.1)
+	after = run_steps(new_game(test_meshes, 2, 0), Input.empty, 30, 0.1)
 	door_lift(after) == 0.0 and near(door_draw_y(after), 1.5)
 }
 
 expect {
 	# Nothing touched: the door stays shut and nothing is swept.
-	after = update(new_game(test_meshes, 4, 0), idle, [], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 4, 0), Input.empty, [], 1.0 / 120.0)
 	after.score == 0 and !door_open(after) and List.len(after.entities) == 8
 }
 
@@ -1091,24 +1089,24 @@ expect {
 }
 
 expect {
-	out = step(new_game(test_meshes, 1, 0), { ..idle, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
+	out = step(new_game(test_meshes, 1, 0), { ..Input.empty, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
 	out.commands == [Quit]
 }
 
 expect {
-	out = step(new_game(test_meshes, 1, 0), idle, QueryResults.empty, 1.0 / 120.0)
+	out = step(new_game(test_meshes, 1, 0), Input.empty, QueryResults.empty, 1.0 / 120.0)
 	out.commands == []
 }
 
 expect {
 	m = new_game(test_meshes, 1, 0)
-	stepped = step(m, idle, { ..QueryResults.empty, contacts: [touch(0, 2)] }, 0.1).model
-	stepped.score == update(m, idle, [touch(0, 2)], 0.1).score and stepped.score != m.score
+	stepped = step(m, Input.empty, { ..QueryResults.empty, contacts: [touch(0, 2)] }, 0.1).model
+	stepped.score == update(m, Input.empty, [touch(0, 2)], 0.1).score and stepped.score != m.score
 }
 
 expect {
 	won = { ..new_game(test_meshes, 1, 0), phase: Won(0.0) }
-	out = step(won, { ..idle, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
+	out = step(won, { ..Input.empty, pressed: [Key.code(Escape)] }, QueryResults.empty, 1.0 / 120.0)
 	out.commands == [Quit]
 }
 
@@ -1125,7 +1123,7 @@ expect {
 	}
 }
 
-collider_of : Scene, U64 -> Try(Vocabulary.Collider, [NotFound])
+collider_of : Vocabulary.Scene, U64 -> Try(Vocabulary.Collider, [NotFound])
 collider_of = |scene, id| List.find_first(scene.colliders, |c| c.id == id)
 
 expect {
@@ -1148,13 +1146,13 @@ expect {
 
 expect {
 	# An open door lifts its collider out of the way with its draw.
-	after = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), idle, 29, 0.1)
+	after = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 29, 0.1)
 	collider_of(view(after), 1).map_ok(|c| near(c.pos.y, 1.5 + door_height)) == Ok(Bool.True)
 }
 
 expect {
 	# Water drops touch nothing.
-	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), idle, 5, 0.1)
+	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 5, 0.1)
 	scene = view(watered)
 	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1, 4, 5]
 }
@@ -1172,7 +1170,7 @@ entity_at = |id, parent, pos, yaw| { id, kind: Pickup, parent, pos, vel: V.zero,
 with_entities : List(Entity) -> Model
 with_entities = |entities| { ..new_game(test_meshes, 0, 0), entities }
 
-draw_of : Scene, U64 -> Try(Draw, [NotFound])
+draw_of : Vocabulary.Scene, U64 -> Try(Vocabulary.Draw, [NotFound])
 draw_of = |scene, id| List.find_first(scene.draws, |d| d.id == id)
 
 near_vec : Vec3, Vec3 -> Bool
@@ -1234,13 +1232,13 @@ expect {
 expect {
 	# log_orphans records each orphan id once, however many steps it lives.
 	m = with_entities([entity_at(10, Child(99), V.zero, 0.0), entity_at(11, Child(12), V.zero, 0.0), entity_at(12, Root, V.zero, 0.0), entity_at(13, Child(13), V.zero, 0.0)])
-	after = run_steps(m, idle, 3, 0.1)
+	after = run_steps(m, Input.empty, 3, 0.1)
 	after.orphans_logged == [10, 11, 13]
 }
 
 expect {
 	# A child of the door lifts with the slab, because it composes from the door's Draw.
-	opened = run_steps(collected(new_game(test_meshes, 1, 0), 0.1), idle, 29, 0.1)
+	opened = run_steps(collected(new_game(test_meshes, 1, 0), 0.1), Input.empty, 29, 0.1)
 	with_child = { ..opened, entities: List.append(opened.entities, entity_at(50, Child(1), { x: 0.0, y: 2.0, z: 0.0 }, 0.0)) }
 	draw_of(view(with_child), 50).map_ok(|d| near(d.pos.y, 1.5 + door_height + 2.0)) ?? Bool.False
 }
@@ -1299,7 +1297,7 @@ door_contact = |depth| { a: 0, b: 1, normal: { x: 0.0, y: 0.0, z: -1.0 }, depth 
 expect {
 	# A closed door pushes the player out by the depth and stops the walk into it. The walk along it goes on.
 	m = placed(new_game(test_meshes, 0, 0), { x: 0.0, y: 0.0, z: -7.6 })
-	after = update(m, { ..idle, held: [Key.code(W), Key.code(D)] }, [door_contact(0.1)], 0.1)
+	after = update(m, { ..Input.empty, held: [Key.code(W), Key.code(D)] }, [door_contact(0.1)], 0.1)
 	match player(after) {
 		Ok(p) => near_vec(p.pos, { x: 0.6, y: 0.0, z: -7.5 }) and p.vel.z == 0.0
 		Err(_) => Bool.False
@@ -1309,7 +1307,7 @@ expect {
 expect {
 	# A player that walks away from the door keeps its speed.
 	m = placed(new_game(test_meshes, 0, 0), { x: 0.0, y: 0.0, z: -7.6 })
-	after = update(m, { ..idle, held: [Key.code(S)] }, [door_contact(0.1)], 0.1)
+	after = update(m, { ..Input.empty, held: [Key.code(S)] }, [door_contact(0.1)], 0.1)
 	player(after).map_ok(|p| near(p.pos.z, -6.9)) ?? Bool.False
 }
 
@@ -1324,18 +1322,18 @@ expect {
 			e
 		},
 	)
-	after = update(m, idle, [touch(0, 3)], 1.0 / 120.0)
+	after = update(m, Input.empty, [touch(0, 3)], 1.0 / 120.0)
 	alive_pickups = List.keep_if(after.entities, is_pickup).map(|e| e.id)
 	after.score == 1 and alive_pickups == [2, 4]
 }
 
 expect {
 	# A contact with the door collects nothing.
-	after = update(new_game(test_meshes, 1, 0), idle, [touch(0, 1)], 1.0 / 120.0)
+	after = update(new_game(test_meshes, 1, 0), Input.empty, [touch(0, 1)], 1.0 / 120.0)
 	after.score == 0 and List.count_if(after.entities, is_pickup) == 1
 }
 
-door_gap : Scene -> F32
+door_gap : Vocabulary.Scene -> F32
 door_gap = |scene|
 	match (collider_of(scene, 0), collider_of(scene, 1)) {
 		(Ok(p), Ok(d)) => (d.pos.y - door_half.y) - (p.pos.y + player_half.y)
@@ -1346,15 +1344,15 @@ expect {
 	# A shut door reaches the player. An open door rises clear of the player's box,
 	# so the host finds no contact and the player walks through under it.
 	shut = new_game(test_meshes, 1, 0)
-	opened = run_steps(collected(shut, 0.1), idle, 29, 0.1)
+	opened = run_steps(collected(shut, 0.1), Input.empty, 29, 0.1)
 	at_door = placed(opened, { x: 0.0, y: 0.0, z: -7.6 })
-	through = run_steps(at_door, { ..idle, held: [Key.code(W)] }, 2, 0.1)
+	through = run_steps(at_door, { ..Input.empty, held: [Key.code(W)] }, 2, 0.1)
 	walked = player(through).map_ok(|p| near(p.pos.z, -8.8)) ?? Bool.False
 	door_gap(view(shut)) < 0.0 and door_gap(view(opened)) > 0.0 and walked
 }
 
-space : Input
-space = { ..idle, pressed: [Key.code(Space)] }
+space : Vocabulary.Input
+space = { ..Input.empty, pressed: [Key.code(Space)] }
 
 height_of : Model -> F32
 height_of = |m| player(m).map_ok(|p| p.pos.y) ?? -100.0
@@ -1366,7 +1364,7 @@ peak = |m, n, dt| {
 	var $top = height_of(m)
 	var $i = 0
 	while $i < n {
-		$m = update($m, idle, [], dt)
+		$m = update($m, Input.empty, [], dt)
 		$top = F32.max($top, height_of($m))
 		$i = $i + 1
 	}
@@ -1378,17 +1376,17 @@ expect {
 	dt = 1.0 / 120.0
 	jumped = update(new_game(test_meshes, 0, 0), space, [], dt)
 	top = peak(jumped, 120, dt)
-	landed = run_steps(jumped, idle, 120, dt)
+	landed = run_steps(jumped, Input.empty, 120, dt)
 	top > 1.15 and top < 1.25 and height_of(landed) == 0.0
 }
 
 expect {
 	# Space in the air does nothing. Space again after the landing jumps.
 	dt = 1.0 / 120.0
-	in_air = run_steps(update(new_game(test_meshes, 0, 0), space, [], dt), idle, 10, dt)
-	landed = run_steps(in_air, idle, 120, dt)
+	in_air = run_steps(update(new_game(test_meshes, 0, 0), space, [], dt), Input.empty, 10, dt)
+	landed = run_steps(in_air, Input.empty, 120, dt)
 	again = update(landed, space, [], dt)
-	player(update(in_air, space, [], dt)) == player(update(in_air, idle, [], dt)) and height_of(again) > 0.0
+	player(update(in_air, space, [], dt)) == player(update(in_air, Input.empty, [], dt)) and height_of(again) > 0.0
 }
 
 airborne : F32 -> Entity
@@ -1410,7 +1408,7 @@ expect {
 	dt = 1.0 / 120.0
 	falling = { ..airborne(0.95), vel: { x: 0.0, y: -3.0, z: 0.0 } }
 	on_top = { a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: 0.05 }
-	landed = update(with_entities([falling, test_block]), idle, [on_top], dt)
+	landed = update(with_entities([falling, test_block]), Input.empty, [on_top], dt)
 	jumped = update(landed, space, [on_top], dt)
 	near(height_of(landed), 1.0) and grounded(landed) and height_of(jumped) > 1.0 and !grounded(jumped)
 }
@@ -1419,7 +1417,7 @@ floor_pickup : Entity -> Bool
 floor_pickup = |e| is_pickup(e) and e.pos.y < 1.0
 
 touch_all : Model, (Entity -> Bool) -> Model
-touch_all = |m, keep| update(m, idle, List.keep_if(m.entities, keep).map(|e| touch(0, e.id)), 1.0 / 120.0)
+touch_all = |m, keep| update(m, Input.empty, List.keep_if(m.entities, keep).map(|e| touch(0, e.id)), 1.0 / 120.0)
 
 expect {
 	# The arc runs left to right in front of the player. The last pickup is out of reach from the floor.
@@ -1452,13 +1450,13 @@ expect {
 	# The player stays grounded and level with the top, and can jump.
 	dt = 1.0 / 120.0
 	top = block_pos.y + block_half.y
-	var $m = update(with_entities([airborne(top), test_block]), idle, [], dt)
+	var $m = update(with_entities([airborne(top), test_block]), Input.empty, [], dt)
 	var $steady = Bool.True
 	var $i = 0
 	while $i < 120 {
 		y = height_of($m)
 		contacts = if y < top [{ a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: top - y }] else []
-		$m = update($m, idle, contacts, dt)
+		$m = update($m, Input.empty, contacts, dt)
 		$steady = $steady and grounded($m) and (height_of($m) - top).abs() < 0.01
 		$i = $i + 1
 	}
@@ -1471,7 +1469,7 @@ goal_id = |m| List.find_first(m.entities, |e| e.kind == Goal).map_ok(|e| e.id) ?
 expect {
 	# A goal contact wins the round. The goal is not solid, so it does not move the player.
 	m = new_game(test_meshes, 1, 0)
-	after = update(m, idle, [touch(0, goal_id(m))], 1.0 / 120.0)
+	after = update(m, Input.empty, [touch(0, goal_id(m))], 1.0 / 120.0)
 	at_origin = player(after).map_ok(|p| p.pos == V.zero) ?? Bool.False
 	m.phase == Playing and after.phase == Won(0.0) and at_origin
 }
@@ -1480,14 +1478,14 @@ expect {
 	# After the win, keys neither move the player nor make it jump.
 	won = { ..new_game(test_meshes, 0, 0), phase: Won(0.0) }
 	dt = 1.0 / 120.0
-	player(update(won, { ..right, pressed: [Key.code(Space)] }, [], dt)) == player(update(won, idle, [], dt))
+	player(update(won, { ..right, pressed: [Key.code(Space)] }, [], dt)) == player(update(won, Input.empty, [], dt))
 }
 
 expect {
 	# After the win, one drop falls onto the player every 0.08 seconds: six in half a second.
 	dt = 1.0 / 120.0
-	raining = run_steps({ ..new_game(test_meshes, 0, 0), phase: Won(0.0) }, idle, 60, dt)
-	dry = run_steps(new_game(test_meshes, 0, 0), idle, 60, dt)
+	raining = run_steps({ ..new_game(test_meshes, 0, 0), phase: Won(0.0) }, Input.empty, 60, dt)
+	dry = run_steps(new_game(test_meshes, 0, 0), Input.empty, 60, dt)
 	drops = List.keep_if(raining.entities, is_drop)
 	on_player = List.all(drops, |e| e.parent == Child(0))
 	phases = drops.map(
@@ -1504,8 +1502,8 @@ expect {
 	# Four seconds after the win a new round starts. Every entity in it has an id
 	# the last round never used, so the host pairs nothing across the restart.
 	won = { ..new_game(test_meshes, 8, 0), score: 8, phase: Won(0.0) }
-	before = run_steps(won, idle, 39, 0.1)
-	after = run_steps(before, idle, 2, 0.1)
+	before = run_steps(won, Input.empty, 39, 0.1)
+	after = run_steps(before, Input.empty, 2, 0.1)
 	fresh = List.all(after.entities, |e| e.id >= before.next_id)
 	at_start = player(after).map_ok(|p| p.pos == V.zero) ?? Bool.False
 	pickups = List.count_if(after.entities, is_pickup)
@@ -1530,7 +1528,7 @@ expect {
 	shadows == [Bool.True]
 }
 
-point_positions : Scene -> List(Vec3)
+point_positions : Vocabulary.Scene -> List(Vec3)
 point_positions = |scene| List.keep_oks(
 	scene.lights,
 	|l| match l {
@@ -1549,7 +1547,7 @@ expect {
 expect {
 	# Collecting a pickup removes its Point.
 	m = new_game(test_meshes, 2, 0)
-	after = update(m, idle, [touch(0, 2)], 1.0 / 120.0)
+	after = update(m, Input.empty, [touch(0, 2)], 1.0 / 120.0)
 	point_positions(view(after)) == [pickup_spot(1)]
 }
 

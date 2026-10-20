@@ -304,6 +304,10 @@ a change to the `Model` type, restart the game.
 | `platform/Vocabulary.roc` | The vocabulary types. Games import them as `import pf.Vocabulary exposing [...]`. |
 | `platform/Query.roc` | Builds the Queries a game puts in `Scene.queries`, for example `Query.contacts_of(owner)`. |
 | `platform/QueryResults.roc` | Gives `QueryResults.empty`, which is what the first step gets. Tests use it. |
+| `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
+| `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from. |
+| `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `init`. |
+| `platform/Input.roc` | Gives `Input.empty`, the Input a test gives `step`. |
 | `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives and compiler-rt. Not committed. |
 | `platform/targets/macos-sysroot/` | The stubs the macOS link reads. `scripts/make_macos_sysroot.py` writes them. Committed. Do not edit. |
 | `platform/targets/x64glibc/` | `libhost.a` and the sokol GL archives are not committed. `scripts/make_linux_stubs.py` writes the CRT objects and the stub shared libraries. They are committed. Do not edit them. |

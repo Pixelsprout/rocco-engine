@@ -1,10 +1,13 @@
-app [init, step, loaded, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", linalg: "../../packages/linalg/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
-import linalg.Quat
 import ui.Ui
-import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgb, Rgba, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Element, Manifest, Rgb, Rgba, Vec3]
+import pf.Config
+import pf.Draw
+import pf.Input
+import pf.Scene
 import pf.Key
 import pf.Light
 import pf.QueryResults
@@ -44,13 +47,7 @@ serve_speed = 8.0
 
 max_score = 7
 
-no_assets : Config
-no_assets = { seed: 0, assets: [] }
-
-idle : Input
-idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
-
-init : Config -> { model : Model, commands : List(Command) }
+init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |config| {
 	model = {
 		state: Running,
@@ -70,10 +67,10 @@ init = |config| {
 loaded : Model, Str, Manifest -> Model
 loaded = |m, _pack, _manifest| m
 
-step : Model, Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |m, input, _results, dt| { model: update(m, input, dt), commands: [] }
 
-update : Model, Input, F32 -> Model
+update : Model, Vocabulary.Input, F32 -> Model
 update = |m, input, dt| {
 	next = game_state(m, input)
 	if next.state == Running {
@@ -166,10 +163,10 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
-box : U32, U64, Vec3, Vec3, Rgb -> Draw
-box = |mesh, id, pos, scale, tint| { id, mesh, pos, scale, rot: Quat.identity, scale_rot: Quat.identity, tint }
+box : U32, U64, Vec3, Vec3, Rgb -> Vocabulary.Draw
+box = |mesh, id, pos, scale, tint| { ..Draw.default, id, mesh, pos, scale, tint }
 
-view : Model -> Scene
+view : Model -> Vocabulary.Scene
 view = |m| {
 	c = m.cube
 	fixed = [
@@ -183,10 +180,10 @@ view = |m| {
 
 	ui = scoreboard(m.state, m.score).concat(banner(m.state, m.score)).concat(hints)
 
-	{ camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, colliders: [], lights, cursor: Free, sky: 0, ui, queries: [] }
+	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui }
 }
 
-game_state : Model, Input -> Model
+game_state : Model, Vocabulary.Input -> Model
 game_state = |m, input| {
 	if Key.pressed(input, Space) {
 		match m.state {
@@ -232,7 +229,7 @@ score_point = |m| {
 	} else m
 }
 
-move_paddles : Model, Input, F32 -> Model
+move_paddles : Model, Vocabulary.Input, F32 -> Model
 move_paddles = |m, input, dt| {
 	left = clamp(-paddle_limit, paddle_limit, m.left + Key.axis(input, W, S) * paddle_speed * dt)
 	right = clamp(-paddle_limit, paddle_limit, m.right + Key.axis(input, Up, Down) * paddle_speed * dt)
@@ -295,11 +292,11 @@ unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 # Tests
 # =======================================
 # Paddle movement, wall and paddle bounces, scoring and serve state.
-expect init(no_assets).commands == []
-expect loaded(init(no_assets).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
+expect init(Config.empty).commands == []
+expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
 
 # A fresh scene draws the floor, two walls, two paddles and the ball.
-expect List.len(view(init(no_assets).model).draws) == 6
+expect List.len(view(init(Config.empty).model).draws) == 6
 
 # clamp caps above the top and below the bottom.
 expect clamp(1.0, 2.0, 2.1) == 2.0
@@ -307,14 +304,14 @@ expect clamp(1.0, 2.0, 0.5) == 1.0
 
 # Holding W for a long step drives the left paddle to its limit, the right stays put.
 expect {
-	stepped = step(init(no_assets).model, { ..idle, held: [Key.code(W)] }, QueryResults.empty, 10.0)
+	stepped = step(init(Config.empty).model, { ..Input.empty, held: [Key.code(W)] }, QueryResults.empty, 10.0)
 	m = stepped.model
 	stepped.commands == [] and m.left == -paddle_limit and m.right == 0.0
 }
 
 # A ball past the top wall moving outward bounces once, and a second call is a no-op.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	going_out = { ..m, ball: { ..m.ball, z: wall_limit + 0.01, vz: 2.0 } }
 	once = bounce_walls(going_out)
 	twice = bounce_walls(once)
@@ -323,7 +320,7 @@ expect {
 
 # The same for the bottom wall, which needs the opposite sign on vz.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	going_out = { ..m, ball: { ..m.ball, z: -wall_limit - 0.01, vz: -2.0 } }
 	once = bounce_walls(going_out)
 	twice = bounce_walls(once)
@@ -332,7 +329,7 @@ expect {
 
 # A ball reaching the right paddle is returned faster and angled by where it hit.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	at_right = { ..m, ball: { ..m.ball, x: paddle_x - 0.2, z: 0.5, vx: 8.0, vz: 0.0 } }
 	once = hit_paddles(at_right)
 	twice = hit_paddles(once)
@@ -341,7 +338,7 @@ expect {
 
 # A ball past the right wall scores for the left and is served again with a new id.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	past_right = { ..m, ball: { ..m.ball, x: half_width + 0.1 } }
 	after = score_point(past_right)
 	after.score.left == 1 and after.ball.x == 0.0 and after.ball.id == m.ball.id + 1
@@ -349,22 +346,22 @@ expect {
 
 # The seed picks the serve angle, and the first serve id is one past the base.
 expect {
-	a = init(no_assets).model
-	b = init({ ..no_assets, seed: 7 }).model
+	a = init(Config.empty).model
+	b = init({ ..Config.empty, seed: 7 }).model
 	a.ball.vz != b.ball.vz and a.ball.id == ball_id_base + 1
 }
 
 # The scoreboard shows the score, so scoring adds no draws.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	scored = { ..m, score: { left: 3, right: 2 } }
 	List.len(view(scored).draws) == 6
 }
 
 # Space pauses a running game and resumes it without touching the score.
 expect {
-	m = init(no_assets).model
-	press = { ..idle, pressed: [Key.code(Space)] }
+	m = init(Config.empty).model
+	press = { ..Input.empty, pressed: [Key.code(Space)] }
 	paused = game_state(m, press)
 	resumed = game_state(paused, press)
 	paused.state == Paused and resumed.state == Running and resumed.score == m.score
@@ -372,17 +369,17 @@ expect {
 
 # A score of 7 ends the game, and the paddles and ball freeze there.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	ended = { ..m, score: { left: max_score, right: 0 } }
-	after = step(ended, { ..idle, held: [Key.code(W)] }, QueryResults.empty, 1.0).model
+	after = step(ended, { ..Input.empty, held: [Key.code(W)] }, QueryResults.empty, 1.0).model
 	after.state == EndGame and after.left == ended.left and after.ball.x == ended.ball.x
 }
 
 # Space on an ended game starts a fresh one: score cleared, ball served again.
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	ended = { ..m, state: EndGame, score: { left: max_score, right: 0 } }
-	after = game_state(ended, { ..idle, pressed: [Key.code(Space)] })
+	after = game_state(ended, { ..Input.empty, pressed: [Key.code(Space)] })
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
 }
 
@@ -440,7 +437,7 @@ expect {
 expect shows(hints, "W / S", white_text) and shows(hints, "Up / Down", white_text) and balanced(hints)
 
 expect {
-	m = init(no_assets).model
+	m = init(Config.empty).model
 	running = view(m).ui
 	paused = view({ ..m, state: Paused }).ui
 	balanced(running) and shows(running, "W / S", white_text) and !shows(running, "Paused", white_text) and shows(paused, "Paused", white_text)

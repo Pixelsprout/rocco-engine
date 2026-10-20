@@ -95,7 +95,7 @@ _Avoid_: breaking change, API change
 
 **Config**:
 What the host gives `init` once: a seed, the Args and the asset names found
-on disk, with no ids.
+on disk, with no ids. Tests start from `pf.Config.empty`.
 _Avoid_: settings, options, init args, environment
 
 **Args**:
@@ -113,7 +113,7 @@ _Avoid_: random seed, RNG, salt
 **Input**:
 What the host gives `step` each fixed step: the keys held, the keys pressed
 since the previous step, and the mouse delta. Key codes are sokol's; which
-key means what is the game's decision.
+key means what is the game's decision. Tests start from `pf.Input.empty`.
 _Avoid_: events, controls, actions, commands
 
 **Key**:
@@ -138,13 +138,14 @@ What `view` returns each fixed step: a Camera, a list of Draws, a list of
 Colliders, a list of Lights, a Cursor, the UI and a list of Queries. It describes what should be on
 screen now and what can touch. Derived from the Model, rebuilt every step,
 stored by the host and never by the game.
+A game starts from `pf.Scene.empty` and sets only the fields it decides.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Draw**:
 One entry in a Scene: a draw id, a mesh id, a position, scale, rot, scale_rot and tint.
 The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
-interpolates it between two Scenes.
+interpolates it between two Scenes. A game starts from `pf.Draw.default`.
 _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
 **Tint**:
