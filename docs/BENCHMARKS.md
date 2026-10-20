@@ -38,8 +38,9 @@ were noise, so it is deleted.
   smoke test. On Linux and Windows, CI runs `model-size` and
   `model-size-twin` once at N=64. CI runners share their hardware, so CI
   makes no timing claims.
-- **No Windows numbers yet.** The harness runs on Windows with the same
-  protocol. The first results come from the Mac.
+- **No macOS numbers yet.** The harness runs on macOS with the same
+  protocol. The first results come from the Windows reference machine in
+  "Hardware rules".
 
 ## Run modes
 
@@ -59,7 +60,8 @@ Lockstep turns vsync off on each backend:
   `frame_cb` once per display refresh. A windowed Lockstep run therefore
   takes about Frames / refresh rate seconds.
 - GL: the engine uses a swap interval of 0.
-- D3D11: the engine presents with `DXGI_PRESENT_DO_NOT_WAIT`.
+- D3D11: the engine presents with `DXGI_PRESENT_DO_NOT_WAIT`, so the display
+  does not pace a windowed Lockstep run.
 
 The wait between Frames is outside every Span, so it does not change the
 Span times. On Metal, sokol waits in the first `begin_pass` of a Frame for a
@@ -105,14 +107,17 @@ A per-step Span sums over the fixed steps of its Frame.
 
 ### The error in a Span
 
-- The clock on the reference Mac ticks every 41.67 ns (24 MHz). One clock
-  read costs about 28 ns.
-- So a median under 1 us is correct to about +/-0.04 us. A Span that is
-  shorter than one tick can read 0.
+- On Windows, the Span clock is `QueryPerformanceCounter`. On the reference
+  machine it ticks every 100 ns (10 MHz). So a median under 1 us is correct
+  to about +/-0.1 us.
+- On the Mac, the clock ticks every 41.67 ns (24 MHz), and one clock read
+  costs about 28 ns. A median under 1 us is correct to about +/-0.04 us.
+- A Span that is shorter than one tick can read 0.
 - `span_cost_us` is the mean time that one Span adds. The host measures it
   once at startup, over 100,000 Span closes, and writes it on every row. Each
-  summary copies it. Test runs gave 0.011 to 0.030 us. Compare a small Span
-  with it before you quote the Span.
+  summary copies it. Test runs gave 0.011 to 0.013 us on the reference
+  machine and 0.011 to 0.030 us on the Mac. Compare a small Span with it
+  before you quote the Span.
 
 ## Build flags
 
@@ -287,25 +292,45 @@ renders nothing. Only a windowed Lockstep sweep of `mixed` gives the headline.
 
 ## Hardware rules
 
-The reference machine is the author's Mac: Apple M5, `Mac17,2`, 16 GB of
-memory. Each summary records the chip, the model, the memory, the OS, the
-power source and Low Power Mode, so a reader can see the machine of each
-number.
+The reference machine is the author's Windows desktop: Intel Core i7-9700F,
+Gigabyte `H370AORUSGAMING3WIFI` board, 16 GB of memory, NVIDIA GeForce RTX
+2070 SUPER, Windows 11 and a 60 Hz display. The results directory is
+`bench/results/<date>-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`. Each summary
+records the chip, the model, the memory, the OS, the power source and Low
+Power Mode, so a reader can see the machine of each number. On Windows,
+`low_power_mode` is Battery saver.
 
-For a run that you publish:
+For a run that you publish on Windows:
+
+- Set the power mode to Best performance, in Settings, System, Power. The
+  default Balanced mode lets the CPU clock drop between bursts of work.
+- Keep Battery saver off.
+- Keep a display on. A windowed run needs a display. Set the screen and sleep
+  timeouts to Never for the run, and turn off the screen saver.
+- Quit other programs, other builds and other agents, and pause Windows
+  Update. Windows has no load average, so check the CPU in Task Manager: no
+  process may use a large part of a core.
+- Do not use the machine during the run. Do not type into a bench window.
+
+For a run on a Mac:
 
 - Connect the charger. The power source must be AC.
 - Turn off Low Power Mode.
-- Keep the lid open with a display on. A windowed run needs a display. With
-  the lid closed and no display, macOS can stop presenting Frames and the run
-  can stop.
-- Quit other programs, other builds and other agents. The 1-minute load
-  average must be 2.0 or less before the run starts.
-- Do not use the machine during the run. Do not type into a bench window.
+- Keep the lid open with a display on. With the lid closed and no display,
+  macOS can stop presenting Frames and the run can stop.
+- Quit other programs. The 1-minute load average must be 2.0 or less before
+  the run starts.
 
-`python3 bench/machine.py --check` checks the power source, Low Power Mode,
-the load average and the lid. It prints each problem and exits 1. It prints
-nothing and exits 0 when the machine is ready.
+`python3 bench/machine.py --check` checks the power source, Low Power Mode
+(Battery saver on Windows), the load average and the lid. It prints each
+problem and exits 1. It prints nothing and exits 0 when the machine is ready.
+Windows has no load average and the desktop has no lid, so on Windows it
+checks only the power source and Battery saver. It does not check the power
+mode.
+
+On Windows, `python3` is often the Microsoft Store alias, which runs nothing.
+Run every `python3` command in this document as `python` instead. Run the
+shell commands in Git Bash from the repository root.
 
 ## Tools
 
@@ -330,7 +355,9 @@ the Python standard library.
 ## Repeat a run
 
 1. Install the tools in `README.md`, "Requirements". Put the pinned Roc
-   compiler on PATH. Python 3 must be on PATH.
+   compiler on PATH. Python 3 must be on PATH. On Windows, Git Bash must be
+   installed, and the sokol D3D11 archives must be built with
+   `scripts\windows\build_sokol.cmd`.
 2. Build once: `roc scripts/build.roc all`.
 3. Prepare the machine as "Hardware rules" says. Run
    `python3 bench/machine.py --check`.
@@ -373,53 +400,63 @@ subdirectory.
 
 The reference run gives the committed result directory and the headline
 figure. It runs every axis, both Odin twins, the tuned game, the mixed game
-and the real-clock reference. Run it on the reference Mac.
+and the real-clock reference. Run it on the reference machine.
 
 ### Prepare the machine
 
-1. Connect the charger.
-2. Turn off Low Power Mode in System Settings, Battery.
-3. Open the lid. Keep a display on.
-4. Quit every other program, build and agent.
-5. Wait until the machine is cool and idle. Run `top -l 2 -o cpu -n 5` and
-   look at the second sample. No process must use a large part of a core.
-6. Run `python3 bench/machine.py --check`. If it prints a problem, correct it
+1. Set the power mode to Best performance in Settings, System, Power. Keep
+   Battery saver off.
+2. Set the screen and sleep timeouts to Never and turn off the screen saver.
+   Keep the display on.
+3. Quit every other program, build and agent. Pause Windows Update.
+4. Wait until the machine is cool and idle. Open Task Manager, Processes, and
+   sort by CPU. No process must use a large part of a core.
+5. Run `python bench/machine.py --check`. If it prints a problem, correct it
    and run the check again.
-7. Make sure that `git status` shows no changes. Otherwise the git hash in
+6. Make sure that `git status` shows no changes. Otherwise the git hash in
    each summary ends in `-dirty`.
 
 ### Run it
 
+In Git Bash, from the repository root:
+
 ```sh
-export PATH=$HOME/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9:$PATH
+export PATH=/c/tools/roc/roc_nightly-windows_x86_64-2026-10-11-7d256b9:$PATH
 roc scripts/build.roc all
 sh bench/reference-run.sh
 ```
 
-The script does these steps. To run them by hand, use the same order:
+The script does these steps. To run them by hand in Git Bash, use the same
+order:
 
 ```sh
-python3 bench/machine.py --check
+python bench/machine.py --check
 roc scripts/build.roc bench model-size,model-size-tuned,model-size-twin,empty-step,colliders,colliders-twin
 roc scripts/build.roc bench draws,ui,mixed --windowed
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
 roc scripts/build.roc game entity-game
 (cd examples/entity-game && ROCCO_EXIT_AFTER_FRAMES=2120 \
-  ROCCO_SPANS_CSV=$PWD/../../bench/out/real-clock/entity-game.csv ./entity-game.bin)
-python3 bench/analyse.py bench/out/*/*.run.json --out-dir bench/results/<date>-<machine>
-python3 bench/realclock.py bench/out/real-clock/entity-game.csv \
+  ROCCO_SPANS_CSV=$(pwd -W)/../../bench/out/real-clock/entity-game.csv ./entity-game.exe)
+python bench/analyse.py bench/out/*/*.run.json --out-dir bench/results/<date>-<machine>
+python bench/realclock.py bench/out/real-clock/entity-game.csv \
   --game entity-game --out bench/results/<date>-<machine>/real-clock/entity-game.json
-python3 bench/chart.py bench/results/<date>-<machine>
-python3 bench/compare_chart.py twin bench/results/<date>-<machine>
-python3 bench/compare_chart.py tuned bench/results/<date>-<machine>
-python3 bench/compare_chart.py colliders bench/results/<date>-<machine>
-python3 bench/headline.py bench/results/<date>-<machine>
+python bench/chart.py bench/results/<date>-<machine>
+python bench/compare_chart.py twin bench/results/<date>-<machine>
+python bench/compare_chart.py tuned bench/results/<date>-<machine>
+python bench/compare_chart.py colliders bench/results/<date>-<machine>
+python bench/headline.py bench/results/<date>-<machine>
 roc scripts/build.roc all
 ```
 
+On a Mac, use `python3`, `$PWD` in place of `$(pwd -W)` and
+`./entity-game.bin`.
+
 The script also does these things:
 
+- It uses `python3` if it runs, otherwise `python`. It runs the game
+  executable with the suffix of the OS and gives the game a Windows path in
+  Git Bash.
 - It runs all Headless games in one shuffled sweep, and all windowed games
   in a second shuffled sweep.
 - It stops if `bench/machine.py --check` fails.
@@ -432,10 +469,12 @@ The script also does these things:
 - It writes the output of `headline.py` to `headline.txt` in the result
   directory.
 
-The Headless sweeps take a few minutes. Each windowed process takes about
-2,120 / refresh rate seconds, so the three windowed sweeps take about 50
-minutes at 120 Hz and longer at 60 Hz. Do not use the machine until the
-script prints its last line.
+The Headless sweeps take a few minutes. On Windows, the display does not pace
+a windowed process, so it runs as fast as the CPU and GPU allow: about 1 s
+at N=64, and longer at large N. Each process is followed by the 1 second
+cooldown. On the Mac, each windowed process takes about
+2,120 / refresh rate seconds, so the windowed sweep takes about 50 minutes at
+120 Hz. Do not use the machine until the script prints its last line.
 
 Two environment variables change the script. Do not use them for a
 reference run:
@@ -461,8 +500,8 @@ reference run:
 1. Read `headline.txt`. The last line gives the headline figure.
 2. Look at the charts in `bench/out/charts/`. Check that each curve has every
    N and that the spread bars are small.
-3. Open each summary's `machine` object. Check that `power` is `ac` and
-   `low_power_mode` is false.
+3. Open each summary's `machine` object. Check that `power` is `ac`,
+   `low_power_mode` is false and `chip` names the reference machine.
 4. In "Results" at the top of this document, replace the two TODO lines with
    the link to the result directory and the headline figure.
 5. Commit the result directory and this document together.
