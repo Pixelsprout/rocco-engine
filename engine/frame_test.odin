@@ -25,10 +25,10 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	g_fake_platform = {}
 	err := memory_init(&s.mem)
 	assert(err == nil)
-	clock_init(&s.clock)
 	s.exit_after_frames = exit_after_frames
 	s.mode = mode
 	s.launch = launch.? or_else launch_default()
+	clock_init(&s.clock, s.launch.step_hz)
 	span_sink_init(&s.spans, "", exit_after_frames, context.allocator)
 	fake_seam_init(&s.seam, colliders = colliders, queries = queries, ui = ui)
 	mesh_table_init(&s.renderer.meshes, context.allocator)
@@ -79,7 +79,7 @@ test_frame_run_steps_once_and_views_once_per_frame_at_the_fixed_dt :: proc(t: ^t
 	defer fake_frame_state_destroy(&s)
 
 	for _ in 0 ..< 5 {
-		frame_run(&s, fake_platform(FIXED_DT))
+		frame_run(&s, fake_platform(s.clock.fixed_dt))
 	}
 
 	testing.expect_value(t, g_fake.steps, 5)
@@ -90,6 +90,26 @@ test_frame_run_steps_once_and_views_once_per_frame_at_the_fixed_dt :: proc(t: ^t
 	testing.expect_value(t, g_fake_platform.commits, 5)
 }
 
+// The game picks its step rate, so the interval and the dt follow step_hz.
+@(test)
+test_frame_run_at_60_hz_steps_once_per_interval_with_a_dt_of_one_over_60 :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	launch := launch_default()
+	launch.step_hz = 60
+	s: State
+	fake_frame_state_init(&s, launch = launch)
+	defer fake_frame_state_destroy(&s)
+
+	for _ in 0 ..< 5 {
+		frame_run(&s, fake_platform(1.0 / 60))
+	}
+	frame_run(&s, fake_platform(1.0 / 120))
+
+	testing.expect_value(t, g_fake.steps, 5)
+	testing.expect_value(t, g_fake.step_dt, f32(1.0 / 60))
+}
+
 @(test)
 test_frame_run_runs_every_fixed_step_the_frame_time_holds :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
@@ -98,7 +118,7 @@ test_frame_run_runs_every_fixed_step_the_frame_time_holds :: proc(t: ^testing.T)
 	fake_frame_state_init(&s)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, fake_platform(3 * FIXED_DT))
+	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
 
 	testing.expect_value(t, g_fake.steps, 3)
 	testing.expect_value(t, g_fake.views, 4)
@@ -113,7 +133,7 @@ test_frame_run_shorter_than_a_fixed_step_renders_without_a_step :: proc(t: ^test
 	fake_frame_state_init(&s)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, fake_platform(FIXED_DT / 2))
+	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
 
 	testing.expect_value(t, g_fake.steps, 0)
 	testing.expect_value(t, g_fake.views, 1)
@@ -130,7 +150,7 @@ test_frame_run_requests_quit_at_the_limit_and_skips_later_frames :: proc(t: ^tes
 	defer fake_frame_state_destroy(&s)
 
 	for _ in 0 ..< 4 {
-		frame_run(&s, fake_platform(FIXED_DT))
+		frame_run(&s, fake_platform(s.clock.fixed_dt))
 	}
 
 	testing.expect_value(t, g_fake_platform.quits, 1)
@@ -147,13 +167,31 @@ test_frame_run_in_lockstep_runs_one_fixed_step_whatever_the_frame_time :: proc(t
 	fake_frame_state_init(&s, mode = .Lockstep)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, fake_platform(3 * FIXED_DT))
-	frame_run(&s, fake_platform(FIXED_DT / 2))
+	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
+	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
 	frame_run(&s, fake_platform(0))
 
 	testing.expect_value(t, g_fake.steps, 3)
 	testing.expect_value(t, g_fake.views, 4)
 	testing.expect_value(t, g_fake_platform.commits, 3)
+}
+
+@(test)
+test_frame_run_in_lockstep_at_60_hz_runs_one_step_per_frame_with_a_dt_of_one_over_60 :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	launch := launch_default()
+	launch.step_hz = 60
+	s: State
+	fake_frame_state_init(&s, mode = .Lockstep, launch = launch)
+	defer fake_frame_state_destroy(&s)
+
+	frame_run(&s, fake_platform(3.0 / 60))
+	frame_run(&s, fake_platform(1.0 / 120))
+	frame_run(&s, fake_platform(0))
+
+	testing.expect_value(t, g_fake.steps, 3)
+	testing.expect_value(t, g_fake.step_dt, f32(1.0 / 60))
 }
 
 @(test)
@@ -169,6 +207,23 @@ test_headless_run_steps_and_views_once_per_frame_and_stops_at_the_limit :: proc(
 	testing.expect_value(t, s.frame_count, 7)
 	testing.expect_value(t, g_fake.steps, 7)
 	testing.expect_value(t, g_fake.views, 8)
+}
+
+@(test)
+test_headless_run_at_60_hz_steps_once_per_frame_at_the_launch_interval :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	launch := launch_default()
+	launch.step_hz = 60
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Headless, launch = launch)
+	defer fake_frame_state_destroy(&s)
+
+	headless_run(&s)
+
+	testing.expect_value(t, g_fake.steps, 3)
+	testing.expect_value(t, g_fake.step_dt, f32(1.0 / 60))
+	testing.expect_value(t, headless_platform(&s).frame_duration, 1.0 / 60)
 }
 
 @(test)
@@ -197,7 +252,7 @@ test_headless_run_stops_after_a_quit :: proc(t: ^testing.T) {
 	fake_frame_state_init(&s, exit_after_frames = 5, mode = .Headless)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, headless_platform(s.launch))
+	frame_run(&s, headless_platform(&s))
 	s.quit = true
 	headless_run(&s)
 
@@ -280,8 +335,8 @@ test_frame_run_span_row_counts_every_fixed_step_of_the_frame :: proc(t: ^testing
 	fake_frame_state_init(&s, exit_after_frames = 2)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, fake_platform(3 * FIXED_DT))
-	frame_run(&s, fake_platform(FIXED_DT / 2))
+	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
+	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
 
 	when SPANS {
 		rows := span_rows(&s.spans)
@@ -306,7 +361,7 @@ test_frame_run_closes_every_span_once_per_frame_and_per_step :: proc(t: ^testing
 	defer fake_frame_state_destroy(&s)
 
 	for _ in 0 ..< 3 {
-		frame_run(&s, fake_platform(FIXED_DT))
+		frame_run(&s, fake_platform(s.clock.fixed_dt))
 	}
 
 	rows := span_rows(&s.spans)
@@ -355,7 +410,7 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	defer fake_frame_state_destroy(&s)
 	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {time.sleep(FAKE_PASS_WAIT)}
 
-	frame_run(&s, fake_platform(FIXED_DT))
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
 
 	when SPANS {
 		rows := span_rows(&s.spans)

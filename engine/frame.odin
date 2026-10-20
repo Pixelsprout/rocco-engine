@@ -23,9 +23,9 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		return
 	}
 
-	// One FIXED_DT leaves the accumulator at zero after the step, so Lockstep
-	// runs exactly one fixed step per Frame.
-	frame_time := platform.frame_duration if s.mode == .Real_Clock else FIXED_DT
+	// One fixed interval leaves the accumulator at zero after the step, so
+	// Lockstep runs exactly one fixed step per Frame.
+	frame_time := platform.frame_duration if s.mode == .Real_Clock else s.clock.fixed_dt
 	clock_add_frame(&s.clock, frame_time)
 	steps := 0
 	for dt in clock_next_step(&s.clock) {
@@ -81,8 +81,8 @@ headless_window :: proc(launch: Launch) -> Ui_Window {
 }
 
 // Holds no sokol call, so a Headless run needs no window and no GPU.
-headless_platform :: proc(launch: Launch) -> Frame_Platform {
-	return {frame_duration = FIXED_DT, window = headless_window(launch), lock_mouse = headless_lock_mouse, request_quit = headless_request_quit}
+headless_platform :: proc(s: ^State) -> Frame_Platform {
+	return {frame_duration = s.clock.fixed_dt, window = headless_window(s.launch), lock_mouse = headless_lock_mouse, request_quit = headless_request_quit}
 }
 
 // Lays out the UI with no window. frame_run never submits in Headless.
@@ -92,7 +92,7 @@ headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Erro
 
 // Runs Frames until the Frame limit or a Quit, then returns.
 headless_run :: proc(s: ^State) {
-	platform := headless_platform(s.launch)
+	platform := headless_platform(s)
 	for !s.quit && !exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
 		frame_run(s, platform)
 	}

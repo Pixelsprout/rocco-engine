@@ -28,7 +28,7 @@ Vocabulary := [].{
 		# Headless opens no window: it lays out the UI against width and
 		# height at dpi 1 and ignores the rest of the Window.
 		window : Window,
-		# The fixed step rate in Hz.
+		# The fixed step rate in Hz. Above zero. step sees a dt of one over it.
 		step_hz : U32,
 		# The shadow map's width and height in texels. Above zero.
 		shadow_map : U32,

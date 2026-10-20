@@ -47,6 +47,7 @@ Fake_Game :: struct {
 	step_in:         rawptr,
 	step_in_rc:      int,
 	step_out:        rawptr,
+	step_dt:         f32,
 	held:            [FAKE_KEYS_MAX]u16,
 	held_len:        int,
 	pressed:         [FAKE_KEYS_MAX]u16,
@@ -158,6 +159,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.steps += 1
 	g_fake.step_in = model
 	g_fake.step_in_rc = fake_refcount(model)^
+	g_fake.step_dt = dt
 	fake_box_free(model)
 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])

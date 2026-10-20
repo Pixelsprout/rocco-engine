@@ -51,7 +51,6 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
-	clock_init(&g_state.clock)
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
@@ -63,6 +62,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	roc_heap_init(context.allocator)
 	g_state.launch = seam_launch(&g_state.seam, calls, app_config())
 	launch_check_or_exit(g_state.launch)
+	clock_init(&g_state.clock, g_state.launch.step_hz)
 	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)
 
 	if g_state.mode == .Headless {

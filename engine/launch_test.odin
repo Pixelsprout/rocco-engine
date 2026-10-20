@@ -11,7 +11,7 @@ test_launch_default_matches_the_host_constants :: proc(t: ^testing.T) {
 	testing.expect_value(t, roc_str_string(&title), "rocco")
 	testing.expect_value(t, launch.window.samples, Msaa.X4)
 	testing.expect_value(t, launch.window.high_dpi, true)
-	testing.expect_value(t, f64(1) / f64(launch.step_hz), FIXED_DT)
+	testing.expect_value(t, launch.step_hz, 120)
 	testing.expect_value(t, launch.shadow_map, 2048)
 	testing.expect_value(t, launch.capacity.meshes, MESH_CAPACITY)
 	testing.expect_value(t, launch.capacity.skies, SKY_CAPACITY)
@@ -35,6 +35,7 @@ test_launch_check_names_the_first_zero_field :: proc(t: ^testing.T) {
 	cases := []Case {
 		{proc(l: ^Launch) {l.window.width = 0}, "window.width"},
 		{proc(l: ^Launch) {l.window.height = 0}, "window.height"},
+		{proc(l: ^Launch) {l.step_hz = 0}, "step_hz"},
 		{proc(l: ^Launch) {l.shadow_map = 0}, "shadow_map"},
 	}
 	for c in cases {

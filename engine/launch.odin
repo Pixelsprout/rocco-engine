@@ -29,6 +29,8 @@ launch_check :: proc(launch: Launch) -> (field: string, ok: bool) {
 		return "window.width", false
 	case launch.window.height == 0:
 		return "window.height", false
+	case launch.step_hz == 0:
+		return "step_hz", false
 	case launch.shadow_map == 0:
 		return "shadow_map", false
 	}
