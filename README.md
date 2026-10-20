@@ -202,7 +202,9 @@ ignores. Only `sh bench/reference-run.sh` writes the committed results in
 
 `scripts/screenshot.sh <game> <out.png> [delay]` runs a built game, waits
 `delay` seconds (default 3), saves the game window to `out.png` and stops the
-game. The capture works when other windows cover the game window. `ROCCO_*`
+game. The capture works when other windows cover the game window. The PNG is
+at the display's pixel size, so a `high_dpi` window on a Retina display gives
+a PNG twice the window's size in points, title bar included. `ROCCO_*`
 variables pass through, so `ROCCO_DEBUG_CAMERA=1` and `ROCCO_SEED` work.
 Build the game first with `roc scripts/build.roc -- game <game>`.
 
