@@ -496,7 +496,7 @@ Naming a generated type after the route that reaches it from a `provides` entry 
 
 ## Platform seam {#platform-seam}
 
-The boundary between the Roc game and the Odin engine, drawn as four pure functions: `init`, `step`, `loaded` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
+The boundary between the Roc game and the Odin engine, drawn as five pure functions: `launch`, `init`, `step`, `loaded` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
 
 ## Manifest {#mesh-manifest}
 
