@@ -30,18 +30,20 @@ Packs :: struct {
 	sky_dir:        string,
 	on_disk:        []string,
 	loaded:         map[string][]Held_Asset,
-	mesh_refs:      [MESH_CAPACITY]int,
-	sky_refs:       [SKY_CAPACITY]int,
+	mesh_refs:      []int,
+	sky_refs:       []int,
 	logged_packs:   map[string]struct {},
 	logged_unloads: map[string]struct {},
 	logged_assets:  map[string]struct {},
 	logged_full:    map[string]struct {},
 	allocator:      mem.Allocator,
+	perm:           mem.Allocator,
 }
 
-// Names the meshes and skies under assets_dir and loads none of them. The
-// allocator must free, because packs unload in any order.
-packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, assets_dir: string, allocator: mem.Allocator) {
+// Names the meshes and skies under assets_dir and loads none of them. A Load
+// needs packs_attach first. The allocator must free, because packs unload in
+// any order.
+packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 	mesh_dir := fmt.aprintf("%v/meshes", assets_dir, allocator = allocator)
 	sky_dir := fmt.aprintf("%v/sky", assets_dir, allocator = allocator)
 	mesh_names := mesh_names_on_disk(mesh_dir, allocator)
@@ -49,8 +51,6 @@ packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, assets_dir
 	sky_names := sky_names_on_disk(sky_dir, allocator)
 	defer delete(sky_names, allocator)
 	p^ = {
-		meshes         = meshes,
-		skies          = skies,
 		mesh_dir       = mesh_dir,
 		sky_dir        = sky_dir,
 		on_disk        = slice.concatenate([][]string{mesh_names, sky_names}, allocator),
@@ -61,6 +61,16 @@ packs_init :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, assets_dir
 		logged_full    = make(map[string]struct {}, allocator),
 		allocator      = allocator,
 	}
+}
+
+// Runs after launch, because the tables take their size from the Launch.
+// The refs take one slot per table slot from perm.
+packs_attach :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, perm: mem.Allocator) {
+	p.meshes = meshes
+	p.skies = skies
+	p.mesh_refs = make([]int, len(meshes.meshes), perm)
+	p.sky_refs = make([]int, len(skies.skies), perm)
+	p.perm = perm
 }
 
 // Frees what the packs own. The assets stay in their tables.
@@ -82,6 +92,8 @@ packs_destroy :: proc(p: ^Packs) {
 	delete(p.on_disk, p.allocator)
 	delete(p.mesh_dir, p.allocator)
 	delete(p.sky_dir, p.allocator)
+	delete(p.mesh_refs, p.perm)
+	delete(p.sky_refs, p.perm)
 }
 
 // Loads each named asset that is not loaded yet. The Manifest has one line
@@ -200,8 +212,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 	if full {
 		if name not_in p.logged_full {
 			p.logged_full[strings.clone(name, p.allocator)] = {}
-			table := fmt.tprintf("the sky table is full at %v skies", SKY_CAPACITY - 1) if kind == .Sky else fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY)
-			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, table)
+			reason := sky_table_full_reason(p.skies) if kind == .Sky else mesh_table_full_reason(p.meshes)
+			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, reason)
 		}
 		return {kind, 0}
 	}

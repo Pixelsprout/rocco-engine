@@ -235,10 +235,11 @@ fake_run_command :: proc(command: Command) {
 
 fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil, ui: []Element = nil) {
 	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui}
-	mesh_table_init(&g_fake.meshes, context.allocator)
-	sky_table_init(&g_fake.skies, context.allocator)
-	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)
+	packs_init(&g_fake.packs, assets_dir, context.allocator)
 	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
+	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
+	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
+	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, context.allocator)
 	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
 }
 
@@ -917,15 +918,17 @@ test_a_name_that_found_the_table_full_loads_after_an_unload_frees_a_slot :: proc
 	s: Seam
 	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
-	g_fake.meshes.count = MESH_CAPACITY - 1
+	g_fake.meshes.count = SMALL_MESHES - 1
 
-	fake_step_with(&s, fake_load("A", "a"))
+	a := fake_step_with(&s, fake_load("A", "a"))[0].id
+	testing.expect_value(t, mesh_slot(a), SMALL_MESHES - 1)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "b"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("C", "b"))[0].id, 0)
 	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
 
 	fake_step_with(&s, fake_unload("A"))
 	b := fake_step_with(&s, fake_load("D", "b"))[0].id
+	testing.expect_value(t, mesh_slot(b), SMALL_MESHES - 1)
 	testing.expect_value(t, fake_mesh_name(b), "b")
 }
 
@@ -1014,7 +1017,7 @@ test_a_sky_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing
 	s: Seam
 	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
-	g_fake.skies.count = SKY_CAPACITY
+	g_fake.skies.count = SMALL_SKIES
 
 	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sky/clear"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear"))[0].id, 0)

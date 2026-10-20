@@ -52,9 +52,14 @@ root_box = { ..Ui.default_box, direction: Col, gap: 2.0, pad: Ui.pad_all(8.0) }
 label : Ui.TextStyle
 label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
 
-# high_dpi off, so the numbers do not depend on the display.
+# high_dpi off, so the numbers do not depend on the display. draws is N, so
+# the pairing map and the uniform buffer match the workload.
 launch : Config -> Vocabulary.Launch
-launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
+launch = |config| {
+	..Launch.default,
+	window: { ..Launch.default.window, high_dpi: False },
+	capacity: { ..Launch.default.capacity, draws: Bench.draws_for_n(config.args, Launch.default.capacity.draws) },
+}
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -256,6 +261,8 @@ query_kinds = |qs| qs.map(
 )
 
 expect launch(Bench.no_args).window.high_dpi == False
+expect launch(Bench.with_n(20000)).capacity.draws == 20000
+expect launch(Bench.no_args).capacity == Launch.default.capacity
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []
 expect init(Bench.with_n(64)).model.half == 8.0

@@ -31,9 +31,10 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	clock_init(&s.clock, s.launch.step_hz)
 	span_sink_init(&s.spans, "", exit_after_frames, context.allocator)
 	fake_seam_init(&s.seam, colliders = colliders, queries = queries, ui = ui)
-	mesh_table_init(&s.renderer.meshes, context.allocator)
-	sky_table_init(&s.renderer.skies, context.allocator)
-	frame_render_init(&s.frame_render, context.allocator)
+	capacity := s.launch.capacity
+	mesh_table_init(&s.renderer.meshes, int(capacity.meshes), context.allocator, context.allocator)
+	sky_table_init(&s.renderer.skies, int(capacity.skies), context.allocator, context.allocator)
+	frame_render_init(&s.frame_render, int(capacity.draws), context.allocator)
 	sync.mutex_lock(&g_clay_lock)
 	ui_err := headless_init(s, context.allocator)
 	assert(ui_err == nil)

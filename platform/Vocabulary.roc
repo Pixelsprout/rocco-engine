@@ -32,7 +32,7 @@ Vocabulary := [].{
 		step_hz : U32,
 		# The shadow map's width and height in texels. Above zero.
 		shadow_map : U32,
-		# The table sizes.
+		# The table sizes. No Scene field replaces them.
 		capacity : Capacity,
 	}
 	Window : {
@@ -51,7 +51,19 @@ Vocabulary := [].{
 		vsync : Bool,
 	}
 	Msaa : [Off, X2, X4, X8]
-	Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
+	# Past a capacity, a Load gives id 0 or the host draws the first ones, and
+	# logs once.
+	Capacity : {
+		# Mesh slots. At least 4, for the Fallback mesh and the three Primitives,
+		# and at most 65536.
+		meshes : U32,
+		# Sky slots. At least 2, for the reserved slot and one sky, and at most 65536.
+		skies : U32,
+		# Draws per Frame. Above zero and at most 2796197. The uniform buffer grows with it.
+		draws : U32,
+		# UI quads per Frame. Above zero and at most 16384, the u16 index bound.
+		ui_quads : U32,
+	}
 	Manifest : List({ name : Str, id : U32 })
 	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 	Camera : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }

@@ -7,7 +7,8 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-SKY_CAPACITY :: 16
+// The reserved slot and one sky.
+SKY_CAPACITY_MIN :: 2
 SKY_PREFIX :: "sky/"
 
 // The file stems of a sky's faces, in the order sokol takes cubemap faces.
@@ -27,19 +28,27 @@ Sky :: struct {
 }
 
 // Slot 0 is no sky and is never filled. After sky_table_upload, a new sky
-// uploads when it is added. The table owns each sky's name and pixels.
+// uploads when it is added. The table owns each sky's name and pixels. The
+// slots never grow.
 Sky_Table :: struct {
-	skies:      [SKY_CAPACITY]Sky,
+	skies:      []Sky,
 	count:      int,
-	free:       [SKY_CAPACITY]int,
+	free:       []int,
 	free_count: int,
 	logged:     map[u32]struct {},
 	uploaded:   bool,
 	allocator:  mem.Allocator,
+	perm:       mem.Allocator,
 }
 
-sky_table_init :: proc(t: ^Sky_Table, allocator: mem.Allocator) {
+// The slots come from perm; the names, pixels and log from allocator, which
+// must free.
+sky_table_init :: proc(t: ^Sky_Table, capacity: int, perm, allocator: mem.Allocator) {
+	fmt.assertf(capacity >= SKY_CAPACITY_MIN && capacity <= SLOT_LIMIT, "a sky table of %v slots cannot hold a sky or give each slot an id", capacity)
 	t.allocator = allocator
+	t.perm = perm
+	t.skies = make([]Sky, capacity, perm)
+	t.free = make([]int, capacity, perm)
 	t.logged = make(map[u32]struct {}, allocator)
 	t.count = 1
 }
@@ -53,6 +62,8 @@ sky_table_destroy :: proc(t: ^Sky_Table) {
 		}
 	}
 	delete(t.logged)
+	delete(t.skies, t.perm)
+	delete(t.free, t.perm)
 }
 
 // A sky id packs the slot and generation as a mesh id does.
@@ -65,7 +76,12 @@ sky_slot :: proc(id: u32) -> int {
 }
 
 sky_table_full :: proc(t: ^Sky_Table) -> bool {
-	return t.free_count == 0 && t.count == SKY_CAPACITY
+	return t.free_count == 0 && t.count == len(t.skies)
+}
+
+// Slot 0 holds no sky, so the table holds one sky fewer than its slots.
+sky_table_full_reason :: proc(t: ^Sky_Table) -> string {
+	return fmt.tprintf("the sky table is full at %v skies", len(t.skies) - 1)
 }
 
 sky_table_find :: proc(t: ^Sky_Table, name: string) -> (id: u32, found: bool) {
@@ -135,7 +151,7 @@ sky_resolve :: proc(t: ^Sky_Table, id: u32) -> (sky: ^Sky, ok: bool) {
 	}
 	if id not_in t.logged {
 		t.logged[id] = {}
-		stale := slot >= 1 && slot < SKY_CAPACITY && id >> MESH_SLOT_BITS != u32(t.skies[slot].generation)
+		stale := slot >= 1 && slot < len(t.skies) && id >> MESH_SLOT_BITS != u32(t.skies[slot].generation)
 		if stale {
 			fmt.eprintfln("sky id %v is from an unloaded pack; drawing no sky", id)
 		} else {
@@ -170,7 +186,7 @@ sky_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
 // On failure the table does not change and reason says why.
 sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: string, ok: bool) {
 	if sky_table_full(t) {
-		return 0, fmt.tprintf("the sky table is full at %v skies", SKY_CAPACITY - 1), false
+		return 0, sky_table_full_reason(t), false
 	}
 	stem := strings.trim_prefix(name, SKY_PREFIX)
 	side := 0

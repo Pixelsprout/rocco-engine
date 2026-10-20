@@ -9,6 +9,8 @@ import "core:testing"
 
 EPS :: f32(1e-5)
 IDENTITY :: Quat{w = 1}
+// Above the Draw count of every fixture Scene except the capacity tests.
+SMALL_DRAWS :: 8
 
 Submitted :: struct {
 	mesh:         ^Mesh,
@@ -63,7 +65,7 @@ Frame_Fixture :: struct {
 @(test)
 test_pairing_finds_the_previous_draw_by_id :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, context.allocator)
 	defer pairing_destroy(&p)
 
 	pairing_build(&p, []Draw{{id = 7}, {id = 3}})
@@ -81,7 +83,7 @@ test_pairing_finds_the_previous_draw_by_id :: proc(t: ^testing.T) {
 @(test)
 test_pairing_keeps_the_first_of_a_duplicate_id_and_logs_it_once :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, context.allocator)
 	defer pairing_destroy(&p)
 
 	pairing_build(&p, []Draw{{id = 5}, {id = 5}, {id = 5}})
@@ -97,10 +99,10 @@ test_pairing_builds_its_capacity_of_draws_without_allocating :: proc(t: ^testing
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
 	p: Pairing
-	pairing_init(&p, mem.tracking_allocator(&track))
+	pairing_init(&p, SMALL_DRAWS, mem.tracking_allocator(&track))
 	defer pairing_destroy(&p)
 
-	draws := make([]Draw, PAIRING_CAPACITY)
+	draws := make([]Draw, SMALL_DRAWS)
 	defer delete(draws)
 	for &d, i in draws {
 		d.id = u64(i)
@@ -114,21 +116,21 @@ test_pairing_builds_its_capacity_of_draws_without_allocating :: proc(t: ^testing
 @(test)
 test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, context.allocator)
 	defer pairing_destroy(&p)
 
-	draws := make([]Draw, PAIRING_CAPACITY + 1)
+	draws := make([]Draw, SMALL_DRAWS + 1)
 	defer delete(draws)
 	for &d, i in draws {
 		d.id = u64(i)
 	}
-	pairing_build(&p, draws[:PAIRING_CAPACITY])
+	pairing_build(&p, draws[:SMALL_DRAWS])
 	testing.expect(t, !p.over_capacity_logged)
 	pairing_build(&p, draws)
 	testing.expect(t, p.over_capacity_logged)
-	i, ok := pairing_find(&p, PAIRING_CAPACITY)
+	i, ok := pairing_find(&p, SMALL_DRAWS)
 	testing.expect(t, ok)
-	testing.expect_value(t, i, PAIRING_CAPACITY)
+	testing.expect_value(t, i, SMALL_DRAWS)
 }
 
 @(test)
@@ -270,9 +272,9 @@ record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {
 }
 
 frame_fixture_init :: proc(f: ^Frame_Fixture) {
-	frame_render_init(&f.fr, context.allocator)
-	mesh_table_init(&f.meshes, context.allocator)
-	sky_table_init(&f.skies, context.allocator)
+	frame_render_init(&f.fr, SMALL_DRAWS, context.allocator)
+	mesh_table_init(&f.meshes, SMALL_MESHES, context.allocator, context.allocator)
+	sky_table_init(&f.skies, SMALL_SKIES, context.allocator, context.allocator)
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
 	f.rec.passes = make([dynamic]Pass_Begun, context.allocator)
 	f.rec.shadows = make([dynamic]Shadow_Submitted, context.allocator)
@@ -706,7 +708,7 @@ test_frame_render_draws_at_most_its_draw_capacity_and_logs_once :: proc(t: ^test
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	draws := make([]Draw, DRAW_CAPACITY + 1)
+	draws := make([]Draw, SMALL_DRAWS + 1)
 	defer delete(draws)
 	for &d, i in draws {
 		d = {id = u64(i), mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}
@@ -715,11 +717,41 @@ test_frame_render_draws_at_most_its_draw_capacity_and_logs_once :: proc(t: ^test
 	scene := scene_lit(draws, lights)
 	got := frame_fixture_draw(&f, scene, scene, 0.5)
 
-	testing.expect_value(t, len(got), DRAW_CAPACITY)
-	testing.expect_value(t, len(f.rec.shadows), DRAW_CAPACITY)
+	testing.expect_value(t, len(got), SMALL_DRAWS)
+	testing.expect_value(t, len(f.rec.shadows), SMALL_DRAWS)
 	testing.expect(t, f.fr.draws_logged)
-	got = frame_fixture_draw(&f, scene_lit(draws[:DRAW_CAPACITY], lights), scene, 0.5)
-	testing.expect_value(t, len(got), DRAW_CAPACITY)
+	got = frame_fixture_draw(&f, scene_lit(draws[:SMALL_DRAWS], lights), scene, 0.5)
+	testing.expect_value(t, len(got), SMALL_DRAWS)
+}
+
+// The pairing map and the placed list come from init, so a full Frame allocates nothing.
+@(test)
+test_frame_render_places_its_draw_capacity_without_allocating :: proc(t: ^testing.T) {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+	fr: Frame_Render
+	frame_render_init(&fr, SMALL_DRAWS, mem.tracking_allocator(&track))
+	defer frame_render_destroy(&fr)
+	meshes: Mesh_Table
+	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
+	defer mesh_table_destroy(&meshes)
+	skies: Sky_Table
+	sky_table_init(&skies, SMALL_SKIES, context.allocator, context.allocator)
+	defer sky_table_destroy(&skies)
+
+	draws := make([]Draw, SMALL_DRAWS)
+	defer delete(draws)
+	for &d, i in draws {
+		d = {id = u64(i), mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}
+	}
+	after_init := track.total_allocation_count
+	frame_render_draw(&fr, scene_of(draws), scene_of(draws), 0.5, 1, {}, &meshes, &skies, nil, {size = {960, 540}, dpi = 1}, submit = false)
+
+	testing.expect_value(t, track.total_allocation_count, after_init)
+	testing.expect_value(t, len(fr.placed), SMALL_DRAWS)
+	testing.expect(t, !fr.pairing.over_capacity_logged)
+	testing.expect(t, !fr.draws_logged)
 }
 
 @(test)

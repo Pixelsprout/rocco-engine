@@ -35,7 +35,7 @@ mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string) -> (id: u32, reason: s
 		return 0, os.error_string(read_err), false
 	}
 	if mesh_table_full(t) {
-		return 0, fmt.tprintf("the mesh table is full at %v meshes", MESH_CAPACITY), false
+		return 0, mesh_table_full_reason(t), false
 	}
 	data, notes, glb_err := glb_parse(bytes, t.allocator)
 	if glb_err != .None {

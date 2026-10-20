@@ -67,3 +67,20 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 		testing.expectf(t, desc.metal.disable_display_sync == c.want_off, "%v with vsync %v: disable_display_sync is %v", c.mode, c.vsync, desc.metal.disable_display_sync)
 	}
 }
+
+// The default Capacity keeps the old pool sizes.
+@(test)
+test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
+	desc := app_gfx_desc(launch_default().capacity)
+	testing.expect_value(t, desc.image_pool_size, 147)
+	testing.expect_value(t, desc.sampler_pool_size, 147)
+	testing.expect_value(t, desc.view_pool_size, 147 + MAX_CASCADES)
+	testing.expect_value(t, desc.uniform_buffer_size, (3 * 16384 + 16) * 256)
+
+	small := app_gfx_desc({meshes = 4, skies = 2, draws = 10, ui_quads = 1})
+	testing.expect_value(t, small.image_pool_size, 2 * 4 + 1 + 2 + 1 + 1)
+	testing.expect_value(t, small.uniform_buffer_size, (3 * 10 + 16) * 256)
+
+	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1})
+	testing.expect(t, largest.uniform_buffer_size > 0)
+}

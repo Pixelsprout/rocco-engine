@@ -12,12 +12,6 @@ SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 UP_EPSILON :: f32(1e-6)
 
-// The pairing map holds this many draws without allocating.
-PAIRING_CAPACITY :: 4096
-// The renderer sizes its uniform buffer for this many draws per Frame. The
-// host drops the rest, because a release sokol writes past a full buffer.
-DRAW_CAPACITY :: 16384
-
 // The light_view_proj array in engine/shaders/basic.glsl has this size.
 MAX_CASCADES :: 1
 // The shadow box snaps outward to this grid, so the map changes size in steps
@@ -54,9 +48,12 @@ Light_Drop :: enum {
 	Bad_Range,
 }
 
+// The renderer sizes its uniform buffer for draw_capacity Draws per Frame.
+// The host drops the rest, because a release sokol writes past a full buffer.
 Frame_Render :: struct {
 	pairing:            Pairing,
 	placed:             [dynamic]Placed,
+	draw_capacity:      int,
 	begin_pass:         Begin_Pass,
 	end_pass:           End_Pass,
 	submit_shadow:      Submit_Shadow,
@@ -91,6 +88,7 @@ Placed :: struct {
 Pairing :: struct {
 	index:                map[u64]int,
 	logged:               map[u64]struct {},
+	capacity:             int,
 	over_capacity_logged: bool,
 }
 
@@ -100,9 +98,10 @@ Camera_Pose :: struct {
 	fov_y:           f32,
 }
 
-frame_render_init :: proc(fr: ^Frame_Render, perm: mem.Allocator) {
-	pairing_init(&fr.pairing, perm)
-	fr.placed = make([dynamic]Placed, 0, PAIRING_CAPACITY, perm)
+frame_render_init :: proc(fr: ^Frame_Render, draws: int, perm: mem.Allocator) {
+	fr.draw_capacity = draws
+	pairing_init(&fr.pairing, draws, perm)
+	fr.placed = make([dynamic]Placed, 0, draws, perm)
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
@@ -147,12 +146,12 @@ frame_render_draw :: proc(
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	clear(&fr.placed)
 	draws := curr.draws.elements[:curr.draws.length]
-	if len(draws) > DRAW_CAPACITY {
+	if len(draws) > fr.draw_capacity {
 		if !fr.draws_logged {
 			fr.draws_logged = true
-			fmt.eprintfln("a Scene has %v draws; the host draws the first %v", len(draws), DRAW_CAPACITY)
+			fmt.eprintfln("a Scene has %v draws; the host draws the first %v", len(draws), fr.draw_capacity)
 		}
-		draws = draws[:DRAW_CAPACITY]
+		draws = draws[:fr.draw_capacity]
 	}
 	for d in draws {
 		from := d
@@ -327,10 +326,11 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, camera.up)
 }
 
-pairing_init :: proc(p: ^Pairing, allocator: mem.Allocator) {
+pairing_init :: proc(p: ^Pairing, capacity: int, allocator: mem.Allocator) {
+	p.capacity = capacity
 	p.index = make(map[u64]int, allocator)
 	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-	reserve(&p.index, PAIRING_CAPACITY * 100 / runtime.MAP_LOAD_FACTOR + 1)
+	reserve(&p.index, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
 	p.logged = make(map[u64]struct {}, allocator)
 }
 
@@ -341,9 +341,9 @@ pairing_destroy :: proc(p: ^Pairing) {
 
 // On a duplicate id the first draw wins. Each duplicate id is logged once per run.
 pairing_build :: proc(p: ^Pairing, draws: []Draw) {
-	if len(draws) > PAIRING_CAPACITY && !p.over_capacity_logged {
+	if len(draws) > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
-		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", len(draws), PAIRING_CAPACITY)
+		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", len(draws), p.capacity)
 	}
 	clear(&p.index)
 	for d, i in draws {

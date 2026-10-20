@@ -45,7 +45,7 @@ test_mesh_load_file_adds_the_mesh_after_the_primitives :: proc(t: ^testing.T) {
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 	id, _, ok := mesh_load_file(&table, dir, "a")
 
@@ -65,7 +65,7 @@ test_mesh_load_file_that_fails_adds_nothing_and_gives_the_reason :: proc(t: ^tes
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	for name in ([]string{"bad", "flat", "gone"}) {
@@ -85,16 +85,17 @@ test_mesh_load_file_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
-	table.count = MESH_CAPACITY - 1
+	table.count = SMALL_MESHES - 1
 	_, _, a_ok := mesh_load_file(&table, dir, "a")
-	_, _, b_ok := mesh_load_file(&table, dir, "b")
+	_, reason, b_ok := mesh_load_file(&table, dir, "b")
 
 	testing.expect(t, a_ok)
 	testing.expect(t, !b_ok)
-	testing.expect_value(t, table.count, MESH_CAPACITY)
-	testing.expect_value(t, table.meshes[MESH_CAPACITY - 1].name, "a")
+	testing.expect_value(t, reason, "the mesh table is full at 6 meshes")
+	testing.expect_value(t, table.count, SMALL_MESHES)
+	testing.expect_value(t, table.meshes[SMALL_MESHES - 1].name, "a")
 }
 
 @(test)
@@ -105,7 +106,7 @@ test_a_reloaded_mesh_gets_a_new_id_and_the_old_id_draws_the_fallback :: proc(t: 
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 	old, _, _ := mesh_load_file(&table, dir, "a")
 	mesh_table_remove(&table, mesh_slot(old))

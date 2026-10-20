@@ -23,9 +23,14 @@ max_speed = 4.0 # F32
 
 cube_half = 0.25 # F32
 
-# high_dpi off, so the numbers do not depend on the display.
+# high_dpi off, so the numbers do not depend on the display. draws is N, so
+# the pairing map and the uniform buffer match the workload.
 launch : Config -> Vocabulary.Launch
-launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
+launch = |config| {
+	..Launch.default,
+	window: { ..Launch.default.window, high_dpi: False },
+	capacity: { ..Launch.default.capacity, draws: Bench.draws_for_n(config.args, Launch.default.capacity.draws) },
+}
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -107,6 +112,8 @@ lights : List(Vocabulary.Light)
 lights = [Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })]
 
 expect launch(Bench.no_args).window.high_dpi == False
+expect launch(Bench.with_n(20000)).capacity.draws == 20000
+expect launch(Bench.no_args).capacity == Launch.default.capacity
 expect init(Bench.with_n(64)).model.entities.len() == 64
 expect init(Bench.with_n(64)).commands == []
 
@@ -143,7 +150,6 @@ expect {
 	after.entities.len() == 64 and after != m
 }
 
-# The Draw count is N, past the 4,096 Draws where the Pairing map grows.
 expect {
 	small = view(init(Bench.with_n(64)).model).draws
 	large = view(init(Bench.with_n(5000)).model).draws

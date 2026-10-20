@@ -87,7 +87,7 @@ headless_platform :: proc(s: ^State) -> Frame_Platform {
 
 // Lays out the UI with no window. frame_run never submits in Headless.
 headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	return ui_init(&s.ui, headless_window(s.launch).size, allocator)
+	return ui_init(&s.ui, headless_window(s.launch).size, int(s.launch.capacity.ui_quads), allocator)
 }
 
 // Runs Frames until the Frame limit or a Quit, then returns.

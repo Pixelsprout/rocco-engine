@@ -3,16 +3,10 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import sglue "../sokol-odin/sokol/glue"
 
-// Each loaded mesh can own a base colour and a metallic-roughness texture,
-// each with its own image, view and sampler. The white image, each sky, the
-// shadow map and the font atlas need one more.
-TEXTURE_POOL_SIZE :: 2 * MESH_CAPACITY + 1 + SKY_CAPACITY + 1 + 1
-
-// Metal on macOS starts each uniform block on a 256 byte boundary. A Draw
-// applies three blocks: shadow, vertex and fragment. The spare blocks cover
-// the lights, the sky and the UI.
+// Metal on macOS starts each uniform block on a 256 byte boundary.
 UNIFORM_ALIGN :: 256
-UNIFORM_BUFFER_SIZE :: (3 * DRAW_CAPACITY + 16) * UNIFORM_ALIGN
+// sokol takes the uniform buffer size as a C int, so uniform_buffer_size must fit one.
+DRAW_LIMIT :: ((1 << 31 - 1) / UNIFORM_ALIGN - 16) / 3
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN)
 
@@ -42,6 +36,24 @@ Shadow_Map :: struct {
 	texture: sg.View,
 	layers:  [MAX_CASCADES]sg.View,
 	sampler: sg.Sampler,
+}
+
+// Each loaded mesh can own a base colour and a metallic-roughness texture,
+// each with its own image, view and sampler. The white image, each sky, the
+// shadow map and the font atlas need one more.
+texture_pool_size :: proc(capacity: Capacity) -> i32 {
+	return i32(2 * capacity.meshes + 1 + capacity.skies + 1 + 1)
+}
+
+// The shadow map adds one depth view per cascade to its texture view.
+view_pool_size :: proc(capacity: Capacity) -> i32 {
+	return texture_pool_size(capacity) + MAX_CASCADES
+}
+
+// A Draw applies three blocks: shadow, vertex and fragment. The spare blocks
+// cover the lights, the sky and the UI.
+uniform_buffer_size :: proc(capacity: Capacity) -> i32 {
+	return i32((3 * int(capacity.draws) + 16) * UNIFORM_ALIGN)
 }
 
 // The window swapchain and the pipelines must agree on the sample count, or
