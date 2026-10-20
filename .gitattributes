@@ -6,3 +6,5 @@ engine/shader_basic.odin text eol=lf
 *.roc text eol=lf
 # make_windows_import_libs.py --check compares these bytes exactly.
 platform/targets/x64win/*.lib binary
+# The bench golden tests compare these bytes exactly.
+*.golden text eol=lf

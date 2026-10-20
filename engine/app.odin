@@ -6,7 +6,7 @@ import sglue "../sokol-odin/sokol/glue"
 import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
-import "core:time"
+import "core:os"
 
 import "base:runtime"
 
@@ -27,18 +27,24 @@ State :: struct {
 	frame_render:      Frame_Render,
 	ui:                Ui,
 	exit_after_frames: int, // 0 runs forever
+	mode:              Run_Mode,
+	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
+	quit:              bool,
+	spans:             Span_Sink,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
 g_state: State
 
-app_run :: proc() -> (err: mem.Allocator_Error) {
+app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	memory_init(&g_state.mem) or_return
 
 	g_state.ctx = context
 	g_state.ctx.temp_allocator = g_state.mem.frame_allocator
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
+	g_state.mode = run_mode_from_env(g_state.exit_after_frames)
+	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
@@ -52,30 +58,45 @@ app_run :: proc() -> (err: mem.Allocator_Error) {
 	packs_init(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, assets_dir_from_env(), context.allocator)
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
-	config := config_make(seed_from_env(), g_state.packs.on_disk)
-	seam_init(&g_state.seam, ROC_GAME, app_run_command, config, &g_state.packs)
+	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
+	seam_init(&g_state.seam, calls, app_run_command, config, &g_state.packs)
 
-	sapp.run(
-		sapp.Desc {
-			init_cb = init_cb,
-			frame_cb = frame_cb,
-			cleanup_cb = cleanup_cb,
-			width = 960,
-			height = 540,
-			sample_count = SAMPLE_COUNT,
-			window_title = "rocco",
-			logger = {func = slog.func},
-			event_cb = event_cb,
-		},
-	)
+	if g_state.mode == .Headless {
+		headless_init(&g_state, g_state.mem.perm_allocator) or_return
+		headless_run(&g_state)
+		app_shutdown()
+		return
+	}
+
+	sapp.run(app_desc(g_state.mode))
 
 	return
+}
+
+// Lockstep turns vsync off, so frame pacing does not wait inside the render
+// Spans. sokol turns a swap_interval of 0 into 1, so it needs the flags. On
+// Metal, CADisplayLink still calls frame_cb once per display refresh.
+app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
+	vsync_off := mode == .Lockstep
+	return {
+		init_cb = init_cb,
+		frame_cb = frame_cb,
+		cleanup_cb = cleanup_cb,
+		width = 960,
+		height = 540,
+		sample_count = SAMPLE_COUNT,
+		window_title = "rocco",
+		logger = {func = slog.func},
+		event_cb = event_cb,
+		disable_vsync = vsync_off,
+		metal = {disable_display_sync = vsync_off},
+	}
 }
 
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE})
+	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE, uniform_buffer_size = UNIFORM_BUFFER_SIZE})
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()
@@ -100,56 +121,33 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
-	// The win32 loop runs one more frame after request_quit, before it reads
-	// WM_CLOSE. Skip it, so Frame Count matches the limit on every OS.
-	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
-		return
-	}
-
-	clock_add_frame(&g_state.clock, sapp.frame_duration())
-	for dt in clock_next_step(&g_state.clock) {
-		before := roc_heap_counters()
-		step_time, view_time := seam_step(&g_state.seam, input_take(&g_state.input, &g_state.keys), dt)
-		g_state.steps += 1
-		if g_state.alloc_report {
-			roc_heap_report_line(g_state.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
-		}
-	}
-
-	alpha := clock_alpha(&g_state.clock)
-	prev, curr := seam_scenes(&g_state.seam)
-	aspect := f32(sapp.width()) / f32(sapp.height())
-	view_proj: Mat4
-	eye: [3]f32
-	if g_state.use_debug_camera {
-		camera_look(&g_state.debug_camera, &g_state.input)
-		camera_fly(&g_state.debug_camera, &g_state.input, f32(min(sapp.frame_duration(), MAX_FRAME_TIME)))
-		view_proj = camera_proj(&g_state.debug_camera, aspect) * camera_view(&g_state.debug_camera)
-		eye = g_state.debug_camera.eye
-	} else {
-		view_proj, eye = frame_render_camera(&g_state.frame_render, prev, curr, alpha, aspect)
-	}
-	cursor := Cursor.Locked if g_state.use_debug_camera else curr.cursor
-	if (cursor == .Locked) != sapp.mouse_locked() {
-		sapp.lock_mouse(cursor == .Locked)
-	}
-
-	window := Ui_Window{size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()}
-	frame_render_draw(&g_state.frame_render, prev, curr, alpha, view_proj, eye, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.ui, window)
-
-	sg.commit()
-	g_state.frame_count += 1
-
-	if exit_after_frames_reached(g_state.exit_after_frames, g_state.frame_count) {
-		sapp.request_quit()
-	}
-
-	frame_end(&g_state.mem)
-	input_end_frame(&g_state.input)
+	frame_run(
+		&g_state,
+		{
+			frame_duration = sapp.frame_duration(),
+			window = {size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()},
+			mouse_locked = sapp.mouse_locked(),
+			lock_mouse = app_lock_mouse,
+			commit = app_commit,
+			request_quit = app_request_quit,
+		},
+	)
 }
 
 cleanup_cb :: proc "c" () {
 	context = g_state.ctx
+
+	app_shutdown()
+}
+
+// A Headless run never set up sokol, so it must not shut it down. A bench run
+// with no Spans CSV must fail, so a failed write exits with 1 at the end.
+app_shutdown :: proc() {
+	spans_err := span_sink_write(&g_state.spans)
+	if spans_err != nil {
+		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
+	}
+	span_sink_destroy(&g_state.spans)
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
@@ -157,7 +155,9 @@ cleanup_cb :: proc "c" () {
 	roc_heap_shutdown()
 	frame_render_destroy(&g_state.frame_render)
 
-	sg.shutdown()
+	if g_state.mode != .Headless {
+		sg.shutdown()
+	}
 	memory_shutdown(&g_state.mem)
 
 	fmt.printfln("Frame Count: %v", g_state.frame_count)
@@ -171,6 +171,9 @@ cleanup_cb :: proc "c" () {
 		}
 		mem.tracking_allocator_destroy(&g_track)
 	}
+	if spans_err != nil {
+		os.exit(1)
+	}
 }
 
 event_cb :: proc "c" (event: ^sapp.Event) {
@@ -181,7 +184,24 @@ event_cb :: proc "c" (event: ^sapp.Event) {
 
 // Quit lets the current frame finish.
 app_run_command :: proc(command: Command) {
-	if command.tag == .Quit {
+	if command.tag != .Quit {
+		return
+	}
+	if g_state.mode == .Headless {
+		g_state.quit = true
+	} else {
 		sapp.request_quit()
 	}
+}
+
+app_lock_mouse :: proc(locked: bool) {
+	sapp.lock_mouse(locked)
+}
+
+app_commit :: proc() {
+	sg.commit()
+}
+
+app_request_quit :: proc() {
+	sapp.request_quit()
 }

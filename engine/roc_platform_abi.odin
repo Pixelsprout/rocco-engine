@@ -173,14 +173,17 @@ roc_incref_box :: proc(box: rawptr) {
 
 Roc_Init_Arg0 :: struct {
 	seed: u64,
+	args: Roc_List(Roc_Str),
 	assets: Roc_List(Roc_Str),
 }
 
-#assert(size_of(Roc_Init_Arg0) == 32)
+#assert(size_of(Roc_Init_Arg0) == 56)
 #assert(align_of(Roc_Init_Arg0) == 8)
 #assert(offset_of(Roc_Init_Arg0, seed) == 0)
 #assert(size_of(type_of(Roc_Init_Arg0{}.seed)) == 8)
-#assert(offset_of(Roc_Init_Arg0, assets) == 8)
+#assert(offset_of(Roc_Init_Arg0, args) == 8)
+#assert(size_of(type_of(Roc_Init_Arg0{}.args)) == 24)
+#assert(offset_of(Roc_Init_Arg0, assets) == 32)
 #assert(size_of(type_of(Roc_Init_Arg0{}.assets)) == 24)
 
 Roc_Init :: struct {
@@ -925,6 +928,7 @@ Roc_View_Cursor :: enum u8 {
 
 
 roc_init_arg0_decref :: proc(value: Roc_Init_Arg0) {
+	roc_list_decref_roc_str(value.args)
 	roc_list_decref_roc_str(value.assets)
 }
 

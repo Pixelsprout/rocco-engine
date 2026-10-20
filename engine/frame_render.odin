@@ -14,6 +14,9 @@ UP_EPSILON :: f32(1e-6)
 
 // The pairing map holds this many draws without allocating.
 PAIRING_CAPACITY :: 4096
+// The renderer sizes its uniform buffer for this many draws per Frame. The
+// host drops the rest, because a release sokol writes past a full buffer.
+DRAW_CAPACITY :: 16384
 
 // The light_view_proj array in engine/shaders/basic.glsl has this size.
 MAX_CASCADES :: 1
@@ -64,6 +67,7 @@ Frame_Render :: struct {
 	submit_ctx:         rawptr,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
+	draws_logged:       bool,
 }
 
 Draw_Transform :: struct {
@@ -121,13 +125,36 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 
 // The fallback ignores the tint, so an unknown mesh id shows magenta whatever
 // the game asked for. The sky draws last, so the depth test hides it behind
-// every mesh. The UI draws over everything. A nil ui draws none.
-frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view_proj: Mat4, eye: [3]f32, meshes: ^Mesh_Table, skies: ^Sky_Table, ui: ^Ui, window: Ui_Window) {
+// every mesh. The UI draws over everything. A nil ui draws none. With submit
+// false, the Frame still places the Draws and lays out the UI, but submits
+// nothing.
+frame_render_draw :: proc(
+	fr: ^Frame_Render,
+	prev, curr: Scene,
+	alpha: f32,
+	view_proj: Mat4,
+	eye: [3]f32,
+	meshes: ^Mesh_Table,
+	skies: ^Sky_Table,
+	ui: ^Ui,
+	window: Ui_Window,
+	spans: ^Span_Sink = nil,
+	submit := true,
+) {
+	span := span_open()
 	lights, sun := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
 	clear(&fr.placed)
-	for d in curr.draws.elements[:curr.draws.length] {
+	draws := curr.draws.elements[:curr.draws.length]
+	if len(draws) > DRAW_CAPACITY {
+		if !fr.draws_logged {
+			fr.draws_logged = true
+			fmt.eprintfln("a Scene has %v draws; the host draws the first %v", len(draws), DRAW_CAPACITY)
+		}
+		draws = draws[:DRAW_CAPACITY]
+	}
+	for d in draws {
 		from := d
 		if i, ok := pairing_find(&fr.pairing, d.id); ok {
 			from = prev.draws.elements[i]
@@ -136,12 +163,22 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
 		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
 	}
+	span = span_close(spans, .Interpolation, span)
 
-	if sun >= 0 && len(fr.placed) > 0 {
-		frame_render_shadow(fr, &lights, sun)
+	quads: []Ui_Quad
+	if ui != nil {
+		quads = ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
+		span = span_close(spans, .Ui_Layout, span)
+	}
+	if !submit {
+		return
 	}
 
-	fr.begin_pass(fr.submit_ctx, .Main, 0)
+	if sun >= 0 && len(fr.placed) > 0 {
+		frame_render_shadow(fr, &lights, sun, &span)
+	}
+
+	frame_render_begin_pass(fr, .Main, 0, &span)
 	fr.submit_lights(fr.submit_ctx, lights)
 	for p in fr.placed {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
@@ -156,26 +193,34 @@ frame_render_draw :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha: f32, view
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
 	}
-	if ui != nil {
-		quads := ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
-		if len(quads) > 0 {
-			fr.submit_ui(fr.submit_ctx, quads, window.size)
-		}
+	if len(quads) > 0 {
+		fr.submit_ui(fr.submit_ctx, quads, window.size)
 	}
 	fr.end_pass(fr.submit_ctx)
+	span_close(spans, .Render_Submit, span)
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
-frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int) {
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, span: ^Span_Tick) {
 	light_view_proj := shadow_view_proj(lights.light_pos[sun].xyz, fr.placed[:])
 	// The shader reads x as the view count, y as the Sun's slot and z as the normal offset.
 	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
-	fr.begin_pass(fr.submit_ctx, .Shadow, 0)
+	frame_render_begin_pass(fr, .Shadow, 0, span)
 	for p in fr.placed {
 		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model})
 	}
 	fr.end_pass(fr.submit_ctx)
+}
+
+// On Metal, the first begin_pass of a Frame waits for a free in-flight frame,
+// and the Main pass waits for the swapchain drawable. These waits pace the
+// Frames, so the render Span leaves every begin_pass out.
+@(private = "file")
+frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, span: ^Span_Tick) {
+	waited := span_open()
+	fr.begin_pass(fr.submit_ctx, pass, view)
+	span^ = span_skip(span^, waited)
 }
 
 // An orthographic view from the Sun over the box of every placed Draw.

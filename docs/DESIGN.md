@@ -130,7 +130,7 @@ in the app.
 Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
 Rgba     : { r : F32, g : F32, b : F32, a : F32 }
-Config   : { seed : U64, assets : List(Str) }
+Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -156,7 +156,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 
 | Type | Carries | Does not carry |
 |---|---|---|
-| `Config` | a seed; the asset names found on disk, with no ids | how many pickups a round has; an id |
+| `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
@@ -341,7 +341,9 @@ layout result flows back to the game. The host multiplies each size by
 The host runs C Clay through its Odin bindings. Clay is a git submodule
 pinned to a commit. The `inputs` step copies its prebuilt lib per target,
 like sokol's. The Clay arena comes from the permanent arena at init, sized
-by `MinMemorySize()` with the default element cap. The host allocates
+by `MinMemorySize()` with a cap of 32,768 elements and 65,536 measured
+words. Clay's default of 8,192 elements is below the largest N of the UI
+bench game. The host allocates
 nothing per frame for the UI.
 
 Once per frame, the host lays out the current Scene's UI against
@@ -686,12 +688,14 @@ The host honours `roc_dealloc`. Every allocation Roc frees goes back to the
 Roc heap the same frame. There is no arena and no harvest. Evidence: one live
 block at steady state over 888 steps, zero bad frees over 899.
 
-`roc_realloc` carries no old size. The copy length must come from the
-allocator's own record. The tracking allocator is load-bearing for this
-reason, not for observability. The Roc heap in `engine/roc_runtime.odin`
-manages the tracking allocator, the alloc counters and the six hooks; the
-Seam in `engine/seam.odin` manages only the game calls and the call protocol
-above.
+`roc_realloc` carries no old size. The Roc heap writes the size in a header
+of at least 16 bytes, and at least the alignment, before each block.
+`roc_realloc` reads the old size there and resizes the block in the backing
+allocator, so a block can grow in place. An allocation map version measured
+about 3 times slower per alloc and free pair, and it always copied on
+realloc. The Roc heap in `engine/roc_runtime.odin` keeps the header, the
+alloc counters and the six hooks. The Seam in `engine/seam.odin` keeps only
+the game calls and the call protocol above.
 
 The box shell costs one allocation and one free per step. The pool described
 in the roadmap removes the system heap from that path.

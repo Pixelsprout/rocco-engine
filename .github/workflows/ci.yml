@@ -63,6 +63,17 @@ jobs:
       - name: Audit the macOS sysroot
         run: python3 scripts/make_macos_sysroot.py --audit
 
+      - name: Test the bench games
+        run: sh bench/check.sh
+
+      # A smoke test only: CI runners make no timing claims. It builds a
+      # release host with Spans, so it runs last.
+      - name: Run the bench games once Headless
+        run: |
+          for game in model-size model-size-tuned empty-step model-size-twin colliders colliders-twin draws mixed ui; do
+            roc scripts/build.roc bench "$game" 64
+          done
+
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -155,6 +166,14 @@ jobs:
       - name: Regenerate the Windows import libraries
         run: python scripts/make_windows_import_libs.py --check
 
+      - name: Test the bench games
+        run: sh bench/check.sh
+
+      # A smoke test only: CI runners make no timing claims. It builds a
+      # release host with Spans, so it runs last.
+      - name: Run the bench games once Headless
+        run: roc scripts/build.roc bench model-size,model-size-twin 64
+
   generated:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -166,7 +185,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |

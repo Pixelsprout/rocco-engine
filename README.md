@@ -69,13 +69,14 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | Command | When | What it runs |
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
-| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. The step deletes the old library first. |
+| `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. `--spans` and `--release --spans` add `-define:ROCCO_SPANS=true`, which turns on the Span timers. The step deletes the old library first. |
 | `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
 | `game <name>` | When anything changes. | `roc build` in `examples/<name>/` |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
+| `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
@@ -98,6 +99,10 @@ stub generator. `python3 -m unittest scripts/test_make_windows_import_libs.py`
 runs the tests of the Windows import library generator.
 `./scripts/test-all.sh` runs `roc check` and `roc test` on every app, every
 package and the build scripts, then the engine tests.
+`sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
+`odin test` on every Odin twin.
+`python3 -m unittest bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py`
+runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game and
@@ -143,6 +148,11 @@ the game runs until it returns `Quit` or you close the window. The entity
 game quits on Escape. A value that is not a positive integer stops the game
 at startup with exit code 1.
 
+The words after the game's name on the command line reach the game as
+`Config.args`, in the order typed. The host does not parse them. For
+example, `./pong.bin --draws 64` gives `args: ["--draws", "64"]`. With no
+words, `args` is an empty list.
+
 The other variables the engine reads:
 
 | Variable | Effect |
@@ -150,6 +160,9 @@ The other variables the engine reads:
 | `ROCCO_SEED=N` | The seed in `Config`. The default is 0. A value that is not an unsigned 64-bit integer stops the game with exit code 1. |
 | `ROCCO_DEBUG_CAMERA=1` | A fly camera on WASD and the mouse, with the mouse locked. The host ignores `Scene.camera`. The game still gets all input. |
 | `ROCCO_ALLOC_REPORT=1` | One line per fixed step: Roc allocs, deallocs, reallocs, live blocks, and `step` and `view` time in microseconds. |
+| `ROCCO_LOCKSTEP=1` | Lockstep: one fixed step and one render per Frame, whatever the time, with vsync off. On macOS the display link still starts one Frame per display refresh, but the render no longer waits for a drawable. `0` or unset is the real clock. Any other value stops the game with exit code 1. |
+| `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. The game still gets Queries answered and `loaded` with the Manifest. It needs `ROCCO_EXIT_AFTER_FRAMES`. Without it, or with a value other than `0` or `1`, the game stops with exit code 1. |
+| `ROCCO_SPANS_CSV=path` | A host built with `host --spans` writes the Spans there at exit: a header row, then one row per Frame with the Frame number, the fixed steps, the Spans in microseconds and `span_cost_us`. The Spans are `input`, `step`, `commands`, `view`, `queries` and `query_results`, summed over the fixed steps of the Frame, then `interpolation`, `ui_layout` (Clay and the quad build), `render_submit` and `commit` (`sg.commit`). Headless rows have zero `render_submit` and `commit`. `span_cost_us` is the time one Span adds, measured once at startup. A Spans host stops with exit code 1 without it or without `ROCCO_EXIT_AFTER_FRAMES`, and exits with code 1 if the CSV does not write. Any other host stops with exit code 1 if it is set. |
 
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first
@@ -164,6 +177,26 @@ the check, because a key press allocates the `Input` lists.
 
 `./scripts/host-check.sh` regenerates the glue and links cards, entity-game
 and pong, then checks that the host library and the glue did not change.
+
+### Benchmarks
+
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) is the single source for the
+benchmarks: the run modes, the Spans, the build flags, the bench games, the
+protocol, the headline figure, the hardware rules and the reference run.
+
+The bench games live in `bench/`, outside `examples/`. `run-games.sh`,
+`test-all.sh` and `screenshot.sh` do not run them. To run a quick sweep and
+draw its curves:
+
+```sh
+roc scripts/build.roc bench model-size,model-size-twin 64 1024
+python3 bench/chart.py
+roc scripts/build.roc all   # a Spans host stops the examples, so rebuild
+```
+
+A manual sweep writes its summaries to `bench/out/results/`, which git
+ignores. Only `sh bench/reference-run.sh` writes the committed results in
+`bench/results/`.
 
 ### Screenshots
 
@@ -318,6 +351,27 @@ a change to the `Model` type, restart the game.
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
+| `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
+| `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
+| `bench/model-size/model.golden` | The full Model of `bench/model-size` after 600 steps at Seed 7 and N=100. The idiomatic and the tuned game both check it. |
+| `bench/model-size-tuned/` | The tuned Model size bench game: the behaviour of `bench/model-size`, with a `step` that keeps the entity list unique and walks it once. |
+| `bench/model-size-twin/` | The Odin twin of `bench/model-size`: the same Model fields and the same logic through the same run loop. |
+| `bench/empty-step/` | The Model size bench game with a `step` that does nothing: the lower limit of the seam. |
+| `bench/colliders/` | The Colliders bench game: `step` moves N Colliders, N from the first Arg, and `view` asks 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N, so each Collider keeps 4 square units. The Seed places the Colliders. |
+| `bench/colliders/colliders.golden` | The Colliders of `bench/colliders` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
+| `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
+| `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
+| `bench/ui/` | The UI bench game: N Box and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
+| `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/out/results/`, or in the directory you name. |
+| `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
+| `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. `--check` fails unless the machine is ready for a reference run. |
+| `bench/realclock.py` | Summarises one real-clock run of an example with the Spans. |
+| `bench/reference-run.sh` | Runs the reference run in `docs/BENCHMARKS.md`: every bench game and Odin twin, the real-clock run, the charts and the headline figure. |
+| `bench/results/` | The committed summaries of the reference runs, one directory per date and machine. |
+| `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
+| `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
+| `bench/shared/` | The Roc package that every Roc bench game imports: the N Arg, the random generator and the test helpers. |
+| `bench/roc-heap/` | The Roc heap micro benchmark: alloc and free pairs and realloc lists through the Roc heap hooks. `odin run bench/roc-heap -o:speed -out:build/roc-heap` runs it. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
@@ -339,6 +393,7 @@ a change to the `Model` type, restart the game.
 | `clay/` | Submodule: nicbarker/clay. The engine imports `bindings/odin/clay-odin/`. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
+| `docs/BENCHMARKS.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
 
 ## A game outside this repo

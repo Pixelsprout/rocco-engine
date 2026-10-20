@@ -32,6 +32,7 @@ Fake_Game :: struct {
 	inits:           int,
 	seed:            u64,
 	assets:          []string,
+	args:            []string,
 	init_box:        rawptr,
 	init_commands:   []Command,
 	steps:           int,
@@ -118,6 +119,10 @@ fake_init :: proc(config: Config) -> Init_Result {
 	for &name, i in config.assets.elements[:config.assets.length] {
 		g_fake.assets[i] = strings.clone(roc_str_string(&name), context.temp_allocator)
 	}
+	g_fake.args = make([]string, config.args.length, context.temp_allocator)
+	for &word, i in config.args.elements[:config.args.length] {
+		g_fake.args[i] = strings.clone(roc_str_string(&word), context.temp_allocator)
+	}
 	roc_decref(config)
 	g_fake.init_box = fake_box_new()
 	return {model = g_fake.init_box, commands = roc_list_from_slice(g_fake.init_commands)}
@@ -199,12 +204,12 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil) {
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil) {
 	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands}
 	mesh_table_init(&g_fake.meshes, context.allocator)
 	sky_table_init(&g_fake.skies, context.allocator)
 	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)
-	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk), &g_fake.packs)
+	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
 }
 
 fake_seam_shutdown :: proc(s: ^Seam) {
@@ -612,6 +617,30 @@ test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: pro
 	testing.expect_value(t, g_fake.meshes.count, len(Primitive))
 	testing.expect_value(t, g_fake.skies.count, 1)
 	testing.expect_value(t, g_fake.loadeds, 0)
+}
+
+@(test)
+test_init_gets_the_args_in_the_order_typed :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, args = {"--draws", "4096", "an arg longer than twenty-three bytes"})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect(t, slice.equal(g_fake.args, []string{"--draws", "4096", "an arg longer than twenty-three bytes"}))
+}
+
+@(test)
+test_init_gets_no_args_as_an_empty_list :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	defer fake_seam_shutdown(&s)
+
+	testing.expect_value(t, len(g_fake.args), 0)
 }
 
 @(test)

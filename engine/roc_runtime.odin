@@ -4,6 +4,9 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 
+// The header size and the block length fill the last 16 bytes of the header.
+ROC_HEAP_HEADER_MIN :: 16
+
 ROC_GAME :: Game_Calls {
 	init       = roc_game_init,
 	step       = roc_game_step,
@@ -19,14 +22,20 @@ Roc_Heap_Counters :: struct {
 	live:     uint,
 }
 
-// The tracking allocator is load-bearing: roc_realloc gets no old size, and
-// the allocation map is the only record of it.
+// roc_realloc gets no old size, so each block carries its length in a header
+// before it. Realloc resizes in the backing allocator, so a block can grow in
+// place.
 Roc_Heap :: struct {
-	track:             mem.Tracking_Allocator,
-	allocator:         mem.Allocator,
+	backing:           mem.Allocator,
 	roc_alloc_count:   uint,
 	roc_dealloc_count: uint,
 	roc_realloc_count: uint,
+}
+
+Roc_Heap_Header :: struct {
+	base:   rawptr,
+	size:   int,
+	length: int,
 }
 
 // Global because the hooks are exported "c" procs with no user data.
@@ -35,20 +44,13 @@ g_roc_heap: Roc_Heap
 
 roc_heap_init :: proc(backing: mem.Allocator) {
 	g_roc_heap = {}
-	mem.tracking_allocator_init(&g_roc_heap.track, backing)
-	g_roc_heap.allocator = mem.tracking_allocator(&g_roc_heap.track)
+	g_roc_heap.backing = backing
 }
 
+// A block Roc never freed stays in the backing allocator. A host built with
+// ROCCO_TRACK_ALLOC reports it.
 roc_heap_shutdown :: proc() {
-	h := &g_roc_heap
-	if len(h.track.allocation_map) > 0 {
-		fmt.eprintfln("roc leaked %v blocks, %v bytes", len(h.track.allocation_map), h.track.current_memory_allocated)
-	}
-	for ptr in h.track.allocation_map {
-		mem.free(ptr, h.track.backing)
-	}
-	mem.tracking_allocator_destroy(&h.track)
-	h^ = {}
+	g_roc_heap = {}
 }
 
 roc_heap_counters :: proc() -> Roc_Heap_Counters {
@@ -56,7 +58,7 @@ roc_heap_counters :: proc() -> Roc_Heap_Counters {
 		allocs = g_roc_heap.roc_alloc_count,
 		deallocs = g_roc_heap.roc_dealloc_count,
 		reallocs = g_roc_heap.roc_realloc_count,
-		live = uint(len(g_roc_heap.track.allocation_map)),
+		live = g_roc_heap.roc_alloc_count - g_roc_heap.roc_dealloc_count,
 	}
 }
 
@@ -103,19 +105,20 @@ roc_game_view :: proc(model: rawptr) -> Scene {return roc_view(model)}
 @(private = "file")
 roc_game_drop_model :: proc(model: rawptr) {roc_drop_model(model)}
 
+// The backing alignment is at least the int alignment, so the header words
+// are aligned for any Roc alignment.
 @(export, link_name = "roc_alloc")
 roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
 	context = g_state.ctx
 	g_roc_heap.roc_alloc_count += 1
 
-	bytes, err := mem.alloc_bytes_non_zeroed(int(length), int(alignment), g_roc_heap.allocator)
-
+	size := roc_heap_header_size(int(alignment))
+	bytes, err := mem.alloc_bytes_non_zeroed(size + int(length), max(int(alignment), align_of(int)), g_roc_heap.backing)
 	if err != nil {
 		fmt.printfln("roc_alloc failed: %v", err)
 		return nil
 	}
-
-	return raw_data(bytes)
+	return roc_heap_header_write(raw_data(bytes), size, int(length))
 }
 
 @(export, link_name = "roc_dealloc")
@@ -123,7 +126,8 @@ roc_dealloc :: proc "c" (ptr: rawptr, alignment: uint) {
 	context = g_state.ctx
 	g_roc_heap.roc_dealloc_count += 1
 
-	mem.free(ptr, g_roc_heap.allocator)
+	header := roc_heap_header(ptr)
+	mem.free_with_size(header.base, header.size + header.length, g_roc_heap.backing)
 }
 
 @(export, link_name = "roc_realloc")
@@ -131,21 +135,44 @@ roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawp
 	context = g_state.ctx
 	g_roc_heap.roc_realloc_count += 1
 
-	old_size := 0
-	if entry, ok := g_roc_heap.track.allocation_map[ptr]; ok {
-		old_size = entry.size
-	}
-
-	new_bytes, err := mem.alloc_bytes_non_zeroed(int(new_length), int(alignment), g_roc_heap.allocator)
+	header := roc_heap_header(ptr)
+	base, err := mem.resize_non_zeroed(
+		header.base,
+		header.size + header.length,
+		header.size + int(new_length),
+		max(int(alignment), align_of(int)),
+		g_roc_heap.backing,
+	)
 	if err != nil {
 		fmt.printfln("roc_realloc failed: %v", err)
 		return nil
 	}
-	new_ptr := raw_data(new_bytes)
+	return roc_heap_header_write(base, header.size, int(new_length))
+}
 
-	mem.copy(new_ptr, ptr, min(old_size, int(new_length)))
-	mem.free(ptr, g_roc_heap.allocator)
-	return new_ptr
+// The header size is a multiple of the alignment, so the block keeps the
+// alignment of the backing block, also after a resize moves it.
+@(private = "file")
+roc_heap_header_size :: proc "contextless" (alignment: int) -> int {
+	return max(ROC_HEAP_HEADER_MIN, alignment)
+}
+
+@(private = "file")
+roc_heap_header :: proc "contextless" (ptr: rawptr) -> (header: Roc_Heap_Header) {
+	words := ([^]int)(ptr)
+	header.size = words[-2]
+	header.length = words[-1]
+	header.base = rawptr(uintptr(ptr) - uintptr(header.size))
+	return
+}
+
+@(private = "file")
+roc_heap_header_write :: proc "contextless" (base: rawptr, size, length: int) -> rawptr {
+	ptr := rawptr(uintptr(base) + uintptr(size))
+	words := ([^]int)(ptr)
+	words[-2] = size
+	words[-1] = length
+	return ptr
 }
 
 @(export, link_name = "roc_dbg")

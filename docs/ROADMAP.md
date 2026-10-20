@@ -842,7 +842,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **The allocation pool.** A fixed region reserved once at startup with a
   free list behind `roc_alloc` and `roc_dealloc`. Removes the system heap
   from the step path. Satisfies static allocation. Measure before and after
-  with the tracking allocator.
+  with a bench sweep and the Roc heap counters.
 - **Debug and speed parity.** Run the allocator counters under both
   `--opt=dev` and `--opt=speed` after every memory change.
 

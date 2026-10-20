@@ -11,6 +11,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         ca-certificates curl xz-utils \
         build-essential clang llvm binutils \
         libx11-dev libxi-dev libxcursor-dev libgl-dev libglx-mesa0 xvfb \
+        python3 git \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/odin && curl -fsSL \
