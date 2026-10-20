@@ -861,16 +861,42 @@ edit when the game builds its records from these defaults.
 ## The third arc: ready to announce
 
 Agreed 2026-10-21. The engine gets no announcement until a stranger can make
-a small game with it. The arc adds what such a game needs: sound, its own
-look, animated characters and a gamepad. It ends with the docs, a starter
-tutorial and a release that the announcement names. `docs/RESEARCH-SCALING.md`
-holds the research behind each milestone.
+a small game with it. The arc starts with the docs and the tutorial, so each
+later milestone adds its own guide page in the same commit as its code. Then
+it adds what such a game needs: sound, its own look, animated characters and
+a gamepad. It ends with a release that the announcement names.
+`docs/RESEARCH-SCALING.md` holds the research behind each milestone.
 
 Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
 from the release URLs. A person with only Roc installed follows the tutorial
 to a running game.
 
-## Milestone 18: the Bridge
+## Milestone 18: docs and v0.2.0
+
+Done when v0.2.0 is published, pixelsprout.dev shows the guides and the API
+from that tag, and Kula runs on v0.2.0. Grilled 2026-10-21. The dex
+milestone task holds the decisions and the tasks.
+
+1. `guide/` holds Markdown pages for game authors, in ASD-STE100. The ten
+   guide pages cover the five calls, the Scene, assets and Packs, Input,
+   Collisions and Queries, the UI, Launch, running and debugging, and
+   shipping a game.
+2. `guide/tutorial/` holds chapters 1 to 7. They build a small game in the
+   style of the entity game, with one app per chapter in
+   `examples/tutorial/`. CI builds every chapter app. A script copies code
+   regions from the apps into the pages, and CI fails on a diff.
+3. Every exposed type and function in the platform and in `linalg`, `mesh`
+   and `ui` has a `##` comment. `roc docs` makes the API reference.
+   `roc scripts/build.roc docs` fails on an item with no comment.
+4. The release workflow attaches the API and the bundle URLs as
+   `docs.tar.gz`. pixelsprout.dev reads `guide/` at the latest release tag
+   and renders it at `/projects/rocco/docs/`, with the API at
+   `/projects/rocco/api/`.
+
+Check: open pixelsprout.dev/projects/rocco/docs/, copy the chapter 1 header,
+and run it with only Roc installed.
+
+## Milestone 19: the Bridge
 
 Done when a script plays a game over a localhost socket in Lockstep. The
 script injects Input for N steps, reads the Scene as text and saves a
@@ -881,48 +907,43 @@ Input and reads the Scene itself. The grilling decides whether game-facing
 Ports (`Tell`, `Ask` and `Listen`) join this milestone or wait for the
 extensions.
 
-## Milestone 19: Look
+## Milestone 20: Look
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
 One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
-## Milestone 20: Audio
+## Milestone 21: Audio
 
 Done when Kula plays a landing sound on all three targets. miniaudio goes in
 the host as one archive per target. A one-shot is the `Play` Command. A loop
 or music is an entry in `Scene.sounds`, paired by id. Sounds are Pack assets
-with ids in the Manifest. Closes dex tasks 79n12xde and x7mwcd0w.
+with ids in the Manifest. Tutorial chapter 8 adds sound. Closes dex tasks
+79n12xde and x7mwcd0w.
 
-## Milestone 21: Animation
+## Milestone 22: Animation
 
-Done when an example draws a skinned glTF character that plays a walk clip.
-The glTF loader reads skins and animation clips. The Manifest gives the clip
-ids of each mesh. A Draw names a clip and a time, so the Model owns the time
-and `step` stays pure. The host samples the skeleton and skins the mesh on
-the GPU with a second vertex layout.
+Done when the tutorial character plays a walk clip in chapter 9. The glTF
+loader reads skins and animation clips. The Manifest gives the clip ids of
+each mesh. A Draw names a clip and a time, so the Model owns the time and
+`step` stays pure. The host samples the skeleton and skins the mesh on the
+GPU with a second vertex layout. The tutorial character's Blender script
+gains a rig.
 
-## Milestone 22: Gamepad
+## Milestone 23: Gamepad
 
 Done when Kula plays with a gamepad on all three targets. sokol_app reads no
 gamepad, so this is a host module with one file per OS. `Input` gains the
 sticks, the triggers and the buttons. The grilling chooses the OS interface
-per target and counts the catalog cost of each.
+per target and counts the catalog cost of each. Tutorial chapter 10 adds the
+gamepad.
 
-## Milestone 23: docs, the starter and the release
+## Milestone 24: the announcement release
 
-Done when the release is published and a person with only Roc installed
-follows the tutorial to a running game from the release URLs.
-
-1. A reference for the five calls and the Vocabulary.
-2. A starter tutorial. Its game lives in `examples/`, so CI builds it on
-   every push and the tutorial cannot fall behind the Vocabulary.
-3. A release from the `v*` workflow. The announcement links the release, the
-   docs and Kula.
-
-The pages live in this repo and pixelsprout.dev renders them, as it renders
-the dex tasks today. The site reads the pages at a release tag, so the docs
-match the released bundle and not `main`. Agreed 2026-10-21.
+Done when the release is published, the docs show it, and the announcement
+links the release, the docs and Kula. Each of milestones 19 to 23 adds its
+guide page, so this milestone checks the docs end to end and does not write
+them.
 
 ## Later arcs
 
@@ -972,7 +993,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
 
-Audio and fog moved into milestones 20 and 19. World-space sprites, Blender
+Audio and fog moved into milestones 21 and 20. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
