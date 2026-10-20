@@ -230,6 +230,80 @@ Roc_Init_Commands_Load :: struct {
 #assert(offset_of(Roc_Init_Commands_Load, pack) == 24)
 #assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == 24)
 
+Roc_Launch_Arg0 :: Roc_Init_Arg0
+Roc_Launch :: struct {
+	window: Roc_Launch_Window,
+	capacity: Roc_Launch_Capacity,
+	shadow_map: u32,
+	step_hz: u32,
+}
+
+#assert(size_of(Roc_Launch) == 64)
+#assert(align_of(Roc_Launch) == 8)
+#assert(offset_of(Roc_Launch, window) == 0)
+#assert(size_of(type_of(Roc_Launch{}.window)) == 40)
+#assert(offset_of(Roc_Launch, capacity) == 40)
+#assert(size_of(type_of(Roc_Launch{}.capacity)) == 16)
+#assert(offset_of(Roc_Launch, shadow_map) == 56)
+#assert(size_of(type_of(Roc_Launch{}.shadow_map)) == 4)
+#assert(offset_of(Roc_Launch, step_hz) == 60)
+#assert(size_of(type_of(Roc_Launch{}.step_hz)) == 4)
+
+Roc_Launch_Window :: struct {
+	title: Roc_Str,
+	height: u32,
+	width: u32,
+	fullscreen: bool,
+	high_dpi: bool,
+	samples: Roc_Launch_Window_Samples,
+	vsync: bool,
+}
+
+#assert(size_of(Roc_Launch_Window) == 40)
+#assert(align_of(Roc_Launch_Window) == 8)
+#assert(offset_of(Roc_Launch_Window, title) == 0)
+#assert(size_of(type_of(Roc_Launch_Window{}.title)) == 24)
+#assert(offset_of(Roc_Launch_Window, height) == 24)
+#assert(size_of(type_of(Roc_Launch_Window{}.height)) == 4)
+#assert(offset_of(Roc_Launch_Window, width) == 28)
+#assert(size_of(type_of(Roc_Launch_Window{}.width)) == 4)
+#assert(offset_of(Roc_Launch_Window, fullscreen) == 32)
+#assert(size_of(type_of(Roc_Launch_Window{}.fullscreen)) == 1)
+#assert(offset_of(Roc_Launch_Window, high_dpi) == 33)
+#assert(size_of(type_of(Roc_Launch_Window{}.high_dpi)) == 1)
+#assert(offset_of(Roc_Launch_Window, samples) == 34)
+#assert(size_of(type_of(Roc_Launch_Window{}.samples)) == 1)
+#assert(offset_of(Roc_Launch_Window, vsync) == 35)
+#assert(size_of(type_of(Roc_Launch_Window{}.vsync)) == 1)
+
+Roc_Launch_Window_Samples :: enum u8 {
+	Off = 0,
+	X2 = 1,
+	X4 = 2,
+	X8 = 3,
+}
+
+#assert(size_of(Roc_Launch_Window_Samples) == 1)
+#assert(align_of(Roc_Launch_Window_Samples) == 1)
+
+Roc_Launch_Capacity :: struct {
+	draws: u32,
+	meshes: u32,
+	skies: u32,
+	ui_quads: u32,
+}
+
+#assert(size_of(Roc_Launch_Capacity) == 16)
+#assert(align_of(Roc_Launch_Capacity) == 4)
+#assert(offset_of(Roc_Launch_Capacity, draws) == 0)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.draws)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, meshes) == 4)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.meshes)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, skies) == 8)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.skies)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, ui_quads) == 12)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.ui_quads)) == 4)
+
 Roc_Loaded_Arg2 :: struct {
 	name: Roc_Str,
 	id: u32,
@@ -950,6 +1024,14 @@ roc_init_commands_load_decref :: proc(value: Roc_Init_Commands_Load) {
 	roc_str_decref(value.pack)
 }
 
+roc_launch_decref :: proc(value: Roc_Launch) {
+	roc_launch_window_decref(value.window)
+}
+
+roc_launch_window_decref :: proc(value: Roc_Launch_Window) {
+	roc_str_decref(value.title)
+}
+
 roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
 	roc_str_decref(value.name)
 }
@@ -1111,6 +1193,8 @@ roc_decref :: proc {
 	roc_init_decref,
 	roc_init_commands_decref,
 	roc_init_commands_load_decref,
+	roc_launch_decref,
+	roc_launch_window_decref,
 	roc_loaded_arg2_decref,
 	roc_step_arg1_decref,
 	roc_step_arg2_decref,
@@ -1159,6 +1243,7 @@ roc_list_from_slice :: proc {
 foreign {
 	roc_drop_model :: proc(arg0: rawptr) ---
 	roc_init :: proc(arg0: Roc_Init_Arg0) -> Roc_Init ---
+	roc_launch :: proc(arg0: Roc_Init_Arg0) -> Roc_Launch ---
 	roc_loaded :: proc(arg0: rawptr, arg1: Roc_Str, arg2: Roc_List(Roc_Loaded_Arg2)) -> rawptr ---
 	roc_step :: proc(arg0: rawptr, arg1: Roc_Step_Arg1, arg2: Roc_Step_Arg2, arg3: f32) -> Roc_Init ---
 	roc_view :: proc(arg0: rawptr) -> Roc_View ---

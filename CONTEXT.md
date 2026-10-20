@@ -1,7 +1,7 @@
 # rocco
 
 rocco is a game engine written in Odin that hosts games written in Roc. The
-two meet at a seam of four pure functions, and this glossary fixes the words
+two meet at a seam of five pure functions, and this glossary fixes the words
 on both sides of it. `docs/DESIGN.md` decides meaning; `docs/GLOSSARY.md`
 explains the general graphics and memory concepts the engine is built from.
 
@@ -13,9 +13,9 @@ It is the whole of the non-Roc half.
 _Avoid_: runtime, backend, native side, C side
 
 **Host**:
-The engine seen from the seam: the party that calls `init`, `step`,
-`loaded` and `view`, owns the one pointer to the Model, and drops it at
-shutdown. Same code as the engine; say "host" when the sentence is about the
+The engine seen from the seam: the party that calls `launch`, `init`,
+`step`, `loaded` and `view`, owns the one pointer to the Model, and drops
+it at shutdown. Same code as the engine; say "host" when the sentence is about the
 seam.
 _Avoid_: script host, runtime
 
@@ -26,19 +26,19 @@ is exactly one.
 _Avoid_: SDK, framework, engine API
 
 **Game**:
-A Roc app built on the platform. It declares `Model` and defines `init`,
-`step`, `loaded` and `view`. "App" is Roc's word for the file kind; "game" is what it
-is.
+A Roc app built on the platform. It declares `Model` and defines `launch`,
+`init`, `step`, `loaded` and `view`. "App" is Roc's word for the file kind;
+"game" is what it is.
 _Avoid_: script, scripting, application code, client
 
 **Seam**:
 The boundary between game and engine. Only plain values cross it: facts go in
-through `init`, `step` and `loaded`, and decisions come out as a Scene and Commands.
-Nothing effectful crosses in either direction.
+through `launch`, `init`, `step` and `loaded`, and decisions come out as a
+Launch, a Scene and Commands. Nothing effectful crosses in either direction.
 _Avoid_: API, FFI boundary, scripting API, bridge
 
 **Game calls**:
-What the host calls on the game: the four calls, and `drop_model`, the
+What the host calls on the game: the five calls, and `drop_model`, the
 platform export that frees the Model at shutdown. The Seam reaches them
 through a struct of procedures, so a fake game can stand in for the Roc app
 in tests.
@@ -49,7 +49,12 @@ The generated Odin bindings for the vocabulary, produced by `roc glue` from
 the spec in the `glue/` submodule. Never written by hand.
 _Avoid_: bindings, FFI header, ABI file
 
-## The four calls
+## The five calls
+
+**launch**:
+The game's function from Config to a Launch. Called once, before `init` and
+before the window opens.
+_Avoid_: setup, start, conf, boot, configure
 
 **init**:
 The game's function from Config to a record of the Model and a list of
@@ -82,21 +87,28 @@ _Avoid_: system, pass, phase
 ## The vocabulary
 
 **Vocabulary**:
-The types that cross the seam: Config, Input, QueryResults, Scene and Command.
-They are the engine's public API. Nothing in them names a game. Games import
+The types that cross the seam: Config, Launch, Input, QueryResults, Scene and
+Command. They are the engine's public API. Nothing in them names a game. Games import
 them, and the records inside them, from `pf.Vocabulary`.
 _Avoid_: protocol, schema, contract, ABI
 
 **Vocabulary change**:
-Any edit to Config, Input, QueryResults, Scene or Command. It rebuilds the host
-and every game.
+Any edit to Config, Launch, Input, QueryResults, Scene or Command. It rebuilds
+the host and every game.
 Adding an asset, an entity kind or a game rule is never one.
 _Avoid_: breaking change, API change
 
 **Config**:
-What the host gives `init` once: a seed, the Args and the asset names found
-on disk, with no ids. Tests start from `pf.Config.empty`.
+What the host gives `launch` and then `init`, the same value both times: a
+seed, the Args and the asset names found on disk, with no ids. Tests start
+from `pf.Config.empty`.
 _Avoid_: settings, options, init args, environment
+
+**Launch**:
+What the game decides once before the window opens: its window, its step
+rate, its shadow map size and its capacities. The host reads it before
+`init` and never again. A game starts from `pf.Launch.default`.
+_Avoid_: settings, options, project file, conf, window config
 
 **Args**:
 The words after the game's name on the command line, in the order typed, as

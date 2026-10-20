@@ -7,6 +7,7 @@ import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:strings"
 
 import "base:runtime"
 
@@ -21,6 +22,8 @@ State :: struct {
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
 	seam:              Seam,
+	// The game's Launch. The host owns it from before init until shutdown.
+	launch:            Launch,
 	packs:             Packs,
 	alloc_report:      bool,
 	steps:             u64,
@@ -48,18 +51,22 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
-	clock_init(&g_state.clock)
 	camera_init(&g_state.debug_camera)
 
 	context = g_state.ctx
-	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
-	mesh_table_init(&g_state.renderer.meshes, context.allocator)
-	sky_table_init(&g_state.renderer.skies, context.allocator)
-	packs_init(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, assets_dir_from_env(), context.allocator)
-	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
+	perm := g_state.mem.perm_allocator
+	packs_init(&g_state.packs, assets_dir_from_env(), context.allocator)
 	roc_heap_init(context.allocator)
-	config := config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
-	seam_init(&g_state.seam, calls, app_run_command, config, &g_state.packs)
+	g_state.launch = seam_launch(&g_state.seam, calls, app_config())
+	launch_check_or_exit(g_state.launch)
+	capacity := g_state.launch.capacity
+	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
+	mesh_table_init(&g_state.renderer.meshes, int(capacity.meshes), perm, context.allocator)
+	sky_table_init(&g_state.renderer.skies, int(capacity.skies), perm, context.allocator)
+	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, perm)
+	frame_render_init(&g_state.frame_render, int(capacity.draws), perm)
+	clock_init(&g_state.clock, g_state.launch.step_hz)
+	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)
 
 	if g_state.mode == .Headless {
 		headless_init(&g_state, g_state.mem.perm_allocator) or_return
@@ -68,24 +75,34 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 		return
 	}
 
-	sapp.run(app_desc(g_state.mode))
+	sapp.run(app_desc(g_state.launch, g_state.mode, g_state.mem.perm_allocator))
 
 	return
 }
 
-// Lockstep turns vsync off, so frame pacing does not wait inside the render
-// Spans. sokol turns a swap_interval of 0 into 1, so it needs the flags. On
-// Metal, CADisplayLink still calls frame_cb once per display refresh.
-app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
-	vsync_off := mode == .Lockstep
+// launch and init get an equal Config. Each call consumes its own.
+app_config :: proc() -> Config {
+	return config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
+}
+
+// The window the Launch asks for. Lockstep turns vsync off whatever the
+// Launch says, so frame pacing does not wait inside the render Spans. sokol
+// turns a swap_interval of 0 into 1, so it needs the flags. On Metal,
+// CADisplayLink still calls frame_cb once per display refresh. The title is
+// a fresh cstring from allocator; sokol copies it when the run starts.
+app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sapp.Desc {
+	window := launch.window
+	vsync_off := mode == .Lockstep || !window.vsync
 	return {
 		init_cb = init_cb,
 		frame_cb = frame_cb,
 		cleanup_cb = cleanup_cb,
-		width = 960,
-		height = 540,
-		sample_count = SAMPLE_COUNT,
-		window_title = "rocco",
+		width = i32(window.width),
+		height = i32(window.height),
+		sample_count = msaa_sample_count(window.samples),
+		high_dpi = window.high_dpi,
+		fullscreen = window.fullscreen,
+		window_title = strings.clone_to_cstring(roc_str_string(&window.title), allocator),
 		logger = {func = slog.func},
 		event_cb = event_cb,
 		disable_vsync = vsync_off,
@@ -93,20 +110,36 @@ app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
 	}
 }
 
+// The sokol sizes the capacities need. The caller sets the environment,
+// because only a running sokol app has one.
+app_gfx_desc :: proc(capacity: Capacity) -> sg.Desc {
+	textures := texture_pool_size(capacity)
+	return {
+		logger = {func = slog.func},
+		image_pool_size = textures,
+		sampler_pool_size = textures,
+		view_pool_size = view_pool_size(capacity),
+		uniform_buffer_size = uniform_buffer_size(capacity),
+	}
+}
+
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	sg.setup({environment = sglue.environment(), logger = {func = slog.func}, image_pool_size = TEXTURE_POOL_SIZE, sampler_pool_size = TEXTURE_POOL_SIZE, uniform_buffer_size = UNIFORM_BUFFER_SIZE})
+	gfx := app_gfx_desc(g_state.launch.capacity)
+	gfx.environment = sglue.environment()
+	sg.setup(gfx)
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
-	renderer_init(&g_state.renderer)
-	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, g_state.mem.perm_allocator)
+	renderer_init(&g_state.renderer, g_state.launch)
+	ui_quads := int(g_state.launch.capacity.ui_quads)
+	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, ui_quads, g_state.mem.perm_allocator)
 	fmt.assertf(ui_err == nil, "the Clay arena did not allocate: %v", ui_err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
-	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, UI_QUAD_CAPACITY, g_state.mem.perm_allocator)
+	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, ui_quads, msaa_sample_count(g_state.launch.window.samples), g_state.mem.perm_allocator)
 	fmt.assertf(ui_gpu_err == nil, "the UI vertices did not allocate: %v", ui_gpu_err)
 	g_state.frame_render.begin_pass = renderer_begin_pass
 	g_state.frame_render.end_pass = renderer_end_pass
@@ -151,6 +184,7 @@ app_shutdown :: proc() {
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)
+	roc_decref(g_state.launch)
 	packs_destroy(&g_state.packs)
 	roc_heap_shutdown()
 	frame_render_destroy(&g_state.frame_render)

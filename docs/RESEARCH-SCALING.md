@@ -22,6 +22,12 @@ design to change, the text says so.
 
 ## This engine today
 
+This section shows the engine on 2026-10-20. Milestone 17 then moved the
+window size and title, `high_dpi`, the sample count, the step rate, the
+capacities and the shadow map size into the Launch. `launch` now runs before
+the window opens. ADR 0007 records the decision. The other constants below
+stay host constants.
+
 What crosses the seam, from `platform/Vocabulary.roc` and `docs/DESIGN.md`
 section 3:
 
@@ -158,8 +164,8 @@ Three homes were considered:
   ([langref, importing non-Roc files](https://github.com/roc-lang/roc/blob/main/docs/langref/statements.md#importing-non-roc-files)).
   The host would still need a seam value to receive it. So the file buys
   nothing over a Roc value.
-- **A field on the `init` result**, `{ model, commands, launch }`. Keeps
-  four functions. The host must read `launch` before it runs the Commands,
+- **A field on the `init` result**, `{ model, commands, launch }`. Adds
+  no function. The host must read `launch` before it runs the Commands,
   because `Load` needs the tables that `launch` sizes.
 - **A fifth required function** that runs before `init`:
 

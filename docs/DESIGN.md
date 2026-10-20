@@ -15,30 +15,40 @@ evidence are marked as decisions.
 | Odin manages | Roc manages |
 |---|---|
 | the window, the clock, the accumulator | the `Model`: the one value that is the game |
+| opening the window, sizing the GPU resources and the tables | the window, the step rate, the shadow map size and the capacities, once, as `launch` |
 | input, and turning it into levels and edges | the rules, as `step` |
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio callback and its thread | what should be heard, as data |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
-| the vocabulary types: `Config`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
+| the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
 
 Odin produces facts. Roc produces decisions. Both cross the seam as plain
 values. Roc never asks the engine a question mid-step. Roc never calls a draw
 function.
 
-## 2. The four functions
+## 2. The five functions
 
 ```roc
+# once, before init and before the window opens
+launch : Config -> Launch
 # once, at startup
 init : Config -> { model : Model, commands : List(Command) }
-# once per fixed step, 120 Hz
+# once per fixed step, at the Launch's step_hz
 step : Model, Input, QueryResults, F32 -> { model : Model, commands : List(Command) }
 # once per Load, before the next view
 loaded : Model, Str, Manifest -> Model
 # once per fixed step, after step
 view : Model -> Scene
 ```
+
+`launch` returns the Launch: the window, the fixed step rate, the shadow map
+size and the table capacities. The host calls it once, with the same Config
+that `init` gets. The host checks the Launch and sizes its tables from it.
+Then the host calls `init`. If a numeric field is zero, or a capacity is
+outside its bounds, the host prints the field's name and exits with code 1.
+Hot reload does not call `launch` again. ADR 0007 records the decision.
 
 `init` returns Commands so that a game can load its first pack before the
 first step. See section "Packs own asset lifetimes".
@@ -89,7 +99,7 @@ unknown kind once per run, and skips the Collider. A skipped Collider does
 not claim its id. Decision.
 
 ```
-             fixed step, 120 Hz                        render frame, display rate
+             fixed step, step_hz                       render frame, display rate
   ┌────────────── Odin ───────────────┐      ┌────────────── Odin ────────────────┐
   │ clock, key codes held and pressed │      │ accumulator remainder → alpha      │
   │ mouse delta                       │      │ Scene[n-1], Scene[n]               │
@@ -131,6 +141,10 @@ Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
 Rgba     : { r : F32, g : F32, b : F32, a : F32 }
 Config   : { seed : U64, assets : List(Str), args : List(Str) }
+Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
+Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
+Msaa     : [Off, X2, X4, X8]
+Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -157,6 +171,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | Type | Carries | Does not carry |
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
+| `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
@@ -336,7 +351,8 @@ alpha is not premultiplied. A Tint stays `Rgb`. Decision.
 
 Sizes are logical pixels. The game does not learn the window size, and no
 layout result flows back to the game. The host multiplies each size by
-`sapp.dpi_scale()`, which is 1 while `high_dpi` is off. Decision.
+`sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on a Retina Mac with `high_dpi`
+on. It is 1 with `high_dpi` off. Headless lays out at dpi 1. Decision.
 
 The host runs C Clay through its Odin bindings. Clay is a git submodule
 pinned to a commit. The `inputs` step copies its prebuilt lib per target,
@@ -551,11 +567,12 @@ The platform header binds `Model` with a for-clause:
 platform ""
     requires {} {
         [Model: model] for init : Vocabulary.Config -> { model : model, commands : List(Vocabulary.Command) },
+        launch : Vocabulary.Config -> Vocabulary.Launch,
         step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Collider, Config, Draw, Input, Key, Light, Query, QueryResults, Scene, Vocabulary]
+    exposes [Collider, Config, Draw, Input, Key, Launch, Light, Query, QueryResults, Scene, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -563,9 +580,12 @@ of the header and the platform body. The app must declare a type named
 exactly `Model`. The compiler names the missing type if it does not.
 
 The host cannot hold a value whose layout differs per game. The wrappers box
-it:
+it. A Launch has no Model, so its wrapper boxes nothing:
 
 ```roc
+launch_for_host : Vocabulary.Config -> Vocabulary.Launch
+launch_for_host = |config| launch(config)
+
 init_for_host : Vocabulary.Config -> { model : Box(Model), commands : List(Command) }
 init_for_host = |config| {
     started = init(config)
@@ -585,9 +605,10 @@ view_for_host : Box(Model) -> Vocabulary.Scene
 view_for_host = |boxed| view(Box.unbox(boxed))
 ```
 
-The glue emits `Model` as one opaque pointer. The four entrypoints are:
+The glue emits `Model` as one opaque pointer. The five entrypoints are:
 
 ```
+roc_launch(Config)                        -> Launch
 roc_init(Config)                          -> { ptr, List(Command) }
 roc_step(ptr, Input, QueryResults, f32)   -> { ptr, List(Command) }
 roc_loaded(ptr, Str, Manifest)            -> ptr
@@ -598,15 +619,15 @@ roc_view(ptr)                             -> Scene
 decref that switches on the tag. Decision.
 
 Nothing about the game appears in the generated ABI. `libhost.a` is rebuilt
-only when `Config`, `Manifest`, `Input`, `QueryResults`, `Scene` or `Command`
-change. Those types are the engine's public API.
+only when `Config`, `Launch`, `Manifest`, `Input`, `QueryResults`, `Scene` or
+`Command` change. Those types are the engine's public API.
 
 The vocabulary lives in `platform/Vocabulary.roc`. The header must use
 qualified names such as `Vocabulary.Config`, because it does not see the
 body's `import`. Games import the vocabulary and declare none of it. The
-modules `pf.Scene`, `pf.Draw`, `pf.Config` and `pf.Input` hold a default for
-each record a game builds, so a game writes the type qualified and starts its
-records from the default:
+modules `pf.Scene`, `pf.Draw`, `pf.Launch`, `pf.Config` and `pf.Input` hold
+a default for each record a game builds, so a game writes the type qualified
+and starts its records from the default:
 
 ```roc
 import pf.Vocabulary exposing [Command, Manifest]
@@ -803,7 +824,8 @@ under `xvfb-run` with software GL.
 
   These are `arm64mac` numbers. On `x64glibc` in the Docker image, under
   x86_64 emulation, entity-game takes 62.7 and 13.0 microseconds for `step`
-  under dev and speed. One fixed step is 8,333 microseconds.
+  under dev and speed. One fixed step at the default 120 Hz is 8,333
+  microseconds.
 - Hot reload keeps the state when the `Model` type does not change. The
   user checked this by hand on macOS with entity-game.
 

@@ -202,7 +202,9 @@ ignores. Only `sh bench/reference-run.sh` writes the committed results in
 
 `scripts/screenshot.sh <game> <out.png> [delay]` runs a built game, waits
 `delay` seconds (default 3), saves the game window to `out.png` and stops the
-game. The capture works when other windows cover the game window. `ROCCO_*`
+game. The capture works when other windows cover the game window. The PNG is
+at the display's pixel size, so a `high_dpi` window on a Retina display gives
+a PNG twice the window's size in points, title bar included. `ROCCO_*`
 variables pass through, so `ROCCO_DEBUG_CAMERA=1` and `ROCCO_SEED` work.
 Build the game first with `roc scripts/build.roc -- game <game>`.
 
@@ -319,6 +321,9 @@ dev backend, which is `roc run`'s default. `roc build` defaults to
 Hot reload keeps the state only when the `Model` type does not change. After
 a change to the `Model` type, restart the game.
 
+The host calls `launch` once per process, before the window opens. Hot reload
+does not call it again. After a change to `launch`, restart the game.
+
 ## Layout
 
 | Path | Contents |
@@ -339,7 +344,8 @@ a change to the `Model` type, restart the game.
 | `platform/QueryResults.roc` | Gives `QueryResults.empty`, which is what the first step gets. Tests use it. |
 | `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
 | `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from. |
-| `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `init`. |
+| `platform/Launch.roc` | Gives `Launch.default`, the Launch a game returns from `launch` or starts a record update from. |
+| `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `launch` and `init`. |
 | `platform/Input.roc` | Gives `Input.empty`, the Input a test gives `step`. |
 | `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives and compiler-rt. Not committed. |
 | `platform/targets/macos-sysroot/` | The stubs the macOS link reads. `scripts/make_macos_sysroot.py` writes them. Committed. Do not edit. |
@@ -402,8 +408,25 @@ A game is a Roc app whose header names this platform. Point `pf` at a
 checkout of this repo:
 
 ```roc
-app [init, step, view] { roc: "nightly-2026-10-11-7d256b9", pf: platform "../rocco-engine/platform/main.roc" }
+app [init, launch, loaded, step, view] { roc: "nightly-2026-10-11-7d256b9", pf: platform "../rocco-engine/platform/main.roc" }
 ```
+
+The game defines five calls: `launch`, `init`, `step`, `loaded` and `view`.
+`docs/DESIGN.md` section 2 gives their types. The host calls `launch` first,
+before the window opens. A game that wants the default window, step rate,
+shadow map size and capacities returns `Launch.default`:
+
+```roc
+import pf.Vocabulary
+import pf.Launch
+
+launch : Vocabulary.Config -> Vocabulary.Launch
+launch = |_config| Launch.default
+```
+
+A game that wants a different window starts a record update from the
+default, for example `{ ..Launch.default, window: { ..Launch.default.window,
+width: 1280, height: 720 } }`.
 
 The platform is not published as a Roc package URL yet. Until then, the
 checkout needs one full build on each OS.

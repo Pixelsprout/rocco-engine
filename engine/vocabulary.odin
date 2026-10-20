@@ -5,6 +5,10 @@ package engine
 // several paths takes the name of the first, so Vec3 is a Contact normal,
 // a step result is a Roc_Init and Rgba is a Box background.
 Config :: Roc_Init_Arg0
+Launch :: Roc_Launch
+Window :: Roc_Launch_Window
+Msaa :: Roc_Launch_Window_Samples
+Capacity :: Roc_Launch_Capacity
 Init_Result :: Roc_Init
 Input :: Roc_Step_Arg1
 Step_Result :: Roc_Step

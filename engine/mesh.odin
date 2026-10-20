@@ -6,8 +6,9 @@ import "core:math"
 import "core:math/linalg"
 import "core:mem"
 
-MESH_CAPACITY :: 64
 MESH_SLOT_BITS :: 16
+// A mesh or sky id packs its slot in MESH_SLOT_BITS, so a table holds at most this many slots.
+SLOT_LIMIT :: 1 << MESH_SLOT_BITS
 SPHERE_RINGS :: 16
 SPHERE_SEGMENTS :: 32
 
@@ -138,15 +139,16 @@ Mesh :: struct {
 }
 
 // After mesh_table_upload, a new mesh uploads when it is added. The table
-// owns each loaded mesh's name and data.
+// owns each loaded mesh's name and data. The slots never grow.
 Mesh_Table :: struct {
-	meshes:     [MESH_CAPACITY]Mesh,
+	meshes:     []Mesh,
 	count:      int,
-	free:       [MESH_CAPACITY]int,
+	free:       []int,
 	free_count: int,
 	logged:     map[u32]struct {},
 	uploaded:   bool,
 	allocator:  mem.Allocator,
+	perm:       mem.Allocator,
 }
 
 Mesh_Data :: struct {
@@ -158,8 +160,14 @@ Mesh_Data :: struct {
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
-mesh_table_init :: proc(t: ^Mesh_Table, allocator: mem.Allocator) {
+// The slots come from perm; the names, data and log from allocator, which
+// must free.
+mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allocator) {
+	fmt.assertf(capacity >= len(Primitive) && capacity <= SLOT_LIMIT, "a mesh table of %v slots cannot hold the primitives or give each slot an id", capacity)
 	t.allocator = allocator
+	t.perm = perm
+	t.meshes = make([]Mesh, capacity, perm)
+	t.free = make([]int, capacity, perm)
 	t.logged = make(map[u32]struct {}, allocator)
 	for p in Primitive {
 		box := mesh_box(primitive_build(p, context.temp_allocator).vertices)
@@ -177,6 +185,8 @@ mesh_table_destroy :: proc(t: ^Mesh_Table) {
 		}
 	}
 	delete(t.logged)
+	delete(t.meshes, t.perm)
+	delete(t.free, t.perm)
 }
 
 mesh_id :: proc(t: ^Mesh_Table, slot: int) -> u32 {
@@ -188,7 +198,11 @@ mesh_slot :: proc(id: u32) -> int {
 }
 
 mesh_table_full :: proc(t: ^Mesh_Table) -> bool {
-	return t.free_count == 0 && t.count == MESH_CAPACITY
+	return t.free_count == 0 && t.count == len(t.meshes)
+}
+
+mesh_table_full_reason :: proc(t: ^Mesh_Table) -> string {
+	return fmt.tprintf("the mesh table is full at %v meshes", len(t.meshes))
 }
 
 mesh_table_find :: proc(t: ^Mesh_Table, name: string) -> (id: u32, found: bool) {
@@ -314,7 +328,7 @@ mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fal
 	if id != 0 && slot < t.count && t.meshes[slot].live && mesh_id(t, slot) == id {
 		return &t.meshes[slot], false
 	}
-	stale := slot >= len(Primitive) && slot < MESH_CAPACITY && generation != u32(t.meshes[slot].generation)
+	stale := slot >= len(Primitive) && slot < len(t.meshes) && generation != u32(t.meshes[slot].generation)
 	if id not_in t.logged {
 		t.logged[id] = {}
 		if id == 0 {

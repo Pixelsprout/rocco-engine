@@ -3,6 +3,7 @@ package engine
 import "core:time"
 
 Game_Calls :: struct {
+	launch:     proc(config: Config) -> Launch,
 	init:       proc(config: Config) -> Init_Result,
 	step:       proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result,
 	loaded:     proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr,
@@ -35,11 +36,19 @@ Query_Answers :: struct {
 	overlaps: []Overlap_Hit,
 }
 
+// The first Game call. ADR 0007 puts launch before init, so the host holds
+// the Launch before init's Commands run. It binds the Game calls that
+// seam_init then uses.
+seam_launch :: proc(s: ^Seam, calls: Game_Calls, config: Config) -> Launch {
+	s.calls = calls
+	return s.calls.launch(config)
+}
+
 // Owns the one reference to the Model, the last two Scenes and the QueryResults.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
-seam_init :: proc(s: ^Seam, calls: Game_Calls, run_command: Command_Runner, config: Config, packs: ^Packs) {
-	s.calls = calls
+seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: ^Packs) {
+	assert(s.calls.init != nil, "seam_launch binds the Game calls and runs first")
 	s.run_command = run_command
 	s.packs = packs
 	query_search_init(&s.search, context.allocator)

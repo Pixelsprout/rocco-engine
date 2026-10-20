@@ -15,10 +15,10 @@ g_clay_lock: sync.Mutex
 
 // Holds g_clay_lock until frame_fixture_destroy_ui. A test that panics skips
 // the unlock and blocks every later Clay test, so check a length before indexing.
-frame_fixture_init_ui :: proc(f: ^Frame_Fixture, quad_capacity := UI_QUAD_CAPACITY) {
+frame_fixture_init_ui :: proc(f: ^Frame_Fixture, quad_capacity := UI_QUAD_LIMIT) {
 	sync.mutex_lock(&g_clay_lock)
 	f.ui = new(Ui)
-	err := ui_init(f.ui, f.window.size, context.allocator, quad_capacity)
+	err := ui_init(f.ui, f.window.size, quad_capacity, context.allocator)
 	assert(err == nil)
 }
 
@@ -95,7 +95,7 @@ test_ui_init_sizes_the_arena_from_clay :: proc(t: ^testing.T) {
 	defer vmem.arena_destroy(&arena)
 	defer clay.SetCurrentContext(nil)
 	ui: Ui
-	err := ui_init(&ui, {960, 540}, vmem.arena_allocator(&arena))
+	err := ui_init(&ui, {960, 540}, UI_QUAD_LIMIT, vmem.arena_allocator(&arena))
 	testing.expect_value(t, err, nil)
 	testing.expect_value(t, len(ui.memory), int(clay.MinMemorySize()))
 	testing.expect(t, ui.ctx != nil)

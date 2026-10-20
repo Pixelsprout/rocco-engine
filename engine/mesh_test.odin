@@ -5,10 +5,35 @@ import "core:math/linalg"
 import "core:strings"
 import "core:testing"
 
+// Two slots past the Fallback mesh and the Primitives, so two adds fill the table.
+SMALL_MESHES :: len(Primitive) + 2
+
+@(test)
+test_mesh_table_holds_its_capacity_and_refuses_the_next_add :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	for name in ([]string{"a", "b"}) {
+		_, ok := mesh_table_add(&table, strings.clone(name), {})
+		testing.expectf(t, ok, "expected %v to fit", name)
+	}
+	testing.expect(t, mesh_table_full(&table))
+	_, ok := mesh_table_add(&table, "c", {})
+	testing.expect(t, !ok)
+	testing.expect_value(t, table.count, SMALL_MESHES)
+
+	mesh_table_remove(&table, SMALL_MESHES - 1)
+	testing.expect(t, !mesh_table_full(&table))
+	slot, refilled := mesh_table_add(&table, strings.clone("d"), {})
+	testing.expect(t, refilled)
+	testing.expect_value(t, slot, SMALL_MESHES - 1)
+}
+
 @(test)
 test_mesh_table_resolves_a_known_id_to_its_slot :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	mesh, fallback := mesh_resolve(&table, u32(Primitive.Sphere), 4)
@@ -20,14 +45,14 @@ test_mesh_table_resolves_a_known_id_to_its_slot :: proc(t: ^testing.T) {
 @(test)
 test_mesh_table_resolves_id_0_and_unknown_ids_to_the_fallback :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	ids := []u32 {
 		0,
 		9,
 		len(Primitive),
-		MESH_CAPACITY,
+		SMALL_MESHES,
 		max(u32),
 		1 << MESH_SLOT_BITS,
 		1 << MESH_SLOT_BITS | u32(Primitive.Cube),
@@ -42,7 +67,7 @@ test_mesh_table_resolves_id_0_and_unknown_ids_to_the_fallback :: proc(t: ^testin
 @(test)
 test_mesh_table_logs_each_fallback_id_once :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	for id in ([]u32{9, 9, 0, 0, 9, 1}) {
@@ -57,7 +82,7 @@ test_mesh_table_logs_each_fallback_id_once :: proc(t: ^testing.T) {
 @(test)
 test_each_primitive_has_its_fixed_id_by_name :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	Case :: struct {
@@ -76,7 +101,7 @@ test_each_primitive_has_its_fixed_id_by_name :: proc(t: ^testing.T) {
 @(test)
 test_a_first_generation_id_is_the_slot_index :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	testing.expect_value(t, mesh_id(&table, int(Primitive.Sphere)), u32(Primitive.Sphere))
@@ -183,7 +208,7 @@ test_a_mesh_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
 @(test)
 test_every_primitive_is_matte_and_not_metal :: proc(t: ^testing.T) {
 	meshes: Mesh_Table
-	mesh_table_init(&meshes, context.allocator)
+	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&meshes)
 	for p in Primitive {
 		testing.expect_value(t, meshes.meshes[p].material, MATERIAL_MATTE)
@@ -193,7 +218,7 @@ test_every_primitive_is_matte_and_not_metal :: proc(t: ^testing.T) {
 @(test)
 test_a_loaded_mesh_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	vertices := make([]Vertex, 3)
@@ -207,7 +232,7 @@ test_a_loaded_mesh_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
 @(test)
 test_each_primitive_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
 	table: Mesh_Table
-	mesh_table_init(&table, context.allocator)
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
 	testing.expect_value(t, table.meshes[Primitive.Fallback].box, Box{min = -0.5, max = 0.5})

@@ -1,8 +1,9 @@
 # The types that cross the seam; see CONTEXT.md. Nothing in them names a game.
 # Key codes are sokol's; pf.Key names them. Config names the assets on disk
 # with no ids. Config.args holds the words after the game's name on the
-# command line, in the order typed. Mesh ids come from the Manifest that
-# loaded gets after a Load.
+# command line, in the order typed. Launch is what the game decides before
+# the window opens: its Window, step rate, shadow map size and Capacity. Mesh
+# ids come from the Manifest that loaded gets after a Load.
 # An id the engine does not know draws the fallback mesh. Scene.sky is a sky
 # id from a Manifest; 0 or an id the engine does not know draws no sky. A Box
 # shape carries its half extents. An Overlap box does not turn. A Light
@@ -20,6 +21,49 @@ Vocabulary := [].{
 	Rgb : { r : F32, g : F32, b : F32 }
 	Rgba : { r : F32, g : F32, b : F32, a : F32 }
 	Config : { seed : U64, assets : List(Str), args : List(Str) }
+	# The host reads a Launch once, before the window opens. A field's comment
+	# names the later Scene field that may replace it and the run mode that
+	# overrides it. A field with neither changes only on restart.
+	Launch : {
+		# Headless opens no window: it lays out the UI against width and
+		# height at dpi 1 and ignores the rest of the Window.
+		window : Window,
+		# The fixed step rate in Hz. Above zero. step sees a dt of one over it.
+		step_hz : U32,
+		# The shadow map's width and height in texels. Above zero.
+		shadow_map : U32,
+		# The table sizes. No Scene field replaces them.
+		capacity : Capacity,
+	}
+	Window : {
+		# Logical pixels. Above zero. No Scene field replaces them.
+		width : U32,
+		height : U32,
+		# The title at start. A later Scene field may replace it.
+		title : Str,
+		# Start fullscreen. A later Scene field may replace it.
+		fullscreen : Bool,
+		# Render at the display's full resolution. UI sizes stay logical pixels.
+		high_dpi : Bool,
+		# MSAA for the window and the pipelines. Off is one sample.
+		samples : Msaa,
+		# Wait for the display each frame. Lockstep turns it off whatever this says.
+		vsync : Bool,
+	}
+	Msaa : [Off, X2, X4, X8]
+	# Past a capacity, a Load gives id 0 or the host draws the first ones, and
+	# logs once.
+	Capacity : {
+		# Mesh slots. At least 4, for the Fallback mesh and the three Primitives,
+		# and at most 65536.
+		meshes : U32,
+		# Sky slots. At least 2, for the reserved slot and one sky, and at most 65536.
+		skies : U32,
+		# Draws per Frame. Above zero and at most 2796197. The uniform buffer grows with it.
+		draws : U32,
+		# UI quads per Frame. Above zero and at most 16384, the u16 index bound.
+		ui_quads : U32,
+	}
 	Manifest : List({ name : Str, id : U32 })
 	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 	Camera : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }

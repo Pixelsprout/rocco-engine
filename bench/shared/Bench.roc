@@ -16,6 +16,18 @@ Bench := [].{
 		Err(_) => Err(BadCount)
 	}
 
+	# The draws capacity for a game that draws N Draws. A missing or bad N gives
+	# the default, because init stops that run.
+	draws_for_n : List(Str), U32 -> U32
+	draws_for_n = |args, default| match n_arg(args) {
+		Ok(n) =>
+			match n.to_u32_try() {
+				Ok(draws) => draws
+				Err(_) => default
+			}
+		Err(BadCount) => default
+	}
+
 	# The Odin twins use the same generator and spread, so the golden files match.
 	next_rng : U64 -> U64
 	next_rng = |s| s.times_wrap(6364136223846793005).plus_wrap(1)
@@ -43,6 +55,11 @@ expect Bench.n_arg([]) == Err(BadCount)
 expect Bench.n_arg(["0"]) == Err(BadCount)
 expect Bench.n_arg(["-3"]) == Err(BadCount)
 expect Bench.n_arg(["many"]) == Err(BadCount)
+
+expect Bench.draws_for_n(["64"], 16384) == 64
+expect Bench.draws_for_n(["20000"], 16384) == 20000
+expect Bench.draws_for_n([], 16384) == 16384
+expect Bench.draws_for_n(["many"], 16384) == 16384
 
 expect Bench.with_n(64).args == ["64"]
 

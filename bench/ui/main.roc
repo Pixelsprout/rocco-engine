@@ -1,10 +1,11 @@
-app [init, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
 import ui.Ui
 import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, Scene]
 import pf.QueryResults
+import pf.Launch
 
 # The UI bench game. Its Scene has no Draws, and its UI holds exactly N Box and
 # Text elements inside one root Box: N / 2 cells of one Box and one Text, plus
@@ -23,6 +24,10 @@ root_box = { ..Ui.default_box, width: Grow({ min: 0.0, max: 0.0 }), height: Grow
 
 label : Ui.TextStyle
 label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
+
+# high_dpi off, so the numbers do not depend on the display.
+launch : Config -> Vocabulary.Launch
+launch = |_config| { ..Launch.default, window: { ..Launch.default.window, high_dpi: False } }
 
 # N is the first Arg. A missing or bad N must stop the run, so a typo cannot
 # give a benchmark at the wrong size.
@@ -109,6 +114,7 @@ box_and_text_count = |ui| opens(ui) + texts(ui) - 1
 balanced : List(Element) -> Bool
 balanced = |ui| ui.count_if(|e| e == Close) == opens(ui)
 
+expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).commands == []
 
 expect box_and_text_count(ui_of(64)) == 64 and texts(ui_of(64)) == 32

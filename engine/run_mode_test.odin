@@ -57,14 +57,3 @@ test_run_mode_rejects_headless_without_a_frame_count :: proc(t: ^testing.T) {
 	_, ok := run_mode_make(lockstep = false, headless = true, exit_after_frames = 0)
 	testing.expect(t, !ok)
 }
-
-@(test)
-test_app_desc_turns_vsync_off_only_in_lockstep :: proc(t: ^testing.T) {
-	lockstep := app_desc(.Lockstep)
-	real_clock := app_desc(.Real_Clock)
-
-	testing.expect(t, lockstep.disable_vsync)
-	testing.expect(t, lockstep.metal.disable_display_sync)
-	testing.expect(t, !real_clock.disable_vsync)
-	testing.expect(t, !real_clock.metal.disable_display_sync)
-}

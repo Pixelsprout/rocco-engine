@@ -15,6 +15,7 @@ FAKE_COMMANDS_MAX :: 4
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
+	launch     = fake_launch,
 	init       = fake_init,
 	step       = fake_step,
 	loaded     = fake_loaded,
@@ -29,6 +30,13 @@ Fake_Command_Run :: struct {
 }
 
 Fake_Game :: struct {
+	launches:        int,
+	// inits when launch ran, so 0 means launch came first.
+	launch_inits:    int,
+	launch_seed:     u64,
+	launch_assets:   []string,
+	launch_args:     []string,
+	launch_out:      Launch,
 	inits:           int,
 	seed:            u64,
 	assets:          []string,
@@ -39,6 +47,7 @@ Fake_Game :: struct {
 	step_in:         rawptr,
 	step_in_rc:      int,
 	step_out:        rawptr,
+	step_dt:         f32,
 	held:            [FAKE_KEYS_MAX]u16,
 	held_len:        int,
 	pressed:         [FAKE_KEYS_MAX]u16,
@@ -58,6 +67,9 @@ Fake_Game :: struct {
 	colliders:       []Collider,
 	queries:         []Query,
 	ui_texts:        []string,
+	// Elements with no Roc_Str, so view can hand them out again and again.
+	// ui_texts stays separate because each view must make its strings fresh.
+	ui:              []Element,
 	commands_out:    int,
 	next_commands:   []Command,
 	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -112,18 +124,33 @@ fake_unload :: proc(pack: string) -> Command {
 	return command
 }
 
+// Copies the Config out and consumes it, as the Roc game does.
+fake_config_read :: proc(config: Config) -> (seed: u64, assets, args: []string) {
+	seed = config.seed
+	assets = fake_strings_clone(config.assets)
+	args = fake_strings_clone(config.args)
+	roc_decref(config)
+	return
+}
+
+fake_strings_clone :: proc(list: Roc_List(Roc_Str)) -> []string {
+	out := make([]string, list.length, context.temp_allocator)
+	for &str, i in list.elements[:list.length] {
+		out[i] = strings.clone(roc_str_string(&str), context.temp_allocator)
+	}
+	return out
+}
+
+fake_launch :: proc(config: Config) -> Launch {
+	g_fake.launches += 1
+	g_fake.launch_inits = g_fake.inits
+	g_fake.launch_seed, g_fake.launch_assets, g_fake.launch_args = fake_config_read(config)
+	return launch_default()
+}
+
 fake_init :: proc(config: Config) -> Init_Result {
 	g_fake.inits += 1
-	g_fake.seed = config.seed
-	g_fake.assets = make([]string, config.assets.length, context.temp_allocator)
-	for &name, i in config.assets.elements[:config.assets.length] {
-		g_fake.assets[i] = strings.clone(roc_str_string(&name), context.temp_allocator)
-	}
-	g_fake.args = make([]string, config.args.length, context.temp_allocator)
-	for &word, i in config.args.elements[:config.args.length] {
-		g_fake.args[i] = strings.clone(roc_str_string(&word), context.temp_allocator)
-	}
-	roc_decref(config)
+	g_fake.seed, g_fake.assets, g_fake.args = fake_config_read(config)
 	g_fake.init_box = fake_box_new()
 	return {model = g_fake.init_box, commands = roc_list_from_slice(g_fake.init_commands)}
 }
@@ -132,6 +159,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.steps += 1
 	g_fake.step_in = model
 	g_fake.step_in_rc = fake_refcount(model)^
+	g_fake.step_dt = dt
 	fake_box_free(model)
 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
@@ -184,6 +212,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 		text.payload.text = {str = roc_str_from_slice(str)}
 		append(&ui, text, Element{tag = .Close})
 	}
+	append(&ui, ..g_fake.ui)
 	return {
 		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
 		colliders = roc_list_from_slice(g_fake.colliders),
@@ -204,16 +233,19 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil) {
-	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands}
-	mesh_table_init(&g_fake.meshes, context.allocator)
-	sky_table_init(&g_fake.skies, context.allocator)
-	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)
-	seam_init(s, FAKE_GAME, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil, ui: []Element = nil) {
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui}
+	packs_init(&g_fake.packs, assets_dir, context.allocator)
+	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
+	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
+	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
+	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, context.allocator)
+	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
 }
 
 fake_seam_shutdown :: proc(s: ^Seam) {
 	seam_shutdown(s)
+	roc_decref(g_fake.launch_out)
 	packs_destroy(&g_fake.packs)
 	mesh_table_destroy(&g_fake.meshes)
 	sky_table_destroy(&g_fake.skies)
@@ -620,6 +652,26 @@ test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: pro
 }
 
 @(test)
+test_launch_runs_once_before_init_with_the_config_init_gets :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, 42, assets_dir = dir, args = {"--fullscreen", "an arg longer than twenty-three bytes"})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect_value(t, g_fake.launches, 1)
+	testing.expect_value(t, g_fake.launch_inits, 0)
+	testing.expect_value(t, g_fake.inits, 1)
+	testing.expect_value(t, g_fake.launch_seed, 42)
+	testing.expect_value(t, g_fake.launch_seed, g_fake.seed)
+	testing.expect(t, slice.equal(g_fake.launch_assets, g_fake.assets))
+	testing.expect(t, slice.equal(g_fake.launch_args, g_fake.args))
+}
+
+@(test)
 test_init_gets_the_args_in_the_order_typed :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
@@ -866,15 +918,17 @@ test_a_name_that_found_the_table_full_loads_after_an_unload_frees_a_slot :: proc
 	s: Seam
 	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
-	g_fake.meshes.count = MESH_CAPACITY - 1
+	g_fake.meshes.count = SMALL_MESHES - 1
 
-	fake_step_with(&s, fake_load("A", "a"))
+	a := fake_step_with(&s, fake_load("A", "a"))[0].id
+	testing.expect_value(t, mesh_slot(a), SMALL_MESHES - 1)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "b"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("C", "b"))[0].id, 0)
 	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
 
 	fake_step_with(&s, fake_unload("A"))
 	b := fake_step_with(&s, fake_load("D", "b"))[0].id
+	testing.expect_value(t, mesh_slot(b), SMALL_MESHES - 1)
 	testing.expect_value(t, fake_mesh_name(b), "b")
 }
 
@@ -963,7 +1017,7 @@ test_a_sky_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing
 	s: Seam
 	fake_seam_init(&s, assets_dir = dir)
 	defer fake_seam_shutdown(&s)
-	g_fake.skies.count = SKY_CAPACITY
+	g_fake.skies.count = SMALL_SKIES
 
 	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sky/clear"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear"))[0].id, 0)

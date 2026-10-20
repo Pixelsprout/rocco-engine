@@ -4,11 +4,11 @@ Terms as rocco uses them, one paragraph each. Entries link to each other by anch
 
 ## Accumulator {#accumulator}
 
-The running store of unsimulated time in the fixed-timestep loop. Each frame adds the (clamped) frame time; the loop drains it one `FIXED_DT` at a time. What is left over is how far the display sits between two simulation steps.
+The running store of unsimulated time in the fixed-timestep loop. Each frame adds the (clamped) frame time; the loop drains it one fixed interval at a time. What is left over is how far the display sits between two simulation steps.
 
 ## Alpha, interpolation {#alpha}
 
-The [accumulator](#accumulator) divided by `FIXED_DT`, so a number in `[0, 1)`. It is a *position*, not a quantity of pending work: it says how far past the last simulation step the display is standing. Fiedler: *"a remainder of `dt/2` means that we are currently halfway between the current physics step and the next"*. Feed it to `lerp(x_prev, x, alpha)` to draw [render state](#render-state) the simulation never computed. It is pinned at `0.0000` forever whenever the display rate divides the simulation rate, which is why a 60 Hz monitor cannot test any of this.
+The [accumulator](#accumulator) divided by the fixed interval, so a number in `[0, 1)`. It is a *position*, not a quantity of pending work: it says how far past the last simulation step the display is standing. Fiedler: *"a remainder of `dt/2` means that we are currently halfway between the current physics step and the next"*. Feed it to `lerp(x_prev, x, alpha)` to draw [render state](#render-state) the simulation never computed. It is pinned at `0.0000` forever whenever the display rate divides the simulation rate, which is why a 60 Hz monitor cannot test any of this.
 
 ## Allocator {#allocator}
 
@@ -144,7 +144,7 @@ The angle the camera sees, given vertically and as the whole angle (`fovy`). It 
 
 ## Fixed timestep {#fixed-timestep}
 
-Advancing the simulation only in identical slices of `FIXED_DT`, independent of how long the frame took. Buys *reproducibility* — the same inputs give the same step sequence regardless of frame timing. Does *not* prevent tunnelling.
+Advancing the simulation only in identical slices of the fixed interval, independent of how long the frame took. Buys *reproducibility* — the same inputs give the same step sequence regardless of frame timing. Does *not* prevent tunnelling.
 
 ## Frame arena {#frame-arena}
 
@@ -376,11 +376,11 @@ What an Odin slice actually is: two words — a pointer and a length — describ
 
 ## Render state {#render-state}
 
-What the renderer reads this frame, *derived* from simulation state and stored nowhere that outlives the frame. The distinction that matters: simulation state advances only in whole `FIXED_DT` steps and is the authority; render state is recomputed at the display rate from the simulation plus [alpha](#alpha). Anything the renderer draws by interpolation therefore needs *two* copies — before and after the last step. In this engine those copies are the previous and current `Scene`, kept by the host; the simulation keeps one `Model` and no history. Values that are closed-form functions of time need no pair: ask for them at `game_time + accumulator` instead. **This name is mine, not Gregory's** — if the book has one it wins.
+What the renderer reads this frame, *derived* from simulation state and stored nowhere that outlives the frame. The distinction that matters: simulation state advances only in whole fixed steps and is the authority; render state is recomputed at the display rate from the simulation plus [alpha](#alpha). Anything the renderer draws by interpolation therefore needs *two* copies — before and after the last step. In this engine those copies are the previous and current `Scene`, kept by the host; the simulation keeps one `Model` and no history. Values that are closed-form functions of time need no pair: ask for them at `game_time + accumulator` instead. **This name is mine, not Gregory's** — if the book has one it wins.
 
 ## Render interpolation {#render-interpolation}
 
-Drawing `lerp(previous, current, alpha)` instead of `current`, so the picture moves at the display rate rather than in simulation-sized jumps. Costs latency: the drawn state is up to one whole step behind the simulated one — measured here at 3.62 ms average, 7.25 ms worst, with `FIXED_DT = 1/120` on a 144 Hz display. The previous-state copy must be taken once per *step*, not once per frame, because there may be any number of steps in a frame. Here the host takes it: `view` runs after every step and the host keeps the last two `Scene`s, pairing draws by id. Roc never sees a previous `Model` or an alpha. Assumes the two ends are joined, so a teleport must be flagged and snapped rather than blended. Contrast *extrapolation*, which runs velocity forward past the current state and must then correct itself visibly.
+Drawing `lerp(previous, current, alpha)` instead of `current`, so the picture moves at the display rate rather than in simulation-sized jumps. Costs latency: the drawn state is up to one whole step behind the simulated one — measured here at 3.62 ms average, 7.25 ms worst, with a 120 Hz step rate on a 144 Hz display. The previous-state copy must be taken once per *step*, not once per frame, because there may be any number of steps in a frame. Here the host takes it: `view` runs after every step and the host keeps the last two `Scene`s, pairing draws by id. Roc never sees a previous `Model` or an alpha. Assumes the two ends are joined, so a teleport must be flagged and snapped rather than blended. Contrast *extrapolation*, which runs velocity forward past the current state and must then correct itself visibly.
 
 ## Sokol {#sokol}
 
@@ -496,7 +496,7 @@ Naming a generated type after the route that reaches it from a `provides` entry 
 
 ## Platform seam {#platform-seam}
 
-The boundary between the Roc game and the Odin engine, drawn as four pure functions: `init`, `step`, `loaded` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
+The boundary between the Roc game and the Odin engine, drawn as five pure functions: `launch`, `init`, `step`, `loaded` and `view`. Facts cross it inward as plain values; decisions and a `Scene` cross it outward. Nothing effectful crosses it in either direction. Contrast a *scripting API*, where the script calls the engine.
 
 ## Manifest {#mesh-manifest}
 

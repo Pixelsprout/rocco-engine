@@ -100,3 +100,15 @@ twin_reads_n_from_the_first_arg :: proc(t: ^testing.T) {
 		testing.expect_value(t, ok, c.ok)
 	}
 }
+
+@(test)
+twin_launch_is_the_default_with_high_dpi_off :: proc(t: ^testing.T) {
+	heap_begin()
+	defer heap_end()
+
+	launch := TWIN.launch(engine.config_make(0, nil, {"64"}))
+	want := engine.launch_default()
+	want.window.high_dpi = false
+	testing.expect_value(t, launch, want)
+	testing.expect_value(t, engine.roc_heap_counters().live, 0)
+}
