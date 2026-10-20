@@ -7,6 +7,7 @@ import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:strings"
 
 import "base:runtime"
 
@@ -61,6 +62,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	frame_render_init(&g_state.frame_render, g_state.mem.perm_allocator)
 	roc_heap_init(context.allocator)
 	g_state.launch = seam_launch(&g_state.seam, calls, app_config())
+	launch_check_or_exit(g_state.launch)
 	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)
 
 	if g_state.mode == .Headless {
@@ -70,7 +72,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 		return
 	}
 
-	sapp.run(app_desc(g_state.mode))
+	sapp.run(app_desc(g_state.launch, g_state.mode, g_state.mem.perm_allocator))
 
 	return
 }
@@ -80,19 +82,24 @@ app_config :: proc() -> Config {
 	return config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
 }
 
-// Lockstep turns vsync off, so frame pacing does not wait inside the render
-// Spans. sokol turns a swap_interval of 0 into 1, so it needs the flags. On
-// Metal, CADisplayLink still calls frame_cb once per display refresh.
-app_desc :: proc(mode: Run_Mode) -> sapp.Desc {
-	vsync_off := mode == .Lockstep
+// The window the Launch asks for. Lockstep turns vsync off whatever the
+// Launch says, so frame pacing does not wait inside the render Spans. sokol
+// turns a swap_interval of 0 into 1, so it needs the flags. On Metal,
+// CADisplayLink still calls frame_cb once per display refresh. The title is
+// a fresh cstring from allocator; sokol copies it when the run starts.
+app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sapp.Desc {
+	window := launch.window
+	vsync_off := mode == .Lockstep || !window.vsync
 	return {
 		init_cb = init_cb,
 		frame_cb = frame_cb,
 		cleanup_cb = cleanup_cb,
-		width = 960,
-		height = 540,
-		sample_count = SAMPLE_COUNT,
-		window_title = "rocco",
+		width = i32(window.width),
+		height = i32(window.height),
+		sample_count = msaa_sample_count(window.samples),
+		high_dpi = window.high_dpi,
+		fullscreen = window.fullscreen,
+		window_title = strings.clone_to_cstring(roc_str_string(&window.title), allocator),
 		logger = {func = slog.func},
 		event_cb = event_cb,
 		disable_vsync = vsync_off,
@@ -109,11 +116,11 @@ init_cb :: proc "c" () {
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
-	renderer_init(&g_state.renderer)
+	renderer_init(&g_state.renderer, g_state.launch)
 	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, g_state.mem.perm_allocator)
 	fmt.assertf(ui_err == nil, "the Clay arena did not allocate: %v", ui_err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
-	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, UI_QUAD_CAPACITY, g_state.mem.perm_allocator)
+	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, UI_QUAD_CAPACITY, msaa_sample_count(g_state.launch.window.samples), g_state.mem.perm_allocator)
 	fmt.assertf(ui_gpu_err == nil, "the UI vertices did not allocate: %v", ui_gpu_err)
 	g_state.frame_render.begin_pass = renderer_begin_pass
 	g_state.frame_render.end_pass = renderer_end_pass

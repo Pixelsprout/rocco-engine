@@ -66,6 +66,9 @@ Fake_Game :: struct {
 	colliders:       []Collider,
 	queries:         []Query,
 	ui_texts:        []string,
+	// Elements with no Roc_Str, so view can hand them out again and again.
+	// ui_texts stays separate because each view must make its strings fresh.
+	ui:              []Element,
 	commands_out:    int,
 	next_commands:   []Command,
 	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -207,6 +210,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 		text.payload.text = {str = roc_str_from_slice(str)}
 		append(&ui, text, Element{tag = .Close})
 	}
+	append(&ui, ..g_fake.ui)
 	return {
 		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
 		colliders = roc_list_from_slice(g_fake.colliders),
@@ -227,8 +231,8 @@ fake_run_command :: proc(command: Command) {
 	g_fake.runs_len += 1
 }
 
-fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil) {
-	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands}
+fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil, ui: []Element = nil) {
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui}
 	mesh_table_init(&g_fake.meshes, context.allocator)
 	sky_table_init(&g_fake.skies, context.allocator)
 	packs_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, assets_dir, context.allocator)

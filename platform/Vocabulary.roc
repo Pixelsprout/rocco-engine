@@ -21,8 +21,35 @@ Vocabulary := [].{
 	Rgb : { r : F32, g : F32, b : F32 }
 	Rgba : { r : F32, g : F32, b : F32, a : F32 }
 	Config : { seed : U64, assets : List(Str), args : List(Str) }
-	Launch : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
-	Window : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
+	# The host reads a Launch once, before the window opens. A field's comment
+	# names the later Scene field that may replace it and the run mode that
+	# overrides it. A field with neither changes only on restart.
+	Launch : {
+		# Headless opens no window: it lays out the UI against width and
+		# height at dpi 1 and ignores the rest of the Window.
+		window : Window,
+		# The fixed step rate in Hz.
+		step_hz : U32,
+		# The shadow map's width and height in texels. Above zero.
+		shadow_map : U32,
+		# The table sizes.
+		capacity : Capacity,
+	}
+	Window : {
+		# Logical pixels. Above zero. No Scene field replaces them.
+		width : U32,
+		height : U32,
+		# The title at start. A later Scene field may replace it.
+		title : Str,
+		# Start fullscreen. A later Scene field may replace it.
+		fullscreen : Bool,
+		# Render at the display's full resolution. UI sizes stay logical pixels.
+		high_dpi : Bool,
+		# MSAA for the window and the pipelines. Off is one sample.
+		samples : Msaa,
+		# Wait for the display each frame. Lockstep turns it off whatever this says.
+		vsync : Bool,
+	}
 	Msaa : [Off, X2, X4, X8]
 	Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
 	Manifest : List({ name : Str, id : U32 })

@@ -3,9 +3,6 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import sglue "../sokol-odin/sokol/glue"
 
-// The window swapchain and the pipeline must agree, or sokol rejects the pipeline.
-SAMPLE_COUNT :: 4
-
 // Each loaded mesh can own a base colour and a metallic-roughness texture,
 // each with its own image, view and sampler. The white image, each sky, the
 // shadow map and the font atlas need one more.
@@ -19,7 +16,6 @@ UNIFORM_BUFFER_SIZE :: (3 * DRAW_CAPACITY + 16) * UNIFORM_ALIGN
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN)
 
-SHADOW_MAP_SIZE :: 2048
 SHADOW_DEPTH_BIAS :: f32(0)
 // Reversed-Z, so a negative bias pushes the stored depth away from the Sun.
 SHADOW_SLOPE_BIAS :: f32(-2)
@@ -48,7 +44,10 @@ Shadow_Map :: struct {
 	sampler: sg.Sampler,
 }
 
-renderer_init :: proc(r: ^Renderer) {
+// The window swapchain and the pipelines must agree on the sample count, or
+// sokol rejects the pipelines. Both take it from the Launch.
+renderer_init :: proc(r: ^Renderer, launch: Launch) {
+	sample_count := msaa_sample_count(launch.window.samples)
 	mesh_table_upload(&r.meshes)
 	sky_table_upload(&r.skies)
 	r.white = texture_upload(
@@ -62,14 +61,14 @@ renderer_init :: proc(r: ^Renderer) {
 		colors = {0 = {load_action = .CLEAR, clear_value = {r = 0.0, g = 0.0, b = 0.0, a = 1.0}}},
 		depth = {load_action = .CLEAR, clear_value = 0.0},
 	}
-	r.shadow = shadow_map_make()
+	r.shadow = shadow_map_make(launch.shadow_map)
 
 	shader := sg.make_shader(basic_shader_desc(sg.query_backend()))
 
 	// Reversed-Z: the depth buffer clears to 0 and nearer is greater.
 	desc := sg.Pipeline_Desc {
 		shader = shader,
-		sample_count = SAMPLE_COUNT,
+		sample_count = sample_count,
 		depth = {compare = .GREATER_EQUAL, write_enabled = true},
 		index_type = .UINT16,
 		cull_mode = .BACK,
@@ -91,7 +90,7 @@ renderer_init :: proc(r: ^Renderer) {
 	r.sky_pip = sg.make_pipeline(
 		{
 			shader = sg.make_shader(sky_shader_desc(sg.query_backend())),
-			sample_count = SAMPLE_COUNT,
+			sample_count = sample_count,
 			depth = {compare = .GREATER_EQUAL},
 			index_type = .UINT16,
 			cull_mode = .NONE,
@@ -124,14 +123,14 @@ renderer_init :: proc(r: ^Renderer) {
 
 // The sampler compares in hardware, and a fragment is lit where its depth is
 // at least the stored depth. LINEAR filters each compare across 2 x 2 texels.
-shadow_map_make :: proc() -> Shadow_Map {
+shadow_map_make :: proc(size: u32) -> Shadow_Map {
 	m: Shadow_Map
 	m.image = sg.make_image(
 		{
 			type = .ARRAY,
 			usage = {depth_stencil_attachment = true},
-			width = SHADOW_MAP_SIZE,
-			height = SHADOW_MAP_SIZE,
+			width = i32(size),
+			height = i32(size),
 			num_slices = MAX_CASCADES,
 			pixel_format = .DEPTH,
 			sample_count = 1,

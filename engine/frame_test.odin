@@ -8,7 +8,6 @@ import "core:sync"
 import "core:testing"
 import "core:time"
 
-FAKE_WINDOW :: HEADLESS_WINDOW
 // Far longer than the fake render work, so a Span that holds the wait shows it.
 FAKE_PASS_WAIT :: 30 * time.Millisecond
 
@@ -22,15 +21,16 @@ Fake_Platform_Calls :: struct {
 g_fake_platform: Fake_Platform_Calls
 
 // Holds g_clay_lock until fake_frame_state_destroy, because the render lays out the UI.
-fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil) {
+fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil) {
 	g_fake_platform = {}
 	err := memory_init(&s.mem)
 	assert(err == nil)
 	clock_init(&s.clock)
 	s.exit_after_frames = exit_after_frames
 	s.mode = mode
+	s.launch = launch.? or_else launch_default()
 	span_sink_init(&s.spans, "", exit_after_frames, context.allocator)
-	fake_seam_init(&s.seam, colliders = colliders, queries = queries)
+	fake_seam_init(&s.seam, colliders = colliders, queries = queries, ui = ui)
 	mesh_table_init(&s.renderer.meshes, context.allocator)
 	sky_table_init(&s.renderer.skies, context.allocator)
 	frame_render_init(&s.frame_render, context.allocator)
@@ -55,6 +55,7 @@ fake_frame_state_destroy :: proc(s: ^State) {
 	mesh_table_destroy(&s.renderer.meshes)
 	sky_table_destroy(&s.renderer.skies)
 	fake_seam_shutdown(&s.seam)
+	roc_decref(s.launch)
 	span_sink_destroy(&s.spans)
 	memory_shutdown(&s.mem)
 }
@@ -62,7 +63,7 @@ fake_frame_state_destroy :: proc(s: ^State) {
 fake_platform :: proc(frame_duration: f64) -> Frame_Platform {
 	return {
 		frame_duration = frame_duration,
-		window = FAKE_WINDOW,
+		window = headless_window(launch_default()),
 		lock_mouse = proc(locked: bool) {},
 		commit = proc() {g_fake_platform.commits += 1},
 		request_quit = proc() {g_fake_platform.quits += 1},
@@ -196,11 +197,35 @@ test_headless_run_stops_after_a_quit :: proc(t: ^testing.T) {
 	fake_frame_state_init(&s, exit_after_frames = 5, mode = .Headless)
 	defer fake_frame_state_destroy(&s)
 
-	frame_run(&s, HEADLESS_PLATFORM)
+	frame_run(&s, headless_platform(s.launch))
 	s.quit = true
 	headless_run(&s)
 
 	testing.expect_value(t, s.frame_count, 1)
+}
+
+// Headless has no window, so a 100 by 50 Box floating at the right bottom
+// shows the window it laid out against and the dpi.
+@(test)
+test_headless_lays_out_the_ui_against_the_launch_window_at_dpi_1 :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	launch := launch_default()
+	launch.window.width = 1280
+	launch.window.height = 720
+	launch.window.high_dpi = true
+	box := ui_rect(100, 50)
+	box.floating = ui_floating(.RightBottom)
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_open(box), ui_close()})
+	defer fake_frame_state_destroy(&s)
+
+	headless_run(&s)
+
+	quads := s.ui.quads[:s.ui.quad_count]
+	if testing.expect_value(t, len(quads), 1) {
+		testing.expect_value(t, quads[0].rect, [4]f32{1180, 670, 100, 50})
+	}
 }
 
 @(test)

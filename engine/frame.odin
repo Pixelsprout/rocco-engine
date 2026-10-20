@@ -3,20 +3,6 @@ package engine
 import "core:mem"
 import "core:time"
 
-// Headless lays out the UI against this size, because it has no window.
-HEADLESS_WINDOW :: Ui_Window {
-	size = {960, 540},
-	dpi  = 1,
-}
-
-// Holds no sokol call, so a Headless run needs no window and no GPU.
-HEADLESS_PLATFORM :: Frame_Platform {
-	frame_duration = FIXED_DT,
-	window         = HEADLESS_WINDOW,
-	lock_mouse     = headless_lock_mouse,
-	request_quit   = headless_request_quit,
-}
-
 // What one Frame reads from the window and asks of it. Tests pass fakes, so a
 // Frame runs without sokol.
 Frame_Platform :: struct {
@@ -89,15 +75,26 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	input_end_frame(&s.input)
 }
 
+// With no display the dpi is 1, and the rest of the Launch's window has no reader.
+headless_window :: proc(launch: Launch) -> Ui_Window {
+	return {size = {f32(launch.window.width), f32(launch.window.height)}, dpi = 1}
+}
+
+// Holds no sokol call, so a Headless run needs no window and no GPU.
+headless_platform :: proc(launch: Launch) -> Frame_Platform {
+	return {frame_duration = FIXED_DT, window = headless_window(launch), lock_mouse = headless_lock_mouse, request_quit = headless_request_quit}
+}
+
 // Lays out the UI with no window. frame_run never submits in Headless.
 headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	return ui_init(&s.ui, HEADLESS_WINDOW.size, allocator)
+	return ui_init(&s.ui, headless_window(s.launch).size, allocator)
 }
 
 // Runs Frames until the Frame limit or a Quit, then returns.
 headless_run :: proc(s: ^State) {
+	platform := headless_platform(s.launch)
 	for !s.quit && !exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
-		frame_run(s, HEADLESS_PLATFORM)
+		frame_run(s, platform)
 	}
 }
 
