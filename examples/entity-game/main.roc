@@ -1,5 +1,7 @@
 app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
+# The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
+
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Vec3 as V
@@ -37,8 +39,11 @@ Phase : [Playing, Won(F32)]
 # The player's shadow sits on ground_below, the height its ground ray last hit.
 Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64), ground_below : F32 }
 
+# region: launch
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| Launch.default
+
+# endregion
 
 # ---- init : Config -> { model, commands } -------------------------------
 #
@@ -46,6 +51,7 @@ launch = |_config| Launch.default
 # this game. How many pickups a round has, and which mesh is a pickup, is
 # decided here. The host runs the Load and calls loaded before the first view.
 
+# region: load
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| { model: new_game(primitive_meshes, round_pickups, 0), commands: [Load({ pack: "sprout", assets: ["sprout", sky_name] })] }
 
@@ -67,6 +73,8 @@ primitive_meshes = {
 
 resolve_meshes : Manifest -> MeshIds
 resolve_meshes = |manifest| { ..primitive_meshes, sprout: Mesh.resolve(manifest, "sprout"), sky: Mesh.resolve(manifest, sky_name) }
+
+# endregion
 
 # Fills the first `pickups` pickup spots.
 new_game : MeshIds, U64, U64 -> Model
@@ -143,6 +151,7 @@ update = |model, input, contacts, dt| {
 		|> restart
 }
 
+# region: results
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| { model: update(model, input, results.contacts, dt) |> see_ground(results) |> magnet(results, dt), commands: quit_on_escape(input) }
 
@@ -186,6 +195,8 @@ magnet = |m, results, dt| match player(m) {
 	Err(NotFound) => m
 }
 
+# endregion
+
 # Moves at most max_step, so it stops at to.
 toward : Vec3, Vec3, F32 -> Vec3
 toward = |from, to, max_step| {
@@ -212,7 +223,8 @@ restart = |m| match m.phase {
 speed : F32
 speed = 6.0
 
-# The binding from keys to intent lives in the game, not the engine.
+# region: keys
+# The game, not the engine, decides what each key means.
 move_dir : Vocabulary.Input -> Vec3
 move_dir = |input| { x: Key.axis(input, A, D), y: 0.0, z: Key.axis(input, W, S) }
 
@@ -224,6 +236,8 @@ quit_on_escape = |input|
 	} else {
 		[]
 	}
+
+# endregion
 
 steer : Model, Vocabulary.Input -> Model
 steer = |m, input| map_entities(
@@ -241,6 +255,7 @@ jump_speed = 7.0
 fall_accel : F32
 fall_accel = 20.0
 
+# region: jump
 jump : Model, Vocabulary.Input -> Model
 jump = |m, input|
 	if Key.pressed(input, Space) {
@@ -254,6 +269,8 @@ jump = |m, input|
 	} else {
 		m
 	}
+
+# endregion
 
 # Runs before block, so a solid under the player takes this pull back out.
 gravity : Model, F32 -> Model
@@ -396,12 +413,15 @@ collect = |m, contacts|
 		}
 	}
 
+# region: win
 win : Model, List(Contact) -> Model
 win = |m, contacts|
 	match (m.phase, player(m)) {
 		(Playing, Ok(p)) if List.any(m.entities, |e| e.kind == Goal and touches(contacts, p.id, e.id)) => { ..m, phase: Won(0.0) }
 		_ => m
 	}
+
+# endregion
 
 drops_per_pickup : U64
 drops_per_pickup = 6
@@ -588,9 +608,12 @@ count_step = |m| { ..m, steps: m.steps + 1 }
 # with the same id when it draws a frame. That keeps the Model's refcount at one,
 # so step mutates in place and nothing is copied to remember the past.
 
+# region: scenery-id
 # Scenery ids count down from the top, so next_id never reaches them.
 floor_id : U64
 floor_id = U64.highest
+
+# endregion
 
 camera_offset : Vec3
 camera_offset = { x: 0.0, y: 1.5, z: 3.5 }
@@ -646,11 +669,13 @@ view = |curr| {
 		Err(NotFound) => V.zero
 	}
 
+	# region: queries
 	# Every Contact the game reads involves the player.
 	queries = match player(curr) {
 		Ok(p) => [Query.contacts_of(p.id), ground_ray(p), Query.overlap(p.id, Sphere(magnet_radius), player_middle(p))]
 		Err(NotFound) => []
 	}
+	# endregion
 
 	draws = match player(curr) {
 		Ok(p) => built.draws.append(shadow(curr, p))
@@ -722,6 +747,7 @@ draw = |meshes, e, world| {
 	}
 }
 
+# region: colliders
 # The player's box sits on its feet.
 player_half : Vec3
 player_half = { x: 0.3, y: 0.5, z: 0.3 }
@@ -748,6 +774,8 @@ with_collider = |colliders, e, world| match e.kind {
 	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
 	Drop(_) => colliders
 }
+
+# endregion
 
 with_light : List(Vocabulary.Light), Entity, World -> List(Vocabulary.Light)
 with_light = |lights, e, world| match e.kind {
@@ -801,8 +829,11 @@ seen_from = |c, id|
 		Err(NotInContact)
 	}
 
+# region: touches
 touches : List(Contact), U64, U64 -> Bool
 touches = |contacts, id, other| List.any(contacts, |c| seen_from(c, id).map_ok(|side| side.other == other) ?? Bool.False)
+
+# endregion
 
 # Solid kinds push the player out.
 is_solid : Entity -> Bool

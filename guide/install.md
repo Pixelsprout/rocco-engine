@@ -33,18 +33,14 @@ prompt sets `LIB`, and then the link fails.
 ## Make the game folder
 
 1. Make a folder with the name `my-game`.
-2. Download the source code of the
-   [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
-3. Copy its `packages/camera/` folder to `my-game/camera/`. The release has
-   no bundle for the camera package.
-4. Make the file `my-game/main.roc`.
-5. Put this header at the top of `my-game/main.roc`:
+2. Make the file `my-game/main.roc`.
+3. Put this header at the top of `my-game/main.roc`:
 
 ```roc
-app [init, launch, loaded, step, view] { cam: "camera/main.roc", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}" }
+app [init, launch, loaded, step, view] { cam: "{{camera_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}" }
 ```
 
-6. Below the header, add this code. It is the cards game from
+4. Below the header, add this code. It is the cards game from
    `examples/cards/main.roc`.
 
 <!-- region: examples/cards/main.roc#game -->
@@ -150,3 +146,5 @@ roc main.roc
 The first run downloads the bundles and builds the game. A window opens and
 shows two cards. Press Space to add a card. Close the window to stop the
 game.
+
+Next, read [The five calls](calls.md).

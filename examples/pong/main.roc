@@ -1,5 +1,7 @@
 app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
+# The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
+
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import ui.Ui
@@ -48,9 +50,13 @@ serve_speed = 8.0
 
 max_score = 7
 
+# region: launch
 launch : Vocabulary.Config -> Vocabulary.Launch
-launch = |_config| Launch.default
+launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "pong" } }
 
+# endregion
+
+# region: calls
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |config| {
 	model = {
@@ -73,6 +79,8 @@ loaded = |m, _pack, _manifest| m
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |m, input, _results, dt| { model: update(m, input, dt), commands: [] }
+
+# endregion
 
 update : Model, Vocabulary.Input, F32 -> Model
 update = |m, input, dt| {
@@ -101,6 +109,7 @@ green_text = { r: 0.033, g: 0.787, b: 0.073, a: 1.0 }
 red_text : Rgba
 red_text = { r: 0.787, g: 0.033, b: 0.033, a: 1.0 }
 
+# region: ui
 label : Ui.TextStyle
 label = { size: 24.0, color: white_text, wrap: Words }
 
@@ -160,6 +169,8 @@ hints : List(Element)
 hints = Ui.box(panel(LeftBottom, { x: 16.0, y: -16.0 }), [Ui.text("W / S", label)])
 	.concat(Ui.box(panel(RightBottom, { x: -16.0, y: -16.0 }), [Ui.text("Up / Down", label)]))
 
+# endregion
+
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
 lights : List(Vocabulary.Light)
 lights = [
@@ -167,6 +178,7 @@ lights = [
 	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
 ]
 
+# region: view
 box : U32, U64, Vec3, Vec3, Rgb -> Vocabulary.Draw
 box = |mesh, id, pos, scale, tint| { ..Draw.default, id, mesh, pos, scale, tint }
 
@@ -186,6 +198,8 @@ view = |m| {
 
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui }
 }
+
+# endregion
 
 game_state : Model, Vocabulary.Input -> Model
 game_state = |m, input| {
@@ -208,6 +222,7 @@ reset = |m| {
 	serve(cleared, 1.0)
 }
 
+# region: serve
 serve : Model, F32 -> Model
 serve = |m, dir| {
 	rng = next_rng(m.rng)
@@ -216,6 +231,8 @@ serve = |m, dir| {
 
 	{ ..m, ball, serves, rng }
 }
+
+# endregion
 
 end_game : Model -> Model
 end_game = |m| {
@@ -296,7 +313,7 @@ unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 # Tests
 # =======================================
 # Paddle movement, wall and paddle bounces, scoring and serve state.
-expect launch(Config.empty) == Launch.default
+expect launch(Config.empty) == { ..Launch.default, window: { ..Launch.default.window, title: "pong" } }
 expect init(Config.empty).commands == []
 expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
 
@@ -307,12 +324,14 @@ expect List.len(view(init(Config.empty).model).draws) == 6
 expect clamp(1.0, 2.0, 2.1) == 2.0
 expect clamp(1.0, 2.0, 0.5) == 1.0
 
+# region: input-test
 # Holding W for a long step drives the left paddle to its limit, the right stays put.
 expect {
 	stepped = step(init(Config.empty).model, { ..Input.empty, held: [Key.code(W)] }, QueryResults.empty, 10.0)
 	m = stepped.model
 	stepped.commands == [] and m.left == -paddle_limit and m.right == 0.0
 }
+# endregion
 
 # A ball past the top wall moving outward bounces once, and a second call is a no-op.
 expect {
