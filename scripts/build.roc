@@ -519,7 +519,8 @@ bench! : Target, Bench => Try({}, _)
 bench! = |target, bench| {
 	root = (Env.cwd!() ? |_| Failed("The working directory is unavailable.")).display()
 	git = Cmd.new("git").args(["rev-parse", "HEAD"]).exec_output!() ? |_| Failed("git rev-parse HEAD failed.")
-	status = Cmd.new("git").args(["status", "--porcelain"]).exec_output!() ? |_| Failed("git status failed.")
+	# A reference run replaces bench/results/, so a change there is not dirty.
+	status = Cmd.new("git").args(["status", "--porcelain", "--", ".", ":(exclude)bench/results"]).exec_output!() ? |_| Failed("git status failed.")
 	dirty = if Str.trim(status.stdout_utf8) == "" "" else "-dirty"
 	git_hash = "${Str.trim(git.stdout_utf8)}${dirty}"
 	for game in bench.games {
