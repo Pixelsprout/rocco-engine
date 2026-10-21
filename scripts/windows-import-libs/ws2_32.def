@@ -1,0 +1,14 @@
+; The ws2_32.dll functions that core:net calls for the Bridge's socket.
+LIBRARY "ws2_32.dll"
+EXPORTS
+WSAGetLastError
+WSAStartup
+accept
+bind
+closesocket
+ioctlsocket
+listen
+recv
+send
+setsockopt
+socket

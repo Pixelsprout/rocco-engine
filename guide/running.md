@@ -82,6 +82,11 @@ ROCCO_HEADLESS=1 ROCCO_EXIT_AFTER_FRAMES=600 ROCCO_SEED=7 roc main.roc
 
 The game gets no key presses in Headless, because it has no window.
 
+## Drive a run from a script
+
+To let a script, a CI test or an agent play the game, turn on the Bridge
+with `ROCCO_BRIDGE=<port>`. See [The Bridge](bridge.md).
+
 ## The ROCCO_ variables
 
 Set a variable before the command, for example
@@ -93,14 +98,15 @@ Set a variable before the command, for example
 | `ROCCO_DEBUG_CAMERA=1` | Gives a fly camera. The host ignores `camera` and `cursor` in the [Scene], and locks the mouse. |
 | `ROCCO_EXIT_AFTER_FRAMES=N` | Stops the game after N frames, with exit code 0. N is a positive integer. |
 | `ROCCO_LOCKSTEP=1` | Lockstep: each frame runs one fixed step and draws once, whatever the time. Turns vsync off. `0` is the real clock. |
-| `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. Needs `ROCCO_EXIT_AFTER_FRAMES`. |
+| `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. Needs `ROCCO_EXIT_AFTER_FRAMES` or `ROCCO_BRIDGE`. |
+| `ROCCO_BRIDGE=N` | Turns on [the Bridge](bridge.md) on port N of 127.0.0.1. N is a port from 1 to 65535. The run is Lockstep that pauses until a Driver asks for steps. |
 | `ROCCO_ALLOC_REPORT=1` | Prints one line for each fixed step: the Roc allocations, frees and reallocations, the live blocks, and the time of `step` and `view` in microseconds. |
 | `ROCCO_ASSETS=path` | Gives the path of the `assets` folder. See [Assets and Packs](assets.md). |
 
 The host checks the values of `ROCCO_SEED`, `ROCCO_EXIT_AFTER_FRAMES`,
-`ROCCO_LOCKSTEP` and `ROCCO_HEADLESS`. If one of them is not valid, the
-game prints the rule and exits with code 1. `ROCCO_DEBUG_CAMERA` and
-`ROCCO_ALLOC_REPORT` are on only for the value `1`.
+`ROCCO_LOCKSTEP`, `ROCCO_HEADLESS` and `ROCCO_BRIDGE`. If one of them is not
+valid, the game prints the rule and exits with code 1. `ROCCO_DEBUG_CAMERA`
+and `ROCCO_ALLOC_REPORT` are on only for the value `1`.
 
 `ROCCO_SPANS_CSV` is only for a host that an engine developer builds with
 Spans. A release host stops with exit code 1 if it is set.

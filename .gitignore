@@ -25,6 +25,7 @@ platform/targets/*/*.lib
 !platform/targets/x64win/gdi32.lib
 !platform/targets/x64win/shell32.lib
 !platform/targets/x64win/d3d11.lib
+!platform/targets/x64win/ws2_32.lib
 platform/targets/*/*.pdb
 # Roc's linker output.
 examples/*/*.bin
