@@ -3,6 +3,7 @@
 // sky: a cubemap on a cube around the camera, at its authored colour.
 // shadow: depth only, from the Sun.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored colour.
+// blit: copies the offscreen target to the swapchain.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine
@@ -346,3 +347,26 @@ void main() {
 @end
 
 @program ui ui_vs ui_fs
+
+@vs blit_vs
+// One triangle that covers the window, from the vertex index alone.
+void main() {
+    vec2 p = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}
+@end
+
+@fs blit_fs
+layout(binding = 0) uniform texture2D blit_tex;
+layout(binding = 0) uniform sampler blit_smp;
+
+out vec4 frag_color;
+
+// The target and the swapchain have the same size and the same row order on
+// each backend, so each pixel copies the texel under it, unfiltered.
+void main() {
+    frag_color = texelFetch(sampler2D(blit_tex, blit_smp), ivec2(gl_FragCoord.xy), 0);
+}
+@end
+
+@program blit blit_vs blit_fs

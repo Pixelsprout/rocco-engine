@@ -99,7 +99,8 @@ app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sa
 		cleanup_cb = cleanup_cb,
 		width = i32(window.width),
 		height = i32(window.height),
-		sample_count = msaa_sample_count(window.samples),
+		// The MSAA is in the offscreen target, which the swapchain only copies.
+		sample_count = 1,
 		high_dpi = window.high_dpi,
 		fullscreen = window.fullscreen,
 		window_title = strings.clone_to_cstring(roc_str_string(&window.title), allocator),

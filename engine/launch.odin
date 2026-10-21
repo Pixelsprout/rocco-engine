@@ -69,7 +69,7 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 	return "", "", true
 }
 
-// The sample count sokol takes for the swapchain and the pipelines.
+// The sample count of the offscreen target and the pipelines.
 msaa_sample_count :: proc(samples: Msaa) -> i32 {
 	switch samples {
 	case .Off:

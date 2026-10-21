@@ -67,3 +67,15 @@ test_launch_check_names_the_first_bad_field_and_its_rule :: proc(t: ^testing.T) 
 		testing.expect_value(t, rule, c.rule)
 	}
 }
+
+@(test)
+test_msaa_sample_count_maps_each_msaa_tag_to_its_sample_count :: proc(t: ^testing.T) {
+	Case :: struct {
+		samples: Msaa,
+		want:    i32,
+	}
+	for c in ([]Case{{.Off, 1}, {.X2, 2}, {.X4, 4}, {.X8, 8}}) {
+		got := msaa_sample_count(c.samples)
+		testing.expectf(t, got == c.want, "%v gives %v samples, want %v", c.samples, got, c.want)
+	}
+}

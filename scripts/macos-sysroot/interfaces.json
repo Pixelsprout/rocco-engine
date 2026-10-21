@@ -1077,6 +1077,23 @@
           ]
         },
         {
+          "name": "_objc_lookUpClass",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/objectivec/objc_lookupclass(_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/objectivec/objc_lookupclass(_:).json",
+              "external_id": "c:@F@objc_lookUpClass",
+              "title": "objc_lookUpClass(_:)",
+              "documented_modules": [
+                "Objective-C Runtime"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-21T21:41:12+00:00",
+              "response_sha256": "4363227fb593de80c80b25412e0a2c12b60766ddc37d4be5d04d6e8da53399e1"
+            }
+          ]
+        },
+        {
           "name": "_objc_msgSend",
           "sources": [
             {
@@ -1129,6 +1146,23 @@
               "revision": "objc4-950",
               "source_license": "Apple Public Source License 2.0",
               "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_sel_registerName",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/objectivec/sel_registername(_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/objectivec/sel_registername(_:).json",
+              "external_id": "c:@F@sel_registerName",
+              "title": "sel_registerName(_:)",
+              "documented_modules": [
+                "Objective-C Runtime"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-21T21:41:12+00:00",
+              "response_sha256": "ff41a1bec6d800343a751d5ffacf8e6b67b483994c2e9ab22c0743c9698e035b"
             }
           ]
         }
