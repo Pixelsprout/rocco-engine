@@ -171,3 +171,26 @@ test_bridge_reply_error_escapes_the_message :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, strings.to_string(b), `{"ok":false,"error":"a \"quoted\"\nline"}`)
 }
+
+@(test)
+test_bridge_screenshot_bad_requests_reply_an_error :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	cases := []struct {
+		line:  string,
+		mode:  Run_Mode,
+		error: string,
+	} {
+		{`{"op":"screenshot"}`, .Lockstep, `"path" must be a file path`},
+		{`{"op":"screenshot","path":""}`, .Lockstep, `"path" must be a file path`},
+		{`{"op":"screenshot","path":7}`, .Lockstep, `"path" must be a file path`},
+		{`{"op":"screenshot","path":"out.png"}`, .Headless, "a Headless run draws no image to screenshot"},
+		{`{"op":"screenshot","path":"out.png"}`, .Lockstep, "no Frame has been drawn yet"},
+	}
+	for c in cases {
+		s.mode = c.mode
+		reply, next := answer(t, &s, c.line)
+		expect_error(t, reply, c.error)
+		testing.expect_value(t, next, Bridge_Next.Read)
+	}
+}
