@@ -902,14 +902,27 @@ and run it with only Roc installed.
 
 ## Milestone 19: the Bridge
 
-Done when a script plays a game over a localhost socket in Lockstep. The
-script injects Input for N steps, reads the Scene as text and saves a
-screenshot. The engine is then a harness for agents and for CI.
+Done when a Driver plays a game over a localhost socket in Lockstep. It
+injects Input for N steps, reads the Scene as JSON and saves a screenshot.
+CI runs this check on Linux and macOS. The engine is then a harness for
+agents and for CI. Grilled 2026-10-22. The dex milestone task holds the
+decisions and the tasks.
 
-The debug Bridge needs no Vocabulary change, because the host injects the
-Input and reads the Scene itself. The grilling decides whether game-facing
-Ports (`Tell`, `Ask` and `Listen`) join this milestone or wait for the
-extensions.
+1. The Bridge drives the host, not the game, and makes no Vocabulary change.
+   Ports wait for the extension arc. `docs/adr/0009-the-bridge-drives-the-host.md`
+   records the decision.
+2. `ROCCO_BRIDGE=<port>` listens on 127.0.0.1 for one Driver at a time. The
+   protocol is JSON Lines with the ops `hello`, `step`, `scene`, `screenshot`
+   and `quit`. Lockstep pauses while the Driver asks for no steps.
+3. The host renders to an offscreen target and reads it back for a
+   screenshot. `docs/adr/0010-screenshots-read-back-in-the-host.md` records
+   the decision.
+4. `scripts/bridge.py` is a Driver library and CLI. `scripts/screenshot.sh`
+   drives the Bridge on all three targets. `guide/bridge.md` documents the
+   protocol.
+
+Check: hold W for 30 steps in tutorial chapter 3 with `scripts/bridge.py`,
+read Pip's Draw from the Scene and save a screenshot.
 
 ## Milestone 20: Audio
 
@@ -971,7 +984,8 @@ repo, pulls this arc.
 - Pointer input, `Scene.window` and world-space sprites (dex tasks 5rxq8tn7
   and elqpa9x2). Decide first whether the UI crosses as a tree, which
   reopens ADR 0004.
-- Ports and saves.
+- Ports and saves. A Port can reach a Driver through the Bridge of
+  Milestone 19 (ADR 0009).
 - The extension ABI, with FMOD as its first proof.
 - Materials on the Draw and shading modes, then post-processing, then game
   shaders as Pack assets (dex task bdathrx5).

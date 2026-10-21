@@ -428,6 +428,8 @@ _Avoid_: Roc allocator, host heap, seam heap
 **Lockstep**:
 A run mode in which each Frame runs exactly one fixed step and one render,
 whatever the wall-clock time. The same run always does the same work.
+Under the Bridge it pauses: a Frame runs zero fixed steps while the Driver
+has asked for none.
 _Avoid_: fixed mode, deterministic mode, frame lock
 
 **Headless**:
@@ -449,3 +451,18 @@ _Avoid_: native version, baseline game, control
 One named, timed section of a Frame, such as the step span or the render
 submit span. A build has Spans only when it asks for them.
 _Avoid_: phase, section, lap, timer
+
+## The Bridge
+
+**Bridge**:
+The host module that lets one outside process drive a run over a localhost
+socket. It injects Input, advances fixed steps on request and reports what
+the host sees. The game does not know it exists, and nothing in the
+Vocabulary names it.
+_Avoid_: debug server, remote, Seam, port, debugger
+
+**Driver**:
+The outside process at the other end of the Bridge: a script, a CI test or
+an agent. One Driver at a time. While a Driver controls the run, the host
+ignores the real keyboard and mouse.
+_Avoid_: client, controller, bot, harness
