@@ -358,7 +358,14 @@ world_make :: proc(search: ^Query_Search, colliders: []Collider, allocator: mem.
 		fitting += 1
 	}
 	span := hi - lo
-	cell := GRID_CELL_SCALE * math.exp(log_size / f32(max(fitting, 1)))
+	// The geometric mean, rounded to a power of two. The Windows host has no C
+	// runtime, and math.exp, floor and round can call into it.
+	mean_log2 := log_size / math.LN2 / f32(max(fitting, 1)) + 0.5
+	whole := int(mean_log2)
+	if f32(whole) > mean_log2 {
+		whole -= 1
+	}
+	cell := GRID_CELL_SCALE * f32(math.ldexp(f64(1), whole))
 	limit := f32(GRID_CELLS_PER_SHAPE * n)
 	cell = max(cell, math.sqrt(span.x * span.y / limit), span.x / limit, span.y / limit)
 	if fitting == 0 || !(cell < max(f32)) || !(span.x < max(f32)) || !(span.y < max(f32)) {
