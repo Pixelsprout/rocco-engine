@@ -27,6 +27,11 @@ Renderer :: struct {
 	shadow:      Shadow_Map,
 	ui:          Ui_Gpu,
 	pass_action: sg.Pass_Action,
+	target:      Render_Target,
+	// Taken when the Main pass begins, where the wait for the drawable is
+	// outside the render Span. The copy pass after it reuses it.
+	swapchain:   sg.Swapchain,
+	pass:        Pass,
 }
 
 // One layer per shadow view. With no Sun the main pass still binds it, and
@@ -40,14 +45,16 @@ Shadow_Map :: struct {
 
 // Each loaded mesh can own a base colour and a metallic-roughness texture,
 // each with its own image, view and sampler. The white image, each sky, the
-// shadow map and the font atlas need one more.
+// shadow map and the font atlas need one more. The render target adds its
+// images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(2 * capacity.meshes + 1 + capacity.skies + 1 + 1)
+	return i32(2 * capacity.meshes + 1 + capacity.skies + 1 + 1 + TARGET_IMAGES)
 }
 
-// The shadow map adds one depth view per cascade to its texture view.
+// The shadow map adds one depth view per cascade to its texture view, and
+// the target's colour image has two views.
 view_pool_size :: proc(capacity: Capacity) -> i32 {
-	return texture_pool_size(capacity) + MAX_CASCADES
+	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
 }
 
 // A Draw applies three blocks: shadow, vertex and fragment. The spare blocks
@@ -56,10 +63,12 @@ uniform_buffer_size :: proc(capacity: Capacity) -> i32 {
 	return i32((3 * int(capacity.draws) + 16) * UNIFORM_ALIGN)
 }
 
-// The window swapchain and the pipelines must agree on the sample count, or
-// sokol rejects the pipelines. Both take it from the Launch.
+// The render target and the pipelines that draw into it must agree on the
+// sample count and the formats, or sokol rejects the pipelines. The sample
+// count comes from the Launch.
 renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	sample_count := msaa_sample_count(launch.window.samples)
+	render_target_init(&r.target, sample_count)
 	mesh_table_upload(&r.meshes)
 	sky_table_upload(&r.skies)
 	r.white = texture_upload(
@@ -81,7 +90,8 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	desc := sg.Pipeline_Desc {
 		shader = shader,
 		sample_count = sample_count,
-		depth = {compare = .GREATER_EQUAL, write_enabled = true},
+		colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}},
+		depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .GREATER_EQUAL, write_enabled = true},
 		index_type = .UINT16,
 		cull_mode = .BACK,
 		face_winding = .CCW,
@@ -103,7 +113,8 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		{
 			shader = sg.make_shader(sky_shader_desc(sg.query_backend())),
 			sample_count = sample_count,
-			depth = {compare = .GREATER_EQUAL},
+			colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}},
+			depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .GREATER_EQUAL},
 			index_type = .UINT16,
 			cull_mode = .NONE,
 			layout = {buffers = {0 = {stride = size_of(Vertex)}}, attrs = {ATTR_sky_pos = {format = .FLOAT3, offset = i32(offset_of(Vertex, pos))}}},
@@ -168,18 +179,25 @@ shadow_map_make :: proc(size: u32) -> Shadow_Map {
 
 renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
 	r := (^Renderer)(ctx)
+	r.pass = pass
 	switch pass {
 	case .Shadow:
 		// sokol discards depth at the end of a pass unless told to store it.
 		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
 		sg.apply_pipeline(r.shadow_pip)
 	case .Main:
-		sg.begin_pass({action = r.pass_action, swapchain = sglue.swapchain()})
+		r.swapchain = sglue.swapchain()
+		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height})
+		sg.begin_pass({action = r.pass_action, attachments = r.target.attachments, label = "main"})
 	}
 }
 
 renderer_end_pass :: proc(ctx: rawptr) {
+	r := (^Renderer)(ctx)
 	sg.end_pass()
+	if r.pass == .Main {
+		render_target_copy(&r.target, r.swapchain)
+	}
 }
 
 renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {

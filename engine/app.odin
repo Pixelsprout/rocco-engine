@@ -8,6 +8,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:time"
 
 import "base:runtime"
 
@@ -34,6 +35,7 @@ State :: struct {
 	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
 	quit:              bool,
 	spans:             Span_Sink,
+	bridge:            Bridge,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
@@ -46,7 +48,11 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	g_state.ctx.temp_allocator = g_state.mem.frame_allocator
 
 	g_state.exit_after_frames = exit_after_frames_from_env()
-	g_state.mode = run_mode_from_env(g_state.exit_after_frames)
+	bridge_port := bridge_port_from_env()
+	g_state.mode = run_mode_from_env(g_state.exit_after_frames, bridge_port > 0)
+	if bridge_port > 0 {
+		bridge_open_or_exit(&g_state.bridge, bridge_port, context.allocator)
+	}
 	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
@@ -99,7 +105,8 @@ app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sa
 		cleanup_cb = cleanup_cb,
 		width = i32(window.width),
 		height = i32(window.height),
-		sample_count = msaa_sample_count(window.samples),
+		// The MSAA is in the render target, which the swapchain only copies.
+		sample_count = 1,
 		high_dpi = window.high_dpi,
 		fullscreen = window.fullscreen,
 		window_title = strings.clone_to_cstring(roc_str_string(&window.title), allocator),
@@ -154,6 +161,17 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
+	if bridge_paused(&g_state.bridge) {
+		time.sleep(BRIDGE_PAUSE_WAIT)
+	}
+	// The first Frame draws before any request is read, so a screenshot
+	// always has a Frame to read.
+	if g_state.frame_count > 0 {
+		bridge_poll(&g_state, wait = false)
+	}
+	if g_state.bridge.quit {
+		sapp.request_quit()
+	}
 	frame_run(
 		&g_state,
 		{
@@ -181,6 +199,7 @@ app_shutdown :: proc() {
 		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
 	span_sink_destroy(&g_state.spans)
+	bridge_close(&g_state.bridge)
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)

@@ -1077,6 +1077,23 @@
           ]
         },
         {
+          "name": "_objc_lookUpClass",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/objectivec/objc_lookupclass(_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/objectivec/objc_lookupclass(_:).json",
+              "external_id": "c:@F@objc_lookUpClass",
+              "title": "objc_lookUpClass(_:)",
+              "documented_modules": [
+                "Objective-C Runtime"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-21T21:41:12+00:00",
+              "response_sha256": "4363227fb593de80c80b25412e0a2c12b60766ddc37d4be5d04d6e8da53399e1"
+            }
+          ]
+        },
+        {
           "name": "_objc_msgSend",
           "sources": [
             {
@@ -1129,6 +1146,23 @@
               "revision": "objc4-950",
               "source_license": "Apple Public Source License 2.0",
               "response_sha256": "8562d82bf50f0e0f8751f97d45864789261780b9d12b9aeabac4c1fa0ae01a79"
+            }
+          ]
+        },
+        {
+          "name": "_sel_registerName",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/documentation/objectivec/sel_registername(_:)",
+              "data_url": "https://developer.apple.com/tutorials/data/documentation/objectivec/sel_registername(_:).json",
+              "external_id": "c:@F@sel_registerName",
+              "title": "sel_registerName(_:)",
+              "documented_modules": [
+                "Objective-C Runtime"
+              ],
+              "evidence_kind": "exact_C_identifier",
+              "retrieved_at": "2026-10-21T21:41:12+00:00",
+              "response_sha256": "ff41a1bec6d800343a751d5ffacf8e6b67b483994c2e9ab22c0743c9698e035b"
             }
           ]
         }
@@ -1369,6 +1403,18 @@
           ]
         },
         {
+          "name": "_accept",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/accept.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:15+00:00",
+              "response_sha256": "9b2b380c376cac4275512d443afe9344aedb12b341c3f77846522b2672262e90"
+            }
+          ]
+        },
+        {
           "name": "_arc4random_buf",
           "sources": [
             {
@@ -1379,6 +1425,18 @@
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "source_license": "APSL-2.0; additional source notices may apply",
               "response_sha256": "e03cd70f7fc6c8658c4fb245fb53456506deeff751af80af165b509835545ab4"
+            }
+          ]
+        },
+        {
+          "name": "_bind",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/bind.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:15+00:00",
+              "response_sha256": "98818db7859adc825b390d082a27f7285468a62c9e30aa8b0968f88ca4ce87ec"
             }
           ]
         },
@@ -1921,6 +1979,18 @@
           ]
         },
         {
+          "name": "_listen",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/listen.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:16+00:00",
+              "response_sha256": "15cc0082c64f3b564c1958c0a4bdbb80f81f5de37d004757009eb1cf00acbbea"
+            }
+          ]
+        },
+        {
           "name": "_lseek",
           "sources": [
             {
@@ -2072,6 +2142,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:07:10.417202+00:00",
               "response_sha256": "1564fa49157a22bb804e0a4a45d45f6ddf416d1065baab79a3b74ab6eb0049c3"
+            }
+          ]
+        },
+        {
+          "name": "_nanosleep",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/nanosleep.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T22:50:22+00:00",
+              "response_sha256": "986458d4681fc7a995377f54fbbcf0204fc56303b555bf8637199401b56066d1"
             }
           ]
         },
@@ -2340,6 +2422,18 @@
           ]
         },
         {
+          "name": "_recv",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/recv.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:17+00:00",
+              "response_sha256": "ff5a371caabed0b00bb0462259c45edc2efb0a15128fc5bbf83173a122212a37"
+            }
+          ]
+        },
+        {
           "name": "_rewind",
           "sources": [
             {
@@ -2353,6 +2447,30 @@
           ]
         },
         {
+          "name": "_send",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/send.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:18+00:00",
+              "response_sha256": "3826e5b23675ab385fa16d27dfa0d1fc8b8c1cec9515c9cc9ff4b47ae8f7bacd"
+            }
+          ]
+        },
+        {
+          "name": "_setsockopt",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getsockopt.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:19+00:00",
+              "response_sha256": "d43cfbfbc07f7fd448484faed354da40de96d507fa67620f1b4f34a08c8ba08b"
+            }
+          ]
+        },
+        {
           "name": "_sinf",
           "sources": [
             {
@@ -2361,6 +2479,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-10-15T03:50:04+00:00",
               "response_sha256": "e69a1a2afb9b9752ac71c7de95dd537bfe836cddc31c0a2edabb8c6391de3c5b"
+            }
+          ]
+        },
+        {
+          "name": "_socket",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/socket.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T21:42:19+00:00",
+              "response_sha256": "76bf327cc81a9ac9eb988b935bcf6432f39be13ba6ebe3a354c838c001711592"
             }
           ]
         },

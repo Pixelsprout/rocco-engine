@@ -8,7 +8,8 @@ here names one DLL and the functions the link takes from it.
 
 sokol reaches DXGI and most of Direct3D 11 through COM interfaces, so
 `d3d11.def` lists one function and there is no `dxgi.def`. Nothing calls
-`ole32.dll`.
+`ole32.dll`. `ws2_32.def` holds the socket calls that `core:net` makes for the
+Bridge.
 
 ## The format
 

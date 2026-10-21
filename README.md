@@ -74,7 +74,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `game <name>` | When anything changes. | `roc build` in `examples/<name>/`. The binary takes the name of the last folder, so `game tutorial/01-window` writes `examples/tutorial/01-window/01-window.bin`. |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
-| `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
+| `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` and `engine/key_tags.odin` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if either file is stale. |
 | `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh`, `packages/ui` and `packages/camera`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
@@ -100,6 +100,8 @@ scripts/test_make_macos_sysroot.py` runs the tests of the sysroot generator.
 `python3 -m unittest scripts/test_make_linux_stubs.py` runs the tests of the
 stub generator. `python3 -m unittest scripts/test_make_windows_import_libs.py`
 runs the tests of the Windows import library generator.
+`python3 -m unittest scripts/test_bridge.py` runs the tests of the Bridge
+Driver against a fake host.
 `./scripts/test-all.sh` runs `roc check` and `roc test` on every app, every
 package and the build scripts, then the engine tests.
 `sh bench/check.sh` runs `roc check` and `roc test` on every bench game, and
@@ -109,12 +111,13 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong and each tutorial chapter for one frame, and runs `scripts/test-all.sh`. It regenerates the macOS
+pong and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-all.sh`. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
-stub audit. The container script also runs `docs --check`. The Windows job
+stub audit. The container script also runs `docs --check` and the Bridge
+check under xvfb. The Windows job
 builds sokol with `scripts\windows\build_sokol.cmd`, then builds with
-`--release`, runs the same games and
+`--release`, runs the same games, the Bridge check and
 `scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
 the sokol step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
@@ -216,18 +219,27 @@ ignores. Only `sh bench/reference-run.sh` writes the committed results in
 
 ### Screenshots
 
-`scripts/screenshot.sh <game> <out.png> [delay]` runs a built game, waits
-`delay` seconds (default 3), saves the game window to `out.png` and stops the
-game. The capture works when other windows cover the game window. The PNG is
-at the display's pixel size, so a `high_dpi` window on a Retina display gives
-a PNG twice the window's size in points, title bar included. `ROCCO_*`
-variables pass through, so `ROCCO_DEBUG_CAMERA=1` and `ROCCO_SEED` work.
-Build the game first with `roc scripts/build.roc -- game <game>`.
+`scripts/screenshot.sh <game> <out.png> [steps]` runs a built game with the
+Bridge (see `guide/bridge.md`), runs `steps` fixed steps with no Input
+(default: one second of steps at the game's step rate), saves the frame to
+`out.png` and quits the game. It prints the `screenshot` reply, which has
+the PNG's `physical` size and the window's `logical` size. The PNG has the
+window's pixels and no title bar, so a `high_dpi` window on a Retina display
+gives a PNG twice the window's size in points. The host reads the frame
+back itself, so other windows can cover the game and no Screen Recording
+permission is needed. `ROCCO_*` variables pass through, so
+`ROCCO_DEBUG_CAMERA=1` and `ROCCO_SEED` work. Build the game first with
+`roc scripts/build.roc -- game <game>`.
 
-The script runs on macOS only. It builds `scripts/macos/wincap.swift` into
-`build/wincap` with `swiftc` when the source changes. The first capture
-asks for Screen Recording permission for the terminal. Grant it, then run the
-script again.
+The script works on macOS, Linux and Windows (from Git Bash). It needs
+Python 3. Set `PYTHON=python` where the command is not `python3`. It picks a
+free port for `ROCCO_BRIDGE` unless you set one.
+
+`scripts/bridge.py` is the Driver behind it. Use it as a CLI to drive a
+game by hand, or import its `Bridge` class in a Python script.
+`python3 scripts/bridge_check.py` is the Bridge check that CI runs: it
+drives tutorial chapter 3 and checks that Pip moves and that the screenshot
+has the right size.
 
 ### Docs
 
@@ -398,6 +410,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/fonts/` | Atkinson Hyperlegible Regular and its OFL licence. |
 | `platform/main.roc` | The platform: the header every game links against, the host wrappers, and the link inputs per target. |
 | `platform/Key.roc` | Generated by `roc scripts/build.roc -- keys`. Do not edit. Games import it as `import pf.Key`. |
+| `engine/key_tags.odin` | Generated by `roc scripts/build.roc -- keys`: the Key names that a Bridge request uses. Do not edit. |
 | `platform/Vocabulary.roc` | The vocabulary types. Games import them as `import pf.Vocabulary exposing [...]`. |
 | `platform/Query.roc` | Builds the Queries a game puts in `Scene.queries`, for example `Query.contacts_of(owner)`. |
 | `platform/QueryResults.roc` | Gives `QueryResults.empty`, which is what the first step gets. Tests use it. |
@@ -455,8 +468,9 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. `--check` fails if a committed library differs. |
 | `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
 | `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
-| `scripts/screenshot.sh` | Runs a game and saves its window to a PNG. macOS only. |
-| `scripts/macos/wincap.swift` | The window capture tool that `screenshot.sh` builds and runs. |
+| `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
+| `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |

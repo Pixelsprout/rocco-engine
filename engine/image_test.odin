@@ -1,65 +1,11 @@
 #+test
 package engine
 
-import "core:encoding/endian"
-import "core:hash"
 import "core:testing"
 
-PNG_GRAY :: 0
-PNG_RGB :: 2
-PNG_RGBA :: 6
-
-// A PNG whose one IDAT holds the rows uncompressed, in stored deflate blocks.
-// A 16-bit pixel takes two big-endian bytes per channel.
+// Writes the test image in frame memory.
 png_make :: proc(width, height, color_type: int, pixels: []byte, depth := 8) -> []byte {
-	channels := 1 if color_type == PNG_GRAY else (3 if color_type == PNG_RGB else 4)
-	row := width * channels * depth / 8
-	raw := make([dynamic]byte, context.temp_allocator)
-	for y in 0 ..< height {
-		append(&raw, 0)
-		append(&raw, ..pixels[y * row:][:row])
-	}
-
-	zlib := make([dynamic]byte, context.temp_allocator)
-	append(&zlib, 0x78, 0x01)
-	rest := raw[:]
-	for {
-		n := min(len(rest), 65_535)
-		final := byte(1) if n == len(rest) else 0
-		append(&zlib, final, byte(n), byte(n >> 8), byte(~n), byte(~n >> 8))
-		append(&zlib, ..rest[:n])
-		rest = rest[n:]
-		if final == 1 {
-			break
-		}
-	}
-	be_put(&zlib, hash.adler32(raw[:]))
-
-	ihdr := make([dynamic]byte, context.temp_allocator)
-	be_put(&ihdr, u32(width))
-	be_put(&ihdr, u32(height))
-	append(&ihdr, byte(depth), byte(color_type), 0, 0, 0)
-
-	out := make([dynamic]byte, context.temp_allocator)
-	append(&out, 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n')
-	png_chunk(&out, "IHDR", ihdr[:])
-	png_chunk(&out, "IDAT", zlib[:])
-	png_chunk(&out, "IEND", nil)
-	return out[:]
-}
-
-png_chunk :: proc(out: ^[dynamic]byte, kind: string, data: []byte) {
-	be_put(out, u32(len(data)))
-	start := len(out)
-	append(out, kind)
-	append(out, ..data)
-	be_put(out, hash.crc32(out[start:]))
-}
-
-be_put :: proc(out: ^[dynamic]byte, v: u32) {
-	b: [4]byte
-	endian.put_u32(b[:], .Big, v)
-	append(out, ..b[:])
+	return png_encode(width, height, pixels, color_type, depth, context.temp_allocator)
 }
 
 @(test)

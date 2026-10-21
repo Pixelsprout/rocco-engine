@@ -52,6 +52,7 @@ Fake_Game :: struct {
 	held_len:        int,
 	pressed:         [FAKE_KEYS_MAX]u16,
 	pressed_len:     int,
+	mouse:           [2]f32,
 	contacts:        [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:    int,
 	rays:            [FAKE_RAYS_MAX]Ray_Hit,
@@ -70,6 +71,13 @@ Fake_Game :: struct {
 	// Elements with no Roc_Str, so view can hand them out again and again.
 	// ui_texts stays separate because each view must make its strings fresh.
 	ui:              []Element,
+	// view returns these. With no draws, it returns one Draw whose id is the
+	// view count.
+	camera:          Scene_Camera,
+	draws:           []Draw,
+	lights:          []Light,
+	cursor:          Cursor,
+	sky:             u32,
 	commands_out:    int,
 	next_commands:   []Command,
 	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -164,6 +172,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
+	g_fake.mouse = {input.mouse.dx, input.mouse.dy}
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
@@ -213,9 +222,14 @@ fake_view :: proc(model: rawptr) -> Scene {
 		append(&ui, text, Element{tag = .Close})
 	}
 	append(&ui, ..g_fake.ui)
+	draws := g_fake.draws if g_fake.draws != nil else []Draw{{id = u64(g_fake.views)}}
 	return {
-		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
+		camera = g_fake.camera,
+		draws = roc_list_from_slice(draws),
 		colliders = roc_list_from_slice(g_fake.colliders),
+		lights = roc_list_from_slice(g_fake.lights),
+		cursor = g_fake.cursor,
+		sky = g_fake.sky,
 		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
 	}
@@ -609,7 +623,7 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 	fake_seam_init(&s)
 	defer fake_seam_shutdown(&s)
 
-	step_time, view_time := seam_step(&s, {}, 1.0 / 60)
+	step_time, view_time, _ := seam_step(&s, {}, 1.0 / 60)
 	testing.expect(t, step_time >= 0)
 	testing.expect(t, view_time >= 0)
 }

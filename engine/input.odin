@@ -64,9 +64,14 @@ input_take :: proc(latch: ^Input_Latch, buf: ^Key_Buffers) -> Step_Keys {
 		pressed = buf.pressed[:n_pressed],
 		mouse   = latch.mouse,
 	}
+	input_drop(latch)
+	return keys
+}
+
+// Drops the pressed keys and the mouse delta. The held keys stay.
+input_drop :: proc(latch: ^Input_Latch) {
 	latch.pressed = {}
 	latch.mouse = {}
-	return keys
 }
 
 input_end_frame :: proc(latch: ^Input_Latch) {

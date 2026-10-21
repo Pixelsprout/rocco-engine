@@ -14,7 +14,7 @@ Ui_Gpu :: struct {
 }
 
 // Needs sokol set up. The buffers hold quad_capacity quads. sample_count is
-// the swapchain's, so the pipeline matches it.
+// the render target's, so the pipeline matches it.
 ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator: mem.Allocator) -> mem.Allocator_Error {
 	g.scratch = make([]Ui_Vertex, quad_capacity * 4, allocator) or_return
 	indices := make([]u16, quad_capacity * len(UI_QUAD_INDICES), context.temp_allocator) or_return
@@ -46,9 +46,10 @@ ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator
 		{
 			shader = sg.make_shader(ui_shader_desc(sg.query_backend())),
 			sample_count = sample_count,
-			depth = {compare = .ALWAYS},
+			depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .ALWAYS},
 			colors = {
 				0 = {
+					pixel_format = TARGET_COLOR_FORMAT,
 					blend = {
 						enabled = true,
 						src_factor_rgb = .SRC_ALPHA,

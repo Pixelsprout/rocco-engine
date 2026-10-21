@@ -1,6 +1,7 @@
 package engine
 
 import "core:mem"
+import "core:strings"
 import "core:time"
 
 // What one Frame reads from the window and asks of it. Tests pass fakes, so a
@@ -26,20 +27,38 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	// One fixed interval leaves the accumulator at zero after the step, so
 	// Lockstep runs exactly one fixed step per Frame.
 	frame_time := platform.frame_duration if s.mode == .Real_Clock else s.clock.fixed_dt
-	clock_add_frame(&s.clock, frame_time)
+	clock_add_frame(&s.clock, bridge_clock_time(&s.bridge, frame_time))
 	steps := 0
 	for dt in clock_next_step(&s.clock) {
 		before := roc_heap_counters()
-		step_time, view_time := seam_step(&s.seam, input_take(&s.input, &s.keys), dt, &s.spans)
+		// Under the Bridge, only the Driver gives step its Input. The real
+		// devices still reach the latch, which the debug camera reads.
+		keys: Step_Keys
+		commands_json: ^strings.Builder
+		if s.bridge.on {
+			keys = bridge_input_take(&s.bridge, &s.keys)
+			commands_json = &s.bridge.commands
+		} else {
+			keys = input_take(&s.input, &s.keys)
+		}
+		step_time, view_time, quit := seam_step(&s.seam, keys, dt, &s.spans, commands_json)
 		steps += 1
 		s.steps += 1
+		alloc := roc_heap_report(s.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
 		if s.alloc_report {
-			roc_heap_report_line(s.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
+			alloc_report_print(alloc)
+		}
+		if s.bridge.on {
+			bridge_step_taken(s, alloc, quit)
 		}
 	}
 
 	alpha := clock_alpha(&s.clock)
 	prev, curr := seam_scenes(&s.seam)
+	// Lockstep's Alpha is 0, which draws prev.
+	if bridge_paused(&s.bridge) {
+		prev = curr
+	}
 	aspect := platform.window.size.x / platform.window.size.y
 	view_proj: Mat4
 	eye: [3]f32
@@ -68,10 +87,16 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	span_frame_end(&s.spans, s.frame_count, steps)
 
 	if exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
+		bridge_frame_limit_reached(s)
 		platform.request_quit()
 	}
 
 	frame_end(&s.mem)
+	// Under the Bridge no step takes the real latch, so it drops what a step
+	// would take.
+	if s.bridge.on {
+		input_drop(&s.input)
+	}
 	input_end_frame(&s.input)
 }
 
@@ -94,6 +119,10 @@ headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Erro
 headless_run :: proc(s: ^State) {
 	platform := headless_platform(s)
 	for !s.quit && !exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
+		bridge_wait_for_steps(s)
+		if s.bridge.quit {
+			return
+		}
 		frame_run(s, platform)
 	}
 }

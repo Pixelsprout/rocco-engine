@@ -1,8 +1,8 @@
 #!/bin/sh
 # Check that the games do not rebuild the host library. Records the host
-# library's hash and mtime and the hashes of the generated glue and
-# platform/Key.roc, regenerates both, runs the tests in platform/Key.roc and
-# links every game, then compares.
+# library's hash and mtime and the hashes of the generated glue,
+# platform/Key.roc and engine/key_tags.odin, regenerates them, runs the tests
+# in platform/Key.roc and links every game, then compares.
 # A Model change in any game must pass this check, because the platform
 # never names the game.
 set -eu
@@ -24,6 +24,7 @@ lib_hash=$(hash "$lib")
 lib_mtime=$(mtime "$lib")
 glue_hash=$(hash engine/roc_platform_abi.odin)
 key_hash=$(hash platform/Key.roc)
+key_table_hash=$(hash engine/key_tags.odin)
 
 roc scripts/build.roc -- glue > /dev/null
 roc scripts/build.roc -- keys > /dev/null
@@ -41,11 +42,15 @@ if [ "$(hash platform/Key.roc)" != "$key_hash" ]; then
 	echo "FAIL: platform/Key.roc was stale. Commit the file that roc scripts/build.roc -- keys wrote." >&2
 	failed=1
 fi
+if [ "$(hash engine/key_tags.odin)" != "$key_table_hash" ]; then
+	echo "FAIL: engine/key_tags.odin was stale. Commit the file that roc scripts/build.roc -- keys wrote." >&2
+	failed=1
+fi
 if [ "$(hash "$lib")" != "$lib_hash" ] || [ "$(mtime "$lib")" != "$lib_mtime" ]; then
 	echo "FAIL: $lib changed while the games built." >&2
 	failed=1
 fi
 if [ "$failed" -eq 0 ]; then
-	echo "PASS: $lib, the glue and platform/Key.roc did not change while the games built"
+	echo "PASS: $lib, the glue and the Key files did not change while the games built"
 fi
 exit $failed

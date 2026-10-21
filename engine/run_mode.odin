@@ -15,12 +15,12 @@ Run_Mode :: enum {
 }
 
 // Exits the process on a bad value, so a typo cannot produce a normal run.
-run_mode_from_env :: proc(exit_after_frames: int) -> Run_Mode {
+run_mode_from_env :: proc(exit_after_frames: int, bridge: bool) -> Run_Mode {
 	lockstep := run_switch_from_env(LOCKSTEP_ENV)
 	headless := run_switch_from_env(HEADLESS_ENV)
-	mode, ok := run_mode_make(lockstep, headless, exit_after_frames)
+	mode, ok := run_mode_make(lockstep, headless, exit_after_frames, bridge)
 	if !ok {
-		fmt.eprintfln("%v=1 needs %v, so the run ends", HEADLESS_ENV, EXIT_AFTER_FRAMES_ENV)
+		fmt.eprintfln("%v=1 needs %v or %v, so the run ends", HEADLESS_ENV, EXIT_AFTER_FRAMES_ENV, BRIDGE_ENV)
 		os.exit(1)
 	}
 	return mode
@@ -48,10 +48,11 @@ run_switch_parse :: proc(value: string) -> (on, ok: bool) {
 	return false, false
 }
 
-// A Headless run has no window to close, so it needs a Frame count.
-run_mode_make :: proc(lockstep, headless: bool, exit_after_frames: int) -> (mode: Run_Mode, ok: bool) {
+// A Headless run has no window to close, so it needs a Frame count or a
+// Driver to quit it. A Bridge run is Lockstep.
+run_mode_make :: proc(lockstep, headless: bool, exit_after_frames: int, bridge := false) -> (mode: Run_Mode, ok: bool) {
 	if headless {
-		return .Headless, exit_after_frames > 0
+		return .Headless, exit_after_frames > 0 || bridge
 	}
-	return .Lockstep if lockstep else .Real_Clock, true
+	return .Lockstep if lockstep || bridge else .Real_Clock, true
 }
