@@ -3,7 +3,7 @@
 // sky: a cubemap on a cube around the camera, at its authored colour.
 // shadow: depth only, from the Sun.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored colour.
-// blit: copies the offscreen target to the swapchain.
+// blit: copies the render target to the swapchain.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
 @header package engine

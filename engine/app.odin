@@ -104,7 +104,7 @@ app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sa
 		cleanup_cb = cleanup_cb,
 		width = i32(window.width),
 		height = i32(window.height),
-		// The MSAA is in the offscreen target, which the swapchain only copies.
+		// The MSAA is in the render target, which the swapchain only copies.
 		sample_count = 1,
 		high_dpi = window.high_dpi,
 		fullscreen = window.fullscreen,

@@ -3,6 +3,7 @@ package engine
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:strings"
 
 // The header size and the block length fill the last 16 bytes of the header.
 ROC_HEAP_HEADER_MIN :: 16
@@ -90,16 +91,26 @@ roc_heap_report :: proc(step: u64, before: Roc_Heap_Counters, step_us, view_us: 
 
 // scripts/alloc-check.sh parses this line.
 alloc_report_print :: proc(r: Alloc_Report) {
-	fmt.printfln(
-		"alloc step=%v allocs=%v deallocs=%v reallocs=%v live=%v step_us=%.1f view_us=%.1f",
-		r.step,
-		r.allocs,
-		r.deallocs,
-		r.reallocs,
-		r.live,
-		r.step_us,
-		r.view_us,
-	)
+	line := strings.builder_make(context.temp_allocator)
+	strings.write_string(&line, "alloc ")
+	alloc_report_write(&line, r, "%v=%v", " ")
+	fmt.println(strings.to_string(line))
+}
+
+// Writes the alloc line's fields in order, each with field_format, such as
+// "%v=%v". The step reply's alloc object has the same fields. The times keep
+// one decimal.
+alloc_report_write :: proc(b: ^strings.Builder, r: Alloc_Report, field_format, separator: string) {
+	step_us := fmt.tprintf("%.1f", r.step_us)
+	view_us := fmt.tprintf("%.1f", r.view_us)
+	names := [?]string{"step", "allocs", "deallocs", "reallocs", "live", "step_us", "view_us"}
+	values := [len(names)]any{r.step, r.allocs, r.deallocs, r.reallocs, r.live, step_us, view_us}
+	for name, i in names {
+		if i > 0 {
+			strings.write_string(b, separator)
+		}
+		fmt.sbprintf(b, field_format, name, values[i])
+	}
 }
 
 // A view of the bytes, valid while s lives. A short string lives inside the Roc_Str itself.

@@ -2,7 +2,6 @@
 package engine
 
 import sapp "../sokol-odin/sokol/app"
-import "core:bytes"
 import "core:encoding/json"
 import "core:net"
 import "core:slice"
@@ -23,9 +22,7 @@ step_run_open :: proc(t: ^testing.T, r: ^Step_Run) {
 	fake_frame_state_init(&r.s, mode = .Lockstep)
 	err := bridge_open(&r.s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
-	dial_err: net.Network_Error
-	r.driver, dial_err = net.dial_tcp(net.Endpoint{net.IP4_Loopback, bridge_transport_port(&r.s.bridge.transport)})
-	testing.expect_value(t, dial_err, nil)
+	r.driver = driver_dial(t, bridge_transport_port(&r.s.bridge.transport))
 }
 
 @(private = "file")
@@ -37,51 +34,30 @@ step_run_close :: proc(r: ^Step_Run) {
 
 // Sends one request and answers it, as frame_cb's poll does.
 @(private = "file")
-step_send :: proc(t: ^testing.T, r: ^Step_Run, line: string) {
-	_, err := net.send_tcp(r.driver, transmute([]u8)line)
-	testing.expect_value(t, err, nil)
-	_, err = net.send_tcp(r.driver, {'\n'})
-	testing.expect_value(t, err, nil)
+step_run_send :: proc(t: ^testing.T, r: ^Step_Run, line: string) {
+	driver_send(t, r.driver, line)
+	driver_send(t, r.driver, "\n")
 	bridge_poll(&r.s, wait = true)
 }
 
 @(private = "file")
-step_frame :: proc(r: ^Step_Run) {
+step_run_frame :: proc(r: ^Step_Run) {
 	frame_run(&r.s, fake_platform(r.s.clock.fixed_dt))
 }
 
 // Runs Frames until the held reply is sent.
 @(private = "file")
-step_frames_until_reply :: proc(r: ^Step_Run) {
+step_run_until_reply :: proc(r: ^Step_Run) {
 	for r.s.bridge.transport.holding {
-		step_frame(r)
+		step_run_frame(r)
 	}
 }
 
-// Reads one reply line. The Driver sends the next request only after it has
-// read a reply, so a read never takes part of the next one.
 @(private = "file")
-step_reply :: proc(t: ^testing.T, r: ^Step_Run) -> json.Object {
-	got := make([dynamic]u8, context.temp_allocator)
-	buf: [512]u8
-	for bytes.index_byte(got[:], '\n') < 0 {
-		n, err := net.recv_tcp(r.driver, buf[:])
-		if err != nil || n == 0 {
-			testing.fail_now(t, "the host closed before it replied")
-		}
-		append(&got, ..buf[:n])
-	}
-	testing.expect_value(t, bytes.index_byte(got[:], '\n'), len(got) - 1)
-	value, err := json.parse(got[:len(got) - 1], parse_integers = true, allocator = context.temp_allocator)
-	testing.expectf(t, err == nil, "the reply %q is not JSON: %v", string(got[:]), err)
-	return value.(json.Object)
-}
-
-@(private = "file")
-step :: proc(t: ^testing.T, r: ^Step_Run, line: string) -> json.Object {
-	step_send(t, r, line)
-	step_frames_until_reply(r)
-	return step_reply(t, r)
+step_run_request :: proc(t: ^testing.T, r: ^Step_Run, line: string) -> json.Object {
+	step_run_send(t, r, line)
+	step_run_until_reply(r)
+	return driver_read_reply(t, r.driver)
 }
 
 @(private = "file")
@@ -98,20 +74,20 @@ test_bridge_step_holds_keys_for_every_step_and_taps_and_moves_the_mouse_in_the_f
 	step_run_open(t, &r)
 	defer step_run_close(&r)
 
-	step_send(t, &r, `{"op":"step","n":2,"held":["W","A"],"tap":["Space"],"mouse":[3,-2.5]}`)
-	step_frame(&r)
+	step_run_send(t, &r, `{"op":"step","n":2,"held":["W","A"],"tap":["Space"],"mouse":[3,-2.5]}`)
+	step_run_frame(&r)
 	expect_keys(t, g_fake.held[:g_fake.held_len], {KEY_A, KEY_W})
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {KEY_SPACE, KEY_A, KEY_W})
 	testing.expect_value(t, g_fake.mouse, [2]f32{3, -2.5})
 	testing.expect(t, r.s.bridge.transport.holding)
 
-	step_frame(&r)
+	step_run_frame(&r)
 	expect_keys(t, g_fake.held[:g_fake.held_len], {KEY_A, KEY_W})
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {})
 	testing.expect_value(t, g_fake.mouse, [2]f32{})
 	testing.expect(t, !r.s.bridge.transport.holding)
 
-	reply := step_reply(t, &r)
+	reply := driver_read_reply(t, r.driver)
 	testing.expect_value(t, reply["ok"].(json.Boolean), true)
 	testing.expect_value(t, reply["steps"].(json.Integer), 2)
 	testing.expect_value(t, g_fake.steps, 2)
@@ -128,15 +104,15 @@ test_bridge_step_derives_pressed_from_the_held_of_the_step_before :: proc(t: ^te
 	step_run_open(t, &r)
 	defer step_run_close(&r)
 
-	step(t, &r, `{"op":"step","held":["W"]}`)
+	step_run_request(t, &r, `{"op":"step","held":["W"]}`)
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {KEY_W})
-	step(t, &r, `{"op":"step","held":["W"]}`)
+	step_run_request(t, &r, `{"op":"step","held":["W"]}`)
 	expect_keys(t, g_fake.held[:g_fake.held_len], {KEY_W})
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {})
-	step(t, &r, `{"op":"step"}`)
+	step_run_request(t, &r, `{"op":"step"}`)
 	expect_keys(t, g_fake.held[:g_fake.held_len], {})
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {})
-	step(t, &r, `{"op":"step","held":["W"]}`)
+	step_run_request(t, &r, `{"op":"step","held":["W"]}`)
 	expect_keys(t, g_fake.pressed[:g_fake.pressed_len], {KEY_W})
 
 	testing.expect_value(t, g_fake.steps, 4)
@@ -151,9 +127,9 @@ test_bridge_step_with_an_unknown_key_fails_before_any_step :: proc(t: ^testing.T
 	step_run_open(t, &r)
 	defer step_run_close(&r)
 
-	step_send(t, &r, `{"op":"step","n":3,"held":["W","Jump"]}`)
-	reply := step_reply(t, &r)
-	step_frame(&r)
+	step_run_send(t, &r, `{"op":"step","n":3,"held":["W","Jump"]}`)
+	reply := driver_read_reply(t, r.driver)
+	step_run_frame(&r)
 
 	testing.expect_value(t, reply["ok"].(json.Boolean), false)
 	testing.expect_value(t, reply["error"].(json.String), `unknown Key "Jump" in "held"`)
@@ -173,13 +149,13 @@ test_bridge_step_replies_the_commands_of_every_step_and_the_last_alloc_fields ::
 	step_run_open(t, &r)
 	defer step_run_close(&r)
 
-	step_send(t, &r, `{"op":"step","n":3}`)
+	step_run_send(t, &r, `{"op":"step","n":3}`)
 	g_fake.next_commands = {fake_unload("first"), fake_unload("second")}
-	step_frame(&r)
-	step_frame(&r)
+	step_run_frame(&r)
+	step_run_frame(&r)
 	g_fake.next_commands = {fake_unload("third")}
-	step_frame(&r)
-	reply := step_reply(t, &r)
+	step_run_frame(&r)
+	reply := driver_read_reply(t, r.driver)
 
 	commands := reply["commands"].(json.Array)
 	testing.expect_value(t, len(commands), 3)
@@ -203,12 +179,12 @@ test_bridge_step_that_the_game_quits_replies_and_ends_the_run :: proc(t: ^testin
 	step_run_open(t, &r)
 	defer step_run_close(&r)
 
-	step_send(t, &r, `{"op":"step","n":3}`)
+	step_run_send(t, &r, `{"op":"step","n":3}`)
 	g_fake.commands_out = 1
-	step_frame(&r)
+	step_run_frame(&r)
 	g_fake.commands_out = 0
-	reply := step_reply(t, &r)
-	step_frame(&r)
+	reply := driver_read_reply(t, r.driver)
+	step_run_frame(&r)
 
 	testing.expect_value(t, reply["steps"].(json.Integer), 1)
 	testing.expect_value(t, reply["commands"].(json.Array)[0].(json.String), "Quit")
@@ -228,7 +204,7 @@ test_bridge_step_ignores_the_real_keyboard_and_mouse :: proc(t: ^testing.T) {
 
 	key_down(&r.s.input, .W)
 	mouse_move(&r.s.input, 4, 5)
-	step(t, &r, `{"op":"step"}`)
+	step_run_request(t, &r, `{"op":"step"}`)
 
 	testing.expect_value(t, g_fake.held_len, 0)
 	testing.expect_value(t, g_fake.pressed_len, 0)

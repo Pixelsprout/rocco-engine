@@ -45,7 +45,7 @@ Shadow_Map :: struct {
 
 // Each loaded mesh can own a base colour and a metallic-roughness texture,
 // each with its own image, view and sampler. The white image, each sky, the
-// shadow map and the font atlas need one more. The offscreen target adds its
+// shadow map and the font atlas need one more. The render target adds its
 // images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
 	return i32(2 * capacity.meshes + 1 + capacity.skies + 1 + 1 + TARGET_IMAGES)
@@ -63,7 +63,7 @@ uniform_buffer_size :: proc(capacity: Capacity) -> i32 {
 	return i32((3 * int(capacity.draws) + 16) * UNIFORM_ALIGN)
 }
 
-// The offscreen target and the pipelines that draw into it must agree on the
+// The render target and the pipelines that draw into it must agree on the
 // sample count and the formats, or sokol rejects the pipelines. The sample
 // count comes from the Launch.
 renderer_init :: proc(r: ^Renderer, launch: Launch) {

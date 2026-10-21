@@ -102,11 +102,9 @@ test_bridge_paused_render_draws_the_scene_that_scene_replies :: proc(t: ^testing
 
 @(private = "file")
 scene_reply :: proc(t: ^testing.T, s: ^State) -> json.Object {
-	b := strings.builder_make(context.temp_allocator)
-	testing.expect_value(t, bridge_handle(s, `{"op":"scene"}`, &b), Bridge_Next.Read)
-	value, err := json.parse_string(strings.to_string(b), allocator = context.temp_allocator)
-	testing.expectf(t, err == nil, "the reply %q is not JSON: %v", strings.to_string(b), err)
-	return value.(json.Object)
+	reply, next := driver_answer(t, s, `{"op":"scene"}`, parse_integers = false)
+	testing.expect_value(t, next, Bridge_Next.Read)
+	return reply
 }
 
 // A tag with no payload is a string. A tag with a payload is an object with

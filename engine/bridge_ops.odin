@@ -9,15 +9,6 @@ import "core:strings"
 BRIDGE_PROTOCOL :: 1
 BRIDGE_NOT_YET :: "not yet"
 
-// Writes its reply fields with bridge_reply_field, or returns an error. The
-// dispatch writes the ok and closes the object.
-Bridge_Op :: #type proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string)
-
-Bridge_Op_Entry :: struct {
-	name: string,
-	op:   Bridge_Op,
-}
-
 // tell, ask and listen are kept for Ports (ADR 0009).
 @(rodata)
 BRIDGE_OPS := [?]Bridge_Op_Entry {
@@ -29,6 +20,15 @@ BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"tell", bridge_op_not_yet},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
+}
+
+// Writes its reply fields with bridge_reply_field, or returns an error.
+// bridge_reply_op writes the ok and closes the object.
+Bridge_Op :: #type proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string)
+
+Bridge_Op_Entry :: struct {
+	name: string,
+	op:   Bridge_Op,
 }
 
 // The Bridge_Handler for the transport. ctx is the ^State.
@@ -53,17 +53,22 @@ bridge_handle :: proc(ctx: rawptr, line: string, reply: ^strings.Builder) -> Bri
 		if entry.name != name {
 			continue
 		}
-		strings.write_string(reply, `{"ok":true`)
-		next, error := entry.op(s, request, reply)
-		if error != "" {
-			bridge_reply_error(reply, error)
-		} else {
-			strings.write_byte(reply, '}')
-		}
-		return next
+		return bridge_reply_op(s, request, reply, entry.op)
 	}
 	bridge_reply_error(reply, fmt.tprintf("unknown op %q", name))
 	return .Read
+}
+
+// Every op's reply is ok and its fields, or the error that it returns.
+bridge_reply_op :: proc(s: ^State, request: json.Object, reply: ^strings.Builder, op: Bridge_Op) -> Bridge_Next {
+	strings.write_string(reply, `{"ok":true`)
+	next, error := op(s, request, reply)
+	if error != "" {
+		bridge_reply_error(reply, error)
+	} else {
+		strings.write_byte(reply, '}')
+	}
+	return next
 }
 
 bridge_op_hello :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
@@ -110,6 +115,18 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	s.bridge.mouse = mouse
 	s.bridge.owed_steps = int(n)
 	return .Hold, ""
+}
+
+// The step op's held reply, which bridge_step_taken sends after the last
+// step. alloc has the fields of the last step's alloc line.
+bridge_step_reply :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	bridge_reply_field(reply, "steps", s.steps)
+	strings.write_string(reply, `,"commands":[`)
+	strings.write_string(reply, strings.to_string(s.bridge.commands))
+	strings.write_string(reply, `],"alloc":{`)
+	alloc_report_write(reply, s.bridge.alloc, `"%v":%v`, ",")
+	strings.write_byte(reply, '}')
+	return .Read, ""
 }
 
 // The Scene that a paused window shows, and the QueryResults that the next

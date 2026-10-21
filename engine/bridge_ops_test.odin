@@ -5,17 +5,6 @@ import "core:encoding/json"
 import "core:strings"
 import "core:testing"
 
-// Answers line as the transport would, and parses the reply.
-@(private = "file")
-answer :: proc(t: ^testing.T, s: ^State, line: string) -> (reply: json.Object, next: Bridge_Next) {
-	b := strings.builder_make(context.temp_allocator)
-	next = bridge_handle(s, line, &b)
-	value, err := json.parse_string(strings.to_string(b), parse_integers = true, allocator = context.temp_allocator)
-	testing.expectf(t, err == nil, "the reply %q is not JSON: %v", strings.to_string(b), err)
-	reply, _ = value.(json.Object)
-	return
-}
-
 @(private = "file")
 expect_error :: proc(t: ^testing.T, reply: json.Object, error: string, loc := #caller_location) {
 	expect_field(t, reply, "ok", false, loc)
@@ -37,7 +26,7 @@ test_bridge_hello_reports_the_protocol_the_step_rate_the_steps_and_the_mode :: p
 	s.steps = 7
 	s.mode = .Headless
 
-	reply, next := answer(t, &s, `{"op":"hello"}`)
+	reply, next := driver_answer(t, &s, `{"op":"hello"}`)
 
 	testing.expect_value(t, next, Bridge_Next.Read)
 	expect_field(t, reply, "ok", true)
@@ -54,7 +43,7 @@ test_bridge_hello_in_a_window_is_not_headless :: proc(t: ^testing.T) {
 	s: State
 	s.mode = .Lockstep
 
-	reply, _ := answer(t, &s, `{"op":"hello"}`)
+	reply, _ := driver_answer(t, &s, `{"op":"hello"}`)
 
 	expect_field(t, reply, "headless", false)
 }
@@ -64,7 +53,7 @@ test_bridge_quit_replies_ok_and_stops_the_poll :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	s: State
 
-	reply, next := answer(t, &s, `{"op":"quit"}`)
+	reply, next := driver_answer(t, &s, `{"op":"quit"}`)
 
 	expect_field(t, reply, "ok", true)
 	testing.expect_value(t, next, Bridge_Next.Stop)
@@ -76,7 +65,7 @@ test_bridge_reserved_ops_reply_not_yet :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	s: State
 	for op in ([]string{"tell", "ask", "listen"}) {
-		reply, next := answer(t, &s, strings.concatenate({`{"op":"`, op, `"}`}, context.temp_allocator))
+		reply, next := driver_answer(t, &s, strings.concatenate({`{"op":"`, op, `"}`}, context.temp_allocator))
 		expect_error(t, reply, "not yet")
 		testing.expect_value(t, next, Bridge_Next.Read)
 	}
@@ -88,7 +77,7 @@ test_bridge_unknown_op_replies_an_error_that_names_it :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	s: State
 
-	reply, next := answer(t, &s, `{"op":"jump"}`)
+	reply, next := driver_answer(t, &s, `{"op":"jump"}`)
 
 	expect_error(t, reply, `unknown op "jump"`)
 	testing.expect_value(t, next, Bridge_Next.Read)
@@ -108,7 +97,7 @@ test_bridge_bad_requests_reply_an_error :: proc(t: ^testing.T) {
 		{`{"op":1}`, `the request has no "op" string`},
 	}
 	for c in cases {
-		reply, next := answer(t, &s, c.line)
+		reply, next := driver_answer(t, &s, c.line)
 		expect_error(t, reply, c.error)
 		testing.expect_value(t, next, Bridge_Next.Read)
 	}
@@ -155,7 +144,7 @@ test_bridge_step_bad_fields_reply_an_error_and_owe_no_step :: proc(t: ^testing.T
 		{`{"op":"step","mouse":[1,"2"]}`, `"mouse" must be [dx, dy]`},
 	}
 	for c in cases {
-		reply, next := answer(t, &s, c.line)
+		reply, next := driver_answer(t, &s, c.line)
 		expect_error(t, reply, c.error)
 		testing.expect_value(t, next, Bridge_Next.Read)
 		testing.expect_value(t, s.bridge.owed_steps, 0)
@@ -189,7 +178,7 @@ test_bridge_screenshot_bad_requests_reply_an_error :: proc(t: ^testing.T) {
 	}
 	for c in cases {
 		s.mode = c.mode
-		reply, next := answer(t, &s, c.line)
+		reply, next := driver_answer(t, &s, c.line)
 		expect_error(t, reply, c.error)
 		testing.expect_value(t, next, Bridge_Next.Read)
 	}

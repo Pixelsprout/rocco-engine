@@ -53,7 +53,7 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 	}
 }
 
-// The default Capacity keeps the old pool sizes, plus the offscreen target.
+// 147 is the image pool of the default Capacity without the render target.
 @(test)
 test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
 	desc := app_gfx_desc(launch_default().capacity)

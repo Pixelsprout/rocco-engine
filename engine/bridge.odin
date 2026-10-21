@@ -29,6 +29,8 @@ Bridge :: struct {
 	// The step op's Commands so far, as JSON array elements. They must
 	// outlive the Frame arena, because the reply waits for the last step.
 	commands:   strings.Builder,
+	// The alloc line fields of the last step, for the step op's reply.
+	alloc:      Alloc_Report,
 }
 
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
@@ -43,7 +45,6 @@ bridge_port_from_env :: proc() -> int {
 	return port
 }
 
-// Treat an empty value as unset.
 bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
 	if value == "" {
 		return 0, true
@@ -55,7 +56,6 @@ bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
 	return n, true
 }
 
-// Port 0 asks the OS for a free port. Only tests use it.
 bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> net.Network_Error {
 	bridge_transport_open(&b.transport, port, allocator) or_return
 	b.commands = strings.builder_make(allocator)
@@ -130,30 +130,20 @@ bridge_input_take :: proc(b: ^Bridge, buf: ^Key_Buffers) -> Step_Keys {
 // a Quit from the game, it sends the step op's reply.
 bridge_step_taken :: proc(s: ^State, alloc: Alloc_Report, quit: bool) {
 	b := &s.bridge
+	b.alloc = alloc
 	if quit {
 		b.owed_steps = 0
 		b.quit = true
 	}
-	if b.owed_steps > 0 {
-		return
+	if b.owed_steps == 0 {
+		bridge_send_step_reply(s)
 	}
+}
+
+@(private = "file")
+bridge_send_step_reply :: proc(s: ^State) {
 	reply := strings.builder_make(context.temp_allocator)
-	strings.write_string(&reply, `{"ok":true`)
-	bridge_reply_field(&reply, "steps", s.steps)
-	strings.write_string(&reply, `,"commands":[`)
-	strings.write_string(&reply, strings.to_string(b.commands))
-	// The times have the alloc line's precision, not json.marshal's 16 digits.
-	fmt.sbprintf(
-		&reply,
-		`],"alloc":{{"step":%v,"allocs":%v,"deallocs":%v,"reallocs":%v,"live":%v,"step_us":%.1f,"view_us":%.1f}}}}`,
-		alloc.step,
-		alloc.allocs,
-		alloc.deallocs,
-		alloc.reallocs,
-		alloc.live,
-		alloc.step_us,
-		alloc.view_us,
-	)
-	strings.builder_reset(&b.commands)
-	bridge_transport_send_held(&b.transport, strings.to_string(reply))
+	bridge_reply_op(s, nil, &reply, bridge_step_reply)
+	strings.builder_reset(&s.bridge.commands)
+	bridge_transport_send_held(&s.bridge.transport, strings.to_string(reply))
 }

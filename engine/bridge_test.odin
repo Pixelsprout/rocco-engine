@@ -1,10 +1,10 @@
 #+test
 package engine
 
-import "core:bytes"
 import "core:encoding/json"
 import "core:fmt"
 import "core:net"
+import "core:strings"
 import "core:testing"
 
 @(test)
@@ -100,29 +100,17 @@ test_headless_run_with_the_bridge_answers_hello_and_ends_on_quit :: proc(t: ^tes
 	testing.expect_value(t, err, nil)
 	s.bridge.on = true
 	defer bridge_close(&s.bridge)
-	driver, dial_err := net.dial_tcp(net.Endpoint{net.IP4_Loopback, bridge_transport_port(&s.bridge.transport)})
-	testing.expect_value(t, dial_err, nil)
+	driver := driver_dial(t, bridge_transport_port(&s.bridge.transport))
 	defer net.close(driver)
-	_, send_err := net.send_tcp(driver, transmute([]u8)string("{\"op\":\"hello\"}\n{\"op\":\"quit\"}\n"))
-	testing.expect_value(t, send_err, nil)
+	driver_send(t, driver, "{\"op\":\"hello\"}\n{\"op\":\"quit\"}\n")
 
 	headless_run(&s)
 
 	testing.expect(t, s.bridge.quit)
 	testing.expect_value(t, s.frame_count, 0)
 	testing.expect_value(t, g_fake.steps, 0)
-	got := make([dynamic]u8, context.temp_allocator)
-	buf: [256]u8
-	for bytes.count(got[:], {'\n'}) < 2 {
-		n, recv_err := net.recv_tcp(driver, buf[:])
-		if recv_err != nil || n == 0 {
-			testing.fail_now(t, "the host closed before it replied")
-		}
-		append(&got, ..buf[:n])
-	}
-	lines := bytes.split(got[:], {'\n'}, context.temp_allocator)
-	hello, parse_err := json.parse(lines[0], parse_integers = true, allocator = context.temp_allocator)
-	testing.expect_value(t, parse_err, nil)
-	testing.expect_value(t, hello.(json.Object)["headless"].(json.Boolean), true)
-	testing.expect_value(t, string(lines[1]), `{"ok":true}`)
+	lines := strings.split_lines(driver_read_lines(t, driver, 2), context.temp_allocator)
+	hello := driver_parse(t, lines[0])
+	testing.expect_value(t, hello["headless"].(json.Boolean), true)
+	testing.expect_value(t, lines[1], `{"ok":true}`)
 }

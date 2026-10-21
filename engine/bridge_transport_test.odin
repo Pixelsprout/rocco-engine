@@ -1,7 +1,6 @@
 #+test
 package engine
 
-import "core:bytes"
 import "core:net"
 import "core:slice"
 import "core:strings"
@@ -34,34 +33,6 @@ open_transport :: proc(t: ^testing.T, transport: ^Bridge_Transport) -> int {
 	err := bridge_transport_open(transport, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	return bridge_transport_port(transport)
-}
-
-@(private = "file")
-dial :: proc(t: ^testing.T, port: int) -> net.TCP_Socket {
-	socket, err := net.dial_tcp(net.Endpoint{net.IP4_Loopback, port})
-	testing.expect_value(t, err, nil)
-	return socket
-}
-
-@(private = "file")
-send :: proc(t: ^testing.T, socket: net.TCP_Socket, text: string) {
-	_, err := net.send_tcp(socket, transmute([]u8)text)
-	testing.expect_value(t, err, nil)
-}
-
-// Reads until count newlines arrive.
-@(private = "file")
-read_lines :: proc(t: ^testing.T, socket: net.TCP_Socket, count: int) -> string {
-	got := make([dynamic]u8, context.temp_allocator)
-	buf: [256]u8
-	for bytes.count(got[:], {'\n'}) < count {
-		n, err := net.recv_tcp(socket, buf[:])
-		if err != nil || n == 0 {
-			testing.fail_now(t, "the transport closed before it replied")
-		}
-		append(&got, ..buf[:n])
-	}
-	return string(got[:])
 }
 
 @(test)
@@ -132,17 +103,17 @@ test_bridge_transport_answers_each_line_and_keeps_the_driver_after_an_error :: p
 	transport: Bridge_Transport
 	port := open_transport(t, &transport)
 	defer bridge_transport_close(&transport)
-	driver := dial(t, port)
+	driver := driver_dial(t, port)
 	defer net.close(driver)
 	echo: Bridge_Echo
 
-	send(t, driver, "one\ntwo\nth")
+	driver_send(t, driver, "one\ntwo\nth")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
-	testing.expect_value(t, read_lines(t, driver, 2), "{\"ok\":true,\"line\":\"one\"}\n{\"ok\":true,\"line\":\"two\"}\n")
+	testing.expect_value(t, driver_read_lines(t, driver, 2), "{\"ok\":true,\"line\":\"one\"}\n{\"ok\":true,\"line\":\"two\"}\n")
 
-	send(t, driver, "ree\n")
+	driver_send(t, driver, "ree\n")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
-	testing.expect_value(t, read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"three\"}\n")
+	testing.expect_value(t, driver_read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"three\"}\n")
 	testing.expect_value(t, echo.answered, 3)
 	testing.expect(t, transport.connected)
 }
@@ -166,18 +137,18 @@ test_bridge_transport_stop_leaves_the_next_lines_for_the_next_poll :: proc(t: ^t
 	transport: Bridge_Transport
 	port := open_transport(t, &transport)
 	defer bridge_transport_close(&transport)
-	driver := dial(t, port)
+	driver := driver_dial(t, port)
 	defer net.close(driver)
 	echo: Bridge_Echo
 
-	send(t, driver, "stop\nafter\n")
+	driver_send(t, driver, "stop\nafter\n")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
 	testing.expect_value(t, echo.answered, 1)
-	testing.expect_value(t, read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"stop\"}\n")
+	testing.expect_value(t, driver_read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"stop\"}\n")
 
 	bridge_transport_poll(&transport, false, echo_handler, &echo)
 	testing.expect_value(t, echo.answered, 2)
-	testing.expect_value(t, read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"after\"}\n")
+	testing.expect_value(t, driver_read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"after\"}\n")
 }
 
 // The first line the Driver reads is the held reply, so the transport sent
@@ -188,11 +159,11 @@ test_bridge_transport_hold_sends_the_reply_later_and_reads_nothing_until_then ::
 	transport: Bridge_Transport
 	port := open_transport(t, &transport)
 	defer bridge_transport_close(&transport)
-	driver := dial(t, port)
+	driver := driver_dial(t, port)
 	defer net.close(driver)
 	echo: Bridge_Echo
 
-	send(t, driver, "hold\nafter\n")
+	driver_send(t, driver, "hold\nafter\n")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
 	testing.expect_value(t, echo.answered, 1)
@@ -203,7 +174,7 @@ test_bridge_transport_hold_sends_the_reply_later_and_reads_nothing_until_then ::
 	bridge_transport_poll(&transport, false, echo_handler, &echo)
 
 	testing.expect_value(t, echo.answered, 2)
-	testing.expect_value(t, read_lines(t, driver, 2), "{\"ok\":true,\"held\":1}\n{\"ok\":true,\"line\":\"after\"}\n")
+	testing.expect_value(t, driver_read_lines(t, driver, 2), "{\"ok\":true,\"held\":1}\n{\"ok\":true,\"line\":\"after\"}\n")
 }
 
 @(test)
@@ -214,18 +185,18 @@ test_bridge_transport_waits_for_the_next_driver_after_a_disconnect :: proc(t: ^t
 	defer bridge_transport_close(&transport)
 	echo: Bridge_Echo
 
-	first := dial(t, port)
-	send(t, first, "first\n")
+	first := driver_dial(t, port)
+	driver_send(t, first, "first\n")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
-	read_lines(t, first, 1)
+	driver_read_lines(t, first, 1)
 	net.close(first)
 
-	second := dial(t, port)
+	second := driver_dial(t, port)
 	defer net.close(second)
-	send(t, second, "second\n")
+	driver_send(t, second, "second\n")
 	bridge_transport_poll(&transport, true, echo_handler, &echo)
 
-	testing.expect_value(t, read_lines(t, second, 1), "{\"ok\":true,\"line\":\"second\"}\n")
+	testing.expect_value(t, driver_read_lines(t, second, 1), "{\"ok\":true,\"line\":\"second\"}\n")
 	testing.expect_value(t, echo.answered, 2)
 }
 
