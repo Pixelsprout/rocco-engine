@@ -115,6 +115,54 @@ test_bridge_bad_requests_reply_an_error :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_bridge_step_owes_n_steps_and_holds_the_reply :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	b := strings.builder_make(context.temp_allocator)
+
+	next := bridge_handle(&s, `{"op":"step","n":5,"held":["W"]}`, &b)
+
+	testing.expect_value(t, next, Bridge_Next.Hold)
+	testing.expect_value(t, s.bridge.owed_steps, 5)
+	testing.expect(t, s.bridge.held[.W])
+}
+
+@(test)
+test_bridge_step_without_n_owes_one_step :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	b := strings.builder_make(context.temp_allocator)
+
+	bridge_handle(&s, `{"op":"step"}`, &b)
+
+	testing.expect_value(t, s.bridge.owed_steps, 1)
+}
+
+@(test)
+test_bridge_step_bad_fields_reply_an_error_and_owe_no_step :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	cases := []struct {
+		line:  string,
+		error: string,
+	} {
+		{`{"op":"step","n":0}`, `"n" must be a whole number of 1 or more`},
+		{`{"op":"step","n":1.5}`, `"n" must be a whole number of 1 or more`},
+		{`{"op":"step","held":"W"}`, `"held" must be a list of Key names`},
+		{`{"op":"step","tap":[87]}`, `"tap" must be a list of Key names`},
+		{`{"op":"step","tap":["w"]}`, `unknown Key "w" in "tap"`},
+		{`{"op":"step","mouse":[1]}`, `"mouse" must be [dx, dy]`},
+		{`{"op":"step","mouse":[1,"2"]}`, `"mouse" must be [dx, dy]`},
+	}
+	for c in cases {
+		reply, next := answer(t, &s, c.line)
+		expect_error(t, reply, c.error)
+		testing.expect_value(t, next, Bridge_Next.Read)
+		testing.expect_value(t, s.bridge.owed_steps, 0)
+	}
+}
+
+@(test)
 test_bridge_reply_error_escapes_the_message :: proc(t: ^testing.T) {
 	b := strings.builder_make(context.temp_allocator)
 	defer free_all(context.temp_allocator)

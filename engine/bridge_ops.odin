@@ -1,5 +1,6 @@
 package engine
 
+import sapp "../sokol-odin/sokol/app"
 import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
@@ -22,6 +23,7 @@ Bridge_Op_Entry :: struct {
 BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"hello", bridge_op_hello},
 	{"quit", bridge_op_quit},
+	{"step", bridge_op_step},
 	{"tell", bridge_op_not_yet},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
@@ -77,6 +79,86 @@ bridge_op_quit :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	return .Stop, ""
 }
 
+// Owes the steps and holds the reply. bridge_step_taken sends it after the
+// last step. A bad field fails the request before any step runs.
+bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	n := i64(1)
+	if value, has_n := request["n"]; has_n {
+		count, is_integer := value.(json.Integer)
+		if !is_integer || count < 1 {
+			return .Read, `"n" must be a whole number of 1 or more`
+		}
+		n = count
+	}
+	held, tap: #sparse[sapp.Keycode]bool
+	mouse: [2]f32
+	held, error = bridge_read_keys(request, "held")
+	if error == "" {
+		tap, error = bridge_read_keys(request, "tap")
+	}
+	if error == "" {
+		mouse, error = bridge_read_mouse(request)
+	}
+	if error != "" {
+		return .Read, error
+	}
+
+	s.bridge.held = held
+	s.bridge.tap = tap
+	s.bridge.mouse = mouse
+	s.bridge.owed_steps = int(n)
+	return .Hold, ""
+}
+
 bridge_op_not_yet :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
 	return .Read, BRIDGE_NOT_YET
+}
+
+// An absent field means no key.
+@(private = "file")
+bridge_read_keys :: proc(request: json.Object, field: string) -> (keys: #sparse[sapp.Keycode]bool, error: string) {
+	value, has_field := request[field]
+	if !has_field {
+		return
+	}
+	names, is_array := value.(json.Array)
+	if !is_array {
+		return keys, fmt.tprintf("%q must be a list of Key names", field)
+	}
+	for item in names {
+		name, is_string := item.(json.String)
+		if !is_string {
+			return keys, fmt.tprintf("%q must be a list of Key names", field)
+		}
+		key, known := key_from_tag(name)
+		if !known {
+			return keys, fmt.tprintf("unknown Key %q in %q", name, field)
+		}
+		keys[key] = true
+	}
+	return
+}
+
+// An absent mouse means no movement.
+@(private = "file")
+bridge_read_mouse :: proc(request: json.Object) -> (mouse: [2]f32, error: string) {
+	value, has_mouse := request["mouse"]
+	if !has_mouse {
+		return
+	}
+	pair, is_array := value.(json.Array)
+	if !is_array || len(pair) != 2 {
+		return mouse, `"mouse" must be [dx, dy]`
+	}
+	for item, i in pair {
+		#partial switch number in item {
+		case json.Integer:
+			mouse[i] = f32(number)
+		case json.Float:
+			mouse[i] = f32(number)
+		case:
+			return mouse, `"mouse" must be [dx, dy]`
+		}
+	}
+	return
 }

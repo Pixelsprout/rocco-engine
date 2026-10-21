@@ -11,10 +11,12 @@ import "core:strings"
 BRIDGE_MAX_LINE :: 1 * mem.Megabyte
 BRIDGE_READ_SIZE :: 16 * mem.Kilobyte
 
-// What the transport does after a reply.
+// What the transport does after a handler returns. Hold sends no reply and
+// reads no request until bridge_transport_send_held sends the reply.
 Bridge_Next :: enum {
 	Read,
 	Stop,
+	Hold,
 }
 
 Json_Line_Status :: enum {
@@ -41,6 +43,7 @@ Bridge_Transport :: struct {
 	listener:          net.TCP_Socket,
 	driver:            net.TCP_Socket,
 	connected:         bool,
+	holding:           bool,
 	listener_blocking: bool,
 	driver_blocking:   bool,
 	lines:             Json_Lines,
@@ -137,9 +140,13 @@ bridge_transport_port :: proc(t: ^Bridge_Transport) -> int {
 
 // Answers each request the socket holds, then returns. With wait, it first
 // blocks until it has answered one request, and after a disconnect it waits
-// for the next Driver. A handler that returns .Stop ends the poll, and the
-// next poll answers the lines that are left first.
+// for the next Driver. A handler that returns .Stop or .Hold ends the poll,
+// and the next poll answers the lines that are left first. While a reply is
+// held, the poll does nothing.
 bridge_transport_poll :: proc(t: ^Bridge_Transport, wait: bool, handle: Bridge_Handler, ctx: rawptr) {
+	if t.holding {
+		return
+	}
 	answered := 0
 	for {
 		if !t.connected && !bridge_transport_accept(t, wait && answered == 0) {
@@ -152,7 +159,7 @@ bridge_transport_poll :: proc(t: ^Bridge_Transport, wait: bool, handle: Bridge_H
 			}
 			next := bridge_transport_answer(t, line, status, handle, ctx)
 			answered += 1
-			if next == .Stop {
+			if next != .Read {
 				return
 			}
 		}
@@ -199,7 +206,18 @@ bridge_transport_accept :: proc(t: ^Bridge_Transport, block: bool) -> bool {
 	return true
 }
 
-// A failed send drops the Driver.
+// Sends the reply that a .Hold kept back, and lets the poll read again. A
+// Driver that has gone gets nothing.
+bridge_transport_send_held :: proc(t: ^Bridge_Transport, reply: string) {
+	t.holding = false
+	if !t.connected {
+		return
+	}
+	strings.builder_reset(&t.reply)
+	strings.write_string(&t.reply, reply)
+	bridge_transport_send(t)
+}
+
 @(private = "file")
 bridge_transport_answer :: proc(t: ^Bridge_Transport, line: string, status: Json_Line_Status, handle: Bridge_Handler, ctx: rawptr) -> (next: Bridge_Next) {
 	strings.builder_reset(&t.reply)
@@ -212,6 +230,20 @@ bridge_transport_answer :: proc(t: ^Bridge_Transport, line: string, status: Json
 			next = handle(ctx, line, &t.reply)
 		}
 	}
+	if next == .Hold {
+		t.holding = true
+		return
+	}
+	bridge_transport_send(t)
+	return
+}
+
+// Sends the reply builder with a newline. A failed send drops the Driver.
+@(private = "file")
+bridge_transport_send :: proc(t: ^Bridge_Transport) {
+	if !t.connected {
+		return
+	}
 	strings.write_byte(&t.reply, '\n')
 	// A reply can be larger than the socket buffer, so it is sent blocking.
 	if bridge_transport_driver_blocking(t, true) != nil {
@@ -221,7 +253,6 @@ bridge_transport_answer :: proc(t: ^Bridge_Transport, line: string, status: Json
 	if _, err := net.send_tcp(t.driver, t.reply.buf[:]); err != nil {
 		bridge_transport_disconnect(t)
 	}
-	return
 }
 
 @(private = "file")

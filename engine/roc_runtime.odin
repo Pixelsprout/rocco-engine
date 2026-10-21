@@ -23,6 +23,18 @@ Roc_Heap_Counters :: struct {
 	live:     uint,
 }
 
+// The fields of the alloc line for one step. The counts are this step's,
+// except live, which is the run's total.
+Alloc_Report :: struct {
+	step:     u64,
+	allocs:   uint,
+	deallocs: uint,
+	reallocs: uint,
+	live:     uint,
+	step_us:  f64,
+	view_us:  f64,
+}
+
 // roc_realloc gets no old size, so each block carries its length in a header
 // before it. Realloc resizes in the backing allocator, so a block can grow in
 // place.
@@ -63,18 +75,30 @@ roc_heap_counters :: proc() -> Roc_Heap_Counters {
 	}
 }
 
-roc_heap_report_line :: proc(step: u64, before: Roc_Heap_Counters, step_us, view_us: f64) {
+roc_heap_report :: proc(step: u64, before: Roc_Heap_Counters, step_us, view_us: f64) -> Alloc_Report {
 	after := roc_heap_counters()
-	// scripts/alloc-check.sh parses this line.
+	return {
+		step = step,
+		allocs = after.allocs - before.allocs,
+		deallocs = after.deallocs - before.deallocs,
+		reallocs = after.reallocs - before.reallocs,
+		live = after.live,
+		step_us = step_us,
+		view_us = view_us,
+	}
+}
+
+// scripts/alloc-check.sh parses this line.
+alloc_report_print :: proc(r: Alloc_Report) {
 	fmt.printfln(
 		"alloc step=%v allocs=%v deallocs=%v reallocs=%v live=%v step_us=%.1f view_us=%.1f",
-		step,
-		after.allocs - before.allocs,
-		after.deallocs - before.deallocs,
-		after.reallocs - before.reallocs,
-		after.live,
-		step_us,
-		view_us,
+		r.step,
+		r.allocs,
+		r.deallocs,
+		r.reallocs,
+		r.live,
+		r.step_us,
+		r.view_us,
 	)
 }
 

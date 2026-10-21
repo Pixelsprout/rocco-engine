@@ -52,6 +52,7 @@ Fake_Game :: struct {
 	held_len:        int,
 	pressed:         [FAKE_KEYS_MAX]u16,
 	pressed_len:     int,
+	mouse:           [2]f32,
 	contacts:        [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:    int,
 	rays:            [FAKE_RAYS_MAX]Ray_Hit,
@@ -164,6 +165,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
+	g_fake.mouse = {input.mouse.dx, input.mouse.dy}
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
@@ -609,7 +611,7 @@ test_seam_step_returns_non_negative_durations :: proc(t: ^testing.T) {
 	fake_seam_init(&s)
 	defer fake_seam_shutdown(&s)
 
-	step_time, view_time := seam_step(&s, {}, 1.0 / 60)
+	step_time, view_time, _ := seam_step(&s, {}, 1.0 / 60)
 	testing.expect(t, step_time >= 0)
 	testing.expect(t, view_time >= 0)
 }

@@ -1,6 +1,6 @@
 ---
 title: The Bridge
-summary: Let a script, a CI test or an agent drive a run over a localhost socket, and say hello and quit.
+summary: Let a script, a CI test or an agent drive a run over a localhost socket. Say hello, run steps with your own Input, and quit.
 order: 11
 ---
 
@@ -79,6 +79,67 @@ Type a request and press Return to see the reply.
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
+
+## step
+
+`step` runs fixed steps with the Input you give it, then replies once
+after the last one:
+
+```
+{"op":"step","n":30,"held":["W"],"tap":["Space"],"mouse":[4,-2]}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":12.5,"view_us":5.5}}
+```
+
+The host runs one step per frame, so the window shows each one. While the
+steps run, the host answers no other request. It reads the next one after
+it has sent the reply.
+
+| Field | Means |
+|---|---|
+| `n` | How many steps to run, 1 or more. Without it, the host runs 1. |
+| `held` | Keys held down for every step. |
+| `tap` | Keys pressed and let go before the first step. They are Pressed but not Held, in the first step only. |
+| `mouse` | The mouse movement `[dx, dy]`, in the first step only. |
+
+The keys are the names from `pf.Key`, such as `"W"`, `"Space"`,
+`"LeftShift"` and `"Num0"`. A name that `pf.Key` does not have fails the
+request, and no step runs:
+
+```
+{"op":"step","held":["Jump"]}
+{"ok":false,"error":"unknown Key \"Jump\" in \"held\""}
+```
+
+A field you leave out means none: no keys held, no taps, no mouse
+movement. So a `step` with no `held` lets go of every key.
+
+Pressed works as it does with a real keyboard. A key is Pressed in the
+first step where it is held and was not held in the step before. If one
+request holds `W` and the next one holds `W` too, `W` is Pressed only in
+the first step of the first request. If a request in between leaves `held`
+out, `W` is Pressed again.
+
+While the Bridge is on, `step` gets its Input from the Driver only. The
+real keyboard and mouse do not reach the game. The debug camera still
+reads them, so you can fly it while a Driver plays.
+
+The reply has these fields:
+
+| Field | Means |
+|---|---|
+| `steps` | The fixed steps that the run has taken, after this request. |
+| `commands` | The Commands the game returned in these steps, in order. |
+| `alloc` | The Roc heap counts of the last step, the same fields as the `ROCCO_ALLOC_REPORT` line in [Running and debugging](running.md). |
+
+A Command is written with its Vocabulary tag. A tag with a payload is an
+object with one key, and a tag with no payload is a string:
+
+```
+["Quit", {"Load":{"pack":"level1","assets":["pip","rock"]}}, {"Unload":"level1"}]
+```
+
+If the game returns `Quit`, the host stops at that step. It sends the
+reply, with `steps` at the step that quit, and then ends the run.
 
 ## quit
 

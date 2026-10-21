@@ -1,5 +1,6 @@
 package engine
 
+import "core:strings"
 import "core:time"
 
 Game_Calls :: struct {
@@ -59,8 +60,10 @@ seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: 
 }
 
 // The Spans split the work finer than step_time and view_time, which the
-// alloc report keeps.
-seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil) -> (step_time, view_time: time.Duration) {
+// alloc report keeps. With commands_json, it appends the step's Commands
+// there, because the host frees them after it runs them. quit is true when
+// the game returned Quit.
+seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, commands_json: ^strings.Builder = nil) -> (step_time, view_time: time.Duration, quit: bool) {
 	start := time.tick_now()
 	span := span_open()
 
@@ -76,7 +79,10 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil) -
 	s.results = {}
 	span = span_close(spans, .Step, span)
 	stepped := time.tick_now()
-	seam_run_commands(s, result.commands)
+	if commands_json != nil {
+		json_write_commands(commands_json, result.commands)
+	}
+	quit = seam_run_commands(s, result.commands)
 	span = span_close(spans, .Commands, span)
 	if s.has_prev {
 		roc_decref(s.prev)
@@ -95,7 +101,7 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil) -
 	}
 	span_close(spans, .Query_Results, span)
 
-	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed)
+	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed), quit
 }
 
 // Before the first step there is one Scene, and it pairs with itself.
@@ -114,7 +120,7 @@ seam_query_search :: proc(s: ^Seam) -> Query_Answers {
 // The host owns the commands list and frees it after running it, so every
 // string a command holds is only borrowed until then.
 @(private = "file")
-seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) {
+seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool) {
 	for &command in commands.elements[:commands.length] {
 		switch command.tag {
 		case .Load:
@@ -122,10 +128,12 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) {
 		case .Unload:
 			pack_unload(s.packs, roc_str_string(&command.payload.unload))
 		case .Quit:
+			quit = true
 			s.run_command(command)
 		}
 	}
 	roc_list_decref(commands)
+	return
 }
 
 // loaded consumes the box, the pack name and the manifest, as step does.

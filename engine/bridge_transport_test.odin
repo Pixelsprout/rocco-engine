@@ -12,7 +12,7 @@ Bridge_Echo :: struct {
 }
 
 // Replies with the line, so a test sees what the transport passed on. A
-// "stop" line returns .Stop.
+// "stop" line returns .Stop, and a "hold" line returns .Hold.
 @(private = "file")
 echo_handler :: proc(ctx: rawptr, line: string, reply: ^strings.Builder) -> Bridge_Next {
 	echo := (^Bridge_Echo)(ctx)
@@ -20,7 +20,13 @@ echo_handler :: proc(ctx: rawptr, line: string, reply: ^strings.Builder) -> Brid
 	strings.write_string(reply, `{"ok":true`)
 	bridge_reply_field(reply, "line", line)
 	strings.write_byte(reply, '}')
-	return .Stop if line == "stop" else .Read
+	switch line {
+	case "stop":
+		return .Stop
+	case "hold":
+		return .Hold
+	}
+	return .Read
 }
 
 @(private = "file")
@@ -172,6 +178,32 @@ test_bridge_transport_stop_leaves_the_next_lines_for_the_next_poll :: proc(t: ^t
 	bridge_transport_poll(&transport, false, echo_handler, &echo)
 	testing.expect_value(t, echo.answered, 2)
 	testing.expect_value(t, read_lines(t, driver, 1), "{\"ok\":true,\"line\":\"after\"}\n")
+}
+
+// The first line the Driver reads is the held reply, so the transport sent
+// nothing for hold and answered nothing while it held.
+@(test)
+test_bridge_transport_hold_sends_the_reply_later_and_reads_nothing_until_then :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	transport: Bridge_Transport
+	port := open_transport(t, &transport)
+	defer bridge_transport_close(&transport)
+	driver := dial(t, port)
+	defer net.close(driver)
+	echo: Bridge_Echo
+
+	send(t, driver, "hold\nafter\n")
+	bridge_transport_poll(&transport, true, echo_handler, &echo)
+	bridge_transport_poll(&transport, true, echo_handler, &echo)
+	testing.expect_value(t, echo.answered, 1)
+	testing.expect(t, transport.holding)
+
+	bridge_transport_send_held(&transport, `{"ok":true,"held":1}`)
+	testing.expect(t, !transport.holding)
+	bridge_transport_poll(&transport, false, echo_handler, &echo)
+
+	testing.expect_value(t, echo.answered, 2)
+	testing.expect_value(t, read_lines(t, driver, 2), "{\"ok\":true,\"held\":1}\n{\"ok\":true,\"line\":\"after\"}\n")
 }
 
 @(test)
