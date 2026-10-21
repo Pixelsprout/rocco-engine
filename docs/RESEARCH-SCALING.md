@@ -982,6 +982,10 @@ milestone or a task beside the milestones.
 - **Extension**: a shared library the host loads at `Launch` that registers
   Ports.
 - **Bridge**: a Port whose far end is a socket, a pipe or another process.
+  Note, 2026-10-22: Milestone 19 reversed this order. ADR 0009 makes the
+  Bridge a host module that a Driver uses to control the host, outside the
+  Vocabulary. A Port, when Ports arrive, reaches the Driver through the
+  Bridge. CONTEXT.md holds the current definition.
 - **Emitter**, **Sound**, **Body**: the Scene records of sections 5a to 5c.
 
 ## Method and limits

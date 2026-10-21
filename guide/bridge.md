@@ -1,244 +1,73 @@
 ---
 title: The Bridge
-summary: Let a script, a CI test or an agent drive a run over a localhost socket. Say hello, run steps with your own Input, and quit.
+summary: Let a script, a CI test or an agent play a run over a localhost socket. Inject Input for N steps, read the Scene as JSON and save a screenshot.
 order: 11
 ---
 
 # The Bridge
 
 A person plays a game with the keyboard and the mouse. A script, a CI test
-or an agent cannot. The Bridge gives them a way in: the host listens on a
-localhost socket, and one outside process, the Driver, sends it requests.
-The Driver asks for fixed steps, reads what the host sees and ends the run.
+or an agent cannot. It cannot press W, it cannot read where the player
+stands, and it cannot see the result of 30 steps. A run on the real clock
+also differs each time, so a check that waits a second and looks gives a
+different answer on a slow machine.
+
+The Bridge gives them a way in. The host listens on a localhost socket,
+and one outside process, the Driver, sends it requests. The Driver gives
+`step` its Input, asks for fixed steps, reads the Scene as JSON and saves a
+screenshot. Between requests the run pauses, so the same requests always
+give the same Scenes.
 
 The game does not know that the Bridge exists. It gets the same calls with
-the same values, and nothing in the Vocabulary names the Bridge.
+the same kind of values, and nothing in the Vocabulary names the Bridge.
+You do not change a game to drive it.
 
-## Turn it on
+## A first session
 
-Set `ROCCO_BRIDGE` to a port:
-
-```sh
-ROCCO_BRIDGE=7878 roc main.roc
-```
-
-The host runs `launch` and `init`, opens the window and shows the first
-`view`. Then it waits for a Driver on `127.0.0.1:7878`. It listens only on
-the local machine, and it talks to one Driver at a time. When the Driver
-disconnects, the host waits for the next one.
-
-A Bridge run is Lockstep that pauses. Each frame runs one fixed step while
-the Driver has asked for steps, and no step while it has not. The window
-keeps drawing, so it shows where the run has stopped. The same requests
-always give the same run.
-
-The Bridge also works in Headless. There the host blocks on the socket
-while the Driver has asked for no steps, so it does not need
-`ROCCO_EXIT_AFTER_FRAMES`:
-
-```sh
-ROCCO_HEADLESS=1 ROCCO_BRIDGE=7878 roc main.roc
-```
-
-If another process already uses the port, the host prints the error and
-exits with code 1. It does not start a normal run.
-
-## Requests and replies
-
-The Driver and the host talk in JSON Lines: one JSON object on each line.
-Each request has an `op`. Each reply has `ok`, and a reply to a failed
-request also has an `error`:
-
-```
-{"op":"jump"}
-{"ok":false,"error":"unknown op \"jump\""}
-```
-
-A bad request gets an error reply, and the connection stays open.
-
-You can try it by hand with `nc`:
-
-```sh
-nc 127.0.0.1 7878
-```
-
-Type a request and press Return to see the reply.
-
-## hello
-
-`hello` tells the Driver about the run:
-
-```
-{"op":"hello"}
-{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
-```
-
-| Field | Means |
-|---|---|
-| `protocol` | The version of the requests and replies. It changes when a reply changes shape. |
-| `step_hz` | The fixed steps per second, from the game's Launch. |
-| `steps` | The fixed steps that the run has taken. |
-| `headless` | `true` in a Headless run, `false` with a window. |
-
-## step
-
-`step` runs fixed steps with the Input you give it, then replies once
-after the last one:
-
-```
-{"op":"step","n":30,"held":["W"],"tap":["Space"],"mouse":[4,-2]}
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":12.5,"view_us":5.5}}
-```
-
-The host runs one step per frame, so the window shows each one. While the
-steps run, the host answers no other request. It reads the next one after
-it has sent the reply.
-
-| Field | Means |
-|---|---|
-| `n` | How many steps to run, 1 or more. Without it, the host runs 1. |
-| `held` | Keys held down for every step. |
-| `tap` | Keys pressed and let go before the first step. They are Pressed but not Held, in the first step only. |
-| `mouse` | The mouse movement `[dx, dy]`, in the first step only. |
-
-The keys are the names from `pf.Key`, such as `"W"`, `"Space"`,
-`"LeftShift"` and `"Num0"`. A name that `pf.Key` does not have fails the
-request, and no step runs:
-
-```
-{"op":"step","held":["Jump"]}
-{"ok":false,"error":"unknown Key \"Jump\" in \"held\""}
-```
-
-A field you leave out means none: no keys held, no taps, no mouse
-movement. So a `step` with no `held` lets go of every key.
-
-Pressed works as it does with a real keyboard. A key is Pressed in the
-first step where it is held and was not held in the step before. If one
-request holds `W` and the next one holds `W` too, `W` is Pressed only in
-the first step of the first request. If a request in between leaves `held`
-out, `W` is Pressed again.
-
-While the Bridge is on, `step` gets its Input from the Driver only. The
-real keyboard and mouse do not reach the game. The debug camera still
-reads them, so you can fly it while a Driver plays.
-
-The reply has these fields:
-
-| Field | Means |
-|---|---|
-| `steps` | The fixed steps that the run has taken, after this request. |
-| `commands` | The Commands the game returned in these steps, in order. |
-| `alloc` | The Roc heap counts of the last step, the same fields as the `ROCCO_ALLOC_REPORT` line in [Running and debugging](running.md). |
-
-A Command is written with its Vocabulary tag. A tag with a payload is an
-object with one key, and a tag with no payload is a string:
-
-```
-["Quit", {"Load":{"pack":"level1","assets":["pip","rock"]}}, {"Unload":"level1"}]
-```
-
-If the game returns `Quit`, the host stops at that step. It sends the
-reply, with `steps` at the step that quit, and then ends the run.
-
-## scene
-
-`scene` replies with the Scene of the last step, the one the window shows,
-and the QueryResults that the next `step` gives the game. This reply is
-from tutorial chapter 3 after 60 steps with `W` held. The host sends it on
-one line:
-
-```
-{"op":"scene"}
-{"ok":true,"steps":60,
- "scene":{"camera":{"eye":{"x":0,"y":3.6,"z":4.8},"target":{"x":0,"y":0,"z":0.3},"up":{"x":0,"y":1,"z":0},"fov_y":1.047},
-  "draws":[{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1}},
-   {"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-1.25},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}],
-  "colliders":[],
-  "lights":[{"Ambient":{"r":0.3,"g":0.3,"b":0.3}},{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}],
-  "cursor":"Free","sky":0,"ui":[],"queries":[]},
- "results":{"contacts":[],"rays":[],"overlaps":[]}}
-```
-
-`steps` is the fixed steps that the run has taken, as in `hello`. The
-fields and the tags in `scene` and `results` have the names you use in the
-game, from the Vocabulary: `draws[].scale_rot`, `{"Sphere":0.5}`,
-`{"Open":{...}}`, `"Close"`. Tags follow the same rule as the Commands in
-`step`. Each number is the shortest one that reads back as the same `F32`.
-A NaN or an infinity is `null`, because JSON has no word for them.
-
-While the Driver has asked for no steps, the window draws this Scene as it
-is, so a screenshot shows what `scene` returns.
-
-## screenshot
-
-`screenshot` saves the last frame the window drew as a PNG:
-
-```
-{"op":"screenshot","path":"/tmp/pip.png"}
-{"ok":true,"path":"/tmp/pip.png","physical":[1920,1080],"logical":[960,540]}
-```
-
-The host writes the file itself, so a relative `path` is relative to the
-folder the game runs in. Use an absolute path when the Driver runs
-somewhere else. The reply gives the path back as you sent it.
-
-The image has the window's physical pixels. On a high-DPI display,
-`physical` is larger than `logical`, the size in the window's own units.
-The two sizes differ by the display's scale, 2 on most Mac screens and 1
-under xvfb. The PNG is opaque, as the window is.
-
-The host draws the first frame before it reads any request, so a
-`screenshot` straight after `hello` shows the first `view`.
-
-A Headless run draws nothing, so `screenshot` replies with an error there.
-A path the host cannot write, such as one in a missing folder, also
-replies with an error, and the run goes on:
-
-```
-{"op":"screenshot","path":"/no/such/folder/pip.png"}
-{"ok":false,"error":"the host cannot write \"/no/such/folder/pip.png\": file does not exist"}
-```
-
-## quit
-
-`quit` replies `{"ok":true}`, then ends the run as a `Quit` Command does.
-The host exits with code 0. The host does not answer requests that come
-after `quit`.
-
-## Drive a game from Python
-
-`scripts/bridge.py` is a Driver in plain Python 3, with no packages to
-install. From a shell, each call connects, sends one request, prints the
-reply and disconnects. It reads the port from `ROCCO_BRIDGE`, or from
-`--port`. Start tutorial chapter 3 with the Bridge in one terminal:
+Start tutorial chapter 3 with the Bridge on port 7878:
 
 ```sh
 cd examples/tutorial/03-moving
 ROCCO_BRIDGE=7878 roc main.roc
 ```
 
-Then walk Pip from a second terminal, at the repository root:
+The window opens and shows Pip at the first `view`. Nothing moves: the run
+waits for a Driver. In a second terminal, at the repository root, walk Pip
+forward for a quarter of a second with `scripts/bridge.py`:
 
 ```sh
-export ROCCO_BRIDGE=7878
-python3 scripts/bridge.py hello
-python3 scripts/bridge.py step 30 --held W
-python3 scripts/bridge.py scene
-python3 scripts/bridge.py screenshot pip.png
-python3 scripts/bridge.py quit
+$ export ROCCO_BRIDGE=7878
+$ python3 scripts/bridge.py hello
+{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
+$ python3 scripts/bridge.py step 30 --held W
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":10.5,"view_us":4.1}}
+$ python3 scripts/bridge.py scene
+{"ok":true,"steps":30,"scene":{"camera":{...},"draws":[{"id":1,"mesh":1,...},{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},...}],...},"results":{...}}
+$ python3 scripts/bridge.py screenshot pip.png
+{"ok":true,"path":".../pip.png","physical":[1920,1080],"logical":[960,540]}
+$ python3 scripts/bridge.py quit
+{"ok":true}
 ```
 
-`step` takes the step count, then `--held KEY` and `--tap KEY` once for
-each key and `--mouse DX,DY`. `screenshot` sends the path as an absolute
-path, so `pip.png` lands in the folder you run `bridge.py` from, not in the
-game's folder. A reply with `"ok": false` makes `bridge.py` exit with 1, so
-a shell script stops at the first failed request. Add `--wait 30` to keep
-trying to connect for 30 seconds while the game starts.
+These are the replies from a real run on a Mac. The `scene` reply is
+trimmed: the full reply is in the [scene](#scene) section. The `screenshot`
+reply gives the full path of `pip.png`, trimmed here to `...`. The `step_us`
+and `view_us` times differ from run to run.
 
-A Python script can import it instead. `Bridge` has one method for each
-op, and each returns the reply as a dict. A reply with `"ok": false`
-raises `BridgeError`:
+Pip's Draw is the one with mesh 4. It starts at z 0, and after 30 steps
+with W held it is at z -0.625: W walks Pip along -z at 2.5 units a second,
+and the game runs 120 steps a second. The window shows Pip where `scene`
+says, and `pip.png` holds the same image. After `quit`, the game exits with
+code 0.
+
+Each `bridge.py` call connects, sends one request, prints the reply and
+disconnects. So an agent can drive a run across separate shell commands,
+and the run keeps its place between them.
+
+### From a Python script
+
+A Python script can import `bridge.py` instead. `Bridge` has one method for
+each op, and each one returns the reply as a dict:
 
 ```python
 import sys
@@ -255,16 +84,356 @@ with Bridge.connect(7878, wait=30) as b:
     b.quit()
 ```
 
-This prints `Pip walked from z 0 to z -0.62499994`: 30 steps at 2.5 units
-a second and 120 steps a second. `scripts/bridge_check.py` is the same
-session with checks, and CI runs it on each OS.
+Against a fresh run of chapter 3, this prints
+`Pip walked from z 0 to z -0.62499994`. A reply with `"ok": false` raises
+`BridgeError`, and its `reply` holds the whole reply. `wait=30` keeps
+trying to connect for 30 seconds while the game starts.
 
-`scripts/screenshot.sh <game> <out.png> [steps]` uses `bridge.py` to save a
-frame of any example. It starts the game with the Bridge on a free port,
-runs the steps with no Input, one second of them by default, saves the
-screenshot and quits.
+`scripts/bridge_check.py` is the same session with checks. It starts the
+game itself on a free port, and CI runs it on Linux, macOS and Windows.
 
-## Names for later
+### Screenshots of any example
 
-The ops `tell`, `ask` and `listen` are kept for a later version. Today they
-reply `{"ok":false,"error":"not yet"}`.
+`scripts/screenshot.sh <game> <out.png> [steps]` saves one frame of an
+example in `examples/`, such as `tutorial/04-lights`. It starts the built
+game with the Bridge on a free port, runs the steps with no Input, saves the
+screenshot and quits. With no step count, it runs one second of steps. It
+prints the `screenshot` reply.
+
+## Requests and replies
+
+The Driver and the host talk in JSON Lines: one JSON object on each line,
+in UTF-8, ending with a newline. Each request has an `op`. Each reply has
+`ok`, and a reply to a failed request also has an `error`. The host answers
+the requests in order, one reply for each:
+
+```
+{"op":"jump"}
+{"ok":false,"error":"unknown op \"jump\""}
+```
+
+A bad request gets an error reply, and the connection stays open. A
+request with a bad field changes nothing in the run.
+
+You can try it by hand with `nc`:
+
+```sh
+nc 127.0.0.1 7878
+```
+
+Type a request and press Return to see the reply. The examples in this
+section and the next ones show the request on the first line and the reply
+on the second. They come from real runs of the tutorial on a Mac.
+
+## hello
+
+`hello` tells the Driver about the run:
+
+```
+{"op":"hello"}
+{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
+```
+
+`protocol` is the version of the requests and replies. It goes up when a
+reply changes shape, so a Driver can check it first. `step_hz` is the step
+rate from the game's [Launch](launch.md), and `steps` is the count of fixed
+steps the run has taken. `headless` is `true` in a Headless run.
+
+## step
+
+`step` runs fixed steps with the Input you give it, and replies once after
+the last one:
+
+```
+{"op":"step","n":30,"held":["W"],"tap":["Space"],"mouse":[4,-2]}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":2.8,"view_us":1.4}}
+```
+
+`n` is the number of steps, 1 when you leave it out. `held` lists the keys
+that are down for every step. `tap` lists keys pressed and let go before
+the first step. `mouse` is the mouse movement `[dx, dy]` of the first step.
+[The Input rules](#the-input-rules) say how the host turns these fields
+into the Input that `step` gets.
+
+The keys are the names from `pf.Key`, such as `"W"`, `"Space"`,
+`"LeftShift"` and `"Num0"`. A name that `pf.Key` does not have fails the
+request, and no step runs:
+
+```
+{"op":"step","held":["Jump"]}
+{"ok":false,"error":"unknown Key \"Jump\" in \"held\""}
+```
+
+The reply gives the step count after the last step, the Commands the game
+returned in these steps, and the Roc heap counts of the last step. The
+`alloc` fields are the same as on the `ROCCO_ALLOC_REPORT` line in
+[Running and debugging](running.md).
+
+A Command is written with its Vocabulary tag. A tag with a payload is an
+object with one key, and a tag with no payload is a string. So `Quit` is
+`"Quit"`, `Unload("pip")` is `{"Unload":"pip"}`, and a `Load` is
+`{"Load":{"pack":"pip","assets":["pip"]}}`.
+
+If the game returns `Quit`, the host stops at that step. It sends the
+reply, with `steps` at the step that quit, and then ends the run. Chapter 6
+quits on Escape, so a tap of Escape stops a `step` of 10 after one step:
+
+```
+{"op":"step","n":10,"tap":["Escape"]}
+{"ok":true,"steps":1,"commands":["Quit"],"alloc":{"step":1,"allocs":12,"deallocs":9,"reallocs":5,"live":6,"step_us":8.8,"view_us":5.2}}
+```
+
+The host runs one step for each frame. In a window you see each step, and
+the steps run as fast as the window draws, not at `step_hz`. While they
+run, the host reads no other request. It reads the next one after it has
+sent the reply.
+
+## scene
+
+`scene` replies with the Scene of the last step, the one the window shows,
+and the QueryResults that the next `step` gives the game. This is the full
+reply from chapter 3 after the 30 steps of the `step` example above. The
+host sends it on one line, and it is split into lines here:
+
+```
+{"op":"scene"}
+{"ok":true,"steps":30,
+ "scene":{"camera":{"eye":{"x":0,"y":3.6,"z":4.8},"target":{"x":0,"y":0,"z":0.3},"up":{"x":0,"y":1,"z":0},"fov_y":1.047},
+  "draws":[{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1}},
+   {"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}],
+  "colliders":[],
+  "lights":[{"Ambient":{"r":0.3,"g":0.3,"b":0.3}},{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}],
+  "cursor":"Free","sky":0,"ui":[],"queries":[]},
+ "results":{"contacts":[],"rays":[],"overlaps":[]}}
+```
+
+The fields and the tags have the names you use in the game, from the
+Vocabulary: `draws[].scale_rot`, `{"Directional":{...}}`, `"Free"`. Tags
+follow the same rule as the Commands in `step`. Each number is the
+shortest one that reads back as the same `F32`, so Pip's z is
+`-0.62499994`, not `-0.625`.
+
+A Scene with Colliders and Queries gives `results` rows. In chapter 6, Pip
+touches the pickup with id 12 after 27 steps with W held. This reply is
+trimmed to the `queries` and the `results`:
+
+```
+{"op":"step","n":27,"held":["W"]}
+{"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":5,"live":7,"step_us":38.7,"view_us":15.4}}
+{"op":"scene"}
+{"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[]}}
+```
+
+The game sees this Contact in its next step, and the pickup is then gone
+from `draws`.
+
+## screenshot
+
+`screenshot` saves the last frame the window drew as a PNG:
+
+```
+{"op":"screenshot","path":"pip.png"}
+{"ok":true,"path":"pip.png","physical":[1920,1080],"logical":[960,540]}
+```
+
+The host writes the file itself, so a relative `path` is relative to the
+folder the game runs in. This example wrote
+`examples/tutorial/03-moving/pip.png`. Send an absolute path when the
+Driver runs somewhere else. `bridge.py` does this for you. The reply gives
+the path back as you sent it.
+
+The image has the window's physical pixels. `logical` is the size in the
+window's own units, the size in the Launch. On a high-DPI display,
+`physical` is larger: the two sizes differ by the display's scale, 2 on
+most Mac screens and 1 under xvfb and on the CI runners. The PNG is opaque,
+as the window is.
+
+While no steps are owed, the window draws the Scene that `scene` returns,
+so the screenshot shows it too. The host draws the first frame before it
+reads any request, so a `screenshot` straight after `hello` shows the first
+`view`.
+
+A path the host cannot write, such as one in a missing folder, gets an
+error, and the run goes on:
+
+```
+{"op":"screenshot","path":"/no/such/folder/pip.png"}
+{"ok":false,"error":"the host cannot write \"/no/such/folder/pip.png\": file does not exist"}
+```
+
+A Headless run draws nothing, so it replies with an error there:
+
+```
+{"op":"screenshot","path":"/tmp/x.png"}
+{"ok":false,"error":"a Headless run draws no image to screenshot"}
+```
+
+## quit
+
+`quit` ends the run as a `Quit` Command does:
+
+```
+{"op":"quit"}
+{"ok":true}
+```
+
+The host sends the reply, then exits with code 0. It does not answer the
+requests that come after `quit`.
+
+## The Input rules
+
+While the Bridge is on, `step` gets its Input from the Driver only. The
+real keyboard and mouse do not reach the game, so a run does not depend on
+where the mouse is. The debug camera still reads them, so you can fly it
+with `ROCCO_DEBUG_CAMERA=1` while a Driver plays.
+
+The host builds the Input of each step from the `step` request:
+
+- **Held**: the keys in `held`, in every step of the request. A field you
+  leave out means none, so a `step` with no `held` lets go of every key.
+- **Pressed**: a key in `held` that was not held in the step before, as
+  with a real keyboard. A key in `tap` is also Pressed, but only in the
+  first step, and it is not Held.
+- **Mouse**: the `mouse` movement, in the first step only. The other steps
+  get no movement.
+
+Pressed follows the steps, not the requests. If one request holds W and the
+next one holds W too, W is Pressed only in the first step of the first
+request. If a request in between leaves `held` out, W is Pressed again. The
+host keeps this between connections too, so it does not matter that each
+`bridge.py` call connects again.
+
+So to walk, put the key in `held`. To jump once, put Space in `tap`, or
+start a `held` of Space after a step where it was not held.
+
+## The lifecycle
+
+1. The host reads `ROCCO_BRIDGE` and opens its socket on `127.0.0.1`
+   before it calls `launch`. If another process already uses the port, the
+   host prints the error and exits with code 1. It does not start a normal
+   run. The error looks like
+   `ROCCO_BRIDGE=7878: the host cannot listen on 127.0.0.1:7878: Address_In_Use`.
+2. The host runs `launch` and `init`, opens the window and draws the first
+   `view`.
+3. The run waits for a Driver. It is Lockstep that pauses: each frame runs
+   one fixed step while the Driver is owed steps, and no step otherwise.
+   The window keeps drawing while the run waits.
+4. A Driver connects and sends requests. The host answers them one at a
+   time, between frames.
+5. When the Driver disconnects, the run stays where it is, and the host
+   waits for the next Driver. If the Driver leaves while a `step` runs, the
+   host runs the rest of the steps, and nobody gets the reply.
+6. The run ends on `quit`, on a `Quit` from the game or when you close the
+   window. The game exits with code 0.
+
+The host talks to one Driver at a time. A second Driver can connect, but
+the host answers it only after the first one has gone.
+
+In Headless the host blocks on the socket while no steps are owed, so it
+needs no `ROCCO_EXIT_AFTER_FRAMES`:
+
+```sh
+ROCCO_HEADLESS=1 ROCCO_BRIDGE=7878 roc main.roc
+```
+
+A Headless run takes one frame for each step, and draws nothing.
+
+## Limits
+
+- The host listens on `127.0.0.1` only. A Driver on another machine cannot
+  connect.
+- The Driver controls the host, not the game. It cannot send the game a
+  message, and the game cannot send one to the Driver.
+- `step` runs at least one step. To read the Scene without a step, send
+  `scene`.
+- A request longer than 1 MiB gets the error
+  `the request is longer than 1 MiB`.
+- A screenshot's size depends on the display's scale. Compare `logical`
+  with the Launch window size, and the PNG with `physical`.
+- With `ROCCO_EXIT_AFTER_FRAMES`, a windowed Bridge run still stops after
+  that many frames, and it counts the frames where it waits. Leave it unset
+  when a Driver ends the run.
+- A Scene whose `cursor` is `Locked` still locks the real mouse in the
+  window.
+- The ops `tell`, `ask` and `listen` are kept for a later version. Today
+  they reply `{"ok":false,"error":"not yet"}`.
+
+## Reference
+
+### Requests
+
+| Op | Fields | Reply fields |
+|---|---|---|
+| `hello` | none | `protocol`, `step_hz`, `steps`, `headless` |
+| `step` | `n`, `held`, `tap`, `mouse`, each optional | `steps`, `commands`, `alloc` |
+| `scene` | none | `steps`, `scene`, `results` |
+| `screenshot` | `path` | `path`, `physical`, `logical` |
+| `quit` | none | none |
+
+### Fields
+
+| Field | Means |
+|---|---|
+| `protocol` | The version of the requests and replies. Today it is 1. |
+| `step_hz` | The fixed steps per second, from the game's Launch. |
+| `steps` | The fixed steps that the run has taken. |
+| `headless` | `true` in a Headless run, `false` with a window. |
+| `n` | How many steps to run, a whole number of 1 or more. The default is 1. |
+| `held` | A list of Key names, held for every step. |
+| `tap` | A list of Key names, Pressed but not Held, in the first step only. |
+| `mouse` | `[dx, dy]`, the mouse movement in the first step only. |
+| `commands` | The Commands the game returned in the steps, in order. |
+| `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
+| `scene` | The Scene of the last step: `camera`, `draws`, `colliders`, `lights`, `cursor`, `sky`, `ui` and `queries`. |
+| `results` | The QueryResults that the next step gets: `contacts`, `rays` and `overlaps`. |
+| `path` | The PNG file. The host writes it, from the game's folder. |
+| `physical` | `[width, height]` of the PNG, in pixels. |
+| `logical` | `[width, height]` in the window's units. |
+
+### Values
+
+| Vocabulary value | JSON |
+|---|---|
+| `Vec3` | `{"x":0,"y":1,"z":0}` |
+| `Quat` | `{"x":0,"y":0,"z":0,"w":1}` |
+| `Rgb`, `Rgba` | `{"r":1,"g":1,"b":1}`, `{"r":1,"g":1,"b":1,"a":1}` |
+| `F32` | The shortest number that reads back as the same `F32`. NaN and infinity are `null`. |
+| An id, a mesh id | A whole number. |
+| A tag with a payload | An object with one key: `{"Sphere":0.25}`, `{"ContactsOf":2}`. |
+| A tag with no payload | A string: `"Quit"`, `"Free"`, `"Locked"`. |
+
+### Errors
+
+| Error | When |
+|---|---|
+| `unknown op "<name>"` | The `op` is not one of the ops. |
+| `not yet` | The op is `tell`, `ask` or `listen`. |
+| `the request is not JSON: <reason>` | The line is not JSON. |
+| `the request is not a JSON object` | The line is JSON, but not an object. |
+| `the request has no "op" string` | The object has no `op`, or it is not a string. |
+| `the request is longer than 1 MiB` | The line is too long. |
+| `"n" must be a whole number of 1 or more` | `n` is 0, negative or not a whole number. |
+| `"held" must be a list of Key names` | `held` or `tap` is not a list of strings. The error names the field. |
+| `unknown Key "<name>" in "held"` | A name is not in `pf.Key`. The error names the field. |
+| `"mouse" must be [dx, dy]` | `mouse` is not a list of two numbers. |
+| `"path" must be a file path` | `path` is missing, empty or not a string. |
+| `a Headless run draws no image to screenshot` | A `screenshot` in Headless. |
+| `the host cannot write "<path>": <reason>` | The host cannot write the PNG. |
+
+### bridge.py
+
+| Command | Sends |
+|---|---|
+| `bridge.py hello` | `hello` |
+| `bridge.py step [N] [--held KEY]... [--tap KEY]... [--mouse DX,DY]` | `step`. Give `--held` and `--tap` once for each key. |
+| `bridge.py scene` | `scene` |
+| `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |
+| `bridge.py quit` | `quit` |
+| `bridge.py free-port` | Nothing. It prints a free localhost port for `ROCCO_BRIDGE`. |
+
+`bridge.py` reads the port from `--port P` or from `ROCCO_BRIDGE`.
+`--wait S` keeps trying to connect for S seconds. It prints the reply as
+the host sent it. It exits with 0 on `"ok": true`, with 1 on
+`"ok": false`, and with 2 when it cannot talk to the host. So a shell
+script with `set -e` stops at the first failed request. It needs Python 3
+and nothing else.

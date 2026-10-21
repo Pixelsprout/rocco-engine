@@ -900,7 +900,17 @@ milestone task holds the decisions and the tasks.
 Check: open pixelsprout.dev/projects/rocco/docs/, copy the chapter 1 header,
 and run it with only Roc installed.
 
-## Milestone 19: the Bridge
+## Milestone 19: the Bridge (done)
+
+Results, 2026-10-22: `ROCCO_BRIDGE=<port>` lets one Driver play a run over
+a localhost socket in Lockstep that pauses. The ops are `hello`, `step`,
+`scene`, `screenshot` and `quit`. The host renders to an offscreen target
+and writes the screenshot PNG itself. `scripts/bridge.py` is the Driver, and
+`scripts/screenshot.sh` drives the Bridge on all three targets. The Bridge
+check passed in CI on Linux (xvfb), macOS and Windows
+(https://github.com/Pixelsprout/rocco-engine/actions/runs/39686103853).
+`guide/bridge.md` documents the protocol. The dex task mk4p24ul holds the
+decisions and the tasks.
 
 Done when a Driver plays a game over a localhost socket in Lockstep. It
 injects Input for N steps, reads the Scene as JSON and saves a screenshot.

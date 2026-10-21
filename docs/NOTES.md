@@ -47,6 +47,10 @@ them.
   check could then count the allocations of a step that spawns and one that
   sweeps. Until then, Roc tests and a hand run prove runtime create and
   destroy.
+  Superseded 2026-10-22 by the Bridge (Milestone 19, `guide/bridge.md`). A
+  Driver injects the Input of each step, so `ROCCO_INPUT_SCRIPT` is not
+  needed. The dex task tijkhm82 drives a spawn step in the
+  alloc check through the Bridge.
 - **A host allocation count on the report line.** The `alloc` line counts
   Roc allocations only. The host reserves the pairing map at init, so the
   renderer stays allocation-free up to 4096 draws by construction, not by
