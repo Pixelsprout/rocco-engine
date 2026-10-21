@@ -26,7 +26,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	// One fixed interval leaves the accumulator at zero after the step, so
 	// Lockstep runs exactly one fixed step per Frame.
 	frame_time := platform.frame_duration if s.mode == .Real_Clock else s.clock.fixed_dt
-	clock_add_frame(&s.clock, frame_time)
+	clock_add_frame(&s.clock, bridge_clock_time(&s.bridge, frame_time))
 	steps := 0
 	for dt in clock_next_step(&s.clock) {
 		before := roc_heap_counters()
@@ -94,6 +94,10 @@ headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Erro
 headless_run :: proc(s: ^State) {
 	platform := headless_platform(s)
 	for !s.quit && !exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
+		bridge_wait_for_steps(s)
+		if s.bridge.quit {
+			return
+		}
 		frame_run(s, platform)
 	}
 }
