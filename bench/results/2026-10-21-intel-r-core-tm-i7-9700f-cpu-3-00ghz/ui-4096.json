@@ -1,0 +1,213 @@
+{
+  "game": "ui",
+  "n": 4096,
+  "mode": "lockstep",
+  "seed": 0,
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "target": "x64win",
+  "odin_debug": false,
+  "roc_heap": "header",
+  "build_flags": {
+    "host": [
+      "build",
+      "engine",
+      "-build-mode:static",
+      "-out:platform/targets/x64win/host.lib",
+      "-no-crt",
+      "-no-thread-local",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": [
+      "build",
+      "--target=x64win",
+      "--output=./ui.exe",
+      "main.roc"
+    ]
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 9481711398290028597,
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0111,
+  "spans": {
+    "input_us": {
+      "median": 0.0,
+      "p95": 0.1,
+      "p99": 0.1,
+      "max": 13.9,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 0.8,
+      "p95": 1.1,
+      "p99": 1.3,
+      "max": 24.9,
+      "process_medians": [
+        0.8,
+        0.8,
+        0.9,
+        0.8,
+        0.8
+      ],
+      "spread": 0.1
+    },
+    "commands_us": {
+      "median": 0.1,
+      "p95": 0.3,
+      "p99": 0.4,
+      "max": 13.3,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.2,
+        0.2
+      ],
+      "spread": 0.1
+    },
+    "view_us": {
+      "median": 1582.35,
+      "p95": 1766.9,
+      "p99": 1875.13,
+      "max": 2210.6,
+      "process_medians": [
+        1581.25,
+        1591.55,
+        1587.55,
+        1584.25,
+        1563.95
+      ],
+      "spread": 27.6
+    },
+    "queries_us": {
+      "median": 0.2,
+      "p95": 0.3,
+      "p99": 0.6,
+      "max": 23.5,
+      "process_medians": [
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2
+      ],
+      "spread": 0.0
+    },
+    "query_results_us": {
+      "median": 0.0,
+      "p95": 0.1,
+      "p99": 0.1,
+      "max": 23.0,
+      "process_medians": [
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.1
+    },
+    "interpolation_us": {
+      "median": 6.3,
+      "p95": 10.6,
+      "p99": 22.8,
+      "max": 47.9,
+      "process_medians": [
+        5.5,
+        6.9,
+        6.8,
+        5.5,
+        5.3
+      ],
+      "spread": 1.6
+    },
+    "ui_layout_us": {
+      "median": 2154.1,
+      "p95": 2341.82,
+      "p99": 2458.108,
+      "max": 2957.2,
+      "process_medians": [
+        2130.05,
+        2136.45,
+        2133.65,
+        2213.25,
+        2133.25
+      ],
+      "spread": 83.2
+    },
+    "render_submit_us": {
+      "median": 10.7,
+      "p95": 16.5,
+      "p99": 31.0,
+      "max": 200.4,
+      "process_medians": [
+        10.7,
+        10.8,
+        10.6,
+        10.9,
+        10.4
+      ],
+      "spread": 0.5
+    },
+    "commit_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.3,
+      "max": 86.1,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "spread": 0.0
+    }
+  },
+  "frame_budget_steps": 2,
+  "frame_budget_us": {
+    "median": 5374.3,
+    "p95": 5766.21,
+    "p99": 6078.412,
+    "max": 7158.9,
+    "process_medians": [
+      5356.95,
+      5371.5,
+      5364.5,
+      5446.85,
+      5328.35
+    ],
+    "spread": 118.5
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 8196.0,
+    "deallocs_per_step": 8196.0,
+    "reallocs_per_step": 4098.0,
+    "allocs": 16392000,
+    "deallocs": 16392000,
+    "reallocs": 8196000,
+    "live_max": 4,
+    "live_last": 4
+  }
+}

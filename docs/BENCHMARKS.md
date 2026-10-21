@@ -12,15 +12,16 @@ meanings in [CONTEXT.md](../CONTEXT.md).
 
 ## Results
 
-- Reference result directory: TODO(reference run): link
-  `bench/results/<date>-<machine>/` here.
-- Headline figure: TODO(reference run): N = ? on the reference machine, from
+- Reference result directory:
+  [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
+  at commit `a8fd5c0`.
+- Headline figure: N = 4,096 on the reference machine. The p99 Frame CPU time
+  of `mixed` is 12.4 ms at N = 4,096 and 26.8 ms at N = 8,192. See
   `headline.txt` in that directory.
 
-The section "Reference run" tells how to make these results. No results are
-committed yet. An earlier directory, `bench/results/2026-10-19-apple-m5/`,
-held a sweep made on battery power with other programs running. Its numbers
-were noise, so it is deleted.
+The section "Reference run" tells how to make these results. An earlier
+directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
+power with other programs running. Its numbers were noise, so it is deleted.
 
 ## What the numbers do not claim
 
@@ -214,10 +215,11 @@ The golden files keep each pair of games equal:
 - `bench/colliders/colliders.golden` holds the Colliders after 600 steps at
   Seed 7 and N=100. `colliders` and `colliders-twin` check against it.
 
-The Draws curve has a step above 4,096 Draws. The Pairing map is reserved for
-4,096 Draws (`PAIRING_CAPACITY`), so it grows past that. This is an expected
-finding. The renderer draws at most 16,384 Draws per Frame (`DRAW_CAPACITY`
-in `engine/frame_render.odin`) and drops the rest.
+`draws` and `mixed` set the draws capacity of their Launch to N
+(`Bench.draws_for_n` in `bench/shared/`). So the renderer reserves its
+uniform buffer and the Pairing map for all N Draws, and the Draws curve has no
+step. In the reference run, `interpolation` stays at 0.11 to 0.12 us per Draw
+from 1,024 to 16,384 Draws.
 
 ## Protocol
 

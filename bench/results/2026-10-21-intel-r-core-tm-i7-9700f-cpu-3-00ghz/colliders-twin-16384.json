@@ -1,0 +1,205 @@
+{
+  "game": "colliders-twin",
+  "n": 16384,
+  "mode": "headless",
+  "seed": 0,
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "target": "x64win",
+  "odin_debug": false,
+  "roc_heap": "header",
+  "build_flags": {
+    "host": [
+      "build",
+      "bench/colliders-twin",
+      "-out:bench/colliders-twin/colliders-twin.exe",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": []
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 9974194161946261471,
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0113,
+  "spans": {
+    "input_us": {
+      "median": 0.1,
+      "p95": 0.1,
+      "p99": 0.4,
+      "max": 0.5,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 68.6,
+      "p95": 93.2,
+      "p99": 137.205,
+      "max": 306.2,
+      "process_medians": [
+        68.7,
+        66.2,
+        68.8,
+        65.0,
+        75.1
+      ],
+      "spread": 10.1
+    },
+    "commands_us": {
+      "median": 0.2,
+      "p95": 0.3,
+      "p99": 0.4,
+      "max": 24.0,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+        0.2
+      ],
+      "spread": 0.1
+    },
+    "view_us": {
+      "median": 86.2,
+      "p95": 113.61,
+      "p99": 157.803,
+      "max": 334.4,
+      "process_medians": [
+        85.5,
+        82.8,
+        87.1,
+        84.7,
+        94.6
+      ],
+      "spread": 11.8
+    },
+    "queries_us": {
+      "median": 14482.2,
+      "p95": 15619.035,
+      "p99": 16467.007,
+      "max": 19220.1,
+      "process_medians": [
+        14424.6,
+        14428.85,
+        14602.35,
+        14457.45,
+        14658.55
+      ],
+      "spread": 233.95
+    },
+    "query_results_us": {
+      "median": 2.1,
+      "p95": 3.8,
+      "p99": 4.6,
+      "max": 34.4,
+      "process_medians": [
+        1.7,
+        2.0,
+        2.2,
+        1.9,
+        2.9
+      ],
+      "spread": 1.2
+    },
+    "interpolation_us": {
+      "median": 7.0,
+      "p95": 8.9,
+      "p99": 12.901,
+      "max": 60.5,
+      "process_medians": [
+        6.5,
+        6.9,
+        8.3,
+        6.8,
+        7.2
+      ],
+      "spread": 1.8
+    },
+    "ui_layout_us": {
+      "median": 58.0,
+      "p95": 65.2,
+      "p99": 96.002,
+      "max": 186.7,
+      "process_medians": [
+        57.8,
+        57.2,
+        58.6,
+        57.5,
+        60.3
+      ],
+      "spread": 3.1
+    },
+    "render_submit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "commit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    }
+  },
+  "frame_budget_steps": 2,
+  "frame_budget_us": {
+    "median": 29347.9,
+    "p95": 31713.76,
+    "p99": 33438.613,
+    "max": 38885.1,
+    "process_medians": [
+      29233.45,
+      29229.2,
+      29587.7,
+      29290.9,
+      29735.2
+    ],
+    "spread": 506.0
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 4.654,
+    "deallocs_per_step": 4.654,
+    "reallocs_per_step": 0.0,
+    "allocs": 9307,
+    "deallocs": 9308,
+    "reallocs": 0,
+    "live_max": 8,
+    "live_last": 7
+  }
+}

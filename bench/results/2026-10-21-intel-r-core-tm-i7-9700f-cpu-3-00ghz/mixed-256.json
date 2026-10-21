@@ -1,0 +1,213 @@
+{
+  "game": "mixed",
+  "n": 256,
+  "mode": "lockstep",
+  "seed": 0,
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "target": "x64win",
+  "odin_debug": false,
+  "roc_heap": "header",
+  "build_flags": {
+    "host": [
+      "build",
+      "engine",
+      "-build-mode:static",
+      "-out:platform/targets/x64win/host.lib",
+      "-no-crt",
+      "-no-thread-local",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": [
+      "build",
+      "--target=x64win",
+      "--output=./mixed.exe",
+      "main.roc"
+    ]
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 9481711398290028597,
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0119,
+  "spans": {
+    "input_us": {
+      "median": 0.0,
+      "p95": 0.1,
+      "p99": 0.1,
+      "max": 13.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 3.1,
+      "p95": 4.2,
+      "p99": 15.9,
+      "max": 65.3,
+      "process_medians": [
+        3.0,
+        2.9,
+        2.8,
+        3.2,
+        3.1
+      ],
+      "spread": 0.4
+    },
+    "commands_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 34.4,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "spread": 0.0
+    },
+    "view_us": {
+      "median": 21.0,
+      "p95": 34.0,
+      "p99": 50.101,
+      "max": 190.6,
+      "process_medians": [
+        21.0,
+        20.7,
+        20.0,
+        21.4,
+        21.2
+      ],
+      "spread": 1.4
+    },
+    "queries_us": {
+      "median": 148.9,
+      "p95": 191.805,
+      "p99": 255.009,
+      "max": 550.7,
+      "process_medians": [
+        149.2,
+        149.2,
+        147.0,
+        149.2,
+        148.8
+      ],
+      "spread": 2.2
+    },
+    "query_results_us": {
+      "median": 0.6,
+      "p95": 0.8,
+      "p99": 1.0,
+      "max": 34.6,
+      "process_medians": [
+        0.6,
+        0.5,
+        0.6,
+        0.6,
+        0.6
+      ],
+      "spread": 0.1
+    },
+    "interpolation_us": {
+      "median": 24.1,
+      "p95": 24.6,
+      "p99": 48.8,
+      "max": 87.9,
+      "process_medians": [
+        24.0,
+        24.2,
+        24.0,
+        24.2,
+        24.1
+      ],
+      "spread": 0.2
+    },
+    "ui_layout_us": {
+      "median": 72.9,
+      "p95": 94.025,
+      "p99": 131.302,
+      "max": 254.2,
+      "process_medians": [
+        73.2,
+        72.8,
+        72.0,
+        73.0,
+        73.0
+      ],
+      "spread": 1.2
+    },
+    "render_submit_us": {
+      "median": 228.1,
+      "p95": 289.205,
+      "p99": 373.018,
+      "max": 728.4,
+      "process_medians": [
+        228.0,
+        229.6,
+        227.2,
+        228.1,
+        225.8
+      ],
+      "spread": 3.8
+    },
+    "commit_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 21.7,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.2,
+        0.2
+      ],
+      "spread": 0.1
+    }
+  },
+  "frame_budget_steps": 2,
+  "frame_budget_us": {
+    "median": 675.4,
+    "p95": 839.92,
+    "p99": 1082.521,
+    "max": 2086.6,
+    "process_medians": [
+      677.7,
+      677.2,
+      668.4,
+      675.85,
+      673.05
+    ],
+    "spread": 9.3
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 62.589,
+    "deallocs_per_step": 62.589,
+    "reallocs_per_step": 29.0,
+    "allocs": 125177,
+    "deallocs": 125177,
+    "reallocs": 58000,
+    "live_max": 16,
+    "live_last": 16
+  }
+}
