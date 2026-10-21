@@ -1,0 +1,213 @@
+{
+  "game": "mixed",
+  "n": 16384,
+  "mode": "lockstep",
+  "seed": 0,
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "target": "x64win",
+  "odin_debug": false,
+  "roc_heap": "header",
+  "build_flags": {
+    "host": [
+      "build",
+      "engine",
+      "-build-mode:static",
+      "-out:platform/targets/x64win/host.lib",
+      "-no-crt",
+      "-no-thread-local",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": [
+      "build",
+      "--target=x64win",
+      "--output=./mixed.exe",
+      "main.roc"
+    ]
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 9481711398290028597,
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0112,
+  "spans": {
+    "input_us": {
+      "median": 0.0,
+      "p95": 0.1,
+      "p99": 0.1,
+      "max": 0.1,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 303.7,
+      "p95": 491.305,
+      "p99": 581.4,
+      "max": 805.9,
+      "process_medians": [
+        210.7,
+        325.6,
+        216.5,
+        235.45,
+        213.35
+      ],
+      "spread": 114.9
+    },
+    "commands_us": {
+      "median": 0.3,
+      "p95": 0.5,
+      "p99": 0.8,
+      "max": 16.3,
+      "process_medians": [
+        0.4,
+        0.3,
+        0.4,
+        0.3,
+        0.3
+      ],
+      "spread": 0.1
+    },
+    "view_us": {
+      "median": 1397.55,
+      "p95": 1842.9,
+      "p99": 1966.901,
+      "max": 2673.2,
+      "process_medians": [
+        1374.65,
+        1404.4,
+        1400.5,
+        1407.05,
+        1411.0
+      ],
+      "spread": 36.35
+    },
+    "queries_us": {
+      "median": 15735.1,
+      "p95": 16052.61,
+      "p99": 16457.001,
+      "max": 18135.1,
+      "process_medians": [
+        15734.9,
+        15725.25,
+        15753.7,
+        15730.65,
+        15730.85
+      ],
+      "spread": 28.45
+    },
+    "query_results_us": {
+      "median": 2.1,
+      "p95": 3.2,
+      "p99": 4.2,
+      "max": 20.8,
+      "process_medians": [
+        2.1,
+        2.1,
+        2.1,
+        2.1,
+        2.3
+      ],
+      "spread": 0.2
+    },
+    "interpolation_us": {
+      "median": 1877.8,
+      "p95": 1976.505,
+      "p99": 2100.507,
+      "max": 2498.6,
+      "process_medians": [
+        1875.25,
+        1876.3,
+        1877.9,
+        1878.5,
+        1879.9
+      ],
+      "spread": 4.65
+    },
+    "ui_layout_us": {
+      "median": 947.6,
+      "p95": 1020.805,
+      "p99": 1107.102,
+      "max": 1473.9,
+      "process_medians": [
+        949.2,
+        952.1,
+        948.3,
+        947.2,
+        942.6
+      ],
+      "spread": 9.5
+    },
+    "render_submit_us": {
+      "median": 14934.25,
+      "p95": 16947.13,
+      "p99": 17559.205,
+      "max": 21162.8,
+      "process_medians": [
+        14950.65,
+        15016.85,
+        14926.9,
+        14763.5,
+        15026.45
+      ],
+      "spread": 262.95
+    },
+    "commit_us": {
+      "median": 0.3,
+      "p95": 0.4,
+      "p99": 0.7,
+      "max": 15.7,
+      "process_medians": [
+        0.3,
+        0.3,
+        0.3,
+        0.4,
+        0.3
+      ],
+      "spread": 0.1
+    }
+  },
+  "frame_budget_steps": 2,
+  "frame_budget_us": {
+    "median": 52893.0,
+    "p95": 55236.55,
+    "p99": 56508.544,
+    "max": 60191.7,
+    "process_medians": [
+      52798.15,
+      53046.65,
+      52946.65,
+      52699.2,
+      52974.5
+    ],
+    "spread": 347.45
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 3289.653,
+    "deallocs_per_step": 3289.654,
+    "reallocs_per_step": 1642.0,
+    "allocs": 6579307,
+    "deallocs": 6579308,
+    "reallocs": 3284000,
+    "live_max": 16,
+    "live_last": 15
+  }
+}

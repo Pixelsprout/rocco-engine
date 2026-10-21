@@ -88,6 +88,18 @@ def read(path):
         return None
 
 
+def registry(key, name):
+    """Reads one string value under HKEY_LOCAL_MACHINE. Returns None if it is absent."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key) as opened:
+            value = winreg.QueryValueEx(opened, name)[0]
+    except (ImportError, OSError):
+        return None
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
 def macos():
     sw = run("sw_vers", "-productVersion")
     build = run("sw_vers", "-buildVersion")
@@ -148,9 +160,12 @@ def windows():
     power = PowerStatus()
     has_memory = kernel32.GlobalMemoryStatusEx(ctypes.byref(memory))
     has_power = kernel32.GetSystemPowerStatus(ctypes.byref(power))
+    # platform.processor() gives only the CPU family, such as "Intel64 Family 6
+    # Model 158", so read the marketing name from the registry.
+    chip = registry(r"HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString")
     return {
-        "chip": platform.processor() or UNKNOWN,
-        "model": UNKNOWN,
+        "chip": chip or platform.processor() or UNKNOWN,
+        "model": registry(r"HARDWARE\DESCRIPTION\System\BIOS", "SystemProductName") or UNKNOWN,
         "memory_bytes": memory.total_phys if has_memory else None,
         "os": platform.platform(),
         "power": {0: "battery", 1: "ac"}.get(power.ac_line, UNKNOWN) if has_power else UNKNOWN,

@@ -1,0 +1,89 @@
+{
+  "game": "entity-game",
+  "mode": "real-clock",
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "span_cost_us": 0.0111,
+  "steps_per_frame": {
+    "2": 2000
+  },
+  "frame_cpu_us": {
+    "median": 106.3,
+    "p95": 167.7,
+    "p99": 188.501,
+    "max": 219.8
+  },
+  "spans": {
+    "input_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 21.4
+    },
+    "step_us": {
+      "median": 9.4,
+      "p95": 28.905,
+      "p99": 29.8,
+      "max": 67.8
+    },
+    "commands_us": {
+      "median": 0.2,
+      "p95": 0.3,
+      "p99": 0.3,
+      "max": 22.6
+    },
+    "view_us": {
+      "median": 4.7,
+      "p95": 6.1,
+      "p99": 23.701,
+      "max": 36.3
+    },
+    "queries_us": {
+      "median": 7.6,
+      "p95": 21.1,
+      "p99": 31.2,
+      "max": 46.6
+    },
+    "query_results_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 21.3
+    },
+    "interpolation_us": {
+      "median": 6.7,
+      "p95": 10.7,
+      "p99": 22.204,
+      "max": 45.0
+    },
+    "ui_layout_us": {
+      "median": 53.8,
+      "p95": 92.205,
+      "p99": 101.117,
+      "max": 130.6
+    },
+    "render_submit_us": {
+      "median": 21.9,
+      "p95": 38.305,
+      "p99": 49.601,
+      "max": 94.8
+    },
+    "commit_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.4,
+      "max": 0.6
+    }
+  },
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  }
+}

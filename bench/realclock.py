@@ -55,8 +55,10 @@ def summarise(csv_text, game, warmup):
 
 
 def git_hash():
+    """The reference run writes bench/results/ before this summary, so a change
+    there does not make the hash dirty."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
-    status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    status = subprocess.run(["git", "status", "--porcelain", "--", ".", ":(exclude)bench/results"], capture_output=True, text=True)
     if head.returncode != 0:
         return "unknown"
     return head.stdout.strip() + ("-dirty" if status.stdout.strip() else "")

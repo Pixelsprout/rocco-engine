@@ -2,6 +2,7 @@ package engine
 
 import "core:fmt"
 import "core:mem"
+import "core:os"
 
 TRACK_ALLOC :: #config(ROCCO_TRACK_ALLOC, false)
 
@@ -14,6 +15,10 @@ when TRACK_ALLOC {
 
 main :: proc() {
 	run(ROC_GAME)
+	// The Windows host links with -no-crt, and Odin's no-CRT entry point
+	// returns without ExitProcess. Windows then keeps the process alive until
+	// the D3D11 driver threads end, about two minutes. os.exit ends it now.
+	os.exit(0)
 }
 
 // An Odin twin calls run from its own main package with its own Game calls.

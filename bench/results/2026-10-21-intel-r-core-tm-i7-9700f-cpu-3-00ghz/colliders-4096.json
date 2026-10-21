@@ -1,0 +1,213 @@
+{
+  "game": "colliders",
+  "n": 4096,
+  "mode": "headless",
+  "seed": 0,
+  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "target": "x64win",
+  "odin_debug": false,
+  "roc_heap": "header",
+  "build_flags": {
+    "host": [
+      "build",
+      "engine",
+      "-build-mode:static",
+      "-out:platform/targets/x64win/host.lib",
+      "-no-crt",
+      "-no-thread-local",
+      "-o:speed",
+      "-define:ROCCO_SPANS=true",
+      "-vet",
+      "-strict-style"
+    ],
+    "game": [
+      "build",
+      "--target=x64win",
+      "--output=./colliders.exe",
+      "main.roc"
+    ]
+  },
+  "warmup_frames": 120,
+  "measured_frames": 2000,
+  "processes": 5,
+  "cooldown_ms": 1000,
+  "shuffle_seed": 9974194161946261471,
+  "machine": {
+    "date": "2026-10-21",
+    "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
+    "chip": "Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz",
+    "model": "H370AORUSGAMING3WIFI",
+    "memory_bytes": 17107861504,
+    "os": "Windows-11-10.0.26200-SP0",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "span_cost_us": 0.0112,
+  "spans": {
+    "input_us": {
+      "median": 0.0,
+      "p95": 0.1,
+      "p99": 0.1,
+      "max": 0.4,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "step_us": {
+      "median": 47.0,
+      "p95": 90.8,
+      "p99": 105.004,
+      "max": 253.9,
+      "process_medians": [
+        47.2,
+        47.3,
+        48.7,
+        47.2,
+        45.6
+      ],
+      "spread": 3.1
+    },
+    "commands_us": {
+      "median": 0.1,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 13.6,
+      "process_medians": [
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "spread": 0.0
+    },
+    "view_us": {
+      "median": 61.3,
+      "p95": 79.805,
+      "p99": 119.8,
+      "max": 538.7,
+      "process_medians": [
+        64.3,
+        58.8,
+        60.65,
+        63.8,
+        64.1
+      ],
+      "spread": 5.5
+    },
+    "queries_us": {
+      "median": 3105.5,
+      "p95": 3348.715,
+      "p99": 3542.507,
+      "max": 4155.6,
+      "process_medians": [
+        3105.3,
+        3098.1,
+        3162.75,
+        3097.25,
+        3081.15
+      ],
+      "spread": 81.6
+    },
+    "query_results_us": {
+      "median": 1.1,
+      "p95": 2.8,
+      "p99": 3.5,
+      "max": 39.7,
+      "process_medians": [
+        2.6,
+        1.1,
+        1.0,
+        0.9,
+        1.7
+      ],
+      "spread": 1.7
+    },
+    "interpolation_us": {
+      "median": 4.8,
+      "p95": 6.4,
+      "p99": 9.0,
+      "max": 57.2,
+      "process_medians": [
+        6.0,
+        4.6,
+        6.0,
+        4.8,
+        4.6
+      ],
+      "spread": 1.4
+    },
+    "ui_layout_us": {
+      "median": 53.0,
+      "p95": 58.8,
+      "p99": 87.802,
+      "max": 423.2,
+      "process_medians": [
+        53.0,
+        53.0,
+        53.6,
+        52.5,
+        52.3
+      ],
+      "spread": 1.3
+    },
+    "render_submit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    },
+    "commit_us": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0,
+      "max": 0.0,
+      "process_medians": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spread": 0.0
+    }
+  },
+  "frame_budget_steps": 2,
+  "frame_budget_us": {
+    "median": 6491.05,
+    "p95": 6987.215,
+    "p99": 7380.295,
+    "max": 8465.5,
+    "process_medians": [
+      6502.5,
+      6481.25,
+      6612.15,
+      6466.7,
+      6435.4
+    ],
+    "spread": 176.75
+  },
+  "roc_heap_counters": {
+    "allocs_per_step": 8.56,
+    "deallocs_per_step": 8.561,
+    "reallocs_per_step": 2.0,
+    "allocs": 17121,
+    "deallocs": 17122,
+    "reallocs": 4000,
+    "live_max": 9,
+    "live_last": 8
+  }
+}

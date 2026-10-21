@@ -23,7 +23,33 @@ real_clock_frames=2120
 
 ns=${REFERENCE_NS:-$full_ns}
 
-if ! python3 bench/machine.py --check; then
+# On Windows, python3 is often the Microsoft Store alias, which runs nothing.
+# The python.org installer puts python on PATH instead.
+if python3 -c '' 2>/dev/null; then
+	python=python3
+else
+	python=python
+fi
+
+# The game executable suffix and a path the game can open, as scripts/build.roc
+# names them. Git Bash gives a POSIX path from pwd, and pwd -W gives the
+# Windows path.
+case $(uname -s) in
+MINGW* | MSYS* | CYGWIN*)
+	exe=.exe
+	root=$(pwd -W)
+	;;
+Linux)
+	exe=_linux.bin
+	root=$PWD
+	;;
+*)
+	exe=.bin
+	root=$PWD
+	;;
+esac
+
+if ! $python bench/machine.py --check; then
 	if [ "${REFERENCE_FORCE:-0}" != 1 ]; then
 		echo "reference-run: the machine is not ready. See docs/BENCHMARKS.md, \"Reference run\"." >&2
 		exit 1
@@ -31,7 +57,7 @@ if ! python3 bench/machine.py --check; then
 	echo "reference-run: REFERENCE_FORCE=1, so the run starts anyway." >&2
 fi
 
-slug=$(python3 -c 'import sys; sys.path.insert(0, "bench"); import datetime, machine; m = machine.machine(datetime.date.today()); print(m["date"] + "-" + m["slug"])')
+slug=$($python -c 'import sys; sys.path.insert(0, "bench"); import datetime, machine; m = machine.machine(datetime.date.today()); print(m["date"] + "-" + m["slug"])')
 results="bench/results/$slug"
 if [ -e "$results" ]; then
 	echo "reference-run: $results already exists. Move or delete it first." >&2
@@ -52,21 +78,21 @@ for game in $(echo "$headless_games,$windowed_games" | tr , ' '); do
 	done
 done
 # shellcheck disable=SC2086
-python3 bench/analyse.py $runs --out-dir "$results"
+$python bench/analyse.py $runs --out-dir "$results"
 
 roc scripts/build.roc host --release --spans
 roc scripts/build.roc inputs --release
 roc scripts/build.roc game "$real_clock_game"
-csv="$PWD/bench/out/real-clock/$real_clock_game.csv"
+csv="$root/bench/out/real-clock/$real_clock_game.csv"
 mkdir -p "$(dirname "$csv")"
-(cd "examples/$real_clock_game" && ROCCO_EXIT_AFTER_FRAMES=$real_clock_frames ROCCO_SPANS_CSV="$csv" "./$real_clock_game.bin")
-python3 bench/realclock.py "$csv" --game "$real_clock_game" --out "$results/real-clock/$real_clock_game.json"
+(cd "examples/$real_clock_game" && ROCCO_EXIT_AFTER_FRAMES=$real_clock_frames ROCCO_SPANS_CSV="$csv" "./$real_clock_game$exe")
+$python bench/realclock.py "$csv" --game "$real_clock_game" --out "$results/real-clock/$real_clock_game.json"
 
-python3 bench/chart.py "$results"
+$python bench/chart.py "$results"
 for comparison in twin tuned colliders; do
-	python3 bench/compare_chart.py "$comparison" "$results"
+	$python bench/compare_chart.py "$comparison" "$results"
 done
-python3 bench/headline.py "$results" | tee "$results/headline.txt"
+$python bench/headline.py "$results" | tee "$results/headline.txt"
 
 # A Spans host stops every run without ROCCO_SPANS_CSV and ROCCO_EXIT_AFTER_FRAMES,
 # so put the debug host back.
