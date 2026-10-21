@@ -14,7 +14,13 @@ We use matt-pocock skills to work through tasks:
 # Seeing a frame
 To check a visual change yourself, build the game with `roc scripts/build.roc -- game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
 
-To play a game, use `scripts/bridge.py`: start the game with `ROCCO_BRIDGE=<port>`, then send `hello`, `step N --held KEY`, `scene` and `screenshot PATH` from separate Bash calls. Each call prints one JSON reply. See `guide/bridge.md`.
+To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the ops and the Input rules.
+1. Get a port with `python3 scripts/bridge.py free-port`.
+2. Start the built game in the background from its own folder: `cd examples/<game> && ROCCO_BRIDGE=<port> ./<name>.bin`.
+3. Send each request (`hello`, `step N --held KEY`, `scene`, `screenshot PATH`) in its own Bash call as `bridge.py --port <port> <op>`. An exported `ROCCO_BRIDGE` does not survive between Bash calls. Add `--wait 60` to the first call.
+4. Send `quit`, then confirm that the game process exited.
+
+`scene` returns the QueryResults that the next `step` gets. So the game acts on a Contact one step after `scene` shows it.
 
 # Odin file layout
 Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
