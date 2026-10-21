@@ -125,20 +125,24 @@ host and inputs with `--release` and uploads `platform/targets/<target>/`. A
 Linux job runs `roc bundle` for the platform and for `packages/linalg`,
 `packages/mesh` and `packages/ui`. It publishes the four bundles in a
 prerelease, each named `<name>-<hash>.tar.zst`. Roc takes URLs that differ
-only in the hash as one package, so the name must stay in front. The notes name each bundle URL and the Roc nightly. The same job runs
-`roc scripts/build.roc docs --check` and attaches `docs.tar.gz`. The tarball
-holds the API HTML of the four bundles and `urls.json`. `urls.json` gives the
-value of each marker in the guide pages: `platform_url`, `linalg_url`,
-`mesh_url`, `ui_url` and `roc_nightly`. After the publish, the job downloads
-`docs.tar.gz` and fails if a URL in it names no asset of the release. Next, a
-job on each OS installs only Roc and runs cards from the bundle URLs. If all
-three pass, the last job marks the release final and latest. If one fails,
-the release stays a prerelease, docs included. A tag with a hyphen, such as
-`v0.2.0-rc.1`, also stays a prerelease. `scripts/release.py` points the
-header of `examples/cards/main.roc` at the bundle URLs, writes the notes and
-makes and checks the docs tarball. `python3 -m unittest
-scripts/test_release.py` runs its tests. When the release workflow passes,
-`.github/workflows/grow-site.yml` asks Vercel to rebuild pixelsprout.dev.
+only in the hash as one package, so the name must stay in front. The notes
+name each bundle URL and the Roc nightly. Next, a job on each OS installs
+only Roc and runs cards from the bundle URLs. If all three pass, the last job
+marks the release final and latest. If one fails, the release stays a
+prerelease. A tag with a hyphen, such as `v0.2.0-rc.1`, also stays a
+prerelease. `scripts/release.py` points the header of
+`examples/cards/main.roc` at the bundle URLs and writes the notes. `python3 -m
+unittest scripts/test_release.py` runs its tests.
+
+The bundle job also runs `roc scripts/build.roc docs --check` and attaches
+`docs.tar.gz` to the release. The tarball holds the API HTML of the four
+bundles and `urls.json`. `urls.json` gives the value of each marker in the
+guide pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url` and
+`roc_nightly`. `scripts/release.py docs` makes the tarball. After the
+publish, `scripts/release.py check-docs` reads the published tarball. It
+fails if a URL names no asset of the release. When the release workflow
+passes, `.github/workflows/grow-site.yml` asks Vercel to rebuild
+pixelsprout.dev.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py

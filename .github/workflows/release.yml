@@ -192,8 +192,7 @@ jobs:
           done
           cat "$RUNNER_TEMP/urls"
 
-      # docs --check also fails on an item with no ## comment or a stale guide
-      # page. urls.json holds the values of the markers in the guide pages.
+      # docs --check also fails on an item with no ## comment or a stale guide page.
       - name: Make the docs tarball
         run: |
           roc scripts/build.roc docs --check

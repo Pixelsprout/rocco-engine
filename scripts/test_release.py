@@ -1,8 +1,7 @@
 # Run from the repository root: python3 -m unittest scripts/test_release.py
 
-import os
-import io
 import json
+import os
 import sys
 import tarfile
 import tempfile
@@ -33,11 +32,25 @@ BUNDLE_URLS = {
 NIGHTLY = "nightly-2026-10-11-7d256b9"
 
 
-def write_api_docs(api_dir, names=("platform", "linalg", "mesh", "ui")):
+def write_api_docs(api_dir, names=release.DOCS_BUNDLES):
     for name in names:
         (api_dir / name / "Module").mkdir(parents=True)
         (api_dir / name / "index.html").write_text(f"<h1>{name}</h1>")
         (api_dir / name / "Module/index.html").write_text("<h1>Module</h1>")
+
+
+# Rewrites a tarball with each named member replaced, or dropped when its text is None.
+def repack(path, changes):
+    with tarfile.open(path) as tar:
+        members = {m.name: tar.extractfile(m).read() for m in tar.getmembers() if m.isfile()}
+    for name, text in changes.items():
+        if text is None:
+            del members[name]
+        else:
+            members[name] = text.encode()
+    with tarfile.open(path, "w:gz") as tar:
+        for name, data in members.items():
+            release.add_bytes(tar, name, data)
 
 
 class PointHeaderTest(unittest.TestCase):
@@ -167,14 +180,20 @@ class CheckDocsTest(unittest.TestCase):
     def test_names_a_missing_or_unknown_key_in_the_urls(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = self.pack(tmp)
-            values = release.docs_urls(NIGHTLY, BUNDLE_URLS)
-            del values["roc_nightly"]
-            values["camera_url"] = f"{BASE}/camera.tar.zst"
-            repack(out, {"urls.json": json.dumps(values)})
+            markers = release.docs_markers(NIGHTLY, BUNDLE_URLS)
+            del markers["roc_nightly"]
+            markers["camera_url"] = f"{BASE}/camera.tar.zst"
+            repack(out, {"urls.json": json.dumps(markers)})
             problems = release.check_docs(out, BASE, self.ASSETS)
             self.assertEqual(len(problems), 2)
             self.assertIn("roc_nightly", problems[0])
             self.assertIn("camera_url", problems[1])
+
+    def test_names_a_missing_urls_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.pack(tmp)
+            repack(out, {"urls.json": None})
+            self.assertEqual(release.check_docs(out, BASE, self.ASSETS), ["the tarball has no urls.json"])
 
     def test_names_a_bundle_with_no_api_page(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -183,23 +202,6 @@ class CheckDocsTest(unittest.TestCase):
             problems = release.check_docs(out, BASE, self.ASSETS)
             self.assertEqual(len(problems), 1)
             self.assertIn("linalg/index.html", problems[0])
-
-
-# Rewrites a tarball with each named member replaced, or dropped when its text is None.
-def repack(path, changes):
-    with tarfile.open(path) as tar:
-        members = {m.name: tar.extractfile(m).read() for m in tar.getmembers() if m.isfile()}
-    for name, text in changes.items():
-        if text is None:
-            del members[name]
-        else:
-            members[name] = text.encode()
-    with tarfile.open(path, "w:gz") as tar:
-        for name, data in members.items():
-            info = tarfile.TarInfo(name)
-            info.size = len(data)
-            tar.addfile(info, io.BytesIO(data))
-
 
 if __name__ == "__main__":
     unittest.main()

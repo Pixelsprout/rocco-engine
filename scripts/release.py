@@ -7,7 +7,7 @@ Run from the repository root:
   python3 scripts/release.py notes <tag> <roc nightly> --url platform=<url> ...
       prints the release notes.
   python3 scripts/release.py docs <api dir> <out file> <roc nightly> --url platform=<url> ...
-      writes docs.tar.gz: the roc docs HTML of each bundle and urls.json.
+      writes docs.tar.gz: the API HTML of each bundle and urls.json.
   python3 scripts/release.py check-docs <docs.tar.gz> <release download URL> <asset name>...
       fails if the tarball is malformed or a URL in urls.json names no asset of the release.
 """
@@ -23,6 +23,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui"]
+# The keys of urls.json are the marker names in the guide pages, such as {{platform_url}}.
+DOCS_MARKERS = [f"{name}_url" for name in DOCS_BUNDLES] + ["roc_nightly"]
 LOCAL_PATH = re.compile(r'"(?:\.\./)+(platform|packages/([A-Za-z0-9_-]+))/main\.roc"')
 
 
@@ -72,47 +74,51 @@ def notes(tag, nightly, urls):
     return "\n".join(lines) + "\n"
 
 
-# The keys are the marker names in the guide pages, such as {{platform_url}}.
-def docs_urls(nightly, urls):
+def docs_markers(nightly, urls):
     missing = [name for name in DOCS_BUNDLES if name not in urls]
     if missing:
         raise ValueError(f"no URL for {', '.join(missing)}")
-    values = {f"{name}_url": urls[name] for name in DOCS_BUNDLES}
-    values["roc_nightly"] = nightly
-    return values
+    markers = {f"{name}_url": urls[name] for name in DOCS_BUNDLES}
+    markers["roc_nightly"] = nightly
+    return markers
+
+
+def add_bytes(tar, name, data):
+    info = tarfile.TarInfo(name)
+    info.size = len(data)
+    tar.addfile(info, io.BytesIO(data))
 
 
 def pack_docs(api_dir, out_file, nightly, urls):
-    data = json.dumps(docs_urls(nightly, urls), indent=2).encode() + b"\n"
+    data = json.dumps(docs_markers(nightly, urls), indent=2).encode() + b"\n"
     missing = [name for name in DOCS_BUNDLES if not (api_dir / name / "index.html").is_file()]
     if missing:
         raise ValueError(f"no API HTML for {', '.join(missing)} in {api_dir}")
     with tarfile.open(out_file, "w:gz") as tar:
         for name in DOCS_BUNDLES:
             tar.add(api_dir / name, arcname=name)
-        info = tarfile.TarInfo("urls.json")
-        info.size = len(data)
-        tar.addfile(info, io.BytesIO(data))
+        add_bytes(tar, "urls.json", data)
 
 
-# Returns one line per problem. base is the release's download URL.
-def check_docs(docs_file, base, assets):
+# Returns one line per problem.
+def check_docs(docs_file, release_base, assets):
     with tarfile.open(docs_file) as tar:
         files = set(tar.getnames())
-        values = json.load(tar.extractfile("urls.json"))
-    keys = [f"{name}_url" for name in DOCS_BUNDLES] + ["roc_nightly"]
-    problems = [f"urls.json has no {key}" for key in keys if key not in values]
-    problems += [f"urls.json has the unknown key {key}" for key in values if key not in keys]
+        if "urls.json" not in files:
+            return ["the tarball has no urls.json"]
+        markers = json.load(tar.extractfile("urls.json"))
+    problems = [f"urls.json has no {key}" for key in DOCS_MARKERS if key not in markers]
+    problems += [f"urls.json has the unknown key {key}" for key in markers if key not in DOCS_MARKERS]
     for name in DOCS_BUNDLES:
         if f"{name}/index.html" not in files:
             problems.append(f"the tarball has no {name}/index.html")
         key = f"{name}_url"
-        if key not in values:
+        if key not in markers:
             continue
-        url = values[key]
+        url = markers[key]
         folder, _, asset = url.rpartition("/")
-        if folder != base or asset not in assets:
-            problems.append(f"{key} {url} names no asset of {base}")
+        if folder != release_base or asset not in assets:
+            problems.append(f"{key} {url} names no asset of {release_base}")
     return problems
 
 
@@ -144,12 +150,12 @@ def main():
     docs.add_argument("--url", action="append", default=[])
     check = commands.add_parser("check-docs")
     check.add_argument("docs_file", type=Path)
-    check.add_argument("base")
+    check.add_argument("release_base")
     check.add_argument("assets", nargs="+")
     args = parser.parse_args()
 
     if args.command == "check-docs":
-        problems = check_docs(args.docs_file, args.base, args.assets)
+        problems = check_docs(args.docs_file, args.release_base, args.assets)
         for problem in problems:
             print(problem, file=sys.stderr)
         sys.exit(1 if problems else 0)
