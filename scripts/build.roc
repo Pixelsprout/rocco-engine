@@ -715,16 +715,20 @@ read_sources! = |paths| {
 key_module_path : Str
 key_module_path = "platform/Key.roc"
 
+key_table_path : Str
+key_table_path = "engine/key_tags.odin"
+
 keys! : () => Try({}, _)
 keys! = || {
-	Stdout.line!("== keys: ${Keys.sokol_app_path} -> ${key_module_path}")?
+	Stdout.line!("== keys: ${Keys.sokol_app_path} -> ${key_module_path}, ${key_table_path}")?
 	source = Path.utf8(Keys.sokol_app_path).read_utf8!() ? |_| Failed("${Keys.sokol_app_path} is missing. Run git submodule update --init.")
 	keys = match Keys.parse_keycodes(source) {
 		Ok(found) => found
 		Err(NoKeycodeEnum) => return Err(Failed("${Keys.sokol_app_path} has no Keycode enum."))
 		Err(BadKeycodeLine(line)) => return Err(Failed("${Keys.sokol_app_path} has a Keycode line that is not NAME = code: ${line}"))
 	}
-	Path.utf8(key_module_path).write_utf8!(Keys.key_module(keys))
+	Path.utf8(key_module_path).write_utf8!(Keys.key_module(keys))?
+	Path.utf8(key_table_path).write_utf8!(Keys.key_table(keys))
 }
 
 copy! : Copy => Try({}, _)
