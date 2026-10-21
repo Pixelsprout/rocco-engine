@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs inside the image from scripts/linux/Dockerfile with the repo at /work.
-# Builds every game, checks the guide pages, runs each game, runs the tests,
+# Builds every game, checks the docs, runs each game, runs the tests,
 # the host check, the alloc check and the bench smoke test.
 # Pass --release to build the release host and inputs.
 set -eu

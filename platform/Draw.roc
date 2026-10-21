@@ -1,8 +1,10 @@
 import Vocabulary exposing [Quat]
 
-# The Draw a game starts a record update from.
+## Gives the Draw that your game starts a record update from.
 Draw := [].{
-	# Mesh 0 draws the Fallback mesh.
+
+	## Id 0, mesh 0, at the origin, scale 1, no rotation and a white tint.
+	## Mesh 0 draws the Fallback mesh, so set `mesh`. Set `id` too.
 	default : Vocabulary.Draw
 	default = {
 		id: 0,

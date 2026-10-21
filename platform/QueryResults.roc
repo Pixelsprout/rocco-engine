@@ -1,22 +1,24 @@
 import Vocabulary exposing [RayHit]
 
-# Reads and builds QueryResults.
+## Reads the QueryResults that `step` gets, and builds them for tests.
 QueryResults := [].{
-	# What the first step gets.
+
+	## No Contacts, no RayHits and no OverlapHits. The first step gets it.
 	empty : Vocabulary.QueryResults
 	empty = { contacts: [], rays: [], overlaps: [] }
 
-	# The hit of the owner's Raycast in slot 0.
+	## The hit of the owner's Raycast in slot 0, or `Miss`.
 	ray : Vocabulary.QueryResults, U64 -> Try(RayHit, [Miss])
 	ray = |results, owner| QueryResults.ray_slot(results, owner, 0)
 
+	## The hit of the owner's Raycast in `slot`, or `Miss`.
 	ray_slot : Vocabulary.QueryResults, U64, U32 -> Try(RayHit, [Miss])
 	ray_slot = |results, owner, slot| match List.find_first(results.rays, |hit| hit.owner == owner and hit.slot == slot) {
 		Ok(hit) => Ok(hit)
 		Err(NotFound) => Err(Miss)
 	}
 
-	# The ids the owner's Overlap in slot touched, in id order.
+	## The ids that the owner's Overlap in `slot` touched, in id order.
 	overlaps : Vocabulary.QueryResults, U64, U32 -> List(U64)
 	overlaps = |results, owner, slot| List.fold(
 		results.overlaps,

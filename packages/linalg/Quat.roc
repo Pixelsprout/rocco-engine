@@ -1,15 +1,23 @@
 import Vec3
 
+## Rotations as unit quaternions. The record has the same shape as
+## `Vocabulary.Quat`, so you can pass one where the other goes. Angles are in
+## radians.
 Quat := [].{
+
+	## A rotation as a unit quaternion.
 	Quat : { x : F32, y : F32, z : F32, w : F32 }
 
+	## No rotation.
 	identity : Quat.Quat
 	identity = { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
 
-	# Turns about +y the way the host turns a Draw, so +z goes to (sin, 0, cos).
+	## A turn of `yaw` about `+y`, the way the host turns a Draw, so `+z` goes
+	## to (sin, 0, cos).
 	from_yaw : F32 -> Quat.Quat
 	from_yaw = |yaw| from_axis_angle({ x: 0.0, y: 1.0, z: 0.0 }, yaw)
 
+	## A turn of `angle` about `axis`. The axis need not be unit length.
 	from_axis_angle : Vec3.Vec3, F32 -> Quat.Quat
 	from_axis_angle = |axis, angle| {
 		half = angle / 2.0
@@ -18,7 +26,8 @@ Quat := [].{
 		{ x: n.x * s, y: n.y * s, z: n.z * s, w: half.cos() }
 	}
 
-	# The Hamilton product, the same as Odin's a * b: the result applies b first, then a.
+	# The Hamilton product, the same as Odin's a * b.
+	## The two turns as one. The result applies `b` first, then `a`.
 	mul : Quat.Quat, Quat.Quat -> Quat.Quat
 	mul = |a, b| {
 		x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
@@ -27,11 +36,11 @@ Quat := [].{
 		w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
 	}
 
-	# The inverse of a unit quaternion.
+	## The turn that undoes `q`. `q` must be unit length.
 	conjugate : Quat.Quat -> Quat.Quat
 	conjugate = |q| { x: -q.x, y: -q.y, z: -q.z, w: q.w }
 
-	# The shortest turn that sends a to b. Both must be unit length.
+	## The shortest turn that sends `a` to `b`. Both must be unit length.
 	between : Vec3.Vec3, Vec3.Vec3 -> Quat.Quat
 	between = |a, b| {
 		w = 1.0 + Vec3.dot(a, b)
@@ -50,7 +59,7 @@ Quat := [].{
 		}
 	}
 
-	# q must be unit length.
+	## Turns `v` by `q`. `q` must be unit length.
 	rotate : Vec3.Vec3, Quat.Quat -> Vec3.Vec3
 	rotate = |v, q| {
 		u = { x: q.x, y: q.y, z: q.z }

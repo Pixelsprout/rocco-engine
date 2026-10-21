@@ -8,6 +8,7 @@ import pf.Random
 import pf.Sleep
 import pf.Stderr
 import pf.Stdout
+import DocCheck
 import Keys
 import Regions
 
@@ -26,7 +27,7 @@ Bench : { games : List(Str), ns : List(U64), mode : BenchMode }
 
 BenchMode : [Headless, Windowed]
 
-# Check writes nothing. It fails if a guide page differs from its regions.
+# Check writes no guide page. It fails if a guide page differs from its regions.
 DocsMode : [Write, Check]
 
 Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
@@ -426,8 +427,9 @@ usage =
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  docs [--check]  write the API HTML for the platform, linalg, mesh and ui into
-	\\                  build/docs/, then copy each region into the guide/ pages.
-	\\                  --check writes nothing and fails if a page differs from its source
+	\\                  build/docs/, fail if an item in it has no ## comment, then
+	\\                  copy each region into the guide/ pages. --check writes no
+	\\                  guide page and fails if a page differs from its source
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong
 	\\  bench <game>[,<game>...] [n...] [--windowed]
 	\\                  build a release host with Spans, the release inputs and
@@ -602,10 +604,8 @@ exec_env_allowing! = |run, env, ok_codes| {
 
 docs! : DocsMode => Try({}, _)
 docs! = |mode| {
-	match mode {
-		Write => api_docs!()?
-		Check => {}
-	}
+	api_docs!()?
+	undocumented = undocumented!()?
 	var $stale = []
 	for page in markdown_files!(guide_dir)? {
 		text = Path.utf8(page).read_utf8!()?
@@ -622,11 +622,35 @@ docs! = |mode| {
 			}
 		}
 	}
-	if $stale.is_empty() {
+	undocumented_lines = if undocumented.is_empty() [] else undocumented.append("Write a ## comment directly above each one.")
+	stale_lines = if $stale.is_empty() [] else $stale.append("Run roc scripts/build.roc docs to copy the regions.")
+	problems = undocumented_lines.concat(stale_lines)
+	if problems.is_empty() {
 		Ok({})
 	} else {
-		Err(Failed(Str.join_with($stale.append("Run roc scripts/build.roc docs to copy the regions."), "\n")))
+		Err(Failed(Str.join_with(problems, "\n")))
 	}
+}
+
+# A package with one module puts that module on its own index page. A
+# package with more gives each module a folder.
+undocumented! : () => Try(List(Str), _)
+undocumented! = || {
+	var $lines = []
+	for api in api_packages {
+		dir = "${docs_out_dir}/${api.name}"
+		var $pages = [dir]
+		for entry in Path.utf8(dir).list!()? {
+			if entry.is_dir!()? {
+				$pages = $pages.append(entry.display())
+			}
+		}
+		for page in $pages {
+			html = Path.utf8("${page}/index.html").read_utf8!()?
+			$lines = $lines.concat(DocCheck.missing(html).map(|item| "${api.name}: ${item} has no ## comment."))
+		}
+	}
+	Ok($lines)
 }
 
 api_docs! : () => Try({}, _)

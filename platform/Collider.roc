@@ -1,15 +1,19 @@
 import Vocabulary exposing [Vec3]
 
-# Builds the Colliders a game returns in its Scene.
+## Builds the Colliders that your game returns in `Scene.colliders`. The `id`
+## is the draw id of the thing that owns the shape.
 Collider := [].{
-	# yaw turns the box in the ground plane.
+
+	## A box at `pos` with half extents `half`. `yaw` turns it about `+y`.
 	box : U64, Vec3, F32, Vec3 -> Vocabulary.Collider
 	box = |id, pos, yaw, half| { id, pos, yaw, shape: Box(half) }
 
+	## A sphere at `pos` with a radius.
 	sphere : U64, Vec3, F32 -> Vocabulary.Collider
 	sphere = |id, pos, radius| { id, pos, yaw: 0.0, shape: Sphere(radius) }
 
-	# A segment of half_height along y. The host does not test capsules yet.
+	## A capsule at `pos`: a radius around a segment of `half_height` along `y`.
+	## The host does not test capsules yet.
 	capsule : U64, Vec3, F32, F32, F32 -> Vocabulary.Collider
 	capsule = |id, pos, yaw, radius, half_height| { id, pos, yaw, shape: Capsule({ radius, half_height }) }
 }

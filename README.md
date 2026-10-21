@@ -75,7 +75,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
-| `docs` | When a guide page or a region in its source changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh` and `packages/ui`, each into `build/docs/<name>/`. Then it copies each region into the `guide/` pages. With `--check`, it writes nothing and fails if a page differs from its source. See "Docs". |
+| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh` and `packages/ui`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
@@ -91,7 +91,8 @@ and cannot tell whether that output is stale.
 
 `roc test scripts/build.roc` runs the script's tests. `roc test
 scripts/Keys.roc` runs only the tests of the Key generator. `roc test
-scripts/Regions.roc` runs only the tests of the region copy.
+scripts/Regions.roc` runs only the tests of the region copy. `roc test
+scripts/DocCheck.roc` runs only the tests of the missing-comment check.
 `./scripts/host-check.sh` runs the tests inside `platform/Key.roc`. `odin test
 engine -debug` runs the engine's tests. `odin test scripts/font_bake` runs
 the tests of the font bake tool. `python3 -m unittest
@@ -244,6 +245,14 @@ fenced block. The path is from the repository root:
 of a page with the region in a `roc` fenced block. Do not edit those lines by
 hand. `docs --check` names each page and region that differs from its source.
 It also names a missing file, a missing region and a region with no end line.
+
+The API pages come from `##` comments in the platform and in the bundled
+packages. Every exposed module, type and function has a `##` block directly
+above its declaration. A `#` line between the block and the declaration
+hides the block from `roc docs`. `roc docs` shows no `##` on a record field,
+so the type's block describes its fields in a Markdown list. The `docs` step
+names each item with no `##` comment, such as `platform: Light.point`, and
+fails.
 
 A page cannot hold the bundle URLs of its own release, because the URLs come
 from the bundle hashes. The header block of a page holds markers instead:
@@ -419,6 +428,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
 | `scripts/Regions.roc` | The region copy. `build.roc` imports it to copy each region into the `guide/` pages. |
+| `scripts/DocCheck.roc` | The missing-comment check. `build.roc` imports it to find each API item with no `##` comment. |
 | `guide/` | The docs for game authors. `guide/install.md` is the first page. See "Docs". |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
