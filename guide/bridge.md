@@ -141,6 +141,35 @@ object with one key, and a tag with no payload is a string:
 If the game returns `Quit`, the host stops at that step. It sends the
 reply, with `steps` at the step that quit, and then ends the run.
 
+## scene
+
+`scene` replies with the Scene of the last step, the one the window shows,
+and the QueryResults that the next `step` gives the game. This reply is
+from tutorial chapter 3 after 60 steps with `W` held. The host sends it on
+one line:
+
+```
+{"op":"scene"}
+{"ok":true,"steps":60,
+ "scene":{"camera":{"eye":{"x":0,"y":3.6,"z":4.8},"target":{"x":0,"y":0,"z":0.3},"up":{"x":0,"y":1,"z":0},"fov_y":1.047},
+  "draws":[{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1}},
+   {"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-1.25},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}],
+  "colliders":[],
+  "lights":[{"Ambient":{"r":0.3,"g":0.3,"b":0.3}},{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}],
+  "cursor":"Free","sky":0,"ui":[],"queries":[]},
+ "results":{"contacts":[],"rays":[],"overlaps":[]}}
+```
+
+`steps` is the fixed steps that the run has taken, as in `hello`. The
+fields and the tags in `scene` and `results` have the names you use in the
+game, from the Vocabulary: `draws[].scale_rot`, `{"Sphere":0.5}`,
+`{"Open":{...}}`, `"Close"`. Tags follow the same rule as the Commands in
+`step`. Each number is the shortest one that reads back as the same `F32`.
+A NaN or an infinity is `null`, because JSON has no word for them.
+
+While the Driver has asked for no steps, the window draws this Scene as it
+is, so a screenshot shows what `scene` returns.
+
 ## quit
 
 `quit` replies `{"ok":true}`, then ends the run as a `Quit` Command does.

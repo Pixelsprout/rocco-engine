@@ -55,6 +55,11 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	alpha := clock_alpha(&s.clock)
 	prev, curr := seam_scenes(&s.seam)
+	// Lockstep's Alpha is 0, which draws prev. A paused Bridge run must draw
+	// the Scene that the scene op returns.
+	if s.bridge.on && s.bridge.owed_steps == 0 {
+		prev = curr
+	}
 	aspect := platform.window.size.x / platform.window.size.y
 	view_proj: Mat4
 	eye: [3]f32

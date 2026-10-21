@@ -71,6 +71,13 @@ Fake_Game :: struct {
 	// Elements with no Roc_Str, so view can hand them out again and again.
 	// ui_texts stays separate because each view must make its strings fresh.
 	ui:              []Element,
+	// view returns these. With no draws, it returns one Draw whose id is the
+	// view count.
+	camera:          Scene_Camera,
+	draws:           []Draw,
+	lights:          []Light,
+	cursor:          Cursor,
+	sky:             u32,
 	commands_out:    int,
 	next_commands:   []Command,
 	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -215,9 +222,14 @@ fake_view :: proc(model: rawptr) -> Scene {
 		append(&ui, text, Element{tag = .Close})
 	}
 	append(&ui, ..g_fake.ui)
+	draws := g_fake.draws if g_fake.draws != nil else []Draw{{id = u64(g_fake.views)}}
 	return {
-		draws = roc_list_from_slice([]Draw{{id = u64(g_fake.views)}}),
+		camera = g_fake.camera,
+		draws = roc_list_from_slice(draws),
 		colliders = roc_list_from_slice(g_fake.colliders),
+		lights = roc_list_from_slice(g_fake.lights),
+		cursor = g_fake.cursor,
+		sky = g_fake.sky,
 		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
 	}

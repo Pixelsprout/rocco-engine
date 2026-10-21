@@ -24,6 +24,7 @@ BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"hello", bridge_op_hello},
 	{"quit", bridge_op_quit},
 	{"step", bridge_op_step},
+	{"scene", bridge_op_scene},
 	{"tell", bridge_op_not_yet},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
@@ -108,6 +109,17 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	s.bridge.mouse = mouse
 	s.bridge.owed_steps = int(n)
 	return .Hold, ""
+}
+
+// The Scene that a paused window shows, and the QueryResults that the next
+// step gets.
+bridge_op_scene :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	bridge_reply_field(reply, "steps", s.steps)
+	strings.write_string(reply, `,"scene":`)
+	json_write_scene(reply, &s.seam.curr)
+	strings.write_string(reply, `,"results":`)
+	json_write_query_results(reply, &s.seam.results)
+	return .Read, ""
 }
 
 bridge_op_not_yet :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
