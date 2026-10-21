@@ -20,7 +20,7 @@ import pf.Scene
 
 # region: model
 # pip is 0, the fallback mesh, until loaded gives its id.
-# yaw is the turn about +y. At 0, Pip faces +z.
+# yaw turns Pip about +y. At 0, Pip faces +z.
 Model : { ground : U32, pip : U32, pos : Vec3, yaw : F32 }
 
 # endregion
@@ -96,7 +96,6 @@ near = |a, b| (a - b).abs() < 0.0001
 start : Model
 start = init(Config.empty).model
 
-# The Input holds key codes, so the test makes them from key names.
 hold : List(Key.Key) -> Vocabulary.Input
 hold = |keys| { ..Input.empty, held: keys.map(Key.code) }
 

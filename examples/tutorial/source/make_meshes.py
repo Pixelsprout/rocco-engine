@@ -85,8 +85,8 @@ def cylinder(bm, index, centre, radius, depth):
     paint(faces_of(made["verts"]), index, True)
 
 
-# Without this, the faces come out in a different order on each run. Sorting
-# by position keeps the committed file the same from run to run.
+# Without this, the faces come out in a different order on each run. A fixed
+# order keeps the committed file the same from run to run.
 def sort_elements(bm):
     sort_by(bm.verts, lambda v: tuple(round(c, 6) for c in v.co))
     sort_by(bm.faces, lambda f: (f.material_index, sorted(v.index for v in f.verts)))

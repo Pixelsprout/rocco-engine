@@ -43,7 +43,7 @@ app [init, launch, loaded, step, view] { cam: "{{camera_url}}", mesh: "{{mesh_ur
 ```
 
 The header names the five calls and the bundles. `pf` is the rocco
-platform. `mesh` gives the ids of the built-in meshes. `cam` points the
+platform. `mesh` gives the ids of the primitive meshes. `cam` points the
 camera.
 
 ## Import the modules
@@ -154,7 +154,7 @@ view = |model| {
   `+y` is up.
 - The host has no light of its own. With no lights, the cube is black. An
   ambient light lights each side a little. A directional light lights the
-  sides that face it. Chapter 4 tells about lights.
+  sides that face it. [The Scene](../scene.md#lights) tells about lights.
 - `Scene.empty` gives the other fields of the Scene.
 
 ## Run the game

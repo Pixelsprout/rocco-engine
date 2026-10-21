@@ -9,9 +9,9 @@ order: 3
 In this chapter, you make Pip walk with the keys W, A, S and D. You use:
 
 - the `step` call, which gives the next Model at each fixed step,
-- the Input, which tells which keys are down.
+- the Input, which tells which keys are held and pressed.
 
-![Pip on the ground, seen from above and behind](../images/tutorial-03-moving.png)
+![Pip on the ground, seen from above and in front](../images/tutorial-03-moving.png)
 
 This chapter starts from your app from [2. The character](02-character.md).
 The full app is
@@ -57,12 +57,12 @@ that the tests use.
 
 ## The Model
 
-Pip now has a position and a turn. Add them to the Model:
+Pip now has a position and a yaw. Add them to the Model:
 
 <!-- region: examples/tutorial/03-moving/main.roc#model -->
 ```roc
 # pip is 0, the fallback mesh, until loaded gives its id.
-# yaw is the turn about +y. At 0, Pip faces +z.
+# yaw turns Pip about +y. At 0, Pip faces +z.
 Model : { ground : U32, pip : U32, pos : Vec3, yaw : F32 }
 ```
 <!-- endregion -->
@@ -172,7 +172,6 @@ near = |a, b| (a - b).abs() < 0.0001
 start : Model
 start = init(Config.empty).model
 
-# The Input holds key codes, so the test makes them from key names.
 hold : List(Key.Key) -> Vocabulary.Input
 hold = |keys| { ..Input.empty, held: keys.map(Key.code) }
 

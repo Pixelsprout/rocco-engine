@@ -90,7 +90,6 @@ bench_steps = |bench| {
 all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
-# A tutorial chapter is a game in examples/tutorial/.
 example_games : List(Str)
 example_games = ["cards", "entity-game", "pong", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving"]
 
