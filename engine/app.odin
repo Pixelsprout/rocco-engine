@@ -160,7 +160,11 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
-	bridge_poll(&g_state, wait = false)
+	// The first Frame draws before any request is read, so a screenshot
+	// always has a Frame to read.
+	if g_state.frame_count > 0 {
+		bridge_poll(&g_state, wait = false)
+	}
 	if g_state.bridge.quit {
 		sapp.request_quit()
 	}

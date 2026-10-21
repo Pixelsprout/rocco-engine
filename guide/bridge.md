@@ -170,6 +170,36 @@ A NaN or an infinity is `null`, because JSON has no word for them.
 While the Driver has asked for no steps, the window draws this Scene as it
 is, so a screenshot shows what `scene` returns.
 
+## screenshot
+
+`screenshot` saves the last frame the window drew as a PNG:
+
+```
+{"op":"screenshot","path":"/tmp/pip.png"}
+{"ok":true,"path":"/tmp/pip.png","physical":[1920,1080],"logical":[960,540]}
+```
+
+The host writes the file itself, so a relative `path` is relative to the
+folder the game runs in. Use an absolute path when the Driver runs
+somewhere else. The reply gives the path back as you sent it.
+
+The image has the window's physical pixels. On a high-DPI display,
+`physical` is larger than `logical`, the size in the window's own units.
+The two sizes differ by the display's scale, 2 on most Mac screens and 1
+under xvfb. The PNG is opaque, as the window is.
+
+The host draws the first frame before it reads any request, so a
+`screenshot` straight after `hello` shows the first `view`.
+
+A Headless run draws nothing, so `screenshot` replies with an error there.
+A path the host cannot write, such as one in a missing folder, also
+replies with an error, and the run goes on:
+
+```
+{"op":"screenshot","path":"/no/such/folder/pip.png"}
+{"ok":false,"error":"the host cannot write \"/no/such/folder/pip.png\": file does not exist"}
+```
+
 ## quit
 
 `quit` replies `{"ok":true}`, then ends the run as a `Quit` Command does.

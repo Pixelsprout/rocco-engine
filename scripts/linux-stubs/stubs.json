@@ -215,6 +215,7 @@
         "glPixelStorei",
         "glPolygonOffset",
         "glReadBuffer",
+        "glReadPixels",
         "glRenderbufferStorageMultisample",
         "glSamplerParameterf",
         "glSamplerParameterfv",

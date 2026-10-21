@@ -27,3 +27,24 @@ platform_readable_color_texture :: proc(width, height: i32) -> rawptr {
 	device := (^MTL.Device)(sg.mtl_device())
 	return device->newTextureWithDescriptor(desc)
 }
+
+// Called between Frames. The queue runs its command buffers in order, so an
+// empty one that has completed means the last Frame has completed too.
+// Metal stores the top row first.
+platform_read_target :: proc(color: sg.Image, size: [2]i32, rgba: []byte) -> (error: string) {
+	info := sg.mtl_query_image_info(color)
+	texture := (^MTL.Texture)(info.tex[info.active_slot])
+	if texture == nil {
+		return "the target has no Metal texture"
+	}
+	queue := (^MTL.CommandQueue)(sg.mtl_command_queue())
+	fence := queue->commandBuffer()
+	fence->commit()
+	fence->waitUntilCompleted()
+	region := MTL.Region {
+		origin = {0, 0, 0},
+		size   = {NS.Integer(size.x), NS.Integer(size.y), 1},
+	}
+	texture->getBytes(raw_data(rgba), NS.UInteger(size.x * 4), region, 0)
+	return ""
+}

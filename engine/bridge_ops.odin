@@ -25,6 +25,7 @@ BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"quit", bridge_op_quit},
 	{"step", bridge_op_step},
 	{"scene", bridge_op_scene},
+	{"screenshot", bridge_op_screenshot},
 	{"tell", bridge_op_not_yet},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
@@ -119,6 +120,27 @@ bridge_op_scene :: proc(s: ^State, request: json.Object, reply: ^strings.Builder
 	json_write_scene(reply, &s.seam.curr)
 	strings.write_string(reply, `,"results":`)
 	json_write_query_results(reply, &s.seam.results)
+	return .Read, ""
+}
+
+// Saves the target that the last Frame drew. A bad path fails the request,
+// and the run goes on.
+bridge_op_screenshot :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	path, has_path := request["path"].(json.String)
+	if !has_path || path == "" {
+		return .Read, `"path" must be a file path`
+	}
+	if s.mode == .Headless {
+		return .Read, "a Headless run draws no image to screenshot"
+	}
+	size: [2]i32
+	size, error = screenshot_save(&s.renderer, path)
+	if error != "" {
+		return .Read, error
+	}
+	bridge_reply_field(reply, "path", path)
+	bridge_reply_field(reply, "physical", size)
+	bridge_reply_field(reply, "logical", screenshot_logical_size(size, sapp.dpi_scale()))
 	return .Read, ""
 }
 
