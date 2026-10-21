@@ -1,15 +1,19 @@
 ---
 title: Launch
-summary: The fields of the Launch, their defaults, the checks at startup, and what a run mode overrides.
-order: 8
+summary: The choices your game makes once before the window opens, their defaults, the checks at startup, and what a run mode overrides.
+order: 9
 ---
 
 # Launch
 
-Some decisions must hold before the window opens, and cannot change after
-it opens. Your game makes them in `launch`, which returns a [Launch]. The
-host calls `launch` once, before `init`, and never again. Hot reload does
-not call it again.
+Some choices have to be made before the window opens, and can't change
+once it is open: the window size, the step rate, the size of the shadow map
+and of each table. Your game makes these choices in `launch`, which returns
+a [Launch].
+
+The host calls `launch` once, before `init`, and never again. Hot reload
+doesn't call it again either, so restart the game after you change
+`launch`.
 
 ## Start from the default
 
@@ -36,9 +40,33 @@ launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title:
 `launch` gets the [Config], so a Launch can follow the Args. For example, a
 game can open fullscreen when its Args hold `--fullscreen`.
 
+## The checks at startup
+
+The host checks the Launch before it opens the window. No number field can
+be zero, and each capacity must be inside its limits. If a field fails, the
+host prints the name of the field and the rule, then exits with code 1. For
+example:
+
+```text
+Launch.capacity.meshes must be at least 4, for the Fallback mesh and the three Primitives, so the run ends
+```
+
+`launch` itself cannot fail. If your game wants to reject its Args, return
+`Quit` from the first `step`, because a `Quit` from `init` does not stop a
+windowed run yet.
+
+## Past a capacity
+
+A capacity sets the size of a table. If a table fills up during the run,
+the host does not stop. It logs once and carries on:
+
+- `meshes` or `skies`: a `Load` gives the new name id 0.
+- `draws`: the host draws the first Draws of the Scene and drops the rest.
+- `ui_quads`: the host draws the first quads of the UI and drops the rest.
+
 ## The fields
 
-The [Launch], [Window] and [Capacity] types tell what each field means.
+The [Launch], [Window] and [Capacity] types describe each field.
 
 | Field | Default | A run mode overrides it |
 |---|---|---|
@@ -55,33 +83,9 @@ The [Launch], [Window] and [Capacity] types tell what each field means.
 | `capacity.draws` | 16384 | No |
 | `capacity.ui_quads` | 16384 | No |
 
-[Running and debugging](running.md) tells about the run modes. Each field
-changes only when the game starts again. Today, no [Scene] field changes a
-field of the Launch.
-
-## The checks at startup
-
-The host checks the Launch before it opens the window. A number field must
-not be zero. Each capacity must be inside its limits. If a field fails, the
-host prints the name of the field and the rule. Then it exits with code 1.
-For example:
-
-```text
-Launch.capacity.meshes must be at least 4, for the Fallback mesh and the three Primitives, so the run ends
-```
-
-`launch` cannot fail by itself. A `Quit` from `init` does not stop a
-windowed run yet. So if your game rejects its Args, return `Quit` from the
-first `step`.
-
-## Past a capacity
-
-A capacity sets the size of a table. During the run, the host does not stop
-when a table is full. It logs once and continues:
-
-- `meshes` or `skies`: a `Load` gives the new name id 0.
-- `draws`: the host draws the first Draws of the Scene and drops the rest.
-- `ui_quads`: the host draws the first quads of the UI and drops the rest.
+[Running and debugging](running.md) explains the run modes. A field changes
+only when the game starts again. No [Scene] field changes a field of the
+Launch today.
 
 [Config]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Config
 [Scene]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Scene

@@ -877,7 +877,7 @@ Done when v0.2.0 is published, pixelsprout.dev shows the guides and the API
 from that tag, and Kula runs on v0.2.0. Grilled 2026-10-21. The dex
 milestone task holds the decisions and the tasks.
 
-1. `guide/` holds Markdown pages for game authors, in ASD-STE100. The ten
+1. `guide/` holds Markdown pages for game authors, in plain, readable prose. The ten
    guide pages cover the five calls, the Scene, assets and Packs, Input,
    Collisions and Queries, the UI, Launch, running and debugging, and
    shipping a game.

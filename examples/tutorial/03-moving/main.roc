@@ -41,7 +41,7 @@ loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, pip: Mesh.resolve(manifest, "pip") }
 
 # region: step
-# Metres each second.
+# Units each second.
 speed : F32
 speed = 2.5
 

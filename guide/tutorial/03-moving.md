@@ -6,33 +6,35 @@ order: 3
 
 # 3. Moving
 
+Pip stands still so far, because nothing changes the Model after `init`.
 In this chapter, you make Pip walk with the keys W, A, S and D. You use:
 
 - the `step` call, which gives the next Model at each fixed step,
-- the Input, which tells which keys are held and pressed.
+- the Input, which tells you which keys are held and pressed.
 
 ![Pip on the ground, seen from above and in front](../images/tutorial-03-moving.png)
 
 This chapter starts from your app from [2. The character](02-character.md).
 The full app is
 [`examples/tutorial/03-moving/main.roc`](../../examples/tutorial/03-moving/main.roc).
-To see each change, compare the two chapter apps:
+To see every change, compare the two chapter apps:
 
 ```sh
 git diff --no-index examples/tutorial/02-character/main.roc examples/tutorial/03-moving/main.roc
 ```
 
-Keep `pip/assets/meshes/pip.glb` from chapter 2. It does not change.
+Keep `pip/assets/meshes/pip.glb` from chapter 2. It doesn't change.
 
 ## The header and the imports
 
-Add the `linalg` package to the header. It gives vectors and rotations:
+Add the `linalg` package to the header. It gives you vectors and
+rotations:
 
 ```roc
 app [init, launch, loaded, step, view] { cam: "{{camera_url}}", linalg: "{{linalg_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}" }
 ```
 
-Change the imports to these:
+Then change the imports to these:
 
 <!-- region: examples/tutorial/03-moving/main.roc#imports -->
 ```roc
@@ -57,7 +59,7 @@ that the tests use.
 
 ## The Model
 
-Pip now has a position and a yaw. Add them to the Model:
+Pip now needs a position and a yaw. Add them to the Model:
 
 <!-- region: examples/tutorial/03-moving/main.roc#model -->
 ```roc
@@ -82,12 +84,12 @@ init = |_config| {
 ## step
 
 The host calls `step` once for each fixed step, 120 times each second.
-`step` gets the Model, the Input, the QueryResults and `dt`. `dt` is the
-length of one step in seconds. It is the same at each step.
+`step` gets the Model, the Input, the QueryResults and `dt`, the length of
+one step in seconds. `dt` is the same at every step.
 
 <!-- region: examples/tutorial/03-moving/main.roc#step -->
 ```roc
-# Metres each second.
+# Units each second.
 speed : F32
 speed = 2.5
 
@@ -115,28 +117,31 @@ keep_on_ground = |v| F32.max(-edge, F32.min(v, edge))
 ```
 <!-- endregion -->
 
+Here is what each part does:
+
 - `Key.axis(input, A, D)` gives -1 while only A is held, 1 while only D
-  is held, and 0 for none or both. So `dir` points where the keys point.
-- With no key held, `walk` returns the Model with no change. Pip keeps its
-  yaw, so it keeps facing the way it walked.
-- `V.normalize` makes `dir` 1 unit long. So W and D together are not
-  faster than W alone.
-- Pip moves `speed * dt` in one step. So its speed in metres each second
-  does not change with the step rate.
+  is held, and 0 for neither or both. So `dir` points where the keys
+  point.
+- With no key held, `walk` returns the Model unchanged. Pip keeps its yaw,
+  so it keeps facing the way it walked.
+- `V.normalize` makes `dir` 1 unit long, so W and D together are no faster
+  than W alone.
+- Pip moves `speed * dt` in one step, so its speed in units each second
+  doesn't depend on the step rate.
 - `keep_on_ground` keeps Pip on the ground.
 - The yaw turns Pip to face `dir`. A yaw turns `+z` to (sin, 0, cos), so
   the yaw of `dir` is `atan2(dir.x, dir.z)`. `F32.atan2` takes the two
   values as `y` and `x`.
 
-The game decides what each key means. The host gives no key a meaning. A
-key is held while it is down. A key is pressed only in the first step after
-it went down. Walking uses held keys. [Input](../input.md) tells about held
-and pressed keys, and about the mouse.
+Your game decides what each key means, because the host gives no key a
+meaning. A key is held while it is down, and pressed only in the first
+step after it went down. Walking uses held keys. [Input](../input.md)
+covers held and pressed keys, and the mouse.
 
 ## view
 
 Draw Pip at its position, turned by its yaw. Move the camera back, so that
-you see all of the ground:
+you can see all of the ground:
 
 <!-- region: examples/tutorial/03-moving/main.roc#view -->
 ```roc
@@ -151,15 +156,15 @@ view = |model| {
 <!-- endregion -->
 
 `Quat.from_yaw` turns the yaw into the rotation that a Draw holds. Pip
-keeps id 2 at each step. So the host pairs the Draw of Pip in two Scenes,
-and moves Pip smoothly between them. [The Scene](../scene.md) tells about
-this.
+keeps id 2 at every step, so the host pairs Pip's Draw across two Scenes
+and moves Pip smoothly between them. [The Scene](../scene.md) explains how
+this works.
 
 ## Test the movement
 
-A test gives `step` an Input with keys held. The Input holds key codes, so
-make them with `Key.code`. Add these tests at the bottom of the file, in
-place of the tests from chapter 2:
+A test gives `step` an Input with some keys held. The Input holds key
+codes, so make them with `Key.code`. Add these tests at the bottom of the
+file, in place of the tests from chapter 2:
 
 <!-- region: examples/tutorial/03-moving/main.roc#tests -->
 ```roc
@@ -201,8 +206,8 @@ expect {
 ```
 <!-- endregion -->
 
-A test can give any `dt`. A `dt` of 10 seconds walks Pip far past the edge
-in one step, so the third test makes sure that Pip stops at the edge. Run
+A test can pass any `dt`. A `dt` of 10 seconds would walk Pip far past the
+edge in one step, so the third test checks that Pip stops at the edge. Run
 the tests:
 
 ```sh
@@ -217,7 +222,7 @@ In `pip/`, run:
 roc main.roc
 ```
 
-Hold W, A, S or D. Pip walks and turns to face the way it walks. At the
-edge of the ground, Pip stops.
+Hold W, A, S or D. Pip walks and turns to face the way it walks, and stops
+at the edge of the ground.
 
 The next chapter is 4. Lights, a sun and its shadow. It is not written yet.

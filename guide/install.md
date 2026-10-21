@@ -1,30 +1,53 @@
 ---
 title: Install and first run
-summary: Install Roc, then build and run a first rocco game from the release bundles.
+summary: Check that rocco fits your game, install Roc, then build and run a first game from the release bundles.
 order: 1
 ---
 
 # Install and first run
 
-To make a rocco game, you need only Roc. You do not need Odin, sokol or a C
-compiler. Each rocco release has the engine prebuilt for macOS arm64, Linux
-x64 and Windows x64.
+rocco is a 3D game engine for games written in Roc. You write your game as a
+few pure functions, and the engine runs the window, the clock, the input and
+the GPU for you.
+
+You only need Roc. Each rocco release comes with the engine prebuilt for
+macOS arm64, Linux x64 and Windows x64, so you don't need Odin, sokol or a C
+compiler.
 
 If you read this page on GitHub, the Roc nightly and the bundle URLs show as
-markers in double braces. Get the values from the notes of the
+markers in double braces. You can find the values in the notes of the
 [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
 The notes give the Roc nightly and the URL of each bundle.
 
+## Is rocco right for you?
+
+rocco is young, and it has some clear limits today. Check them before you
+start a game with it:
+
+- **Desktop only.** rocco runs on macOS arm64, Linux x64 and Windows x64.
+  On Linux it needs an X11 desktop and an OpenGL driver. You build on each
+  OS that you ship to, because there is no cross-compiling.
+- **No audio yet.** The engine cannot play sound.
+- **Keyboard and mouse movement only.** The Input has no gamepad and no
+  mouse buttons.
+- **No physics.** The engine answers questions about shapes, such as "what
+  does this ray hit?", but it moves nothing and pushes nothing apart. See
+  [Collisions and Queries](collisions.md).
+- **Roc changes quickly.** Roc changes from one nightly to the next. Each
+  rocco release pins one nightly, and you use that exact nightly.
+
+If those limits are fine for your game, read on.
+
 ## Install Roc
 
-Roc changes from one nightly to the next. Use the nightly that the release
-names.
+Use the nightly that the release names. A different nightly may not build
+the game.
 
 1. Download the Roc nightly `{{roc_nightly}}` for your OS from the
    [Roc nightlies](https://github.com/roc-lang/nightlies/releases).
 2. Extract the archive.
 3. Add the folder that holds `roc` to your `PATH`.
-4. Run `roc version`. Make sure that it prints `{{roc_nightly}}`.
+4. Run `roc version`. It should print `{{roc_nightly}}`.
 
 On Linux, the game needs an X11 desktop and an OpenGL driver. On Windows,
 run `roc` in a shell where `LIB` is not set. A Visual Studio developer
@@ -32,7 +55,7 @@ prompt sets `LIB`, and then the link fails.
 
 ## Make the game folder
 
-1. Make a folder with the name `my-game`.
+1. Make a folder called `my-game`.
 2. Make the file `my-game/main.roc`.
 3. Put this header at the top of `my-game/main.roc`:
 
@@ -120,21 +143,6 @@ view = |m| {
 ```
 <!-- endregion -->
 
-The header names the platform and each package that the game uses. `pf` is
-the rocco platform. `mesh` gives the primitive meshes, and `cam` points the
-camera. A game that uses vectors adds `linalg: "{{linalg_url}}"`. A game
-that uses the UI layout adds `ui: "{{ui_url}}"`.
-
-The game gives the engine five calls:
-
-- `launch` gives the window and the step rate. This game uses the defaults.
-- `init` gives the first Model and the first Commands.
-- `loaded` puts the meshes of a Pack into the Model. This game has no
-  `assets/` folder, so it uses a plane for each card.
-- `step` gives the next Model from the Input, once for each fixed step.
-- `view` gives the Scene that the engine draws: the camera, the draws and
-  the lights.
-
 ## Run the game
 
 In `my-game/`, run:
@@ -143,8 +151,27 @@ In `my-game/`, run:
 roc main.roc
 ```
 
-The first run downloads the bundles and builds the game. A window opens and
-shows two cards. Press Space to add a card. Close the window to stop the
-game.
+The first run downloads the bundles and builds the game. Then a window
+opens with two cards. Press Space to add a card, and close the window to
+stop the game.
 
-Next, read [The five calls](calls.md).
+## What the code does
+
+The header names the platform and each package that the game uses. `pf` is
+the rocco platform, `mesh` gives the primitive meshes, and `cam` points the
+camera. If your game uses vectors, add `linalg: "{{linalg_url}}"`. If it
+uses the UI layout, add `ui: "{{ui_url}}"`.
+
+The game gives the engine five calls:
+
+- `launch` sets up the window and the step rate. The cards game keeps the
+  defaults.
+- `init` gives the first Model and the first Commands.
+- `loaded` puts the meshes of a Pack into the Model. The cards game has no
+  `assets/` folder, so it draws each card as a plane.
+- `step` gives the next Model from the Input, once for each fixed step.
+- `view` gives the Scene that the engine draws: the camera, the Draws and
+  the Lights.
+
+Next, read [Important defaults](defaults.md) to avoid the common surprises,
+then [The five calls](calls.md).

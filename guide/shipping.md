@@ -1,17 +1,20 @@
 ---
 title: Shipping a game
-summary: Pin the bundle URLs and the Roc nightly, build a binary for each target, and ship it with its assets.
-order: 10
+summary: Pin the bundle URLs and the Roc nightly, build a binary on each target OS, and ship it with its assets.
+order: 11
 ---
 
 # Shipping a game
 
-Each rocco release gives a bundle for the platform and for each bundled
-package. A bundle has a URL. Your game names the URLs in its header, and
-`roc` downloads them. You need only Roc to build the game.
+To share your game, you need a binary that runs on the player's machine
+without Roc, and you need your builds to stay the same over time. rocco
+helps with both. Each release gives a bundle for the platform and for each
+bundled package, and each bundle has a fixed URL. Your game names those
+URLs in its header, and `roc` downloads them, so Roc is all you need to
+build. The binary you build holds the engine and your game together.
 
-If you read this page on GitHub, the bundle URLs and the Roc nightly show as
-markers in double braces. Get the values from the notes of the
+If you read this page on GitHub, the bundle URLs and the Roc nightly show
+as markers in double braces. You can find the values in the notes of the
 [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
 
 ## The header
@@ -34,20 +37,20 @@ Name only the packages that your game imports:
 
 Each URL ends with a hash of the bundle. Roc checks the hash, so the files
 behind a URL cannot change. Take all of the URLs from one release. The ui
-package copies the UI types of the platform. URLs from two releases can
-have types that do not match.
+package copies the UI types of the platform, so URLs from two releases can
+have types that don't match.
 
 ## The Roc nightly
 
 Roc changes from one nightly to the next. The `roc` field of the header
-names the nightly that the release was built with. Install that nightly.
-Run `roc version` to check it. To move to a new release, change the
+names the nightly that the release was built with, so install that nightly
+and run `roc version` to check it. To move to a new release, change the
 nightly and all of the URLs at the same time.
 
 ## Build for each target
 
-Roc builds for the OS that it runs on. Build your game on each OS that you
-ship to. rocco does not test a build for one OS on a different OS.
+Roc builds for the OS that it runs on, so build your game on each OS that
+you ship to. rocco does not test a build for one OS made on a different OS.
 
 | OS | Run this on that OS | Binary |
 |---|---|---|
@@ -55,26 +58,26 @@ ship to. rocco does not test a build for one OS on a different OS.
 | Linux x64 | `roc build --target=x64glibc --output=./my-game main.roc` | `my-game` |
 | Windows x64 | `roc build --target=x64win --output=./my-game.exe main.roc` | `my-game.exe` |
 
-On Linux, give `--target`. Without it, `roc build` picks a static musl
-target, and the platform has no musl target.
+A few things to watch for:
 
-`roc build` uses `--opt=speed` by default. The binary is fast, but the
-build is slower than a `roc run`.
-
-If your game imports the mesh package, `roc build` warns about the `dbg`
-in `Mesh.resolve`. Roc then exits with code 2, but it writes the binary.
-
-On Windows, run `roc` in a shell where `LIB` is not set.
+- On Linux, always give `--target`. Without it, `roc build` picks a static
+  musl target, and the platform has no musl target.
+- `roc build` uses `--opt=speed` by default. The binary is fast, but the
+  build is slower than a `roc run`.
+- If your game imports the mesh package, `roc build` warns about the `dbg`
+  in `Mesh.resolve`. Roc then exits with code 2, but it still writes the
+  binary.
+- On Windows, run `roc` in a shell where `LIB` is not set.
 
 ## What to ship
 
 Ship these files together:
 
 - the binary,
-- the `assets/` folder, beside the binary.
+- the `assets/` folder, next to the binary.
 
-The binary holds the engine and your game. When you start it by a path,
-such as `./my-game`, it finds `assets/` in its own folder.
+When the player starts the binary by a path, such as `./my-game`, it finds
+`assets/` in its own folder.
 
 The binary loads some libraries of the OS when it starts:
 
