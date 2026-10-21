@@ -4,6 +4,7 @@
 # already be linked for this machine. The check reads stdout only: sokol can
 # end a long stderr line with no newline, which would hide the line.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
+# A game in a subfolder, such as tutorial/01-window, runs 01-window.bin.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -27,7 +28,7 @@ for game in "$@"; do
 	echo "== run $game for $frames frames"
 	dir=examples/$game
 	set +e
-	(cd "$dir" && ROCCO_EXIT_AFTER_FRAMES=$frames ${RUN_PREFIX:-} "./${game}${suffix}") > "$log" 2> "$err"
+	(cd "$dir" && ROCCO_EXIT_AFTER_FRAMES=$frames ${RUN_PREFIX:-} "./${game##*/}${suffix}") > "$log" 2> "$err"
 	code=$?
 	set -e
 	frame_count_lines=$(grep -c '^Frame Count: ' "$log" || true)

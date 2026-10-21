@@ -15,7 +15,9 @@ out=$(cd "$(dirname "$2")" && pwd)/$(basename "$2")
 delay=${3:-3}
 
 dir=examples/$game
-bin=$dir/$game.bin
+# tutorial/01-window builds 01-window.bin.
+name=${game##*/}
+bin=$dir/$name.bin
 if [ ! -x "$bin" ]; then
 	echo "screenshot: $bin is missing. Run roc scripts/build.roc -- game $game first." >&2
 	exit 2
@@ -28,7 +30,7 @@ if [ ! -x "$tool" ] || [ scripts/macos/wincap.swift -nt "$tool" ]; then
 fi
 
 # The game runs from its own directory, as roc run does, so it finds assets/.
-(cd "$dir" && exec "./$game.bin") &
+(cd "$dir" && exec "./$name.bin") &
 pid=$!
 sleep "$delay"
 status=0

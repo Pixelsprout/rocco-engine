@@ -32,6 +32,10 @@ examples/*/*.exe
 examples/*/*.pdb
 # lld-link writes an import library beside an exe that exports symbols.
 examples/*/*.lib
+examples/tutorial/*/*.bin
+examples/tutorial/*/*.exe
+examples/tutorial/*/*.pdb
+examples/tutorial/*/*.lib
 
 .DS_Store
 __pycache__/

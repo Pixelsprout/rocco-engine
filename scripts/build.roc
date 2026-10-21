@@ -88,7 +88,11 @@ bench_steps = |bench| {
 }
 
 all_steps : Mode -> List(Step)
-all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode), Game("cards"), Game("entity-game"), Game("pong")]
+all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
+
+# A tutorial chapter is a game in examples/tutorial/.
+example_games : List(Str)
+example_games = ["cards", "entity-game", "pong", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving"]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
@@ -176,6 +180,10 @@ host_run = |target, mode, alloc, spans| {
 		cwd: ".",
 	}
 }
+
+# The binary takes the name of the last folder, so tutorial/01-window builds 01-window.bin.
+game_binary : Str -> Str
+game_binary = |name| Str.split_on(name, "/").last() ?? name
 
 game_run : Target, Str, Str -> Run
 game_run = |target, dir, name| {
@@ -422,7 +430,8 @@ usage =
 	\\  inputs          copy sokol, Clay and compiler-rt libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
-	\\  game <name>     link examples/<name> against the platform
+	\\  game <name>     link examples/<name> against the platform, such as
+	\\                  cards or tutorial/01-window
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
@@ -431,7 +440,8 @@ usage =
 	\\                  into build/docs/, fail if an item in it has no ## comment, then
 	\\                  copy each region into the guide/ pages. --check writes no
 	\\                  guide page and fails if a page differs from its source
-	\\  all             glue, host, inputs, game cards, game entity-game, game pong
+	\\  all             glue, host, inputs, then game for cards, entity-game, pong
+	\\                  and each tutorial chapter
 	\\  bench <game>[,<game>...] [n...] [--windowed]
 	\\                  build a release host with Spans, the release inputs and
 	\\                  each bench/<game>, then run a sweep: N from 64 to 16384 in
@@ -498,7 +508,7 @@ run_step! = |step, target| match step {
 	Inputs(mode) => inputs!(target, mode)
 	Glue => exec!(glue_run)
 	Host(mode, alloc, spans) => host!(target, host_run(target, mode, alloc, spans))
-	Game(name) => link_game!(target, "examples/${name}", name)
+	Game(name) => link_game!(target, "examples/${name}", game_binary(name))
 	BenchGame(name) => link_game!(target, "bench/${name}", name)
 	BenchTwin(name) => exec!(twin_run(target, name))
 	BenchRun(bench) => bench!(target, bench)
@@ -753,8 +763,10 @@ expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, S
 expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong")])
-expect parse(["all", "--release"]) == Ok([Glue, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong")])
+expect parse(["all"]) == Ok([Glue, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving")])
+expect parse(["all", "--release"]) == Ok([Glue, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving")])
+expect game_binary("pong") == "pong"
+expect game_binary("tutorial/01-window") == "01-window"
 expect parse(["glue", "--release"]) == Err(Usage)
 expect parse(["inputs", "--debug"]) == Err(Usage)
 expect parse(["inputs", "--release", "--track-alloc"]) == Err(Usage)
