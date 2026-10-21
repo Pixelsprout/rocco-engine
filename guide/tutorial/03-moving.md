@@ -225,4 +225,5 @@ roc main.roc
 Hold W, A, S or D. Pip walks and turns to face the way it walks, and stops
 at the edge of the ground.
 
-The next chapter is 4. Lights, a sun and its shadow. It is not written yet.
+Next, read [4. Lights, a sun and its shadow](04-lights.md). You change the
+lights, and Pip casts a shadow.

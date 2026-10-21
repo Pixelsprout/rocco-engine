@@ -50,7 +50,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
 
       - name: Test
         run: sh scripts/test-all.sh
@@ -158,7 +158,7 @@ jobs:
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
 
       - name: Test
         run: sh scripts/test-all.sh
