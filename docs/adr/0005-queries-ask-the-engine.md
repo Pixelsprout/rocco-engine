@@ -1,6 +1,8 @@
 # 0005: Queries ask the engine
 
-Status: accepted, 2026-10-16.
+Status: accepted, 2026-10-16. ADR 0008 replaces the search: the sweep and
+prune for the Contacts, and the test of every Collider for Raycast and
+Overlap.
 
 ## Context
 

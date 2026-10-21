@@ -108,11 +108,7 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 seam_query_search :: proc(s: ^Seam) -> Query_Answers {
 	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
 	queries := s.curr.queries.elements[:s.curr.queries.length]
-	return {
-		contacts = contacts_asked(&s.search, colliders, queries, context.temp_allocator),
-		rays = rays_find(&s.search, colliders, queries, context.temp_allocator),
-		overlaps = overlaps_find(&s.search, colliders, queries, context.temp_allocator),
-	}
+	return queries_answer(&s.search, colliders, queries, context.temp_allocator)
 }
 
 // The host owns the commands list and frees it after running it, so every

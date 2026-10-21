@@ -70,33 +70,36 @@ The next `step` gets the QueryResults. The first step gets
 empty QueryResults. ADR 0005 records the decision.
 
 With no `ContactsOf` Query, the host does no contact search. With one or
-more, it searches all the Colliders. It keeps each Contact that involves an
-asking owner, once, in id order. The host tests overlap, not sweep, so the
-normal and depth describe where the shapes are now. Decision.
+more, it searches the grid cells under each asking owner. It gives each
+Contact that involves an asking owner, once, in id order. The host tests
+overlap, not sweep, so the normal and depth describe where the shapes are
+now. Decision.
 
-The host tests each Raycast against every box and sphere Collider. It skips
-the owner's Collider and each excluded id. It measures the distance in world
-units along `dir`, up to `max_distance`. A ray that starts inside a Collider
-hits it at the origin, with the normal against `dir`. Equal distances go to
-the lower id. The host skips a capsule Collider and logs one line. If two
-Raycasts share an owner and a slot, the host logs once and answers the first.
+The host walks the grid cells along each Raycast and tests the box and
+sphere Colliders in them. It skips the owner's Collider and each excluded
+id. It measures the distance in world units along `dir`, up to
+`max_distance`. A ray that starts inside a Collider hits it at the origin,
+with the normal against `dir`. Equal distances go to the lower id. The host
+skips a capsule Collider and logs one line. If two Raycasts share an owner
+and a slot, the host logs once and answers the first.
 
-The host tests each Overlap against every box and sphere Collider. An
-Overlap box does not turn. The host skips the owner's Collider and each
-excluded id. Shapes that only touch at a face do not overlap. The host gives
-the hits of one Overlap in id order. The host skips a capsule Collider and
-logs one line. If two Overlaps share an owner and a slot, the host logs once
-and answers the first. A Raycast and an Overlap can use the same owner and
-slot.
+The host tests each Overlap against the box and sphere Colliders in the grid
+cells under it. An Overlap box does not turn. The host skips the owner's
+Collider and each excluded id. Shapes that only touch at a face do not
+overlap. The host gives the hits of one Overlap in id order. The host skips
+a capsule Collider and logs one line. If two Overlaps share an owner and a
+slot, the host logs once and answers the first. A Raycast and an Overlap can
+use the same owner and slot.
 
-The host finds the Contacts in `engine/collision.odin`. A sweep and prune
-on x finds the pairs whose world boxes overlap. A test for each pair of
-shapes then gives the normal and depth. Two boxes get a separating axis
-test. A box turns only in the ground plane, so five axes are enough. Two
-spheres, and a box and a sphere, get direct tests. When two Colliders share
-an id, the first one collides. The host logs each shared id and each
-unknown kind once per run, and skips the Collider. A skipped Collider does
-not claim its id. Decision.
+The host answers the Queries in `engine/collision.odin`. Once per step it
+builds the Shapes and a uniform grid over them on the ground plane. ADR 0008
+records the grid. The grid finds the pairs whose world boxes overlap. A test
+for each pair of shapes then gives the normal and depth. Two boxes get a
+separating axis test. A box turns only in the ground plane, so five axes are
+enough. Two spheres, and a box and a sphere, get direct tests. When two
+Colliders share an id, the first one collides. The host logs each shared id
+and each unknown kind once per run, and skips the Collider. A skipped
+Collider does not claim its id. Decision.
 
 ```
              fixed step, step_hz                       render frame, display rate
@@ -779,8 +782,8 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   allocation. A short one fits inside the `Str` and adds none.
 - One allocation and one free per step for each non-empty `QueryResults`
   list. An empty list allocates nothing.
-- The contact search runs only when a `ContactsOf` Query asks. It then costs
-  time for each Collider, not only for each pair.
+- The Query search runs only when a Query asks. It then builds the grid,
+  which costs time for each Collider, not only for each pair.
   See section 10 for the cost at 1,000 Colliders.
 - One box shell allocation and free per step. The pool removes it.
 - One allocation and one free per step for each non-empty `Input` list. The
@@ -854,6 +857,17 @@ The cost does not come from the pairs. The same Colliders spread apart cost
 about the same. The id check and the sort take most of the time.
 `slice.sort_by` took about 200 microseconds for 1,000 elements, so the host
 uses its own heap sort.
+
+The grid of ADR 0008 replaced the sweep and prune on 2026-10-21. The same
+test on `x64win`, an i7-9700F, before and after:
+
+| Build | Sweep and prune, microseconds | Grid, microseconds |
+|---|---|---|
+| `-debug` | about 1,190 | about 450 |
+| `-o:speed` | about 220 | about 110 |
+
+The test calls `contacts_find`, which gives every pair. The Seam asks only
+for the asking owners' pairs, which costs less.
 
 Not verified:
 

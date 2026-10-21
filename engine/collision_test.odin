@@ -10,6 +10,9 @@ import "core:time"
 
 COLLISION_EPS :: f32(1e-4)
 TIMING_COLLIDERS :: 1000
+// The random scenes: spheres over a square RANDOM_HALF units from the centre.
+RANDOM_SPHERES :: 3000
+RANDOM_HALF :: f32(40)
 
 test_box :: proc(id: u64, pos: [3]f32, yaw: f32, half: [3]f32) -> Collider {
 	return {id = id, pos = {pos.x, pos.y, pos.z}, yaw = yaw, shape = {payload = {box = {half.x, half.y, half.z}}, tag = .Box}}
@@ -734,4 +737,309 @@ test_overlaps_find_skips_a_capsule_and_logs_it :: proc(t: ^testing.T) {
 
 	expect_overlap_hits(t, got, {{owner = 7, slot = 0, id = 4}})
 	testing.expect(t, search.logged_capsule)
+}
+
+// Spheres of radius 0.3 to 0.8 with ids 1 to n, from the context generator.
+random_spheres :: proc(n: int) -> []Collider {
+	spheres := make([]Collider, n, context.temp_allocator)
+	for &sphere, i in spheres {
+		pos := [3]f32{rand.float32_range(-RANDOM_HALF, RANDOM_HALF), rand.float32_range(-1, 1), rand.float32_range(-RANDOM_HALF, RANDOM_HALF)}
+		sphere = test_sphere(u64(i + 1), pos, rand.float32_range(0.3, 0.8))
+	}
+	return spheres
+}
+
+sphere_centre :: proc(col: Collider) -> [3]f32 {
+	return {col.pos.x, col.pos.y, col.pos.z}
+}
+
+// The oracle for a sphere: the distance along a unit dir to its surface, from
+// the foot of the perpendicular from its centre to the ray.
+sphere_ray_distance :: proc(origin, dir: [3]f32, sphere: Collider) -> (distance: f32, ok: bool) {
+	to_centre := sphere_centre(sphere) - origin
+	radius := sphere.shape.payload.sphere
+	if v3_dot(to_centre, to_centre) <= radius * radius {
+		return 0, true
+	}
+	foot := v3_dot(to_centre, dir)
+	miss := v3_length(to_centre - dir * foot)
+	if foot <= 0 || miss >= radius {
+		return 0, false
+	}
+	return foot - math.sqrt(radius * radius - miss * miss), true
+}
+
+@(test)
+test_contacts_find_matches_sphere_distances_in_a_random_scene :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+	r := rand.create(2)
+	context.random_generator = rand.default_random_generator(&r)
+
+	spheres := random_spheres(RANDOM_SPHERES)
+	// Ids rise with the index, so this order is the (a, b) order.
+	want := make([dynamic][2]u64, context.temp_allocator)
+	for a, i in spheres {
+		for b in spheres[i + 1:] {
+			if v3_length(sphere_centre(b) - sphere_centre(a)) < a.shape.payload.sphere + b.shape.payload.sphere {
+				append(&want, [2]u64{a.id, b.id})
+			}
+		}
+	}
+	got := contacts_find(&search, spheres, context.temp_allocator)
+
+	testing.expect(t, len(want) > 100)
+	if !testing.expect_value(t, len(got), len(want)) {
+		return
+	}
+	for pair, i in want {
+		testing.expect_value(t, [2]u64{got[i].a, got[i].b}, pair)
+	}
+}
+
+// Every third sphere asks, so many pairs have two asking owners.
+@(test)
+test_contacts_asked_matches_sphere_distances_in_a_random_scene :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+	r := rand.create(5)
+	context.random_generator = rand.default_random_generator(&r)
+
+	spheres := random_spheres(RANDOM_SPHERES)
+	queries := make([dynamic]Query, context.temp_allocator)
+	for id := u64(3); id <= RANDOM_SPHERES; id += 3 {
+		append(&queries, test_contacts_of(id))
+	}
+	want := make([dynamic][2]u64, context.temp_allocator)
+	for a, i in spheres {
+		for b in spheres[i + 1:] {
+			asked := a.id % 3 == 0 || b.id % 3 == 0
+			if asked && v3_length(sphere_centre(b) - sphere_centre(a)) < a.shape.payload.sphere + b.shape.payload.sphere {
+				append(&want, [2]u64{a.id, b.id})
+			}
+		}
+	}
+	got := contacts_asked(&search, spheres, queries[:], context.temp_allocator)
+
+	testing.expect(t, len(want) > 100)
+	if !testing.expect_value(t, len(got), len(want)) {
+		return
+	}
+	for pair, i in want {
+		testing.expect_value(t, [2]u64{got[i].a, got[i].b}, pair)
+	}
+}
+
+@(test)
+test_overlaps_find_matches_sphere_distances_in_a_random_scene :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+	r := rand.create(3)
+	context.random_generator = rand.default_random_generator(&r)
+
+	spheres := random_spheres(RANDOM_SPHERES)
+	PROBES :: 16
+	queries := make([]Query, PROBES, context.temp_allocator)
+	want := make([dynamic]Overlap_Hit, context.temp_allocator)
+	for &query, slot in queries {
+		pos := [3]f32{rand.float32_range(-RANDOM_HALF - 5, RANDOM_HALF + 5), 0, rand.float32_range(-RANDOM_HALF - 5, RANDOM_HALF + 5)}
+		radius := rand.float32_range(0.5, 6)
+		query = test_overlap_sphere(0, u32(slot), pos, radius)
+		for sphere in spheres {
+			if v3_length(sphere_centre(sphere) - pos) < radius + sphere.shape.payload.sphere {
+				append(&want, Overlap_Hit{owner = 0, slot = u32(slot), id = sphere.id})
+			}
+		}
+	}
+
+	testing.expect(t, len(want) > PROBES)
+	expect_overlap_hits(t, overlaps_find(&search, spheres, queries, context.temp_allocator), want[:])
+}
+
+@(test)
+test_rays_find_matches_sphere_distances_in_a_random_scene :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+	r := rand.create(4)
+	context.random_generator = rand.default_random_generator(&r)
+
+	spheres := random_spheres(RANDOM_SPHERES)
+	RAYS :: 40
+	MAX_DISTANCE :: f32(200)
+	queries := make([]Query, RAYS, context.temp_allocator)
+	origins := make([][3]f32, RAYS, context.temp_allocator)
+	dirs := make([][3]f32, RAYS, context.temp_allocator)
+	for &query, slot in queries {
+		// Rays start inside and outside the square, and some run along an axis.
+		origin := [3]f32{rand.float32_range(-60, 60), rand.float32_range(-1, 1), rand.float32_range(-60, 60)}
+		dir := [3]f32{rand.float32_range(-1, 1), rand.float32_range(-0.05, 0.05), rand.float32_range(-1, 1)}
+		switch slot % 5 {
+		case 0:
+			dir = {1, 0, 0}
+		case 1:
+			dir = {0, 0, -1}
+		}
+		dir /= v3_length(dir)
+		origins[slot], dirs[slot] = origin, dir
+		query = test_ray(0, u32(slot), origin, dir, MAX_DISTANCE)
+	}
+
+	got := rays_find(&search, spheres, queries, context.temp_allocator)
+
+	row := 0
+	hits := 0
+	for slot in 0 ..< RAYS {
+		nearest := MAX_DISTANCE
+		id: u64
+		for sphere in spheres {
+			distance := sphere_ray_distance(origins[slot], dirs[slot], sphere) or_continue
+			if distance <= nearest {
+				nearest, id = distance, sphere.id
+			}
+		}
+		if id == 0 {
+			continue
+		}
+		hits += 1
+		if !testing.expectf(t, row < len(got) && got[row].slot == u32(slot), "slot %v has no hit", slot) {
+			return
+		}
+		testing.expect_value(t, got[row].id, id)
+		testing.expectf(t, abs(got[row].distance - nearest) < 1e-3, "slot %v distance %v, expected %v", slot, got[row].distance, nearest)
+		row += 1
+	}
+	testing.expect_value(t, len(got), row)
+	testing.expect(t, hits > RAYS / 2)
+}
+
+// The pair overlaps on every axis, so the host must give it once at any size.
+@(test)
+test_contacts_find_gives_a_large_pair_once :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	for half in ([]f32{0.3, 1, 4}) {
+		colliders := make([dynamic]Collider, context.temp_allocator)
+		// Small spheres 1 unit apart that do not touch, under the pair.
+		for i in 0 ..< 400 {
+			append(&colliders, test_sphere(u64(10 + i), {f32(i % 20) - 10, 0, f32(i / 20) - 10}, 0.1))
+		}
+		append(&colliders, test_box(1, {0, 5, 0}, 0, {half, 0.5, half}), test_box(2, {half * 0.5, 5, half * 0.5}, 0.3, {half, 0.5, half}))
+
+		got := contacts_find(&search, colliders[:], context.temp_allocator)
+
+		if testing.expectf(t, len(got) == 1, "half %v gives %v contacts", half, len(got)) {
+			testing.expect_value(t, [2]u64{got[0].a, got[0].b}, [2]u64{1, 2})
+		}
+	}
+}
+
+// A 10 by 10 square of spheres, 5 units apart, sinks 0.1 into a wide ground box.
+@(test)
+test_queries_find_a_ground_box_under_every_sphere :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := make([dynamic]Collider, context.temp_allocator)
+	append(&colliders, test_box(1, {0, 0, 0}, 0, {50, 0.5, 50}))
+	for i in 0 ..< 100 {
+		append(&colliders, test_sphere(u64(2 + i), {f32(i % 10) * 5 - 25, 0.9, f32(i / 10) * 5 - 25}, 0.5))
+	}
+
+	contacts := contacts_find(&search, colliders[:], context.temp_allocator)
+	if testing.expect_value(t, len(contacts), 100) {
+		for contact, i in contacts {
+			testing.expect_value(t, [2]u64{contact.a, contact.b}, [2]u64{1, u64(2 + i)})
+		}
+	}
+
+	asked := contacts_asked(&search, colliders[:], []Query{test_contacts_of(2)}, context.temp_allocator)
+	if testing.expect_value(t, len(asked), 1) {
+		testing.expect_value(t, [2]u64{asked[0].a, asked[0].b}, [2]u64{1, 2})
+	}
+	testing.expect_value(t, len(contacts_asked(&search, colliders[:], []Query{test_contacts_of(1)}, context.temp_allocator)), 100)
+
+	// Sphere 2 is at (-25, 0.9, -25). A gap between spheres is at (-22.5, -22.5).
+	rays := rays_of(&search, colliders[:], test_ray(0, 0, {-25, 10, -25}, {0, -1, 0}, 20), test_ray(0, 1, {-22.5, 10, -22.5}, {0, -1, 0}, 20))
+	if testing.expect_value(t, len(rays), 2) {
+		expect_ray_hit(t, rays[0], 0, 0, 2, {-25, 1.4, -25}, {0, 1, 0}, 8.6)
+		expect_ray_hit(t, rays[1], 0, 1, 1, {-22.5, 0.5, -22.5}, {0, 1, 0}, 9.5)
+	}
+
+	overlaps := overlaps_of(&search, colliders[:], test_overlap_sphere(0, 0, {-22.5, 0.5, -22.5}, 1), test_overlap_sphere(0, 1, {-25, 0.5, -25}, 1))
+	expect_overlap_hits(t, overlaps, {{owner = 0, slot = 0, id = 1}, {owner = 0, slot = 1, id = 1}, {owner = 0, slot = 1, id = 2}})
+}
+
+// A straight-down ray that misses with no distance limit must still end.
+@(test)
+test_rays_find_a_vertical_ray_with_no_limit_that_misses :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider{test_sphere(1, {0, 0, 0}, 0.5), test_sphere(2, {5, 0, 5}, 0.5)}
+	queries := []Query{test_ray(0, 0, {2.5, 10, 2.5}, {0, -1, 0}, math.INF_F32), test_ray(0, 1, {0, 10, 0}, {0, -1, 0}, math.INF_F32)}
+
+	got := rays_find(&search, colliders, queries, context.temp_allocator)
+
+	if testing.expect_value(t, len(got), 1) {
+		expect_ray_hit(t, got[0], 0, 1, 1, {0, 0.5, 0}, {0, 1, 0}, 9.5)
+	}
+}
+
+// A Collider at infinity or with a negative size is still tested, as every
+// Collider is, and the others still collide.
+@(test)
+test_queries_still_test_colliders_with_odd_sizes :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider {
+		test_sphere(1, {0, 0, 0}, 0.5),
+		test_sphere(2, {0.5, 0, 0}, 0.5),
+		test_sphere(3, {math.INF_F32, 0, 0}, 0.5),
+		// A negative radius counts against the other radius: 3 - 0.5 > 2.
+		test_sphere(4, {0, 0, 2}, -0.5),
+	}
+
+	contacts := contacts_find(&search, colliders, context.temp_allocator)
+	if testing.expect_value(t, len(contacts), 1) {
+		testing.expect_value(t, [2]u64{contacts[0].a, contacts[0].b}, [2]u64{1, 2})
+	}
+	overlaps := overlaps_of(&search, colliders, test_overlap_sphere(0, 0, {0, 0, 0}, 3))
+	expect_overlap_hits(t, overlaps, {{owner = 0, slot = 0, id = 1}, {owner = 0, slot = 0, id = 2}, {owner = 0, slot = 0, id = 4}})
+}
+
+@(test)
+test_queries_find_two_clusters_far_apart :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	colliders := []Collider {
+		test_sphere(1, {-10000, 0, 0}, 0.5),
+		test_sphere(2, {-9999.5, 0, 0}, 0.5),
+		test_sphere(3, {10000, 0, 3}, 0.5),
+		test_sphere(4, {10000, 0, 3.5}, 0.5),
+	}
+
+	contacts := contacts_find(&search, colliders, context.temp_allocator)
+	if testing.expect_value(t, len(contacts), 2) {
+		testing.expect_value(t, [2]u64{contacts[0].a, contacts[0].b}, [2]u64{1, 2})
+		testing.expect_value(t, [2]u64{contacts[1].a, contacts[1].b}, [2]u64{3, 4})
+	}
+
+	// f32 loses a sphere's radius over a long ray, so this one starts near.
+	rays := rays_of(&search, colliders, test_ray(0, 0, {9990, 0, 3}, {1, 0, 0}, 30000))
+	if testing.expect_value(t, len(rays), 1) {
+		testing.expect_value(t, rays[0].id, 3)
+		testing.expectf(t, abs(rays[0].distance - 9.5) < 0.01, "distance %v", rays[0].distance)
+	}
 }
