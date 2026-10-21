@@ -192,6 +192,30 @@ test_bridge_step_that_the_game_quits_replies_and_ends_the_run :: proc(t: ^testin
 	testing.expect_value(t, g_fake.steps, 1)
 }
 
+@(test)
+test_bridge_step_that_the_frame_limit_cuts_short_replies_with_the_steps_so_far :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+	r.s.exit_after_frames = 2
+
+	step_run_send(t, &r, `{"op":"step","n":5}`)
+	step_run_frame(&r)
+	step_run_frame(&r)
+	if r.s.bridge.transport.holding {
+		testing.fail_now(t, "the step reply is still held")
+	}
+	reply := driver_read_reply(t, r.driver)
+
+	testing.expect_value(t, reply["ok"].(json.Boolean), true)
+	testing.expect_value(t, reply["steps"].(json.Integer), 2)
+	testing.expect(t, r.s.bridge.quit)
+	testing.expect_value(t, g_fake_platform.quits, 1)
+}
+
 // The latch still takes the events, because the debug camera reads it.
 @(test)
 test_bridge_step_ignores_the_real_keyboard_and_mouse :: proc(t: ^testing.T) {

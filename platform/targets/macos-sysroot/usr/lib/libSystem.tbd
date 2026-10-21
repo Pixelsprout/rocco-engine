@@ -69,6 +69,7 @@ exports:
       - '_mmap'
       - '_mprotect'
       - '_munmap'
+      - '_nanosleep'
       - '_open'
       - '_openat'
       - '_os_unfair_lock_lock'

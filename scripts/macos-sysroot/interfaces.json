@@ -2146,6 +2146,18 @@
           ]
         },
         {
+          "name": "_nanosleep",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/nanosleep.2.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-21T22:50:22+00:00",
+              "response_sha256": "986458d4681fc7a995377f54fbbcf0204fc56303b555bf8637199401b56066d1"
+            }
+          ]
+        },
+        {
           "name": "_open",
           "sources": [
             {

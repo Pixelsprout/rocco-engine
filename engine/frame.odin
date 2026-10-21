@@ -55,9 +55,8 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	alpha := clock_alpha(&s.clock)
 	prev, curr := seam_scenes(&s.seam)
-	// Lockstep's Alpha is 0, which draws prev. A paused Bridge run must draw
-	// the Scene that the scene op returns.
-	if s.bridge.on && s.bridge.owed_steps == 0 {
+	// Lockstep's Alpha is 0, which draws prev.
+	if bridge_paused(&s.bridge) {
 		prev = curr
 	}
 	aspect := platform.window.size.x / platform.window.size.y
@@ -88,10 +87,16 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	span_frame_end(&s.spans, s.frame_count, steps)
 
 	if exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
+		bridge_frame_limit_reached(s)
 		platform.request_quit()
 	}
 
 	frame_end(&s.mem)
+	// Under the Bridge no step takes the real latch, so it drops what a step
+	// would take.
+	if s.bridge.on {
+		input_drop(&s.input)
+	}
 	input_end_frame(&s.input)
 }
 

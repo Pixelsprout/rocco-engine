@@ -86,6 +86,40 @@ test_frame_run_with_the_bridge_runs_one_step_per_frame_while_steps_are_owed :: p
 	testing.expect_value(t, s.frame_count, 5)
 }
 
+@(test)
+test_bridge_is_paused_only_while_on_and_owed_no_step :: proc(t: ^testing.T) {
+	b: Bridge
+	testing.expect(t, !bridge_paused(&b))
+	b.on = true
+	testing.expect(t, bridge_paused(&b))
+	b.owed_steps = 1
+	testing.expect(t, !bridge_paused(&b))
+}
+
+// No step takes the real latch under the Bridge, so a key pressed now must
+// not stay Pressed. The debug camera still flies on the held key.
+@(test)
+test_frame_run_with_the_bridge_drops_the_real_pressed_keys_and_mouse_each_frame :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, mode = .Lockstep)
+	defer fake_frame_state_destroy(&s)
+	s.bridge.on = true
+	s.use_debug_camera = true
+	camera_init(&s.debug_camera)
+	eye := s.debug_camera.eye
+
+	key_down(&s.input, .W)
+	mouse_move(&s.input, 4, 5)
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+
+	testing.expect(t, !s.input.pressed[.W])
+	testing.expect_value(t, s.input.mouse, [2]f32{})
+	testing.expect(t, s.input.held[.W])
+	testing.expect(t, s.debug_camera.eye != eye)
+}
+
 // The Driver's requests arrive before the run, so headless_run answers them
 // and the quit ends it with no Frame.
 @(test)

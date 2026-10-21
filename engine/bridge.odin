@@ -7,8 +7,12 @@ import "core:net"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import "core:time"
 
 BRIDGE_ENV :: "ROCCO_BRIDGE"
+// A Bridge run has vsync off, so a paused window waits this long each Frame
+// instead of drawing as fast as it can.
+BRIDGE_PAUSE_WAIT :: 16 * time.Millisecond
 
 // A Bridge run is Lockstep that pauses: a Frame takes one fixed step while
 // the Driver is owed steps, and none otherwise.
@@ -16,8 +20,8 @@ Bridge :: struct {
 	on:         bool,
 	transport:  Bridge_Transport,
 	owed_steps: int,
-	// Set by the quit op, or by a Quit from the game. The host ends the run
-	// after the Frame.
+	// Set by the quit op, a Quit from the game or the Frame limit. The host
+	// ends the run after the Frame.
 	quit:       bool,
 	// The step op's Input. held is for every step. tap and mouse are for the
 	// first step only.
@@ -109,6 +113,11 @@ bridge_clock_time :: proc(b: ^Bridge, frame_time: f64) -> f64 {
 	return frame_time
 }
 
+// A paused Frame runs no step, and draws the Scene that the scene op returns.
+bridge_paused :: proc(b: ^Bridge) -> bool {
+	return b.on && b.owed_steps == 0
+}
+
 // The Input for one step under the Bridge, in place of the real devices. It
 // derives Pressed from the held keys of the step before, as the real latch
 // does from key-down events.
@@ -138,6 +147,20 @@ bridge_step_taken :: proc(s: ^State, alloc: Alloc_Report, quit: bool) {
 	if b.owed_steps == 0 {
 		bridge_send_step_reply(s)
 	}
+}
+
+// The Frame limit ends the run. A step op that it cuts short still gets its
+// reply, with the steps run so far.
+bridge_frame_limit_reached :: proc(s: ^State) {
+	b := &s.bridge
+	if !b.on {
+		return
+	}
+	if b.transport.holding {
+		b.owed_steps = 0
+		bridge_send_step_reply(s)
+	}
+	b.quit = true
 }
 
 @(private = "file")

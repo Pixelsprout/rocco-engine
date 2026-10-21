@@ -317,7 +317,8 @@ start a `held` of Space after a step where it was not held.
    `view`.
 3. The run waits for a Driver. It is Lockstep that pauses: each frame runs
    one fixed step while the Driver is owed steps, and no step otherwise.
-   The window keeps drawing while the run waits.
+   The window keeps drawing while the run waits, but no faster than about
+   60 frames a second.
 4. A Driver connects and sends requests. The host answers them one at a
    time, between frames.
 5. When the Driver disconnects, the run stays where it is, and the host
@@ -351,8 +352,9 @@ A Headless run takes one frame for each step, and draws nothing.
 - A screenshot's size depends on the display's scale. Compare `logical`
   with the Launch window size, and the PNG with `physical`.
 - With `ROCCO_EXIT_AFTER_FRAMES`, a windowed Bridge run still stops after
-  that many frames, and it counts the frames where it waits. Leave it unset
-  when a Driver ends the run.
+  that many frames, and it counts the frames where it waits. If the frames
+  run out during a `step`, the host sends the reply with the steps it ran,
+  then ends the run. Leave it unset when a Driver ends the run.
 - A Scene whose `cursor` is `Locked` still locks the real mouse in the
   window.
 - The ops `tell`, `ask` and `listen` are kept for a later version. Today

@@ -8,6 +8,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:time"
 
 import "base:runtime"
 
@@ -160,6 +161,9 @@ init_cb :: proc "c" () {
 frame_cb :: proc "c" () {
 	context = g_state.ctx
 
+	if bridge_paused(&g_state.bridge) {
+		time.sleep(BRIDGE_PAUSE_WAIT)
+	}
 	// The first Frame draws before any request is read, so a screenshot
 	// always has a Frame to read.
 	if g_state.frame_count > 0 {
