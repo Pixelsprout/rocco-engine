@@ -1,10 +1,16 @@
+## Turns mesh names into the mesh ids that a Draw carries.
 Mesh := [].{
+
+	## The name-to-id list that `loaded` gets for one Pack. It has the same
+	## shape as `Vocabulary.Manifest`.
 	Manifest : List({ name : Str, id : U32 })
 
-	# The meshes the engine builds itself. Loaded files have no tag; name them.
+	## The meshes that the engine builds itself. A loaded file has no tag. Give
+	## its name to `resolve`.
 	Primitive : [Cube, Sphere, Plane]
 
-	# The primitives load at startup and never unload, so their ids are fixed.
+	## The fixed mesh id of a Primitive: cube 1, sphere 2, plane 3. The
+	## Primitives load at startup and never unload, so you need no Pack.
 	primitive : Primitive -> U32
 	primitive = |p| match p {
 		Cube => 1
@@ -12,8 +18,9 @@ Mesh := [].{
 		Plane => 3
 	}
 
-	# Mesh ids are opaque. Resolve them here once, in loaded, and keep them in the Model.
-	# A name the engine did not load resolves to 0, the fallback mesh, and prints the name.
+	## The mesh id of a name in the Manifest. Call it once, in `loaded`, and keep
+	## the id in your Model. A name that the engine did not load gives 0, the
+	## Fallback mesh, and prints the name.
 	resolve : Manifest, Str -> U32
 	resolve = |manifest, name| match List.find_first(manifest, |m| m.name == name) {
 		Ok(m) => m.id

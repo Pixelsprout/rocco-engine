@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs inside the image from scripts/linux/Dockerfile with the repo at /work.
-# Builds every game, runs it, runs the tests, the host check, the alloc check
-# and the bench smoke test.
+# Builds every game, checks the docs, runs each game, runs the tests,
+# the host check, the alloc check and the bench smoke test.
 # Pass --release to build the release host and inputs.
 set -eu
 cd /work
@@ -18,6 +18,9 @@ roc version
 sh scripts/linux/build-sokol.sh
 
 roc scripts/build.roc all "$@"
+
+echo "== docs check"
+roc scripts/build.roc docs --check
 
 # The timeout turns a hang into a failure instead of a stuck container.
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"

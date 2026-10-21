@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     paths: ['.dex/tasks.jsonl']
+  release:
+    types: [published]
+  # The release workflow publishes with the GITHUB_TOKEN, which starts no
+  # release event, so the end of that workflow starts the rebuild.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions: {}
@@ -14,6 +21,7 @@ concurrency:
 
 jobs:
   deploy-hook:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Ask Vercel to rebuild pixelsprout.dev

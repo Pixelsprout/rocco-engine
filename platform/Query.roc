@@ -1,23 +1,30 @@
 import Vocabulary exposing [Vec3]
 
-# Builds the Queries a game returns in Scene.queries.
+## Builds the Queries that your game returns in `Scene.queries`. The owner is
+## the draw id that a Query belongs to. The host skips the owner's own
+## Collider. Read the results in the next `step` with `QueryResults`.
 Query := [].{
-	# Asks for each Contact that involves the owner's Collider.
+
+	## Asks for each Contact that involves the owner's Collider.
 	contacts_of : U64 -> Vocabulary.Query
 	contacts_of = |owner| ContactsOf(owner)
 
-	# Asks for the nearest Collider along dir within max_distance, in slot 0.
+	## Asks for the nearest Collider along `dir` within `max_distance`, in slot 0.
 	ray : U64, Vec3, Vec3, F32 -> Vocabulary.Query
 	ray = |owner, origin, dir, max_distance| Query.ray_slot(owner, 0, origin, dir, max_distance)
 
+	## The same as `ray`, in a slot that you choose. Use a different slot for
+	## each Raycast of one owner.
 	ray_slot : U64, U32, Vec3, Vec3, F32 -> Vocabulary.Query
 	ray_slot = |owner, slot, origin, dir, max_distance| Raycast({ owner, slot, origin, dir, max_distance, exclude: [] })
 
-	# Asks for each Collider that the shape at pos touches, in slot 0. A box
-	# carries its half extents and does not turn.
+	## Asks for each Collider that the shape at `pos` touches, in slot 0. A box
+	## carries its half extents and does not turn.
 	overlap : U64, [Box(Vec3), Sphere(F32)], Vec3 -> Vocabulary.Query
 	overlap = |owner, shape, pos| Query.overlap_slot(owner, 0, shape, pos)
 
+	## The same as `overlap`, in a slot that you choose. Use a different slot
+	## for each Overlap of one owner.
 	overlap_slot : U64, U32, [Box(Vec3), Sphere(F32)], Vec3 -> Vocabulary.Query
 	overlap_slot = |owner, slot, shape, pos| Overlap({ owner, slot, shape, pos, exclude: [] })
 }

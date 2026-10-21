@@ -1,5 +1,7 @@
 app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
+# guide/install.md copies this region. Run roc scripts/build.roc docs after a change.
+# region: game
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Manifest]
@@ -12,7 +14,7 @@ import pf.Key
 import pf.Light
 import pf.QueryResults
 
-# A second game on the same platform. No entities and no positions in the Model.
+# A game with no entities and no positions in the Model.
 Card : [Ace, King, Number(U8)]
 
 Model : { hand : List(Card), turns : U64, name : Str, card_mesh : U32 }
@@ -72,6 +74,7 @@ view = |m| {
 	)
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, lights }
 }
+# endregion
 
 expect {
 	press = { ..Input.empty, pressed: [Key.code(Space)] }

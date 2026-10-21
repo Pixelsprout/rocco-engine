@@ -52,7 +52,7 @@ Keys := [].{
 	key_module = |keys| {
 		tags = Str.join_with(keys.map(|key| "\t${key.tag},\n"), "")
 		codes = Str.join_with(keys.map(|key| "\t\t${key.tag} => ${key.code.to_str()}\n"), "")
-		Str.join_with([key_module_head, key_module_intro, "Key := [\n", tags, "].{\n", key_module_code_head, codes, key_module_tail], "")
+		Str.join_with([key_module_head, key_module_intro, "Key := [\n", tags, "].{\n\n", key_module_code_head, codes, key_module_tail], "")
 	}
 
 	key_module_head : Str
@@ -62,11 +62,13 @@ Keys := [].{
 	key_module_intro =
 		\\import Vocabulary exposing [Input]
 		\\
-		\\# A named sokol key code. The game decides what a key means.
+		\\## A named sokol key code, such as `W` or `Space`. Input carries the code.
+		\\## Your game decides what a key means.
 		\\
 
 	key_module_code_head : Str
 	key_module_code_head =
+		\\	## The sokol key code of a key, as Input carries it.
 		\\	code : Key -> U16
 		\\	code = |key| match key {
 		\\
@@ -75,13 +77,17 @@ Keys := [].{
 	key_module_tail =
 		\\	}
 		\\
+		\\	## True while the key is down. Ask twice in one step and you get the same answer.
 		\\	held : Input, Key -> Bool
 		\\	held = |input, key| List.contains(input.held, code(key))
 		\\
+		\\	## True in the first step after the key went down. A key tapped between
+		\\	## two steps is pressed but not held.
 		\\	pressed : Input, Key -> Bool
 		\\	pressed = |input, key| List.contains(input.pressed, code(key))
 		\\
-		\\	# 1.0 when only pos is held, -1.0 when only neg is held, else 0.0.
+		\\	## 1.0 when only `pos` is held, -1.0 when only `neg` is held, else 0.0.
+		\\	## For example, `Key.axis(input, S, W)` gives a forward speed.
 		\\	axis : Input, Key, Key -> F32
 		\\	axis = |input, neg, pos| (if held(input, pos) 1.0 else 0.0) - (if held(input, neg) 1.0 else 0.0)
 		\\}

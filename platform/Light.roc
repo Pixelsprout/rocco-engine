@@ -1,16 +1,23 @@
 import Vocabulary exposing [Rgb, Vec3]
 
-# Builds the Lights a game returns in its Scene.
+## Builds the Lights that your game returns in `Scene.lights`. A colour carries
+## its intensity and can exceed 1.
 Light := [].{
+
+	## Light from all directions.
 	ambient : Rgb -> Vocabulary.Light
 	ambient = |color| Ambient(color)
 
+	## Light that travels along `dir` and casts no shadow.
 	directional : Vec3, Rgb -> Vocabulary.Light
 	directional = |dir, color| Directional({ dir, color, shadow: False })
 
+	## A Directional light that casts a shadow. Only the first one in the list
+	## casts a shadow.
 	sun : Vec3, Rgb -> Vocabulary.Light
 	sun = |dir, color| Directional({ dir, color, shadow: True })
 
+	## Light from `pos` that falls off to zero at `range`.
 	point : Vec3, Rgb, F32 -> Vocabulary.Light
 	point = |pos, color, range| Point({ pos, color, range })
 }

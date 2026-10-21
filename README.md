@@ -75,6 +75,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
+| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh` and `packages/ui`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
@@ -89,7 +90,9 @@ The script stops at the first step that fails. After a change, run `glue`,
 and cannot tell whether that output is stale.
 
 `roc test scripts/build.roc` runs the script's tests. `roc test
-scripts/Keys.roc` runs only the tests of the Key generator.
+scripts/Keys.roc` runs only the tests of the Key generator. `roc test
+scripts/Regions.roc` runs only the tests of the region copy. `roc test
+scripts/DocCheck.roc` runs only the tests of the missing-comment check.
 `./scripts/host-check.sh` runs the tests inside `platform/Key.roc`. `odin test
 engine -debug` runs the engine's tests. `odin test scripts/font_bake` runs
 the tests of the font bake tool. `python3 -m unittest
@@ -109,8 +112,9 @@ request. The macOS job builds with `--release`, runs cards, entity-game and
 pong for one frame, and runs `scripts/test-all.sh`. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
-stub audit. The Windows job builds sokol with `scripts\windows\build_sokol.cmd`,
-then builds with `--release`, runs the same three games and
+stub audit. The container script also runs `docs --check`. The Windows job
+builds sokol with `scripts\windows\build_sokol.cmd`, then builds with
+`--release`, runs the same three games and
 `scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
 the sokol step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
@@ -121,12 +125,24 @@ host and inputs with `--release` and uploads `platform/targets/<target>/`. A
 Linux job runs `roc bundle` for the platform and for `packages/linalg`,
 `packages/mesh` and `packages/ui`. It publishes the four bundles in a
 prerelease, each named `<name>-<hash>.tar.zst`. Roc takes URLs that differ
-only in the hash as one package, so the name must stay in front. The notes name each bundle URL and the Roc nightly. Next, a job on
-each OS installs only Roc and runs cards from the bundle URLs. If all three
-pass, the last job marks the release final and latest. If one fails, the
-release stays a prerelease. `scripts/release.py` points the header of
+only in the hash as one package, so the name must stay in front. The notes
+name each bundle URL and the Roc nightly. Next, a job on each OS installs
+only Roc and runs cards from the bundle URLs. If all three pass, the last job
+marks the release final and latest. If one fails, the release stays a
+prerelease. A tag with a hyphen, such as `v0.2.0-rc.1`, also stays a
+prerelease. `scripts/release.py` points the header of
 `examples/cards/main.roc` at the bundle URLs and writes the notes. `python3 -m
 unittest scripts/test_release.py` runs its tests.
+
+The bundle job also runs `roc scripts/build.roc docs --check` and attaches
+`docs.tar.gz` to the release. The tarball holds the API HTML of the four
+bundles and `urls.json`. `urls.json` gives the value of each marker in the
+guide pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url` and
+`roc_nightly`. `scripts/release.py docs` makes the tarball. After the
+publish, `scripts/release.py check-docs` reads the published tarball. It
+fails if a URL names no asset of the release. When the release workflow
+passes, `.github/workflows/grow-site.yml` asks Vercel to rebuild
+pixelsprout.dev.
 
 The macOS sysroot in `platform/targets/macos-sysroot/` is committed. After
 a sokol, Clay or engine change, run `python3 scripts/make_macos_sysroot.py
@@ -212,6 +228,49 @@ The script runs on macOS only. It builds `scripts/macos/wincap.swift` into
 `build/wincap` with `swiftc` when the source changes. The first capture
 asks for Screen Recording permission for the terminal. Grant it, then run the
 script again.
+
+### Docs
+
+`guide/` holds the docs for game authors, as Markdown that reads correctly
+on GitHub. Each page starts with YAML frontmatter: `title`, `summary` and
+`order`. The site sorts the pages of each folder by `order`. `docs/` holds
+the internal documents, not the guide.
+
+The code in a page comes from a region in a Roc file, so it builds. The Roc
+file marks the region:
+
+```roc
+# region: game
+launch = |_config| Launch.default
+# endregion
+```
+
+The page marks the place for the region with two region lines around a
+fenced block. The path is from the repository root:
+
+```md
+<!-- region: examples/cards/main.roc#game -->
+<!-- endregion -->
+```
+
+`roc scripts/build.roc docs` replaces the lines between the two region lines
+of a page with the region in a `roc` fenced block. Do not edit those lines by
+hand. `docs --check` names each page and region that differs from its source.
+It also names a missing file, a missing region and a region with no end line.
+
+The API pages come from `##` comments in the platform and in the bundled
+packages. Every exposed module, type and function has a `##` block directly
+above its declaration. A `#` line between the block and the declaration
+hides the block from `roc docs`. `roc docs` shows no `##` on a record field,
+so the type's block describes its fields in a Markdown list. The `docs` step
+names each item with no `##` comment, such as `platform: Light.point`, and
+fails.
+
+A page cannot hold the bundle URLs of its own release, because the URLs come
+from the bundle hashes. The header block of a page holds markers instead:
+`{{platform_url}}`, `{{linalg_url}}`, `{{mesh_url}}`, `{{ui_url}}` and
+`{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
+reader to get the values from the latest release.
 
 ### macOS
 
@@ -380,6 +439,9 @@ does not call it again. After a change to `launch`, restart the game.
 | `bench/roc-heap/` | The Roc heap micro benchmark: alloc and free pairs and realloc lists through the Roc heap hooks. `odin run bench/roc-heap -o:speed -out:build/roc-heap` runs it. |
 | `scripts/build.roc` | The build script. Its `target` command gives the check scripts the Roc target, binary suffix and host library. |
 | `scripts/Keys.roc` | The Key generator. `build.roc` imports it to write `platform/Key.roc`. |
+| `scripts/Regions.roc` | The region copy. `build.roc` imports it to copy each region into the `guide/` pages. |
+| `scripts/DocCheck.roc` | The missing-comment check. `build.roc` imports it to find each API item with no `##` comment. |
+| `guide/` | The docs for game authors. `guide/install.md` is the first page. See "Docs". |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game and pong. |
@@ -403,6 +465,9 @@ does not call it again. After a change to `launch`, restart the game.
 | `docs/GLOSSARY.md` | Terms as rocco uses them. |
 
 ## A game outside this repo
+
+`guide/install.md` tells a game author how to run a game from the release
+bundles with only Roc installed.
 
 A game is a Roc app whose header names this platform. Point `pf` at a
 checkout of this repo:

@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-for file in examples/*/main.roc packages/*/main.roc scripts/build.roc scripts/Keys.roc; do
+for file in examples/*/main.roc packages/*/main.roc scripts/build.roc scripts/Keys.roc scripts/Regions.roc scripts/DocCheck.roc; do
 	[ -f "$file" ] || continue
 	echo "== roc check $file"
 	roc check "$file"
