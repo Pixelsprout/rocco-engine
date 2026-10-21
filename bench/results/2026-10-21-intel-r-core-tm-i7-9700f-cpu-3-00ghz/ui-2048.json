@@ -3,7 +3,7 @@
   "n": 2048,
   "mode": "lockstep",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9481711398290028597,
+  "shuffle_seed": 1543126650194575937,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -48,7 +48,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 18.2,
+      "max": 23.4,
       "process_medians": [
         0.0,
         0.0,
@@ -59,16 +59,16 @@
       "spread": 0.0
     },
     "step_us": {
-      "median": 0.8,
+      "median": 0.7,
       "p95": 1.1,
       "p99": 1.2,
-      "max": 24.6,
+      "max": 24.5,
       "process_medians": [
-        0.8,
-        0.8,
-        0.8,
-        0.8,
-        0.8
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.7
       ],
       "spread": 0.0
     },
@@ -76,7 +76,7 @@
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 24.0,
+      "max": 23.2,
       "process_medians": [
         0.1,
         0.1,
@@ -87,24 +87,24 @@
       "spread": 0.0
     },
     "view_us": {
-      "median": 576.9,
-      "p95": 687.905,
-      "p99": 791.004,
-      "max": 1282.5,
+      "median": 573.3,
+      "p95": 771.2,
+      "p99": 863.206,
+      "max": 1222.8,
       "process_medians": [
-        558.7,
-        560.1,
-        593.65,
-        579.6,
-        555.1
+        574.0,
+        558.9,
+        608.0,
+        561.35,
+        560.05
       ],
-      "spread": 38.55
+      "spread": 49.1
     },
     "queries_us": {
       "median": 0.2,
-      "p95": 0.3,
-      "p99": 0.5,
-      "max": 19.7,
+      "p95": 0.2,
+      "p99": 0.2,
+      "max": 16.1,
       "process_medians": [
         0.2,
         0.2,
@@ -118,63 +118,63 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 14.9,
+      "max": 0.4,
       "process_medians": [
         0.0,
-        0.05,
+        0.0,
         0.0,
         0.0,
         0.0
       ],
-      "spread": 0.05
+      "spread": 0.0
     },
     "interpolation_us": {
-      "median": 5.0,
-      "p95": 8.8,
-      "p99": 10.2,
-      "max": 32.1,
+      "median": 4.8,
+      "p95": 8.7,
+      "p99": 10.1,
+      "max": 38.4,
       "process_medians": [
-        5.3,
         4.8,
         4.8,
-        6.1,
-        4.8
+        4.8,
+        4.8,
+        6.2
       ],
-      "spread": 1.3
+      "spread": 1.4
     },
     "ui_layout_us": {
-      "median": 1078.1,
-      "p95": 1223.92,
-      "p99": 1350.001,
-      "max": 1790.7,
+      "median": 1079.3,
+      "p95": 1232.015,
+      "p99": 1354.001,
+      "max": 1649.2,
       "process_medians": [
-        1057.3,
-        1057.2,
-        1058.65,
-        1099.8,
-        1059.0
+        1094.6,
+        1058.5,
+        1059.1,
+        1058.9,
+        1058.75
       ],
-      "spread": 42.6
+      "spread": 36.1
     },
     "render_submit_us": {
       "median": 8.5,
-      "p95": 14.2,
-      "p99": 26.9,
-      "max": 230.7,
+      "p95": 13.6,
+      "p99": 24.7,
+      "max": 214.7,
       "process_medians": [
         8.5,
-        8.55,
         8.5,
         8.7,
-        8.5
+        8.5,
+        8.4
       ],
-      "spread": 0.2
+      "spread": 0.3
     },
     "commit_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 15.4,
+      "max": 21.8,
       "process_medians": [
         0.1,
         0.1,
@@ -187,18 +187,18 @@
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 2260.1,
-    "p95": 2551.12,
-    "p99": 2764.316,
-    "max": 3729.7,
+    "median": 2253.05,
+    "p95": 2658.015,
+    "p99": 2854.241,
+    "max": 3524.1,
     "process_medians": [
-      2224.2,
-      2224.7,
-      2296.85,
-      2307.5,
-      2220.4
+      2286.0,
+      2217.4,
+      2368.75,
+      2232.3,
+      2222.3
     ],
-    "spread": 87.1
+    "spread": 151.35
   },
   "roc_heap_counters": {
     "allocs_per_step": 4100.0,

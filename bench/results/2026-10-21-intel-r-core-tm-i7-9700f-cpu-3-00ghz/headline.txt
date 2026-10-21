@@ -1,14 +1,14 @@
 mixed in 2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz: p99 Frame CPU time at 2 fixed steps per Frame
 
        N   median ms      p99 ms  under 16.6 ms
-      64       0.223       0.393  yes
-     128       0.369       0.551  yes
-     256       0.675       1.083  yes
-     512       1.335       1.751  yes
-    1024       2.593       3.249  yes
-    2048       5.418       6.430  yes
-    4096      11.540      12.439  yes
-    8192      24.601      26.828  no
-   16384      52.893      56.509  no
+      64       0.170       0.318  yes
+     128       0.252       0.397  yes
+     256       0.433       0.809  yes
+     512       0.742       0.973  yes
+    1024       1.383       1.751  yes
+    2048       2.726       3.279  yes
+    4096       5.414       6.372  yes
+    8192      11.420      12.766  yes
+   16384      22.938      25.687  no
 
-Headline: N = 4096.
+Headline: N = 8192.

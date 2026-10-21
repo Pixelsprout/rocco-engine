@@ -3,7 +3,7 @@
   "n": 2048,
   "mode": "lockstep",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9481711398290028597,
+  "shuffle_seed": 1543126650194575937,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -42,7 +42,7 @@
     "power": "ac",
     "low_power_mode": false
   },
-  "span_cost_us": 0.0112,
+  "span_cost_us": 0.0111,
   "spans": {
     "input_us": {
       "median": 0.0,
@@ -59,15 +59,15 @@
       "spread": 0.0
     },
     "step_us": {
-      "median": 6.1,
-      "p95": 7.3,
-      "p99": 16.506,
-      "max": 49.8,
+      "median": 6.2,
+      "p95": 7.4,
+      "p99": 20.101,
+      "max": 69.0,
       "process_medians": [
         6.1,
         6.1,
-        6.1,
         6.2,
+        6.1,
         6.3
       ],
       "spread": 0.2
@@ -76,7 +76,7 @@
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 13.1,
+      "max": 0.7,
       "process_medians": [
         0.1,
         0.1,
@@ -88,23 +88,23 @@
     },
     "view_us": {
       "median": 9.4,
-      "p95": 10.3,
-      "p99": 24.3,
-      "max": 62.8,
+      "p95": 10.5,
+      "p99": 25.1,
+      "max": 106.1,
       "process_medians": [
         9.4,
-        9.5,
-        9.5,
         9.2,
-        9.4
+        9.4,
+        9.3,
+        9.7
       ],
-      "spread": 0.3
+      "spread": 0.5
     },
     "queries_us": {
       "median": 0.2,
       "p95": 0.2,
       "p99": 0.3,
-      "max": 22.5,
+      "max": 15.5,
       "process_medians": [
         0.2,
         0.2,
@@ -118,7 +118,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 21.3,
+      "max": 13.2,
       "process_medians": [
         0.0,
         0.0,
@@ -129,76 +129,76 @@
       "spread": 0.0
     },
     "interpolation_us": {
-      "median": 226.8,
-      "p95": 264.7,
-      "p99": 317.202,
-      "max": 916.5,
+      "median": 228.3,
+      "p95": 268.71,
+      "p99": 320.013,
+      "max": 613.5,
       "process_medians": [
-        224.7,
-        225.6,
-        227.0,
-        227.1,
-        227.0
+        227.9,
+        228.8,
+        228.6,
+        227.3,
+        228.6
       ],
-      "spread": 2.4
+      "spread": 1.5
     },
     "ui_layout_us": {
       "median": 54.0,
-      "p95": 57.0,
-      "p99": 83.802,
-      "max": 331.8,
+      "p95": 67.705,
+      "p99": 85.201,
+      "max": 132.7,
       "process_medians": [
         54.2,
-        54.0,
         53.9,
+        54.0,
         54.0,
         54.1
       ],
       "spread": 0.3
     },
     "render_submit_us": {
-      "median": 1766.4,
-      "p95": 1993.805,
-      "p99": 2224.115,
-      "max": 3034.0,
+      "median": 1685.9,
+      "p95": 1935.43,
+      "p99": 2135.74,
+      "max": 3236.2,
       "process_medians": [
-        1745.9,
-        1740.75,
-        1711.85,
-        1728.35,
-        1812.15
+        1692.45,
+        1665.65,
+        1688.6,
+        1697.5,
+        1668.45
       ],
-      "spread": 100.3
+      "spread": 31.85
     },
     "commit_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 23.8,
+      "max": 22.9,
       "process_medians": [
         0.1,
-        0.2,
-        0.2,
+        0.1,
+        0.1,
         0.1,
         0.1
       ],
-      "spread": 0.1
+      "spread": 0.0
     }
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 2082.85,
-    "p95": 2332.705,
-    "p99": 2586.315,
-    "max": 3858.1,
+    "median": 2006.3,
+    "p95": 2281.31,
+    "p99": 2521.821,
+    "max": 3594.7,
     "process_medians": [
-      2060.9,
-      2072.2,
-      2047.15,
-      2045.95,
-      2140.85
+      2009.4,
+      2000.1,
+      2009.0,
+      2021.6,
+      2002.4
     ],
-    "spread": 94.9
+    "spread": 21.5
   },
   "roc_heap_counters": {
     "allocs_per_step": 2.0,

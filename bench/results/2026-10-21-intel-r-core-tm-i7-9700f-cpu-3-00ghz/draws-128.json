@@ -3,7 +3,7 @@
   "n": 128,
   "mode": "lockstep",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9481711398290028597,
+  "shuffle_seed": 1543126650194575937,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -42,13 +42,13 @@
     "power": "ac",
     "low_power_mode": false
   },
-  "span_cost_us": 0.0111,
+  "span_cost_us": 0.0114,
   "spans": {
     "input_us": {
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 13.0,
+      "max": 23.5,
       "process_medians": [
         0.0,
         0.0,
@@ -59,16 +59,16 @@
       "spread": 0.0
     },
     "step_us": {
-      "median": 1.1,
+      "median": 1.0,
       "p95": 1.2,
       "p99": 1.5,
-      "max": 24.6,
+      "max": 76.3,
       "process_medians": [
         1.0,
         1.0,
         1.0,
-        1.0,
-        1.1
+        1.1,
+        1.0
       ],
       "spread": 0.1
     },
@@ -87,30 +87,30 @@
       "spread": 0.0
     },
     "view_us": {
-      "median": 1.4,
+      "median": 1.3,
       "p95": 1.6,
-      "p99": 2.2,
-      "max": 80.0,
+      "p99": 2.1,
+      "max": 28.5,
       "process_medians": [
-        1.4,
         1.3,
-        1.4,
         1.3,
-        1.4
+        1.3,
+        1.3,
+        1.3
       ],
-      "spread": 0.1
+      "spread": 0.0
     },
     "queries_us": {
-      "median": 0.1,
+      "median": 0.2,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 29.2,
+      "max": 14.3,
       "process_medians": [
-        0.1,
-        0.1,
-        0.1,
-        0.1,
-        0.1
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2
       ],
       "spread": 0.0
     },
@@ -118,7 +118,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 0.1,
+      "max": 23.5,
       "process_medians": [
         0.0,
         0.0,
@@ -129,52 +129,52 @@
       "spread": 0.0
     },
     "interpolation_us": {
-      "median": 12.3,
-      "p95": 12.5,
-      "p99": 25.9,
-      "max": 73.0,
+      "median": 12.4,
+      "p95": 12.7,
+      "p99": 27.2,
+      "max": 98.7,
       "process_medians": [
-        12.3,
-        12.3,
-        12.3,
-        12.3,
-        12.3
+        12.4,
+        12.4,
+        12.5,
+        12.5,
+        12.4
       ],
-      "spread": 0.0
+      "spread": 0.1
     },
     "ui_layout_us": {
       "median": 53.7,
-      "p95": 55.8,
-      "p99": 91.4,
-      "max": 200.2,
+      "p95": 66.9,
+      "p99": 91.801,
+      "max": 242.5,
       "process_medians": [
+        53.7,
         53.8,
-        53.7,
-        53.7,
         53.6,
+        53.8,
         53.7
       ],
       "spread": 0.2
     },
     "render_submit_us": {
-      "median": 114.7,
-      "p95": 144.3,
-      "p99": 184.501,
-      "max": 471.7,
+      "median": 111.6,
+      "p95": 140.4,
+      "p99": 179.401,
+      "max": 454.6,
       "process_medians": [
-        114.3,
-        113.8,
-        115.3,
-        113.6,
-        118.9
+        111.5,
+        111.8,
+        111.0,
+        112.6,
+        111.2
       ],
-      "spread": 5.3
+      "spread": 1.6
     },
     "commit_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 37.3,
+      "max": 22.0,
       "process_medians": [
         0.1,
         0.1,
@@ -187,18 +187,18 @@
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 186.3,
-    "p95": 223.705,
-    "p99": 293.001,
-    "max": 726.3,
+    "median": 183.3,
+    "p95": 223.11,
+    "p99": 286.601,
+    "max": 656.9,
     "process_medians": [
-      185.9,
-      185.4,
-      186.8,
-      185.0,
-      190.7
+      183.2,
+      183.5,
+      182.7,
+      184.4,
+      182.8
     ],
-    "spread": 5.7
+    "spread": 1.7
   },
   "roc_heap_counters": {
     "allocs_per_step": 2.0,

@@ -3,79 +3,79 @@
   "mode": "real-clock",
   "warmup_frames": 120,
   "measured_frames": 2000,
-  "span_cost_us": 0.0111,
+  "span_cost_us": 0.0112,
   "steps_per_frame": {
     "2": 2000
   },
   "frame_cpu_us": {
-    "median": 106.3,
-    "p95": 167.7,
-    "p99": 188.501,
-    "max": 219.8
+    "median": 107.0,
+    "p95": 168.0,
+    "p99": 191.305,
+    "max": 246.6
   },
   "spans": {
     "input_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 21.4
+      "max": 23.5
     },
     "step_us": {
-      "median": 9.4,
-      "p95": 28.905,
-      "p99": 29.8,
-      "max": 67.8
+      "median": 9.1,
+      "p95": 28.8,
+      "p99": 29.9,
+      "max": 50.5
     },
     "commands_us": {
       "median": 0.2,
       "p95": 0.3,
       "p99": 0.3,
-      "max": 22.6
+      "max": 21.3
     },
     "view_us": {
-      "median": 4.7,
+      "median": 4.9,
       "p95": 6.1,
-      "p99": 23.701,
-      "max": 36.3
+      "p99": 24.601,
+      "max": 42.5
     },
     "queries_us": {
-      "median": 7.6,
-      "p95": 21.1,
-      "p99": 31.2,
-      "max": 46.6
+      "median": 7.1,
+      "p95": 19.615,
+      "p99": 29.1,
+      "max": 47.7
     },
     "query_results_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 21.3
+      "max": 15.8
     },
     "interpolation_us": {
-      "median": 6.7,
-      "p95": 10.7,
-      "p99": 22.204,
-      "max": 45.0
+      "median": 7.4,
+      "p95": 11.2,
+      "p99": 23.903,
+      "max": 37.3
     },
     "ui_layout_us": {
-      "median": 53.8,
-      "p95": 92.205,
-      "p99": 101.117,
-      "max": 130.6
+      "median": 54.0,
+      "p95": 94.8,
+      "p99": 109.901,
+      "max": 170.0
     },
     "render_submit_us": {
-      "median": 21.9,
-      "p95": 38.305,
-      "p99": 49.601,
-      "max": 94.8
+      "median": 22.4,
+      "p95": 38.605,
+      "p99": 45.501,
+      "max": 63.5
     },
     "commit_us": {
-      "median": 0.1,
-      "p95": 0.2,
-      "p99": 0.4,
-      "max": 0.6
+      "median": 0.2,
+      "p95": 0.3,
+      "p99": 0.5,
+      "max": 15.5
     }
   },
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",

@@ -3,7 +3,7 @@
   "n": 512,
   "mode": "headless",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -23,7 +23,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9974194161946261471,
+  "shuffle_seed": 10305236410392128080,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -34,13 +34,13 @@
     "power": "ac",
     "low_power_mode": false
   },
-  "span_cost_us": 0.0113,
+  "span_cost_us": 0.0114,
   "spans": {
     "input_us": {
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 0.1,
+      "max": 214.5,
       "process_medians": [
         0.0,
         0.0,
@@ -51,24 +51,24 @@
       "spread": 0.0
     },
     "step_us": {
-      "median": 2.0,
-      "p95": 2.2,
-      "p99": 2.5,
-      "max": 56.6,
+      "median": 1.6,
+      "p95": 1.7,
+      "p99": 1.9,
+      "max": 30.6,
       "process_medians": [
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0
+        1.6,
+        1.6,
+        1.6,
+        1.6,
+        1.7
       ],
-      "spread": 0.0
+      "spread": 0.1
     },
     "commands_us": {
       "median": 0.1,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 3.7,
+      "max": 0.2,
       "process_medians": [
         0.1,
         0.1,
@@ -79,74 +79,74 @@
       "spread": 0.0
     },
     "view_us": {
-      "median": 2.9,
-      "p95": 3.1,
-      "p99": 3.4,
-      "max": 82.6,
+      "median": 2.6,
+      "p95": 2.8,
+      "p99": 3.0,
+      "max": 38.3,
       "process_medians": [
-        3.0,
-        3.0,
-        2.8,
-        2.9,
-        2.9
-      ],
-      "spread": 0.2
-    },
-    "queries_us": {
-      "median": 292.0,
-      "p95": 336.705,
-      "p99": 381.511,
-      "max": 826.8,
-      "process_medians": [
-        299.5,
-        290.5,
-        291.4,
-        290.5,
-        290.4
-      ],
-      "spread": 9.1
-    },
-    "query_results_us": {
-      "median": 0.6,
-      "p95": 0.9,
-      "p99": 1.1,
-      "max": 24.2,
-      "process_medians": [
-        0.6,
-        0.6,
-        0.7,
-        0.7,
-        0.7
+        2.6,
+        2.6,
+        2.7,
+        2.7,
+        2.6
       ],
       "spread": 0.1
     },
+    "queries_us": {
+      "median": 38.5,
+      "p95": 40.2,
+      "p99": 61.402,
+      "max": 241.5,
+      "process_medians": [
+        38.6,
+        38.5,
+        38.5,
+        38.6,
+        38.5
+      ],
+      "spread": 0.1
+    },
+    "query_results_us": {
+      "median": 0.4,
+      "p95": 0.5,
+      "p99": 0.6,
+      "max": 27.3,
+      "process_medians": [
+        0.4,
+        0.4,
+        0.4,
+        0.4,
+        0.4
+      ],
+      "spread": 0.0
+    },
     "interpolation_us": {
-      "median": 4.6,
-      "p95": 4.8,
-      "p99": 5.3,
-      "max": 44.2,
+      "median": 4.4,
+      "p95": 4.7,
+      "p99": 4.8,
+      "max": 36.8,
       "process_medians": [
         4.6,
-        4.6,
-        4.5,
-        4.7,
-        4.4
+        4.4,
+        4.4,
+        4.4,
+        4.5
       ],
-      "spread": 0.3
+      "spread": 0.2
     },
     "ui_layout_us": {
-      "median": 51.4,
-      "p95": 55.6,
-      "p99": 83.601,
-      "max": 294.9,
+      "median": 51.9,
+      "p95": 54.6,
+      "p99": 79.103,
+      "max": 268.2,
       "process_medians": [
-        51.4,
-        51.4,
-        52.5,
-        51.4,
-        51.4
+        52.0,
+        52.0,
+        51.9,
+        52.0,
+        51.3
       ],
-      "spread": 1.1
+      "spread": 0.7
     },
     "render_submit_us": {
       "median": 0.0,
@@ -179,18 +179,18 @@
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 652.2,
-    "p95": 746.0,
-    "p99": 848.903,
-    "max": 1739.1,
+    "median": 142.8,
+    "p95": 155.005,
+    "p99": 210.802,
+    "max": 580.9,
     "process_medians": [
-      666.6,
-      648.2,
-      652.1,
-      648.7,
-      648.25
+      142.9,
+      142.5,
+      142.6,
+      143.0,
+      142.8
     ],
-    "spread": 18.4
+    "spread": 0.5
   },
   "roc_heap_counters": {
     "allocs_per_step": 4.681,

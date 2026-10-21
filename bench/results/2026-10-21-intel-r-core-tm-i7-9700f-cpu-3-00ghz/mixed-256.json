@@ -3,7 +3,7 @@
   "n": 256,
   "mode": "lockstep",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9481711398290028597,
+  "shuffle_seed": 1543126650194575937,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -42,13 +42,13 @@
     "power": "ac",
     "low_power_mode": false
   },
-  "span_cost_us": 0.0119,
+  "span_cost_us": 0.0117,
   "spans": {
     "input_us": {
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 13.0,
+      "max": 13.4,
       "process_medians": [
         0.0,
         0.0,
@@ -60,23 +60,23 @@
     },
     "step_us": {
       "median": 3.1,
-      "p95": 4.2,
-      "p99": 15.9,
-      "max": 65.3,
+      "p95": 4.0,
+      "p99": 16.4,
+      "max": 79.0,
       "process_medians": [
-        3.0,
-        2.9,
-        2.8,
+        3.1,
         3.2,
+        3.1,
+        3.1,
         3.1
       ],
-      "spread": 0.4
+      "spread": 0.1
     },
     "commands_us": {
       "median": 0.1,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 34.4,
+      "max": 13.4,
       "process_medians": [
         0.1,
         0.1,
@@ -87,118 +87,118 @@
       "spread": 0.0
     },
     "view_us": {
-      "median": 21.0,
-      "p95": 34.0,
-      "p99": 50.101,
-      "max": 190.6,
+      "median": 21.3,
+      "p95": 35.6,
+      "p99": 67.601,
+      "max": 153.1,
       "process_medians": [
-        21.0,
-        20.7,
-        20.0,
-        21.4,
-        21.2
+        21.1,
+        24.3,
+        21.1,
+        21.2,
+        21.0
       ],
-      "spread": 1.4
+      "spread": 3.3
     },
     "queries_us": {
-      "median": 148.9,
-      "p95": 191.805,
-      "p99": 255.009,
-      "max": 550.7,
+      "median": 28.3,
+      "p95": 40.3,
+      "p99": 68.9,
+      "max": 159.5,
       "process_medians": [
-        149.2,
-        149.2,
-        147.0,
-        149.2,
-        148.8
+        28.2,
+        28.2,
+        28.3,
+        28.4,
+        28.1
       ],
-      "spread": 2.2
+      "spread": 0.3
     },
     "query_results_us": {
       "median": 0.6,
       "p95": 0.8,
-      "p99": 1.0,
-      "max": 34.6,
+      "p99": 0.9,
+      "max": 50.7,
       "process_medians": [
-        0.6,
+        0.5,
         0.5,
         0.6,
         0.6,
-        0.6
+        0.5
       ],
       "spread": 0.1
     },
     "interpolation_us": {
-      "median": 24.1,
-      "p95": 24.6,
-      "p99": 48.8,
-      "max": 87.9,
+      "median": 25.0,
+      "p95": 25.9,
+      "p99": 65.101,
+      "max": 141.9,
       "process_medians": [
-        24.0,
-        24.2,
-        24.0,
-        24.2,
-        24.1
+        24.9,
+        25.0,
+        24.8,
+        24.9,
+        25.2
       ],
-      "spread": 0.2
+      "spread": 0.4
     },
     "ui_layout_us": {
-      "median": 72.9,
-      "p95": 94.025,
-      "p99": 131.302,
-      "max": 254.2,
+      "median": 73.1,
+      "p95": 101.5,
+      "p99": 136.204,
+      "max": 322.1,
       "process_medians": [
-        73.2,
-        72.8,
-        72.0,
-        73.0,
-        73.0
+        73.1,
+        73.1,
+        73.1,
+        73.1,
+        73.1
       ],
-      "spread": 1.2
+      "spread": 0.0
     },
     "render_submit_us": {
-      "median": 228.1,
-      "p95": 289.205,
-      "p99": 373.018,
-      "max": 728.4,
+      "median": 226.1,
+      "p95": 290.305,
+      "p99": 414.802,
+      "max": 680.8,
       "process_medians": [
-        228.0,
-        229.6,
-        227.2,
-        228.1,
-        225.8
+        224.0,
+        225.7,
+        225.9,
+        234.0,
+        226.2
       ],
-      "spread": 3.8
+      "spread": 10.0
     },
     "commit_us": {
-      "median": 0.1,
+      "median": 0.2,
       "p95": 0.2,
       "p99": 0.2,
-      "max": 21.7,
+      "max": 13.4,
       "process_medians": [
-        0.1,
-        0.1,
-        0.1,
+        0.2,
+        0.2,
+        0.2,
         0.2,
         0.2
       ],
-      "spread": 0.1
+      "spread": 0.0
     }
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 675.4,
-    "p95": 839.92,
-    "p99": 1082.521,
-    "max": 2086.6,
+    "median": 433.0,
+    "p95": 559.8,
+    "p99": 808.505,
+    "max": 1364.0,
     "process_medians": [
-      677.7,
-      677.2,
-      668.4,
-      675.85,
-      673.05
+      430.1,
+      437.5,
+      431.5,
+      440.2,
+      431.8
     ],
-    "spread": 9.3
+    "spread": 10.1
   },
   "roc_heap_counters": {
     "allocs_per_step": 62.589,

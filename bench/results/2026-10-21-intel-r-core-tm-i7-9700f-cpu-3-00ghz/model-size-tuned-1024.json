@@ -3,7 +3,7 @@
   "n": 1024,
   "mode": "headless",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9974194161946261471,
+  "shuffle_seed": 10305236410392128080,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -48,7 +48,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 0.2,
+      "max": 0.1,
       "process_medians": [
         0.0,
         0.0,
@@ -61,16 +61,16 @@
     "step_us": {
       "median": 2.8,
       "p95": 3.1,
-      "p99": 3.5,
-      "max": 55.4,
+      "p99": 3.4,
+      "max": 265.0,
       "process_medians": [
         2.8,
+        2.7,
         2.8,
-        2.8,
-        2.8,
-        2.8
+        2.7,
+        2.7
       ],
-      "spread": 0.0
+      "spread": 0.1
     },
     "commands_us": {
       "median": 0.1,
@@ -87,24 +87,24 @@
       "spread": 0.0
     },
     "view_us": {
-      "median": 0.7,
-      "p95": 0.8,
+      "median": 0.8,
+      "p95": 0.9,
       "p99": 1.2,
-      "max": 259.1,
+      "max": 31.4,
       "process_medians": [
-        0.7,
-        0.7,
+        0.8,
+        0.8,
         0.7,
         0.7,
         0.7
       ],
-      "spread": 0.0
+      "spread": 0.1
     },
     "queries_us": {
       "median": 0.1,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 13.4,
+      "max": 0.2,
       "process_medians": [
         0.1,
         0.1,
@@ -118,7 +118,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 13.2,
+      "max": 0.1,
       "process_medians": [
         0.0,
         0.0,
@@ -131,27 +131,27 @@
     "interpolation_us": {
       "median": 14.4,
       "p95": 14.9,
-      "p99": 29.3,
-      "max": 251.3,
+      "p99": 29.1,
+      "max": 219.5,
       "process_medians": [
+        14.7,
         14.4,
-        14.5,
-        14.2,
+        14.4,
         14.6,
-        14.6
+        14.3
       ],
       "spread": 0.4
     },
     "ui_layout_us": {
       "median": 52.2,
-      "p95": 56.7,
-      "p99": 85.801,
-      "max": 336.2,
+      "p95": 56.1,
+      "p99": 87.4,
+      "max": 348.7,
       "process_medians": [
-        52.2,
         52.2,
         52.1,
         52.2,
+        52.1,
         52.2
       ],
       "spread": 0.1
@@ -187,16 +187,16 @@
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 74.1,
-    "p95": 87.7,
-    "p99": 120.102,
-    "max": 594.9,
+    "median": 74.0,
+    "p95": 85.805,
+    "p99": 123.301,
+    "max": 601.7,
     "process_medians": [
-      74.0,
-      74.1,
-      73.8,
       74.4,
-      74.3
+      73.8,
+      74.1,
+      74.0,
+      73.9
     ],
     "spread": 0.6
   },

@@ -14,10 +14,15 @@ meanings in [CONTEXT.md](../CONTEXT.md).
 
 - Reference result directory:
   [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
-  at commit `a8fd5c0`.
-- Headline figure: N = 4,096 on the reference machine. The p99 Frame CPU time
-  of `mixed` is 12.4 ms at N = 4,096 and 26.8 ms at N = 8,192. See
+  at commit `e1eb378`.
+- Headline figure: N = 8,192 on the reference machine. The p99 Frame CPU time
+  of `mixed` is 12.8 ms at N = 8,192 and 25.7 ms at N = 16,384. See
   `headline.txt` in that directory.
+
+The first reference run, at commit `a8fd5c0`, gave N = 4,096. The grid of
+ADR 0008 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
+N = 16,384. Git history keeps that run's summaries. `render_submit` now takes
+the largest part of the `mixed` Frame.
 
 The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery

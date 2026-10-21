@@ -3,7 +3,7 @@
   "n": 512,
   "mode": "headless",
   "seed": 0,
-  "git_hash": "a8fd5c0c5d435e02b76c198ed3f152301178061c",
+  "git_hash": "e1eb378df1cf8c3468c7a29ff69ce07cc2f23c34",
   "target": "x64win",
   "odin_debug": false,
   "roc_heap": "header",
@@ -31,7 +31,7 @@
   "measured_frames": 2000,
   "processes": 5,
   "cooldown_ms": 1000,
-  "shuffle_seed": 9974194161946261471,
+  "shuffle_seed": 10305236410392128080,
   "machine": {
     "date": "2026-10-21",
     "slug": "intel-r-core-tm-i7-9700f-cpu-3-00ghz",
@@ -48,7 +48,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 13.0,
+      "max": 12.9,
       "process_medians": [
         0.0,
         0.0,
@@ -59,16 +59,16 @@
       "spread": 0.0
     },
     "step_us": {
-      "median": 0.2,
-      "p95": 0.3,
-      "p99": 0.4,
-      "max": 33.3,
+      "median": 0.3,
+      "p95": 0.4,
+      "p99": 0.5,
+      "max": 33.2,
       "process_medians": [
-        0.2,
-        0.2,
-        0.2,
-        0.2,
-        0.2
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3
       ],
       "spread": 0.0
     },
@@ -76,7 +76,7 @@
       "median": 0.1,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 7.3,
+      "max": 0.2,
       "process_medians": [
         0.1,
         0.1,
@@ -90,7 +90,7 @@
       "median": 0.8,
       "p95": 0.9,
       "p99": 1.2,
-      "max": 52.9,
+      "max": 23.9,
       "process_medians": [
         0.8,
         0.8,
@@ -104,7 +104,7 @@
       "median": 0.1,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 3.1,
+      "max": 0.2,
       "process_medians": [
         0.1,
         0.1,
@@ -118,7 +118,7 @@
       "median": 0.0,
       "p95": 0.1,
       "p99": 0.1,
-      "max": 3.2,
+      "max": 0.1,
       "process_medians": [
         0.0,
         0.0,
@@ -129,32 +129,32 @@
       "spread": 0.0
     },
     "interpolation_us": {
-      "median": 14.4,
-      "p95": 14.9,
-      "p99": 29.601,
-      "max": 271.2,
+      "median": 14.3,
+      "p95": 14.8,
+      "p99": 29.3,
+      "max": 152.3,
       "process_medians": [
+        14.3,
         14.4,
-        14.2,
-        14.4,
-        14.6,
-        14.6
+        14.3,
+        14.1,
+        14.3
       ],
-      "spread": 0.4
+      "spread": 0.3
     },
     "ui_layout_us": {
-      "median": 52.2,
-      "p95": 57.3,
-      "p99": 87.0,
-      "max": 541.7,
+      "median": 51.2,
+      "p95": 63.9,
+      "p99": 90.302,
+      "max": 416.3,
       "process_medians": [
-        52.1,
-        52.1,
         52.2,
-        52.2,
+        51.1,
+        52.1,
+        51.0,
         52.2
       ],
-      "spread": 0.1
+      "spread": 1.2
     },
     "render_submit_us": {
       "median": 0.0,
@@ -187,18 +187,18 @@
   },
   "frame_budget_steps": 2,
   "frame_budget_us": {
-    "median": 69.0,
-    "p95": 82.9,
-    "p99": 109.801,
-    "max": 558.8,
+    "median": 68.4,
+    "p95": 82.7,
+    "p99": 118.101,
+    "max": 433.8,
     "process_medians": [
       69.0,
-      68.7,
-      69.0,
-      69.3,
-      69.2
+      68.0,
+      68.9,
+      67.6,
+      69.1
     ],
-    "spread": 0.6
+    "spread": 1.5
   },
   "roc_heap_counters": {
     "allocs_per_step": 2.0,
