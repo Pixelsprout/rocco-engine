@@ -133,6 +133,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+    env:
+      RELEASE_BASE: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
     outputs:
       roc_nightly: ${{ steps.pins.outputs.roc_nightly }}
     steps:
@@ -181,15 +183,23 @@ jobs:
           for name in linalg mesh ui; do
             (cd "packages/$name" && roc bundle ./*.roc --output-dir "$out/$name")
           done
-          base="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
           for name in platform linalg mesh ui; do
             hashed=$(ls "$out/$name"/*.tar.zst)
             file="$out/$name/$name-$(basename "$hashed")"
             mv "$hashed" "$file"
             echo "$file" >> "$RUNNER_TEMP/assets"
-            echo "--url=$name=$base/$(basename "$file")" >> "$RUNNER_TEMP/urls"
+            echo "--url=$name=$RELEASE_BASE/$(basename "$file")" >> "$RUNNER_TEMP/urls"
           done
           cat "$RUNNER_TEMP/urls"
+
+      # docs --check also fails on an item with no ## comment or a stale guide
+      # page. urls.json holds the values of the markers in the guide pages.
+      - name: Make the docs tarball
+        run: |
+          roc scripts/build.roc docs --check
+          mapfile -t urls < "$RUNNER_TEMP/urls"
+          python3 scripts/release.py docs build/docs "$RUNNER_TEMP/docs.tar.gz" "nightly-${ROC_NIGHTLY}" "${urls[@]}"
+          echo "$RUNNER_TEMP/docs.tar.gz" >> "$RUNNER_TEMP/assets"
 
       # Cards has no checkout on the test runners, so its header points at the
       # bundle URLs. The camera package is not bundled and goes beside the app.
@@ -213,6 +223,14 @@ jobs:
           python3 scripts/release.py notes "${{ github.ref_name }}" "nightly-${ROC_NIGHTLY}" "${urls[@]}" > "$RUNNER_TEMP/notes.md"
           gh release create "${{ github.ref_name }}" --verify-tag --prerelease \
             --title "${{ github.ref_name }}" --notes-file "$RUNNER_TEMP/notes.md" "${assets[@]}"
+
+      - name: Check the published docs against the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ github.ref_name }}" --pattern docs.tar.gz --dir "$RUNNER_TEMP/published"
+          mapfile -t assets < <(gh release view "${{ github.ref_name }}" --json assets --jq '.assets[].name')
+          python3 scripts/release.py check-docs "$RUNNER_TEMP/published/docs.tar.gz" "$RELEASE_BASE" "${assets[@]}"
 
   # Fresh runners with only Roc installed and no checkout, so every platform
   # file comes from the release URLs.
@@ -281,9 +299,11 @@ jobs:
             exit 1
           fi
 
-  # A failed test leaves the release as a prerelease.
+  # A failed test leaves the release as a prerelease. So does a tag with a
+  # hyphen, such as v0.2.0-rc.1, so a test tag never becomes the latest.
   promote:
     needs: test-bundle
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
