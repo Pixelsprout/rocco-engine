@@ -4,7 +4,7 @@ import Vocabulary exposing [Quat]
 Draw := [].{
 
 	## Id 0, mesh 0, at the origin, scale 1, no rotation and a white tint.
-	## Mesh 0 draws the Fallback mesh, so set `mesh`. Set `id` too.
+	## Mesh 0 draws the Fallback mesh. Set `mesh` and `id`.
 	default : Vocabulary.Draw
 	default = {
 		id: 0,

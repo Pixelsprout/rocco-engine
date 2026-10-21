@@ -1,7 +1,7 @@
 import Vocabulary exposing [Vec3]
 
 ## Builds the Colliders that your game returns in `Scene.colliders`. The `id`
-## is the draw id of the thing that owns the shape.
+## is the draw id of the Collider.
 Collider := [].{
 
 	## A box at `pos` with half extents `half`. `yaw` turns it about `+y`.

@@ -22,7 +22,8 @@ Ui := [].{
 	## Where a Box puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## The point of the window that a floating Box attaches to.
+	## The point of a floating Box that the host puts on the same point of the
+	## window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
 	## The layout and look of a Box. Start from `default_box`. See

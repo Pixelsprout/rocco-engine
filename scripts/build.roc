@@ -645,9 +645,14 @@ undocumented! = || {
 				$pages = $pages.append(entry.display())
 			}
 		}
+		var $checked = False
 		for page in $pages {
 			html = Path.utf8("${page}/index.html").read_utf8!()?
+			$checked = $checked or DocCheck.has_items(html)
 			$lines = $lines.concat(DocCheck.missing(html).map(|item| "${api.name}: ${item} has no ## comment."))
+		}
+		if !$checked {
+			$lines = $lines.append("${api.name}: ${dir} has no item that the check can read. Did the roc docs HTML change?")
 		}
 	}
 	Ok($lines)

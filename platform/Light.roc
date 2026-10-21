@@ -12,8 +12,8 @@ Light := [].{
 	directional : Vec3, Rgb -> Vocabulary.Light
 	directional = |dir, color| Directional({ dir, color, shadow: False })
 
-	## A Directional light that casts a shadow. Only the first Sun in the list
-	## casts one.
+	## A Directional light that casts a shadow. Only the first one in the list
+	## casts a shadow.
 	sun : Vec3, Rgb -> Vocabulary.Light
 	sun = |dir, color| Directional({ dir, color, shadow: True })
 

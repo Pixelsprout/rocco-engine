@@ -44,7 +44,8 @@ Vocabulary := [].{
 		capacity : Capacity,
 	}
 
-	## The window that a Launch opens.
+	## The window that a Launch opens. As in Launch, a field with no note about
+	## a Scene field or a run mode changes only on restart.
 	##
 	## - `width`, `height`: the size in logical pixels. Above zero. No Scene
 	##   field replaces them.
@@ -110,6 +111,7 @@ Vocabulary := [].{
 	##   in the previous Scene and interpolates between them.
 	## - `mesh`: a mesh id from a Manifest. An id that the engine does not know
 	##   draws the Fallback mesh.
+	## - `pos`: the position in the world.
 	## - `scale`: acts along the axes of `scale_rot`. Then `rot` turns the result.
 	## - `rot`, `scale_rot`: unit quaternions.
 	## - `tint`: the host multiplies the mesh colour by it.
@@ -118,7 +120,8 @@ Vocabulary := [].{
 	## A shape that Queries can test. Build one with `Collider.box`,
 	## `Collider.sphere` or `Collider.capsule`.
 	##
-	## - `id`: the draw id of the thing that owns the shape.
+	## - `id`: the draw id of the Collider. A Query skips the Collider whose id
+	##   is the Query's owner.
 	## - `yaw`: turns the shape about `+y`.
 	## - `shape`: a `Box` carries its half extents. The host does not test a
 	##   `Capsule` yet.
@@ -135,14 +138,14 @@ Vocabulary := [].{
 	## One Collider that an `Overlap` touched, with the owner and slot of its Query.
 	OverlapHit : { owner : U64, slot : U32, id : U64 }
 
-	## The answers to the previous Scene's Queries, which `step` gets. Each kind
-	## of Query has one flat list. A miss has no row. The first step gets
+	## What the host gives `step` for the Queries of the previous Scene. Each
+	## kind of Query has one flat list. A miss has no row. The first step gets
 	## `QueryResults.empty`. Read it with the functions in `QueryResults`.
 	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
 
-	## A question about the Colliders in `Scene.queries`. The host answers it
-	## against that Scene and gives the QueryResults to the next `step`. Build
-	## one with the functions in `Query`.
+	## A value in `Scene.queries` that asks the engine about the Colliders. The
+	## host runs it against that Scene and gives the QueryResults to the next
+	## `step`. Build one with the functions in `Query`.
 	##
 	## The host skips the owner's own Collider. Two Queries of one kind with the
 	## same owner and slot: the host keeps the first. An `Overlap` box carries
@@ -168,12 +171,15 @@ Vocabulary := [].{
 	## - `Grow`: fills the free space, between `min` and `max`.
 	## - `Fixed`: the given size.
 	## - `Percent`: a fraction of the parent, from 0 to 1.
+	##
+	## A `max` of 0 means no limit.
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 
 	## Where a Box puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## The point of the window that a floating Box attaches to.
+	## The point of a floating Box that the host puts on the same point of the
+	## window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
 	## The rectangle that an `Open` Element starts. The names and the defaults
@@ -186,11 +192,13 @@ Vocabulary := [].{
 	BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 
 	## One string in the engine's font, at a size in logical pixels and a
-	## colour. The layout measures it. `wrap` breaks lines at `Words` or `None`.
+	## colour. The names and the defaults are Clay's. The layout measures it. With `wrap` set to `Words`, the layout
+	## breaks lines between words. With `None`, it does not break lines.
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 
-	## One entry in `Scene.ui`. An `Open` starts a Box and its `Close` ends it.
-	## The Elements between them are its children. The list is flat, because a
+	## One entry in `Scene.ui`, in the order the layout reads them. An `Open`
+	## starts a Box and its `Close` ends it. The Elements between them are its
+	## children. The list is flat, because a
 	## recursive type cannot cross the seam. The `ui` package builds the list
 	## from nested code.
 	Element : [Open(BoxConfig), Text(Text), Close]
@@ -201,7 +209,8 @@ Vocabulary := [].{
 	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
 	##   know, draws no sky.
 	## - `ui`: the Elements drawn flat over the 3D view.
-	## - `queries`: the questions that the next `step` gets answers to.
+	## - `queries`: the Queries that the host runs against this Scene. The next
+	##   `step` gets their QueryResults.
 	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 
 	## If the mouse is `Free` or `Locked`. The host locks or frees the mouse only

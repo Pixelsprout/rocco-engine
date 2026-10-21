@@ -2,7 +2,7 @@ import Vocabulary exposing [Vec3]
 
 ## Builds the Queries that your game returns in `Scene.queries`. The owner is
 ## the draw id that a Query belongs to. The host skips the owner's own
-## Collider. Read the answers in the next `step` with `QueryResults`.
+## Collider. Read the results in the next `step` with `QueryResults`.
 Query := [].{
 
 	## Asks for each Contact that involves the owner's Collider.

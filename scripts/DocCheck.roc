@@ -6,7 +6,7 @@ DocCheck := [].{
 	# their anchor names, such as "Vocabulary" and "Vocabulary.Launch".
 	missing : Str -> List(Str)
 	missing = |html| {
-		chunks = Str.split_on(html, "<article class=\"entry")
+		chunks = Str.split_on(html, article_start)
 		head = chunks.first() ?? ""
 		var $items = match between(head, "<h1 class=\"module-name\">", "</h1>") {
 			Ok(name) if !Str.contains(head, "<div class=\"module-doc\">") => [name]
@@ -23,6 +23,14 @@ DocCheck := [].{
 		}
 		$items
 	}
+
+	# A package with no item found means roc docs changed its HTML, and missing
+	# would pass everything.
+	has_items : Str -> Bool
+	has_items = |html| Str.contains(html, article_start)
+
+	article_start : Str
+	article_start = "<article class=\"entry"
 
 	between : Str, Str, Str -> Try(Str, [NotFound])
 	between = |text, start, end| {
@@ -66,3 +74,6 @@ expect DocCheck.missing(bare) == ["Vocabulary", "Vocabulary.Launch", "Vocabulary
 
 # The package index page names no module and has no items.
 expect DocCheck.missing("<div class=\"index-decoration\"></div>") == []
+
+expect DocCheck.has_items(documented) and DocCheck.has_items(bare)
+expect !DocCheck.has_items("<div class=\"index-decoration\"></div>")
