@@ -299,9 +299,14 @@ The host builds the Input of each step from the `step` request:
 
 Pressed follows the steps, not the requests. If one request holds W and the
 next one holds W too, W is Pressed only in the first step of the first
-request. If a request in between leaves `held` out, W is Pressed again. The
-host keeps this between connections too, so it does not matter that each
-`bridge.py` call connects again.
+request. If a request in between leaves `held` out, W is Pressed again.
+
+The run remembers the held keys, not the Driver. A Driver that connects
+after another one left gets the held keys of the last step that ran. So if
+the last `step` held W, and the new Driver's first `step` holds W too, W is
+not Pressed. To press it, send a `step` without W first, or put W in `tap`.
+This is also why it does not matter that each `bridge.py` call connects
+again.
 
 So to walk, put the key in `held`. To jump once, put Space in `tap`, or
 start a `held` of Space after a step where it was not held.
