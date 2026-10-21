@@ -207,13 +207,14 @@ docs_out_dir = "build/docs"
 
 ApiPackage : { name : Str, main : Str }
 
-# The bundled packages. packages/camera is not bundled, so it gets no API page.
+# The platform and the packages that the release bundles.
 api_packages : List(ApiPackage)
 api_packages = [
 	{ name: "platform", main: "platform/main.roc" },
 	{ name: "linalg", main: "packages/linalg/main.roc" },
 	{ name: "mesh", main: "packages/mesh/main.roc" },
 	{ name: "ui", main: "packages/ui/main.roc" },
+	{ name: "camera", main: "packages/camera/main.roc" },
 ]
 
 api_docs_run : ApiPackage -> Run
@@ -426,8 +427,8 @@ usage =
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
-	\\  docs [--check]  write the API HTML for the platform, linalg, mesh and ui into
-	\\                  build/docs/, fail if an item in it has no ## comment, then
+	\\  docs [--check]  write the API HTML for the platform, linalg, mesh, ui and camera
+	\\                  into build/docs/, fail if an item in it has no ## comment, then
 	\\                  copy each region into the guide/ pages. --check writes no
 	\\                  guide page and fails if a page differs from its source
 	\\  all             glue, host, inputs, game cards, game entity-game, game pong
@@ -1036,4 +1037,5 @@ expect
 			["docs", "packages/linalg/main.roc", "--output=build/docs/linalg"],
 			["docs", "packages/mesh/main.roc", "--output=build/docs/mesh"],
 			["docs", "packages/ui/main.roc", "--output=build/docs/ui"],
+			["docs", "packages/camera/main.roc", "--output=build/docs/camera"],
 		]

@@ -22,7 +22,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui"]
+DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui", "camera"]
 # The keys of urls.json are the marker names in the guide pages, such as {{platform_url}}.
 DOCS_MARKERS = [f"{name}_url" for name in DOCS_BUNDLES] + ["roc_nightly"]
 LOCAL_PATH = re.compile(r'"(?:\.\./)+(platform|packages/([A-Za-z0-9_-]+))/main\.roc"')

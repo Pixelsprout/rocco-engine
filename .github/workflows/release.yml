@@ -175,15 +175,17 @@ jobs:
       - name: Bundle the platform and the packages
         run: |
           out="$RUNNER_TEMP/bundles"
-          mkdir -p "$out/platform" "$out/linalg" "$out/mesh" "$out/ui"
+          packages="linalg mesh ui camera"
+          mkdir -p "$out/platform"
           cd platform
           mapfile -t targets < <(find targets -type f | sort)
           roc bundle ./*.roc "${targets[@]}" --output-dir "$out/platform"
           cd ..
-          for name in linalg mesh ui; do
+          for name in $packages; do
+            mkdir -p "$out/$name"
             (cd "packages/$name" && roc bundle ./*.roc --output-dir "$out/$name")
           done
-          for name in platform linalg mesh ui; do
+          for name in platform $packages; do
             hashed=$(ls "$out/$name"/*.tar.zst)
             file="$out/$name/$name-$(basename "$hashed")"
             mv "$hashed" "$file"
@@ -201,7 +203,7 @@ jobs:
           echo "$RUNNER_TEMP/docs.tar.gz" >> "$RUNNER_TEMP/assets"
 
       # Cards has no checkout on the test runners, so its header points at the
-      # bundle URLs. The camera package is not bundled and goes beside the app.
+      # bundle URLs.
       - name: Prepare cards for the test runners
         run: |
           mapfile -t urls < "$RUNNER_TEMP/urls"

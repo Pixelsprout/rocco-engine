@@ -75,7 +75,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if `platform/Key.roc` is stale. |
-| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh` and `packages/ui`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
+| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh`, `packages/ui` and `packages/camera`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`. With `--release`, it passes `--release` to `host` and `inputs`. |
@@ -123,11 +123,11 @@ and fails on a diff.
 `.github/workflows/release.yml` runs on each `v*` tag. Each OS builds its
 host and inputs with `--release` and uploads `platform/targets/<target>/`. A
 Linux job runs `roc bundle` for the platform and for `packages/linalg`,
-`packages/mesh` and `packages/ui`. It publishes the four bundles in a
-prerelease, each named `<name>-<hash>.tar.zst`. Roc takes URLs that differ
-only in the hash as one package, so the name must stay in front. The notes
-name each bundle URL and the Roc nightly. Next, a job on each OS installs
-only Roc and runs cards from the bundle URLs. If all three pass, the last job
+`packages/mesh`, `packages/ui` and `packages/camera`. It publishes each
+bundle in a prerelease, named `<name>-<hash>.tar.zst`. Roc takes URLs that
+differ only in the hash as one package, so the name must stay in front. The
+notes name each bundle URL and the Roc nightly. Next, a job on each OS
+installs only Roc and runs cards from the bundle URLs. If all three pass, the last job
 marks the release final and latest. If one fails, the release stays a
 prerelease. A tag with a hyphen, such as `v0.2.0-rc.1`, also stays a
 prerelease. `scripts/release.py` points the header of
@@ -135,9 +135,9 @@ prerelease. `scripts/release.py` points the header of
 unittest scripts/test_release.py` runs its tests.
 
 The bundle job also runs `roc scripts/build.roc docs --check` and attaches
-`docs.tar.gz` to the release. The tarball holds the API HTML of the four
-bundles and `urls.json`. `urls.json` gives the value of each marker in the
-guide pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url` and
+`docs.tar.gz` to the release. The tarball holds the API HTML of each bundle
+and `urls.json`. `urls.json` gives the value of each marker in the guide
+pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url`, `camera_url` and
 `roc_nightly`. `scripts/release.py docs` makes the tarball. After the
 publish, `scripts/release.py check-docs` reads the published tarball. It
 fails if a URL names no asset of the release. When the release workflow
@@ -268,8 +268,8 @@ fails.
 
 A page cannot hold the bundle URLs of its own release, because the URLs come
 from the bundle hashes. The header block of a page holds markers instead:
-`{{platform_url}}`, `{{linalg_url}}`, `{{mesh_url}}`, `{{ui_url}}` and
-`{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
+`{{platform_url}}`, `{{linalg_url}}`, `{{mesh_url}}`, `{{ui_url}}`,
+`{{camera_url}}` and `{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
 reader to get the values from the latest release.
 
 ### macOS

@@ -14,7 +14,7 @@ import release
 
 HEADER = (
     'app [init] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", '
-    'cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc" }\n'
+    'tools: "../../packages/tools/main.roc", linalg: "../../packages/linalg/main.roc" }\n'
     "\n"
     "import linalg.Quat\n"
 )
@@ -28,6 +28,7 @@ BUNDLE_URLS = {
     "linalg": f"{BASE}/linalg-BBB.tar.zst",
     "mesh": f"{BASE}/mesh-CCC.tar.zst",
     "ui": f"{BASE}/ui-DDD.tar.zst",
+    "camera": f"{BASE}/camera-EEE.tar.zst",
 }
 NIGHTLY = "nightly-2026-10-11-7d256b9"
 
@@ -61,8 +62,8 @@ class PointHeaderTest(unittest.TestCase):
 
     def test_points_an_unbundled_package_at_a_copy_beside_the_app(self):
         source, copied = release.point_header(HEADER, URLS)
-        self.assertIn('cam: "camera/main.roc"', source)
-        self.assertEqual(copied, ["camera"])
+        self.assertIn('tools: "tools/main.roc"', source)
+        self.assertEqual(copied, ["tools"])
 
     def test_keeps_the_roc_pin_and_the_body(self):
         source, _ = release.point_header(HEADER, URLS)
@@ -86,15 +87,15 @@ class PrepareAppTest(unittest.TestCase):
             (root / "examples/cards").mkdir(parents=True)
             (root / "examples/cards/main.roc").write_text(HEADER)
             (root / "examples/cards/cards.bin").write_text("built")
-            (root / "packages/camera").mkdir(parents=True)
-            (root / "packages/camera/main.roc").write_text("package [Camera] {}\n")
-            (root / "packages/camera/Camera.roc").write_text("Camera := {}\n")
+            (root / "packages/tools").mkdir(parents=True)
+            (root / "packages/tools/main.roc").write_text("package [Tools] {}\n")
+            (root / "packages/tools/Tools.roc").write_text("Tools := {}\n")
 
             out = root / "out"
             release.prepare_app(root / "examples/cards", out, URLS, root / "packages")
 
             self.assertIn("https://example.com/p.tar.zst", (out / "main.roc").read_text())
-            self.assertEqual((out / "camera/Camera.roc").read_text(), "Camera := {}\n")
+            self.assertEqual((out / "tools/Tools.roc").read_text(), "Tools := {}\n")
             self.assertFalse((out / "cards.bin").exists())
 
 
@@ -119,7 +120,7 @@ class PackDocsTest(unittest.TestCase):
             with tarfile.open(out) as tar:
                 names = set(tar.getnames())
                 urls = json.load(tar.extractfile("urls.json"))
-            for name in ["platform", "linalg", "mesh", "ui"]:
+            for name in ["platform", "linalg", "mesh", "ui", "camera"]:
                 self.assertIn(f"{name}/index.html", names)
                 self.assertIn(f"{name}/Module/index.html", names)
             self.assertEqual(
@@ -129,6 +130,7 @@ class PackDocsTest(unittest.TestCase):
                     "linalg_url": f"{BASE}/linalg-BBB.tar.zst",
                     "mesh_url": f"{BASE}/mesh-CCC.tar.zst",
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
+                    "camera_url": f"{BASE}/camera-EEE.tar.zst",
                     "roc_nightly": "nightly-2026-10-11-7d256b9",
                 },
             )
@@ -144,13 +146,13 @@ class PackDocsTest(unittest.TestCase):
     def test_rejects_a_bundle_with_no_api_html(self):
         with tempfile.TemporaryDirectory() as tmp:
             api = Path(tmp) / "docs"
-            write_api_docs(api, names=("platform", "linalg", "mesh"))
-            with self.assertRaisesRegex(ValueError, "ui"):
+            write_api_docs(api, names=("platform", "linalg", "mesh", "ui"))
+            with self.assertRaisesRegex(ValueError, "camera"):
                 release.pack_docs(api, Path(tmp) / "docs.tar.gz", NIGHTLY, BUNDLE_URLS)
 
 
 class CheckDocsTest(unittest.TestCase):
-    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "docs.tar.gz"]
+    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "camera-EEE.tar.zst", "docs.tar.gz"]
 
     def pack(self, tmp, urls=BUNDLE_URLS):
         api = Path(tmp) / "docs"
@@ -182,12 +184,12 @@ class CheckDocsTest(unittest.TestCase):
             out = self.pack(tmp)
             markers = release.docs_markers(NIGHTLY, BUNDLE_URLS)
             del markers["roc_nightly"]
-            markers["camera_url"] = f"{BASE}/camera.tar.zst"
+            markers["sound_url"] = f"{BASE}/sound.tar.zst"
             repack(out, {"urls.json": json.dumps(markers)})
             problems = release.check_docs(out, BASE, self.ASSETS)
             self.assertEqual(len(problems), 2)
             self.assertIn("roc_nightly", problems[0])
-            self.assertIn("camera_url", problems[1])
+            self.assertIn("sound_url", problems[1])
 
     def test_names_a_missing_urls_file(self):
         with tempfile.TemporaryDirectory() as tmp:
