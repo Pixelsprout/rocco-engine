@@ -863,8 +863,12 @@ edit when the game builds its records from these defaults.
 Agreed 2026-10-21. The engine gets no announcement until a stranger can make
 a small game with it. The arc starts with the docs and the tutorial, so each
 later milestone adds its own guide page in the same commit as its code. Then
-it adds what such a game needs: sound, its own look, animated characters and
-a gamepad. It ends with a release that the announcement names.
+it adds what such a game needs: sound, a gamepad, animated characters and
+its own look. It ends with a release that the announcement names.
+
+On 2026-10-21 Audio and Gamepad moved ahead of Animation and Look. Without
+sound and a pad the engine feels incomplete, and Look is polish. The Bridge
+stays first, because it lets a script inject Input for the gamepad tests.
 `docs/RESEARCH-SCALING.md` holds the research behind each milestone.
 
 Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
@@ -907,13 +911,7 @@ Input and reads the Scene itself. The grilling decides whether game-facing
 Ports (`Tell`, `Ask` and `Listen`) join this milestone or wait for the
 extensions.
 
-## Milestone 20: Look
-
-Done when a game sets its tone map, its exposure, its fog and its shadow
-knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
-One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
-
-## Milestone 21: Audio
+## Milestone 20: Audio
 
 Done when Kula plays a landing sound on all three targets. miniaudio goes in
 the host as one archive per target. A one-shot is the `Play` Command. A loop
@@ -921,22 +919,29 @@ or music is an entry in `Scene.sounds`, paired by id. Sounds are Pack assets
 with ids in the Manifest. Tutorial chapter 8 adds sound. Closes dex tasks
 79n12xde and x7mwcd0w.
 
+## Milestone 21: Gamepad
+
+Done when Kula plays with a gamepad on all three targets. sokol_app reads no
+gamepad, so this is a host module with one file per OS. `Input` gains the
+sticks, the triggers and the buttons. The grilling chooses the OS interface
+per target and counts the catalog cost of each. The Bridge from Milestone 19
+can inject the new Input, so CI can test it with no pad. Tutorial chapter 9
+adds the gamepad.
+
 ## Milestone 22: Animation
 
-Done when the tutorial character plays a walk clip in chapter 9. The glTF
+Done when the tutorial character plays a walk clip in chapter 10. The glTF
 loader reads skins and animation clips. The Manifest gives the clip ids of
 each mesh. A Draw names a clip and a time, so the Model owns the time and
 `step` stays pure. The host samples the skeleton and skins the mesh on the
 GPU with a second vertex layout. The tutorial character's Blender script
 gains a rig.
 
-## Milestone 23: Gamepad
+## Milestone 23: Look
 
-Done when Kula plays with a gamepad on all three targets. sokol_app reads no
-gamepad, so this is a host module with one file per OS. `Input` gains the
-sticks, the triggers and the buttons. The grilling chooses the OS interface
-per target and counts the catalog cost of each. Tutorial chapter 10 adds the
-gamepad.
+Done when a game sets its tone map, its exposure, its fog and its shadow
+knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
+One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
 ## Milestone 24: the announcement release
 
@@ -993,7 +998,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
 
-Audio and fog moved into milestones 21 and 20. World-space sprites, Blender
+Audio and fog moved into milestones 20 and 23. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
