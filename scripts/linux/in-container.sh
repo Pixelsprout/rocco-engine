@@ -26,6 +26,8 @@ roc scripts/build.roc docs --check
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
 RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
 
+RUN_PREFIX="$RUN" python3 scripts/bridge_check.py
+
 sh scripts/test-all.sh
 
 # The host check runs first, because the alloc check rebuilds the host with

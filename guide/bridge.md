@@ -206,6 +206,64 @@ replies with an error, and the run goes on:
 The host exits with code 0. The host does not answer requests that come
 after `quit`.
 
+## Drive a game from Python
+
+`scripts/bridge.py` is a Driver in plain Python 3, with no packages to
+install. From a shell, each call connects, sends one request, prints the
+reply and disconnects. It reads the port from `ROCCO_BRIDGE`, or from
+`--port`. Start tutorial chapter 3 with the Bridge in one terminal:
+
+```sh
+cd examples/tutorial/03-moving
+ROCCO_BRIDGE=7878 roc main.roc
+```
+
+Then walk Pip from a second terminal, at the repository root:
+
+```sh
+export ROCCO_BRIDGE=7878
+python3 scripts/bridge.py hello
+python3 scripts/bridge.py step 30 --held W
+python3 scripts/bridge.py scene
+python3 scripts/bridge.py screenshot pip.png
+python3 scripts/bridge.py quit
+```
+
+`step` takes the step count, then `--held KEY` and `--tap KEY` once for
+each key and `--mouse DX,DY`. `screenshot` sends the path as an absolute
+path, so `pip.png` lands in the folder you run `bridge.py` from, not in the
+game's folder. A reply with `"ok": false` makes `bridge.py` exit with 1, so
+a shell script stops at the first failed request. Add `--wait 30` to keep
+trying to connect for 30 seconds while the game starts.
+
+A Python script can import it instead. `Bridge` has one method for each
+op, and each returns the reply as a dict. A reply with `"ok": false`
+raises `BridgeError`:
+
+```python
+import sys
+sys.path.insert(0, "scripts")
+from bridge import Bridge
+
+with Bridge.connect(7878, wait=30) as b:
+    b.hello()
+    before = b.scene()["scene"]["draws"][1]["pos"]["z"]
+    b.step(30, held=["W"])
+    after = b.scene()["scene"]["draws"][1]["pos"]["z"]
+    print(f"Pip walked from z {before} to z {after}")
+    b.screenshot("pip.png")
+    b.quit()
+```
+
+This prints `Pip walked from z 0 to z -0.62499994`: 30 steps at 2.5 units
+a second and 120 steps a second. `scripts/bridge_check.py` is the same
+session with checks, and CI runs it on each OS.
+
+`scripts/screenshot.sh <game> <out.png> [steps]` uses `bridge.py` to save a
+frame of any example. It starts the game with the Bridge on a free port,
+runs the steps with no Input, one second of them by default, saves the
+screenshot and quits.
+
 ## Names for later
 
 The ops `tell`, `ask` and `listen` are kept for a later version. Today they
