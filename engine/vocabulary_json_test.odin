@@ -93,7 +93,8 @@ test_json_write_light_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 @(test)
 test_json_write_collider_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	colliders := []Collider{test_box(1, {0, 0, 0}, 0.5, {1, 2, 3}), test_sphere(2, {1, 0, 0}, 0.5), test_capsule(3, {0, 1, 0})}
+	half_turn := Quat{x = 1, w = 0}
+	colliders := []Collider{test_box(1, {0, 0, 0}, half_turn, {1, 2, 3}), test_sphere(2, {1, 0, 0}, 0.5), test_capsule(3, {0, 1, 0})}
 	b := strings.builder_make(context.temp_allocator)
 
 	json_write_list(&b, json_test_list(colliders), json_write_collider)
@@ -101,9 +102,9 @@ test_json_write_collider_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	expect_json_text(
 		t,
 		&b,
-		`[{"id":1,"pos":{"x":0,"y":0,"z":0},"yaw":0.5,"shape":{"Box":{"x":1,"y":2,"z":3}}},` +
-		`{"id":2,"pos":{"x":1,"y":0,"z":0},"yaw":0,"shape":{"Sphere":0.5}},` +
-		`{"id":3,"pos":{"x":0,"y":1,"z":0},"yaw":0,"shape":{"Capsule":{"radius":1,"half_height":1}}}]`,
+		`[{"id":1,"pos":{"x":0,"y":0,"z":0},"rot":{"x":1,"y":0,"z":0,"w":0},"shape":{"Box":{"x":1,"y":2,"z":3}}},` +
+		`{"id":2,"pos":{"x":1,"y":0,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Sphere":0.5}},` +
+		`{"id":3,"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Capsule":{"radius":1,"half_height":1}}}]`,
 	)
 }
 

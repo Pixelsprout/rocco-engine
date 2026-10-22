@@ -532,22 +532,40 @@ Roc_View :: struct {
 Roc_View_Colliders :: struct {
 	id: u64,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
+	rot: Roc_View_Colliders_Rot,
 	shape: Roc_View_Colliders_Shape,
-	yaw: f32,
 }
 
-#assert(size_of(Roc_View_Colliders) == 40)
+#assert(size_of(Roc_View_Colliders) == 56)
 #assert(align_of(Roc_View_Colliders) == 8)
 #assert(offset_of(Roc_View_Colliders, id) == 0)
 #assert(size_of(type_of(Roc_View_Colliders{}.id)) == 8)
 #assert(offset_of(Roc_View_Colliders, pos) == 8)
 #assert(size_of(type_of(Roc_View_Colliders{}.pos)) == 12)
-#assert(offset_of(Roc_View_Colliders, shape) == 20)
+#assert(offset_of(Roc_View_Colliders, rot) == 20)
+#assert(size_of(type_of(Roc_View_Colliders{}.rot)) == 16)
+#assert(offset_of(Roc_View_Colliders, shape) == 36)
 #assert(size_of(type_of(Roc_View_Colliders{}.shape)) == 16)
-#assert(offset_of(Roc_View_Colliders, yaw) == 36)
-#assert(size_of(type_of(Roc_View_Colliders{}.yaw)) == 4)
 
 Roc_View_Colliders_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Colliders_Rot :: struct {
+	w: f32,
+	x: f32,
+	y: f32,
+	z: f32,
+}
+
+#assert(size_of(Roc_View_Colliders_Rot) == 16)
+#assert(align_of(Roc_View_Colliders_Rot) == 4)
+#assert(offset_of(Roc_View_Colliders_Rot, w) == 0)
+#assert(size_of(type_of(Roc_View_Colliders_Rot{}.w)) == 4)
+#assert(offset_of(Roc_View_Colliders_Rot, x) == 4)
+#assert(size_of(type_of(Roc_View_Colliders_Rot{}.x)) == 4)
+#assert(offset_of(Roc_View_Colliders_Rot, y) == 8)
+#assert(size_of(type_of(Roc_View_Colliders_Rot{}.y)) == 4)
+#assert(offset_of(Roc_View_Colliders_Rot, z) == 12)
+#assert(size_of(type_of(Roc_View_Colliders_Rot{}.z)) == 4)
+
 Roc_View_Colliders_Shape_Tag :: enum u8 {
 	Box = 0,
 	Capsule = 1,
@@ -586,9 +604,9 @@ Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
-	rot: Roc_View_Draws_Rot,
+	rot: Roc_View_Colliders_Rot,
 	scale: Roc_Init_Commands_Play_At_At_Pos,
-	scale_rot: Roc_View_Draws_Rot,
+	scale_rot: Roc_View_Colliders_Rot,
 	tint: Roc_View_Draws_Tint,
 }
 
@@ -610,26 +628,9 @@ Roc_View_Draws :: struct {
 #assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
 
 Roc_View_Draws_Pos :: Roc_Init_Commands_Play_At_At_Pos
-Roc_View_Draws_Rot :: struct {
-	w: f32,
-	x: f32,
-	y: f32,
-	z: f32,
-}
-
-#assert(size_of(Roc_View_Draws_Rot) == 16)
-#assert(align_of(Roc_View_Draws_Rot) == 4)
-#assert(offset_of(Roc_View_Draws_Rot, w) == 0)
-#assert(size_of(type_of(Roc_View_Draws_Rot{}.w)) == 4)
-#assert(offset_of(Roc_View_Draws_Rot, x) == 4)
-#assert(size_of(type_of(Roc_View_Draws_Rot{}.x)) == 4)
-#assert(offset_of(Roc_View_Draws_Rot, y) == 8)
-#assert(size_of(type_of(Roc_View_Draws_Rot{}.y)) == 4)
-#assert(offset_of(Roc_View_Draws_Rot, z) == 12)
-#assert(size_of(type_of(Roc_View_Draws_Rot{}.z)) == 4)
-
+Roc_View_Draws_Rot :: Roc_View_Colliders_Rot
 Roc_View_Draws_Scale :: Roc_Init_Commands_Play_At_At_Pos
-Roc_View_Draws_ScaleRot :: Roc_View_Draws_Rot
+Roc_View_Draws_ScaleRot :: Roc_View_Colliders_Rot
 Roc_View_Draws_Tint :: struct {
 	b: f32,
 	g: f32,

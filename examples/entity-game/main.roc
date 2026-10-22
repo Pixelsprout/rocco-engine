@@ -650,7 +650,6 @@ view = |curr| {
 				Child(parent) => match List.find_first(acc.draws, |d| d.id == parent) {
 					Ok(p) => {
 						pos: V.add(p.pos, Quat.rotate(e.pos, p.rot)),
-						yaw: rot_yaw(p.rot) + e.yaw,
 						rot: Quat.mul(p.rot, Quat.from_yaw(e.yaw)),
 					}
 					Err(NotFound) => local_world(e)
@@ -720,15 +719,10 @@ orbit_eye = |target, t| {
 	{ x: target.x + 6.0 * angle.sin(), y: target.y + 3.0, z: target.z + 6.0 * angle.cos() }
 }
 
-# yaw feeds the colliders, which stay on the ground plane. rot feeds the draws.
-World : { pos : Vec3, yaw : F32, rot : Quat.Quat }
+World : { pos : Vec3, rot : Quat.Quat }
 
 local_world : Entity -> World
-local_world = |e| { pos: e.pos, yaw: e.yaw, rot: Quat.from_yaw(e.yaw) }
-
-# Every rot in this game turns about +y only, so the yaw comes back out.
-rot_yaw : Quat.Quat -> F32
-rot_yaw = |q| 2.0 * F32.atan2({ y: q.y, x: q.w })
+local_world = |e| { pos: e.pos, rot: Quat.from_yaw(e.yaw) }
 
 draw : MeshIds, Entity, World -> Vocabulary.Draw
 draw = |meshes, e, world| {
@@ -767,11 +761,11 @@ pickup_radius = 0.4
 # Floor and drops touch nothing.
 with_collider : List(Vocabulary.Collider), Entity, World -> List(Vocabulary.Collider)
 with_collider = |colliders, e, world| match e.kind {
-	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
+	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.rot, player_half))
 	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
-	Block => colliders.append(Collider.box(e.id, world.pos, world.yaw, block_half))
-	Goal => colliders.append(Collider.box(e.id, world.pos, world.yaw, goal_half))
-	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
+	Block => colliders.append(Collider.box(e.id, world.pos, world.rot, block_half))
+	Goal => colliders.append(Collider.box(e.id, world.pos, world.rot, goal_half))
+	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.rot, door_half))
 	Drop(_) => colliders
 }
 
@@ -1166,18 +1160,18 @@ expect {
 	# The player stands on a box, the door is a thin box, a pickup is a sphere, the
 	# block is a cube and the goal is a flat box. The floor has no collider.
 	scene = view(new_game(test_meshes, 1, 0))
-	player_box = collider_of(scene, 0) == Ok(Collider.box(0, { x: 0.0, y: 0.5, z: 0.0 }, 0.0, player_half))
-	door_box = collider_of(scene, 1) == Ok(Collider.box(1, { x: 0.0, y: 1.5, z: -8.0 }, 0.0, door_half))
+	player_box = collider_of(scene, 0) == Ok(Collider.box(0, { x: 0.0, y: 0.5, z: 0.0 }, Quat.identity, player_half))
+	door_box = collider_of(scene, 1) == Ok(Collider.box(1, { x: 0.0, y: 1.5, z: -8.0 }, Quat.identity, door_half))
 	pickup_sphere = collider_of(scene, 2).map_ok(|c| c.shape == Sphere(pickup_radius) and near_vec(c.pos, { x: -4.0, y: 0.5, z: 0.0 })) == Ok(Bool.True)
-	block_box = collider_of(scene, 3) == Ok(Collider.box(3, block_pos, 0.0, block_half))
-	goal_box = collider_of(scene, 4) == Ok(Collider.box(4, { x: 0.0, y: 0.05, z: -9.2 }, 0.0, { x: 1.0, y: 0.05, z: 0.75 }))
+	block_box = collider_of(scene, 3) == Ok(Collider.box(3, block_pos, Quat.identity, block_half))
+	goal_box = collider_of(scene, 4) == Ok(Collider.box(4, { x: 0.0, y: 0.05, z: -9.2 }, Quat.identity, { x: 1.0, y: 0.05, z: 0.75 }))
 	player_box and door_box and pickup_sphere and block_box and goal_box and List.len(scene.colliders) == 5
 }
 
 expect {
 	# The player's box turns with the player.
 	scene = view(facing(new_game(test_meshes, 0, 0), 1.0))
-	collider_of(scene, 0).map_ok(|c| c.yaw) == Ok(1.0)
+	collider_of(scene, 0).map_ok(|c| c.rot) == Ok(Quat.from_yaw(1.0))
 }
 
 expect {
@@ -1236,10 +1230,10 @@ expect {
 }
 
 expect {
-	# A child's collider turns by the parent's world yaw plus its own.
+	# A child's collider turns by the parent's world rot, then by its own yaw.
 	parent = entity_at(10, Root, V.zero, 1.0)
 	child = { ..entity_at(11, Child(10), { x: 0.0, y: 0.0, z: 2.0 }, 0.5), kind: Block }
-	collider_of(view(with_entities([parent, child])), 11).map_ok(|c| near(c.yaw, 1.5)) == Ok(Bool.True)
+	collider_of(view(with_entities([parent, child])), 11).map_ok(|c| near_rot(c.rot, Quat.from_yaw(1.5))) == Ok(Bool.True)
 }
 
 expect {
@@ -1465,7 +1459,7 @@ expect {
 	left_to_right = List.fold(xs, { ok: Bool.True, last: -100.0 }, |acc, x| { ok: acc.ok and x > acc.last, last: x }).ok
 	cube = List.find_first(m.entities, |e| e.kind == Block).map_ok(|e| collider_of(scene, e.id))
 	high = List.find_first(m.entities, |e| is_pickup(e) and !floor_pickup(e)).map_ok(|e| collider_of(scene, e.id))
-	block_ok = cube == Ok(Ok(Collider.box(10, { x: -4.5, y: 0.5, z: -4.0 }, 0.0, block_half)))
+	block_ok = cube == Ok(Ok(Collider.box(10, { x: -4.5, y: 0.5, z: -4.0 }, Quat.identity, block_half)))
 	high_ok = match high {
 		Ok(Ok({ pos, shape: Sphere(radius), .. })) => pos.x == -4.5 and pos.z == -4.0 and pos.y - radius > 2.0 * player_half.y
 		_ => Bool.False

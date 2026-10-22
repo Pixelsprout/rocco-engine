@@ -10,7 +10,7 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
-	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_sphere(2, {1.5, 0, 0}, 1), test_capsule(3, {10, 0, 0})}
+	colliders := []Collider{test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(2, {1.5, 0, 0}, 1), test_capsule(3, {10, 0, 0})}
 	queries := []Query{test_contacts_of(1), test_ray(4, 2, {5, 0, 0}, {-1, 0, 0}, 20), test_overlap_sphere(4, 3, {0, 0, 0}, 0.25)}
 	corner := ui_box()
 	corner.width = ui_fixed(40)

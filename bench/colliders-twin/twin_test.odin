@@ -59,7 +59,8 @@ twin_colliders :: proc(seed: u64, n: string, steps: int) -> string {
 		case .Capsule:
 			fmt.sbprint(&b, "capsule")
 		}
-		fmt.sbprintf(&b, " %v %v %v %v\n", bits(c.pos.x), bits(c.pos.y), bits(c.pos.z), bits(c.yaw))
+		fmt.sbprintf(&b, " %v %v %v", bits(c.pos.x), bits(c.pos.y), bits(c.pos.z))
+		fmt.sbprintf(&b, " %v %v %v %v\n", bits(c.rot.x), bits(c.rot.y), bits(c.rot.z), bits(c.rot.w))
 	}
 	engine.roc_decref(scene)
 	TWIN.drop_model(model)
