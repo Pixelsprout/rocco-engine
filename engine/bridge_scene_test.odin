@@ -15,7 +15,7 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	corner := ui_box()
 	corner.width = ui_fixed(40)
 	corner.floating = ui_floating(.LeftTop)
-	ui := []Element{ui_open(corner), ui_close()}
+	ui := []Element{ui_box_of(corner, ui_box_of(ui_box()))}
 	s: State
 	fake_frame_state_init(&s, mode = .Lockstep, colliders = colliders, queries = queries, ui = ui)
 	defer fake_frame_state_destroy(&s)
@@ -57,10 +57,16 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	testing.expect_value(t, loops[0].(json.Object)["at"].(json.String), "Here")
 	// fake_view puts the ui_texts Box before the Elements of g_fake.ui.
 	elements := scene["ui"].(json.Array)
-	expect_tags(t, elements, {"Open", "Text", "Close", "Open", "Close"})
-	testing.expect_value(t, expect_tag(t, elements[1], "Text").(json.Object)["str"].(json.String), "Pip")
-	float := expect_tag(t, expect_tag(t, elements[3], "Open").(json.Object)["floating"], "Float").(json.Object)
+	expect_tags(t, elements, {"Box", "Box"})
+	pip := expect_tag(t, elements[0], "Box").(json.Object)["children"].(json.Array)
+	expect_tags(t, pip, {"Text"})
+	testing.expect_value(t, expect_tag(t, pip[0], "Text").(json.Object)["str"].(json.String), "Pip")
+	corner_json := expect_tag(t, elements[1], "Box").(json.Object)
+	float := expect_tag(t, corner_json["config"].(json.Object)["floating"], "Float").(json.Object)
 	testing.expect_value(t, float["attach"].(json.String), "LeftTop")
+	nested := corner_json["children"].(json.Array)
+	expect_tags(t, nested, {"Box"})
+	testing.expect_value(t, len(expect_tag(t, nested[0], "Box").(json.Object)["children"].(json.Array)), 0)
 
 	results := reply["results"].(json.Object)
 	contacts := results["contacts"].(json.Array)

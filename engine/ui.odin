@@ -54,8 +54,6 @@ Ui_Quad :: struct {
 }
 
 Ui_Repair :: enum {
-	Extra_Close,
-	Unclosed_Open,
 	Bad_Char,
 	Quad_Cap,
 }
@@ -98,9 +96,9 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 	return nil
 }
 
-// Lays out elements against the window and returns the quads to draw, in order.
-ui_frame :: proc(ui: ^Ui, elements: []Element, window: Ui_Window) -> []Ui_Quad {
-	commands := ui_layout(ui, elements, window)
+// Lays out the trees under roots against the window and returns the quads to draw, in order.
+ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []Ui_Quad {
+	commands := ui_layout(ui, roots, window)
 	ui.quad_count = 0
 	for &command in commands {
 		box := command.boundingBox
@@ -116,38 +114,32 @@ ui_frame :: proc(ui: ^Ui, elements: []Element, window: Ui_Window) -> []Ui_Quad {
 	return ui.quads[:ui.quad_count]
 }
 
-// The commands point into Clay's arena and into the elements, so they last until the next layout.
-ui_layout :: proc(ui: ^Ui, elements: []Element, window: Ui_Window) -> []clay.RenderCommand {
+// The commands point into Clay's arena and into the roots, so they last until the next layout.
+ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.RenderCommand {
 	clay.SetCurrentContext(ui.ctx)
 	clay.SetLayoutDimensions({window.size.x, window.size.y})
 	clay.BeginLayout()
-	depth := 0
-	for &e in elements {
-		switch e.tag {
-		case .Open:
-			clay._OpenElement()
-			clay.ConfigureOpenElement(ui_declaration(e.payload.open, window.dpi))
-			depth += 1
-		case .Text:
-			text := &e.payload.text
-			clay.TextDynamic(roc_str_string(&text.str), {textColor = ui_color(text.color), fontSize = ui_px(text.size, window.dpi), wrapMode = .Words if text.wrap == .Words else .None})
-		case .Close:
-			if depth == 0 {
-				ui_repair(ui, .Extra_Close)
-				continue
-			}
-			clay._CloseElement()
-			depth -= 1
-		}
-	}
-	if depth > 0 {
-		ui_repair(ui, .Unclosed_Open)
-		for _ in 0 ..< depth {
-			clay._CloseElement()
-		}
+	for &e in roots {
+		ui_layout_element(&e, window.dpi)
 	}
 	commands := clay.EndLayout(0)
 	return commands.internalArray[:commands.length]
+}
+
+ui_layout_element :: proc(e: ^Element, dpi: f32) {
+	switch e.tag {
+	case .Box:
+		config, children := e.payload.box._0, e.payload.box._1
+		clay._OpenElement()
+		clay.ConfigureOpenElement(ui_declaration(config, dpi))
+		for &child in children.elements[:children.length] {
+			ui_layout_element(&child, dpi)
+		}
+		clay._CloseElement()
+	case .Text:
+		text := &e.payload.text
+		clay.TextDynamic(roc_str_string(&text.str), {textColor = ui_color(text.color), fontSize = ui_px(text.size, dpi), wrapMode = .Words if text.wrap == .Words else .None})
+	}
 }
 
 ui_declaration :: proc(box: Box_Config, dpi: f32) -> clay.ElementDeclaration {
@@ -244,10 +236,6 @@ ui_repair :: proc(ui: ^Ui, repair: Ui_Repair) {
 	}
 	ui.repairs_logged += {repair}
 	switch repair {
-	case .Extra_Close:
-		fmt.eprintln("a Scene's ui has a Close with no open Box; the host ignores it")
-	case .Unclosed_Open:
-		fmt.eprintln("a Scene's ui ends with a Box still open; the host closes it")
 	case .Bad_Char:
 		fmt.eprintfln("a Text has a character outside ASCII %v to %v; the host draws ?", FONT_FIRST, FONT_LAST)
 	case .Quad_Cap:

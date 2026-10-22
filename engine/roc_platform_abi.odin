@@ -502,7 +502,7 @@ Roc_View :: struct {
 	lights: Roc_List(Roc_View_Lights),
 	loops: Roc_List(Roc_View_Loops),
 	queries: Roc_List(Roc_View_Queries),
-	ui: Roc_List(Roc_View_Ui),
+	ui: Roc_List(Roc_VocabularyElement),
 	camera: Roc_View_Camera,
 	sky: u32,
 	cursor: Roc_View_Cursor,
@@ -814,123 +814,131 @@ Roc_View_Queries_Raycast :: struct {
 
 Roc_View_Queries_Raycast_Dir :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Queries_Raycast_Origin :: Roc_Init_Commands_Play_At_At_Pos
-Roc_View_Ui_Tag :: enum u8 {
-	Close = 0,
-	Open = 1,
-	Text = 2,
+Roc_VocabularyElement_Box :: struct {
+	_1: Roc_List(Roc_VocabularyElement),
+	_0: Roc_VocabularyElement_Box_0,
 }
 
-Roc_View_Ui_Payload :: struct #raw_union {
-	open: Roc_View_Ui_Open,
-	text: Roc_View_Ui_Text,
+#assert(size_of(Roc_VocabularyElement_Box) == 112)
+#assert(align_of(Roc_VocabularyElement_Box) == 8)
+#assert(offset_of(Roc_VocabularyElement_Box, _1) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box{}._1)) == 24)
+#assert(offset_of(Roc_VocabularyElement_Box, _0) == 24)
+#assert(size_of(type_of(Roc_VocabularyElement_Box{}._0)) == 84)
+
+Roc_VocabularyElement_Tag :: enum u8 {
+	Box = 0,
+	Text = 1,
 }
 
-Roc_View_Ui :: struct #raw_union {
-	payload: Roc_View_Ui_Payload,
-	using _: struct {
-		_: [84]u8,
-		tag: Roc_View_Ui_Tag,
-	},
+Roc_VocabularyElement_Payload :: struct #raw_union {
+	box: Roc_VocabularyElement_Box,
+	text: Roc_VocabularyElement_Text,
 }
 
-#assert(size_of(Roc_View_Ui) == 88)
-#assert(align_of(Roc_View_Ui) == 8)
-#assert(offset_of(Roc_View_Ui, tag) == 84)
+Roc_VocabularyElement :: struct {
+	payload: Roc_VocabularyElement_Payload,
+	tag: Roc_VocabularyElement_Tag,
+}
 
-Roc_View_Ui_Open :: struct {
-	background: Roc_View_Ui_Open_Background,
-	floating: Roc_View_Ui_Open_Floating,
+#assert(size_of(Roc_VocabularyElement) == 120)
+#assert(align_of(Roc_VocabularyElement) == 8)
+#assert(offset_of(Roc_VocabularyElement, tag) == 112)
+
+Roc_VocabularyElement_Box_0 :: struct {
+	background: Roc_VocabularyElement_Box_0_Background,
+	floating: Roc_VocabularyElement_Box_0_Floating,
 	gap: f32,
-	height: Roc_View_Ui_Open_Height,
-	pad: Roc_View_Ui_Open_Pad,
+	height: Roc_VocabularyElement_Box_0_Height,
+	pad: Roc_VocabularyElement_Box_0_Pad,
 	radius: f32,
-	width: Roc_View_Ui_Open_Height,
-	child_align: Roc_View_Ui_Open_ChildAlign,
-	direction: Roc_View_Ui_Open_Direction,
+	width: Roc_VocabularyElement_Box_0_Height,
+	child_align: Roc_VocabularyElement_Box_0_ChildAlign,
+	direction: Roc_VocabularyElement_Box_0_Direction,
 }
 
-#assert(size_of(Roc_View_Ui_Open) == 84)
-#assert(align_of(Roc_View_Ui_Open) == 4)
-#assert(offset_of(Roc_View_Ui_Open, background) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.background)) == 16)
-#assert(offset_of(Roc_View_Ui_Open, floating) == 16)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.floating)) == 16)
-#assert(offset_of(Roc_View_Ui_Open, gap) == 32)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.gap)) == 4)
-#assert(offset_of(Roc_View_Ui_Open, height) == 36)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.height)) == 12)
-#assert(offset_of(Roc_View_Ui_Open, pad) == 48)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.pad)) == 16)
-#assert(offset_of(Roc_View_Ui_Open, radius) == 64)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.radius)) == 4)
-#assert(offset_of(Roc_View_Ui_Open, width) == 68)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.width)) == 12)
-#assert(offset_of(Roc_View_Ui_Open, child_align) == 80)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.child_align)) == 2)
-#assert(offset_of(Roc_View_Ui_Open, direction) == 82)
-#assert(size_of(type_of(Roc_View_Ui_Open{}.direction)) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0) == 84)
+#assert(align_of(Roc_VocabularyElement_Box_0) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0, background) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.background)) == 16)
+#assert(offset_of(Roc_VocabularyElement_Box_0, floating) == 16)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.floating)) == 16)
+#assert(offset_of(Roc_VocabularyElement_Box_0, gap) == 32)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.gap)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0, height) == 36)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.height)) == 12)
+#assert(offset_of(Roc_VocabularyElement_Box_0, pad) == 48)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.pad)) == 16)
+#assert(offset_of(Roc_VocabularyElement_Box_0, radius) == 64)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.radius)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0, width) == 68)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.width)) == 12)
+#assert(offset_of(Roc_VocabularyElement_Box_0, child_align) == 80)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.child_align)) == 2)
+#assert(offset_of(Roc_VocabularyElement_Box_0, direction) == 82)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.direction)) == 1)
 
-Roc_View_Ui_Open_Background :: struct {
+Roc_VocabularyElement_Box_0_Background :: struct {
 	a: f32,
 	b: f32,
 	g: f32,
 	r: f32,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Background) == 16)
-#assert(align_of(Roc_View_Ui_Open_Background) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Background, a) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.a)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Background, b) == 4)
-#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.b)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Background, g) == 8)
-#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.g)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Background, r) == 12)
-#assert(size_of(type_of(Roc_View_Ui_Open_Background{}.r)) == 4)
+#assert(size_of(Roc_VocabularyElement_Box_0_Background) == 16)
+#assert(align_of(Roc_VocabularyElement_Box_0_Background) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Background, a) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Background{}.a)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Background, b) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Background{}.b)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Background, g) == 8)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Background{}.g)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Background, r) == 12)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Background{}.r)) == 4)
 
-Roc_View_Ui_Open_Floating_Tag :: enum u8 {
+Roc_VocabularyElement_Box_0_Floating_Tag :: enum u8 {
 	Float = 0,
 	NoFloat = 1,
 }
 
-Roc_View_Ui_Open_Floating_Payload :: struct #raw_union {
-	float: Roc_View_Ui_Open_Floating_Float,
+Roc_VocabularyElement_Box_0_Floating_Payload :: struct #raw_union {
+	float: Roc_VocabularyElement_Box_0_Floating_Float,
 }
 
-Roc_View_Ui_Open_Floating :: struct {
-	payload: Roc_View_Ui_Open_Floating_Payload,
-	tag: Roc_View_Ui_Open_Floating_Tag,
+Roc_VocabularyElement_Box_0_Floating :: struct {
+	payload: Roc_VocabularyElement_Box_0_Floating_Payload,
+	tag: Roc_VocabularyElement_Box_0_Floating_Tag,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Floating) == 16)
-#assert(align_of(Roc_View_Ui_Open_Floating) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Floating, tag) == 12)
+#assert(size_of(Roc_VocabularyElement_Box_0_Floating) == 16)
+#assert(align_of(Roc_VocabularyElement_Box_0_Floating) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating, tag) == 12)
 
-Roc_View_Ui_Open_Floating_Float :: struct {
-	offset: Roc_View_Ui_Open_Floating_Float_Offset,
-	attach: Roc_View_Ui_Open_Floating_Float_Attach,
+Roc_VocabularyElement_Box_0_Floating_Float :: struct {
+	offset: Roc_VocabularyElement_Box_0_Floating_Float_Offset,
+	attach: Roc_VocabularyElement_Box_0_Floating_Float_Attach,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Floating_Float) == 12)
-#assert(align_of(Roc_View_Ui_Open_Floating_Float) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Floating_Float, offset) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float{}.offset)) == 8)
-#assert(offset_of(Roc_View_Ui_Open_Floating_Float, attach) == 8)
-#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float{}.attach)) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float) == 12)
+#assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, offset) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.offset)) == 8)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, attach) == 8)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.attach)) == 1)
 
-Roc_View_Ui_Open_Floating_Float_Offset :: struct {
+Roc_VocabularyElement_Box_0_Floating_Float_Offset :: struct {
 	x: f32,
 	y: f32,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Floating_Float_Offset) == 8)
-#assert(align_of(Roc_View_Ui_Open_Floating_Float_Offset) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Floating_Float_Offset, x) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float_Offset{}.x)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Floating_Float_Offset, y) == 4)
-#assert(size_of(type_of(Roc_View_Ui_Open_Floating_Float_Offset{}.y)) == 4)
+#assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset) == 8)
+#assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset, x) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset{}.x)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset, y) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset{}.y)) == 4)
 
-Roc_View_Ui_Open_Floating_Float_Attach :: enum u8 {
+Roc_VocabularyElement_Box_0_Floating_Float_Attach :: enum u8 {
 	CenterBottom = 0,
 	CenterCenter = 1,
 	CenterTop = 2,
@@ -942,122 +950,122 @@ Roc_View_Ui_Open_Floating_Float_Attach :: enum u8 {
 	RightTop = 8,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Floating_Float_Attach) == 1)
-#assert(align_of(Roc_View_Ui_Open_Floating_Float_Attach) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float_Attach) == 1)
+#assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float_Attach) == 1)
 
-Roc_View_Ui_Open_Height_Tag :: enum u8 {
+Roc_VocabularyElement_Box_0_Height_Tag :: enum u8 {
 	Fit = 0,
 	Fixed = 1,
 	Grow = 2,
 	Percent = 3,
 }
 
-Roc_View_Ui_Open_Height_Payload :: struct #raw_union {
-	fit: Roc_View_Ui_Open_Height_Fit,
+Roc_VocabularyElement_Box_0_Height_Payload :: struct #raw_union {
+	fit: Roc_VocabularyElement_Box_0_Height_Fit,
 	fixed: f32,
-	grow: Roc_View_Ui_Open_Height_Fit,
+	grow: Roc_VocabularyElement_Box_0_Height_Fit,
 	percent: f32,
 }
 
-Roc_View_Ui_Open_Height :: struct {
-	payload: Roc_View_Ui_Open_Height_Payload,
-	tag: Roc_View_Ui_Open_Height_Tag,
+Roc_VocabularyElement_Box_0_Height :: struct {
+	payload: Roc_VocabularyElement_Box_0_Height_Payload,
+	tag: Roc_VocabularyElement_Box_0_Height_Tag,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Height) == 12)
-#assert(align_of(Roc_View_Ui_Open_Height) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Height, tag) == 8)
+#assert(size_of(Roc_VocabularyElement_Box_0_Height) == 12)
+#assert(align_of(Roc_VocabularyElement_Box_0_Height) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Height, tag) == 8)
 
-Roc_View_Ui_Open_Height_Fit :: struct {
+Roc_VocabularyElement_Box_0_Height_Fit :: struct {
 	max: f32,
 	min: f32,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Height_Fit) == 8)
-#assert(align_of(Roc_View_Ui_Open_Height_Fit) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Height_Fit, max) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_Height_Fit{}.max)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Height_Fit, min) == 4)
-#assert(size_of(type_of(Roc_View_Ui_Open_Height_Fit{}.min)) == 4)
+#assert(size_of(Roc_VocabularyElement_Box_0_Height_Fit) == 8)
+#assert(align_of(Roc_VocabularyElement_Box_0_Height_Fit) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Height_Fit, max) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Height_Fit{}.max)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Height_Fit, min) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Height_Fit{}.min)) == 4)
 
-Roc_View_Ui_Open_Height_Grow :: Roc_View_Ui_Open_Height_Fit
-Roc_View_Ui_Open_Pad :: struct {
+Roc_VocabularyElement_Box_0_Height_Grow :: Roc_VocabularyElement_Box_0_Height_Fit
+Roc_VocabularyElement_Box_0_Pad :: struct {
 	bottom: f32,
 	left: f32,
 	right: f32,
 	top: f32,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Pad) == 16)
-#assert(align_of(Roc_View_Ui_Open_Pad) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Pad, bottom) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.bottom)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Pad, left) == 4)
-#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.left)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Pad, right) == 8)
-#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.right)) == 4)
-#assert(offset_of(Roc_View_Ui_Open_Pad, top) == 12)
-#assert(size_of(type_of(Roc_View_Ui_Open_Pad{}.top)) == 4)
+#assert(size_of(Roc_VocabularyElement_Box_0_Pad) == 16)
+#assert(align_of(Roc_VocabularyElement_Box_0_Pad) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Pad, bottom) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Pad{}.bottom)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Pad, left) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Pad{}.left)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Pad, right) == 8)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Pad{}.right)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Pad, top) == 12)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Pad{}.top)) == 4)
 
-Roc_View_Ui_Open_Width :: Roc_View_Ui_Open_Height
-Roc_View_Ui_Open_Width_Fit :: Roc_View_Ui_Open_Height_Fit
-Roc_View_Ui_Open_Width_Grow :: Roc_View_Ui_Open_Height_Fit
-Roc_View_Ui_Open_ChildAlign :: struct {
-	x: Roc_View_Ui_Open_ChildAlign_X,
-	y: Roc_View_Ui_Open_ChildAlign_X,
+Roc_VocabularyElement_Box_0_Width :: Roc_VocabularyElement_Box_0_Height
+Roc_VocabularyElement_Box_0_Width_Fit :: Roc_VocabularyElement_Box_0_Height_Fit
+Roc_VocabularyElement_Box_0_Width_Grow :: Roc_VocabularyElement_Box_0_Height_Fit
+Roc_VocabularyElement_Box_0_ChildAlign :: struct {
+	x: Roc_VocabularyElement_Box_0_ChildAlign_X,
+	y: Roc_VocabularyElement_Box_0_ChildAlign_X,
 }
 
-#assert(size_of(Roc_View_Ui_Open_ChildAlign) == 2)
-#assert(align_of(Roc_View_Ui_Open_ChildAlign) == 1)
-#assert(offset_of(Roc_View_Ui_Open_ChildAlign, x) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Open_ChildAlign{}.x)) == 1)
-#assert(offset_of(Roc_View_Ui_Open_ChildAlign, y) == 1)
-#assert(size_of(type_of(Roc_View_Ui_Open_ChildAlign{}.y)) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0_ChildAlign) == 2)
+#assert(align_of(Roc_VocabularyElement_Box_0_ChildAlign) == 1)
+#assert(offset_of(Roc_VocabularyElement_Box_0_ChildAlign, x) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_ChildAlign{}.x)) == 1)
+#assert(offset_of(Roc_VocabularyElement_Box_0_ChildAlign, y) == 1)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_ChildAlign{}.y)) == 1)
 
-Roc_View_Ui_Open_ChildAlign_X :: enum u8 {
+Roc_VocabularyElement_Box_0_ChildAlign_X :: enum u8 {
 	Center = 0,
 	End = 1,
 	Start = 2,
 }
 
-#assert(size_of(Roc_View_Ui_Open_ChildAlign_X) == 1)
-#assert(align_of(Roc_View_Ui_Open_ChildAlign_X) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0_ChildAlign_X) == 1)
+#assert(align_of(Roc_VocabularyElement_Box_0_ChildAlign_X) == 1)
 
-Roc_View_Ui_Open_ChildAlign_Y :: Roc_View_Ui_Open_ChildAlign_X
-Roc_View_Ui_Open_Direction :: enum u8 {
+Roc_VocabularyElement_Box_0_ChildAlign_Y :: Roc_VocabularyElement_Box_0_ChildAlign_X
+Roc_VocabularyElement_Box_0_Direction :: enum u8 {
 	Col = 0,
 	Row = 1,
 }
 
-#assert(size_of(Roc_View_Ui_Open_Direction) == 1)
-#assert(align_of(Roc_View_Ui_Open_Direction) == 1)
+#assert(size_of(Roc_VocabularyElement_Box_0_Direction) == 1)
+#assert(align_of(Roc_VocabularyElement_Box_0_Direction) == 1)
 
-Roc_View_Ui_Text :: struct {
+Roc_VocabularyElement_Text :: struct {
 	str: Roc_Str,
-	color: Roc_View_Ui_Open_Background,
+	color: Roc_VocabularyElement_Box_0_Background,
 	size: f32,
-	wrap: Roc_View_Ui_Text_Wrap,
+	wrap: Roc_VocabularyElement_Text_Wrap,
 }
 
-#assert(size_of(Roc_View_Ui_Text) == 48)
-#assert(align_of(Roc_View_Ui_Text) == 8)
-#assert(offset_of(Roc_View_Ui_Text, str) == 0)
-#assert(size_of(type_of(Roc_View_Ui_Text{}.str)) == 24)
-#assert(offset_of(Roc_View_Ui_Text, color) == 24)
-#assert(size_of(type_of(Roc_View_Ui_Text{}.color)) == 16)
-#assert(offset_of(Roc_View_Ui_Text, size) == 40)
-#assert(size_of(type_of(Roc_View_Ui_Text{}.size)) == 4)
-#assert(offset_of(Roc_View_Ui_Text, wrap) == 44)
-#assert(size_of(type_of(Roc_View_Ui_Text{}.wrap)) == 1)
+#assert(size_of(Roc_VocabularyElement_Text) == 48)
+#assert(align_of(Roc_VocabularyElement_Text) == 8)
+#assert(offset_of(Roc_VocabularyElement_Text, str) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Text{}.str)) == 24)
+#assert(offset_of(Roc_VocabularyElement_Text, color) == 24)
+#assert(size_of(type_of(Roc_VocabularyElement_Text{}.color)) == 16)
+#assert(offset_of(Roc_VocabularyElement_Text, size) == 40)
+#assert(size_of(type_of(Roc_VocabularyElement_Text{}.size)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Text, wrap) == 44)
+#assert(size_of(type_of(Roc_VocabularyElement_Text{}.wrap)) == 1)
 
-Roc_View_Ui_Text_Color :: Roc_View_Ui_Open_Background
-Roc_View_Ui_Text_Wrap :: enum u8 {
+Roc_VocabularyElement_Text_Color :: Roc_VocabularyElement_Box_0_Background
+Roc_VocabularyElement_Text_Wrap :: enum u8 {
 	None = 0,
 	Words = 1,
 }
 
-#assert(size_of(Roc_View_Ui_Text_Wrap) == 1)
-#assert(align_of(Roc_View_Ui_Text_Wrap) == 1)
+#assert(size_of(Roc_VocabularyElement_Text_Wrap) == 1)
+#assert(align_of(Roc_VocabularyElement_Text_Wrap) == 1)
 
 Roc_View_Camera :: struct {
 	eye: Roc_Init_Commands_Play_At_At_Pos,
@@ -1141,7 +1149,7 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_lights(value.lights)
 	roc_list_decref_roc_view_loops(value.loops)
 	roc_list_decref_roc_view_queries(value.queries)
-	roc_list_decref_roc_view_ui(value.ui)
+	roc_list_decref_roc_vocabularyelement(value.ui)
 }
 
 roc_view_queries_decref :: proc(value: Roc_View_Queries) {
@@ -1161,14 +1169,16 @@ roc_view_queries_raycast_decref :: proc(value: Roc_View_Queries_Raycast) {
 	roc_list_decref_u64(value.exclude)
 }
 
-roc_view_ui_decref :: proc(value: Roc_View_Ui) {
+roc_vocabularyelement_decref :: proc(value: Roc_VocabularyElement) {
 	#partial switch value.tag {
+	case .Box:
+		roc_list_decref_roc_vocabularyelement(value.payload.box._1)
 	case .Text:
-		roc_view_ui_text_decref(value.payload.text)
+		roc_vocabularyelement_text_decref(value.payload.text)
 	}
 }
 
-roc_view_ui_text_decref :: proc(value: Roc_View_Ui_Text) {
+roc_vocabularyelement_text_decref :: proc(value: Roc_VocabularyElement_Text) {
 	roc_str_decref(value.str)
 }
 
@@ -1276,11 +1286,11 @@ roc_list_from_slice_u64 :: proc(elems: []u64) -> Roc_List(u64) {
 	return roc_list_from_slice_with(elems, false)
 }
 
-roc_list_decref_roc_view_ui :: proc(list: Roc_List(Roc_View_Ui)) {
-	roc_list_decref_elements(list, roc_view_ui_decref)
+roc_list_decref_roc_vocabularyelement :: proc(list: Roc_List(Roc_VocabularyElement)) {
+	roc_list_decref_elements(list, roc_vocabularyelement_decref)
 }
 
-roc_list_from_slice_roc_view_ui :: proc(elems: []Roc_View_Ui) -> Roc_List(Roc_View_Ui) {
+roc_list_from_slice_roc_vocabularyelement :: proc(elems: []Roc_VocabularyElement) -> Roc_List(Roc_VocabularyElement) {
 	return roc_list_from_slice_with(elems, true)
 }
 
@@ -1299,8 +1309,8 @@ roc_decref :: proc {
 	roc_view_queries_decref,
 	roc_view_queries_overlap_decref,
 	roc_view_queries_raycast_decref,
-	roc_view_ui_decref,
-	roc_view_ui_text_decref,
+	roc_vocabularyelement_decref,
+	roc_vocabularyelement_text_decref,
 }
 
 roc_list_decref :: proc {
@@ -1317,7 +1327,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_view_loops,
 	roc_list_decref_roc_view_queries,
 	roc_list_decref_u64,
-	roc_list_decref_roc_view_ui,
+	roc_list_decref_roc_vocabularyelement,
 }
 
 roc_list_from_slice :: proc {
@@ -1334,7 +1344,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_view_loops,
 	roc_list_from_slice_roc_view_queries,
 	roc_list_from_slice_u64,
-	roc_list_from_slice_roc_view_ui,
+	roc_list_from_slice_roc_vocabularyelement,
 }
 
 // The Roc app defines these symbols at the final link.

@@ -273,7 +273,7 @@ test_headless_lays_out_the_ui_against_the_launch_window_at_dpi_1 :: proc(t: ^tes
 	box := ui_rect(100, 50)
 	box.floating = ui_floating(.RightBottom)
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_open(box), ui_close()})
+	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_box_of(box)})
 	defer fake_frame_state_destroy(&s)
 
 	headless_run(&s)

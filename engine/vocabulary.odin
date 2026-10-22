@@ -3,7 +3,9 @@ package engine
 // Host names for the generated vocabulary types. The glue names each record
 // by the path that reaches it from a provided function. A record shared by
 // several paths takes the name of the first, so Vec3 is the pos of a Play's
-// Place, a step result is a Roc_Init and Rgba is a Box background.
+// Place, a step result is a Roc_Init and Rgba is a Box background. A nominal
+// type keeps its own name, so Element is Roc_VocabularyElement, and the
+// glue names a Box's fields _0 (the config) and _1 (the children).
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
 Window :: Roc_Launch_Window
@@ -39,20 +41,20 @@ Quat :: Roc_View_Draws_Rot
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor
-Rgba :: Roc_View_Ui_Open_Background
-Element :: Roc_View_Ui
-Element_Tag :: Roc_View_Ui_Tag
-Box_Config :: Roc_View_Ui_Open
-Sizing :: Roc_View_Ui_Open_Height
-Sizing_Tag :: Roc_View_Ui_Open_Height_Tag
-Sizing_Range :: Roc_View_Ui_Open_Height_Fit
-Pad :: Roc_View_Ui_Open_Pad
-Direction :: Roc_View_Ui_Open_Direction
-Child_Align :: Roc_View_Ui_Open_ChildAlign
-Align :: Roc_View_Ui_Open_ChildAlign_X
-Floating :: Roc_View_Ui_Open_Floating
-Floating_Tag :: Roc_View_Ui_Open_Floating_Tag
-Float_Config :: Roc_View_Ui_Open_Floating_Float
-Attach_Point :: Roc_View_Ui_Open_Floating_Float_Attach
-Text :: Roc_View_Ui_Text
-Text_Wrap :: Roc_View_Ui_Text_Wrap
+Rgba :: Roc_VocabularyElement_Box_0_Background
+Element :: Roc_VocabularyElement
+Element_Tag :: Roc_VocabularyElement_Tag
+Box_Config :: Roc_VocabularyElement_Box_0
+Sizing :: Roc_VocabularyElement_Box_0_Height
+Sizing_Tag :: Roc_VocabularyElement_Box_0_Height_Tag
+Sizing_Range :: Roc_VocabularyElement_Box_0_Height_Fit
+Pad :: Roc_VocabularyElement_Box_0_Pad
+Direction :: Roc_VocabularyElement_Box_0_Direction
+Child_Align :: Roc_VocabularyElement_Box_0_ChildAlign
+Align :: Roc_VocabularyElement_Box_0_ChildAlign_X
+Floating :: Roc_VocabularyElement_Box_0_Floating
+Floating_Tag :: Roc_VocabularyElement_Box_0_Floating_Tag
+Float_Config :: Roc_VocabularyElement_Box_0_Floating_Float
+Attach_Point :: Roc_VocabularyElement_Box_0_Floating_Float_Attach
+Text :: Roc_VocabularyElement_Text
+Text_Wrap :: Roc_VocabularyElement_Text_Wrap

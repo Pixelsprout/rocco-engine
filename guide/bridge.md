@@ -230,6 +230,24 @@ trimmed to the `queries` and the `results`:
 The game sees this Contact in its next step, and the pickup is then gone
 from `draws`.
 
+The `ui` field mirrors the UI tree that the game wrote. A `Box` is an
+object with its `config` and its `children`, and each child is a `Box` or a
+`Text` in the same form. In chapter 7, after one step, the HUD is two root
+Boxes with one Text each. This reply is trimmed to the `ui`, and split into
+lines:
+
+```
+{"op":"scene"}
+{"ok":true,"steps":1,"scene":{...,"ui":[
+  {"Box":{"config":{"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"floating":{"Float":{"attach":"LeftTop","offset":{"x":16,"y":16}}}},
+          "children":[{"Text":{"str":"Pickups: 0 / 5","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}},
+  {"Box":{"config":{...,"floating":{"Float":{"attach":"CenterBottom","offset":{"x":0,"y":-16}}}},
+          "children":[{"Text":{"str":"Collect every pickup.","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}}],...},...}
+```
+
+To find a string in the HUD, walk `children` down from each root, as a Roc
+test matches the tree with a pattern.
+
 ## screenshot
 
 `screenshot` saves the last frame the window drew as a PNG:
@@ -411,6 +429,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | An id, a mesh id | A whole number. |
 | A tag with a payload | An object with one key: `{"Sphere":0.25}`, `{"ContactsOf":2}`. |
 | A tag with no payload | A string: `"Quit"`, `"Free"`, `"Locked"`. |
+| `Element` | `{"Box":{"config":{...},"children":[...]}}` or `{"Text":{...}}`. A Box's two payloads get the names `config` and `children`. |
 
 ### Errors
 

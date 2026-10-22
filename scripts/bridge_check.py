@@ -11,6 +11,9 @@ Then it runs tutorial chapter 8, checks its two Loops, and holds W until Pip
 takes a pickup. The step reply must hold the Play of the blip. A run with no
 audio device still returns the Play, so the check needs no sound card.
 
+Last it runs pong and checks that the `scene` reply holds the UI as a tree:
+the scoreboard is a Box that holds two cell Boxes, each with the score.
+
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
 """
@@ -39,6 +42,10 @@ WINDOW = [960, 540]
 MUSIC_LOOP_ID = 1
 HUM_LOOP_ID = 2
 HUM_AT = {"At": {"pos": {"x": 0, "y": 1, "z": -2.9}, "range": 10}}
+
+# examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
+# a cell. Each cell is a Box that holds the score as one Text.
+SCOREBOARD_TEXTS = ["0", ":", "0"]
 
 
 def binary_suffix():
@@ -104,7 +111,21 @@ def drive_sound(b, _out):
     b.quit()
 
 
-GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound)]
+def drive_ui(b, _out):
+    b.hello()
+
+    ui = b.scene()["scene"]["ui"]
+    check(len(ui) > 0 and "Box" in ui[0], f"the first of {len(ui)} UI roots is a Box")
+    children = ui[0]["Box"]["children"]
+    cells = [c["Box"] for c in children if "Box" in c]
+    check(len(cells) == 2, f"the scoreboard Box holds {len(cells)} nested Boxes, expected 2")
+    texts = [c["Text"]["str"] if "Text" in c else c["Box"]["children"][0]["Text"]["str"] for c in children]
+    check(texts == SCOREBOARD_TEXTS, f"the scoreboard shows {texts}")
+
+    b.quit()
+
+
+GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("pong", drive_ui)]
 
 
 def run_game(game, drive, out, tmp, suffix):

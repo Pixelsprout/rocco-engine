@@ -194,12 +194,14 @@ The other variables the engine reads:
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 5, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
-because `Ui.box` builds `Scene.ui` with concat and append. The script
-rebuilds the host with `host --release --track-alloc` and fails on a `LEAK`
-or `BAD Free` line. It leaves that host in place, so run `host` again after
-it. Run `inputs` first. Each game opens a window. Do not type into it during
-the check, because a key press allocates the `Input` lists.
+entity-game 5, with 0 reallocs. pong expects 6 allocs and 1 realloc: the
+box shell, the draws list, the ui list, the scoreboard's children and its
+two cells' children. The realloc is the concat that joins the scoreboard,
+the banner and the hints. The script rebuilds the host with
+`host --release --track-alloc` and fails on a `LEAK` or `BAD Free` line. It
+leaves that host in place, so run `host` again after it. Run `inputs`
+first. Each game opens a window. Do not type into it during the check,
+because a key press allocates the `Input` lists.
 
 `./scripts/host-check.sh` regenerates the glue and links cards, entity-game
 and pong, then checks that the host library and the glue did not change.
@@ -247,7 +249,8 @@ game by hand, or import its `Bridge` class in a Python script.
 `python3 scripts/bridge_check.py` is the Bridge check that CI runs: it
 drives tutorial chapter 3 and checks that Pip moves and that the screenshot
 has the right size. Then it drives chapter 8 to a pickup and checks that the
-`step` reply holds the `Play` of the blip.
+`step` reply holds the `Play` of the blip. Last it drives pong and checks
+that the `scene` reply holds a Box nested in a Box.
 
 ### Docs
 
@@ -445,7 +448,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
-| `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
+| `packages/ui/` | The UI package for the `Scene.ui` tree. Games write `Box(config, [...])` and `Text(...)` themselves and take the configs from here: `default_box` holds Clay's defaults, `default_text` the Text defaults, and `float_at`, `panel`, `label` and `pad_all` are small helpers. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/model-size/model.golden` | The full Model of `bench/model-size` after 600 steps at Seed 7 and N=100. The idiomatic and the tuned game both check it. |
@@ -487,7 +490,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
-| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then checks pong's nested Boxes in the `scene` reply. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
