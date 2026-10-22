@@ -37,6 +37,7 @@ In an existing clone, run `git submodule update --init`.
 | Roc | `nightly-2026-10-11-7d256b9`, on `PATH` | In the Docker image | `nightly-2026-10-11-7d256b9` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
+| miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
 
 The tested macOS Odin is build `dev-2026-08:251d8eb0b`. The Docker image
@@ -55,6 +56,11 @@ The submodules:
 - `clay/` is nicbarker/clay, pinned to a commit on main. The engine imports
   its Odin bindings, and the `inputs` step copies their prebuilt `clay.a`.
   The x64win target does not link Clay yet.
+- `miniaudio/` is mackron/miniaudio, pinned at the `0.11.24` tag. The
+  build-miniaudio script for each OS compiles `scripts/miniaudio/rocco_miniaudio.c`,
+  which holds miniaudio and its `extras/stb_vorbis.c`, into one archive in
+  `build/miniaudio/`. `engine/miniaudio.odin` binds the calls the host makes.
+  See ADR 0011.
 
 You need `sokol-shdc` only to change the shader. The generated
 `engine/shader_basic.odin` is committed. The tested setup is a clone of
@@ -70,7 +76,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 |---|---|---|
 | `glue` | When `platform/main.roc` changes. | `roc glue --no-cache glue/OdinGlue.roc ./engine platform/main.roc` |
 | `host` | When `engine/` changes. | `odin build engine -build-mode:static -debug -define:ROCCO_TRACK_ALLOC=true -vet -strict-style` into `platform/targets/<target>/`. With `--release`, it uses `-o:speed` and drops `-debug` and `ROCCO_TRACK_ALLOC`. `--release --track-alloc` keeps `ROCCO_TRACK_ALLOC`, which turns on the host tracking allocator and its leak report at exit. `--spans` and `--release --spans` add `-define:ROCCO_SPANS=true`, which turns on the Span timers. The step deletes the old library first. |
-| `inputs` | Once, and after a sokol, Clay or SDK update. | Copies the debug sokol archives and Clay's `clay.a` into `platform/targets/<target>/`. With `--release`, it copies the release sokol archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
+| `inputs` | Once, and after a sokol, Clay, miniaudio or SDK update. | Copies the debug sokol archives, Clay's `clay.a` and the debug miniaudio archive into `platform/targets/<target>/`. With `--release`, it copies the release sokol and miniaudio archives. The copies drop the mode from the name, for example `sokol_gfx.a`. On macOS, copies compiler-rt. On Linux, copies nothing more: the CRT objects and stubs are committed. On Windows, copies nothing more: the import libraries are committed. |
 | `game <name>` | When anything changes. | `roc build` in `examples/<name>/`. The binary takes the name of the last folder, so `game tutorial/01-window` writes `examples/tutorial/01-window/01-window.bin`. |
 | `shaders` | When `engine/shaders/basic.glsl` changes. | `sokol-shdc` with the command in the header of `engine/shader_basic.odin`. Skips if `sokol-shdc` is not on `PATH`. |
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. |
@@ -116,10 +122,11 @@ sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
 check under xvfb. The Windows job
-builds sokol with `scripts\windows\build_sokol.cmd`, then builds with
+builds sokol with `scripts\windows\build_sokol.cmd` and miniaudio with
+`scripts\windows\build_miniaudio.cmd`, then builds with
 `--release`, runs the same games, the Bridge check and
 `scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
-the sokol step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
+the sokol and miniaudio step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
 and fails on a diff.
 
@@ -288,6 +295,7 @@ reader to get the values from the latest release.
 
 ```sh
 cd sokol-odin/sokol && sh build_clibs_macos.sh && cd ../..
+sh scripts/macos/build-miniaudio.sh
 roc scripts/build.roc -- all
 ./examples/entity-game/entity-game.bin
 ```
@@ -302,7 +310,7 @@ On macOS, the script also calls `xcrun` to find compiler-rt and the SDK.
 
 The script needs Docker and runs on any machine that has it. It builds the
 Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
-archives. Then it runs the `all` command of the build script. Then it runs
+archives and the miniaudio archive. Then it runs the `all` command of the build script. Then it runs
 each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
 Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
 `scripts/test-all.sh`, the host check and the alloc check. The script builds
@@ -331,6 +339,7 @@ X11, Xi, Xcursor and GL libraries with their headers.
 
 ```sh
 cd sokol-odin/sokol && sh build_clibs_linux.sh && cd ../..
+sh scripts/linux/build-miniaudio.sh
 roc scripts/build.roc -- all
 ./examples/entity-game/entity-game_linux.bin
 ```
@@ -351,7 +360,8 @@ Tools Command Prompt.
 Roc links x64win with no Visual Studio CRT. `build_sokol.cmd` builds the
 sokol libraries with `/Zl /GS-`, so they name no CRT library. sokol's own
 `build_clibs_windows.cmd` does not, and its libraries fail that link.
-The C runtime comes from `ucrtbase.dll`.
+The C runtime comes from `ucrtbase.dll`. `build_miniaudio.cmd` builds
+miniaudio with the same flags.
 
 The import libraries in `platform/targets/x64win/` are committed, so the link
 needs no Windows SDK and no `LIB` variable. `make_windows_import_libs.py`
@@ -362,6 +372,7 @@ differs from its `.def` file. The sokol build still needs the Windows SDK for
 
 ```bat
 scripts\windows\build_sokol.cmd
+scripts\windows\build_miniaudio.cmd
 roc scripts\build.roc -- all
 examples\entity-game\entity-game.exe
 ```
@@ -419,10 +430,10 @@ does not call it again. After a change to `launch`, restart the game.
 | `platform/Launch.roc` | Gives `Launch.default`, the Launch a game returns from `launch` or starts a record update from. |
 | `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `launch` and `init`. |
 | `platform/Input.roc` | Gives `Input.empty`, the Input a test gives `step`. |
-| `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives and compiler-rt. Not committed. |
+| `platform/targets/arm64mac/` | `libhost.a`, the sokol Metal archives, `clay.a`, `miniaudio.a` and compiler-rt. Not committed. |
 | `platform/targets/macos-sysroot/` | The stubs the macOS link reads. `scripts/make_macos_sysroot.py` writes them. Committed. Do not edit. |
-| `platform/targets/x64glibc/` | `libhost.a` and the sokol GL archives are not committed. `scripts/make_linux_stubs.py` writes the CRT objects and the stub shared libraries. They are committed. Do not edit them. |
-| `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries and `clay.lib` are not committed. `scripts/make_windows_import_libs.py` writes the import libraries. They are committed. Do not edit them. |
+| `platform/targets/x64glibc/` | `libhost.a`, the sokol GL archives, `clay.a` and `miniaudio.a` are not committed. `scripts/make_linux_stubs.py` writes the CRT objects and the stub shared libraries. They are committed. Do not edit them. |
+| `platform/targets/x64win/` | `host.lib`, the sokol D3D11 libraries, `clay.lib` and `miniaudio.lib` are not committed. `scripts/make_windows_import_libs.py` writes the import libraries. They are committed. Do not edit them. |
 | `examples/cards/` | A game with no entities: SPACE deals a card. |
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
@@ -468,6 +479,8 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. `--check` fails if a committed library differs. |
 | `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
 | `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
+| `scripts/miniaudio/rocco_miniaudio.c` | The one C file of the miniaudio archive: its defines, miniaudio and stb_vorbis. |
+| `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
 | `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size. |
@@ -475,6 +488,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
 | `clay/` | Submodule: nicbarker/clay. The engine imports `bindings/odin/clay-odin/`. |
+| `miniaudio/` | Submodule: mackron/miniaudio at `0.11.24`. `scripts/miniaudio/rocco_miniaudio.c` compiles it. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/BENCHMARKS.md` | How the benchmarks measure, how to repeat a run, and the reference results. |

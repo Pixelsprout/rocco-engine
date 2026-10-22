@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "scripts/macos-sysroot/interfaces.json"
 OUTPUT = ROOT / "platform/targets/macos-sysroot"
 ARCHIVES = ROOT / "platform/targets/arm64mac"
-AUDITED = ("libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a")
+AUDITED = ("libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a")
 # The link takes only the compiler-rt members it needs, so most of its
 # references never reach the binary. The audit reads only what it defines.
 COMPILER_RT = "libclang_rt.osx.a"

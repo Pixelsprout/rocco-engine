@@ -23,7 +23,7 @@ SOURCES = ROOT / "scripts/linux-stubs"
 CATALOG = SOURCES / "stubs.json"
 CRT_OBJECTS = ("Scrt1", "crti", "crtn")
 OUTPUT = ROOT / "platform/targets/x64glibc"
-AUDITED = ("libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a")
+AUDITED = ("libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a")
 # Another Zig can write other bytes, and CI fails on any diff.
 ZIG_VERSION = "0.16.0"
 TARGET = "x86_64-linux-gnu"

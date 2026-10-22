@@ -8,3 +8,6 @@
 [submodule "clay"]
 	path = clay
 	url = https://github.com/nicbarker/clay.git
+[submodule "miniaudio"]
+	path = miniaudio
+	url = https://github.com/mackron/miniaudio.git

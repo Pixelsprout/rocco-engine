@@ -1244,6 +1244,20 @@
           ]
         },
         {
+          "name": "___exp10",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-21.1.8/llvm/include/llvm/IR/RuntimeLibcalls.td",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__exp10",
+              "line": 987,
+              "revision": "llvmorg-21.1.8",
+              "retrieved_at": "2026-10-22T00:28:31+00:00",
+              "response_sha256": "14fd890c32e957a5637368a6cc3d36abe4e4da9beb66ca5b06e16fa378a6e8de"
+            }
+          ]
+        },
+        {
           "name": "___memcpy_chk",
           "sources": [
             {
@@ -1257,6 +1271,20 @@
           ]
         },
         {
+          "name": "___memmove_chk",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/secure/memmove_chk.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__memmove_chk",
+              "line": 29,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "retrieved_at": "2026-10-22T00:28:30+00:00",
+              "response_sha256": "b119a528f8665983022394f010fba5d2cb163c1c9e7967db809b1d5a5129a525"
+            }
+          ]
+        },
+        {
           "name": "___memset_chk",
           "sources": [
             {
@@ -1266,6 +1294,20 @@
               "line": 29,
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "response_sha256": "3e1bee683509583b5814dac955a2abc582ce52d02af28b88adde7e64ea2b6ef4"
+            }
+          ]
+        },
+        {
+          "name": "___sincos_stret",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-21.1.8/llvm/include/llvm/IR/RuntimeLibcalls.td",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__sincos_stret",
+              "line": 990,
+              "revision": "llvmorg-21.1.8",
+              "retrieved_at": "2026-10-22T00:28:31+00:00",
+              "response_sha256": "14fd890c32e957a5637368a6cc3d36abe4e4da9beb66ca5b06e16fa378a6e8de"
             }
           ]
         },
@@ -1360,6 +1402,20 @@
               "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
               "source_license": "APSL-2.0; additional source notices may apply",
               "response_sha256": "2e073d2d2e06290755a5a9a7e9ded52974f32727fb27cf9d769e831e74f06499"
+            }
+          ]
+        },
+        {
+          "name": "___vsnprintf_chk",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/secure/vsnprintf_chk.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__vsnprintf_chk",
+              "line": 31,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "retrieved_at": "2026-10-22T00:28:30+00:00",
+              "response_sha256": "432db3507114bbfbe0be2f73d541056cb1ee083b1b233f085ad06aca55883a2f"
             }
           ]
         },
@@ -1584,6 +1640,18 @@
           ]
         },
         {
+          "name": "_cos",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/cos.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:50+00:00",
+              "response_sha256": "85dc04586f180c9a7f117c0a41342d4293ed4b923094dc23e972a045dc5381be"
+            }
+          ]
+        },
+        {
           "name": "_cosf",
           "sources": [
             {
@@ -1685,6 +1753,30 @@
           ]
         },
         {
+          "name": "_dlclose",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dlclose.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:54+00:00",
+              "response_sha256": "e04f2dd7b46d9bf52ae7b330be262400abefb08dffd9f3c829dafe90beeb1330"
+            }
+          ]
+        },
+        {
+          "name": "_dlopen",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/dlopen.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:53+00:00",
+              "response_sha256": "40817bf53b56e0a1cf06b43187bb195cbc37ced0438b69ce4f7a6d8f8ae3839b"
+            }
+          ]
+        },
+        {
           "name": "_dlsym",
           "sources": [
             {
@@ -1728,6 +1820,18 @@
           ]
         },
         {
+          "name": "_exp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/exp.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:51+00:00",
+              "response_sha256": "2f6d3fce4decaa663bce312809f7c879a601a1a5d32408c7d868c74c7e21f7a4"
+            }
+          ]
+        },
+        {
           "name": "_fclose",
           "sources": [
             {
@@ -1762,6 +1866,54 @@
               "line": 177,
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "response_sha256": "d4509c79ea7f394f246ef9082818496107503390c04a73b889e57100e21c2613"
+            }
+          ]
+        },
+        {
+          "name": "_feof",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/ferror.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:55+00:00",
+              "response_sha256": "79f6da044d4975cd817616ee818b2ce32d9a207a29e1167c1b23d0f70db3850f"
+            }
+          ]
+        },
+        {
+          "name": "_ferror",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/ferror.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:55+00:00",
+              "response_sha256": "79f6da044d4975cd817616ee818b2ce32d9a207a29e1167c1b23d0f70db3850f"
+            }
+          ]
+        },
+        {
+          "name": "_fgetc",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/getc.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:56+00:00",
+              "response_sha256": "aa8480c7ad835d1f88bd601219cc82cd04844998cf7d78e04bedec370f5c2de2"
+            }
+          ]
+        },
+        {
+          "name": "_fileno",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/ferror.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:55+00:00",
+              "response_sha256": "79f6da044d4975cd817616ee818b2ce32d9a207a29e1167c1b23d0f70db3850f"
             }
           ]
         },
@@ -1939,6 +2091,18 @@
           ]
         },
         {
+          "name": "_fwrite",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/fread.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:56+00:00",
+              "response_sha256": "0576e459b5f1c62af3e7e15acf97eb85ac8ffc88794fc697042d70b126d8b0fc"
+            }
+          ]
+        },
+        {
           "name": "_getenv",
           "sources": [
             {
@@ -1979,6 +2143,18 @@
           ]
         },
         {
+          "name": "_ldexp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/ldexp.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:53+00:00",
+              "response_sha256": "36c22761d92534c3491158d4aebd38ae701a98a67e400dc81c958bc228c4f516"
+            }
+          ]
+        },
+        {
           "name": "_listen",
           "sources": [
             {
@@ -1987,6 +2163,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-10-21T21:42:16+00:00",
               "response_sha256": "15cc0082c64f3b564c1958c0a4bdbb80f81f5de37d004757009eb1cf00acbbea"
+            }
+          ]
+        },
+        {
+          "name": "_log",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/log.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:51+00:00",
+              "response_sha256": "cdeab4ab8203f10561d1e5289ebd397e86d5888bd939a891bcbc76c50076738f"
             }
           ]
         },
@@ -2058,6 +2246,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:07:23.848192+00:00",
               "response_sha256": "e202a44a3014e191396f7f82c0ac8058d196fa20ba28398171d7bd274b4abae7"
+            }
+          ]
+        },
+        {
+          "name": "_memcmp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/memcmp.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:57+00:00",
+              "response_sha256": "561ae94228afbbb36b9d1969bebcf03f3e151cd02a6aeae6531c05aede32a530"
             }
           ]
         },
@@ -2226,6 +2426,18 @@
           ]
         },
         {
+          "name": "_pow",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pow.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:52+00:00",
+              "response_sha256": "7e821aee9d92b61719810f93f25f878af42003944da061cf230b32ba0f1c795a"
+            }
+          ]
+        },
+        {
           "name": "_powf",
           "sources": [
             {
@@ -2283,6 +2495,210 @@
           ]
         },
         {
+          "name": "_pthread_attr_destroy",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:02+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_getschedparam",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:02+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_init",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:02+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_setinheritsched",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:02+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_setschedparam",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:03+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_setschedpolicy",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:03+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_attr_setstacksize",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_attr.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:03+00:00",
+              "response_sha256": "08b6c83acc5d5afacb143b405a394d140c1798ab5c8a0e69184edfe2d746ae1a"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_cond_destroy",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_cond_destroy.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:04+00:00",
+              "response_sha256": "fb37b6e084e3ce752db53bc32d28aac1e6361ae260cbe3b649bb8ffdfd09c497"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_cond_init",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_cond_init.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:05+00:00",
+              "response_sha256": "90eca92ffd54d2e306d1421375d2536a9debfbd7a8e375764593321c2872a30d"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_cond_signal",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_cond_signal.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:05+00:00",
+              "response_sha256": "b10b8503e0df99e2a1072111fd67f4a7ce3cbe8ec8419708d47485bc89897085"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_cond_wait",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_cond_wait.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:06+00:00",
+              "response_sha256": "6dd554f458682e5f9b8da4c63b4c2e89eda6bad4fac7289969b672b6f39fa301"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_create",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_create.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:06+00:00",
+              "response_sha256": "62ea5eee55ea4fb11cfb278a5c4aa5b2ab6236d11b82eed3af33ef4e5b2c72bf"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_join",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_join.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:07+00:00",
+              "response_sha256": "e1b3fe5568c4ac7573e7ae01f183669f827845d079e653016afa5167e649d3b0"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_mutex_destroy",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_mutex_destroy.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:07+00:00",
+              "response_sha256": "557eb546f0aeaac53ee30d62074a45b12c628a8ddc3e5b0777d39cf373b4b127"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_mutex_init",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_mutex_init.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:08+00:00",
+              "response_sha256": "8f5b2838f79f8b0c12e3e848cff29a5c26872ff108918747b9e6298f9125d252"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_mutex_lock",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_mutex_lock.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:08+00:00",
+              "response_sha256": "002f6d64ef837f928d3f2dcd30cd98b0bcfbf00c820d283ddecc9eb89ee94a4c"
+            }
+          ]
+        },
+        {
+          "name": "_pthread_mutex_unlock",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/pthread_mutex_unlock.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:09+00:00",
+              "response_sha256": "2ceda2b7f2fbdadc92f3ea8c4aa1136bb76031e9ff036d14c92a97bef3b90581"
+            }
+          ]
+        },
+        {
           "name": "_pthread_threadid_np",
           "sources": [
             {
@@ -2319,6 +2735,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:07:35.010458+00:00",
               "response_sha256": "0bbea8c8ca5d4fdaa2084c0bda069c543dadcf41100edcccc973e86715be7c49"
+            }
+          ]
+        },
+        {
+          "name": "_qsort",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/qsort.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:58+00:00",
+              "response_sha256": "301a68d7cc9e3e16db4cbf32e2e530b94a1d8dff4ac10a3c3d2b3cd95a5293fc"
             }
           ]
         },
@@ -2447,6 +2875,34 @@
           ]
         },
         {
+          "name": "_sched_get_priority_max",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libpthread/1f4f5265b319111142f1bf3a27d4484ef5a98314/include/pthread/sched.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "sched_get_priority_max",
+              "line": 42,
+              "revision": "1f4f5265b319111142f1bf3a27d4484ef5a98314",
+              "retrieved_at": "2026-10-22T00:28:29+00:00",
+              "response_sha256": "07d65b8d135be978a33579b5a333bd4576a8c6b36351ef510e0cca2aa0987020"
+            }
+          ]
+        },
+        {
+          "name": "_sched_get_priority_min",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libpthread/1f4f5265b319111142f1bf3a27d4484ef5a98314/include/pthread/sched.h",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "sched_get_priority_min",
+              "line": 41,
+              "revision": "1f4f5265b319111142f1bf3a27d4484ef5a98314",
+              "retrieved_at": "2026-10-22T00:28:29+00:00",
+              "response_sha256": "07d65b8d135be978a33579b5a333bd4576a8c6b36351ef510e0cca2aa0987020"
+            }
+          ]
+        },
+        {
           "name": "_send",
           "sources": [
             {
@@ -2467,6 +2923,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-10-21T21:42:19+00:00",
               "response_sha256": "d43cfbfbc07f7fd448484faed354da40de96d507fa67620f1b4f34a08c8ba08b"
+            }
+          ]
+        },
+        {
+          "name": "_sin",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sin.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:50+00:00",
+              "response_sha256": "e69a1a2afb9b9752ac71c7de95dd537bfe836cddc31c0a2edabb8c6391de3c5b"
             }
           ]
         },
@@ -2504,6 +2972,30 @@
               "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
               "source_license": "APSL-2.0; additional source notices may apply",
               "response_sha256": "e5484b74077bfc3a1228171435bf0a74b8e6c23d48c5c1c1f1409c487397a72d"
+            }
+          ]
+        },
+        {
+          "name": "_strcasecmp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/strcasecmp.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:59+00:00",
+              "response_sha256": "90f8e7550e7e1f89520fe0195e8ce97a3ee071a5d3cca0c0e66ab0bfa6864168"
+            }
+          ]
+        },
+        {
+          "name": "_strcmp",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/strcmp.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:59+00:00",
+              "response_sha256": "87cc26211a9d205d2f80df900616f4f8e441c2c6fd33e5cee84923ac8f323c63"
             }
           ]
         },
@@ -2555,6 +3047,42 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-09-09T10:07:32.612478+00:00",
               "response_sha256": "f7b3f0df40400c4054a09c42d012014fb94d242ad16db4b1256068f04caddcc9"
+            }
+          ]
+        },
+        {
+          "name": "_vsnprintf",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/printf.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:27:59+00:00",
+              "response_sha256": "705be8570971c277abae3ad635e61f905fcf2233ec1030e85fea1f5de0502e50"
+            }
+          ]
+        },
+        {
+          "name": "_wcslen",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/wcslen.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:00+00:00",
+              "response_sha256": "0ceb4dfb743fc95c9ff312739efbf7c56c7a704646e6cabc0614456561b4a610"
+            }
+          ]
+        },
+        {
+          "name": "_wcsrtombs",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/wcsrtombs.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-10-22T00:28:01+00:00",
+              "response_sha256": "b7a55bb5d79a89843fe802f28856cdeba8425b570fd6d34992b170012a09e870"
             }
           ]
         },
