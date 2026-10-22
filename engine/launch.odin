@@ -7,10 +7,11 @@ LAUNCH_RULE_ZERO :: "must be above zero"
 LAUNCH_RULE_UI_QUADS :: "must be at most 16384, so a u16 index reaches every UI vertex"
 LAUNCH_RULE_MESHES :: "must be at least 4, for the Fallback mesh and the three Primitives"
 LAUNCH_RULE_SKIES :: "must be at least 2, for the reserved slot and one sky"
+LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
 LAUNCH_RULE_SLOTS :: "must be at most 65536, so each slot gets an id"
 LAUNCH_RULE_DRAWS :: "must be at most 2796197, so the uniform buffer size fits sokol's int"
 // The rules above spell these numbers out.
-#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2)
+#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2796197)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
@@ -63,6 +64,8 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.meshes", LAUNCH_RULE_MESHES, false
 	case capacity.skies < SKY_CAPACITY_MIN:
 		return "capacity.skies", LAUNCH_RULE_SKIES, false
+	case capacity.sounds < SOUND_CAPACITY_MIN:
+		return "capacity.sounds", LAUNCH_RULE_SOUNDS, false
 	case capacity.meshes > SLOT_LIMIT:
 		return "capacity.meshes", LAUNCH_RULE_SLOTS, false
 	case capacity.skies > SLOT_LIMIT:

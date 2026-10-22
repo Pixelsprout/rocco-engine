@@ -60,7 +60,7 @@ windowed run yet.
 A capacity sets the size of a table. If a table fills up during the run,
 the host does not stop. It logs once and carries on:
 
-- `meshes` or `skies`: a `Load` gives the new name id 0.
+- `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
 - `draws`: the host draws the first Draws of the Scene and drops the rest.
 - `ui_quads`: the host draws the first quads of the UI and drops the rest.
 

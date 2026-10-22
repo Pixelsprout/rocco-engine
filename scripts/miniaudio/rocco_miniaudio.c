@@ -24,5 +24,6 @@ ma_engine_init instead of opening a silent device.
 
 /* engine/miniaudio.odin declares these layouts. They are equal on the three targets. */
 _Static_assert(sizeof(ma_engine_config) == 256, "update Ma_Engine_Config in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_decoder_config) == 144, "update Ma_Decoder_Config in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_engine) == 1352, "update MA_ENGINE_SIZE in engine/miniaudio.odin");
 _Static_assert(_Alignof(ma_engine) == 8, "update the alignment of Ma_Engine in engine/miniaudio.odin");

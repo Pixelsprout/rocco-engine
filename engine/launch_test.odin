@@ -27,7 +27,7 @@ test_launch_check_passes_the_default :: proc(t: ^testing.T) {
 @(test)
 test_launch_check_passes_each_capacity_at_its_bound :: proc(t: ^testing.T) {
 	launch := launch_default()
-	launch.capacity = {meshes = 4, skies = 2, draws = 1, ui_quads = UI_QUAD_LIMIT, sounds = 1, voices = 1}
+	launch.capacity = {meshes = 4, skies = 2, draws = 1, ui_quads = UI_QUAD_LIMIT, sounds = 2, voices = 1}
 	_, _, low_ok := launch_check(launch)
 	testing.expect(t, low_ok)
 	launch.capacity = {meshes = SLOT_LIMIT, skies = SLOT_LIMIT, draws = DRAW_LIMIT, ui_quads = 1, sounds = SLOT_LIMIT, voices = SLOT_LIMIT}
@@ -56,6 +56,7 @@ test_launch_check_names_the_first_bad_field_and_its_rule :: proc(t: ^testing.T) 
 		{proc(l: ^Launch) {l.capacity.ui_quads = UI_QUAD_LIMIT + 1}, "capacity.ui_quads", LAUNCH_RULE_UI_QUADS},
 		{proc(l: ^Launch) {l.capacity.meshes = 3}, "capacity.meshes", LAUNCH_RULE_MESHES},
 		{proc(l: ^Launch) {l.capacity.skies = 1}, "capacity.skies", LAUNCH_RULE_SKIES},
+		{proc(l: ^Launch) {l.capacity.sounds = 1}, "capacity.sounds", LAUNCH_RULE_SOUNDS},
 		{proc(l: ^Launch) {l.capacity.meshes = SLOT_LIMIT + 1}, "capacity.meshes", LAUNCH_RULE_SLOTS},
 		{proc(l: ^Launch) {l.capacity.skies = SLOT_LIMIT + 1}, "capacity.skies", LAUNCH_RULE_SLOTS},
 		{proc(l: ^Launch) {l.capacity.sounds = SLOT_LIMIT + 1}, "capacity.sounds", LAUNCH_RULE_SLOTS},
