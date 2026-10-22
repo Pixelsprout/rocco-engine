@@ -200,12 +200,14 @@ Roc_Init :: struct {
 
 Roc_Init_Commands_Tag :: enum u8 {
 	Load = 0,
-	Quit = 1,
-	Unload = 2,
+	Play = 1,
+	Quit = 2,
+	Unload = 3,
 }
 
 Roc_Init_Commands_Payload :: struct #raw_union {
 	load: Roc_Init_Commands_Load,
+	play: Roc_Init_Commands_Play,
 	unload: Roc_Str,
 }
 
@@ -230,6 +232,69 @@ Roc_Init_Commands_Load :: struct {
 #assert(offset_of(Roc_Init_Commands_Load, pack) == 24)
 #assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == 24)
 
+Roc_Init_Commands_Play :: struct {
+	at: Roc_Init_Commands_Play_At,
+	gain: f32,
+	pitch: f32,
+	sound: u32,
+}
+
+#assert(size_of(Roc_Init_Commands_Play) == 32)
+#assert(align_of(Roc_Init_Commands_Play) == 4)
+#assert(offset_of(Roc_Init_Commands_Play, at) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Play{}.at)) == 20)
+#assert(offset_of(Roc_Init_Commands_Play, gain) == 20)
+#assert(size_of(type_of(Roc_Init_Commands_Play{}.gain)) == 4)
+#assert(offset_of(Roc_Init_Commands_Play, pitch) == 24)
+#assert(size_of(type_of(Roc_Init_Commands_Play{}.pitch)) == 4)
+#assert(offset_of(Roc_Init_Commands_Play, sound) == 28)
+#assert(size_of(type_of(Roc_Init_Commands_Play{}.sound)) == 4)
+
+Roc_Init_Commands_Play_At_Tag :: enum u8 {
+	At = 0,
+	Here = 1,
+}
+
+Roc_Init_Commands_Play_At_Payload :: struct #raw_union {
+	at: Roc_Init_Commands_Play_At_At,
+}
+
+Roc_Init_Commands_Play_At :: struct {
+	payload: Roc_Init_Commands_Play_At_Payload,
+	tag: Roc_Init_Commands_Play_At_Tag,
+}
+
+#assert(size_of(Roc_Init_Commands_Play_At) == 20)
+#assert(align_of(Roc_Init_Commands_Play_At) == 4)
+#assert(offset_of(Roc_Init_Commands_Play_At, tag) == 16)
+
+Roc_Init_Commands_Play_At_At :: struct {
+	pos: Roc_Init_Commands_Play_At_At_Pos,
+	range: f32,
+}
+
+#assert(size_of(Roc_Init_Commands_Play_At_At) == 16)
+#assert(align_of(Roc_Init_Commands_Play_At_At) == 4)
+#assert(offset_of(Roc_Init_Commands_Play_At_At, pos) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Play_At_At{}.pos)) == 12)
+#assert(offset_of(Roc_Init_Commands_Play_At_At, range) == 12)
+#assert(size_of(type_of(Roc_Init_Commands_Play_At_At{}.range)) == 4)
+
+Roc_Init_Commands_Play_At_At_Pos :: struct {
+	x: f32,
+	y: f32,
+	z: f32,
+}
+
+#assert(size_of(Roc_Init_Commands_Play_At_At_Pos) == 12)
+#assert(align_of(Roc_Init_Commands_Play_At_At_Pos) == 4)
+#assert(offset_of(Roc_Init_Commands_Play_At_At_Pos, x) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Play_At_At_Pos{}.x)) == 4)
+#assert(offset_of(Roc_Init_Commands_Play_At_At_Pos, y) == 4)
+#assert(size_of(type_of(Roc_Init_Commands_Play_At_At_Pos{}.y)) == 4)
+#assert(offset_of(Roc_Init_Commands_Play_At_At_Pos, z) == 8)
+#assert(size_of(type_of(Roc_Init_Commands_Play_At_At_Pos{}.z)) == 4)
+
 Roc_Launch_Arg0 :: Roc_Init_Arg0
 Roc_Launch :: struct {
 	window: Roc_Launch_Window,
@@ -238,15 +303,15 @@ Roc_Launch :: struct {
 	step_hz: u32,
 }
 
-#assert(size_of(Roc_Launch) == 64)
+#assert(size_of(Roc_Launch) == 72)
 #assert(align_of(Roc_Launch) == 8)
 #assert(offset_of(Roc_Launch, window) == 0)
 #assert(size_of(type_of(Roc_Launch{}.window)) == 40)
 #assert(offset_of(Roc_Launch, capacity) == 40)
-#assert(size_of(type_of(Roc_Launch{}.capacity)) == 16)
-#assert(offset_of(Roc_Launch, shadow_map) == 56)
+#assert(size_of(type_of(Roc_Launch{}.capacity)) == 24)
+#assert(offset_of(Roc_Launch, shadow_map) == 64)
 #assert(size_of(type_of(Roc_Launch{}.shadow_map)) == 4)
-#assert(offset_of(Roc_Launch, step_hz) == 60)
+#assert(offset_of(Roc_Launch, step_hz) == 68)
 #assert(size_of(type_of(Roc_Launch{}.step_hz)) == 4)
 
 Roc_Launch_Window :: struct {
@@ -290,10 +355,12 @@ Roc_Launch_Capacity :: struct {
 	draws: u32,
 	meshes: u32,
 	skies: u32,
+	sounds: u32,
 	ui_quads: u32,
+	voices: u32,
 }
 
-#assert(size_of(Roc_Launch_Capacity) == 16)
+#assert(size_of(Roc_Launch_Capacity) == 24)
 #assert(align_of(Roc_Launch_Capacity) == 4)
 #assert(offset_of(Roc_Launch_Capacity, draws) == 0)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.draws)) == 4)
@@ -301,8 +368,12 @@ Roc_Launch_Capacity :: struct {
 #assert(size_of(type_of(Roc_Launch_Capacity{}.meshes)) == 4)
 #assert(offset_of(Roc_Launch_Capacity, skies) == 8)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.skies)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, ui_quads) == 12)
+#assert(offset_of(Roc_Launch_Capacity, sounds) == 12)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.sounds)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, ui_quads) == 16)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.ui_quads)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, voices) == 20)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.voices)) == 4)
 
 Roc_Loaded_Arg2 :: struct {
 	name: Roc_Str,
@@ -362,7 +433,7 @@ Roc_Step_Arg2_Contacts :: struct {
 	a: u64,
 	b: u64,
 	depth: f32,
-	normal: Roc_Step_Arg2_Contacts_Normal,
+	normal: Roc_Init_Commands_Play_At_At_Pos,
 }
 
 #assert(size_of(Roc_Step_Arg2_Contacts) == 32)
@@ -376,21 +447,7 @@ Roc_Step_Arg2_Contacts :: struct {
 #assert(offset_of(Roc_Step_Arg2_Contacts, normal) == 20)
 #assert(size_of(type_of(Roc_Step_Arg2_Contacts{}.normal)) == 12)
 
-Roc_Step_Arg2_Contacts_Normal :: struct {
-	x: f32,
-	y: f32,
-	z: f32,
-}
-
-#assert(size_of(Roc_Step_Arg2_Contacts_Normal) == 12)
-#assert(align_of(Roc_Step_Arg2_Contacts_Normal) == 4)
-#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, x) == 0)
-#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.x)) == 4)
-#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, y) == 4)
-#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.y)) == 4)
-#assert(offset_of(Roc_Step_Arg2_Contacts_Normal, z) == 8)
-#assert(size_of(type_of(Roc_Step_Arg2_Contacts_Normal{}.z)) == 4)
-
+Roc_Step_Arg2_Contacts_Normal :: Roc_Init_Commands_Play_At_At_Pos
 Roc_Step_Arg2_Overlaps :: struct {
 	id: u64,
 	owner: u64,
@@ -410,8 +467,8 @@ Roc_Step_Arg2_Rays :: struct {
 	id: u64,
 	owner: u64,
 	distance: f32,
-	normal: Roc_Step_Arg2_Contacts_Normal,
-	point: Roc_Step_Arg2_Contacts_Normal,
+	normal: Roc_Init_Commands_Play_At_At_Pos,
+	point: Roc_Init_Commands_Play_At_At_Pos,
 	slot: u32,
 }
 
@@ -430,15 +487,20 @@ Roc_Step_Arg2_Rays :: struct {
 #assert(offset_of(Roc_Step_Arg2_Rays, slot) == 44)
 #assert(size_of(type_of(Roc_Step_Arg2_Rays{}.slot)) == 4)
 
-Roc_Step_Arg2_Rays_Normal :: Roc_Step_Arg2_Contacts_Normal
-Roc_Step_Arg2_Rays_Point :: Roc_Step_Arg2_Contacts_Normal
+Roc_Step_Arg2_Rays_Normal :: Roc_Init_Commands_Play_At_At_Pos
+Roc_Step_Arg2_Rays_Point :: Roc_Init_Commands_Play_At_At_Pos
 Roc_Step :: Roc_Init
 Roc_Step_Commands :: Roc_Init_Commands
 Roc_Step_Commands_Load :: Roc_Init_Commands_Load
+Roc_Step_Commands_Play :: Roc_Init_Commands_Play
+Roc_Step_Commands_Play_At :: Roc_Init_Commands_Play_At
+Roc_Step_Commands_Play_At_At :: Roc_Init_Commands_Play_At_At
+Roc_Step_Commands_Play_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View :: struct {
 	colliders: Roc_List(Roc_View_Colliders),
 	draws: Roc_List(Roc_View_Draws),
 	lights: Roc_List(Roc_View_Lights),
+	loops: Roc_List(Roc_View_Loops),
 	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_View_Ui),
 	camera: Roc_View_Camera,
@@ -446,7 +508,7 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 168)
+#assert(size_of(Roc_View) == 192)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, colliders) == 0)
 #assert(size_of(type_of(Roc_View{}.colliders)) == 24)
@@ -454,20 +516,22 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.draws)) == 24)
 #assert(offset_of(Roc_View, lights) == 48)
 #assert(size_of(type_of(Roc_View{}.lights)) == 24)
-#assert(offset_of(Roc_View, queries) == 72)
+#assert(offset_of(Roc_View, loops) == 72)
+#assert(size_of(type_of(Roc_View{}.loops)) == 24)
+#assert(offset_of(Roc_View, queries) == 96)
 #assert(size_of(type_of(Roc_View{}.queries)) == 24)
-#assert(offset_of(Roc_View, ui) == 96)
+#assert(offset_of(Roc_View, ui) == 120)
 #assert(size_of(type_of(Roc_View{}.ui)) == 24)
-#assert(offset_of(Roc_View, camera) == 120)
+#assert(offset_of(Roc_View, camera) == 144)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, sky) == 160)
+#assert(offset_of(Roc_View, sky) == 184)
 #assert(size_of(type_of(Roc_View{}.sky)) == 4)
-#assert(offset_of(Roc_View, cursor) == 164)
+#assert(offset_of(Roc_View, cursor) == 188)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Colliders :: struct {
 	id: u64,
-	pos: Roc_Step_Arg2_Contacts_Normal,
+	pos: Roc_Init_Commands_Play_At_At_Pos,
 	shape: Roc_View_Colliders_Shape,
 	yaw: f32,
 }
@@ -483,7 +547,7 @@ Roc_View_Colliders :: struct {
 #assert(offset_of(Roc_View_Colliders, yaw) == 36)
 #assert(size_of(type_of(Roc_View_Colliders{}.yaw)) == 4)
 
-Roc_View_Colliders_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Colliders_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Colliders_Shape_Tag :: enum u8 {
 	Box = 0,
 	Capsule = 1,
@@ -491,7 +555,7 @@ Roc_View_Colliders_Shape_Tag :: enum u8 {
 }
 
 Roc_View_Colliders_Shape_Payload :: struct #raw_union {
-	box: Roc_Step_Arg2_Contacts_Normal,
+	box: Roc_Init_Commands_Play_At_At_Pos,
 	capsule: Roc_View_Colliders_Shape_Capsule,
 	sphere: f32,
 }
@@ -505,7 +569,7 @@ Roc_View_Colliders_Shape :: struct {
 #assert(align_of(Roc_View_Colliders_Shape) == 4)
 #assert(offset_of(Roc_View_Colliders_Shape, tag) == 12)
 
-Roc_View_Colliders_Shape_Box :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Colliders_Shape_Box :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Colliders_Shape_Capsule :: struct {
 	half_height: f32,
 	radius: f32,
@@ -521,9 +585,9 @@ Roc_View_Colliders_Shape_Capsule :: struct {
 Roc_View_Draws :: struct {
 	id: u64,
 	mesh: u32,
-	pos: Roc_Step_Arg2_Contacts_Normal,
+	pos: Roc_Init_Commands_Play_At_At_Pos,
 	rot: Roc_View_Draws_Rot,
-	scale: Roc_Step_Arg2_Contacts_Normal,
+	scale: Roc_Init_Commands_Play_At_At_Pos,
 	scale_rot: Roc_View_Draws_Rot,
 	tint: Roc_View_Draws_Tint,
 }
@@ -545,7 +609,7 @@ Roc_View_Draws :: struct {
 #assert(offset_of(Roc_View_Draws, tint) == 68)
 #assert(size_of(type_of(Roc_View_Draws{}.tint)) == 12)
 
-Roc_View_Draws_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Draws_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Draws_Rot :: struct {
 	w: f32,
 	x: f32,
@@ -564,7 +628,7 @@ Roc_View_Draws_Rot :: struct {
 #assert(offset_of(Roc_View_Draws_Rot, z) == 12)
 #assert(size_of(type_of(Roc_View_Draws_Rot{}.z)) == 4)
 
-Roc_View_Draws_Scale :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Draws_Scale :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Draws_ScaleRot :: Roc_View_Draws_Rot
 Roc_View_Draws_Tint :: struct {
 	b: f32,
@@ -605,7 +669,7 @@ Roc_View_Lights :: struct {
 Roc_View_Lights_Ambient :: Roc_View_Draws_Tint
 Roc_View_Lights_Directional :: struct {
 	color: Roc_View_Draws_Tint,
-	dir: Roc_Step_Arg2_Contacts_Normal,
+	dir: Roc_Init_Commands_Play_At_At_Pos,
 	shadow: bool,
 }
 
@@ -619,10 +683,10 @@ Roc_View_Lights_Directional :: struct {
 #assert(size_of(type_of(Roc_View_Lights_Directional{}.shadow)) == 1)
 
 Roc_View_Lights_Directional_Color :: Roc_View_Draws_Tint
-Roc_View_Lights_Directional_Dir :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Lights_Directional_Dir :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Lights_Point :: struct {
 	color: Roc_View_Draws_Tint,
-	pos: Roc_Step_Arg2_Contacts_Normal,
+	pos: Roc_Init_Commands_Play_At_At_Pos,
 	range: f32,
 }
 
@@ -636,7 +700,31 @@ Roc_View_Lights_Point :: struct {
 #assert(size_of(type_of(Roc_View_Lights_Point{}.range)) == 4)
 
 Roc_View_Lights_Point_Color :: Roc_View_Draws_Tint
-Roc_View_Lights_Point_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Lights_Point_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Loops :: struct {
+	id: u64,
+	at: Roc_Init_Commands_Play_At,
+	gain: f32,
+	pitch: f32,
+	sound: u32,
+}
+
+#assert(size_of(Roc_View_Loops) == 40)
+#assert(align_of(Roc_View_Loops) == 8)
+#assert(offset_of(Roc_View_Loops, id) == 0)
+#assert(size_of(type_of(Roc_View_Loops{}.id)) == 8)
+#assert(offset_of(Roc_View_Loops, at) == 8)
+#assert(size_of(type_of(Roc_View_Loops{}.at)) == 20)
+#assert(offset_of(Roc_View_Loops, gain) == 28)
+#assert(size_of(type_of(Roc_View_Loops{}.gain)) == 4)
+#assert(offset_of(Roc_View_Loops, pitch) == 32)
+#assert(size_of(type_of(Roc_View_Loops{}.pitch)) == 4)
+#assert(offset_of(Roc_View_Loops, sound) == 36)
+#assert(size_of(type_of(Roc_View_Loops{}.sound)) == 4)
+
+Roc_View_Loops_At :: Roc_Init_Commands_Play_At
+Roc_View_Loops_At_At :: Roc_Init_Commands_Play_At_At
+Roc_View_Loops_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Queries_Tag :: enum u8 {
 	ContactsOf = 0,
 	Overlap = 1,
@@ -661,7 +749,7 @@ Roc_View_Queries :: struct {
 Roc_View_Queries_Overlap :: struct {
 	owner: u64,
 	exclude: Roc_List(u64),
-	pos: Roc_Step_Arg2_Contacts_Normal,
+	pos: Roc_Init_Commands_Play_At_At_Pos,
 	shape: Roc_View_Queries_Overlap_Shape,
 	slot: u32,
 }
@@ -679,14 +767,14 @@ Roc_View_Queries_Overlap :: struct {
 #assert(offset_of(Roc_View_Queries_Overlap, slot) == 60)
 #assert(size_of(type_of(Roc_View_Queries_Overlap{}.slot)) == 4)
 
-Roc_View_Queries_Overlap_Pos :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries_Overlap_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Queries_Overlap_Shape_Tag :: enum u8 {
 	Box = 0,
 	Sphere = 1,
 }
 
 Roc_View_Queries_Overlap_Shape_Payload :: struct #raw_union {
-	box: Roc_Step_Arg2_Contacts_Normal,
+	box: Roc_Init_Commands_Play_At_At_Pos,
 	sphere: f32,
 }
 
@@ -699,13 +787,13 @@ Roc_View_Queries_Overlap_Shape :: struct {
 #assert(align_of(Roc_View_Queries_Overlap_Shape) == 4)
 #assert(offset_of(Roc_View_Queries_Overlap_Shape, tag) == 12)
 
-Roc_View_Queries_Overlap_Shape_Box :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries_Overlap_Shape_Box :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Queries_Raycast :: struct {
 	owner: u64,
 	exclude: Roc_List(u64),
-	dir: Roc_Step_Arg2_Contacts_Normal,
+	dir: Roc_Init_Commands_Play_At_At_Pos,
 	max_distance: f32,
-	origin: Roc_Step_Arg2_Contacts_Normal,
+	origin: Roc_Init_Commands_Play_At_At_Pos,
 	slot: u32,
 }
 
@@ -724,8 +812,8 @@ Roc_View_Queries_Raycast :: struct {
 #assert(offset_of(Roc_View_Queries_Raycast, slot) == 60)
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.slot)) == 4)
 
-Roc_View_Queries_Raycast_Dir :: Roc_Step_Arg2_Contacts_Normal
-Roc_View_Queries_Raycast_Origin :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Queries_Raycast_Dir :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Queries_Raycast_Origin :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Ui_Tag :: enum u8 {
 	Close = 0,
 	Open = 1,
@@ -972,10 +1060,10 @@ Roc_View_Ui_Text_Wrap :: enum u8 {
 #assert(align_of(Roc_View_Ui_Text_Wrap) == 1)
 
 Roc_View_Camera :: struct {
-	eye: Roc_Step_Arg2_Contacts_Normal,
+	eye: Roc_Init_Commands_Play_At_At_Pos,
 	fov_y: f32,
-	target: Roc_Step_Arg2_Contacts_Normal,
-	up: Roc_Step_Arg2_Contacts_Normal,
+	target: Roc_Init_Commands_Play_At_At_Pos,
+	up: Roc_Init_Commands_Play_At_At_Pos,
 }
 
 #assert(size_of(Roc_View_Camera) == 40)
@@ -989,9 +1077,9 @@ Roc_View_Camera :: struct {
 #assert(offset_of(Roc_View_Camera, up) == 28)
 #assert(size_of(type_of(Roc_View_Camera{}.up)) == 12)
 
-Roc_View_Camera_Eye :: Roc_Step_Arg2_Contacts_Normal
-Roc_View_Camera_Target :: Roc_Step_Arg2_Contacts_Normal
-Roc_View_Camera_Up :: Roc_Step_Arg2_Contacts_Normal
+Roc_View_Camera_Eye :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Camera_Target :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Camera_Up :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Cursor :: enum u8 {
 	Free = 0,
 	Locked = 1,
@@ -1051,6 +1139,7 @@ roc_view_decref :: proc(value: Roc_View) {
 	roc_list_decref_roc_view_colliders(value.colliders)
 	roc_list_decref_roc_view_draws(value.draws)
 	roc_list_decref_roc_view_lights(value.lights)
+	roc_list_decref_roc_view_loops(value.loops)
 	roc_list_decref_roc_view_queries(value.queries)
 	roc_list_decref_roc_view_ui(value.ui)
 }
@@ -1163,6 +1252,14 @@ roc_list_from_slice_roc_view_lights :: proc(elems: []Roc_View_Lights) -> Roc_Lis
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_view_loops :: proc(list: Roc_List(Roc_View_Loops)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_loops :: proc(elems: []Roc_View_Loops) -> Roc_List(Roc_View_Loops) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_list_decref_roc_view_queries :: proc(list: Roc_List(Roc_View_Queries)) {
 	roc_list_decref_elements(list, roc_view_queries_decref)
 }
@@ -1217,6 +1314,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_view_colliders,
 	roc_list_decref_roc_view_draws,
 	roc_list_decref_roc_view_lights,
+	roc_list_decref_roc_view_loops,
 	roc_list_decref_roc_view_queries,
 	roc_list_decref_u64,
 	roc_list_decref_roc_view_ui,
@@ -1233,6 +1331,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_view_colliders,
 	roc_list_from_slice_roc_view_draws,
 	roc_list_from_slice_roc_view_lights,
+	roc_list_from_slice_roc_view_loops,
 	roc_list_from_slice_roc_view_queries,
 	roc_list_from_slice_u64,
 	roc_list_from_slice_roc_view_ui,

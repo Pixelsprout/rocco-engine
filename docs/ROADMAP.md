@@ -936,11 +936,28 @@ read Pip's Draw from the Scene and save a screenshot.
 
 ## Milestone 20: Audio
 
-Done when Kula plays a landing sound on all three targets. miniaudio goes in
-the host as one archive per target. A one-shot is the `Play` Command. A loop
-or music is an entry in `Scene.sounds`, paired by id. Sounds are Pack assets
-with ids in the Manifest. Tutorial chapter 8 adds sound. Closes dex tasks
-79n12xde and x7mwcd0w.
+Done when Kula plays a landing sound on all three targets, from the v0.3.0
+release URLs. Grilled 2026-10-22. The dex milestone task holds the
+decisions and the tasks. Closes dex tasks 79n12xde and x7mwcd0w.
+
+1. miniaudio 0.11.24 goes in the host as a submodule, one archive per
+   target, with thin Odin bindings of our own. It opens the audio
+   libraries at run time. `docs/adr/0011-miniaudio-in-the-host.md` records
+   the decision.
+2. One Vocabulary change: the `Play` Command, `Scene.loops`, the place
+   `[Here, At({ pos, range })]`, and `Capacity.sounds` and
+   `Capacity.voices`. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
+   records the decision.
+3. Sounds are `.wav` and `.ogg` files in `assets/sound/`, named
+   `sound/<stem>` in a Pack, decoded at load. Headless has no device, and a
+   run with no device is silent.
+4. Tutorial chapter 8 adds a Play, a placed Loop and a background Loop.
+   `guide/sound.md` documents sound. Kula moves to v0.3.0 and plays a
+   synthesized bounce.
+
+Check: the Bridge shows a `Play` in the `step` reply when Kula's ball lands,
+a host test mixes a Play with no device and finds samples, and a person
+hears the bounce on macOS, Linux and Windows.
 
 ## Milestone 21: Gamepad
 

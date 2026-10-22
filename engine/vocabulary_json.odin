@@ -38,6 +38,18 @@ json_write_command :: proc(b: ^strings.Builder, command: ^Command) {
 		strings.write_string(b, `{"Unload":`)
 		json_write_roc_str(b, &command.payload.unload)
 		strings.write_byte(b, '}')
+	case .Play:
+		play := &command.payload.play
+		json_key(b, "Play", first = true)
+		json_key(b, "sound", first = true)
+		strings.write_u64(b, u64(play.sound))
+		json_key(b, "gain")
+		json_write_f32(b, play.gain)
+		json_key(b, "pitch")
+		json_write_f32(b, play.pitch)
+		json_key(b, "at")
+		json_write_place(b, &play.at)
+		strings.write_string(b, "}}")
 	}
 }
 
@@ -69,6 +81,8 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_write_list(b, scene.ui, json_write_element)
 	json_key(b, "queries")
 	json_write_list(b, scene.queries, json_write_query)
+	json_key(b, "loops")
+	json_write_list(b, scene.loops, json_write_loop)
 	strings.write_byte(b, '}')
 }
 
@@ -251,6 +265,34 @@ json_write_light :: proc(b: ^strings.Builder, light: ^Light) {
 		strings.write_byte(b, '}')
 	}
 	strings.write_byte(b, '}')
+}
+
+json_write_loop :: proc(b: ^strings.Builder, loop: ^Loop) {
+	json_key(b, "id", first = true)
+	strings.write_u64(b, loop.id)
+	json_key(b, "sound")
+	strings.write_u64(b, u64(loop.sound))
+	json_key(b, "gain")
+	json_write_f32(b, loop.gain)
+	json_key(b, "pitch")
+	json_write_f32(b, loop.pitch)
+	json_key(b, "at")
+	json_write_place(b, &loop.at)
+	strings.write_byte(b, '}')
+}
+
+json_write_place :: proc(b: ^strings.Builder, place: ^Place) {
+	switch place.tag {
+	case .Here:
+		json_write_tag(b, place.tag)
+	case .At:
+		json_key(b, "At", first = true)
+		json_key(b, "pos", first = true)
+		json_write_vec3(b, place.payload.at.pos)
+		json_key(b, "range")
+		json_write_f32(b, place.payload.at.range)
+		strings.write_string(b, "}}")
+	}
 }
 
 json_write_element :: proc(b: ^strings.Builder, element: ^Element) {

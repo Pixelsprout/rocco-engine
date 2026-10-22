@@ -24,6 +24,22 @@ test_json_write_commands_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, nil)
 }
 
+@(test)
+test_json_write_commands_writes_a_play_and_its_place :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	commands := []Command{fake_play(3, 0.5, 2, {tag = .Here}), fake_play(4, 1, 1, {tag = .At, payload = {at = {pos = {1, 2, 3}, range = 10}}})}
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_commands(&b, json_test_list(commands))
+
+	expect_json_text(
+		t,
+		&b,
+		`{"Play":{"sound":3,"gain":0.5,"pitch":2,"at":"Here"}},` +
+		`{"Play":{"sound":4,"gain":1,"pitch":1,"at":{"At":{"pos":{"x":1,"y":2,"z":3},"range":10}}}}`,
+	)
+}
+
 // The second call goes on with a comma, so the steps of a request join.
 @(test)
 test_json_write_commands_joins_a_second_list :: proc(t: ^testing.T) {
@@ -160,11 +176,16 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	draws := []Draw{{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}, tint = {r = 1, g = 0.5, b = 0.25}}}
+	loops := []Loop {
+		{id = 9, sound = 2, gain = 0.5, pitch = 1, at = {tag = .Here}},
+		{id = 10, sound = 3, gain = 1, pitch = 2, at = {tag = .At, payload = {at = {pos = {0, 1, 0}, range = 4}}}},
+	}
 	scene := Scene {
 		camera = {eye = {0, 2, 5}, up = {0, 1, 0}, fov_y = 1},
 		draws  = json_test_list(draws),
 		cursor = .Locked,
 		sky    = 2,
+		loops  = json_test_list(loops),
 	}
 	b := strings.builder_make(context.temp_allocator)
 
@@ -176,7 +197,9 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		`{"camera":{"eye":{"x":0,"y":2,"z":5},"target":{"x":0,"y":0,"z":0},"up":{"x":0,"y":1,"z":0},"fov_y":1},` +
 		`"draws":[{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
 		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25}}],` +
-		`"colliders":[],"lights":[],"cursor":"Locked","sky":2,"ui":[],"queries":[]}`,
+		`"colliders":[],"lights":[],"cursor":"Locked","sky":2,"ui":[],"queries":[],` +
+		`"loops":[{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here"},` +
+		`{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}}}]}`,
 	)
 }
 

@@ -36,6 +36,7 @@ State :: struct {
 	quit:              bool,
 	spans:             Span_Sink,
 	bridge:            Bridge,
+	audio:             Audio,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
@@ -54,6 +55,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 		bridge_open_or_exit(&g_state.bridge, bridge_port, context.allocator)
 	}
 	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
+	audio_init(&g_state.audio, device = g_state.mode != .Headless)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
@@ -69,10 +71,11 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
 	mesh_table_init(&g_state.renderer.meshes, int(capacity.meshes), perm, context.allocator)
 	sky_table_init(&g_state.renderer.skies, int(capacity.skies), perm, context.allocator)
-	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, perm)
+	audio_tables_init(&g_state.audio, int(capacity.sounds), int(capacity.voices), perm, context.allocator)
+	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.audio, perm)
 	frame_render_init(&g_state.frame_render, int(capacity.draws), perm)
 	clock_init(&g_state.clock, g_state.launch.step_hz)
-	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)
+	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs, &g_state.audio)
 
 	if g_state.mode == .Headless {
 		headless_init(&g_state, g_state.mem.perm_allocator) or_return
@@ -200,6 +203,7 @@ app_shutdown :: proc() {
 	}
 	span_sink_destroy(&g_state.spans)
 	bridge_close(&g_state.bridge)
+	audio_shutdown(&g_state.audio)
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)

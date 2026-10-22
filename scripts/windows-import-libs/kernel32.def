@@ -1,4 +1,5 @@
-; The kernel32.dll functions that the host, sokol and Clay call.
+; The kernel32.dll functions that the host, sokol, Clay and miniaudio call.
+; Names from mingw-w64-crt/lib-common/kernel32.def.in.
 LIBRARY "kernel32.dll"
 EXPORTS
 AcquireSRWLockExclusive
@@ -6,7 +7,11 @@ AcquireSRWLockShared
 AllocConsole
 AttachConsole
 CloseHandle
+CreateEventA
+CreateFileA
 CreateFileW
+CreateSemaphoreA
+CreateThread
 ExitProcess
 FindClose
 FindFirstFileW
@@ -49,14 +54,19 @@ RaiseException
 ReadFile
 ReleaseSRWLockExclusive
 ReleaseSRWLockShared
+ReleaseSemaphore
+ResetEvent
 RtlFillMemory
 RtlMoveMemory
 SetConsoleOutputCP
+SetEvent
 SetFilePointer
 SetHandleInformation
+SetThreadPriority
 Sleep
 VirtualAlloc
 VirtualFree
 VirtualProtect
+WaitForSingleObject
 WideCharToMultiByte
 WriteFile

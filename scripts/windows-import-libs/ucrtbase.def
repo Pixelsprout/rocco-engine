@@ -1,26 +1,55 @@
-; The C runtime functions that sokol, Clay, the Odin host and Roc's dev shim
+; The C runtime functions that sokol, Clay, miniaudio, the Odin host and Roc's dev shim
 ; call. Names from mingw-w64-crt/lib-common/ucrtbase-common.def.in.
 LIBRARY "ucrtbase.dll"
 EXPORTS
 __acrt_iob_func
+__stdio_common_vsprintf
+_controlfp_s
+_errno
+_fseeki64
+_ftelli64
+_stricmp
 _wassert
+_wcsicmp
+_wfopen
+_wfopen_s
 abort
 ceil
 ceilf
+cos
 cosf
+exp
 fabs
+fclose
+fgetc
 floor
 floorf
 fmod
 fmodf
+fopen
+fopen_s
 fputs
+fread
 free
 freopen_s
+fseek
+ftell
+fwrite
+ldexp
+log
 malloc
+memcmp
+pow
 powf
+qsort
+realloc
 roundf
+sin
 sinf
+sqrt
 strlen
 strncpy_s
 trunc
 truncf
+wcslen
+wcsrtombs

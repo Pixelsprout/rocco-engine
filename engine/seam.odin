@@ -20,6 +20,7 @@ Seam :: struct {
 	calls:       Game_Calls,
 	run_command: Command_Runner,
 	packs:       ^Packs,
+	audio:       ^Audio,
 	model:       rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
@@ -48,15 +49,17 @@ seam_launch :: proc(s: ^Seam, calls: Game_Calls, config: Config) -> Launch {
 // Owns the one reference to the Model, the last two Scenes and the QueryResults.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
-seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: ^Packs) {
+seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: ^Packs, audio: ^Audio) {
 	assert(s.calls.init != nil, "seam_launch binds the Game calls and runs first")
 	s.run_command = run_command
 	s.packs = packs
+	s.audio = audio
 	query_search_init(&s.search, context.allocator)
 	started := s.calls.init(config)
 	s.model = started.model
-	seam_run_commands(s, started.commands)
+	_, plays := seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
+	seam_sound(s, plays)
 }
 
 // The Spans split the work finer than step_time and view_time, which the
@@ -82,7 +85,8 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, c
 	if commands_json != nil {
 		json_write_commands(commands_json, result.commands)
 	}
-	quit = seam_run_commands(s, result.commands)
+	plays: []Play_Command
+	quit, plays = seam_run_commands(s, result.commands)
 	span = span_close(spans, .Commands, span)
 	if s.has_prev {
 		roc_decref(s.prev)
@@ -90,6 +94,7 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, c
 	s.prev = s.curr
 	s.has_prev = true
 	s.curr = seam_view(s)
+	seam_sound(s, plays)
 	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
 	answers := seam_query_search(s)
@@ -118,9 +123,11 @@ seam_query_search :: proc(s: ^Seam) -> Query_Answers {
 }
 
 // The host owns the commands list and frees it after running it, so every
-// string a command holds is only borrowed until then.
+// string a command holds is only borrowed until then. The Plays come back in
+// the Frame allocator, because they start after view.
 @(private = "file")
-seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool) {
+seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool, plays: []Play_Command) {
+	pending := make([dynamic]Play_Command, context.temp_allocator)
 	for &command in commands.elements[:commands.length] {
 		switch command.tag {
 		case .Load:
@@ -130,10 +137,23 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool)
 		case .Quit:
 			quit = true
 			s.run_command(command)
+		case .Play:
+			append(&pending, command.payload.play)
 		}
 	}
 	roc_list_decref(commands)
-	return
+	return quit, pending[:]
+}
+
+// A device mixes a voice as soon as it starts, so the Listener moves to the
+// new Camera before the Plays start.
+@(private = "file")
+seam_sound :: proc(s: ^Seam, plays: []Play_Command) {
+	audio_listen(s.audio, s.curr.camera)
+	for play in plays {
+		audio_play(s.audio, play)
+	}
+	audio_loops(s.audio, s.curr.loops.elements[:s.curr.loops.length])
 }
 
 // loaded consumes the box, the pack name and the manifest, as step does.

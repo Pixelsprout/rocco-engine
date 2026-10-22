@@ -1,7 +1,7 @@
 ---
 title: Launch
 summary: The choices your game makes once before the window opens, their defaults, the checks at startup, and what a run mode overrides.
-order: 9
+order: 10
 ---
 
 # Launch
@@ -60,9 +60,13 @@ windowed run yet.
 A capacity sets the size of a table. If a table fills up during the run,
 the host does not stop. It logs once and carries on:
 
-- `meshes` or `skies`: a `Load` gives the new name id 0.
+- `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
 - `draws`: the host draws the first Draws of the Scene and drops the rest.
 - `ui_quads`: the host draws the first quads of the UI and drops the rest.
+- `voices`: a `Play` takes the voice of the oldest Play that still sounds.
+  If Loops hold every voice, the Play plays nothing. A new Loop waits
+  silent for a free voice, and starts when one frees if it is still in the
+  Scene.
 
 ## The fields
 
@@ -82,6 +86,8 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `capacity.skies` | 16 | No |
 | `capacity.draws` | 16384 | No |
 | `capacity.ui_quads` | 16384 | No |
+| `capacity.sounds` | 64 | No |
+| `capacity.voices` | 64 | No |
 
 [Running and debugging](running.md) explains the run modes. A field changes
 only when the game starts again. No [Scene] field changes a field of the

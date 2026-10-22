@@ -13,7 +13,7 @@ test_launch_default_matches_the_host_constants :: proc(t: ^testing.T) {
 	testing.expect_value(t, launch.window.high_dpi, true)
 	testing.expect_value(t, launch.step_hz, 120)
 	testing.expect_value(t, launch.shadow_map, 2048)
-	testing.expect_value(t, launch.capacity, Capacity{meshes = 64, skies = 16, draws = 16384, ui_quads = 16384})
+	testing.expect_value(t, launch.capacity, Capacity{meshes = 64, skies = 16, draws = 16384, ui_quads = 16384, sounds = 64, voices = 64})
 }
 
 @(test)
@@ -27,10 +27,10 @@ test_launch_check_passes_the_default :: proc(t: ^testing.T) {
 @(test)
 test_launch_check_passes_each_capacity_at_its_bound :: proc(t: ^testing.T) {
 	launch := launch_default()
-	launch.capacity = {meshes = 4, skies = 2, draws = 1, ui_quads = UI_QUAD_LIMIT}
+	launch.capacity = {meshes = 4, skies = 2, draws = 1, ui_quads = UI_QUAD_LIMIT, sounds = 2, voices = 1}
 	_, _, low_ok := launch_check(launch)
 	testing.expect(t, low_ok)
-	launch.capacity = {meshes = SLOT_LIMIT, skies = SLOT_LIMIT, draws = DRAW_LIMIT, ui_quads = 1}
+	launch.capacity = {meshes = SLOT_LIMIT, skies = SLOT_LIMIT, draws = DRAW_LIMIT, ui_quads = 1, sounds = SLOT_LIMIT, voices = SLOT_LIMIT}
 	_, _, high_ok := launch_check(launch)
 	testing.expect(t, high_ok)
 }
@@ -51,11 +51,16 @@ test_launch_check_names_the_first_bad_field_and_its_rule :: proc(t: ^testing.T) 
 		{proc(l: ^Launch) {l.capacity.skies = 0}, "capacity.skies", LAUNCH_RULE_ZERO},
 		{proc(l: ^Launch) {l.capacity.draws = 0}, "capacity.draws", LAUNCH_RULE_ZERO},
 		{proc(l: ^Launch) {l.capacity.ui_quads = 0}, "capacity.ui_quads", LAUNCH_RULE_ZERO},
+		{proc(l: ^Launch) {l.capacity.sounds = 0}, "capacity.sounds", LAUNCH_RULE_ZERO},
+		{proc(l: ^Launch) {l.capacity.voices = 0}, "capacity.voices", LAUNCH_RULE_ZERO},
 		{proc(l: ^Launch) {l.capacity.ui_quads = UI_QUAD_LIMIT + 1}, "capacity.ui_quads", LAUNCH_RULE_UI_QUADS},
 		{proc(l: ^Launch) {l.capacity.meshes = 3}, "capacity.meshes", LAUNCH_RULE_MESHES},
 		{proc(l: ^Launch) {l.capacity.skies = 1}, "capacity.skies", LAUNCH_RULE_SKIES},
+		{proc(l: ^Launch) {l.capacity.sounds = 1}, "capacity.sounds", LAUNCH_RULE_SOUNDS},
 		{proc(l: ^Launch) {l.capacity.meshes = SLOT_LIMIT + 1}, "capacity.meshes", LAUNCH_RULE_SLOTS},
 		{proc(l: ^Launch) {l.capacity.skies = SLOT_LIMIT + 1}, "capacity.skies", LAUNCH_RULE_SLOTS},
+		{proc(l: ^Launch) {l.capacity.sounds = SLOT_LIMIT + 1}, "capacity.sounds", LAUNCH_RULE_SLOTS},
+		{proc(l: ^Launch) {l.capacity.voices = SLOT_LIMIT + 1}, "capacity.voices", LAUNCH_RULE_SLOTS},
 		{proc(l: ^Launch) {l.capacity.draws = DRAW_LIMIT + 1}, "capacity.draws", LAUNCH_RULE_DRAWS},
 	}
 	for c in cases {

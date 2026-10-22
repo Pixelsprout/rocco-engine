@@ -2,8 +2,8 @@ package engine
 
 // Host names for the generated vocabulary types. The glue names each record
 // by the path that reaches it from a provided function. A record shared by
-// several paths takes the name of the first, so Vec3 is a Contact normal,
-// a step result is a Roc_Init and Rgba is a Box background.
+// several paths takes the name of the first, so Vec3 is the pos of a Play's
+// Place, a step result is a Roc_Init and Rgba is a Box background.
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
 Window :: Roc_Launch_Window
@@ -14,6 +14,10 @@ Input :: Roc_Step_Arg1
 Step_Result :: Roc_Step
 Command :: Roc_Init_Commands
 Load_Command :: Roc_Init_Commands_Load
+Play_Command :: Roc_Init_Commands_Play
+Place :: Roc_Init_Commands_Play_At
+Place_Tag :: Roc_Init_Commands_Play_At_Tag
+Place_At :: Roc_Init_Commands_Play_At_At
 Manifest_Entry :: Roc_Loaded_Arg2
 Query_Results :: Roc_Step_Arg2
 Contact :: Roc_Step_Arg2_Contacts
@@ -23,13 +27,14 @@ Scene :: Roc_View
 Draw :: Roc_View_Draws
 Collider :: Roc_View_Colliders
 Query :: Roc_View_Queries
+Loop :: Roc_View_Loops
 Query_Tag :: Roc_View_Queries_Tag
 Query_Raycast :: Roc_View_Queries_Raycast
 Query_Overlap :: Roc_View_Queries_Overlap
 Light :: Roc_View_Lights
 Collider_Shape :: Roc_View_Colliders_Shape
 Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag
-Vec3 :: Roc_Step_Arg2_Contacts_Normal
+Vec3 :: Roc_Init_Commands_Play_At_At_Pos
 Quat :: Roc_View_Draws_Rot
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera

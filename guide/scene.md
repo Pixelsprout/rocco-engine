@@ -71,6 +71,7 @@ host to do one thing once.
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
 | `ui` | the [Element]s over the 3D view | [The UI](ui.md) |
+| `loops` | the [Loop]s, the Sounds that repeat | [Sound](sound.md) |
 
 ## Pairing by id
 
@@ -169,6 +170,7 @@ with a record update, and set only the fields that you need.
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
+| Loop | [`Loop.default`][Loop.default] | the start of each Loop. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
 | Box | [`Ui.default_box`][Ui.default_box] | the start of each Box in the UI |
 | Config | [`Config.empty`][Config.empty] | the Config in a test |
@@ -184,8 +186,10 @@ with a record update, and set only the fields that you need.
 [Query]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Query
 [Cursor]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Cursor
 [Element]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Element
+[Loop]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Loop
 [Scene.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Scene/#Scene.empty
 [Draw.default]: https://pixelsprout.dev/projects/rocco/api/platform/Draw/#Draw.default
+[Loop.default]: https://pixelsprout.dev/projects/rocco/api/platform/Loop/#Loop.default
 [Launch.default]: https://pixelsprout.dev/projects/rocco/api/platform/Launch/#Launch.default
 [Ui.default_box]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_box
 [Config.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Config/#Config.empty

@@ -6,7 +6,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Query, QueryResults, Scene, Vocabulary]
+	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -18,9 +18,9 @@ platform ""
 	}
 	targets: {
 		inputs_dir: "targets/",
-		arm64mac: { inputs: ["libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "libclang_rt.osx.a", app] },
-		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
-		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", "clay.lib", app, "ucrtbase.lib", "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "d3d11.lib", "ws2_32.lib"] },
+		arm64mac: { inputs: ["libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a", "libclang_rt.osx.a", app] },
+		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
+		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", "clay.lib", "miniaudio.lib", app, "ucrtbase.lib", "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "d3d11.lib", "ws2_32.lib"] },
 	}
 
 import Vocabulary exposing [Command, Manifest]
@@ -35,7 +35,9 @@ import Config
 import Draw
 import Input
 import Launch
+import Loop
 import Scene
+import Sound
 
 # A Launch has no Model, so nothing is boxed.
 launch_for_host : Vocabulary.Config -> Vocabulary.Launch

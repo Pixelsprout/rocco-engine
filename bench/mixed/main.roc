@@ -169,6 +169,7 @@ view = |m| {
 	sky: 0,
 	ui: elements(m),
 	queries: queries(m.half),
+	loops: [],
 }
 
 # Even ids are spheres and odd ids are turned boxes, so both narrowphases run.

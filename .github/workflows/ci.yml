@@ -43,6 +43,9 @@ jobs:
       - name: Build the sokol Metal archives
         run: sh scripts/macos/build-sokol.sh
 
+      - name: Build the miniaudio archive
+        run: sh scripts/macos/build-miniaudio.sh
+
       - name: Build
         run: roc scripts/build.roc all --release
 
@@ -50,7 +53,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound
 
       - name: Run the Bridge check
         run: python3 scripts/bridge_check.py
@@ -146,12 +149,13 @@ jobs:
 
       # vcvars64 runs only in this step. The Roc link reads the committed
       # import libraries, so later steps run with LIB unset.
-      - name: Build the sokol D3D11 libraries
+      - name: Build the sokol D3D11 libraries and the miniaudio library
         shell: cmd
         run: |
           for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set vs=%%i
           call "%vs%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
-          scripts\windows\build_sokol.cmd
+          call scripts\windows\build_sokol.cmd || exit /b 1
+          call scripts\windows\build_miniaudio.cmd || exit /b 1
 
       - name: Build
         run: roc scripts/build.roc all --release
@@ -161,7 +165,7 @@ jobs:
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound
 
       - name: Run the Bridge check
         run: python scripts/bridge_check.py

@@ -14,7 +14,7 @@ loaded files one by one, it would have to track which ones are still in
 use.
 
 rocco solves this with Packs. A Pack is a named set of assets, such as
-meshes and skies, that load and unload together. Your game lists the
+meshes, skies and Sounds, that load and unload together. Your game lists the
 assets of each Pack in Roc, and sends a `Load` or `Unload` [Command]. The
 host takes care of the files, the GPU data and the ids.
 
@@ -64,7 +64,9 @@ you need there and keep them in your Model. [`Mesh.resolve`][Mesh.resolve]
 finds a name in the Manifest. Call it in `loaded`, not in `view`.
 
 A mesh id goes in the `mesh` of a [Draw]. A sky id goes in the `sky` of the
-[Scene].
+[Scene]. A Sound id goes in a Play or a Loop, as [Sound](sound.md) shows.
+`Mesh.resolve` finds any name in the Manifest, so it gives sky ids too.
+`Sound.resolve` gives Sound ids.
 
 If a name is not on disk, or its file does not load, it gets id 0 in the
 Manifest, and the host logs the name once.
@@ -78,12 +80,13 @@ Each kind of asset has its own folder:
 |---|---|---|
 | Mesh | a `.glb` file in `assets/meshes/` | the file stem, such as `sprout` for `sprout.glb` |
 | Sky | a folder in `assets/sky/` with six PNG files | `sky/` and the folder name, such as `sky/meadow` |
+| Sound | a `.wav` or `.ogg` file in `assets/sound/` | `sound/` and the file stem, such as `sound/blip` for `blip.wav` |
 
 The six faces of a sky are `px.png`, `nx.png`, `py.png`, `ny.png`,
 `pz.png` and `nz.png`. Names are case-sensitive.
 
-At startup, the host lists the mesh names and then the sky names, each in
-sorted order, and puts the list in `Config.assets`. It doesn't load any of
+At startup, the host lists the mesh names, then the sky names, then the
+Sound names, each in sorted order, and puts the list in `Config.assets`. It doesn't load any of
 the files yet. Your game can read the list in `init`. For example, the
 cards game in [Install and first run](install.md) asks for its card mesh
 only when the file is on disk. See [Config].
@@ -162,8 +165,8 @@ mesh node in the glTF scene into one mesh.
 
 ### Capacities
 
-The [Launch] sets the size of each asset table: `capacity.meshes` and
-`capacity.skies`. When a table is full, a `Load` gives the new name id 0,
+The [Launch] sets the size of each asset table: `capacity.meshes`,
+`capacity.skies` and `capacity.sounds`. When a table is full, a `Load` gives the new name id 0,
 and the host logs once. See [Launch](launch.md) for the capacities.
 
 [Command]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Command

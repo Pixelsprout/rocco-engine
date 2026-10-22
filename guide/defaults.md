@@ -38,6 +38,22 @@ those defaults in one place. Each one links to the page that explains it.
 - **The default camera** in `Scene.empty` is at (0, 5, 10), looks at the
   origin, and has a vertical field of view of about 60 degrees.
 
+## Sound
+
+- **Sound id 0 plays nothing.** A misspelt name, a missing file and a stale
+  id are silent, with no fallback sound. The host logs each bad id once. See
+  [Sound](sound.md#bad-sound-ids).
+- **`Loop.default` has Sound 0 and id 0.** Set `sound` and `id` on each
+  Loop. Loops pair by id, as Draws do.
+- **The Listener is the camera.** A sound placed `At` a point is loud when
+  the camera is near it, not when the player is. See
+  [Sound](sound.md#the-listener-and-the-place).
+- **A Loop that leaves the Scene stops in 5 milliseconds.** To fade it out,
+  lower its gain over several steps first. See
+  [Sound](sound.md#stopping-and-fading).
+- **A Loop repeats with no crossfade.** Its file must loop cleanly, or it
+  clicks each time it repeats.
+
 ## Time
 
 - **120 fixed steps each second.** The host calls `step` and `view` 120
@@ -67,8 +83,8 @@ those defaults in one place. Each one links to the page that explains it.
 - **The run mode can override the Launch.** Lockstep and Headless turn
   vsync off. Headless opens no window. See
   [Running and debugging](running.md#lockstep-and-headless).
-- **The default capacities** are 64 meshes, 16 skies, 16384 Draws and 16384
-  UI quads, with a 2048 shadow map. Past a capacity, the host logs once and
+- **The default capacities** are 64 meshes, 16 skies, 16384 Draws, 16384
+  UI quads, 64 Sounds and 64 voices, with a 2048 shadow map. Past a capacity, the host logs once and
   keeps running, but it drops what does not fit. See
   [Launch](launch.md#past-a-capacity).
 - **The seed is 0** unless you set `ROCCO_SEED`. So each run gets the same

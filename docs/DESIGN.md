@@ -19,7 +19,7 @@ evidence are marked as decisions.
 | input, and turning it into levels and edges | the rules, as `step` |
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
-| the audio callback and its thread | what should be heard, as data |
+| the audio device, the mixer and their thread | what should be heard, as a Play Command or a Loop in `Scene.loops` |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
@@ -63,7 +63,9 @@ frees the list. The list does not stay in the Seam. A command means do this
 once, and `view` runs again from the same `Model`. So commands come from
 `step`, not from `Scene`. `Quit` asks sokol to quit, and the current frame
 finishes. The Commands from `init` run the same way, before the first
-`view`. A `Load` calls `loaded` before the next `view`. Decision.
+`view`. A `Load` calls `loaded` before the next `view`. A `Play` starts
+after `view`, once the Listener has moved to the new Camera, because a
+device can mix a voice as soon as it starts. Decision.
 
 The host answers the Queries in the previous `Scene` against that `Scene`.
 The next `step` gets the QueryResults. The first step gets
@@ -147,7 +149,7 @@ Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
-Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
+Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -167,8 +169,10 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  : [Open(BoxConfig), Text(Text), Close]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
-Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+Place    : [Here, At({ pos : Vec3, range : F32 })]
+Loop     : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
+Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 ```
 
 | Type | Carries | Does not carry |
@@ -178,8 +182,8 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
-| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
@@ -476,11 +480,17 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   column towards +z; `engine/sky.odin` states the layout. The host draws
   `Scene.sky` as a cube around the camera at the far plane, after every
   mesh, with no lights and no tone map.
+- A Sound is a `.wav` or `.ogg` file in `assets/sound/`. Its name is
+  `sound/<stem>`. The host decodes it fully at load. If two files share a
+  stem, the first in sorted order loads and the host logs once. Sound 0
+  plays nothing. Decision, Milestone 20.
 
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The
 sky table has 16 slots, and sky 0 means no sky. Decision, built in
-Milestone 12.
+Milestone 12. The Sound table has 64 slots, and Sound 0 means no Sound. It
+holds each Sound as f32 samples at the rate the engine mixes at, with the
+channels of its file. Built in Milestone 20.
 
 ### Meshes are ids
 
@@ -737,10 +747,12 @@ in the roadmap removes the system heap from that path.
   again from the same `Model` and a command means do this once. Quit is a
   command. The cursor is a state, so it is a field in `Scene`.
 - **No hosted function until a pure value cannot express the need.** A sound
-  with a duration or a physics body with a warm-start cache has host-side
-  lifetime. When the first one arrives, `Command` gains `Spawn` and
-  `Destroy` by id and the host reconciles. Descriptions first. Commands only
-  when a description cannot say it.
+  with a duration has host-side lifetime, and it arrived as a Description: a
+  Loop in `Scene.loops`, paired by id, with a `Play` Command for a sound
+  that plays once. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
+  records why it is not `Spawn` and `Destroy`. A physics body with a
+  warm-start cache is the next case. Descriptions first. Commands only when
+  a description cannot say it.
 
 ## 7. Where the design comes from
 

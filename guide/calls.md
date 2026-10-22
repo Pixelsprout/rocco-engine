@@ -151,7 +151,8 @@ the host draws smoothly between two steps.
 10. The host goes back to 7 until the game stops.
 
 A `Load` Command calls `loaded` while the host runs the Commands. So the
-Model from `loaded` is the Model that the next `view` gets.
+Model from `loaded` is the Model that the next `view` gets. A `Play` waits
+until after that `view`, so it sounds from the camera of the new Scene.
 
 [Config]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Config
 [Launch]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Launch

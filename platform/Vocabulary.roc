@@ -69,8 +69,9 @@ Vocabulary := [].{
 	## The MSAA sample count. `Off` is one sample.
 	Msaa : [Off, X2, X4, X8]
 
-	## The sizes of the engine's tables. Past a capacity, a Load gives id 0 or
-	## the host draws the first entries, and logs once.
+	## The sizes of the engine's tables. Past a capacity, a Load gives id 0,
+	## the host draws the first entries, or a new Loop waits for a voice, and
+	## the host logs once.
 	##
 	## - `meshes`: mesh slots. At least 4, for the Fallback mesh and the three
 	##   Primitives, and at most 65536.
@@ -80,11 +81,18 @@ Vocabulary := [].{
 	##   buffer grows with it.
 	## - `ui_quads`: UI quads per Frame. Above zero and at most 16384, the u16
 	##   index bound.
+	## - `sounds`: Sound slots. At least 2, for the reserved slot and one Sound,
+	##   and at most 65536.
+	## - `voices`: the Plays and Loops that sound at once. Above zero and at
+	##   most 65536. When the voices are full, a Play takes the voice of the
+	##   oldest Play, and a new Loop waits silent for a free voice.
 	Capacity : {
 		meshes : U32,
 		skies : U32,
 		draws : U32,
 		ui_quads : U32,
+		sounds : U32,
+		voices : U32,
 	}
 
 	## The name-to-id list that `loaded` gets for one Pack. It holds every name
@@ -211,7 +219,36 @@ Vocabulary := [].{
 	## - `ui`: the Elements drawn flat over the 3D view.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
+	## - `loops`: the Sounds that repeat while their Loop stays in the Scene.
+	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+
+	## Where a Play or a Loop sounds. The Listener is the Camera of the current
+	## Scene.
+	##
+	## - `Here`: at the Listener, with no direction.
+	## - `At`: at `pos`. It falls off linearly to zero at `range`, as a Point
+	##   Light does, and pans to the side it is on. A `range` of 0 or less is
+	##   silent.
+	Place : [Here, At({ pos : Vec3, range : F32 })]
+
+	## One Sound that repeats while it stays in `Scene.loops`. Start from
+	## `Loop.default`.
+	##
+	## - `id`: the Loop id. The host pairs a Loop with the Loop of the same id
+	##   in the previous Scene. A new id starts the Sound and a missing id stops
+	##   it with a short fade. If two Loops in one Scene share an id, the first
+	##   one plays and the host logs once.
+	## - `sound`: a Sound id from a Manifest. Id 0, or an id that the engine does
+	##   not know, plays nothing and logs once. A changed Sound id restarts the
+	##   Loop.
+	## - `gain`: linear. 1 plays the Sound as recorded. A negative gain plays
+	##   as 0.
+	## - `pitch`: the playback rate. 1 plays the Sound as recorded. 0 or less
+	##   plays at 1 and logs once.
+	## - `at`: the Place.
+	##
+	## A changed gain, pitch or Place applies on the next fixed step.
+	Loop : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
 
 	## If the mouse is `Free` or `Locked`. The host locks or frees the mouse only
 	## when the value changes.
@@ -225,5 +262,9 @@ Vocabulary := [].{
 	##   pack name and its Manifest.
 	## - `Unload`: drop the pack, and unload each asset that no other loaded
 	##   pack holds.
-	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
+	## - `Play`: play a Sound once, to its end or until its pack unloads. The
+	##   game cannot stop it. It starts after the `view` of the same step, from
+	##   the Listener of that Scene. `sound`, `gain`, `pitch` and `at` follow
+	##   the rules of a Loop. Build one with `Sound.play`.
+	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 }
