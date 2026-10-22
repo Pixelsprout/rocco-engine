@@ -6,12 +6,17 @@ and scripts/windows/build_miniaudio.cmd compile it.
 The host decodes each Sound itself, so it needs no resource manager.
 MA_NO_NULL removes the null backend, so a machine with no audio device fails
 ma_engine_init instead of opening a silent device.
+
+MA_NO_SSE2 makes x64 normalize the Listener axes with an exact sqrt, as arm64
+does. With SSE2, miniaudio uses rsqrtss, which is off by up to 4e-4, so an At
+sound at its range still plays and the falloff is not linear.
 */
 #define MA_NO_RESOURCE_MANAGER
 #define MA_NO_NULL
 #define MA_NO_FLAC
 #define MA_NO_MP3
 #define MA_NO_ENCODING
+#define MA_NO_SSE2
 
 #define STB_VORBIS_HEADER_ONLY
 #include "../../miniaudio/extras/stb_vorbis.c"
