@@ -416,6 +416,8 @@ does not call it again. After a change to `launch`, restart the game.
 | `platform/QueryResults.roc` | Gives `QueryResults.empty`, which is what the first step gets. Tests use it. |
 | `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
 | `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from. |
+| `platform/Sound.roc` | Builds the Play Command, for example `Sound.play(id)`. |
+| `platform/Loop.roc` | Gives `Loop.default`, the Loop a game starts a record update from in `Scene.loops`. |
 | `platform/Launch.roc` | Gives `Launch.default`, the Launch a game returns from `launch` or starts a record update from. |
 | `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `launch` and `init`. |
 | `platform/Input.roc` | Gives `Input.empty`, the Input a test gives `step`. |

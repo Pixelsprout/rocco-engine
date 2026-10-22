@@ -22,6 +22,7 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	g_fake.camera = {eye = {0, 2, 5}, up = {0, 1, 0}, fov_y = 1}
 	g_fake.draws = []Draw{{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}}}
 	g_fake.lights = []Light{light_ambient({r = 0.1, g = 0.1, b = 0.1}), light_sun({0, -1, 0}, {1, 1, 1}), light_point({0, 3, 0}, {r = 1}, 5)}
+	g_fake.loops = []Loop{{id = 4, sound = 6, gain = 1, pitch = 1, at = {tag = .Here}}}
 	g_fake.cursor = .Locked
 	g_fake.sky = 2
 	g_fake.ui_texts = {"Pip"}
@@ -49,6 +50,11 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	expect_tags(t, shapes, {"Box", "Sphere", "Capsule"})
 	expect_tags(t, scene["lights"].(json.Array), {"Ambient", "Directional", "Point"})
 	expect_tags(t, scene["queries"].(json.Array), {"ContactsOf", "Raycast", "Overlap"})
+	loops := scene["loops"].(json.Array)
+	testing.expect_value(t, len(loops), 1)
+	testing.expect_value(t, loops[0].(json.Object)["id"].(json.Float), 4)
+	testing.expect_value(t, loops[0].(json.Object)["sound"].(json.Float), 6)
+	testing.expect_value(t, loops[0].(json.Object)["at"].(json.String), "Here")
 	// fake_view puts the ui_texts Box before the Elements of g_fake.ui.
 	elements := scene["ui"].(json.Array)
 	expect_tags(t, elements, {"Open", "Text", "Close", "Open", "Close"})

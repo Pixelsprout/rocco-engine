@@ -147,7 +147,7 @@ Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
-Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32 }
+Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -167,8 +167,10 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  : [Open(BoxConfig), Text(Text), Close]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
-Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
+Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+Place    : [Here, At({ pos : Vec3, range : F32 })]
+Loop     : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
+Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 ```
 
 | Type | Carries | Does not carry |
@@ -178,8 +180,8 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str)]
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
-| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload` | anything that should exist every step |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.

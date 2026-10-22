@@ -6,7 +6,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Query, QueryResults, Scene, Vocabulary]
+	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -35,7 +35,9 @@ import Config
 import Draw
 import Input
 import Launch
+import Loop
 import Scene
+import Sound
 
 # A Launch has no Model, so nothing is boxed.
 launch_for_host : Vocabulary.Config -> Vocabulary.Launch

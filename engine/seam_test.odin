@@ -76,6 +76,7 @@ Fake_Game :: struct {
 	camera:          Scene_Camera,
 	draws:           []Draw,
 	lights:          []Light,
+	loops:           []Loop,
 	cursor:          Cursor,
 	sky:             u32,
 	commands_out:    int,
@@ -129,6 +130,14 @@ fake_unload :: proc(pack: string) -> Command {
 		tag = .Unload,
 	}
 	command.payload.unload = roc_str_from_slice(pack)
+	return command
+}
+
+fake_play :: proc(sound: u32, gain, pitch: f32, at: Place) -> Command {
+	command := Command {
+		tag = .Play,
+	}
+	command.payload.play = {sound = sound, gain = gain, pitch = pitch, at = at}
 	return command
 }
 
@@ -232,6 +241,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 		sky = g_fake.sky,
 		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
+		loops = roc_list_from_slice(g_fake.loops),
 	}
 }
 
@@ -592,6 +602,22 @@ test_seam_step_runs_each_command_after_step_and_before_view :: proc(t: ^testing.
 	g_fake.commands_out = 0
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.runs_len, 3)
+}
+
+@(test)
+test_seam_step_runs_nothing_for_a_play_yet_and_does_not_quit :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s)
+	defer fake_seam_shutdown(&s)
+
+	g_fake.next_commands = {fake_play(1, 1, 1, {tag = .Here})}
+	_, _, quit := seam_step(&s, {}, 1.0 / 60)
+
+	testing.expect(t, !quit)
+	testing.expect_value(t, g_fake.runs_len, 0)
 }
 
 @(test)

@@ -19,7 +19,7 @@ launch_default :: proc() -> Launch {
 		window = {width = 960, height = 540, title = roc_str_from_slice("rocco"), fullscreen = false, high_dpi = true, samples = .X4, vsync = true},
 		step_hz = 120,
 		shadow_map = 2048,
-		capacity = {meshes = 64, skies = 16, draws = 16384, ui_quads = 16384},
+		capacity = {meshes = 64, skies = 16, draws = 16384, ui_quads = 16384, sounds = 64, voices = 64},
 	}
 }
 
@@ -53,6 +53,10 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.draws", LAUNCH_RULE_ZERO, false
 	case capacity.ui_quads == 0:
 		return "capacity.ui_quads", LAUNCH_RULE_ZERO, false
+	case capacity.sounds == 0:
+		return "capacity.sounds", LAUNCH_RULE_ZERO, false
+	case capacity.voices == 0:
+		return "capacity.voices", LAUNCH_RULE_ZERO, false
 	case capacity.ui_quads > UI_QUAD_LIMIT:
 		return "capacity.ui_quads", LAUNCH_RULE_UI_QUADS, false
 	case capacity.meshes < len(Primitive):
@@ -63,6 +67,10 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.meshes", LAUNCH_RULE_SLOTS, false
 	case capacity.skies > SLOT_LIMIT:
 		return "capacity.skies", LAUNCH_RULE_SLOTS, false
+	case capacity.sounds > SLOT_LIMIT:
+		return "capacity.sounds", LAUNCH_RULE_SLOTS, false
+	case capacity.voices > SLOT_LIMIT:
+		return "capacity.voices", LAUNCH_RULE_SLOTS, false
 	case capacity.draws > DRAW_LIMIT:
 		return "capacity.draws", LAUNCH_RULE_DRAWS, false
 	}

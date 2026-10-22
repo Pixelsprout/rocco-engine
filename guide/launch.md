@@ -82,6 +82,8 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `capacity.skies` | 16 | No |
 | `capacity.draws` | 16384 | No |
 | `capacity.ui_quads` | 16384 | No |
+| `capacity.sounds` | 64 | No |
+| `capacity.voices` | 64 | No |
 
 [Running and debugging](running.md) explains the run modes. A field changes
 only when the game starts again. No [Scene] field changes a field of the

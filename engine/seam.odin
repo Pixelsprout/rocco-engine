@@ -130,6 +130,7 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool)
 		case .Quit:
 			quit = true
 			s.run_command(command)
+		case .Play:
 		}
 	}
 	roc_list_decref(commands)

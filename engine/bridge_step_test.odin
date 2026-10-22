@@ -169,6 +169,30 @@ test_bridge_step_replies_the_commands_of_every_step_and_the_last_alloc_fields ::
 	}
 }
 
+@(test)
+test_bridge_step_replies_a_play_that_the_game_returns :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_send(t, &r, `{"op":"step","n":1}`)
+	g_fake.next_commands = {fake_play(5, 0.5, 1, {tag = .At, payload = {at = {pos = {1, 2, 3}, range = 8}}})}
+	step_run_until_reply(&r)
+	reply := driver_read_reply(t, r.driver)
+
+	commands := reply["commands"].(json.Array)
+	testing.expect_value(t, len(commands), 1)
+	play := commands[0].(json.Object)["Play"].(json.Object)
+	testing.expect_value(t, play["sound"].(json.Integer), 5)
+	testing.expect_value(t, play["gain"].(json.Float), 0.5)
+	at := play["at"].(json.Object)["At"].(json.Object)
+	testing.expect_value(t, at["range"].(json.Integer), 8)
+	testing.expect_value(t, at["pos"].(json.Object)["z"].(json.Integer), 3)
+}
+
 // The reply goes out in the Frame of the Quit, before the window closes.
 @(test)
 test_bridge_step_that_the_game_quits_replies_and_ends_the_run :: proc(t: ^testing.T) {

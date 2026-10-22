@@ -171,8 +171,9 @@ returned in these steps, and the Roc heap counts of the last step. The
 
 A Command is written with its Vocabulary tag. A tag with a payload is an
 object with one key, and a tag with no payload is a string. So `Quit` is
-`"Quit"`, `Unload("pip")` is `{"Unload":"pip"}`, and a `Load` is
-`{"Load":{"pack":"pip","assets":["pip"]}}`.
+`"Quit"`, `Unload("pip")` is `{"Unload":"pip"}`, a `Load` is
+`{"Load":{"pack":"pip","assets":["pip"]}}`, and `Sound.play(3)` is
+`{"Play":{"sound":3,"gain":1,"pitch":1,"at":"Here"}}`.
 
 If the game returns `Quit`, the host stops at that step. It sends the
 reply, with `steps` at the step that quit, and then ends the run. Chapter 6
@@ -203,7 +204,7 @@ host sends it on one line, and it is split into lines here:
    {"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}],
   "colliders":[],
   "lights":[{"Ambient":{"r":0.3,"g":0.3,"b":0.3}},{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}],
-  "cursor":"Free","sky":0,"ui":[],"queries":[]},
+  "cursor":"Free","sky":0,"ui":[],"queries":[],"loops":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[]}}
 ```
 
@@ -391,7 +392,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `mouse` | `[dx, dy]`, the mouse movement in the first step only. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
-| `scene` | The Scene of the last step: `camera`, `draws`, `colliders`, `lights`, `cursor`, `sky`, `ui` and `queries`. |
+| `scene` | The Scene of the last step: `camera`, `draws`, `colliders`, `lights`, `cursor`, `sky`, `ui`, `queries` and `loops`. |
 | `results` | The QueryResults that the next step gets: `contacts`, `rays` and `overlaps`. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |
