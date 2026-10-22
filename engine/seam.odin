@@ -60,6 +60,7 @@ seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: 
 	seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
 	audio_listen(s.audio, s.curr.camera)
+	audio_loops(s.audio, s.curr.loops.elements[:s.curr.loops.length])
 }
 
 // The Spans split the work finer than step_time and view_time, which the
@@ -94,6 +95,7 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, c
 	s.has_prev = true
 	s.curr = seam_view(s)
 	audio_listen(s.audio, s.curr.camera)
+	audio_loops(s.audio, s.curr.loops.elements[:s.curr.loops.length])
 	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
 	answers := seam_query_search(s)

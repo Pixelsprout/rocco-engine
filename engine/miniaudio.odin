@@ -146,11 +146,15 @@ foreign miniaudio {
 	// audio thread.
 	ma_sound_uninit :: proc(sound: ^Ma_Sound) ---
 	ma_sound_start :: proc(sound: ^Ma_Sound) -> Ma_Result ---
+	// Fades from the current volume to 0, then stops. A plain ma_sound_start
+	// does not restart the sound after it.
+	ma_sound_stop_with_fade_in_milliseconds :: proc(sound: ^Ma_Sound, milliseconds: u64) -> Ma_Result ---
 	ma_sound_is_playing :: proc(sound: ^Ma_Sound) -> b32 ---
 	ma_sound_set_looping :: proc(sound: ^Ma_Sound, looping: b32) ---
 	ma_sound_set_volume :: proc(sound: ^Ma_Sound, volume: f32) ---
 	// Ignores a pitch of 0 or less.
 	ma_sound_set_pitch :: proc(sound: ^Ma_Sound, pitch: f32) ---
+	ma_sound_get_pitch :: proc(sound: ^Ma_Sound) -> f32 ---
 	ma_sound_set_spatialization_enabled :: proc(sound: ^Ma_Sound, enabled: b32) ---
 	ma_sound_set_position :: proc(sound: ^Ma_Sound, x, y, z: f32) ---
 	ma_sound_set_attenuation_model :: proc(sound: ^Ma_Sound, model: c.int) ---

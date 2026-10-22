@@ -236,7 +236,8 @@ Vocabulary := [].{
 	##
 	## - `id`: the Loop id. The host pairs a Loop with the Loop of the same id
 	##   in the previous Scene. A new id starts the Sound and a missing id stops
-	##   it with a short fade.
+	##   it with a short fade. If two Loops in one Scene share an id, the first
+	##   one plays and the host logs once.
 	## - `sound`: a Sound id from a Manifest. Id 0, or an id that the engine does
 	##   not know, plays nothing and logs once. A changed Sound id restarts the
 	##   Loop.
