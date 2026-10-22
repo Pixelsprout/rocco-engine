@@ -6,8 +6,8 @@ import "core:slice"
 import "core:testing"
 
 // Each file path is relative to the new directory. Remove it with os.remove_all.
-temp_mesh_dir :: proc(t: ^testing.T, files: map[string][]byte) -> string {
-	dir, err := os.make_directory_temp("", "rocco-meshes-*", context.temp_allocator)
+temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte) -> string {
+	dir, err := os.make_directory_temp("", "rocco-assets-*", context.temp_allocator)
 	testing.expect_value(t, err, nil)
 	for path, bytes in files {
 		full, _ := os.join_path({dir, path}, context.temp_allocator)
@@ -25,7 +25,7 @@ test_mesh_names_on_disk_are_each_glb_stem_in_sorted_order :: proc(t: ^testing.T)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	files["notes.txt"] = transmute([]byte)string("not a mesh")
 	files["sub/c.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	names := mesh_names_on_disk(dir, context.temp_allocator)
@@ -41,7 +41,7 @@ test_mesh_names_on_disk_of_a_missing_dir_are_empty :: proc(t: ^testing.T) {
 test_mesh_load_file_adds_the_mesh_after_the_primitives :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
@@ -61,7 +61,7 @@ test_mesh_load_file_that_fails_adds_nothing_and_gives_the_reason :: proc(t: ^tes
 	files := make(map[string][]byte, context.temp_allocator)
 	files["bad.glb"] = transmute([]byte)string("not a glb")
 	files["flat.glb"] = triangle_glb(`[{"attributes":{"POSITION":0},"indices":2}]`)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
@@ -81,7 +81,7 @@ test_mesh_load_file_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
 	files["b.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Mesh_Table
@@ -102,7 +102,7 @@ test_mesh_load_file_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 test_a_reloaded_mesh_gets_a_new_id_and_the_old_id_draws_the_fallback :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Mesh_Table

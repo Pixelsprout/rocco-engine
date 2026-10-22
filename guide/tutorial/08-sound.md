@@ -105,23 +105,24 @@ init = |_config| {
 	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
 }
 
-# Mesh.resolve finds any name in the Manifest, so it finds the Sounds too.
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
-	sounds = { blip: Mesh.resolve(manifest, "sound/blip"), hum: Mesh.resolve(manifest, "sound/hum"), music: Mesh.resolve(manifest, "sound/music") }
+	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), sounds }
 }
 ```
 <!-- endregion -->
 
-The Sounds load with Pip, so one Manifest holds all four ids. If a name is
-not on disk, it gets id 0 and the host logs it once. A Sound id of 0 plays
-nothing, so a missing file leaves the game silent but running.
+The Sounds load with Pip, so one Manifest holds all four ids.
+`Sound.resolve` finds a Sound id in it, as `Mesh.resolve` finds Pip's mesh
+id. If a name is not on disk, it gets id 0 and the host logs it once. A
+Sound id of 0 plays nothing, so a missing file leaves the game silent but
+running.
 
 ## Play the blip
 
 A sound that plays once is a Command, like `Load` or `Quit`. Return it from
-`step`, and the host starts the sound right after `step` returns:
+`step`, and the host starts the sound in the same fixed step:
 
 <!-- region: examples/tutorial/08-sound/main.roc#step -->
 ```roc

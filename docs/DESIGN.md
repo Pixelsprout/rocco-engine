@@ -63,7 +63,9 @@ frees the list. The list does not stay in the Seam. A command means do this
 once, and `view` runs again from the same `Model`. So commands come from
 `step`, not from `Scene`. `Quit` asks sokol to quit, and the current frame
 finishes. The Commands from `init` run the same way, before the first
-`view`. A `Load` calls `loaded` before the next `view`. Decision.
+`view`. A `Load` calls `loaded` before the next `view`. A `Play` starts
+after `view`, once the Listener has moved to the new Camera, because a
+device can mix a voice as soon as it starts. Decision.
 
 The host answers the Queries in the previous `Scene` against that `Scene`.
 The next `step` gets the QueryResults. The first step gets

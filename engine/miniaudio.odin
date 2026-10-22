@@ -40,7 +40,7 @@ Ma_Engine :: struct #align (8) {
 	_: [MA_ENGINE_SIZE]u8,
 }
 
-// A Sound that plays from a data source. It must not move after
+// The ma_sound that a voice holds. It must not move after
 // ma_sound_init_from_data_source, because the engine links it by pointer.
 Ma_Sound :: struct #align (8) {
 	_: [MA_SOUND_SIZE]u8,
@@ -134,7 +134,6 @@ foreign miniaudio {
 	// Mixes frame_count frames of f32, interleaved by the engine's channels.
 	// Only for an engine with no device: nothing locks out the audio thread.
 	ma_engine_read_pcm_frames :: proc(engine: ^Ma_Engine, frames: rawptr, frame_count: u64, frames_read: ^u64) -> Ma_Result ---
-	ma_engine_get_channels :: proc(engine: ^Ma_Engine) -> u32 ---
 	ma_engine_listener_set_position :: proc(engine: ^Ma_Engine, listener: u32, x, y, z: f32) ---
 	ma_engine_listener_set_direction :: proc(engine: ^Ma_Engine, listener: u32, x, y, z: f32) ---
 	ma_engine_listener_set_world_up :: proc(engine: ^Ma_Engine, listener: u32, x, y, z: f32) ---

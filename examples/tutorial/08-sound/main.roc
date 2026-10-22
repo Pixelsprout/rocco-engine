@@ -69,10 +69,9 @@ init = |_config| {
 	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
 }
 
-# Mesh.resolve finds any name in the Manifest, so it finds the Sounds too.
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
-	sounds = { blip: Mesh.resolve(manifest, "sound/blip"), hum: Mesh.resolve(manifest, "sound/hum"), music: Mesh.resolve(manifest, "sound/music") }
+	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), sounds }
 }
 

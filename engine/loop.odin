@@ -125,7 +125,6 @@ loop_holds_voice :: proc(pool: ^Voice_Pool, entry: Loop_Voice) -> bool {
 	return v.use == .Loop && v.taken == entry.taken
 }
 
-// Sound id 0 or a stale id plays nothing and logs once.
 @(private = "file")
 loop_start :: proc(audio: ^Audio, entry: ^Loop_Voice) {
 	sound, ok := sound_resolve(&audio.sounds, entry.loop.sound)

@@ -54,7 +54,7 @@ test_sound_names_on_disk_are_each_wav_and_ogg_stem_in_sorted_order :: proc(t: ^t
 	files["notes.txt"] = transmute([]byte)string("not a sound")
 	files["c.mp3"] = wav_make(1, {0})
 	files["sub/d.wav"] = wav_make(1, {0})
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	sound_files := make(map[string]string, context.temp_allocator)
@@ -75,7 +75,7 @@ test_sound_names_sort_by_name_not_by_file :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["a.wav"] = wav_make(1, {0})
 	files["a-b.wav"] = wav_make(1, {0})
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	sound_files := make(map[string]string, context.temp_allocator)
@@ -98,7 +98,7 @@ test_sound_names_on_disk_of_a_missing_dir_are_none :: proc(t: ^testing.T) {
 test_sound_load_file_decodes_to_interleaved_f32 :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["pair.wav"] = wav_make(2, {16384, -16384, 0, 32767})
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Sound_Table
@@ -124,7 +124,7 @@ test_sound_load_file_decodes_to_interleaved_f32 :: proc(t: ^testing.T) {
 test_sound_load_file_resamples_to_the_table_rate :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["low.wav"] = wav_make(1, make([]i16, 100, context.temp_allocator), sample_rate = WAV_RATE / 2)
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Sound_Table
@@ -142,7 +142,7 @@ test_sound_load_file_resamples_to_the_table_rate :: proc(t: ^testing.T) {
 test_sound_load_file_of_a_file_it_cannot_decode_leaves_the_table :: proc(t: ^testing.T) {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["noise.wav"] = transmute([]byte)string("not a sound")
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 
 	table: Sound_Table

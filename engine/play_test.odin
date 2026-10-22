@@ -5,11 +5,9 @@ import "core:os"
 import "core:testing"
 
 SMALL_VOICES :: 2
-// 0.1 s at WAV_RATE.
-TONE_FRAMES :: 4800
+TONE_FRAMES :: WAV_RATE / 10
 LOW :: i16(8192)
 HIGH :: i16(16384)
-// LOW and HIGH as f32 samples.
 LOW_LEVEL :: f32(0.25)
 HIGH_LEVEL :: f32(0.5)
 MIX_FRAMES :: 1024
@@ -24,7 +22,7 @@ play_assets_dir :: proc(t: ^testing.T) -> string {
 	files["sound/high.wav"] = wav_make(1, tone_samples(TONE_FRAMES, {HIGH}))
 	files["sound/blip.wav"] = wav_make(1, {LOW, LOW, LOW})
 	files["sound/wide.wav"] = wav_make(2, tone_samples(TONE_FRAMES, {LOW, -LOW}))
-	return temp_mesh_dir(t, files)
+	return temp_assets_dir(t, files)
 }
 
 // frame repeated frames times: one value per channel.
@@ -333,7 +331,6 @@ test_the_listener_is_the_camera_of_the_current_scene :: proc(t: ^testing.T) {
 	g_fake.camera = {eye = {0, 0, 30}, target = {0, 0, 29}, up = {0, 1, 0}, fov_y = 1}
 	fake_step_with(&s)
 
-	// 25 from the origin, but 5 from the Listener.
 	fake_step_with(&s, fake_play(low, 1, 1, place_at({0, 0, 25}, 10)))
 	testing.expect(t, mix_peak(mix_read(MIX_FRAMES)) > 0)
 
@@ -343,6 +340,27 @@ test_the_listener_is_the_camera_of_the_current_scene :: proc(t: ^testing.T) {
 	fake_step_with(&s)
 	mix_skip(TONE_FRAMES / 2)
 	testing.expect(t, mix_peak(mix_read(MIX_FRAMES)) < 1e-4)
+}
+
+// A device can mix a voice as soon as it starts, so a Play must start after
+// view, once audio_listen has moved the Listener to the new Camera.
+@(test)
+test_the_plays_of_init_and_step_start_after_view_sets_the_listener :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low"), fake_play(1, 1, 1, place_here())})
+	defer fake_seam_shutdown(&s)
+	testing.expect_value(t, g_fake.loaded_manifest[0].id, 1)
+	testing.expect_value(t, g_fake.view_voices, 0)
+	testing.expect_value(t, fake_voices_in_use(), 1)
+
+	fake_step_with(&s, fake_play(1, 1, 1, place_here()))
+	testing.expect_value(t, g_fake.view_voices, 1)
+	testing.expect_value(t, fake_voices_in_use(), 2)
 }
 
 @(test)

@@ -61,7 +61,6 @@ audio_shutdown :: proc(audio: ^Audio) {
 	audio.engine_ready = false
 }
 
-// Sound id 0 or a stale id plays nothing and logs once.
 audio_play :: proc(audio: ^Audio, play: Play_Command) {
 	sound, ok := sound_resolve(&audio.sounds, play.sound)
 	if !ok {

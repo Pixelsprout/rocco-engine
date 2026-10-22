@@ -31,8 +31,9 @@ A Sound is an asset in a Pack, like a mesh. Put `.wav` and `.ogg` files in
 and its file stem, so `assets/sound/blip.wav` is `sound/blip`.
 
 Load Sounds with the `Load` Command, and keep their ids from the Manifest
-in `loaded`. Tutorial chapter 8 loads three Sounds in the same Pack as its
-mesh:
+in `loaded`. `Sound.resolve` finds a Sound id in the Manifest, as
+`Mesh.resolve` finds a mesh id. Tutorial chapter 8 loads three Sounds in
+the same Pack as its mesh:
 
 <!-- region: examples/tutorial/08-sound/main.roc#load -->
 ```roc
@@ -42,10 +43,9 @@ init = |_config| {
 	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
 }
 
-# Mesh.resolve finds any name in the Manifest, so it finds the Sounds too.
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
-	sounds = { blip: Mesh.resolve(manifest, "sound/blip"), hum: Mesh.resolve(manifest, "sound/hum"), music: Mesh.resolve(manifest, "sound/music") }
+	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), sounds }
 }
 ```
@@ -67,8 +67,8 @@ host loads the first one in sorted order, here `jump.ogg`, and logs once.
 
 `Sound.play(id)` gives a Play of the Sound at its recorded gain and pitch,
 `Here` at the Listener. Return it from `init` or `step`, and the host starts
-the sound right after the call returns. Tutorial chapter 8 plays a blip when
-Pip takes a pickup:
+the sound in the same fixed step, right after `view` moves the Listener.
+Tutorial chapter 8 plays a blip when Pip takes a pickup:
 
 <!-- region: examples/tutorial/08-sound/main.roc#step -->
 ```roc
@@ -153,18 +153,18 @@ the first one plays, and the host logs once.
 ### Stopping and fading
 
 The 5 millisecond fade keeps the speaker from clicking, but you hear it as
-a cut, not a fade-out. To fade a sound out, lower its `gain` over many
-steps, then remove the Loop. Tutorial chapter 8 fades its hum this way
+a cut, not a fade-out. To fade a Loop out, lower its `gain` over many
+steps, then remove it. Tutorial chapter 8 fades its hum this way
 while the door rises.
 
 A Loop that leaves the Scene and comes back starts again from the start of
 its Sound. There is no pause. To silence a Loop and keep its place, set its
 `gain` to 0 and keep it in the Scene.
 
-To switch from one track to another smoothly, give each track its own Loop
-id. Lower the gain of the old one while you raise the gain of the new one,
-then remove the old one. A changed Sound id on one Loop cuts with no fade,
-and the jump in level can click.
+To switch from one piece of music to another smoothly, give each piece its
+own Loop id. Lower the gain of the old Loop while you raise the gain of the
+new one, then remove the old Loop. A changed Sound id on one Loop cuts with
+no fade, and the jump in level can click.
 
 ### Make a Sound that loops cleanly
 

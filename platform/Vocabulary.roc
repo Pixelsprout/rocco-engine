@@ -70,8 +70,8 @@ Vocabulary := [].{
 	Msaa : [Off, X2, X4, X8]
 
 	## The sizes of the engine's tables. Past a capacity, a Load gives id 0,
-	## the host draws the first entries, or a Voice waits, and the host logs
-	## once.
+	## the host draws the first entries, or a new Loop waits for a voice, and
+	## the host logs once.
 	##
 	## - `meshes`: mesh slots. At least 4, for the Fallback mesh and the three
 	##   Primitives, and at most 65536.
@@ -263,7 +263,8 @@ Vocabulary := [].{
 	## - `Unload`: drop the pack, and unload each asset that no other loaded
 	##   pack holds.
 	## - `Play`: play a Sound once, to its end or until its pack unloads. The
-	##   game cannot stop it. `sound`, `gain`, `pitch` and `at` follow the rules
-	##   of a Loop. Build one with `Sound.play`.
+	##   game cannot stop it. It starts after the `view` of the same step, from
+	##   the Listener of that Scene. `sound`, `gain`, `pitch` and `at` follow
+	##   the rules of a Loop. Build one with `Sound.play`.
 	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 }

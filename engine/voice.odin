@@ -112,9 +112,7 @@ voice_start :: proc(pool: ^Voice_Pool, index: int, engine: ^Ma_Engine, sound: ^S
 			pool.failed_logged = true
 			fmt.eprintfln("a voice did not start: %v; playing nothing", ma_result_description(result))
 		}
-		v^ = {}
-		pool.free[pool.free_count] = index
-		pool.free_count += 1
+		voice_free(pool, index)
 		return false
 	}
 	ma_sound_set_looping(&v.sound, b32(v.use == .Loop))
@@ -167,9 +165,7 @@ voice_release :: proc(pool: ^Voice_Pool, index: int) {
 	assert(v.use != .Free, "a free voice holds no sound")
 	ma_sound_uninit(&v.sound)
 	ma_audio_buffer_ref_uninit(&v.source)
-	v^ = {}
-	pool.free[pool.free_count] = index
-	pool.free_count += 1
+	voice_free(pool, index)
 }
 
 // Frees each voice whose sound has stopped: a Play at its end, or a Loop
@@ -190,6 +186,14 @@ voices_stop_sound :: proc(pool: ^Voice_Pool, sound_id: u32) {
 			voice_release(pool, i)
 		}
 	}
+}
+
+// Uninit the miniaudio objects of the voice before this.
+@(private = "file")
+voice_free :: proc(pool: ^Voice_Pool, index: int) {
+	pool.voices[index] = {}
+	pool.free[pool.free_count] = index
+	pool.free_count += 1
 }
 
 @(private = "file")

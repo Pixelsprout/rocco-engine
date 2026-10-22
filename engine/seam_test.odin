@@ -60,6 +60,8 @@ Fake_Game :: struct {
 	overlaps:        [FAKE_OVERLAPS_MAX]Overlap_Hit,
 	overlaps_len:    int,
 	views:           int,
+	// The voices in use when view ran.
+	view_voices:     int,
 	view_box:        rawptr,
 	view_rc:         int,
 	drops:           int,
@@ -219,6 +221,7 @@ fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_En
 
 fake_view :: proc(model: rawptr) -> Scene {
 	g_fake.views += 1
+	g_fake.view_voices = len(g_fake.audio.voices.voices) - g_fake.audio.voices.free_count
 	g_fake.view_box = model
 	g_fake.view_rc = fake_refcount(model)^
 	fake_refcount(model)^ -= 1
@@ -295,7 +298,7 @@ fake_assets_dir :: proc(t: ^testing.T) -> string {
 	}
 	files["sound/blip.wav"] = wav_make(1, {0, 8192, 16384})
 	files["sound/broken.wav"] = transmute([]byte)string("not a wav")
-	return temp_mesh_dir(t, files)
+	return temp_assets_dir(t, files)
 }
 
 // Steps once with commands and returns the Manifest of the last loaded.
@@ -617,7 +620,7 @@ test_seam_step_runs_each_command_after_step_and_before_view :: proc(t: ^testing.
 }
 
 @(test)
-test_seam_step_runs_nothing_for_a_play_yet_and_does_not_quit :: proc(t: ^testing.T) {
+test_seam_step_logs_a_play_of_an_unknown_sound_id_and_does_not_quit :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 
@@ -630,6 +633,8 @@ test_seam_step_runs_nothing_for_a_play_yet_and_does_not_quit :: proc(t: ^testing
 
 	testing.expect(t, !quit)
 	testing.expect_value(t, g_fake.runs_len, 0)
+	testing.expect(t, 1 in g_fake.audio.sounds.logged)
+	testing.expect_value(t, g_fake.audio.voices.free_count, SMALL_VOICES)
 }
 
 @(test)
@@ -1124,7 +1129,7 @@ test_a_shared_sound_stem_loads_the_first_file_in_sorted_order_and_logs_once :: p
 	files := make(map[string][]byte, context.temp_allocator)
 	files["sound/hum.wav"] = wav_make(1, {0, 0})
 	files["sound/hum.ogg"] = wav_make(2, {0, 0, 0, 0})
-	dir := temp_mesh_dir(t, files)
+	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
