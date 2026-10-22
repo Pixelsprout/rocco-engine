@@ -315,7 +315,8 @@ test_an_at_play_falls_off_linearly_with_distance :: proc(t: ^testing.T) {
 	far := mix_peak(mix_read(MIX_FRAMES))
 
 	testing.expect(t, far > 0)
-	testing.expect(t, abs(near / far - 3) < 0.01)
+	// Tight enough to catch an approximate normalize in the spatializer.
+	testing.expect(t, abs(near / far - 3) < 1e-4)
 }
 
 @(test)
