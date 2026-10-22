@@ -4,6 +4,7 @@ LIBRARY "ucrtbase.dll"
 EXPORTS
 __acrt_iob_func
 __stdio_common_vsprintf
+_controlfp_s
 _errno
 _fseeki64
 _ftelli64
