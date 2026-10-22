@@ -53,7 +53,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound
 
       - name: Run the Bridge check
         run: python3 scripts/bridge_check.py
@@ -165,7 +165,7 @@ jobs:
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud
+        run: sh scripts/run-games.sh 1 cards entity-game pong tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound
 
       - name: Run the Bridge check
         run: python scripts/bridge_check.py

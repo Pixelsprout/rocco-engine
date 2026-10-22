@@ -1,7 +1,7 @@
 ---
 title: Shipping a game
 summary: Pin the bundle URLs and the Roc nightly, build a binary on each target OS, and ship it with its assets.
-order: 12
+order: 13
 ---
 
 # Shipping a game

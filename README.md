@@ -246,7 +246,8 @@ free port for `ROCCO_BRIDGE` unless you set one.
 game by hand, or import its `Bridge` class in a Python script.
 `python3 scripts/bridge_check.py` is the Bridge check that CI runs: it
 drives tutorial chapter 3 and checks that Pip moves and that the screenshot
-has the right size.
+has the right size. Then it drives chapter 8 to a pickup and checks that the
+`step` reply holds the `Play` of the blip.
 
 ### Docs
 
@@ -441,6 +442,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
 | `examples/tutorial/<nn>-<name>/` | One app for each tutorial chapter in `guide/tutorial/`. Each chapter starts from the one before it, so `git diff --no-index` of two `main.roc` files shows the change. |
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character, into each chapter in its `CHAPTERS` list. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
+| `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package builds `Scene.ui` from nested `box` and `text` calls. `default_box` holds Clay's defaults. Games import it as `import ui.Ui`. |
@@ -485,7 +487,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
-| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |

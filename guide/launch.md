@@ -1,7 +1,7 @@
 ---
 title: Launch
 summary: The choices your game makes once before the window opens, their defaults, the checks at startup, and what a run mode overrides.
-order: 9
+order: 10
 ---
 
 # Launch

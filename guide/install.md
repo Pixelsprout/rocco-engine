@@ -27,7 +27,6 @@ start a game with it:
 - **Desktop only.** rocco runs on macOS arm64, Linux x64 and Windows x64.
   On Linux it needs an X11 desktop and an OpenGL driver. You build on each
   OS that you ship to, because there is no cross-compiling.
-- **No audio yet.** The engine cannot play sound.
 - **Keyboard and mouse movement only.** The Input has no gamepad and no
   mouse buttons.
 - **No physics.** The engine answers questions about shapes, such as "what

@@ -1,7 +1,7 @@
 ---
 title: The Bridge
 summary: Let a script, a CI test or an agent play a run over a localhost socket. Inject Input for N steps, read the Scene as JSON and save a screenshot.
-order: 11
+order: 12
 ---
 
 # The Bridge
@@ -91,6 +91,8 @@ trying to connect for 30 seconds while the game starts.
 
 `scripts/bridge_check.py` is the same session with checks. It starts the
 game itself on a free port, and CI runs it on Linux, macOS and Windows.
+It also walks Pip into a pickup in chapter 8 and checks that the `step`
+reply holds the `Play` of the blip.
 
 ### Screenshots of any example
 

@@ -182,10 +182,6 @@ roc main.roc
 Collect the five pickups and watch the count go up. When the door opens,
 walk Pip through it. The HUD says that you have won. Press Escape to quit.
 
-You have made a whole game: a character that you load from a file, moves
-with the keys, collects pickups and wins, with lights, a shadow and a HUD.
-
-The tutorial goes on when rocco gets sound, a gamepad and animation. Until
-then, the guide pages explain each part in more detail. Start with
-[Collisions and Queries](../collisions.md) and [The UI](../ui.md), or read
-[Shipping a game](../shipping.md) to build your game for other people.
+The game plays from start to end, but it is silent. Next, read
+[8. Sound](08-sound.md). It plays a blip on each pickup, and adds music and
+a hum at the door.
