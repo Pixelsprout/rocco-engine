@@ -257,8 +257,9 @@ fake_element_refcounted :: proc(e: Element) -> Element {
 		return e
 	}
 	box := e.payload.box
-	children := make([]Element, box._1.length, context.temp_allocator)
-	for child, i in box._1.elements[:box._1.length] {
+	old_children := box._1
+	children := make([]Element, old_children.length, context.temp_allocator)
+	for child, i in old_children.elements[:old_children.length] {
 		children[i] = fake_element_refcounted(child)
 	}
 	box._1 = roc_list_from_slice(children)
@@ -447,10 +448,10 @@ test_seam_step_frees_the_text_strings_of_the_last_scene :: proc(t: ^testing.T) {
 
 	_, curr := seam_scenes(&s)
 	testing.expect_value(t, curr.ui.length, 2)
-	box := curr.ui.elements[0].payload.box
-	testing.expect_value(t, box._1.length, 1)
-	testing.expect_value(t, box._1.elements[0].tag, Element_Tag.Text)
-	testing.expect_value(t, roc_str_string(&box._1.elements[0].payload.text.str), "a string longer than twenty-three bytes")
+	children := curr.ui.elements[0].payload.box._1
+	testing.expect_value(t, children.length, 1)
+	testing.expect_value(t, children.elements[0].tag, Element_Tag.Text)
+	testing.expect_value(t, roc_str_string(&children.elements[0].payload.text.str), "a string longer than twenty-three bytes")
 
 	// Each step frees the box, the draws list, the ui list, two children lists and one long string.
 	before := roc_heap_counters()

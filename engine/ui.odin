@@ -114,7 +114,7 @@ ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []Ui_Quad {
 	return ui.quads[:ui.quad_count]
 }
 
-// The commands point into Clay's arena and into the elements, so they last until the next layout.
+// The commands point into Clay's arena and into the roots, so they last until the next layout.
 ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.RenderCommand {
 	clay.SetCurrentContext(ui.ctx)
 	clay.SetLayoutDimensions({window.size.x, window.size.y})
@@ -129,10 +129,10 @@ ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.Render
 ui_layout_element :: proc(e: ^Element, dpi: f32) {
 	switch e.tag {
 	case .Box:
-		box := &e.payload.box
+		config, children := e.payload.box._0, e.payload.box._1
 		clay._OpenElement()
-		clay.ConfigureOpenElement(ui_declaration(box._0, dpi))
-		for &child in box._1.elements[:box._1.length] {
+		clay.ConfigureOpenElement(ui_declaration(config, dpi))
+		for &child in children.elements[:children.length] {
 			ui_layout_element(&child, dpi)
 		}
 		clay._CloseElement()
