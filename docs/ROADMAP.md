@@ -937,7 +937,15 @@ decisions and the tasks.
 Check: hold W for 30 steps in tutorial chapter 3 with `scripts/bridge.py`,
 read Pip's Draw from the Scene and save a screenshot.
 
-## Milestone 20: Audio
+## Milestone 20: Audio (done)
+
+Results, 2026-10-22: miniaudio 0.11.24 runs in the host on all three
+targets. A game plays a Sound with a `Play` Command and keeps a Loop in
+`Scene.loops`. Sounds are Pack assets. A host test mixes a Play with no
+device and finds samples that are not zero. The x64 build sets
+`MA_NO_SSE2`, because SSE `rsqrtss` left a sound at `range` audible.
+v0.3.0 is published with tutorial chapter 8 and `guide/sound.md`. Kula
+plays a landing bounce from the v0.3.0 bundles.
 
 Done when Kula plays a landing sound on all three targets, from the v0.3.0
 release URLs. Grilled 2026-10-22. The dex milestone task holds the
