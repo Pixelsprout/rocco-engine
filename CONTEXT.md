@@ -147,7 +147,8 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of Draws, a list of
-Colliders, a list of Lights, a Cursor, the UI and a list of Queries. It describes what should be on
+Colliders, a list of Lights, a Cursor, the UI, a list of Queries and a list
+of Loops. It describes what should be on
 screen now and what can touch. Derived from the Model, rebuilt every step,
 stored by the host and never by the game.
 A game starts from `pf.Scene.empty` and sets only the fields it decides.
@@ -328,8 +329,8 @@ _Avoid_: command, request, event, intent
 **Command**:
 A value that says do this once. `step` returns them; the host runs each one
 in list order after `step` and before `view`. `init` returns them too.
-`Quit`, `Load` and `Unload` are the Commands; spawn, destroy and play a
-sound may follow. The host binds no key to `Quit`; a game binds `Escape`
+`Quit`, `Load`, `Unload` and `Play` are the Commands; spawn and destroy may
+follow. The host binds no key to `Quit`; a game binds `Escape`
 itself. Reserved for things a description cannot say.
 _Avoid_: description, effect, action, message, event
 
@@ -401,6 +402,50 @@ _Avoid_: Answer, Result, Response, Event, hit
 One row in `QueryResults.overlaps`: one Collider that an Overlap touched,
 with the owner and slot of its Query.
 _Avoid_: Answer, Result, Response, Event, overlap event
+
+## Sound
+
+**Sound**:
+An asset that holds audio, loaded and unloaded by a Pack. It is named with
+a `sound/` prefix, such as `sound/jump`. The game never touches its
+samples; it sees a Sound id.
+_Avoid_: clip (an animation word), sample, audio file, track, sfx
+
+**Sound id**:
+A number the engine assigns to each Sound it loaded, published in a
+Manifest and carried on a Play or a Loop. Id 0, or an id from an unloaded
+pack, plays nothing and logs once.
+_Avoid_: sound handle, voice, Loop id
+
+**Play**:
+The Command that starts one Sound once. Nothing pairs it and the game
+cannot stop it; it plays to its end, or until its pack unloads. Music that
+plays once is a Play.
+_Avoid_: one-shot (in the vocabulary), trigger, emit, sfx
+
+**Loop**:
+One entry in `Scene.loops`: a Sound that repeats while its entry stays in
+the Scene. A new Loop id starts it and a missing one stops it. A changed
+gain, pitch or place applies on the next fixed step; a changed Sound id
+restarts it. It is a Description. Music that repeats is a Loop.
+_Avoid_: sound (for the entry), track, channel, ambient, emitter
+
+**Loop id**:
+A stable number on a Loop that pairs it with the Loop of the previous
+Scene, as a Draw id pairs Draws.
+_Avoid_: Sound id, voice id, channel
+
+**Listener**:
+The ear for a Play or a Loop placed at a point: the Camera of the current
+Scene, not the interpolated one. A Sound placed `Here` plays at the
+Listener with no direction.
+_Avoid_: microphone, audio camera, ears
+
+**Voice**:
+One Play or one Loop that sounds now. The voice capacity in Launch caps
+how many sound at once. When the voices are full, a Play takes the voice of
+the oldest Play, and a new Loop waits silent for a free voice.
+_Avoid_: channel, source, instance, Sound
 
 ## Memory lifetimes
 

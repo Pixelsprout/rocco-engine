@@ -19,7 +19,7 @@ evidence are marked as decisions.
 | input, and turning it into levels and edges | the rules, as `step` |
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
-| the audio callback and its thread | what should be heard, as data |
+| the audio device, the mixer and their thread | what should be heard, as a Play Command or a Loop in `Scene.loops` |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
@@ -476,6 +476,10 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   column towards +z; `engine/sky.odin` states the layout. The host draws
   `Scene.sky` as a cube around the camera at the far plane, after every
   mesh, with no lights and no tone map.
+- A Sound is a `.wav` or `.ogg` file in `assets/sound/`. Its name is
+  `sound/<stem>`. The host decodes it fully at load. If two files share a
+  stem, the first in sorted order loads and the host logs once. Sound 0
+  plays nothing. Decision, Milestone 20.
 
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The
@@ -737,10 +741,12 @@ in the roadmap removes the system heap from that path.
   again from the same `Model` and a command means do this once. Quit is a
   command. The cursor is a state, so it is a field in `Scene`.
 - **No hosted function until a pure value cannot express the need.** A sound
-  with a duration or a physics body with a warm-start cache has host-side
-  lifetime. When the first one arrives, `Command` gains `Spawn` and
-  `Destroy` by id and the host reconciles. Descriptions first. Commands only
-  when a description cannot say it.
+  with a duration has host-side lifetime, and it arrived as a Description: a
+  Loop in `Scene.loops`, paired by id, with a `Play` Command for a sound
+  that plays once. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
+  records why it is not `Spawn` and `Destroy`. A physics body with a
+  warm-start cache is the next case. Descriptions first. Commands only when
+  a description cannot say it.
 
 ## 7. Where the design comes from
 
