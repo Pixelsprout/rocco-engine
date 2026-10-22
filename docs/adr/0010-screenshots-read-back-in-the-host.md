@@ -37,4 +37,4 @@ Screen Recording permission.
 - Every Frame pays one extra full-screen copy.
 - Each sokol backend has a native path in the host that sokol does not own.
   A sokol update can break it.
-- The offscreen target is where post-processing can start in Milestone 23.
+- The offscreen target is where post-processing can start in Milestone 25.

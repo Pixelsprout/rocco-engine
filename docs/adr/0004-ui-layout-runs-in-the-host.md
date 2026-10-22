@@ -1,6 +1,8 @@
 # 0004: UI layout runs in the host
 
-Status: accepted, 2026-10-15.
+Status: accepted, 2026-10-15. Partly superseded by ADR 0013 on
+2026-10-22: the UI crosses the seam as a tree of Elements, not as a flat
+stream. The layout decision stands.
 
 ## Context
 

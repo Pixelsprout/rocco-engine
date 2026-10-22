@@ -719,12 +719,16 @@ what the design predicts. Do not build this before a game asks.
   update, make a Vocabulary addition cost old games nothing. `Ui.default_box`
   is the precedent. Do this before the first field of this document lands.
 - **The glue can grow.** The compiler now sends nominal recursive tag
-  unions across the host boundary with compiler-emitted refcount plans
+  unions across the host boundary
   ([langref, tag unions](https://github.com/roc-lang/roc/blob/main/docs/langref/tag-unions.md#recursive-tag-unions)).
-  The Zig glue emits box release helpers since roc#9536 closed
+  It emits the type table and a refcounted flag per type, and the glue
+  spec composes the release procs from them. The Zig glue emits box
+  release helpers since roc#9536 closed
   ([issue](https://github.com/roc-lang/roc/issues/9536)). The Odin glue
-  could learn both: the UI could cross as a tree, which reopens ADR 0004,
-  and `drop_model_for_host` could go. A Roc closure can also cross to the
+  can learn both, so the UI can cross as a tree, which reopens ADR 0004.
+  Correction, 2026-10-22: `drop_model_for_host` stays. The glue sees
+  `Box(Model)` as `RocUnknown("rigid")` of size 0. No glue, Zig included,
+  can emit a release for it, so Roc must free the Model. A Roc closure can also cross to the
   host as an erased callable that the host invokes, which roc-ray uses for
   tasks ([glue README](https://github.com/roc-lang/roc/blob/main/src/glue/README.md)).
   The design does not use that, and nothing here needs it. The subsection
@@ -745,6 +749,11 @@ what the design predicts. Do not build this before a game asks.
   a game-side build script are the developer-experience half of scaling.
 
 ### A view against a tree
+
+Note, 2026-10-22: ADR 0013 and Milestone 21 adopt the UI half of this
+section. Milestone 22 holds the 3D half until its grilling. ADR 0013
+records two changes to the sketch below: `packages/ui` keeps defaults and
+small helpers, not constructors, and Box ids wait for pointer input.
 
 The glue change above lets `Element` take Elm's `Html` shape. The Scene
 stays a Description, rebuilt every step and never retained. The tree is the
@@ -831,7 +840,7 @@ What changes on each side:
   element, recurse into the children, close it. The two repairs in ADR
   0004, an extra `Close` and an unclosed `Open`, cannot happen. The type
   makes an unbalanced tree unrepresentable, which is the Elm guarantee.
-- The glue frees the tree with the refcount plan the compiler emits.
+- The generated release procs free the tree, one list per Box.
 
 The 3D side can take the same shape. Milestone 5 kept parenting in the
 game as a flat list with a "parent precedes child" invariant, partly

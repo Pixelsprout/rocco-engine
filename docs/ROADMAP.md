@@ -869,6 +869,9 @@ its own look. It ends with a release that the announcement names.
 On 2026-10-21 Audio and Gamepad moved ahead of Animation and Look. Without
 sound and a pad the engine feels incomplete, and Look is polish. The Bridge
 stays first, because it lets a script inject Input for the gamepad tests.
+On 2026-10-22 the UI tree (Milestone 21) moved ahead of Gamepad, so every
+later guide page and game writes its UI as a tree. Milestone 22, the 3D
+tree, is a placeholder until its grilling.
 `docs/RESEARCH-SCALING.md` holds the research behind each milestone.
 
 Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
@@ -959,7 +962,53 @@ Check: the Bridge shows a `Play` in the `step` reply when Kula's ball lands,
 a host test mixes a Play with no device and finds samples, and a person
 hears the bounce on macOS, Linux and Windows.
 
-## Milestone 21: Gamepad
+## Milestone 21: a view against a tree
+
+Done when the UI crosses the seam as a tree, every game in this repo and
+Kula builds it with the tags, and v0.4.0 is published. Grilled 2026-10-22.
+The dex milestone task holds the decisions and the tasks.
+`docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the
+decision. It comes before Gamepad, because every later guide page and game
+then writes its UI as a tree.
+
+1. The Odin glue learns recursive tag unions through a `List`, with their
+   release procs. It refuses direct recursion through a Box with an error
+   that names the type. The glue moves to the pinned nightly
+   `nightly-2026-10-11-7d256b9`, which closes dex task v401ebww.
+2. One Vocabulary change: `Element := [Box(BoxConfig, List(Element)),
+   Text(Text)]`, and `Scene.ui : List(Element)` holds the roots. The tree
+   replaces `Open`, `Text` and `Close` with no deprecated path. Identity
+   stays by place. The value is plain data, with no events and no
+   closures.
+3. The host walks the tree with one recursive procedure and drops the two
+   repairs of ADR 0004. Clay keeps the layout. The Bridge `scene` reply
+   mirrors the tree.
+4. Games write `Box(config, [...])` and `Text(...)`. `packages/ui` keeps
+   the defaults and small helpers, with no `Ui.box` or `Ui.text`. Pong,
+   `bench/ui`, `bench/mixed` and tutorial chapters 7 and 8 move in the
+   same change.
+5. `guide/ui.md`, chapters 7 and 8, `guide/bridge.md`, `docs/DESIGN.md`,
+   CONTEXT.md and the API docs show the tree. v0.4.0 closes the milestone
+   as a Vocabulary break. Kula moves to v0.4.0 and writes its HUD as a
+   tree.
+
+Check: `scripts/host-check.sh` shows the glue emitting the recursive
+Element and its release procs. A Roc test matches the tree with a pattern.
+The alloc check records pong's allocations per step, against 13 allocs and
+6 reallocs before, with no target. A tracked host shows no leak over a long
+Headless run. The Results line records `bench ui` before and after, with
+no target.
+
+## Milestone 22: the 3D tree
+
+A placeholder. Grill it when Milestone 21 closes. The proposal replaces the
+flat parenting of Milestone 5 with
+`Node := [Draw(Draw), Group({ id : U64, pos : Vec3, rot : Quat }, List(Node))]`.
+Only `examples/entity-game` uses parenting today. If the milestone lands,
+its parenting change gets its own ADR. `docs/RESEARCH-SCALING.md`, "A view
+against a tree", holds the research.
+
+## Milestone 23: Gamepad
 
 Done when Kula plays with a gamepad on all three targets. sokol_app reads no
 gamepad, so this is a host module with one file per OS. `Input` gains the
@@ -968,7 +1017,7 @@ per target and counts the catalog cost of each. The Bridge from Milestone 19
 can inject the new Input, so CI can test it with no pad. Tutorial chapter 9
 adds the gamepad.
 
-## Milestone 22: Animation
+## Milestone 24: Animation
 
 Done when the tutorial character plays a walk clip in chapter 10. The glTF
 loader reads skins and animation clips. The Manifest gives the clip ids of
@@ -977,16 +1026,16 @@ each mesh. A Draw names a clip and a time, so the Model owns the time and
 GPU with a second vertex layout. The tutorial character's Blender script
 gains a rig.
 
-## Milestone 23: Look
+## Milestone 25: Look
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
 One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
-## Milestone 24: the announcement release
+## Milestone 26: the announcement release
 
 Done when the release is published, the docs show it, and the announcement
-links the release, the docs and Kula. Each of milestones 19 to 23 adds its
+links the release, the docs and Kula. Each of milestones 19 to 25 adds its
 guide page, so this milestone checks the docs end to end and does not write
 them.
 
@@ -1009,8 +1058,9 @@ own grilling when it starts.
 repo, pulls this arc.
 
 - Pointer input, `Scene.window` and world-space sprites (dex tasks 5rxq8tn7
-  and elqpa9x2). Decide first whether the UI crosses as a tree, which
-  reopens ADR 0004.
+  and elqpa9x2). Milestone 21 makes the UI a tree (ADR 0013), so a Box
+  can carry an event tag. Pointer input still reopens the layout part of
+  ADR 0004.
 - Ports and saves. A Port can reach a Driver through the Bridge of
   Milestone 19 (ADR 0009).
 - The extension ABI, with FMOD as its first proof.
@@ -1039,7 +1089,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
 
-Audio and fog moved into milestones 20 and 23. World-space sprites, Blender
+Audio and fog moved into milestones 20 and 25. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
