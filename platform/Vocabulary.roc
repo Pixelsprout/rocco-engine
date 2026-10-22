@@ -130,10 +130,11 @@ Vocabulary := [].{
 	##
 	## - `id`: the draw id of the Collider. A Query skips the Collider whose id
 	##   is the Query's owner.
-	## - `yaw`: turns the shape about `+y`.
-	## - `shape`: a `Box` carries its half extents. The host does not test a
-	##   `Capsule` yet.
-	Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
+	## - `rot`: turns the shape. A unit quaternion.
+	## - `shape`: a `Box` carries its half extents. A `Capsule` is a radius
+	##   around a segment of `half_height` along its own `y`, which `rot` turns.
+	##   The host does not test a `Capsule` yet.
+	Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 
 	## Two Colliders that overlap, from a `ContactsOf` Query. `normal` and `depth`
 	## separate them.

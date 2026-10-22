@@ -4,7 +4,7 @@ import shared.Bench
 import cam.Camera as Cam
 import pf.Collider
 import pf.Query
-import pf.Vocabulary exposing [Command, Config, Input, Manifest, Scene, Vec3]
+import pf.Vocabulary exposing [Command, Config, Input, Manifest, Quat, Scene, Vec3]
 import pf.QueryResults
 import pf.Launch
 import "colliders.golden" as golden_colliders : Str
@@ -13,7 +13,7 @@ import "colliders.golden" as golden_colliders : Str
 # Queries: 8 raycasts, 8 overlaps and one ContactsOf. The arena grows with N so
 # that each Collider keeps the same space, and only the Collider count changes
 # the work.
-Body : { id : U64, pos : Vec3, vel : Vec3, yaw : F32 }
+Body : { id : U64, pos : Vec3, vel : Vec3, rot : Quat }
 
 # answered counts the QueryResults of the last step, so step reads every answer.
 Model : { rng : U64, half : F32, bodies : List(Body), answered : U64 }
@@ -70,11 +70,19 @@ spawn_help = |m, n| {
 			id: m.bodies.len() + 1,
 			pos: { x: Bench.spread(r1, m.half), y: 0.0, z: Bench.spread(r2, m.half) },
 			vel: { x: Bench.spread(r3, max_speed), y: 0.0, z: Bench.spread(r4, max_speed) },
-			yaw: Bench.spread(r5, 3.0),
+			rot: turn(Bench.spread(r5, 1.0)),
 		}
 		spawn_help({ ..m, rng: r5, bodies: m.bodies.append(body) }, n)
 	}
 }
+
+# A turn about +y whose half angle has sine s. It takes sqrt, not sin and cos,
+# because sqrt rounds the same in Roc and Odin, so the twin gets the same bits.
+turn : F32 -> Quat
+turn = |s| { x: 0.0, y: s, z: 0.0, w: (1.0 - s * s).sqrt() }
+
+identity : Quat
+identity = { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
 
 count_answers : Model, Vocabulary.QueryResults -> Model
 count_answers = |m, results| { ..m, answered: results.contacts.len() + results.rays.len() + results.overlaps.len() }
@@ -125,7 +133,7 @@ to_collider = |b| {
 	if b.id % 2 == 0 {
 		Collider.sphere(b.id, b.pos, radius)
 	} else {
-		Collider.box(b.id, b.pos, b.yaw, { x: radius, y: radius, z: radius })
+		Collider.box(b.id, b.pos, b.rot, { x: radius, y: radius, z: radius })
 	}
 }
 
@@ -162,20 +170,20 @@ expect {
 }
 
 expect {
-	b = { id: 1, pos: { x: 1.0, y: 0.0, z: 2.0 }, vel: { x: 2.0, y: 0.0, z: -4.0 }, yaw: 0.0 }
+	b = { id: 1, pos: { x: 1.0, y: 0.0, z: 2.0 }, vel: { x: 2.0, y: 0.0, z: -4.0 }, rot: identity }
 	moved = move({ rng: 0, half: 4.0, bodies: [b], answered: 0 }, 0.5)
 	moved.bodies == [{ ..b, pos: { x: 2.0, y: 0.0, z: 0.0 } }]
 }
 
 expect {
-	out = { id: 1, pos: { x: 5.0, y: 0.0, z: -5.0 }, vel: { x: 2.0, y: 0.0, z: -3.0 }, yaw: 0.0 }
+	out = { id: 1, pos: { x: 5.0, y: 0.0, z: -5.0 }, vel: { x: 2.0, y: 0.0, z: -3.0 }, rot: identity }
 	once = bounce({ rng: 0, half: 4.0, bodies: [out], answered: 0 })
 	twice = bounce(once)
 	once.bodies.map(|b| b.vel) == [{ x: -2.0, y: 0.0, z: 3.0 }] and twice == once
 }
 
 expect {
-	inside = { id: 1, pos: { x: 0.0, y: 0.0, z: 0.0 }, vel: { x: 2.0, y: 0.0, z: -3.0 }, yaw: 0.0 }
+	inside = { id: 1, pos: { x: 0.0, y: 0.0, z: 0.0 }, vel: { x: 2.0, y: 0.0, z: -3.0 }, rot: identity }
 	bounce({ rng: 0, half: 4.0, bodies: [inside], answered: 0 }).bodies == [inside]
 }
 
@@ -219,6 +227,9 @@ expect {
 
 expect view(init(Bench.with_n(64)).model).queries.last() == Ok(ContactsOf(watched))
 
+expect turn(0.0) == identity
+expect turn(-1.0) == { x: 0.0, y: -1.0, z: 0.0, w: 0.0 }
+
 expect lane(0, 8.0) == -7.0
 expect lane(7, 8.0) == 7.0
 
@@ -249,6 +260,6 @@ shape_text = |shape| match shape {
 }
 
 colliders_text : List(Vocabulary.Collider) -> Str
-colliders_text = |colliders| Str.join_with(colliders.map(|c| "${c.id.to_str()} ${shape_text(c.shape)} ${bits_text(c.pos.x)} ${bits_text(c.pos.y)} ${bits_text(c.pos.z)} ${bits_text(c.yaw)}\n"), "")
+colliders_text = |colliders| Str.join_with(colliders.map(|c| "${c.id.to_str()} ${shape_text(c.shape)} ${bits_text(c.pos.x)} ${bits_text(c.pos.y)} ${bits_text(c.pos.z)} ${bits_text(c.rot.x)} ${bits_text(c.rot.y)} ${bits_text(c.rot.z)} ${bits_text(c.rot.w)}\n"), "")
 
 expect colliders_text(view(run_steps(init({ ..Bench.with_n(100), seed: 7 }).model, 600)).colliders) == golden_colliders

@@ -540,7 +540,7 @@ test_seam_step_hands_step_the_ray_hits_of_the_last_scene :: proc(t: ^testing.T) 
 	defer roc_heap_test_end()
 
 	s: Seam
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, IDENTITY, {1, 1, 1})}
 	fake_seam_init(&s, colliders = colliders, queries = []Query{test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10)})
 	defer fake_seam_shutdown(&s)
 
@@ -559,7 +559,7 @@ test_seam_step_hands_step_the_overlaps_of_the_last_scene :: proc(t: ^testing.T) 
 	defer roc_heap_test_end()
 
 	s: Seam
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_sphere(2, {1, 0.5, 0}, 0.4)}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_sphere(2, {1, 0.5, 0}, 0.4)}
 	fake_seam_init(&s, colliders = colliders, queries = []Query{test_overlap_sphere(7, 0, {0, 0.5, 0}, 1)})
 	defer fake_seam_shutdown(&s)
 

@@ -131,8 +131,8 @@ json_write_collider :: proc(b: ^strings.Builder, collider: ^Collider) {
 	strings.write_u64(b, collider.id)
 	json_key(b, "pos")
 	json_write_vec3(b, collider.pos)
-	json_key(b, "yaw")
-	json_write_f32(b, collider.yaw)
+	json_key(b, "rot")
+	json_write_quat(b, collider.rot)
 	json_key(b, "shape")
 	shape := &collider.shape
 	switch shape.tag {

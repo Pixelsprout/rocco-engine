@@ -31,7 +31,7 @@ Body :: struct {
 	id:  u64,
 	pos: engine.Vec3,
 	vel: engine.Vec3,
-	yaw: f32,
+	rot: engine.Quat,
 }
 
 // answered counts the QueryResults of the last step, so step reads every answer.
@@ -141,7 +141,7 @@ spawn :: proc(seed: u64, n: int) -> Model {
 			id  = u64(i + 1),
 			pos = {x = spread(r1, m.half), y = 0, z = spread(r2, m.half)},
 			vel = {x = spread(r3, MAX_SPEED), y = 0, z = spread(r4, MAX_SPEED)},
-			yaw = spread(r5, 3),
+			rot = turn(spread(r5, 1)),
 		}
 		m.rng = r5
 	}
@@ -187,6 +187,7 @@ to_collider :: proc(b: Body) -> engine.Collider {
 	c := engine.Collider {
 		id  = b.id,
 		pos = b.pos,
+		rot = {w = 1},
 	}
 	if b.id % 2 == 0 {
 		c.shape.tag = .Sphere
@@ -194,9 +195,14 @@ to_collider :: proc(b: Body) -> engine.Collider {
 	} else {
 		c.shape.tag = .Box
 		c.shape.payload.box = {x = RADIUS, y = RADIUS, z = RADIUS}
-		c.yaw = b.yaw
+		c.rot = b.rot
 	}
 	return c
+}
+
+// A turn about +y whose half angle has sine s, as in the bench game.
+turn :: proc(s: f32) -> engine.Quat {
+	return {x = 0, y = s, z = 0, w = math.sqrt(1 - s * s)}
 }
 
 // Each raycast crosses the arena along x in its own lane. The overlaps sit on

@@ -155,7 +155,7 @@ Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
-Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
+Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 OverlapHit : { owner : U64, slot : U32, id : U64 }
@@ -201,10 +201,12 @@ or frees the mouse only when the state changes. The debug camera forces
 A Collider has the id of the entity it belongs to. An entity with no
 Collider touches nothing, so a game opts in per entity. The render shape is
 not the collision shape. `shape` is a tag union. `Box` carries the half
-extents, and `yaw` turns the box in the ground plane. `Sphere` carries the
-radius. `Capsule` carries the radius and the half height of a segment along
-y. The host does not test capsules yet. Games build Colliders with
-`pf.Collider`, for example `Collider.box(id, pos, yaw, half)`. The host
+extents, and `rot`, a unit quaternion, turns the box in any direction. Two
+boxes are tested on 15 separating axes: three face axes each and nine edge
+cross products. `Sphere` carries the radius. `Capsule` carries the radius
+and the half height of a segment along its own y, which `rot` turns. The
+host does not test capsules yet. Games build Colliders with
+`pf.Collider`, for example `Collider.box(id, pos, rot, half)`. The host
 switches on every tag, so a new shape breaks the Odin compile until the host
 adds a case for it. Decision.
 

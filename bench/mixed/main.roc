@@ -187,7 +187,7 @@ to_collider = |e| {
 	if is_sphere(e) {
 		Collider.sphere(e.id, e.pos, radius)
 	} else {
-		Collider.box(e.id, e.pos, e.yaw, { x: radius, y: radius, z: radius })
+		Collider.box(e.id, e.pos, Quat.from_yaw(e.yaw), { x: radius, y: radius, z: radius })
 	}
 }
 

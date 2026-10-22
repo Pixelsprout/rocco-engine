@@ -3,9 +3,10 @@ package engine
 // Host names for the generated vocabulary types. The glue names each record
 // by the path that reaches it from a provided function. A record shared by
 // several paths takes the name of the first, so Vec3 is the pos of a Play's
-// Place, a step result is a Roc_Init and Rgba is a Box background. A nominal
-// type keeps its own name, so Element is Roc_VocabularyElement, and the
-// glue names a Box's fields _0 (the config) and _1 (the children).
+// Place, Quat is a Collider's rot, a step result is a Roc_Init and Rgba is a
+// Box background. A nominal type keeps its own name, so Element is
+// Roc_VocabularyElement, and the glue names a Box's fields _0 (the config)
+// and _1 (the children).
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
 Window :: Roc_Launch_Window
@@ -37,7 +38,7 @@ Light :: Roc_View_Lights
 Collider_Shape :: Roc_View_Colliders_Shape
 Collider_Shape_Tag :: Roc_View_Colliders_Shape_Tag
 Vec3 :: Roc_Init_Commands_Play_At_At_Pos
-Quat :: Roc_View_Draws_Rot
+Quat :: Roc_View_Colliders_Rot
 Rgb :: Roc_View_Draws_Tint
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor

@@ -90,8 +90,8 @@ A [Collider] is a shape with the id of a [Draw]. Put your Colliders in
 `Scene.colliders`, and make each one with the
 [Collider module][Collider module]:
 
-- [`Collider.box`][Collider.box] makes a box. Its `yaw` turns it about +y
-  only.
+- [`Collider.box`][Collider.box] makes a box. Its `rot` turns it in any
+  direction. `Quat.from_yaw` gives a turn about +y.
 - [`Collider.sphere`][Collider.sphere] makes a sphere.
 - [`Collider.capsule`][Collider.capsule] makes a capsule. The host does not
   test capsules yet: it skips each one and logs one line.
@@ -121,11 +121,11 @@ pickup_radius = 0.4
 # Floor and drops touch nothing.
 with_collider : List(Vocabulary.Collider), Entity, World -> List(Vocabulary.Collider)
 with_collider = |colliders, e, world| match e.kind {
-	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
+	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.rot, player_half))
 	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
-	Block => colliders.append(Collider.box(e.id, world.pos, world.yaw, block_half))
-	Goal => colliders.append(Collider.box(e.id, world.pos, world.yaw, goal_half))
-	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
+	Block => colliders.append(Collider.box(e.id, world.pos, world.rot, block_half))
+	Goal => colliders.append(Collider.box(e.id, world.pos, world.rot, goal_half))
+	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.rot, door_half))
 	Drop(_) => colliders
 }
 ```

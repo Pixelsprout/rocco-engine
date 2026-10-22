@@ -243,9 +243,9 @@ view = |model| {
 	# The camera is the Listener, so it follows Pip to let you hear the door come closer.
 	camera = Cam.follow({ ..model.pos, z: model.pos.z + 0.3 }, camera_offset)
 	# The box's centre is half its height up, so it stands on Pip's feet.
-	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, model.yaw, pip_half)
+	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, Quat.from_yaw(model.yaw), pip_half)
 	# The doorway keeps its Collider while the door rises.
-	door_box = Collider.box(door_id, door_pos, 0.0, door_half)
+	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [pip_box, door_box].concat(model.pickups.map(|p| Collider.sphere(p.id, p.pos, pickup_radius)))
 	queries = [Query.contacts_of(pip_id)]
 	{ ..Scene.empty, camera, draws: [ground, pip, door].concat(pickups), colliders, lights, queries, ui: hud(model), loops: loops(model) }
