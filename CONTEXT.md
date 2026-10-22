@@ -200,26 +200,28 @@ The debug camera forces `Locked`.
 _Avoid_: mouse mode, cursor command, grab
 
 **UI**:
-The field of a Scene that lists the Elements drawn flat over the 3D view.
-It is a Description: rebuilt every step, drawn from the current Scene only,
-never interpolated. Sizes are in logical pixels. The game does not learn the
-window size; the layout fits the Elements to it. "HUD" is a game's word for
-what its UI shows.
+The field of a Scene that lists the root Elements drawn flat over the 3D
+view. It is a Description: rebuilt every step, drawn from the current Scene
+only, never interpolated. The UI is a tree, but it is still a Description and
+not a retained scene graph: the host keeps no Element from one step to the
+next. Sizes are in logical pixels. The game does not learn the window size;
+the layout fits the Elements to it. "HUD" is a game's word for what its UI
+shows.
 _Avoid_: HUD (in the engine), overlay, GUI, canvas, widget tree
 
 **Element**:
-One entry in the UI: an Open, a Text or a Close, in the order the layout
-reads them. An Open starts a Box and its Close ends it; what lies between
-are its children. The list stays flat. An Element's identity is its place
-in the list. The UI package builds the list from nested code.
+One part of the UI tree: a Box, which holds its children, or a Text. The
+game writes the tags itself, `Box(config, [...])` and `Text(...)`. An
+Element's identity is its place in the tree. The tree crosses the seam as
+it is; it is not flattened into a list.
 _Avoid_: widget, node, control, view (the call), parent index
 
 **Box**:
-The rectangle an Open starts. It carries its sizing, padding, gap,
-direction, child alignment, background and corner radius. A floating Box
+An Element that is a rectangle and holds a list of child Elements. Its
+config carries its sizing, padding, gap, direction, child alignment,
+background and corner radius, and its type is `BoxConfig`. A floating Box
 attaches to a point of the window, such as a corner, and ignores its
-parent's layout. Its type is `BoxConfig`, because Roc's builtin `Box` takes
-the name.
+parent's layout.
 _Avoid_: panel, div, container, frame
 
 **Text**:

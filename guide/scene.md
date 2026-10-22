@@ -42,9 +42,7 @@ view = |m| {
 		box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white),
 	]
 
-	ui = scoreboard(m.state, m.score).concat(banner(m.state, m.score)).concat(hints)
-
-	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui }
+	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui: hud(m) }
 }
 ```
 <!-- endregion -->
@@ -70,7 +68,7 @@ host to do one thing once.
 | `colliders` | the [Collider]s | [Collisions and Queries](collisions.md) |
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
-| `ui` | the [Element]s over the 3D view | [The UI](ui.md) |
+| `ui` | the root [Element]s of the UI tree over the 3D view | [The UI](ui.md) |
 | `loops` | the [Loop]s, the Sounds that repeat | [Sound](sound.md) |
 
 ## Pairing by id
@@ -172,7 +170,8 @@ with a record update, and set only the fields that you need.
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Loop | [`Loop.default`][Loop.default] | the start of each Loop. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
-| Box | [`Ui.default_box`][Ui.default_box] | the start of each Box in the UI |
+| BoxConfig | [`Ui.default_box`][Ui.default_box] | the config of each Box in the UI |
+| Text | [`Ui.default_text`][Ui.default_text] | the start of each Text in the UI. `Ui.label(str)` sets the string. |
 | Config | [`Config.empty`][Config.empty] | the Config in a test |
 | Input | [`Input.empty`][Input.empty] | the Input in a test |
 | QueryResults | [`QueryResults.empty`][QueryResults.empty] | the QueryResults in a test |
@@ -192,6 +191,7 @@ with a record update, and set only the fields that you need.
 [Loop.default]: https://pixelsprout.dev/projects/rocco/api/platform/Loop/#Loop.default
 [Launch.default]: https://pixelsprout.dev/projects/rocco/api/platform/Launch/#Launch.default
 [Ui.default_box]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_box
+[Ui.default_text]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_text
 [Config.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Config/#Config.empty
 [Input.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Input/#Input.empty
 [QueryResults.empty]: https://pixelsprout.dev/projects/rocco/api/platform/QueryResults/#QueryResults.empty

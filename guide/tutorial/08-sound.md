@@ -59,7 +59,7 @@ import linalg.Vec3 as V
 import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
-import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Rgba, Vec3]
+import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
 import pf.Config
 import pf.Draw

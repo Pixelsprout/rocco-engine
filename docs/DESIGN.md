@@ -168,7 +168,7 @@ Align    : [Start, Center, End]
 AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
-Element  : [Open(BoxConfig), Text(Text), Close]
+Element  := [Box(BoxConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Loop     : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
@@ -182,7 +182,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a flat list of Elements; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -315,20 +315,24 @@ no id and do not interpolate. A light that moves jumps once per fixed step.
 
 ### The UI is a Description
 
-The game decides the UI in its Scene. `Scene.ui` is a flat list of
-Elements: `Open(Box)`, `Text` and `Close`. An `Open` starts a Box, its
-`Close` ends it, and the Elements between them are its children. The list
-is in pre-order, the order Clay reads it. An Element has no id. Its place in
-the list is its identity. The glue cannot carry a recursive tag union, so
-the tree crosses the seam as this flat list. Games write nested code with
-the UI package in `packages/ui/`, for example `box(config, children)` and
-`text(str, style)`. The package builds the list and a default Box config.
-A game with no UI returns `ui: []`. Decision.
-`docs/adr/0004-ui-layout-runs-in-the-host.md` records the options.
+The game decides the UI in its Scene. `Scene.ui` is a list of root
+Elements, and each Element is a tree:
+`Element := [Box(BoxConfig, List(Element)), Text(Text)]`. A `Box` holds its
+children in its own list. A `Text` is a leaf. `Element` is nominal, because
+only a nominal recursive union crosses the host boundary. The tree crosses
+the seam as it is, with no flattening. An Element has no id. Its place in
+the tree is its identity. Games write the tags directly, for example
+`Box(config, [Text(text)])`. The UI package in `packages/ui/` gives the
+defaults, `default_box` and `default_text`, and small helpers, such as
+`float_at`, `panel` and `label`. A game with no UI returns `ui: []`, which
+allocates nothing. Decision.
+`docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the tree.
+`docs/adr/0004-ui-layout-runs-in-the-host.md` records the layout options.
 
-A Box carries Clay's layout fields and Clay's defaults. Its type is
-`BoxConfig`, because Roc's builtin `Box` takes the name. The tag names are
-short forms of Clay's, such as `Row` for `LEFT_TO_RIGHT`:
+A Box carries Clay's layout fields and Clay's defaults in its config. The
+config's type is `BoxConfig`, because the `Box` tag and Roc's builtin `Box`
+take the name. The tag names are short forms of Clay's, such as `Row` for
+`LEFT_TO_RIGHT`:
 
 | Field | Values | Default |
 |---|---|---|
@@ -370,9 +374,10 @@ bench game. The host allocates
 nothing per frame for the UI.
 
 Once per frame, the host lays out the current Scene's UI against
-`sapp.width()` and `sapp.height()`. It reads the Elements in order. An `Open`
-opens and configures a Clay element, a `Text` adds text, and a `Close`
-closes the open element. The UI does not interpolate. It changes once per
+`sapp.width()` and `sapp.height()`. One recursive procedure walks the tree
+in pre-order. A `Box` opens and configures a Clay element, walks its
+children, then closes the element. A `Text` adds text. A tree cannot be
+unbalanced, so the host has no open or close to repair. The UI does not interpolate. It changes once per
 fixed step, like the Lights. Text strings point into the current Scene,
 which lives for the frame, so the host copies no string. Decision.
 
@@ -396,10 +401,8 @@ like the sky, so the UI draws at its authored colour. The Frame render owns
 the UI draw. It submits the quads through a submit procedure, like the
 meshes, so a test can record them without sokol.
 
-The host repairs these errors and logs each one once:
+The host logs each of these errors once and keeps drawing:
 
-- a `Close` with no open Box: the host ignores it.
-- a Box still open at the end of the list: the host closes it.
 - a character outside ASCII 32 to 126: the host draws `?`.
 - more quads than the vertex buffer holds: the host drops the rest.
 

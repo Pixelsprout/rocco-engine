@@ -421,6 +421,7 @@ floats_at = |ui, point| ui.any(
 	},
 )
 
+# region: ui-test
 # The scoreboard is a panel of a cell, a colon and a cell, and each cell holds
 # one Text.
 expect
@@ -428,6 +429,8 @@ expect
 		Box(_, [Box(_, [Text(left)]), Text(colon), Box(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
 		_ => Bool.False
 	}
+
+# endregion
 
 expect floats_at([scoreboard(Running, { left: 0, right: 0 })], CenterTop)
 expect floats_at(banner(Paused, { left: 0, right: 0 }), CenterCenter)

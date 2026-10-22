@@ -1,6 +1,6 @@
 ---
 title: "7. A HUD"
-summary: Show the pickup count and a message over the game with Scene.ui and the ui package, and finish the game.
+summary: Show the pickup count and a message over the game with a tree of Boxes and Text in Scene.ui, and finish the game.
 order: 7
 ---
 
@@ -11,7 +11,8 @@ pickups are left, that the door is open, or that you have won. In this
 chapter, you add a HUD: text that sits over the game. You use:
 
 - the `ui` field of the Scene, which the host draws over the 3D view,
-- the `ui` package, which builds the UI from boxes and text.
+- the `Box` and `Text` Elements, which build the UI as a tree,
+- the `ui` package, which gives the starting values for a Box and a Text.
 
 ![Pip on the ground, with "Pickups: 0 / 5" at the top left and "Collect every pickup." at the bottom](../images/tutorial-07-hud.png)
 
@@ -34,7 +35,7 @@ Add the `ui` package to the header:
 app [init, launch, loaded, step, view] { cam: "{{camera_url}}", linalg: "{{linalg_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}", ui: "{{ui_url}}" }
 ```
 
-Then import `ui.Ui`, and add `Element` and `Rgba` to the exposed types:
+Then import `ui.Ui`, and add `Element` to the exposed types:
 
 <!-- region: examples/tutorial/07-hud/main.roc#imports -->
 ```roc
@@ -43,7 +44,7 @@ import linalg.Vec3 as V
 import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
-import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Rgba, Vec3]
+import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
 import pf.Config
 import pf.Draw
@@ -61,18 +62,13 @@ import pf.Scene
 
 Your game can't lay out the UI itself, because it never learns the size of
 the window or how wide a string is. So the host does the layout. Your game
-describes the UI as boxes and text, and the host places them.
+describes the UI as a tree of Boxes and Text, and the host places them.
 
 <!-- region: examples/tutorial/07-hud/main.roc#hud -->
 ```roc
-white : Rgba
-white = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-
-text_style : Ui.TextStyle
-text_style = { size: 24.0, color: white, wrap: None }
-
-hud_box : Ui.AttachPoint, Ui.Offset -> Ui.BoxConfig
-hud_box = |attach, offset| { ..Ui.float_at(attach, offset), pad: Ui.pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
+# A line of HUD text never wraps.
+label : Str -> Ui.Text
+label = |str| { ..Ui.label(str), wrap: None }
 
 count_text : Model -> Str
 count_text = |model| {
@@ -92,9 +88,9 @@ status_text = |model| match model.phase {
 # A bottom point of the window needs a negative y offset to move up into it.
 hud : Model -> List(Element)
 hud = |model| {
-	count = Ui.box(hud_box(LeftTop, { x: 16.0, y: 16.0 }), [Ui.text(count_text(model), text_style)])
-	status = Ui.box(hud_box(CenterBottom, { x: 0.0, y: -16.0 }), [Ui.text(status_text(model), text_style)])
-	count.concat(status)
+	count = Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
+	status = Box(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
+	[count, status]
 }
 ```
 <!-- endregion -->
@@ -103,17 +99,18 @@ hud = |model| {
   Model, so the tests can check them without the host. `status_text`
   uses `is_open` from chapter 6, so it says that the door is open only
   once the door has risen all the way.
-- `Ui.text` gives one string in a style: a size in logical pixels, a
-  colour and whether to wrap.
-- `Ui.box` gives a Box with its children. `hud_box` starts from
-  `Ui.float_at`, which makes a Box that floats over the window at one of
-  its points, then adds padding, a see-through black background and round
-  corners.
+- `Text(...)` is an Element that draws one string. `label` starts from
+  `Ui.label`, which gives white text 24 pixels high, and turns wrapping
+  off, so a line of the HUD never breaks.
+- `Box(config, children)` is an Element that holds other Elements.
+  `Ui.panel` gives the config of a Box that floats over the window at one
+  of its points, with padding, a see-through black background and round
+  corners. Each Box here holds one Text.
 - The count sits at the top left. The status sits at the bottom centre, so
   it moves up by 16 pixels with a negative `y`.
 
-Each call gives a list of Elements, so `concat` joins the two Boxes into
-one list. [The UI](../ui.md) explains the Elements and the layout rules.
+`hud` returns the two Boxes as a list. They are the roots of the UI tree.
+[The UI](../ui.md) explains Boxes, Text and the layout rules.
 
 ## view
 
