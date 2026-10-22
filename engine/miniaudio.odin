@@ -81,8 +81,27 @@ Ma_Engine_Config :: struct {
 	pitch_resampling:                         Ma_Resampler_Config,
 }
 
+// A format, channels or sample_rate of 0 keeps the file's own.
+// ma_decode_memory writes back the ones it chose.
+Ma_Decoder_Config :: struct {
+	format:                   c.int,
+	channels:                 u32,
+	sample_rate:              u32,
+	channel_map:              rawptr,
+	channel_mix_mode:         c.int,
+	dither_mode:              c.int,
+	resampling:               Ma_Resampler_Config,
+	allocation_callbacks:     Ma_Allocation_Callbacks,
+	encoding_format:          c.int,
+	seek_point_count:         u32,
+	custom_backend_vtables:   rawptr,
+	custom_backend_count:     u32,
+	custom_backend_user_data: rawptr,
+}
+
 #assert(size_of(Ma_Resampler_Config) == 48)
 #assert(size_of(Ma_Engine_Config) == 256)
+#assert(size_of(Ma_Decoder_Config) == 144)
 
 @(default_calling_convention = "c")
 foreign miniaudio {
@@ -90,5 +109,10 @@ foreign miniaudio {
 	ma_engine_init :: proc(config: ^Ma_Engine_Config, engine: ^Ma_Engine) -> Ma_Result ---
 	ma_engine_uninit :: proc(engine: ^Ma_Engine) ---
 	ma_engine_get_device :: proc(engine: ^Ma_Engine) -> rawptr ---
+	ma_engine_get_sample_rate :: proc(engine: ^Ma_Engine) -> u32 ---
 	ma_result_description :: proc(result: Ma_Result) -> cstring ---
+	ma_decoder_config_init :: proc(format: c.int, channels, sample_rate: u32) -> Ma_Decoder_Config ---
+	// frames comes from ma_malloc even when frame_count is 0. Free it with ma_free.
+	ma_decode_memory :: proc(data: rawptr, size: c.size_t, config: ^Ma_Decoder_Config, frame_count: ^u64, frames: ^rawptr) -> Ma_Result ---
+	ma_free :: proc(p: rawptr, callbacks: ^Ma_Allocation_Callbacks) ---
 }

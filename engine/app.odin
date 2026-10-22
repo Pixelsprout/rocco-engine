@@ -71,7 +71,8 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
 	mesh_table_init(&g_state.renderer.meshes, int(capacity.meshes), perm, context.allocator)
 	sky_table_init(&g_state.renderer.skies, int(capacity.skies), perm, context.allocator)
-	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, perm)
+	audio_sounds_init(&g_state.audio, int(capacity.sounds), perm, context.allocator)
+	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.audio, perm)
 	frame_render_init(&g_state.frame_render, int(capacity.draws), perm)
 	clock_init(&g_state.clock, g_state.launch.step_hz)
 	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs)

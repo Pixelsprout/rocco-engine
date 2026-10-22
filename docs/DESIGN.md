@@ -486,7 +486,9 @@ Files sit on disk by type, not by pack, so one file serves many packs:
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The
 sky table has 16 slots, and sky 0 means no sky. Decision, built in
-Milestone 12.
+Milestone 12. The Sound table has 64 slots, and Sound 0 means no Sound. It
+holds each Sound as f32 samples at the rate the engine mixes at, with the
+channels of its file. Built in Milestone 20.
 
 ### Meshes are ids
 

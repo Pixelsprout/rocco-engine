@@ -90,6 +90,7 @@ Fake_Game :: struct {
 	loaded_out:      rawptr,
 	meshes:          Mesh_Table,
 	skies:           Sky_Table,
+	audio:           Audio,
 	packs:           Packs,
 }
 
@@ -263,7 +264,9 @@ fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, que
 	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
 	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
 	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
-	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, context.allocator)
+	audio_init(&g_fake.audio, device = false)
+	audio_sounds_init(&g_fake.audio, SMALL_SOUNDS, context.allocator, context.allocator)
+	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.audio, context.allocator)
 	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
 }
 
@@ -273,10 +276,11 @@ fake_seam_shutdown :: proc(s: ^Seam) {
 	packs_destroy(&g_fake.packs)
 	mesh_table_destroy(&g_fake.meshes)
 	sky_table_destroy(&g_fake.skies)
+	audio_shutdown(&g_fake.audio)
 }
 
 // Meshes a and b load; broken is on disk but fails. Sky clear loads; torn
-// has no nz face.
+// has no nz face. Sound blip loads and sound broken fails.
 fake_assets_dir :: proc(t: ^testing.T) -> string {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["meshes/a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
@@ -289,6 +293,8 @@ fake_assets_dir :: proc(t: ^testing.T) -> string {
 			files[fmt.tprintf("sky/torn/%v.png", name)] = face
 		}
 	}
+	files["sound/blip.wav"] = wav_make(1, {0, 8192, 16384})
+	files["sound/broken.wav"] = transmute([]byte)string("not a wav")
 	return temp_mesh_dir(t, files)
 }
 
@@ -313,6 +319,12 @@ fake_mesh_name :: proc(id: u32) -> string {
 fake_sky_name :: proc(id: u32) -> string {
 	sky, ok := sky_resolve(&g_fake.skies, id)
 	return sky.name if ok else ""
+}
+
+// "" when the id plays nothing.
+fake_sound_name :: proc(id: u32) -> string {
+	sound, ok := sound_resolve(&g_fake.audio.sounds, id)
+	return sound.name if ok else ""
 }
 
 @(test)
@@ -685,9 +697,10 @@ test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: pro
 	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.seed, 42)
-	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken", "sky/clear", "sky/torn"}))
+	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken", "sky/clear", "sky/torn", "sound/blip", "sound/broken"}))
 	testing.expect_value(t, g_fake.meshes.count, len(Primitive))
 	testing.expect_value(t, g_fake.skies.count, 1)
+	testing.expect_value(t, g_fake.audio.sounds.count, 1)
 	testing.expect_value(t, g_fake.loadeds, 0)
 }
 
@@ -1061,5 +1074,129 @@ test_a_sky_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing
 
 	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sky/clear"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear"))[0].id, 0)
+	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
+}
+
+@(test)
+test_a_sound_name_in_a_load_gets_a_sound_id :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/blip", "a")})
+	defer fake_seam_shutdown(&s)
+
+	id := g_fake.loaded_manifest[0].id
+	testing.expect(t, id != 0)
+	testing.expect_value(t, fake_sound_name(id), "sound/blip")
+	sound, _ := sound_resolve(&g_fake.audio.sounds, id)
+	testing.expect_value(t, sound.channels, 1)
+	testing.expect_value(t, sound.frames, 3)
+	testing.expect_value(t, g_fake.loaded_manifest[1].id, len(Primitive))
+}
+
+@(test)
+test_a_missing_or_broken_sound_gets_id_0_and_logs_once :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/nope", "sound/broken")})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, []Manifest_Line{{"sound/nope", 0}, {"sound/broken", 0}}))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+
+	again := fake_step_with(&s, fake_load("B", "sound/broken", "sound/nope"))
+	testing.expect(t, slice.equal(again, []Manifest_Line{{"sound/broken", 0}, {"sound/nope", 0}}))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+	testing.expect_value(t, g_fake.audio.sounds.count, 1)
+}
+
+// The decoder reads a file by its bytes, so a stereo wav named hum.ogg shows
+// which of the two files loaded.
+@(test)
+test_a_shared_sound_stem_loads_the_first_file_in_sorted_order_and_logs_once :: proc(t: ^testing.T) {
+	files := make(map[string][]byte, context.temp_allocator)
+	files["sound/hum.wav"] = wav_make(1, {0, 0})
+	files["sound/hum.ogg"] = wav_make(2, {0, 0, 0, 0})
+	dir := temp_mesh_dir(t, files)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/hum")})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect(t, slice.equal(g_fake.assets, []string{"sound/hum"}))
+	testing.expect_value(t, len(g_fake.packs.logged_stems), 1)
+	sound, ok := sound_resolve(&g_fake.audio.sounds, g_fake.loaded_manifest[0].id)
+	testing.expect(t, ok)
+	testing.expect_value(t, sound.channels, 2)
+}
+
+@(test)
+test_a_sound_in_two_packs_keeps_one_id_until_its_last_pack_unloads :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/blip")})
+	defer fake_seam_shutdown(&s)
+	in_a := g_fake.loaded_manifest[0].id
+
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sound/blip", "sound/blip"))[1].id, in_a)
+	fake_step_with(&s, fake_unload("A"))
+	testing.expect_value(t, fake_sound_name(in_a), "sound/blip")
+
+	fake_step_with(&s, fake_unload("B"))
+	testing.expect_value(t, fake_sound_name(in_a), "")
+	testing.expect_value(t, g_fake.audio.sounds.free_count, 1)
+}
+
+@(test)
+test_a_stale_sound_id_resolves_to_nothing_and_logs_once :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/blip")})
+	defer fake_seam_shutdown(&s)
+	old := g_fake.loaded_manifest[0].id
+
+	fake_step_with(&s, fake_unload("A"))
+	fresh := fake_step_with(&s, fake_load("B", "sound/blip"))[0].id
+
+	testing.expect_value(t, sound_slot(fresh), sound_slot(old))
+	testing.expect(t, fresh != old)
+	testing.expect_value(t, fake_sound_name(old), "")
+	testing.expect_value(t, fake_sound_name(old), "")
+	testing.expect_value(t, fake_sound_name(fresh), "sound/blip")
+	testing.expect_value(t, len(g_fake.audio.sounds.logged), 1)
+}
+
+@(test)
+test_a_sound_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir)
+	defer fake_seam_shutdown(&s)
+	g_fake.audio.sounds.count = SMALL_SOUNDS
+
+	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sound/blip"))[0].id, 0)
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sound/blip"))[0].id, 0)
 	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
 }

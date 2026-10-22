@@ -81,7 +81,8 @@ Vocabulary := [].{
 	##   buffer grows with it.
 	## - `ui_quads`: UI quads per Frame. Above zero and at most 16384, the u16
 	##   index bound.
-	## - `sounds`: Sound slots. Above zero and at most 65536.
+	## - `sounds`: Sound slots. At least 2, for the reserved slot and one Sound,
+	##   and at most 65536.
 	## - `voices`: the Plays and Loops that sound at once. Above zero and at
 	##   most 65536. When the voices are full, a Play takes the voice of the
 	##   oldest Play, and a new Loop waits silent for a free voice.
