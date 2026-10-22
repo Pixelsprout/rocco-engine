@@ -755,6 +755,12 @@ section. Milestone 22 holds the 3D half until its grilling. ADR 0013
 records two changes to the sketch below: `packages/ui` keeps defaults and
 small helpers, not constructors, and Box ids wait for pointer input.
 
+Note, 2026-10-23: ADR 0014 records the 3D half, with changes to the sketch
+below. `Node` also has `Light` and `Collider` leaves, and `Scene.nodes`
+replaces `draws`, `lights` and `colliders`. A Collider turns by a `Quat`,
+not by yaw. A Group carries a Pose, not a "frame", because a Frame is a
+display refresh.
+
 The glue change above lets `Element` take Elm's `Html` shape. The Scene
 stays a Description, rebuilt every step and never retained. The tree is the
 shape of the value that crosses, not a scene graph in the engine.

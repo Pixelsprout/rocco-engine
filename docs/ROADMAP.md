@@ -385,6 +385,8 @@ Decisions for this milestone, agreed 2026-09-30. All of it lands in
 change, except for the pairing map capacity below.
 
 - No package. Parenting stays in the game until a second game copies it.
+  Superseded, 2026-10-23: ADR 0014 moves the parenting into the Scene as a
+  tree of Groups.
 - `Model` gains `next_id : U64`. It only grows and an id is never reused.
   `new_game` sets it past the last pickup.
 - Scenery ids count down from the top of `U64`, so no counter reaches them.
@@ -1024,12 +1026,22 @@ no target.
 
 ## Milestone 22: the 3D tree
 
-A placeholder. Grill it when Milestone 21 closes. The proposal replaces the
-flat parenting of Milestone 5 with
-`Node := [Draw(Draw), Group({ id : U64, pos : Vec3, rot : Quat }, List(Node))]`.
-Only `examples/entity-game` uses parenting today. If the milestone lands,
-its parenting change gets its own ADR. `docs/RESEARCH-SCALING.md`, "A view
-against a tree", holds the research.
+Done when `Scene.nodes : List(Node)` replaces `draws`, `lights` and
+`colliders`, and entity-game parents its drops with a Group.
+
+Decisions, agreed 2026-10-23, are in ADR 0014. In short: a Group carries a
+Group id and a Pose with no scale. Draws, Lights and Colliders are leaves.
+The host interpolates in local space and composes. Queries stay flat in
+world space.
+
+1. A Collider turns by `rot : Quat`, and the collision code tests general
+   oriented boxes. `bench/colliders` records the time before and after.
+2. `packages/linalg` gains `Pose.compose` and `Pose.relative`.
+3. The tree lands in one change: the vocabulary, the host walk, Group
+   pairing, `capacity.groups`, the Bridge reply, and every game, bench
+   game, tutorial chapter and guide page. Steps 1 and 2 come first.
+4. ADR 0014 moves to accepted, and the alloc check records entity-game's
+   count per step.
 
 ## Milestone 23: Gamepad
 

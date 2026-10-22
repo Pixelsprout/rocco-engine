@@ -146,16 +146,37 @@ key tapped between two steps is pressed but not held.
 _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
-What `view` returns each fixed step: a Camera, a list of Draws, a list of
-Colliders, a list of Lights, a Cursor, the UI, a list of Queries and a list
-of Loops. It describes what should be on
-screen now and what can touch. Derived from the Model, rebuilt every step,
-stored by the host and never by the game.
+What `view` returns each fixed step: a Camera, a list of root Nodes, a
+Cursor, the UI, a list of Queries and a list of Loops. It
+describes what should be on screen now and what can touch. Derived from the
+Model, rebuilt every step, stored by the host and never by the game. Its
+Nodes form a tree, but the host keeps no Node from one Scene to build the
+next.
 A game starts from `pf.Scene.empty` and sets only the fields it decides.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
+**Node**:
+One part of the Scene's 3D tree: a Group, which holds its children, or a
+leaf, which is a Draw, a Light or a Collider. The game writes the tags
+itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`. "First" among Nodes
+means first in the order the game wrote them, read top to bottom.
+_Avoid_: scene node, game object, entity, object
+
+**Group**:
+A Node that carries a Group id and a Pose, and holds a list of child Nodes.
+Its children's Poses are local to it: they inherit its position and rot,
+never a scale. It draws nothing itself.
+_Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
+
+**Pose**:
+A position and a rot. A Node's Pose is local to its Group, or to the world
+at the root; its world Pose composes every Group above it.
+`packages/linalg` composes Poses as the host does.
+_Avoid_: frame, transform, matrix, placement
+
 **Draw**:
-One entry in a Scene: a draw id, a mesh id, a position, scale, rot, scale_rot and tint.
+A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot and tint,
+local to its Group or to the world at the root.
 The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
 interpolates it between two Scenes. A game starts from `pf.Draw.default`.
@@ -173,11 +194,13 @@ premultiplied. UI colours use it; a Tint stays `Rgb`.
 _Avoid_: colour with opacity, Vec4
 
 **Light**:
-One entry in `Scene.lights`: `Ambient`, `Directional` or `Point`. Its colour
+A leaf Node: `Ambient`, `Directional` or `Point`. Its colour
 is a linear `Rgb` that carries intensity, so a channel can exceed 1. A
 Directional `dir` is the way the light travels. A Point light falls off to
-zero at its `range`. `pf.Light` builds each one. Lights have no id and do not
-interpolate. An empty list draws black.
+zero at its `range`. `pf.Light` builds each one. Lights have no id. A Light
+follows its Group's interpolated Pose but does not interpolate its own.
+A Group turns a Directional `dir` and moves a Point; an Ambient ignores it.
+A Scene with no Light draws black.
 _Avoid_: lamp, light source, colour (for intensity)
 
 **Sun**:
@@ -214,7 +237,7 @@ One part of the UI tree: a Box, which holds its children, or a Text. The
 game writes the tags itself, `Box(config, [...])` and `Text(...)`. An
 Element's identity is its place in the tree. The tree crosses the seam as
 it is; it is not flattened into a list.
-_Avoid_: widget, node, control, view (the call), parent index
+_Avoid_: widget, Node (the 3D tree), control, view (the call), parent index
 
 **Box**:
 An Element that is a rectangle and holds a list of child Elements. Its
@@ -247,6 +270,12 @@ A stable number on a Draw that the host uses to pair a draw with its
 predecessor in the previous Scene and interpolate between them. Entities use
 their entity id; fixed scenery uses ids no entity reaches.
 _Avoid_: handle, key, index, entity id (when the draw is scenery)
+
+**Group id**:
+A stable number on a Group that pairs it with its predecessor, as a draw id
+pairs Draws. Group ids and draw ids are apart: an entity's Group and its
+Draw can both carry the entity id.
+_Avoid_: parent id, node id, draw id
 
 **Mesh id**:
 A number the engine assigns to each mesh it loaded, published in a Manifest
@@ -363,9 +392,9 @@ the host finds no Contacts. Not part of Input, which is what the person did.
 _Avoid_: collision list, events, physics state
 
 **Collider**:
-A shape with a draw id that a game returns in its Scene so that Queries can
-test it. The shape is a tag union of box, sphere and capsule. The host does
-not test capsules yet. The host finds Contacts only for a ContactsOf Query.
+A leaf Node: a shape with a draw id, a position and a rot, that Queries can
+test. In a Group, the host tests it at its world Pose. The shape is a tag
+union of box, sphere and capsule. The host does not test capsules yet. The host finds Contacts only for a ContactsOf Query.
 An entity with no Collider touches nothing.
 _Avoid_: hitbox, body, rigidbody, bounds
 
