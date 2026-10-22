@@ -105,7 +105,7 @@ mode_name = |mode| match mode {
 	Release => "release"
 }
 
-# extra_inputs names what inputs copies besides the sokol and Clay archives.
+# extra_inputs names what inputs copies besides the sokol, Clay and miniaudio archives.
 # host_flags are the Odin flags that only this target's host build takes.
 Target : {
 	roc_target : Str,
@@ -416,6 +416,17 @@ clay_copies = |target| match target.extra_inputs {
 clay_copy : Str, Target -> Copy
 clay_copy = |os_dir, target| { from: "${clay_odin_dir}/${os_dir}/clay${target.lib_ext}", to: "${target.dir}/clay${target.lib_ext}" }
 
+# The build-miniaudio script for each OS writes these archives.
+miniaudio_copy : Target, Mode -> Copy
+miniaudio_copy = |target, mode| {
+	os = match target.extra_inputs {
+		MacSdk => "macos_arm64"
+		LinuxStubs => "linux_x64"
+		WindowsImportLibs => "windows_x64"
+	}
+	{ from: "build/miniaudio/miniaudio_${os}_${mode_name(mode)}${target.lib_ext}", to: "${target.dir}/miniaudio${target.lib_ext}" }
+}
+
 compiler_rt_copy : Str, Target -> Copy
 compiler_rt_copy = |resource_dir, target| {
 	from: "${resource_dir}/lib/darwin/libclang_rt.osx.a",
@@ -426,7 +437,7 @@ usage : Str
 usage =
 	\\Usage: roc scripts/build.roc -- <command>
 	\\
-	\\  inputs          copy sokol, Clay and compiler-rt libraries into platform/targets/<target>/
+	\\  inputs          copy sokol, Clay, miniaudio and compiler-rt libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <name>     link examples/<name> against the platform, such as
@@ -458,7 +469,7 @@ usage =
 	\\                  vsync off instead of Headless, so the render Spans are
 	\\                  measured.
 	\\
-	\\inputs, host and all take --release to use the release sokol archives and build
+	\\inputs, host and all take --release to use the release sokol and miniaudio archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
 	\\
 	\\A debug host has the host tracking allocator and its leak report. A release
@@ -744,6 +755,8 @@ inputs! = |target, mode| {
 	for file in clay_copies(target) {
 		copy!(file) ? |_| Failed("${file.from} is missing. Run git submodule update --init.")
 	}
+	audio = miniaudio_copy(target, mode)
+	copy!(audio) ? |_| Failed("${audio.from} is missing. Build it with the build-miniaudio script in scripts/ for this OS.")
 	match target.extra_inputs {
 		MacSdk => {
 			out = Cmd.new("xcrun").args(["clang", "-print-resource-dir"]).exec_output!()?
@@ -867,6 +880,10 @@ expect target_for(mac).map_ok(|target| sokol_copies(target, Debug).len()) == Ok(
 expect target_for(mac).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/macos-arm64/clay.a", to: "platform/targets/arm64mac/clay.a" }])
 expect target_for(linux).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/linux/clay.a", to: "platform/targets/x64glibc/clay.a" }])
 expect target_for(windows).map_ok(clay_copies) == Ok([{ from: "clay/bindings/odin/clay-odin/windows/clay.lib", to: "platform/targets/x64win/clay.lib" }])
+
+expect target_for(mac).map_ok(|target| miniaudio_copy(target, Debug)) == Ok({ from: "build/miniaudio/miniaudio_macos_arm64_debug.a", to: "platform/targets/arm64mac/miniaudio.a" })
+expect target_for(linux).map_ok(|target| miniaudio_copy(target, Release)) == Ok({ from: "build/miniaudio/miniaudio_linux_x64_release.a", to: "platform/targets/x64glibc/miniaudio.a" })
+expect target_for(windows).map_ok(|target| miniaudio_copy(target, Release)) == Ok({ from: "build/miniaudio/miniaudio_windows_x64_release.lib", to: "platform/targets/x64win/miniaudio.lib" })
 
 expect {
 	names = target_for(windows).map_ok(|target| sokol_copies(target, Debug).map(|file| file.to))

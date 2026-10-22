@@ -36,6 +36,7 @@ State :: struct {
 	quit:              bool,
 	spans:             Span_Sink,
 	bridge:            Bridge,
+	audio:             Audio,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
@@ -54,6 +55,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 		bridge_open_or_exit(&g_state.bridge, bridge_port, context.allocator)
 	}
 	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
+	audio_init(&g_state.audio, device = g_state.mode != .Headless)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
 
@@ -200,6 +202,7 @@ app_shutdown :: proc() {
 	}
 	span_sink_destroy(&g_state.spans)
 	bridge_close(&g_state.bridge)
+	audio_shutdown(&g_state.audio)
 
 	renderer_shutdown(&g_state.renderer)
 	seam_shutdown(&g_state.seam)

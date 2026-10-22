@@ -6,17 +6,18 @@ engine.a
 engine.bin
 build/
 
-# Roc platform link inputs. Built from engine/ or copied from sokol-odin/sokol/ and clay/.
+# Roc platform link inputs. Built from engine/ or copied from sokol-odin/sokol/, clay/ and build/miniaudio/.
 platform/targets/*/libhost.a
 platform/targets/*/sokol_*.a
 platform/targets/*/clay.a
+platform/targets/*/miniaudio.a
 platform/targets/*/libclang_rt*.a
 # scripts/make_linux_stubs.py writes the committed x64glibc CRT objects and stubs.
 platform/targets/*/*.o
 platform/targets/*/*.so*
 !platform/targets/x64glibc/*.o
 !platform/targets/x64glibc/*.so.*
-# Host library, sokol libraries and Clay on Windows.
+# Host library, sokol libraries, Clay and miniaudio on Windows.
 platform/targets/*/*.lib
 # scripts/make_windows_import_libs.py writes the committed x64win import libraries.
 !platform/targets/x64win/ucrtbase.lib

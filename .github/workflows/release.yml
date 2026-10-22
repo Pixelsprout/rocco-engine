@@ -36,6 +36,9 @@ jobs:
       - name: Build the sokol Metal archives
         run: sh scripts/macos/build-sokol.sh
 
+      - name: Build the miniaudio archive
+        run: sh scripts/macos/build-miniaudio.sh
+
       - name: Build the host and inputs
         run: |
           roc scripts/build.roc host --release
@@ -70,7 +73,7 @@ jobs:
       - name: Build the host and inputs in the Linux image
         run: |
           docker run --rm -v "$PWD":/work rocco-linux sh -c \
-            'sh scripts/linux/build-sokol.sh && roc scripts/build.roc host --release && roc scripts/build.roc inputs --release'
+            'sh scripts/linux/build-sokol.sh && sh scripts/linux/build-miniaudio.sh && roc scripts/build.roc host --release && roc scripts/build.roc inputs --release'
 
       - uses: actions/upload-artifact@v4
         with:
@@ -106,12 +109,13 @@ jobs:
           "$odin\dist" >> $env:GITHUB_PATH
           "$roc\roc_nightly-windows_x86_64-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
 
-      - name: Build the sokol D3D11 libraries
+      - name: Build the sokol D3D11 libraries and the miniaudio library
         shell: cmd
         run: |
           for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set vs=%%i
           call "%vs%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
           scripts\windows\build_sokol.cmd
+          scripts\windows\build_miniaudio.cmd
 
       - name: Build the host and inputs
         run: |

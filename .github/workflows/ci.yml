@@ -43,6 +43,9 @@ jobs:
       - name: Build the sokol Metal archives
         run: sh scripts/macos/build-sokol.sh
 
+      - name: Build the miniaudio archive
+        run: sh scripts/macos/build-miniaudio.sh
+
       - name: Build
         run: roc scripts/build.roc all --release
 
@@ -146,12 +149,13 @@ jobs:
 
       # vcvars64 runs only in this step. The Roc link reads the committed
       # import libraries, so later steps run with LIB unset.
-      - name: Build the sokol D3D11 libraries
+      - name: Build the sokol D3D11 libraries and the miniaudio library
         shell: cmd
         run: |
           for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set vs=%%i
           call "%vs%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
           scripts\windows\build_sokol.cmd
+          scripts\windows\build_miniaudio.cmd
 
       - name: Build
         run: roc scripts/build.roc all --release

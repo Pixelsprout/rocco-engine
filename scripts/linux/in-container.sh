@@ -16,6 +16,7 @@ odin version
 roc version
 
 sh scripts/linux/build-sokol.sh
+sh scripts/linux/build-miniaudio.sh
 
 roc scripts/build.roc all "$@"
 
