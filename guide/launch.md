@@ -63,6 +63,8 @@ the host does not stop. It logs once and carries on:
 - `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
 - `draws`: the host draws the first Draws of the Scene and drops the rest.
 - `ui_quads`: the host draws the first quads of the UI and drops the rest.
+- `voices`: a `Play` takes the voice of the oldest Play that still sounds.
+  If Loops hold every voice, the Play plays nothing.
 
 ## The fields
 

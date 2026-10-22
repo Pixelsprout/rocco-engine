@@ -27,3 +27,7 @@ _Static_assert(sizeof(ma_engine_config) == 256, "update Ma_Engine_Config in engi
 _Static_assert(sizeof(ma_decoder_config) == 144, "update Ma_Decoder_Config in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_engine) == 1352, "update MA_ENGINE_SIZE in engine/miniaudio.odin");
 _Static_assert(_Alignof(ma_engine) == 8, "update the alignment of Ma_Engine in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_sound) == 1016, "update MA_SOUND_SIZE in engine/miniaudio.odin");
+_Static_assert(_Alignof(ma_sound) == 8, "update the alignment of Ma_Sound in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_audio_buffer_ref) == 112, "update MA_AUDIO_BUFFER_REF_SIZE in engine/miniaudio.odin");
+_Static_assert(_Alignof(ma_audio_buffer_ref) == 8, "update the alignment of Ma_Audio_Buffer_Ref in engine/miniaudio.odin");

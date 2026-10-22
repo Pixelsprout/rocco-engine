@@ -42,6 +42,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 			keys = input_take(&s.input, &s.keys)
 		}
 		step_time, view_time, quit := seam_step(&s.seam, keys, dt, &s.spans, commands_json)
+		audio_advance(&s.audio, dt)
 		steps += 1
 		s.steps += 1
 		alloc := roc_heap_report(s.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))

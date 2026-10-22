@@ -227,7 +227,8 @@ Vocabulary := [].{
 	##
 	## - `Here`: at the Listener, with no direction.
 	## - `At`: at `pos`. It falls off linearly to zero at `range`, as a Point
-	##   Light does.
+	##   Light does, and pans to the side it is on. A `range` of 0 or less is
+	##   silent.
 	Place : [Here, At({ pos : Vec3, range : F32 })]
 
 	## One Sound that repeats while it stays in `Scene.loops`. Start from

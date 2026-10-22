@@ -265,9 +265,9 @@ fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, que
 	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
 	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
 	audio_init(&g_fake.audio, device = false)
-	audio_sounds_init(&g_fake.audio, SMALL_SOUNDS, context.allocator, context.allocator)
+	audio_tables_init(&g_fake.audio, SMALL_SOUNDS, SMALL_VOICES, context.allocator, context.allocator)
 	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.audio, context.allocator)
-	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs)
+	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs, &g_fake.audio)
 }
 
 fake_seam_shutdown :: proc(s: ^Seam) {

@@ -20,6 +20,7 @@ Seam :: struct {
 	calls:       Game_Calls,
 	run_command: Command_Runner,
 	packs:       ^Packs,
+	audio:       ^Audio,
 	model:       rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
@@ -48,15 +49,17 @@ seam_launch :: proc(s: ^Seam, calls: Game_Calls, config: Config) -> Launch {
 // Owns the one reference to the Model, the last two Scenes and the QueryResults.
 // See the call protocol in docs/DESIGN.md section 5: Roc consumes every
 // argument it gets.
-seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: ^Packs) {
+seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: ^Packs, audio: ^Audio) {
 	assert(s.calls.init != nil, "seam_launch binds the Game calls and runs first")
 	s.run_command = run_command
 	s.packs = packs
+	s.audio = audio
 	query_search_init(&s.search, context.allocator)
 	started := s.calls.init(config)
 	s.model = started.model
 	seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
+	audio_listen(s.audio, s.curr.camera)
 }
 
 // The Spans split the work finer than step_time and view_time, which the
@@ -90,6 +93,7 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, c
 	s.prev = s.curr
 	s.has_prev = true
 	s.curr = seam_view(s)
+	audio_listen(s.audio, s.curr.camera)
 	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
 	answers := seam_query_search(s)
@@ -131,6 +135,7 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool)
 			quit = true
 			s.run_command(command)
 		case .Play:
+			audio_play(s.audio, command.payload.play)
 		}
 	}
 	roc_list_decref(commands)
