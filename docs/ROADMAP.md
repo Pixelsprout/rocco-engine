@@ -71,7 +71,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.3.0 is the latest release.
+  bundles. v0.4.0 is the latest release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
@@ -973,7 +973,7 @@ Check: the Bridge shows a `Play` in the `step` reply when Kula's ball lands,
 a host test mixes a Play with no device and finds samples, and a person
 hears the bounce on macOS, Linux and Windows.
 
-## Milestone 21: a view against a tree
+## Milestone 21: a view against a tree (done)
 
 Results, 2026-10-22: `Scene.ui` crosses the seam as a tree of `Box` and
 `Text`. The host walks it with one recursive procedure and has no repair.
@@ -984,6 +984,8 @@ median of 15.5 us, against 83.0 us before. The `ui_layout` median is
 it is noise. The Frame budget median is 399.9 us, against 541.5 us before.
 The Roc heap counters are N/2 + 3 allocs and 0 reallocs per step,
 against 2N + 4 allocs and N + 2 reallocs before. No figure has a target.
+v0.4.0 is published with the tree in `guide/ui.md` and chapter 7. Kula
+builds its HUD as a tree from the v0.4.0 bundles.
 
 Done when the UI crosses the seam as a tree, every game in this repo and
 Kula builds it with the tags, and v0.4.0 is published. Grilled 2026-10-22.
