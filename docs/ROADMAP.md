@@ -31,7 +31,9 @@ Built and running:
 - The game defines five calls: `launch`, `init`, `step`, `loaded` and
   `view`. `launch` sets the window, the step rate, the shadow map size and
   the table capacities before the window opens.
-- `Scene.ui` carries a HUD that Clay lays out in the host.
+- `Scene.ui` carries the UI as a tree of `Box` and `Text` Elements. The
+  tree crosses the seam as it is. The host walks it with one recursive
+  procedure, and Clay lays it out in the host.
 - `Scene.queries` asks for Raycasts, Overlaps and ContactsOf. The answers
   come back in the next step's `QueryResults`.
 - Games import the seam types from `pf.Vocabulary` and name keys with
@@ -60,7 +62,8 @@ Built and running:
   call protocol has a test without a Roc app. Hot reload works under
   `roc run` on macOS when the `Model` type does not change.
 - The generated Odin ABI and its refcount helpers come from `roc glue` with
-  the spec in the `glue/` submodule (roc-odin-glue).
+  the spec in the `glue/` submodule (roc-odin-glue). The glue carries a
+  nominal recursive tag union through a `List`.
 - `examples/cards`, `examples/entity-game` and `examples/pong` build and
   run from one checkout on `arm64mac`, `x64glibc` and `x64win`. CI runs
   them on all three for every push to main and every pull request.
@@ -68,7 +71,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.1.0 is the only release.
+  bundles. v0.3.0 is the latest release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
@@ -971,6 +974,16 @@ a host test mixes a Play with no device and finds samples, and a person
 hears the bounce on macOS, Linux and Windows.
 
 ## Milestone 21: a view against a tree
+
+Results, 2026-10-22: `Scene.ui` crosses the seam as a tree of `Box` and
+`Text`. The host walks it with one recursive procedure and has no repair.
+Pong makes 6 allocs and 1 realloc per step. Before, it made 13 allocs and
+6 reallocs. `bench ui` (Headless, Apple M5, N = 1024) gives a `view`
+median of 15.5 us, against 83.0 us before. The `ui_layout` median is
+365.5 us, against 373.0 us before. This difference is less than 10%, so
+it is noise. The Frame budget median is 399.9 us, against 541.5 us before.
+The Roc heap counters are N/2 + 3 allocs and 0 reallocs per step,
+against 2N + 4 allocs and N + 2 reallocs before. No figure has a target.
 
 Done when the UI crosses the seam as a tree, every game in this repo and
 Kula builds it with the tags, and v0.4.0 is published. Grilled 2026-10-22.
