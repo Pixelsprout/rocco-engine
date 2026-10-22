@@ -150,10 +150,10 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	corner.floating = {tag = .Float, payload = {float = {attach = .RightBottom, offset = {2, -3}}}}
 	// A short string is stored inline, so it needs no Roc heap.
 	text := Element {
+		tag = .Text,
 		payload = {text = {str = roc_str_from_slice(`say "hi"`), size = 16, color = {r = 1, g = 1, b = 1, a = 1}, wrap = .Words}},
 	}
-	text.tag = .Text
-	elements := []Element{ui_open(column), ui_open(corner), text, ui_close()}
+	elements := []Element{ui_box_of(column, ui_box_of(corner, text)), ui_box_of(ui_box())}
 	b := strings.builder_make(context.temp_allocator)
 
 	json_write_list(&b, json_test_list(elements), json_write_element)
@@ -161,14 +161,16 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	expect_json_text(
 		t,
 		&b,
-		`[{"Open":{"width":{"Fit":{"min":1,"max":2}},"height":{"Grow":{"min":0,"max":0}},` +
+		`[{"Box":{"config":{"width":{"Fit":{"min":1,"max":2}},"height":{"Grow":{"min":0,"max":0}},` +
 		`"pad":{"left":1,"right":2,"top":3,"bottom":4},"gap":5,"direction":"Col","child_align":{"x":"Center","y":"End"},` +
-		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"floating":"NoFloat"}},` +
-		`{"Open":{"width":{"Fixed":100},"height":{"Percent":0.5},` +
+		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"floating":"NoFloat"},"children":[` +
+		`{"Box":{"config":{"width":{"Fixed":100},"height":{"Percent":0.5},` +
 		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
-		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"floating":{"Float":{"attach":"RightBottom","offset":{"x":2,"y":-3}}}}},` +
-		`{"Text":{"str":"say \"hi\"","size":16,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"Words"}},` +
-		`"Close"]`,
+		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"floating":{"Float":{"attach":"RightBottom","offset":{"x":2,"y":-3}}}},"children":[` +
+		`{"Text":{"str":"say \"hi\"","size":16,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"Words"}}]}}]}},` +
+		`{"Box":{"config":{"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},` +
+		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
+		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"floating":"NoFloat"},"children":[]}}]`,
 	)
 }
 

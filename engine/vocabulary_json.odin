@@ -297,12 +297,14 @@ json_write_place :: proc(b: ^strings.Builder, place: ^Place) {
 
 json_write_element :: proc(b: ^strings.Builder, element: ^Element) {
 	switch element.tag {
-	case .Close:
-		json_write_tag(b, element.tag)
-		return
-	case .Open:
-		json_key(b, "Open", first = true)
-		json_write_box_config(b, &element.payload.open)
+	case .Box:
+		box := &element.payload.box
+		json_key(b, "Box", first = true)
+		json_key(b, "config", first = true)
+		json_write_box_config(b, &box._0)
+		json_key(b, "children")
+		json_write_list(b, box._1, json_write_element)
+		strings.write_byte(b, '}')
 	case .Text:
 		text := &element.payload.text
 		json_key(b, "Text", first = true)

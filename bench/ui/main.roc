@@ -22,8 +22,8 @@ lit_background = { r: 0.8, g: 0.5, b: 0.1, a: 1.0 }
 root_box : Ui.BoxConfig
 root_box = { ..Ui.default_box, width: Grow({ min: 0.0, max: 0.0 }), height: Grow({ min: 0.0, max: 0.0 }), direction: Col, gap: 2.0, pad: Ui.pad_all(8.0) }
 
-label : Ui.TextStyle
-label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
+label : Str -> Ui.Text
+label = |str| { ..Ui.label(str), size: 12.0, wrap: None }
 
 # high_dpi off, so the numbers do not depend on the display.
 launch : Config -> Vocabulary.Launch
@@ -78,42 +78,50 @@ view = |m| {
 elements : Model -> List(Element)
 elements = |m| {
 	cells = m.labels.map_with_index(|text, i| cell(text, i == m.lit))
-	Ui.box(root_box, cells)
+	[Box(root_box, cells)]
 }
 
 # The empty label marks the lone Box of an odd N.
-cell : Str, Bool -> List(Element)
+cell : Str, Bool -> Element
 cell = |text, lit| {
 	config = if lit { ..cell_box, background: lit_background } else cell_box
-	children = if text == "" [] else [Ui.text(text, label)]
-	Ui.box(config, children)
+	children = if text == "" [] else [Text(label(text))]
+	Box(config, children)
 }
 
 ui_of : U64 -> List(Element)
 ui_of = |n| view(init(Bench.with_n(n)).model).ui
 
-opens : List(Element) -> U64
-opens = |ui| ui.count_if(
-	|e| match e {
-		Open(_) => Bool.True
-		_ => Bool.False
+# The root Box is not one of the N elements, so the counts start at its children.
+boxes : List(Element) -> U64
+boxes = |ui| ui.fold(
+	0,
+	|n, e| match e {
+		Box(_, children) => n + 1 + boxes(children)
+		Text(_) => n
 	},
 )
 
 texts : List(Element) -> U64
-texts = |ui| ui.count_if(
-	|e| match e {
-		Text(_) => Bool.True
-		_ => Bool.False
+texts = |ui| ui.fold(
+	0,
+	|n, e| match e {
+		Box(_, children) => n + texts(children)
+		Text(_) => n + 1
 	},
 )
 
-# The root Box is not one of the N elements.
-box_and_text_count : List(Element) -> U64
-box_and_text_count = |ui| opens(ui) + texts(ui) - 1
+cells_of : List(Element) -> List(Element)
+cells_of = |ui| match ui {
+	[Box(_, cells)] => cells
+	_ => []
+}
 
-balanced : List(Element) -> Bool
-balanced = |ui| ui.count_if(|e| e == Close) == opens(ui)
+box_and_text_count : List(Element) -> U64
+box_and_text_count = |ui| {
+	cells = cells_of(ui)
+	boxes(cells) + texts(cells)
+}
 
 expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).commands == []
@@ -122,7 +130,7 @@ expect box_and_text_count(ui_of(64)) == 64 and texts(ui_of(64)) == 32
 expect box_and_text_count(ui_of(1)) == 1 and texts(ui_of(1)) == 0
 expect box_and_text_count(ui_of(7)) == 7 and texts(ui_of(7)) == 3
 expect box_and_text_count(ui_of(16384)) == 16384
-expect balanced(ui_of(64)) and balanced(ui_of(7))
+expect ui_of(64).len() == 1 and cells_of(ui_of(64)).len() == 32
 
 expect view(init(Bench.with_n(64)).model).draws == []
 
@@ -138,12 +146,17 @@ expect {
 }
 
 lit_count : List(Element) -> U64
-lit_count = |ui| ui.count_if(|e| e == Open({ ..cell_box, background: lit_background }))
+lit_count = |ui| cells_of(ui).count_if(
+	|e| match e {
+		Box(config, _) => config == { ..cell_box, background: lit_background }
+		Text(_) => Bool.False
+	},
+)
 
 # A step changes which cell is lit, not the number of elements.
 expect {
 	m = init(Bench.with_n(64)).model
 	before = elements(m)
 	after = elements(move_light(m))
-	lit_count(before) == 1 and lit_count(after) == 1 and before != after and before.len() == after.len()
+	lit_count(before) == 1 and lit_count(after) == 1 and before != after and cells_of(before).len() == cells_of(after).len()
 }

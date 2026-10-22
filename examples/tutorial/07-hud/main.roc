@@ -8,7 +8,7 @@ import linalg.Vec3 as V
 import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
-import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Rgba, Vec3]
+import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
 import pf.Config
 import pf.Draw
@@ -199,14 +199,9 @@ view = |model| {
 # endregion
 
 # region: hud
-white : Rgba
-white = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-
-text_style : Ui.TextStyle
-text_style = { size: 24.0, color: white, wrap: None }
-
-hud_box : Ui.AttachPoint, Ui.Offset -> Ui.BoxConfig
-hud_box = |attach, offset| { ..Ui.float_at(attach, offset), pad: Ui.pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
+# A line of HUD text never wraps.
+label : Str -> Ui.Text
+label = |str| { ..Ui.label(str), wrap: None }
 
 count_text : Model -> Str
 count_text = |model| {
@@ -226,9 +221,9 @@ status_text = |model| match model.phase {
 # A bottom point of the window needs a negative y offset to move up into it.
 hud : Model -> List(Element)
 hud = |model| {
-	count = Ui.box(hud_box(LeftTop, { x: 16.0, y: 16.0 }), [Ui.text(count_text(model), text_style)])
-	status = Ui.box(hud_box(CenterBottom, { x: 0.0, y: -16.0 }), [Ui.text(status_text(model), text_style)])
-	count.concat(status)
+	count = Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
+	status = Box(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
+	[count, status]
 }
 
 # endregion

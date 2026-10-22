@@ -70,8 +70,9 @@ Fake_Game :: struct {
 	colliders:       []Collider,
 	queries:         []Query,
 	ui_texts:        []string,
-	// Elements with no Roc_Str, so view can hand them out again and again.
-	// ui_texts stays separate because each view must make its strings fresh.
+	// Root Elements with no Roc_Str. Each view copies their children lists
+	// into Roc lists. ui_texts stays separate because each view must make its
+	// strings fresh.
 	ui:              []Element,
 	// view returns these. With no draws, it returns one Draw whose id is the
 	// view count.
@@ -227,14 +228,15 @@ fake_view :: proc(model: rawptr) -> Scene {
 	fake_refcount(model)^ -= 1
 	ui := make([dynamic]Element, context.temp_allocator)
 	for str in g_fake.ui_texts {
-		append(&ui, Element{tag = .Open})
 		text := Element {
 			tag = .Text,
+			payload = {text = {str = roc_str_from_slice(str)}},
 		}
-		text.payload.text = {str = roc_str_from_slice(str)}
-		append(&ui, text, Element{tag = .Close})
+		append(&ui, Element{tag = .Box, payload = {box = {_1 = roc_list_from_slice([]Element{text})}}})
 	}
-	append(&ui, ..g_fake.ui)
+	for e in g_fake.ui {
+		append(&ui, fake_element_refcounted(e))
+	}
 	draws := g_fake.draws if g_fake.draws != nil else []Draw{{id = u64(g_fake.views)}}
 	return {
 		camera = g_fake.camera,
@@ -247,6 +249,20 @@ fake_view :: proc(model: rawptr) -> Scene {
 		ui = roc_list_from_slice(ui[:]),
 		loops = roc_list_from_slice(g_fake.loops),
 	}
+}
+
+// The host frees each Scene, so every children list it gets must be a Roc allocation.
+fake_element_refcounted :: proc(e: Element) -> Element {
+	if e.tag != .Box {
+		return e
+	}
+	box := e.payload.box
+	children := make([]Element, box._1.length, context.temp_allocator)
+	for child, i in box._1.elements[:box._1.length] {
+		children[i] = fake_element_refcounted(child)
+	}
+	box._1 = roc_list_from_slice(children)
+	return {tag = .Box, payload = {box = box}}
 }
 
 fake_drop_model :: proc(model: rawptr) {
@@ -430,16 +446,18 @@ test_seam_step_frees_the_text_strings_of_the_last_scene :: proc(t: ^testing.T) {
 	seam_step(&s, {}, 1.0 / 60)
 
 	_, curr := seam_scenes(&s)
-	testing.expect_value(t, curr.ui.length, 6)
-	testing.expect_value(t, curr.ui.elements[1].tag, Element_Tag.Text)
-	testing.expect_value(t, roc_str_string(&curr.ui.elements[1].payload.text.str), "a string longer than twenty-three bytes")
+	testing.expect_value(t, curr.ui.length, 2)
+	box := curr.ui.elements[0].payload.box
+	testing.expect_value(t, box._1.length, 1)
+	testing.expect_value(t, box._1.elements[0].tag, Element_Tag.Text)
+	testing.expect_value(t, roc_str_string(&box._1.elements[0].payload.text.str), "a string longer than twenty-three bytes")
 
-	// Each step frees the box, the draws list, the ui list and one long string.
+	// Each step frees the box, the draws list, the ui list, two children lists and one long string.
 	before := roc_heap_counters()
 	seam_step(&s, {}, 1.0 / 60)
 	after := roc_heap_counters()
-	testing.expect_value(t, after.allocs - before.allocs, 4)
-	testing.expect_value(t, after.deallocs - before.deallocs, 4)
+	testing.expect_value(t, after.allocs - before.allocs, 6)
+	testing.expect_value(t, after.deallocs - before.deallocs, 6)
 	testing.expect_value(t, after.reallocs - before.reallocs, 0)
 	testing.expect_value(t, after.live, before.live)
 

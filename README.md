@@ -194,8 +194,9 @@ The other variables the engine reads:
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 5, with 0 reallocs. pong expects 13 allocs and 6 reallocs,
-because `Ui.box` builds `Scene.ui` with concat and append. The script
+entity-game 5, with 0 reallocs. pong expects 6 allocs and 1 realloc,
+because each Box's children list in its UI tree is one allocation and one
+concat joins the roots of `Scene.ui`. The script
 rebuilds the host with `host --release --track-alloc` and fails on a `LEAK`
 or `BAD Free` line. It leaves that host in place, so run `host` again after
 it. Run `inputs` first. Each game opens a window. Do not type into it during

@@ -190,7 +190,7 @@ Vocabulary := [].{
 	## window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
-	## The rectangle that an `Open` Element starts. The names and the defaults
+	## The rectangle that a `Box` Element draws. The names and the defaults
 	## are Clay's. Sizes are in logical pixels.
 	##
 	## - `direction`: lays out the children in a `Row` or a `Col`.
@@ -204,19 +204,33 @@ Vocabulary := [].{
 	## breaks lines between words. With `None`, it does not break lines.
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 
-	## One entry in `Scene.ui`, in the order the layout reads them. An `Open`
-	## starts a Box and its `Close` ends it. The Elements between them are its
-	## children. The list is flat, because a
-	## recursive type cannot cross the seam. The `ui` package builds the list
-	## from nested code.
-	Element : [Open(BoxConfig), Text(Text), Close]
+	## One node of the UI tree. Write the tags directly.
+	##
+	## - `Box`: a rectangle and its children, laid out in list order inside it.
+	## - `Text`: one string, a leaf.
+	##
+	## An Element keeps its identity by its place in the tree. The type is
+	## nominal, because only a nominal recursive union crosses the seam.
+	Element := [Box(BoxConfig, List(Element)), Text(Text)].{
+
+		## Two Elements are equal when their tags, configs, Texts and children
+		## are equal. A nominal type gets no `==` of its own.
+		is_eq : Element, Element -> Bool
+		is_eq = |a, b|
+			match (a, b) {
+				(Box(config_a, children_a), Box(config_b, children_b)) => config_a == config_b and children_a == children_b
+				(Text(text_a), Text(text_b)) => text_a == text_b
+				_ => Bool.False
+			}
+	}
 
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
 	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
 	##   know, draws no sky.
-	## - `ui`: the Elements drawn flat over the 3D view.
+	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
+	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
 	## - `loops`: the Sounds that repeat while their Loop stays in the Scene.

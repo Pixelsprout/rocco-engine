@@ -49,8 +49,8 @@ lit_background = { r: 0.8, g: 0.5, b: 0.1, a: 1.0 }
 root_box : Ui.BoxConfig
 root_box = { ..Ui.default_box, direction: Col, gap: 2.0, pad: Ui.pad_all(8.0) }
 
-label : Ui.TextStyle
-label = { size: 12.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: None }
+label : Str -> Ui.Text
+label = |str| { ..Ui.label(str), size: 12.0, wrap: None }
 
 # high_dpi off, so the numbers do not depend on the display. draws is N, so
 # the pairing map and the uniform buffer match the workload.
@@ -218,39 +218,44 @@ elements = |m| {
 	if m.labels.is_empty() {
 		[]
 	} else {
-		Ui.box(root_box, m.labels.map_with_index(|text, i| cell(text, i == m.lit)))
+		[Box(root_box, m.labels.map_with_index(|text, i| cell(text, i == m.lit)))]
 	}
 }
 
-cell : Str, Bool -> List(Element)
+cell : Str, Bool -> Element
 cell = |text, lit| {
 	config = if lit { ..cell_box, background: lit_background } else cell_box
-	children = if text == "" [] else [Ui.text(text, label)]
-	Ui.box(config, children)
+	children = if text == "" [] else [Text(label(text))]
+	Box(config, children)
 }
 
 scene_of : U64 -> Scene
 scene_of = |n| view(init(Bench.with_n(n)).model)
 
-opens : List(Element) -> U64
-opens = |ui| ui.count_if(
-	|e| match e {
-		Open(_) => Bool.True
-		_ => Bool.False
+boxes : List(Element) -> U64
+boxes = |ui| ui.fold(
+	0,
+	|n, e| match e {
+		Box(_, children) => n + 1 + boxes(children)
+		Text(_) => n
 	},
 )
 
 texts : List(Element) -> U64
-texts = |ui| ui.count_if(
-	|e| match e {
-		Text(_) => Bool.True
-		_ => Bool.False
+texts = |ui| ui.fold(
+	0,
+	|n, e| match e {
+		Box(_, children) => n + texts(children)
+		Text(_) => n + 1
 	},
 )
 
 # The root Box is not one of the UI elements.
 ui_element_count : List(Element) -> U64
-ui_element_count = |ui| if ui.is_empty() 0 else opens(ui) + texts(ui) - 1
+ui_element_count = |ui| match ui {
+	[Box(_, cells)] => boxes(cells) + texts(cells)
+	_ => 0
+}
 
 query_kinds : List(Vocabulary.Query) -> List([Ray, Overlap, Contacts])
 query_kinds = |qs| qs.map(

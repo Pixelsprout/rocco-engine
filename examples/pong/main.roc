@@ -110,12 +110,6 @@ red_text : Rgba
 red_text = { r: 0.787, g: 0.033, b: 0.033, a: 1.0 }
 
 # region: ui
-label : Ui.TextStyle
-label = { size: 24.0, color: white_text, wrap: Words }
-
-panel : Ui.AttachPoint, Ui.Offset -> Ui.BoxConfig
-panel = |attach, offset| { ..Ui.float_at(attach, offset), pad: Ui.pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
-
 centred : Ui.BoxConfig
 centred = { ..Ui.default_box, child_align: { x: Center, y: Center } }
 
@@ -133,41 +127,46 @@ score_color = |state, own, other| {
 }
 
 # Fixed cells keep the colon still when a score gains a digit.
-scoreboard : GameState, Score -> List(Element)
+scoreboard : GameState, Score -> Element
 scoreboard = |state, score| {
-	cell = |own, other| Ui.box({ ..centred, width: Fixed(48.0) }, [Ui.text(own.to_str(), { ..label, color: score_color(state, own, other) })])
-	Ui.box(
-		{ ..panel(CenterTop, { x: 0.0, y: 16.0 }), gap: 8.0, child_align: { x: Center, y: Center } },
-		[cell(score.left, score.right), Ui.text(":", label), cell(score.right, score.left)],
+	cell = |own, other| Box({ ..centred, width: Fixed(48.0) }, [Text({ ..Ui.label(own.to_str()), color: score_color(state, own, other) })])
+	Box(
+		{ ..Ui.panel(CenterTop, { x: 0.0, y: 16.0 }), gap: 8.0, child_align: { x: Center, y: Center } },
+		[cell(score.left, score.right), Text(Ui.label(":")), cell(score.right, score.left)],
 	)
 }
 
 banner : GameState, Score -> List(Element)
 banner = |state, score| match state {
 	Running => []
-	Paused => banner_box("Paused", white_text, "Space to resume")
+	Paused => [banner_box("Paused", white_text, "Space to resume")]
 	EndGame => {
 		winner = if score.left > score.right "Left" else "Right"
-		banner_box("${winner} wins", green_text, "Space to play again")
+		[banner_box("${winner} wins", green_text, "Space to play again")]
 	}
 }
 
 # Percent sizes the banner against the window. Grow stretches each row across
 # the banner, so the text centres and the hint wraps inside it.
-banner_box : Str, Rgba, Str -> List(Element)
+banner_box : Str, Rgba, Str -> Element
 banner_box = |title, color, hint| {
-	row = |child| Ui.box({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
-	Ui.box(
-		{ ..panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
-		[row(Ui.text(title, { ..label, size: 40.0, color })), row(Ui.text(hint, label))],
+	row = |child| Box({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
+	Box(
+		{ ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
+		[row(Text({ ..Ui.label(title), size: 40.0, color })), row(Text(Ui.label(hint)))],
 	)
 }
 
 # The engine adds the offset at the same corner of the window and the box, so
 # a bottom or right corner needs a negative offset.
 hints : List(Element)
-hints = Ui.box(panel(LeftBottom, { x: 16.0, y: -16.0 }), [Ui.text("W / S", label)])
-	.concat(Ui.box(panel(RightBottom, { x: -16.0, y: -16.0 }), [Ui.text("Up / Down", label)]))
+hints = [
+	Box(Ui.panel(LeftBottom, { x: 16.0, y: -16.0 }), [Text(Ui.label("W / S"))]),
+	Box(Ui.panel(RightBottom, { x: -16.0, y: -16.0 }), [Text(Ui.label("Up / Down"))]),
+]
+
+hud : Model -> List(Element)
+hud = |m| [scoreboard(m.state, m.score)].concat(banner(m.state, m.score)).concat(hints)
 
 # endregion
 
@@ -194,9 +193,7 @@ view = |m| {
 		box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white),
 	]
 
-	ui = scoreboard(m.state, m.score).concat(banner(m.state, m.score)).concat(hints)
-
-	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui }
+	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui: hud(m) }
 }
 
 # endregion
@@ -407,41 +404,42 @@ expect {
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
 }
 
+# Each walk below matches the tree with a pattern, so no test counts brackets.
 shows : List(Element), Str, Rgba -> Bool
 shows = |ui, str, color| ui.any(
 	|e| match e {
 		Text(t) => t.str == str and t.color == color
-		_ => Bool.False
-	},
-)
-
-balanced : List(Element) -> Bool
-balanced = |ui| ui.count_if(|e| e == Close) == ui.count_if(
-	|e| match e {
-		Open(_) => Bool.True
-		_ => Bool.False
+		Box(_, children) => shows(children, str, color)
 	},
 )
 
 floats_at : List(Element), Ui.AttachPoint -> Bool
 floats_at = |ui, point| ui.any(
 	|e| match e {
-		Open({ floating: Float({ attach, .. }), .. }) => attach == point
+		Box({ floating: Float({ attach, .. }), .. }, _) => attach == point
 		_ => Bool.False
 	},
 )
 
-expect floats_at(scoreboard(Running, { left: 0, right: 0 }), CenterTop)
+# The scoreboard is a panel of a cell, a colon and a cell, and each cell holds
+# one Text.
+expect
+	match scoreboard(Running, { left: 3, right: 0 }) {
+		Box(_, [Box(_, [Text(left)]), Text(colon), Box(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
+		_ => Bool.False
+	}
+
+expect floats_at([scoreboard(Running, { left: 0, right: 0 })], CenterTop)
 expect floats_at(banner(Paused, { left: 0, right: 0 }), CenterCenter)
 expect floats_at(hints, LeftBottom) and floats_at(hints, RightBottom)
 
 expect {
-	ui = scoreboard(Running, { left: 3, right: 2 })
-	shows(ui, "3", white_text) and shows(ui, "2", white_text) and shows(ui, ":", white_text) and balanced(ui)
+	ui = [scoreboard(Running, { left: 3, right: 2 })]
+	shows(ui, "3", white_text) and shows(ui, "2", white_text) and shows(ui, ":", white_text)
 }
 
 expect {
-	ui = scoreboard(EndGame, { left: 2, right: max_score })
+	ui = [scoreboard(EndGame, { left: 2, right: max_score })]
 	shows(ui, max_score.to_str(), green_text) and shows(ui, "2", red_text)
 }
 
@@ -449,7 +447,7 @@ expect banner(Running, { left: 0, right: 0 }) == []
 
 expect {
 	ui = banner(Paused, { left: 1, right: 0 })
-	shows(ui, "Paused", white_text) and shows(ui, "Space to resume", white_text) and balanced(ui)
+	shows(ui, "Paused", white_text) and shows(ui, "Space to resume", white_text)
 }
 
 expect shows(banner(EndGame, { left: max_score, right: 2 }), "Left wins", green_text)
@@ -458,11 +456,11 @@ expect {
 	shows(ui, "Right wins", green_text) and shows(ui, "Space to play again", white_text)
 }
 
-expect shows(hints, "W / S", white_text) and shows(hints, "Up / Down", white_text) and balanced(hints)
+expect shows(hints, "W / S", white_text) and shows(hints, "Up / Down", white_text)
 
 expect {
 	m = init(Config.empty).model
 	running = view(m).ui
 	paused = view({ ..m, state: Paused }).ui
-	balanced(running) and shows(running, "W / S", white_text) and !shows(running, "Paused", white_text) and shows(paused, "Paused", white_text)
+	running.len() == 3 and shows(running, "W / S", white_text) and !shows(running, "Paused", white_text) and shows(paused, "Paused", white_text)
 }

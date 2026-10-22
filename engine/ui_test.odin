@@ -4,6 +4,7 @@ package engine
 import clay "../clay/bindings/odin/clay-odin"
 import "core:mem"
 import vmem "core:mem/virtual"
+import "core:slice"
 import "core:sync"
 import "core:testing"
 
@@ -40,14 +41,12 @@ ui_box :: proc() -> Box_Config {
 	return {floating = {tag = .NoFloat}, direction = .Row, child_align = {.Start, .Start}}
 }
 
-ui_open :: proc(config: Box_Config) -> Element {
-	e := Element{payload = {open = config}}
-	e.tag = .Open
-	return e
-}
-
-ui_close :: proc() -> Element {
-	return {tag = .Close}
+// The children list points into the temp allocator and has no refcount, so
+// a Scene that the host frees must not hold it. fake_view copies g_fake.ui
+// into refcounted lists for that reason.
+ui_box_of :: proc(config: Box_Config, children: ..Element) -> Element {
+	kept := slice.clone(children, context.temp_allocator)
+	return {tag = .Box, payload = {box = {_0 = config, _1 = {elements = raw_data(kept), length = uint(len(kept))}}}}
 }
 
 ui_fixed :: proc(v: f32) -> Sizing {
@@ -59,9 +58,7 @@ ui_floating :: proc(attach: Attach_Point) -> Floating {
 }
 
 ui_text :: proc(str: string, size: f32) -> Element {
-	e := Element{payload = {text = {str = roc_str_from_slice(str), size = size, color = RED, wrap = .Words}}}
-	e.tag = .Text
-	return e
+	return {tag = .Text, payload = {text = {str = roc_str_from_slice(str), size = size, color = RED, wrap = .Words}}}
 }
 
 expect_rect_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_location) {
@@ -113,13 +110,12 @@ test_ui_lays_out_16384_boxes_and_texts_with_no_clay_error :: proc(t: ^testing.T)
 
 	root := ui_box()
 	root.direction = .Col
-	elements := make([dynamic]Element, context.temp_allocator)
-	append(&elements, ui_open(root))
-	for i in 0 ..< 16384 / 2 {
-		append(&elements, ui_open(ui_rect(120, 16)), ui_text(i % 2 == 0 ? "Cell 1" : "Cell 22", 12), ui_close())
+	cells := make([]Element, 16384 / 2, context.temp_allocator)
+	for &cell, i in cells {
+		cell = ui_box_of(ui_rect(120, 16), ui_text(i % 2 == 0 ? "Cell 1" : "Cell 22", 12))
 	}
-	append(&elements, ui_close())
-	quads := ui_frame(f.ui, elements[:], f.window)
+	roots := []Element{ui_box_of(root, ..cells)}
+	quads := ui_frame(f.ui, roots, f.window)
 	testing.expect_value(t, f.ui.errors_logged, bit_set[clay.ErrorType]{})
 	testing.expect(t, len(quads) > 0)
 }
@@ -134,7 +130,7 @@ test_ui_box_floating_at_right_bottom_sits_in_that_corner_at_two_window_sizes :: 
 
 	box := ui_rect(100, 50)
 	box.floating = ui_floating(.RightBottom)
-	elements := []Element{ui_open(box), ui_close()}
+	elements := []Element{ui_box_of(box)}
 	scene := scene_ui(elements)
 
 	frame_fixture_draw(&f, scene, scene, 0)
@@ -165,7 +161,7 @@ test_ui_scales_sizes_offsets_and_radius_by_the_dpi :: proc(t: ^testing.T) {
 	box := ui_rect(100, 50)
 	box.radius = 8
 	box.floating = {tag = .Float, payload = {float = {attach = .RightBottom, offset = {x = -10, y = -20}}}}
-	elements := []Element{ui_open(box), ui_close()}
+	elements := []Element{ui_box_of(box)}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
 	if !testing.expect_value(t, len(f.rec.ui_quads), 1) {
@@ -186,7 +182,7 @@ test_ui_text_draws_one_glyph_quad_per_visible_character_from_the_baseline :: pro
 
 	box := ui_box()
 	box.pad = {left = 10, top = 20}
-	elements := []Element{ui_open(box), ui_text("A B", 32), ui_close()}
+	elements := []Element{ui_box_of(box, ui_text("A B", 32))}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
 
@@ -223,27 +219,7 @@ test_ui_text_size_scales_by_the_dpi :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_ui_ignores_a_close_with_no_open_box_and_logs_it_once :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-	frame_fixture_init_ui(&f)
-	defer frame_fixture_destroy_ui(&f)
-
-	elements := []Element{ui_close(), ui_open(ui_rect(10, 10)), ui_close(), ui_close(), ui_open(ui_rect(20, 20)), ui_close()}
-	scene := scene_ui(elements)
-	frame_fixture_draw(&f, scene, scene, 0)
-	frame_fixture_draw(&f, scene, scene, 0)
-	if !testing.expect_value(t, len(f.rec.ui_quads), 2) {
-		return
-	}
-	testing.expect_value(t, f.rec.ui_quads[0].rect, [4]f32{0, 0, 10, 10})
-	testing.expect_value(t, f.rec.ui_quads[1].rect, [4]f32{10, 0, 20, 20})
-	testing.expect_value(t, f.ui.repairs_logged, bit_set[Ui_Repair]{.Extra_Close})
-}
-
-@(test)
-test_ui_closes_a_box_still_open_at_the_end_and_logs_it_once :: proc(t: ^testing.T) {
+test_ui_lays_out_a_box_inside_its_parent_and_the_next_root_after_the_parent :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
@@ -252,16 +228,39 @@ test_ui_closes_a_box_still_open_at_the_end_and_logs_it_once :: proc(t: ^testing.
 
 	outer := ui_rect(40, 40)
 	outer.pad = {left = 5, top = 5}
-	elements := []Element{ui_open(outer), ui_open(ui_rect(10, 10))}
+	elements := []Element{ui_box_of(outer, ui_box_of(ui_rect(10, 10))), ui_box_of(ui_rect(20, 20))}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
-	frame_fixture_draw(&f, scene, scene, 0)
-	if !testing.expect_value(t, len(f.rec.ui_quads), 2) {
+	if !testing.expect_value(t, len(f.rec.ui_quads), 3) {
 		return
 	}
 	testing.expect_value(t, f.rec.ui_quads[0].rect, [4]f32{0, 0, 40, 40})
 	testing.expect_value(t, f.rec.ui_quads[1].rect, [4]f32{5, 5, 10, 10})
-	testing.expect_value(t, f.ui.repairs_logged, bit_set[Ui_Repair]{.Unclosed_Open})
+	testing.expect_value(t, f.rec.ui_quads[2].rect, [4]f32{40, 0, 20, 20})
+	testing.expect_value(t, f.ui.repairs_logged, bit_set[Ui_Repair]{})
+}
+
+// A Box's children list holds refcounted Elements, so the generated release
+// procs walk the tree. A long Text string is its own allocation.
+@(test)
+test_ui_tree_frees_every_allocation_with_the_generated_release_procs :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	long := "a string longer than twenty-three bytes"
+	inner := Element {
+		tag = .Box,
+		payload = {box = {_0 = ui_box(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), ui_text("ok", 16)})}},
+	}
+	outer := Element {
+		tag = .Box,
+		payload = {box = {_0 = ui_box(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), inner})}},
+	}
+	roots := roc_list_from_slice([]Element{outer, ui_text(long, 16)})
+	testing.expect_value(t, roc_heap_counters().allocs, 6)
+
+	roc_list_decref(roots)
+	testing.expect_value(t, roc_heap_counters(), Roc_Heap_Counters{allocs = 6, deallocs = 6})
 }
 
 @(test)
@@ -291,7 +290,7 @@ test_ui_drops_quads_past_the_cap_and_logs_it_once :: proc(t: ^testing.T) {
 	frame_fixture_init_ui(&f, quad_capacity = 3)
 	defer frame_fixture_destroy_ui(&f)
 
-	elements := []Element{ui_open(ui_rect(10, 10)), ui_close(), ui_text("ABCD", 32)}
+	elements := []Element{ui_box_of(ui_rect(10, 10)), ui_text("ABCD", 32)}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
 	frame_fixture_draw(&f, scene, scene, 0)
@@ -311,7 +310,7 @@ test_ui_submits_once_after_the_sky_and_not_at_all_when_empty :: proc(t: ^testing
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	elements := []Element{ui_open(ui_rect(10, 10)), ui_close()}
+	elements := []Element{ui_box_of(ui_rect(10, 10))}
 	scene := scene_ui(elements)
 	scene.sky = frame_fixture_sky(&f)
 	frame_fixture_draw(&f, scene, scene, 0)
@@ -332,7 +331,7 @@ test_ui_frame_allocates_nothing :: proc(t: ^testing.T) {
 
 	box := ui_rect(100, 100)
 	box.floating = ui_floating(.CenterCenter)
-	elements := []Element{ui_open(box), ui_text("Keys 3 of 5", 24), ui_close()}
+	elements := []Element{ui_box_of(box, ui_text("Keys 3 of 5", 24))}
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
