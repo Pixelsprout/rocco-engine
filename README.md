@@ -194,13 +194,14 @@ The other variables the engine reads:
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 5, with 0 reallocs. pong expects 6 allocs and 1 realloc,
-because each Box's children list in its UI tree is one allocation and one
-concat joins the roots of `Scene.ui`. The script
-rebuilds the host with `host --release --track-alloc` and fails on a `LEAK`
-or `BAD Free` line. It leaves that host in place, so run `host` again after
-it. Run `inputs` first. Each game opens a window. Do not type into it during
-the check, because a key press allocates the `Input` lists.
+entity-game 5, with 0 reallocs. pong expects 6 allocs and 1 realloc: the
+box shell, the draws list, the ui list, the scoreboard's children and its
+two cells' children. The realloc is the concat that joins the scoreboard,
+the banner and the hints. The script rebuilds the host with
+`host --release --track-alloc` and fails on a `LEAK` or `BAD Free` line. It
+leaves that host in place, so run `host` again after it. Run `inputs`
+first. Each game opens a window. Do not type into it during the check,
+because a key press allocates the `Input` lists.
 
 `./scripts/host-check.sh` regenerates the glue and links cards, entity-game
 and pong, then checks that the host library and the glue did not change.
@@ -248,7 +249,8 @@ game by hand, or import its `Bridge` class in a Python script.
 `python3 scripts/bridge_check.py` is the Bridge check that CI runs: it
 drives tutorial chapter 3 and checks that Pip moves and that the screenshot
 has the right size. Then it drives chapter 8 to a pickup and checks that the
-`step` reply holds the `Play` of the blip.
+`step` reply holds the `Play` of the blip. Last it drives pong and checks
+that the `scene` reply holds a Box nested in a Box.
 
 ### Docs
 
@@ -488,7 +490,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
-| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then checks pong's nested Boxes in the `scene` reply. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |

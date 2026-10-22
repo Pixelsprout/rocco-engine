@@ -404,7 +404,6 @@ expect {
 	after.state == Running and after.score == { left: 0, right: 0 } and after.ball.x == 0.0 and after.ball.id == ended.ball.id + 1
 }
 
-# Each walk below matches the tree with a pattern, so no test counts brackets.
 shows : List(Element), Str, Rgba -> Bool
 shows = |ui, str, color| ui.any(
 	|e| match e {

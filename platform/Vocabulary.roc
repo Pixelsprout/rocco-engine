@@ -204,7 +204,7 @@ Vocabulary := [].{
 	## breaks lines between words. With `None`, it does not break lines.
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 
-	## One node of the UI tree. Write the tags directly.
+	## One part of the UI tree. Write the tags directly.
 	##
 	## - `Box`: a rectangle and its children, laid out in list order inside it.
 	## - `Text`: one string, a leaf.

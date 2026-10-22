@@ -92,7 +92,6 @@ cell = |text, lit| {
 ui_of : U64 -> List(Element)
 ui_of = |n| view(init(Bench.with_n(n)).model).ui
 
-# The root Box is not one of the N elements, so the counts start at its children.
 boxes : List(Element) -> U64
 boxes = |ui| ui.fold(
 	0,
@@ -117,6 +116,7 @@ cells_of = |ui| match ui {
 	_ => []
 }
 
+# The root Box is not one of the N elements, so the counts start at its children.
 box_and_text_count : List(Element) -> U64
 box_and_text_count = |ui| {
 	cells = cells_of(ui)

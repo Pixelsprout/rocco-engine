@@ -81,9 +81,16 @@ expect Ui.label("") == Ui.default_text
 
 expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_box, floating: Float({ attach: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
 
-expect {
-	p = Ui.panel(LeftTop, { x: 16.0, y: 16.0 })
-	p == { ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), pad: Ui.pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
+expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
+	width: Fit({ min: 0.0, max: 0.0 }),
+	height: Fit({ min: 0.0, max: 0.0 }),
+	pad: { left: 8.0, right: 8.0, top: 8.0, bottom: 8.0 },
+	gap: 0.0,
+	direction: Row,
+	child_align: { x: Start, y: Start },
+	background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 },
+	radius: 8.0,
+	floating: Float({ attach: LeftTop, offset: { x: 16.0, y: 16.0 } }),
 }
 
 expect Ui.pad_all(4.0) == { left: 4.0, right: 4.0, top: 4.0, bottom: 4.0 }

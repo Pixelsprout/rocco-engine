@@ -370,16 +370,16 @@ pinned to a commit. The `inputs` step copies its prebuilt lib per target,
 like sokol's. The Clay arena comes from the permanent arena at init, sized
 by `MinMemorySize()` with a cap of 32,768 elements and 65,536 measured
 words. Clay's default of 8,192 elements is below the largest N of the UI
-bench game. The host allocates
-nothing per frame for the UI.
+bench game. The host allocates nothing per frame for the UI.
 
 Once per frame, the host lays out the current Scene's UI against
 `sapp.width()` and `sapp.height()`. One recursive procedure walks the tree
 in pre-order. A `Box` opens and configures a Clay element, walks its
 children, then closes the element. A `Text` adds text. A tree cannot be
-unbalanced, so the host has no open or close to repair. The UI does not interpolate. It changes once per
-fixed step, like the Lights. Text strings point into the current Scene,
-which lives for the frame, so the host copies no string. Decision.
+unbalanced, so the host has no open or close to repair. The UI does not
+interpolate. It changes once per fixed step, like the Lights. Text strings
+point into the current Scene, which lives for the frame, so the host copies
+no string. Decision.
 
 The host measures text with its one baked font, in a plain procedure that
 Clay calls back. The font id is always 0. The font is an SDF atlas of ASCII
