@@ -130,8 +130,7 @@ test_a_group_moves_a_point_turns_a_directional_and_leaves_an_ambient :: proc(t: 
 
 	lights := light_nodes({light_ambient({r = 0.5}), light_directional({z = -1}, {g = 1}), light_point({z = 1}, {b = 1}, 4)})
 	scene := scene_nodes({node_group(1, {y = 5}, quat_yaw(math.PI / 2), lights)})
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	_ = got
+	frame_fixture_draw(&f, scene, scene, 0)
 
 	lit := f.rec.lights
 	testing.expect_value(t, lit.ambient, [4]f32{0.5, 0, 0, 1})

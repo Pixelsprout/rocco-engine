@@ -624,8 +624,7 @@ test_frame_render_logs_each_light_drop_reason_once_per_run :: proc(t: ^testing.T
 }
 
 quat_yaw :: proc(rad: f32) -> Quat {
-	q := quat_from_axis_angle(UP, rad)
-	return {w = q.w, x = q.x, y = q.y, z = q.z}
+	return test_turn(UP, rad)
 }
 
 expect_v4_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_location) {

@@ -6,8 +6,8 @@ package engine
 // Place, Quat is a Collider's rot, a step result is a Roc_Init and Rgba is a
 // Box background. A nominal type keeps its own name, so Element is
 // Roc_VocabularyElement and Node is Roc_VocabularyNode. The glue names the
-// fields of a Box and a Group _0 (the config or the Pose) and _1 (the
-// children).
+// fields of a Box and a Group _0 (the config, or the Group's id and Pose)
+// and _1 (the children).
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
 Window :: Roc_Launch_Window
@@ -31,7 +31,6 @@ Scene :: Roc_View
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag
 Group :: Roc_VocabularyNode_Group
-Group_Pose :: Roc_VocabularyNode_Group_0
 Draw :: Roc_VocabularyNode_Draw
 Collider :: Roc_VocabularyNode_Collider
 Query :: Roc_View_Queries

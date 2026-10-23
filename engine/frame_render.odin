@@ -86,8 +86,8 @@ Placed :: struct {
 // Maps each draw id of the previous Scene to its index in prev_draws, and
 // each Group id to that Group's Pose. Rebuilt every Frame with clear, so the
 // maps keep the capacity init reserved. The Group map takes no more than
-// group_capacity Groups, so it never grows. A small map value keeps the
-// robin hood moves of an insert short.
+// group_capacity Groups, so it never grows. The draw map holds an index, not
+// the Draw, so its small value keeps the robin hood moves of an insert short.
 Pairing :: struct {
 	draws:                  map[u64]i32,
 	prev_draws:             [dynamic]Prev_Draw,
@@ -117,11 +117,12 @@ Frame_Walk :: struct {
 	draws_seen: int,
 }
 
-// The Lights so far in walk order. sun is the Sun's slot, or -1 with no Sun.
+// The Lights so far in walk order. used is the count of filled slots. sun is
+// the Sun's slot, or -1 with no Sun.
 Light_Gather :: struct {
 	out:         Fs_Lights,
 	sun:         int,
-	n:           int,
+	used:        int,
 	has_ambient: bool,
 }
 
@@ -187,8 +188,7 @@ frame_render_draw :: proc(
 		alpha   = alpha,
 		data    = &frame_walk,
 	}
-	root := WALK_ROOT
-	tree_walk(&walk, curr.nodes.elements[:curr.nodes.length], &root)
+	tree_walk_scene(&walk, curr.nodes.elements[:curr.nodes.length])
 	if frame_walk.draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
 		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
@@ -328,8 +328,8 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 		}
 		if d.shadow && g.sun >= 0 {
 			light_drop(fr, .Second_Sun)
-		} else if d.shadow && g.n < MAX_LIGHTS {
-			g.sun = g.n
+		} else if d.shadow && g.used < MAX_LIGHTS {
+			g.sun = g.used
 		}
 		pos = {to_light.x, to_light.y, to_light.z, 0}
 		color = d.color
@@ -344,13 +344,13 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 		color = p.color
 		range = p.range
 	}
-	if g.n == MAX_LIGHTS {
+	if g.used == MAX_LIGHTS {
 		light_drop(fr, .Over_Limit)
 		return
 	}
-	g.out.light_pos[g.n] = pos
-	g.out.light_color[g.n] = {color.r, color.g, color.b, range}
-	g.n += 1
+	g.out.light_pos[g.used] = pos
+	g.out.light_color[g.used] = {color.r, color.g, color.b, range}
+	g.used += 1
 }
 
 light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
@@ -380,12 +380,17 @@ pairing_init :: proc(p: ^Pairing, capacity, group_capacity: int, allocator: mem.
 	p.capacity = capacity
 	p.group_capacity = group_capacity
 	p.draws = make(map[u64]i32, allocator)
-	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-	reserve(&p.draws, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
+	map_reserve_unfilled(&p.draws, capacity)
 	p.prev_draws = make([dynamic]Prev_Draw, 0, capacity, allocator)
 	p.groups = make(map[u64]Prev_Pose, allocator)
-	reserve(&p.groups, group_capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
+	map_reserve_unfilled(&p.groups, group_capacity)
 	p.logged = make(map[u64]struct {}, allocator)
+}
+
+// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
+// So it takes n entries without growing.
+map_reserve_unfilled :: proc(m: ^$M/map[$K]$V, n: int) {
+	reserve(m, n * 100 / runtime.MAP_LOAD_FACTOR + 1)
 }
 
 pairing_destroy :: proc(p: ^Pairing) {
@@ -408,8 +413,7 @@ pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 		visit = pairing_visit,
 		data  = p,
 	}
-	root := WALK_ROOT
-	tree_walk(&walk, nodes, &root)
+	tree_walk_scene(&walk, nodes)
 	if p.draws_seen > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
 		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
@@ -452,7 +456,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 			return
 		}
 		local := pose_of(g.pos, g.rot)
-		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene, local)}
+		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
 	case .Light, .Collider:
 	}
 }
@@ -535,5 +539,13 @@ vec3_array :: proc(v: Vec3) -> [3]f32 {
 
 quat_of :: proc(q: Quat) -> quaternion128 {
 	return quaternion(w = q.w, x = q.x, y = q.y, z = q.z)
+}
+
+to_vec3 :: proc(v: [3]f32) -> Vec3 {
+	return {v.x, v.y, v.z}
+}
+
+to_quat :: proc(q: quaternion128) -> Quat {
+	return {x = q.x, y = q.y, z = q.z, w = q.w}
 }
 

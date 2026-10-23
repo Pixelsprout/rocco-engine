@@ -51,14 +51,12 @@ test_ray :: proc(owner: u64, slot: u32, origin, dir: [3]f32, max_distance: f32, 
 }
 
 test_turn :: proc(axis: [3]f32, rad: f32) -> Quat {
-	q := quat_from_axis_angle(axis, rad)
-	return {w = q.w, x = q.x, y = q.y, z = q.z}
+	return to_quat(quat_from_axis_angle(axis, rad))
 }
 
 // b first, then a, as Quat.mul in packages/linalg.
 test_turn_then :: proc(a, b: Quat) -> Quat {
-	q := quaternion(w = a.w, x = a.x, y = a.y, z = a.z) * quaternion(w = b.w, x = b.x, y = b.y, z = b.z)
-	return {w = q.w, x = q.x, y = q.y, z = q.z}
+	return to_quat(quat_of(a) * quat_of(b))
 }
 
 test_capsule :: proc(id: u64, pos: [3]f32) -> Collider {

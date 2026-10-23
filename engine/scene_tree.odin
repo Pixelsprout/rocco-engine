@@ -7,8 +7,8 @@ POSE_IDENTITY :: Pose {
 	rot = 1,
 }
 WALK_ROOT :: Walk_Parent {
-	world = POSE_IDENTITY,
-	scene = POSE_IDENTITY,
+	world       = POSE_IDENTITY,
+	scene_world = POSE_IDENTITY,
 }
 
 // A position and a rotation. pose_compose uses the rule of Pose.compose in
@@ -24,15 +24,15 @@ Parent_Id :: struct {
 	grouped: bool,
 }
 
-// The parent Group of the Nodes that a walk visits. world is its
-// interpolated world Pose and scene its world Pose in the walked Scene.
-// unpaired is set by the pairing build for a duplicate Group id or a Group
-// past the capacity.
+// The parent Group of the Nodes that a walk visits. world is its world Pose
+// for this Frame, after interpolation. scene_world is its world Pose in the
+// walked Scene, before interpolation. unpaired is set by the pairing build
+// for a duplicate Group id or a Group past the capacity.
 Walk_Parent :: struct {
-	id:       Parent_Id,
-	unpaired: bool,
-	world:    Pose,
-	scene:    Pose,
+	id:          Parent_Id,
+	unpaired:    bool,
+	world:       Pose,
+	scene_world: Pose,
 }
 
 // A Node of the previous Scene to interpolate from: its parent Group id, its
@@ -47,7 +47,7 @@ Prev_Pose :: struct {
 Tree_Visit :: #type proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent)
 
 // With a pairing, the walk interpolates each Group from its partner in the
-// previous Scene. Without one, world and scene are the same Pose.
+// previous Scene. Without one, world and scene_world are the same Pose.
 // A Group's visit sets group_unpaired, and tree_walk moves it to that
 // Group's Walk_Parent.
 Tree_Walk :: struct {
@@ -58,6 +58,11 @@ Tree_Walk :: struct {
 	group_unpaired: bool,
 }
 
+tree_walk_scene :: proc(walk: ^Tree_Walk, nodes: []Node) {
+	root := WALK_ROOT
+	tree_walk(walk, nodes, &root)
+}
+
 // The parent is a pointer, because the walk passes it to every visit.
 tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 	for &node in nodes {
@@ -66,16 +71,25 @@ tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 			continue
 		}
 		group := &node.payload.group
-		local := pose_of(group._0.pos, group._0.rot)
+		g := &group._0
+		local := pose_of(g.pos, g.rot)
 		child := Walk_Parent {
-			id       = {id = group._0.id, grouped = true},
-			unpaired = walk.group_unpaired,
-			scene    = pose_under(parent.id.grouped, parent.scene, local),
+			id          = {id = g.id, grouped = true},
+			unpaired    = walk.group_unpaired,
+			scene_world = pose_under(parent.id.grouped, parent.scene_world, local),
 		}
 		walk.group_unpaired = false
-		child.world = child.scene if walk.pairing == nil else node_world(pairing_group(walk.pairing, group._0.id), parent, local, walk.alpha)
-		tree_walk(walk, group._1.elements[:group._1.length], &child)
+		if walk.pairing == nil {
+			child.world = child.scene_world
+		} else {
+			child.world = node_world(pairing_group(walk.pairing, g.id), parent, local, walk.alpha)
+		}
+		tree_walk(walk, group_children(group), &child)
 	}
+}
+
+group_children :: #force_inline proc(group: ^Group) -> []Node {
+	return group._1.elements[:group._1.length]
 }
 
 // The Node's Pose for this Frame. If prev has the same parent Group id, the
@@ -90,7 +104,7 @@ node_world :: #force_inline proc(prev: ^Prev_Pose, parent: ^Walk_Parent, local: 
 	case prev.parent == parent.id:
 		return pose_under(grouped, parent.world, pose_lerp(prev.local, local, alpha))
 	case:
-		return pose_lerp(prev.world, pose_under(grouped, parent.scene, local), alpha)
+		return pose_lerp(prev.world, pose_under(grouped, parent.scene_world, local), alpha)
 	}
 }
 
@@ -125,10 +139,10 @@ light_under :: proc(light: Light, parent: ^Walk_Parent) -> Light {
 	case .Ambient:
 	case .Directional:
 		dir := linalg.quaternion128_mul_vector3(parent.world.rot, vec3_array(light.payload.directional.dir))
-		out.payload.directional.dir = vec3_of(dir)
+		out.payload.directional.dir = to_vec3(dir)
 	case .Point:
 		pos := pose_compose(parent.world, {pos = vec3_array(light.payload.point.pos), rot = 1}).pos
-		out.payload.point.pos = vec3_of(pos)
+		out.payload.point.pos = to_vec3(pos)
 	}
 	return out
 }
@@ -142,8 +156,7 @@ scene_colliders :: proc(nodes: []Node, allocator: mem.Allocator) -> []Collider {
 		visit = collider_visit,
 		data  = &colliders,
 	}
-	root := WALK_ROOT
-	tree_walk(&walk, nodes, &root)
+	tree_walk_scene(&walk, nodes)
 	return colliders[:]
 }
 
@@ -153,16 +166,8 @@ collider_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		return
 	}
 	c := node.payload.collider
-	world := pose_under(parent.id.grouped, parent.scene, pose_of(c.pos, c.rot))
-	c.pos = vec3_of(world.pos)
-	c.rot = quat_value(world.rot)
+	world := pose_under(parent.id.grouped, parent.scene_world, pose_of(c.pos, c.rot))
+	c.pos = to_vec3(world.pos)
+	c.rot = to_quat(world.rot)
 	append((^[dynamic]Collider)(walk.data), c)
-}
-
-vec3_of :: proc(v: [3]f32) -> Vec3 {
-	return {x = v.x, y = v.y, z = v.z}
-}
-
-quat_value :: proc(q: quaternion128) -> Quat {
-	return {x = q.x, y = q.y, z = q.z, w = q.w}
 }

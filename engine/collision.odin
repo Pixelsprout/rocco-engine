@@ -989,11 +989,6 @@ heap_sort :: proc(data: []$T, $less: proc(a, b: T) -> bool) {
 }
 
 @(private = "file")
-to_vec3 :: proc(v: [3]f32) -> Vec3 {
-	return {v.x, v.y, v.z}
-}
-
-@(private = "file")
 v3_abs :: proc(v: [3]f32) -> [3]f32 {
 	return {abs(v.x), abs(v.y), abs(v.z)}
 }
