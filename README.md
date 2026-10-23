@@ -193,15 +193,19 @@ The other variables the engine reads:
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
-reallocs and a constant live block count. cards expects 2 allocs and 0
-reallocs: the box shell and the nodes list. entity-game expects 3 allocs
-and 0 reallocs: the box shell, the nodes list and the queries list. With no
-input the player carries no drops, so the Scene has no Group. pong expects
-6 allocs and 1 realloc: the box shell, the nodes list, the ui list, the
-scoreboard's children and its two cells' children. The realloc is the
-concat that joins the scoreboard, the banner and the hints. Each count
-records what the game makes today. None is a target: a change that moves a
-count updates the script, and its commit says why. The script rebuilds the host with
+reallocs and a constant live block count. cards expects 2 allocs and 1
+realloc: the box shell and the cards list, which the concat after the Lights
+grows. entity-game expects 33 allocs and 4 reallocs under `--opt=speed`, and
+42 under `--opt=dev`. Its `view` makes one list for the leaves of each
+entity, and `List.keep_if` makes one list for each root it keeps. Under
+`--opt=dev`, `List.map` copies the entity list in each of the 9 stages that
+map it. With no input the player carries no drops, so the Scene has no
+Group. pong expects 6 allocs and 1 realloc: the box shell, the nodes list,
+the ui list, the scoreboard's children and its two cells' children. The
+realloc is the concat that joins the scoreboard, the banner and the hints.
+Each count records what the game makes today. None is a target. The games
+stay in plain Roc, so a change that moves a count updates the script, and
+its commit says why. The script rebuilds the host with
 `host --release --track-alloc` and fails on a `LEAK` or `BAD Free` line. It
 leaves that host in place, so run `host` again after it. Run `inputs`
 first. Each game opens a window. Do not type into it during the check,

@@ -97,8 +97,15 @@ and moved the UI to a tree. It deferred the 3D side to this decision.
 
 - Each Group adds one list allocation. Leaves add none. One `nodes` list
   replaces three lists, so entity-game went from 5 allocs per quiet step
-  to 3. The player's Group adds one more while it carries drops. The alloc
-  check records the 3 and sets no target.
+  to 3. The player's Group adds one more while it carries drops.
+- Game code stays idiomatic, and an alloc count is a record, not a target.
+  entity-game was first written to keep the 3: one `List.with_capacity`
+  for the roots and a counting pass for each Group. It now builds its
+  Scene with list literals, `List.keep_if` and `List.join_map`, and makes
+  33 allocs and 4 reallocs per quiet step under `--opt=speed`. Its release
+  `view` Span median went from 0.83 us to 2.25 us. Most of the new allocs
+  are one list per entity and one per root that `List.keep_if` keeps. The
+  alloc check records the new counts.
 - `examples/entity-game` drops its hand-written composition and its
   `World.yaw`. It may still keep `Entity.parent` in its Model.
 - A Roc test reads the tree with a pattern, such as `Group(_, [Draw(d), ..])`.

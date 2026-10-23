@@ -845,7 +845,8 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   refcount-1 axiom costs this. The pool removes it.
 - `List.map`, `List.keep_if` and `List.concat` can allocate where a
   `List.update` loop does not. Under `--opt=dev`, `List.map` always copies.
-  See section 10.
+  The example games use them anyway: game code stays idiomatic, and the
+  alloc check records the counts. See section 10.
 - Functional entities need explicit ids. Put `id : U64` on the entity record.
 - The glue must learn `U32`, `Str`, `Box` and `List(U16)` before this
   platform links. The Zig glue emits all four and is the reference.
@@ -890,13 +891,16 @@ under `xvfb-run` with software GL.
 The measurement found these costs in game code. Section 9 lists them.
 
 - `List.map` copies the list under `--opt=dev`. Under `--opt=speed` it
-  mutates in place. entity-game uses a `List.update` loop for this reason.
-- On `nightly-2026-09-27-a3ce7f1`, the loop copies the list on every update
-  under `--opt=dev` if the fallback of `??` names the list. A fallback that
-  holds the list is a second reference. entity-game uses `?? []`.
-- `List.keep_if` allocates even when it keeps every element.
-  `List.concat([x], list)` allocates twice. entity-game skips the first on a
-  quiet step and builds its draws with `List.with_capacity`.
+  mutates in place. entity-game uses `List.map` and accepts the copy under
+  `--opt=dev`.
+- On `nightly-2026-09-27-a3ce7f1`, a `List.update` loop copies the list on
+  every update under `--opt=dev` if the fallback of `??` names the list. A
+  fallback that holds the list is a second reference.
+- On `nightly-2026-10-11-7d256b9`, `List.keep_if`, `List.drop_if` and
+  `List.keep_oks` allocate one list for each element they keep, because
+  they fold with `List.concat(acc, [item])`. `[x].concat(list)` allocates
+  twice. entity-game skips the fold of `sweep` on a quiet step, and
+  otherwise accepts these costs.
 
 Milestone 6 timed the contact search on `arm64mac`.
 `test_contact_search_timing_at_1000_colliders` in `engine/collision_test.odin`
