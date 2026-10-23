@@ -47,8 +47,8 @@ sky_light = Light.ambient({ r: 0.2, g: 0.25, b: 0.35 })
 sun : Vocabulary.Light
 sun = Light.sun({ x: -0.5, y: -0.75, z: -0.45 }, { r: 4.5, g: 4.0, b: 3.4 })
 
-lights : List(Vocabulary.Light)
-lights = [sky_light, sun]
+lights : List(Vocabulary.Node)
+lights = [Light(sky_light), Light(sun)]
 ```
 <!-- endregion -->
 
@@ -61,13 +61,15 @@ lights = [sky_light, sun]
   shadow falls behind it and to the left.
 - The sun is a little yellow, so the lit sides look warm next to the cool
   shade.
+- `lights` wraps each light in the `Light` tag, so that `view` can put
+  them in the Scene's `nodes` before the Draws.
 
 A light's colour is linear and carries its strength, so a channel can go
 above 1. The ambient light is dim, and the sun is bright.
 
-Only one light casts a shadow. If a second Directional light asks for a
-shadow, it still lights the Scene, but it casts no shadow, and the host
-logs a line. Use `Light.directional` for any other Directional light.
+Only one light casts a shadow: the first one in `nodes` that asks for it.
+If a second Directional light asks for a shadow, it still lights the Scene,
+but it casts no shadow, and the host logs a line. Use `Light.directional` for any other Directional light.
 
 ## The shadow map
 

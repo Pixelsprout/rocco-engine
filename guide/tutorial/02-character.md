@@ -104,7 +104,7 @@ view = |model| {
 	ground = { ..Draw.default, id: 1, mesh: model.ground, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: 2, mesh: model.pip }
 	camera = Cam.look_at({ x: 0.0, y: 1.4, z: 2.6 }, { x: 0.0, y: 0.5, z: 0.0 })
-	{ ..Scene.empty, camera, draws: [ground, pip], lights }
+	{ ..Scene.empty, camera, nodes: lights.concat([Draw(ground), Draw(pip)]) }
 }
 ```
 <!-- endregion -->
@@ -116,6 +116,7 @@ view = |model| {
   `Draw.default`.
 - Each Draw has its own id. Keep the id of a thing the same from one step
   to the next. [The Scene](../scene.md) explains why.
+- `nodes` holds the lights from chapter 1, then the ground and Pip.
 - The camera moves closer and looks at the middle of Pip.
 
 ## Test the calls

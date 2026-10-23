@@ -123,15 +123,16 @@ view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: pip_id, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw) }
 	door = { ..Draw.default, id: door_id, mesh: model.cube, pos: { ..door_pos, y: door_pos.y + model.door_lift }, scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
-	pickups = model.pickups.map(|p| pickup(model.sphere, p))
+	pickups = model.pickups.map(|p| Draw(pickup(model.sphere, p)))
 	camera = Cam.look_at({ x: 0.0, y: 3.6, z: 4.8 }, { x: 0.0, y: 0.0, z: 0.3 })
 	# The box's centre is half its height up, so it stands on Pip's feet.
 	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, Quat.from_yaw(model.yaw), pip_half)
 	# The doorway keeps its Collider while the door rises.
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
-	colliders = [pip_box, door_box].concat(model.pickups.map(|p| Collider.sphere(p.id, p.pos, pickup_radius)))
+	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	{ ..Scene.empty, camera, draws: [ground, pip, door].concat(pickups), colliders, lights, queries, ui: hud(model) }
+	nodes = lights.concat([Draw(ground), Draw(pip), Draw(door)]).concat(pickups).concat(colliders)
+	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 ```
 <!-- endregion -->

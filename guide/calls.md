@@ -100,8 +100,8 @@ Model. See [Assets and Packs](assets.md).
 
 ### view
 
-`view` returns the Scene: what the host draws, and the shapes and Queries
-that the host tests. It gets only the Model, not the time since the last
+`view` returns the Scene: a tree of Nodes that the host draws and whose
+Colliders it tests, and the Queries it answers. It gets only the Model, not the time since the last
 step. See [The Scene](scene.md).
 
 ## Commands
