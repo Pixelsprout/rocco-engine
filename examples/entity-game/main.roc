@@ -1011,17 +1011,18 @@ with_world = |acc, parent, node| match node {
 		group = Pose.compose(parent, { pos: g.pos, rot: g.rot })
 		List.fold(children, acc, |more, child| with_world(more, group, child))
 	}
-	Draw(d) => {
-		world = Pose.compose(parent, { pos: d.pos, rot: d.rot })
-		acc.append(Draw({ ..d, pos: world.pos, rot: world.rot }))
-	}
-	Collider(c) => {
-		world = Pose.compose(parent, { pos: c.pos, rot: c.rot })
-		acc.append(Collider({ ..c, pos: world.pos, rot: world.rot }))
-	}
+	Draw(d) => acc.append(Draw(in_world(parent, d)))
+	Collider(c) => acc.append(Collider(in_world(parent, c)))
 	Light(Point(l)) => acc.append(Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos })))
 	Light(Directional(l)) => acc.append(Light(Directional({ ..l, dir: Quat.rotate(l.dir, parent.rot) })))
 	Light(l) => acc.append(Light(l))
+}
+
+# A leaf with its pos and rot moved from its parent's space to the world.
+in_world : Pose.Pose, { pos : Vec3, rot : Quat.Quat, ..a } -> { pos : Vec3, rot : Quat.Quat, ..a }
+in_world = |parent, leaf| {
+	world = Pose.compose(parent, { pos: leaf.pos, rot: leaf.rot })
+	{ ..leaf, pos: world.pos, rot: world.rot }
 }
 
 draws_of : Vocabulary.Scene -> List(Vocabulary.Draw)
