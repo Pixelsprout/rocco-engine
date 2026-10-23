@@ -1039,11 +1039,13 @@ With drops, the player's Group adds 1 alloc. The alloc check recorded the
 3. A tracked host shows no leak over 20000 Headless steps.
 `bench/colliders` (Headless, Apple M5, N = 4096) gives a `queries` median
 of 93.8 us with the general box test, against 97.6 us with the yaw-only
-test. The tree walk adds about 8% to the `interpolation` median and about
-9% to the `queries` median. `bench/draws` (N = 1024) gives an
-`interpolation` median of 51.5 to 52.8 us, against 47.6 to 49.2 us
-before. `bench/colliders` (N = 4096) gives a `queries` median of 105.3 us,
-against 95.5 us before. No figure has a target. ADR 0014 is accepted.
+test. The tree walk first added about 8% to the `interpolation` median and
+about 9% to the `queries` median. A root fast path removes most of it: a
+root Draw or Collider skips the walk. `bench/draws` (N = 16384) gives an
+`interpolation` median of 786.2 us, against 785.8 us before the tree.
+`bench/colliders` (N = 16384) gives a `queries` median of 445.9 us,
+against 428.0 us before. The rest is the copy of each Collider into the
+list that the search reads. No figure has a target. ADR 0014 is accepted.
 
 Update, 2026-10-23: game code stays idiomatic. entity-game and cards build
 their Scenes with list literals, `List.map`, `List.keep_if`,

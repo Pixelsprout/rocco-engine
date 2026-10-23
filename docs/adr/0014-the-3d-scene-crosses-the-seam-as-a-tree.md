@@ -113,10 +113,14 @@ and moved the UI to a tree. It deferred the 3D side to this decision.
   `bench/colliders` measured no loss: the `queries` Span median went from
   97.6 us to 93.8 us at N = 4096, because the Shapes no longer call
   `sincos`.
-- The tree walk costs time. On an Apple M-series machine, the
-  `interpolation` Span median of `bench/draws` rose by about 8%. The
-  `queries` Span median of `bench/colliders` rose by about 9%, for the copy
-  of each Collider to its world Pose.
+- The tree walk costs time. The first version raised the `interpolation`
+  Span median of `bench/draws` by about 8% and the `queries` Span median of
+  `bench/colliders` by about 9%. Now a root Draw or Collider skips the
+  walk, because its Pose is already a world Pose. On an Apple M5, Headless
+  and Lockstep, the flat `bench/draws` `interpolation` median is within 1%
+  of the flat list before the tree, at N = 1024 and N = 16384. The
+  `queries` median of `bench/colliders` stays 4% to 7% above it, for the
+  copy of each Collider into the list that the search reads.
 - An agent that reads the Bridge `scene` reply composes world Poses itself.
 - More than one shadow caster stays a separate task. This decision keeps
   one Sun.
