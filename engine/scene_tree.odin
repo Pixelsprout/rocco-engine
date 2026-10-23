@@ -26,10 +26,13 @@ Parent_Id :: struct {
 
 // The parent Group of the Nodes that a walk visits. world is its
 // interpolated world Pose and scene its world Pose in the walked Scene.
+// unpaired is set by the pairing build for a duplicate Group id or a Group
+// past the capacity.
 Walk_Parent :: struct {
-	id:    Parent_Id,
-	world: Pose,
-	scene: Pose,
+	id:       Parent_Id,
+	unpaired: bool,
+	world:    Pose,
+	scene:    Pose,
 }
 
 // A Node of the previous Scene to interpolate from: its parent Group id, its
@@ -45,11 +48,14 @@ Tree_Visit :: #type proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent)
 
 // With a pairing, the walk interpolates each Group from its partner in the
 // previous Scene. Without one, world and scene are the same Pose.
+// A Group's visit sets group_unpaired, and tree_walk moves it to that
+// Group's Walk_Parent.
 Tree_Walk :: struct {
-	visit:   Tree_Visit,
-	pairing: ^Pairing,
-	alpha:   f32,
-	data:    rawptr,
+	visit:          Tree_Visit,
+	pairing:        ^Pairing,
+	alpha:          f32,
+	data:           rawptr,
+	group_unpaired: bool,
 }
 
 // The parent is a pointer, because the walk passes it to every visit.
@@ -62,9 +68,11 @@ tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 		group := &node.payload.group
 		local := pose_of(group._0.pos, group._0.rot)
 		child := Walk_Parent {
-			id    = {id = group._0.id, grouped = true},
-			scene = pose_under(parent.id.grouped, parent.scene, local),
+			id       = {id = group._0.id, grouped = true},
+			unpaired = walk.group_unpaired,
+			scene    = pose_under(parent.id.grouped, parent.scene, local),
 		}
+		walk.group_unpaired = false
 		child.world = child.scene if walk.pairing == nil else node_world(pairing_group(walk.pairing, group._0.id), parent, local, walk.alpha)
 		tree_walk(walk, group._1.elements[:group._1.length], &child)
 	}

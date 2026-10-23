@@ -57,6 +57,38 @@ test_a_node_that_leaves_the_root_for_a_group_interpolates_in_world_space :: proc
 }
 
 @(test)
+test_a_draw_that_leaves_a_duplicate_group_draws_at_its_current_pose :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	in_duplicate := draw_nodes({{id = 10, mesh = 1, pos = {1, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}})
+	prev := []Node{node_group(1, {x = 10}, IDENTITY, nil), node_group(1, {x = 20}, IDENTITY, in_duplicate)}
+	curr := []Node{node_group(2, {}, IDENTITY, draw_nodes({{id = 10, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}}))}
+	got := frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+
+	// Pairing with the first Group 1 would start the Draw at (11, 0, 0).
+	expect_v3_near(t, got[0].model[3].xyz, {0, 0, 0})
+}
+
+@(test)
+test_a_draw_that_leaves_a_group_past_the_capacity_draws_at_its_current_pose :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := make([]Node, SMALL_GROUPS + 1, context.temp_allocator)
+	for i in 0 ..< SMALL_GROUPS {
+		prev[i] = node_group(u64(i), {}, IDENTITY, nil)
+	}
+	prev[SMALL_GROUPS] = node_group(100, {x = 20}, IDENTITY, draw_nodes({{id = 10, mesh = 1, pos = {1, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}}))
+	curr := draw_nodes({{id = 10, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}})
+	got := frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+
+	expect_v3_near(t, got[0].model[3].xyz, {0, 0, 0})
+}
+
+@(test)
 test_a_group_with_no_partner_places_its_children_at_its_pose :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)

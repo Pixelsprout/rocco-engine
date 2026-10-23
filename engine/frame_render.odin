@@ -103,8 +103,9 @@ Pairing :: struct {
 
 // A Draw of the previous Scene. pairing_draw makes its Pose when it pairs.
 Prev_Draw :: struct {
-	draw:   ^Draw,
-	parent: Parent_Id,
+	draw:            ^Draw,
+	parent:          Parent_Id,
+	parent_unpaired: bool,
 }
 
 // What the Frame's walk of the current Scene gathers.
@@ -431,7 +432,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 			return
 		}
 		index^ = i32(len(p.prev_draws))
-		append(&p.prev_draws, Prev_Draw{draw = d, parent = parent.id})
+		append(&p.prev_draws, Prev_Draw{draw = d, parent = parent.id, parent_unpaired = parent.unpaired})
 	case .Group:
 		g := node.payload.group._0
 		if g.id in p.groups {
@@ -439,6 +440,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 				p.group_duplicate_logged = true
 				fmt.eprintfln("two groups share id %v; the first one pairs", g.id)
 			}
+			walk.group_unpaired = true
 			return
 		}
 		if len(p.groups) == p.group_capacity {
@@ -446,6 +448,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 				p.groups_full_logged = true
 				fmt.eprintfln("a Scene has more than %v groups; the host pairs the first %v", p.group_capacity, p.group_capacity)
 			}
+			walk.group_unpaired = true
 			return
 		}
 		local := pose_of(g.pos, g.rot)
@@ -464,11 +467,10 @@ pairing_draw :: #force_inline proc(p: ^Pairing, id: u64, now: Parent_Id) -> (dra
 	prev = {parent = entry.parent, local = pose_of(entry.draw.pos, entry.draw.rot)}
 	prev.world = prev.local
 	if entry.parent != now && entry.parent.grouped {
-		group := pairing_group(p, entry.parent.id)
-		if group == nil {
+		if entry.parent_unpaired {
 			return
 		}
-		prev.world = pose_compose(group.world, prev.local)
+		prev.world = pose_compose(pairing_group(p, entry.parent.id).world, prev.local)
 	}
 	return entry.draw, prev, true
 }
