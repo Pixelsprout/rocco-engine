@@ -7,7 +7,7 @@ As a library:
     with Bridge.connect(7878, wait=30) as b:
         b.hello()
         b.step(30, held=["W"])
-        pip = b.scene()["scene"]["draws"][1]
+        pip = b.scene()["scene"]["nodes"][3]["Draw"]
         b.screenshot("pip.png")
         b.quit()
 

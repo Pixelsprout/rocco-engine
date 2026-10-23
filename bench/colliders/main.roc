@@ -116,9 +116,7 @@ view : Model -> Scene
 view = |m| {
 	{
 		camera: Cam.look_at({ x: 0.0, y: m.half * 2.0, z: m.half * 1.5 }, { x: 0.0, y: 0.0, z: 0.0 }),
-		draws: [],
-		colliders: m.bodies.map(to_collider),
-		lights: [],
+		nodes: m.bodies.map(|b| Collider(to_collider(b))),
 		cursor: Free,
 		sky: 0,
 		ui: [],
@@ -198,13 +196,22 @@ expect {
 	after.bodies.len() == 64 and after != m
 }
 
-expect view(init(Bench.with_n(64)).model).colliders.len() == 64
-expect view(init(Bench.with_n(1000)).model).colliders.len() == 1000
+colliders_of : Scene -> List(Vocabulary.Collider)
+colliders_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Collider(c) => Ok(c)
+		_ => Err(NotACollider)
+	},
+)
 
-expect view(init(Bench.with_n(64)).model).colliders.map(|c| c.id) == init(Bench.with_n(64)).model.bodies.map(|b| b.id)
+# Every Node is a Collider.
+expect view(init(Bench.with_n(64)).model).nodes.len() == 64 and colliders_of(view(init(Bench.with_n(64)).model)).len() == 64
+expect colliders_of(view(init(Bench.with_n(1000)).model)).len() == 1000
+
+expect colliders_of(view(init(Bench.with_n(64)).model)).map(|c| c.id) == init(Bench.with_n(64)).model.bodies.map(|b| b.id)
 
 expect {
-	colliders = view(init(Bench.with_n(4)).model).colliders
+	colliders = colliders_of(view(init(Bench.with_n(4)).model))
 	colliders.map(|c| c.shape) == [Box({ x: radius, y: radius, z: radius }), Sphere(radius), Box({ x: radius, y: radius, z: radius }), Sphere(radius)]
 }
 
@@ -262,4 +269,4 @@ shape_text = |shape| match shape {
 colliders_text : List(Vocabulary.Collider) -> Str
 colliders_text = |colliders| Str.join_with(colliders.map(|c| "${c.id.to_str()} ${shape_text(c.shape)} ${bits_text(c.pos.x)} ${bits_text(c.pos.y)} ${bits_text(c.pos.z)} ${bits_text(c.rot.x)} ${bits_text(c.rot.y)} ${bits_text(c.rot.z)} ${bits_text(c.rot.w)}\n"), "")
 
-expect colliders_text(view(run_steps(init({ ..Bench.with_n(100), seed: 7 }).model, 600)).colliders) == golden_colliders
+expect colliders_text(colliders_of(view(run_steps(init({ ..Bench.with_n(100), seed: 7 }).model, 600)))) == golden_colliders

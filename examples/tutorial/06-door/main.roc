@@ -175,8 +175,8 @@ sky_light = Light.ambient({ r: 0.2, g: 0.25, b: 0.35 })
 sun : Vocabulary.Light
 sun = Light.sun({ x: -0.5, y: -0.75, z: -0.45 }, { r: 4.5, g: 4.0, b: 3.4 })
 
-lights : List(Vocabulary.Light)
-lights = [sky_light, sun]
+lights : List(Vocabulary.Node)
+lights = [Light(sky_light), Light(sun)]
 
 pip_half : Vec3
 pip_half = { x: 0.3, y: 0.55, z: 0.3 }
@@ -197,15 +197,16 @@ view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: pip_id, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw) }
 	door = { ..Draw.default, id: door_id, mesh: model.cube, pos: { ..door_pos, y: door_pos.y + model.door_lift }, scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
-	pickups = model.pickups.map(|p| pickup(model.sphere, p))
+	pickups = model.pickups.map(|p| Draw(pickup(model.sphere, p)))
 	camera = Cam.look_at({ x: 0.0, y: 3.6, z: 4.8 }, { x: 0.0, y: 0.0, z: 0.3 })
 	# The box's centre is half its height up, so it stands on Pip's feet.
 	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, Quat.from_yaw(model.yaw), pip_half)
 	# The doorway keeps its Collider while the door rises.
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
-	colliders = [pip_box, door_box].concat(model.pickups.map(|p| Collider.sphere(p.id, p.pos, pickup_radius)))
+	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	{ ..Scene.empty, camera, draws: [ground, pip, door].concat(pickups), colliders, lights, queries }
+	nodes = lights.concat([Draw(ground), Draw(pip), Draw(door)]).concat(pickups).concat(colliders)
+	{ ..Scene.empty, camera, nodes, queries }
 }
 
 # endregion
@@ -268,7 +269,13 @@ expect step(start, Input.empty, QueryResults.empty, 0.1).model.pickups == start_
 # The Scene asks for Pip's Contacts, and each pickup has a Collider.
 expect {
 	scene = view(start)
-	has_collider = |p| List.any(scene.colliders, |c| c.id == p.id)
+	has_collider = |p| List.any(
+		scene.nodes,
+		|node| match node {
+			Collider(c) => c.id == p.id
+			_ => Bool.False
+		},
+	)
 	scene.queries == [Query.contacts_of(pip_id)] and List.all(start_pickups, has_collider)
 }
 

@@ -39,16 +39,16 @@ step = |model, _input, _results, _dt| { model, commands: [] }
 # endregion
 
 # region: view
-lights : List(Vocabulary.Light)
+lights : List(Vocabulary.Node)
 lights = [
-	Light.ambient({ r: 0.3, g: 0.3, b: 0.3 }),
-	Light.directional({ x: -0.4, y: -0.8, z: -0.45 }, { r: 4.0, g: 4.0, b: 4.0 }),
+	Light(Light.ambient({ r: 0.3, g: 0.3, b: 0.3 })),
+	Light(Light.directional({ x: -0.4, y: -0.8, z: -0.45 }, { r: 4.0, g: 4.0, b: 4.0 })),
 ]
 
 view : Model -> Vocabulary.Scene
 view = |model| {
 	cube = { ..Draw.default, id: 1, mesh: model.cube, tint: { r: 0.9, g: 0.22, b: 0.03 } }
 	camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
-	{ ..Scene.empty, camera, draws: [cube], lights }
+	{ ..Scene.empty, camera, nodes: lights.concat([Draw(cube)]) }
 }
 # endregion

@@ -93,12 +93,11 @@ turn_back = |pos, vel| {
 }
 
 # The entity id is the Draw id, so the Pairing finds each cube in the last Scene.
+# The Sun, then one Draw per entity, in one list.
 view : Model -> Scene
 view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: 40.0, z: 30.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
-	draws: m.entities.map(|e| cube_draw(m.cube, e)),
-	colliders: [],
-	lights,
+	nodes: List.fold(m.entities, List.with_capacity(m.entities.len() + lights.len()).concat(lights), |nodes, e| nodes.append(Draw(cube_draw(m.cube, e)))),
 	cursor: Free,
 	sky: 0,
 	ui: [],
@@ -109,8 +108,16 @@ view = |m| {
 cube_draw : U32, Entity -> Draw
 cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 } }
 
-lights : List(Vocabulary.Light)
-lights = [Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })]
+lights : List(Vocabulary.Node)
+lights = [Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }))]
+
+draws_of : Scene -> List(Draw)
+draws_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Draw(d) => Ok(d)
+		_ => Err(NotADraw)
+	},
+)
 
 expect launch(Bench.no_args).window.high_dpi == False
 expect launch(Bench.with_n(20000)).capacity.draws == 20000
@@ -152,18 +159,19 @@ expect {
 }
 
 expect {
-	small = view(init(Bench.with_n(64)).model).draws
-	large = view(init(Bench.with_n(5000)).model).draws
+	small = draws_of(view(init(Bench.with_n(64)).model))
+	large = draws_of(view(init(Bench.with_n(5000)).model))
 	small.len() == 64 and large.len() == 5000 and Bench.counts_up(large.map(|d| d.id))
 }
 
-expect view(init(Bench.with_n(16)).model).draws.all(|d| d.mesh == Mesh.primitive(Cube))
+expect draws_of(view(init(Bench.with_n(16)).model)).all(|d| d.mesh == Mesh.primitive(Cube))
 
 # Only the Draws change with N: one Sun with shadows on, no Colliders, UI or Queries.
 expect {
 	small = view(init(Bench.with_n(64)).model)
 	large = view(init(Bench.with_n(1024)).model)
-	small.lights == large.lights and small.lights.len() == 1 and small.colliders == [] and small.ui == [] and small.queries == []
+	small.nodes.first() == Ok(Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })))
+		and small.nodes.len() == 65 and large.nodes.len() == 1025 and small.ui == [] and small.queries == []
 }
 
-expect lights == [Directional({ dir: { x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, color: { r: 5.03, g: 5.03, b: 5.03 }, shadow: True })]
+expect lights == [Light(Directional({ dir: { x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, color: { r: 5.03, g: 5.03, b: 5.03 }, shadow: True }))]
