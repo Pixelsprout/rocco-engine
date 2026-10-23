@@ -147,7 +147,7 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of root Nodes, a
-Cursor, the UI, a list of Queries and a list of Loops. It
+Cursor, a sky id, the UI, a list of Queries and a list of Loops. It
 describes what should be on screen now and what can touch. Derived from the
 Model, rebuilt every step, stored by the host and never by the game. Its
 Nodes form a tree, but the host keeps no Node from one Scene to build the
@@ -158,20 +158,24 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 **Node**:
 One part of the Scene's 3D tree: a Group, which holds its children, or a
 leaf, which is a Draw, a Light or a Collider. The game writes the tags
-itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`. "First" among Nodes
-means first in the order the game wrote them, read top to bottom.
+itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`. "First"
+among Nodes means first in a depth-first, pre-order walk: a Group, then its
+children, then the Group's next sibling. That is the order the game wrote
+them, read top to bottom.
 _Avoid_: scene node, game object, entity, object
 
 **Group**:
 A Node that carries a Group id and a Pose, and holds a list of child Nodes.
 Its children's Poses are local to it: they inherit its position and rot,
-never a scale. It draws nothing itself.
+never a scale. It draws nothing itself. The host interpolates it and pairs
+it by its Group id, up to `Launch.capacity.groups` Groups per Scene.
 _Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
 
 **Pose**:
 A position and a rot. A Node's Pose is local to its Group, or to the world
 at the root; its world Pose composes every Group above it.
-`packages/linalg` composes Poses as the host does.
+`Pose.compose` and `Pose.relative` in `packages/linalg` use the rule that the
+host uses.
 _Avoid_: frame, transform, matrix, placement
 
 **Draw**:
@@ -204,7 +208,7 @@ A Scene with no Light draws black.
 _Avoid_: lamp, light source, colour (for intensity)
 
 **Sun**:
-The first Directional Light that sets `shadow`. It is the only Light that
+The first Directional Light, in Node order, that sets `shadow`. It is the only Light that
 casts a shadow. `pf.Light.sun` sets `shadow` and `pf.Light.directional` does
 not. If a second Directional sets it, the host logs once. With no Sun,
 nothing casts a shadow.
@@ -274,7 +278,8 @@ _Avoid_: handle, key, index, entity id (when the draw is scenery)
 **Group id**:
 A stable number on a Group that pairs it with its predecessor, as a draw id
 pairs Draws. Group ids and draw ids are apart: an entity's Group and its
-Draw can both carry the entity id.
+Draw can both carry the entity id. If two Groups share an id, the first
+pairs and the host logs once.
 _Avoid_: parent id, node id, draw id
 
 **Mesh id**:
@@ -393,7 +398,8 @@ _Avoid_: collision list, events, physics state
 
 **Collider**:
 A leaf Node: a shape with a draw id, a position and a rot, that Queries can
-test. In a Group, the host tests it at its world Pose. The shape is a tag
+test. The position and rot are local to its Group. The host tests it at its
+world Pose, composed from the current Scene, and does not interpolate it. The shape is a tag
 union of box, sphere and capsule. The host does not test capsules yet. The host finds Contacts only for a ContactsOf Query.
 An entity with no Collider touches nothing.
 _Avoid_: hitbox, body, rigidbody, bounds

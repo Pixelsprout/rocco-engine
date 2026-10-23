@@ -1,6 +1,6 @@
 # 0014: The 3D Scene crosses the seam as a tree
 
-Status: proposed, 2026-10-23. It replaces the parenting decision of
+Status: accepted, 2026-10-23. It replaces the parenting decision of
 Milestone 5, "Parenting stays in the game". It extends ADR 0013 to the 3D
 side of the Scene.
 
@@ -34,15 +34,17 @@ and moved the UI to a tree. It deferred the 3D side to this decision.
   Draw only.
 - Group ids and draw ids are apart. A Group pairs only with a Group, so an
   entity's Group and its Draw can both carry the entity id. A duplicate
-  Group id pairs the first in tree order, and the host logs once. Both
-  Groups still draw their children.
-- `Launch.capacity.groups`, default 1024, sizes the Group pairing map. The
-  frame still never allocates. Past the capacity, the host pairs the first
-  Groups and logs once.
+  Group id pairs the first in tree order, and the host logs the first
+  duplicate once per run. Both Groups still draw their children.
+- `Launch.capacity.groups`, default 1024, sizes the Group pairing map. It
+  must be above zero and at most 1048576. The frame still never allocates.
+  Past the capacity, the host pairs the first Groups and logs once.
 - The host interpolates in local space and then composes. If a Node's
   parent Group id is the same in both Scenes, it lerps and slerps the local
   Pose. If the parent changed, it composes both world Poses and
-  interpolates those.
+  interpolates those. If the parent changed and the previous parent Group
+  did not pair, as a duplicate or past the capacity, a Draw does not
+  pair. It draws at its current Pose.
 - A Light has no id. It follows its Group's interpolated Pose, but its own
   local Pose comes from the current Scene. A Group moves a Point, turns a
   Directional `dir` and does not change an Ambient. "First", for the Sun
@@ -51,14 +53,16 @@ and moved the UI to a tree. It deferred the 3D side to this decision.
 - `Collider.yaw : F32` becomes `rot : Quat`. The collision code tests a
   general oriented box: three axes per box, 15 separating axes for two
   boxes. The host composes each Collider's world Pose from the current
-  Scene before it answers the Queries.
+  Scene before it answers the Queries. With no Queries, it skips that
+  walk.
 - Queries stay a flat list in world space. Contacts, RayHits and
   OverlapHits stay in world space.
 - `packages/linalg` gains `Pose`, with `Pose.compose(parent, local)` and
   `Pose.relative(parent, world)`. The game uses them when a Node changes
   parent, or when a Query starts from a child.
 - The Bridge `scene` reply mirrors the tree with local Poses:
-  `{"Group":{"pose":{...},"children":[...]}}` and `{"Draw":{...}}`.
+  `{"Group":{"id":N,"pose":{"pos":{...},"rot":{...}},"children":[...]}}`,
+  `{"Draw":{...}}`, `{"Light":{...}}` and `{"Collider":{...}}`.
 - The tree is still a Description. The host keeps no Node from one Scene
   to build the next.
 
@@ -91,13 +95,21 @@ and moved the UI to a tree. It deferred the 3D side to this decision.
 
 ## Consequences
 
-- Each Group adds one list allocation. Leaves add none. The alloc check
-  records entity-game's count per step and sets no target.
+- Each Group adds one list allocation. Leaves add none. One `nodes` list
+  replaces three lists, so entity-game went from 5 allocs per quiet step
+  to 3. The player's Group adds one more while it carries drops. The alloc
+  check records the 3 and sets no target.
 - `examples/entity-game` drops its hand-written composition and its
   `World.yaw`. It may still keep `Entity.parent` in its Model.
 - A Roc test reads the tree with a pattern, such as `Group(_, [Draw(d), ..])`.
-- The general box test costs more than the yaw-only one. `bench/colliders`
-  records the time before and after.
+- The general box test was expected to cost more than the yaw-only one.
+  `bench/colliders` measured no loss: the `queries` Span median went from
+  97.6 us to 93.8 us at N = 4096, because the Shapes no longer call
+  `sincos`.
+- The tree walk costs time. On an Apple M-series machine, the
+  `interpolation` Span median of `bench/draws` rose by about 8%. The
+  `queries` Span median of `bench/colliders` rose by about 9%, for the copy
+  of each Collider to its world Pose.
 - An agent that reads the Bridge `scene` reply composes world Poses itself.
 - More than one shadow caster stays a separate task. This decision keeps
   one Sun.
