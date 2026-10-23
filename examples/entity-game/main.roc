@@ -6,6 +6,7 @@ import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import linalg.Vec3 as V
 import linalg.Quat
+import linalg.Pose
 import pf.Vocabulary exposing [Command, Contact, Manifest, Vec3]
 import pf.Config
 import pf.Draw
@@ -604,9 +605,10 @@ count_step = |m| { ..m, steps: m.steps + 1 }
 # ---- view : Model -> Scene -------------------------------------------------
 #
 # Runs once per fixed step, after step. It sees one Model and no alpha. The
-# host holds this Scene and the previous one and interpolates between draws
-# with the same id when it draws a frame. That keeps the Model's refcount at one,
-# so step mutates in place and nothing is copied to remember the past.
+# host holds this Scene and the previous one and interpolates between Draws
+# with the same id, and Groups with the same Group id, when it draws a frame.
+# That keeps the Model's refcount at one, so step mutates in place and nothing
+# is copied to remember the past.
 
 # region: scenery-id
 # Scenery ids count down from the top, so next_id never reaches them.
@@ -632,35 +634,19 @@ view : Model -> Vocabulary.Scene
 view = |curr| {
 	floor = { ..Draw.default, id: floor_id, mesh: curr.meshes.plane, scale: { x: 20.0, y: 1.0, z: 20.0 }, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
-	# One allocation each for the draws, the colliders and the lights. A parent
-	# precedes its child, so the parent's Draw is already in acc. The shadow
-	# takes the last draw.
+	# One allocation for the root Nodes: an entity at the root adds at most a
+	# Draw, a Collider and a Light. The shadow takes the last slot.
 	# The engine keeps the first 8 directional and point lights, so the Sun goes before the Points.
-	first = {
-		draws: List.with_capacity(List.len(curr.entities) + 2).append(floor),
-		colliders: List.with_capacity(List.len(curr.entities)),
-		lights: List.with_capacity(List.len(curr.entities) + 2).append(ambient).append(sun),
-	}
-	built = List.fold(
+	first = List.with_capacity(3 * List.len(curr.entities) + 4).append(Draw(floor)).append(Light(ambient)).append(Light(sun))
+	roots = List.fold_with_index(
 		curr.entities,
 		first,
-		|acc, e| {
-			world = match e.parent {
-				Root => local_world(e)
-				Child(parent) => match List.find_first(acc.draws, |d| d.id == parent) {
-					Ok(p) => {
-						pos: V.add(p.pos, Quat.rotate(e.pos, p.rot)),
-						rot: Quat.mul(p.rot, Quat.from_yaw(e.yaw)),
-					}
-					Err(NotFound) => local_world(e)
-				}
-			}
-			if waiting(e) {
-				acc
+		|acc, e, i|
+			if is_root(curr.entities, e, i) {
+				with_entity(acc, curr, e, i)
 			} else {
-				{ draws: acc.draws.append(draw(curr.meshes, e, world)), colliders: with_collider(acc.colliders, e, world), lights: with_light(acc.lights, e, world) }
-			}
-		},
+				acc
+			},
 	)
 
 	target = match player(curr) {
@@ -676,9 +662,9 @@ view = |curr| {
 	}
 	# endregion
 
-	draws = match player(curr) {
-		Ok(p) => built.draws.append(shadow(curr, p))
-		Err(NotFound) => built.draws
+	nodes = match player(curr) {
+		Ok(p) => roots.append(Draw(shadow(curr, p)))
+		Err(NotFound) => roots
 	}
 
 	camera = match curr.phase {
@@ -686,8 +672,59 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ ..Scene.empty, camera, draws, colliders: built.colliders, lights: built.lights, sky: curr.meshes.sky, queries }
+	{ ..Scene.empty, camera, nodes, sky: curr.meshes.sky, queries }
 }
+
+# region: tree
+# A parent precedes its children in the entity list. An entity is a root when
+# it has no parent, or when its parent is missing or comes later.
+is_root : List(Entity), Entity, U64 -> Bool
+is_root = |entities, e, i| match e.parent {
+	Root => Bool.True
+	Child(parent) => match List.find_first_index(entities, |p| p.id == parent) {
+		Ok(j) => j >= i
+		Err(_) => Bool.True
+	}
+}
+
+# An entity with children, such as the player with its drops, is a Group with
+# the entity's id. Its own leaves sit at the Group's origin, and its children
+# at their local Poses. The host moves and turns them all with the Group. An
+# entity with no children adds its leaves at its local Pose.
+with_entity : List(Vocabulary.Node), Model, Entity, U64 -> List(Vocabulary.Node)
+with_entity = |nodes, m, e, i| {
+	is_child = |c, j| j > i and c.parent == Child(e.id)
+	children = List.fold_with_index(
+		m.entities,
+		0,
+		|n, c, j|
+			if is_child(c, j) {
+				n + 1
+			} else {
+				n
+			},
+	)
+	pose = local_pose(e)
+	if children == 0 {
+		with_leaves(nodes, m.meshes, e, pose)
+	} else {
+		# One allocation for the Group: its own leaves, then one Draw per child.
+		own = with_leaves(List.with_capacity(children + 3), m.meshes, e, Pose.identity)
+		inner = List.fold_with_index(
+			m.entities,
+			own,
+			|acc, c, j|
+				if is_child(c, j) {
+					with_entity(acc, m, c, j)
+				} else {
+					acc
+				},
+		)
+		nodes.append(Group({ id: e.id, pos: pose.pos, rot: pose.rot }, inner))
+	}
+}
+
+# endregion
 
 # Starts at the middle of the player's box, which the host skips.
 ground_ray : Entity -> Vocabulary.Query
@@ -719,25 +756,37 @@ orbit_eye = |target, t| {
 	{ x: target.x + 6.0 * angle.sin(), y: target.y + 3.0, z: target.z + 6.0 * angle.cos() }
 }
 
-World : { pos : Vec3, rot : Quat.Quat }
+# Where an entity's leaves and children sit, in its parent's space. The door's
+# slab lifts.
+local_pose : Entity -> Pose.Pose
+local_pose = |e| {
+	pos = match e.kind {
+		Door(d) => { ..e.pos, y: e.pos.y + d.lift }
+		_ => e.pos
+	}
+	{ pos, rot: Quat.from_yaw(e.yaw) }
+}
 
-local_world : Entity -> World
-local_world = |e| { pos: e.pos, rot: Quat.from_yaw(e.yaw) }
+# A drop is not drawn until its delay ends.
+with_leaves : List(Vocabulary.Node), MeshIds, Entity, Pose.Pose -> List(Vocabulary.Node)
+with_leaves = |nodes, meshes, e, pose|
+	if waiting(e) {
+		nodes
+	} else {
+		nodes.append(Draw(draw(meshes, e, pose))) |> with_collider(e, pose) |> with_light(e, pose)
+	}
 
-draw : MeshIds, Entity, World -> Vocabulary.Draw
-draw = |meshes, e, world| {
-	pos = world.pos
-	rot = world.rot
+draw : MeshIds, Entity, Pose.Pose -> Vocabulary.Draw
+draw = |meshes, e, pose| {
+	pos = pose.pos
+	rot = pose.rot
 	match e.kind {
 		Player(_) => { ..Draw.default, id: e.id, mesh: meshes.sprout, pos, rot, tint: { r: 1.0, g: 1.0, b: 1.0 } }
 		Pickup => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(V.one, 0.4), rot, tint: { r: 0.033, g: 0.787, b: 0.133 } }
 		Block => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(block_half, 2.0), rot, tint: { r: 0.28, g: 0.16, b: 0.08 } }
 		Goal => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: V.scale(goal_half, 2.0), rot, tint: { r: 1.0, g: 0.75, b: 0.05 } }
 		Drop(_) => { ..Draw.default, id: e.id, mesh: meshes.sphere, pos, scale: { x: 0.07, y: 0.1, z: 0.07 }, rot, tint: { r: 0.02, g: 0.3, b: 1.0 } }
-		Door(d) => {
-			lifted = { ..pos, y: pos.y + d.lift }
-			{ ..Draw.default, id: e.id, mesh: meshes.cube, pos: lifted, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, tint: { r: 0.214, g: 0.073, b: 0.604 } }
-		}
+		Door(_) => { ..Draw.default, id: e.id, mesh: meshes.cube, pos, scale: { x: 3.0, y: 3.0, z: 0.3 }, rot, tint: { r: 0.214, g: 0.073, b: 0.604 } }
 	}
 }
 
@@ -758,23 +807,24 @@ goal_half = { x: 1.0, y: 0.05, z: 0.75 }
 pickup_radius : F32
 pickup_radius = 0.4
 
-# Floor and drops touch nothing.
-with_collider : List(Vocabulary.Collider), Entity, World -> List(Vocabulary.Collider)
-with_collider = |colliders, e, world| match e.kind {
-	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.rot, player_half))
-	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
-	Block => colliders.append(Collider.box(e.id, world.pos, world.rot, block_half))
-	Goal => colliders.append(Collider.box(e.id, world.pos, world.rot, goal_half))
-	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.rot, door_half))
-	Drop(_) => colliders
+# Floor and drops touch nothing. The pose is local to the entity's parent, as
+# its Draw's is, and the host composes the world Pose before the Queries.
+with_collider : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
+with_collider = |nodes, e, pose| match e.kind {
+	Player(_) => nodes.append(Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half)))
+	Pickup => nodes.append(Collider(Collider.sphere(e.id, pose.pos, pickup_radius)))
+	Block => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, block_half)))
+	Goal => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half)))
+	Door(_) => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, door_half)))
+	Drop(_) => nodes
 }
 
 # endregion
 
-with_light : List(Vocabulary.Light), Entity, World -> List(Vocabulary.Light)
-with_light = |lights, e, world| match e.kind {
-	Pickup => lights.append(pickup_light(world.pos))
-	_ => lights
+with_light : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
+with_light = |nodes, e, pose| match e.kind {
+	Pickup => nodes.append(Light(pickup_light(pose.pos)))
+	_ => nodes
 }
 
 # ---- helpers -------------------------------------------------------------
@@ -805,7 +855,6 @@ player = |m| List.find_first(
 	},
 )
 
-# A drop is not drawn until its delay ends.
 waiting : Entity -> Bool
 waiting = |e| match e.kind {
 	Drop(d) => d.age < d.delay
@@ -880,7 +929,7 @@ expect {
 expect {
 	# A plane floor, a sprout player, a cube door and cube pickups.
 	scene = view(new_game(test_meshes, 1, 0))
-	mesh_of = |id| List.find_first(scene.draws, |d| d.id == id).map_ok(|d| d.mesh) ?? 0
+	mesh_of = |id| List.find_first(draws_of(scene), |d| d.id == id).map_ok(|d| d.mesh) ?? 0
 	mesh_of(floor_id) == test_meshes.plane and mesh_of(0) == test_meshes.sprout and mesh_of(1) == test_meshes.cube and mesh_of(2) == test_meshes.cube
 }
 
@@ -916,7 +965,7 @@ expect {
 expect toward({ x: 1.0, y: 0.0, z: 0.0 }, V.zero, 4.0) == V.zero
 
 shadow_y : Vocabulary.Scene -> F32
-shadow_y = |scene| List.find_first(scene.draws, |d| d.id == shadow_id).map_ok(|d| d.pos.y) ?? -100.0
+shadow_y = |scene| List.find_first(draws_of(scene), |d| d.id == shadow_id).map_ok(|d| d.pos.y) ?? -100.0
 
 ground_hit : U64, F32 -> Vocabulary.RayHit
 ground_hit = |owner, y| { owner, slot: 0, id: 3, point: { x: 0.0, y, z: 0.0 }, normal: { x: 0.0, y: 1.0, z: 0.0 }, distance: player_half.y - y }
@@ -945,11 +994,62 @@ expect {
 expect {
 	# The sprout carries its own colours, so its tint is white.
 	scene = view(new_game(test_meshes, 1, 0))
-	match List.find_first(scene.draws, |d| d.id == 0) {
+	match List.find_first(draws_of(scene), |d| d.id == 0) {
 		Ok(d) => d.tint == { r: 1.0, g: 1.0, b: 1.0 }
 		Err(_) => Bool.False
 	}
 }
+
+# The leaves of a Scene in walk order, each at its world Pose, as the host
+# composes them.
+world_leaves : Vocabulary.Scene -> List(Vocabulary.Node)
+world_leaves = |scene| List.fold(scene.nodes, [], |acc, node| with_world(acc, Pose.identity, node))
+
+with_world : List(Vocabulary.Node), Pose.Pose, Vocabulary.Node -> List(Vocabulary.Node)
+with_world = |acc, parent, node| match node {
+	Group(g, children) => {
+		group = Pose.compose(parent, { pos: g.pos, rot: g.rot })
+		List.fold(children, acc, |more, child| with_world(more, group, child))
+	}
+	Draw(d) => {
+		world = Pose.compose(parent, { pos: d.pos, rot: d.rot })
+		acc.append(Draw({ ..d, pos: world.pos, rot: world.rot }))
+	}
+	Collider(c) => {
+		world = Pose.compose(parent, { pos: c.pos, rot: c.rot })
+		acc.append(Collider({ ..c, pos: world.pos, rot: world.rot }))
+	}
+	Light(Point(l)) => acc.append(Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos })))
+	Light(Directional(l)) => acc.append(Light(Directional({ ..l, dir: Quat.rotate(l.dir, parent.rot) })))
+	Light(l) => acc.append(Light(l))
+}
+
+draws_of : Vocabulary.Scene -> List(Vocabulary.Draw)
+draws_of = |scene| List.keep_oks(
+	world_leaves(scene),
+	|node| match node {
+		Draw(d) => Ok(d)
+		_ => Err(NotDraw)
+	},
+)
+
+colliders_of : Vocabulary.Scene -> List(Vocabulary.Collider)
+colliders_of = |scene| List.keep_oks(
+	world_leaves(scene),
+	|node| match node {
+		Collider(c) => Ok(c)
+		_ => Err(NotCollider)
+	},
+)
+
+lights_of : Vocabulary.Scene -> List(Vocabulary.Light)
+lights_of = |scene| List.keep_oks(
+	world_leaves(scene),
+	|node| match node {
+		Light(l) => Ok(l)
+		_ => Err(NotLight)
+	},
+)
 
 yaw_of : Model -> F32
 yaw_of = |m| player(m).map_ok(|p| p.yaw) ?? -100.0
@@ -1044,7 +1144,7 @@ expect {
 }
 
 drop_draws : Model -> List(Vocabulary.Draw)
-drop_draws = |m| List.keep_if(view(m).draws, |d| List.any(m.entities, |e| e.id == d.id and is_drop(e)))
+drop_draws = |m| List.keep_if(draws_of(view(m)), |d| List.any(m.entities, |e| e.id == d.id and is_drop(e)))
 
 drawn_drops : Model -> U64
 drawn_drops = |m| List.len(drop_draws(m))
@@ -1060,7 +1160,7 @@ expect {
 expect {
 	# Pickups are cubes so the spin shows. Drops are small spheres.
 	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 5, 0.1)
-	pickup_mesh = List.find_first(view(new_game(test_meshes, 1, 0)).draws, |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
+	pickup_mesh = List.find_first(draws_of(view(new_game(test_meshes, 1, 0))), |d| d.id == 2).map_ok(|d| d.mesh) ?? 0
 	drops = drop_draws(watered)
 	pickup_mesh == test_meshes.cube and List.len(drops) == 2 * drops_per_pickup and List.all(drops, |d| d.mesh == test_meshes.sphere)
 }
@@ -1076,7 +1176,7 @@ door_lift = |m| List.fold(
 )
 
 door_draw_y : Model -> F32
-door_draw_y = |m| List.find_first(view(m).draws, |d| d.id == 1).map_ok(|d| d.pos.y) ?? -1.0
+door_draw_y = |m| List.find_first(draws_of(view(m)), |d| d.id == 1).map_ok(|d| d.pos.y) ?? -1.0
 
 # One idle step on which the player touches every live pickup.
 collected : Model, F32 -> Model
@@ -1145,8 +1245,8 @@ expect {
 	# step's draw with the last one. The floor's id never collides.
 	m = new_game(test_meshes, 1, 0)
 	scene = view(update(m, right, [], 1.0))
-	player_draw = List.find_first(scene.draws, |d| d.id == 0)
-	ids_unique = List.len(scene.draws) == 7 and List.count_if(scene.draws, |d| d.id == floor_id) == 1
+	player_draw = List.find_first(draws_of(scene), |d| d.id == 0)
+	ids_unique = List.len(draws_of(scene)) == 7 and List.count_if(draws_of(scene), |d| d.id == floor_id) == 1
 	match player_draw {
 		Ok(d) => d.pos.x == 6.0 and ids_unique
 		Err(_) => Bool.False
@@ -1154,7 +1254,7 @@ expect {
 }
 
 collider_of : Vocabulary.Scene, U64 -> Try(Vocabulary.Collider, [NotFound])
-collider_of = |scene, id| List.find_first(scene.colliders, |c| c.id == id)
+collider_of = |scene, id| List.find_first(colliders_of(scene), |c| c.id == id)
 
 expect {
 	# The player stands on a box, the door is a thin box, a pickup is a sphere, the
@@ -1165,7 +1265,7 @@ expect {
 	pickup_sphere = collider_of(scene, 2).map_ok(|c| c.shape == Sphere(pickup_radius) and near_vec(c.pos, { x: -4.0, y: 0.5, z: 0.0 })) == Ok(Bool.True)
 	block_box = collider_of(scene, 3) == Ok(Collider.box(3, block_pos, Quat.identity, block_half))
 	goal_box = collider_of(scene, 4) == Ok(Collider.box(4, { x: 0.0, y: 0.05, z: -9.2 }, Quat.identity, { x: 1.0, y: 0.05, z: 0.75 }))
-	player_box and door_box and pickup_sphere and block_box and goal_box and List.len(scene.colliders) == 5
+	player_box and door_box and pickup_sphere and block_box and goal_box and List.len(colliders_of(scene)) == 5
 }
 
 expect {
@@ -1184,7 +1284,7 @@ expect {
 	# Water drops touch nothing.
 	watered = run_steps(collected(new_game(test_meshes, 2, 0), 0.1), Input.empty, 5, 0.1)
 	scene = view(watered)
-	drawn_drops(watered) > 0 and List.map(scene.colliders, |c| c.id) == [0, 1, 4, 5]
+	drawn_drops(watered) > 0 and List.map(colliders_of(scene), |c| c.id) == [0, 1, 4, 5]
 }
 
 expect {
@@ -1201,7 +1301,7 @@ with_entities : List(Entity) -> Model
 with_entities = |entities| { ..new_game(test_meshes, 0, 0), entities }
 
 draw_of : Vocabulary.Scene, U64 -> Try(Vocabulary.Draw, [NotFound])
-draw_of = |scene, id| List.find_first(scene.draws, |d| d.id == id)
+draw_of = |scene, id| List.find_first(draws_of(scene), |d| d.id == id)
 
 near_vec : Vec3, Vec3 -> Bool
 near_vec = |a, b| near(a.x, b.x) and near(a.y, b.y) and near(a.z, b.z)
@@ -1267,7 +1367,7 @@ expect {
 }
 
 expect {
-	# A child of the door lifts with the slab, because it composes from the door's Draw.
+	# A child of the door lifts with the slab, because the door's Group carries the lift.
 	opened = run_steps(collected(new_game(test_meshes, 1, 0), 0.1), Input.empty, 29, 0.1)
 	with_child = { ..opened, entities: List.append(opened.entities, entity_at(50, Child(1), { x: 0.0, y: 2.0, z: 0.0 }, 0.0)) }
 	draw_of(view(with_child), 50).map_ok(|d| near(d.pos.y, 1.5 + door_height + 2.0)) ?? Bool.False
@@ -1300,6 +1400,36 @@ expect {
 	turned = offsets(facing(watered, pi / 2.0))
 	rotated = List.map2(still, turned, |a, b| near_vec(b, { x: a.z, y: a.y, z: -a.x }))
 	List.len(still) == 1 and List.all(still, on_ring) and List.all(rotated, |ok| ok)
+}
+
+expect {
+	# The drops sit in the player's Group, at their local offsets, so the host
+	# turns them with the player along an arc. The player's own leaves sit at
+	# the Group's origin.
+	watered = facing(collected(new_game(test_meshes, 1, 0), 1.0 / 120.0), 1.0)
+	in_player = |node| match node {
+		Group(g, _) => g.id == 0
+		_ => Bool.False
+	}
+	match List.find_first(view(watered).nodes, in_player) {
+		Ok(Group(g, [Draw(sprout), Collider(_), Draw(water)])) => {
+			first = List.find_first(watered.entities, is_drop).map_ok(|e| e.pos) ?? V.zero
+			g.rot == Quat.from_yaw(1.0) and sprout.pos == V.zero and sprout.rot == Quat.identity and water.pos == first
+		}
+		_ => Bool.False
+	}
+}
+
+expect {
+	# With no children the player is no Group, so a quiet step makes no Group list.
+	scene = view(new_game(test_meshes, 1, 0))
+	List.all(
+		scene.nodes,
+		|node| match node {
+			Group(_, _) => Bool.False
+			_ => Bool.True
+		},
+	)
 }
 
 expect {
@@ -1549,7 +1679,7 @@ expect {
 
 expect {
 	shadows = List.keep_oks(
-		view(new_game(test_meshes, 1, 0)).lights,
+		lights_of(view(new_game(test_meshes, 1, 0))),
 		|l| match l {
 			Directional(d) => Ok(d.shadow)
 			_ => Err(NotDirectional)
@@ -1560,7 +1690,7 @@ expect {
 
 point_positions : Vocabulary.Scene -> List(Vec3)
 point_positions = |scene| List.keep_oks(
-	scene.lights,
+	lights_of(scene),
 	|l| match l {
 		Point(p) => Ok(p.pos)
 		_ => Err(NotPoint)
@@ -1583,6 +1713,6 @@ expect {
 
 expect {
 	# The engine keeps 8 directional and point lights, so it drops the last one: the Point on the block.
-	lights = view(new_game(test_meshes, round_pickups, 0)).lights
+	lights = lights_of(view(new_game(test_meshes, round_pickups, 0)))
 	List.len(lights) == 10 and List.take_first(lights, 2) == [ambient, sun] and List.last(lights) == Ok(pickup_light(pickup_spot(arc_pickups)))
 }
