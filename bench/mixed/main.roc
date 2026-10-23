@@ -173,7 +173,7 @@ view = |m| {
 # The 4 Lights, then each entity's Draw and Collider, in one list.
 nodes_of : Model -> List(Vocabulary.Node)
 nodes_of = |m| {
-	first = List.with_capacity(4 + 2 * m.entities.len()).concat(lights(m.half))
+	first = List.with_capacity(4 + 2 * m.entities.len()) |> with_lights(m.half)
 	m.entities.fold(first, |nodes, e| nodes.append(Draw(to_draw(m, e))).append(Collider(to_collider(e))))
 }
 
@@ -197,13 +197,12 @@ to_collider = |e| {
 }
 
 # One Ambient, one Sun with shadows and two Points over opposite corners.
-lights : F32 -> List(Vocabulary.Node)
-lights = |half| [
-	Light(Light.ambient({ r: 0.05, g: 0.05, b: 0.05 })),
-	Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })),
-	Light(Light.point({ x: -half / 2.0, y: 4.0, z: -half / 2.0 }, { r: 3.0, g: 2.0, b: 1.0 }, half)),
-	Light(Light.point({ x: half / 2.0, y: 4.0, z: half / 2.0 }, { r: 1.0, g: 2.0, b: 3.0 }, half)),
-]
+with_lights : List(Vocabulary.Node), F32 -> List(Vocabulary.Node)
+with_lights = |nodes, half| nodes
+	.append(Light(Light.ambient({ r: 0.05, g: 0.05, b: 0.05 })))
+	.append(Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })))
+	.append(Light(Light.point({ x: -half / 2.0, y: 4.0, z: -half / 2.0 }, { r: 3.0, g: 2.0, b: 1.0 }, half)))
+	.append(Light(Light.point({ x: half / 2.0, y: 4.0, z: half / 2.0 }, { r: 1.0, g: 2.0, b: 3.0 }, half)))
 
 # Each raycast crosses the arena along x in its own lane. The overlaps sit on
 # the diagonal through the lanes.
@@ -345,7 +344,7 @@ expect {
 
 expect scene_of(64).queries.last() == Ok(ContactsOf(watched))
 expect lights_of(scene_of(64)).len() == 4 and lights_of(scene_of(4096)).len() == 4
-expect scene_of(64).nodes.take_first(4) == lights(8.0)
+expect scene_of(64).nodes.take_first(4) == with_lights([], 8.0)
 expect lights_of(scene_of(64)).count_if(
 	|l| match l {
 		Directional(d) => d.shadow

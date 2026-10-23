@@ -194,7 +194,7 @@ The other variables the engine reads:
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 5, with 0 reallocs. pong expects 6 allocs and 1 realloc: the
+entity-game 3, with 0 reallocs. pong expects 6 allocs and 1 realloc: the
 box shell, the nodes list, the ui list, the scoreboard's children and its
 two cells' children. The realloc is the concat that joins the scoreboard,
 the banner and the hints. The script rebuilds the host with

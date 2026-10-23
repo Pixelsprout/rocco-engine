@@ -97,7 +97,7 @@ turn_back = |pos, vel| {
 view : Model -> Scene
 view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: 40.0, z: 30.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
-	nodes: List.fold(m.entities, List.with_capacity(m.entities.len() + lights.len()).concat(lights), |nodes, e| nodes.append(Draw(cube_draw(m.cube, e)))),
+	nodes: List.fold(m.entities, List.with_capacity(m.entities.len() + 1).append(sun), |nodes, e| nodes.append(Draw(cube_draw(m.cube, e)))),
 	cursor: Free,
 	sky: 0,
 	ui: [],
@@ -108,8 +108,8 @@ view = |m| {
 cube_draw : U32, Entity -> Draw
 cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 } }
 
-lights : List(Vocabulary.Node)
-lights = [Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }))]
+sun : Vocabulary.Node
+sun = Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }))
 
 draws_of : Scene -> List(Draw)
 draws_of = |scene| scene.nodes.keep_oks(
@@ -174,4 +174,4 @@ expect {
 		and small.nodes.len() == 65 and large.nodes.len() == 1025 and small.ui == [] and small.queries == []
 }
 
-expect lights == [Light(Directional({ dir: { x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, color: { r: 5.03, g: 5.03, b: 5.03 }, shadow: True }))]
+expect [sun] == [Light(Directional({ dir: { x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, color: { r: 5.03, g: 5.03, b: 5.03 }, shadow: True }))]

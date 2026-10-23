@@ -161,20 +161,20 @@ turn_back :: proc(pos, vel: f32) -> f32 {
 	return vel
 }
 
-// The two Lights come first, as in the Roc game. Draw id i shows entity
+// The Draws, then the two Lights, as in the Roc game. Draw id i shows entity
 // i * N / DRAW_COUNT.
 view :: proc(m: ^Model) -> engine.Scene {
-	nodes: [LIGHT_COUNT + DRAW_COUNT]engine.Node
-	nodes[0] = {tag = .Light}
-	nodes[0].payload.light = {tag = .Ambient}
-	nodes[0].payload.light.payload.ambient = {r = 0.2, g = 0.2, b = 0.2}
-	nodes[1] = {tag = .Light}
-	nodes[1].payload.light = {tag = .Directional}
-	nodes[1].payload.light.payload.directional = {dir = {x = -2.0 / 7.0, y = -3.0 / 7.0, z = -6.0 / 7.0}, color = {r = 5.03, g = 5.03, b = 5.03}}
+	nodes: [DRAW_COUNT + LIGHT_COUNT]engine.Node
 	n := len(m.entities)
-	for &node, i in nodes[LIGHT_COUNT:] {
+	for &node, i in nodes[:DRAW_COUNT] {
 		node = {tag = .Draw, payload = {draw = cube_draw(m.cube, u64(i), m.entities[i * n / DRAW_COUNT].pos)}}
 	}
+	nodes[DRAW_COUNT] = {tag = .Light}
+	nodes[DRAW_COUNT].payload.light = {tag = .Ambient}
+	nodes[DRAW_COUNT].payload.light.payload.ambient = {r = 0.2, g = 0.2, b = 0.2}
+	nodes[DRAW_COUNT + 1] = {tag = .Light}
+	nodes[DRAW_COUNT + 1].payload.light = {tag = .Directional}
+	nodes[DRAW_COUNT + 1].payload.light.payload.directional = {dir = {x = -2.0 / 7.0, y = -3.0 / 7.0, z = -6.0 / 7.0}, color = {r = 5.03, g = 5.03, b = 5.03}}
 	return {
 		camera = {eye = {x = 0, y = 40, z = 30}, target = {}, up = {x = 0, y = 1, z = 0}, fov_y = 1.047},
 		nodes = engine.roc_list_from_slice(nodes[:]),

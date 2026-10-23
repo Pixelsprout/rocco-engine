@@ -51,18 +51,18 @@ update = |m, input, _results, _dt|
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |m, input, results, dt| { model: update(m, input, results, dt), commands: [] }
 
+ambient : Vocabulary.Light
+ambient = Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })
+
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
-lights : List(Vocabulary.Node)
-lights = [
-	Light(Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })),
-	Light(Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })),
-]
+sun : Vocabulary.Light
+sun = Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })
 
 # The Lights, then one Draw for each card, in one list.
 view : Model -> Vocabulary.Scene
 view = |m| {
-	first = List.with_capacity(List.len(m.hand) + List.len(lights)).concat(lights)
-	nodes = List.fold_with_index(m.hand, first, |acc, card, i| acc.append(Draw(card_draw(m, card, i))))
+	lights = List.with_capacity(List.len(m.hand) + 2).append(Light(ambient)).append(Light(sun))
+	nodes = List.fold_with_index(m.hand, lights, |acc, card, i| acc.append(Draw(card_draw(m, card, i))))
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes }
 }
 
