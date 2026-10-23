@@ -193,11 +193,15 @@ The other variables the engine reads:
 `./scripts/alloc-check.sh` builds each game under `--opt=dev` and
 `--opt=speed`, runs it with no input, and checks every step after the first
 10: the game's expected allocs and as many deallocs, the game's expected
-reallocs and a constant live block count. cards expects 2 allocs and
-entity-game 3, with 0 reallocs. pong expects 6 allocs and 1 realloc: the
-box shell, the nodes list, the ui list, the scoreboard's children and its
-two cells' children. The realloc is the concat that joins the scoreboard,
-the banner and the hints. The script rebuilds the host with
+reallocs and a constant live block count. cards expects 2 allocs and 0
+reallocs: the box shell and the nodes list. entity-game expects 3 allocs
+and 0 reallocs: the box shell, the nodes list and the queries list. With no
+input the player carries no drops, so the Scene has no Group. pong expects
+6 allocs and 1 realloc: the box shell, the nodes list, the ui list, the
+scoreboard's children and its two cells' children. The realloc is the
+concat that joins the scoreboard, the banner and the hints. Each count
+records what the game makes today. None is a target: a change that moves a
+count updates the script, and its commit says why. The script rebuilds the host with
 `host --release --track-alloc` and fails on a `LEAK` or `BAD Free` line. It
 leaves that host in place, so run `host` again after it. Run `inputs`
 first. Each game opens a window. Do not type into it during the check,

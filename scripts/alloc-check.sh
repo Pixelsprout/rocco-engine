@@ -2,9 +2,11 @@
 # Build each game under --opt=dev and --opt=speed, run it with no input and
 # ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10: the
 # game's expected allocs and as many deallocs, its expected reallocs and a
-# constant live block count. cards expects 2 allocs: the box shell and the
-# nodes list. entity-game expects 3: the box shell, the nodes list and the
-# queries list. With no input the player carries no drops, so it is no Group.
+# constant live block count. Each count records what the game makes today.
+# None is a target: a change that moves a count updates it here.
+# cards expects 2 allocs: the box shell and the nodes list. entity-game
+# expects 3: the box shell, the nodes list and the queries list. With no
+# input the player carries no drops, so it is no Group.
 # pong expects 6 allocs and 1 realloc: the box shell, the nodes list, the ui
 # list, the scoreboard's children and its two cells' children. The realloc
 # is the concat that joins the scoreboard, the banner and the hints.
