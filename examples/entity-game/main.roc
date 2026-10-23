@@ -40,6 +40,9 @@ Phase : [Playing, Won(F32)]
 # The player's shadow sits on ground_below, the height its ground ray last hit.
 Model : { steps : U64, score : U64, next_id : U64, phase : Phase, meshes : MeshIds, entities : List(Entity), orphans_logged : List(U64), ground_below : F32 }
 
+# An entity and its index in the entity list.
+Slot : { entity : Entity, index : U64 }
+
 # region: launch
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| Launch.default
@@ -85,14 +88,10 @@ new_game = |meshes, pickups, first_id| {
 	block_entity = { id: first_id + 2 + pickups, kind: Block, parent: Root, pos: block_pos, vel: V.zero, yaw: 0.0, alive: Bool.True }
 	goal = { id: first_id + 3 + pickups, kind: Goal, parent: Root, pos: goal_pos, vel: V.zero, yaw: 0.0, alive: Bool.True }
 
-	var $entities = List.with_capacity(pickups + 4).append(player_entity).append(door)
-	var $i = 0
-	while $i < pickups {
-		$entities = List.append($entities, { id: first_id + 2 + $i, kind: Pickup, parent: Root, pos: pickup_spot($i), vel: V.zero, yaw: 0.0, alive: Bool.True })
-		$i = $i + 1
-	}
+	pickup = |i| { id: first_id + 2 + i, kind: Pickup, parent: Root, pos: pickup_spot(i), vel: V.zero, yaw: 0.0, alive: Bool.True }
+	entities = List.join([[player_entity, door], (0..<pickups).iter().map(pickup).collect(), [block_entity, goal]])
 
-	{ steps: 0, score: 0, next_id: first_id + 4 + pickups, phase: Playing, meshes, entities: $entities.append(block_entity).append(goal), orphans_logged: [], ground_below: 0.0 }
+	{ steps: 0, score: 0, next_id: first_id + 4 + pickups, phase: Playing, meshes, entities, orphans_logged: [], ground_below: 0.0 }
 }
 
 block_pos : Vec3
@@ -438,15 +437,12 @@ drop_delays = [0.0, 0.32, 0.12, 0.45, 0.22, 0.38]
 
 spawn_drops : Model, U64, U64 -> Model
 spawn_drops = |m, parent, count| {
-	var $entities = List.reserve(m.entities, count)
-	var $i = 0
-	while $i < count {
-		slot = $i % drops_per_pickup
+	spawned = |i| {
+		slot = i % drops_per_pickup
 		delay = List.get(drop_delays, slot) ?? 0.0
-		$entities = List.append($entities, drop(m.next_id + $i, parent, ring_phase(slot), delay))
-		$i = $i + 1
+		drop(m.next_id + i, parent, ring_phase(slot), delay)
 	}
-	{ ..m, next_id: m.next_id + count, entities: $entities }
+	{ ..m, next_id: m.next_id + count, entities: m.entities.concat((0..<count).iter().map(spawned).collect()) }
 }
 
 drop : U64, U64, F32, F32 -> Entity
@@ -554,10 +550,9 @@ sweep = |m|
 	if List.all(m.entities, |e| e.alive) {
 		m
 	} else {
-		start = { kept: List.with_capacity(List.len(m.entities)), dropped: [] }
 		swept = List.fold(
 			m.entities,
-			start,
+			{ kept: [], dropped: [] },
 			|acc, e| {
 				orphaned = match e.parent {
 					Root => Bool.False
@@ -634,20 +629,15 @@ view : Model -> Vocabulary.Scene
 view = |curr| {
 	floor = { ..Draw.default, id: floor_id, mesh: curr.meshes.plane, scale: { x: 20.0, y: 1.0, z: 20.0 }, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
-	# One allocation for the root Nodes: an entity at the root adds at most a
-	# Draw, a Collider and a Light. The shadow takes the last slot.
 	# The engine keeps the first 8 directional and point lights, so the Sun goes before the Points.
-	first = List.with_capacity(3 * List.len(curr.entities) + 4).append(Draw(floor)).append(Light(ambient)).append(Light(sun))
-	roots = List.fold_with_index(
-		curr.entities,
-		first,
-		|acc, e, i|
-			if is_root(curr.entities, e, i) {
-				with_entity(acc, curr, e, i)
-			} else {
-				acc
-			},
-	)
+	scenery = [
+		Draw(floor),
+		Light(ambient),
+		Light(sun),
+	]
+	slots = List.map_with_index(curr.entities, |entity, index| { entity, index })
+	roots = List.keep_if(slots, |slot| is_root(curr.entities, slot))
+	entities = List.join_map(roots, |slot| entity_nodes(curr, slots, slot))
 
 	target = match player(curr) {
 		Ok(p) => p.pos
@@ -662,9 +652,9 @@ view = |curr| {
 	}
 	# endregion
 
-	nodes = match player(curr) {
-		Ok(p) => roots.append(Draw(shadow(curr, p)))
-		Err(NotFound) => roots
+	shadows = match player(curr) {
+		Ok(p) => [Draw(shadow(curr, p))]
+		Err(NotFound) => []
 	}
 
 	camera = match curr.phase {
@@ -672,17 +662,17 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ ..Scene.empty, camera, nodes, sky: curr.meshes.sky, queries }
+	{ ..Scene.empty, camera, nodes: List.join([scenery, entities, shadows]), sky: curr.meshes.sky, queries }
 }
 
 # region: tree
 # A parent precedes its children in the entity list. An entity is a root when
 # it has no parent, or when its parent is missing or comes later.
-is_root : List(Entity), Entity, U64 -> Bool
-is_root = |entities, e, i| match e.parent {
+is_root : List(Entity), Slot -> Bool
+is_root = |entities, slot| match slot.entity.parent {
 	Root => Bool.True
 	Child(parent) => match List.find_first_index(entities, |p| p.id == parent) {
-		Ok(j) => j >= i
+		Ok(j) => j >= slot.index
 		Err(_) => Bool.True
 	}
 }
@@ -690,37 +680,17 @@ is_root = |entities, e, i| match e.parent {
 # An entity with children, such as the player with its drops, is a Group with
 # the entity's id. Its own leaves sit at the Group's origin, and its children
 # at their local Poses. The host moves and turns them all with the Group. An
-# entity with no children adds its leaves at its local Pose.
-with_entity : List(Vocabulary.Node), Model, Entity, U64 -> List(Vocabulary.Node)
-with_entity = |nodes, m, e, i| {
-	is_child = |c, j| j > i and c.parent == Child(e.id)
-	children = List.fold_with_index(
-		m.entities,
-		0,
-		|n, c, j|
-			if is_child(c, j) {
-				n + 1
-			} else {
-				n
-			},
-	)
+# entity with no children gives its leaves at its local Pose.
+entity_nodes : Model, List(Slot), Slot -> List(Vocabulary.Node)
+entity_nodes = |m, slots, slot| {
+	e = slot.entity
 	pose = local_pose(e)
-	if children == 0 {
-		with_leaves(nodes, m.meshes, e, pose)
+	children = List.keep_if(slots, |c| c.index > slot.index and c.entity.parent == Child(e.id))
+	if List.is_empty(children) {
+		leaves(m.meshes, e, pose)
 	} else {
-		# One allocation for the Group: its own leaves, then one Draw per child.
-		own = with_leaves(List.with_capacity(children + 3), m.meshes, e, Pose.identity)
-		inner = List.fold_with_index(
-			m.entities,
-			own,
-			|acc, c, j|
-				if is_child(c, j) {
-					with_entity(acc, m, c, j)
-				} else {
-					acc
-				},
-		)
-		nodes.append(Group({ id: e.id, pos: pose.pos, rot: pose.rot }, inner))
+		inner = leaves(m.meshes, e, Pose.identity).concat(List.join_map(children, |c| entity_nodes(m, slots, c)))
+		[Group({ id: e.id, pos: pose.pos, rot: pose.rot }, inner)]
 	}
 }
 
@@ -767,15 +737,6 @@ local_pose = |e| {
 	{ pos, rot: Quat.from_yaw(e.yaw) }
 }
 
-# A drop is not drawn until its delay ends.
-with_leaves : List(Vocabulary.Node), MeshIds, Entity, Pose.Pose -> List(Vocabulary.Node)
-with_leaves = |nodes, meshes, e, pose|
-	if waiting(e) {
-		nodes
-	} else {
-		nodes.append(Draw(draw(meshes, e, pose))) |> with_collider(e, pose) |> with_light(e, pose)
-	}
-
 draw : MeshIds, Entity, Pose.Pose -> Vocabulary.Draw
 draw = |meshes, e, pose| {
 	pos = pose.pos
@@ -807,41 +768,29 @@ goal_half = { x: 1.0, y: 0.05, z: 0.75 }
 pickup_radius : F32
 pickup_radius = 0.4
 
-# Floor and drops touch nothing. The pose is local to the entity's parent, as
-# its Draw's is, and the host composes the world Pose before the Queries.
-with_collider : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
-with_collider = |nodes, e, pose| match e.kind {
-	Player(_) => nodes.append(Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half)))
-	Pickup => nodes.append(Collider(Collider.sphere(e.id, pose.pos, pickup_radius)))
-	Block => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, block_half)))
-	Goal => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half)))
-	Door(_) => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, door_half)))
-	Drop(_) => nodes
+# The floor and drops touch nothing, and a drop is not drawn until its delay
+# ends. The pose is local to the entity's parent, and the host composes the
+# world Pose before the Queries.
+leaves : MeshIds, Entity, Pose.Pose -> List(Vocabulary.Node)
+leaves = |meshes, e, pose| {
+	drawn = Draw(draw(meshes, e, pose))
+	match e.kind {
+		Player(_) => [drawn, Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half))]
+		Pickup => [drawn, Collider(Collider.sphere(e.id, pose.pos, pickup_radius)), Light(pickup_light(pose.pos))]
+		Block => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, block_half))]
+		Goal => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half))]
+		Door(_) => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, door_half))]
+		Drop(_) if waiting(e) => []
+		Drop(_) => [drawn]
+	}
 }
 
 # endregion
 
-with_light : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
-with_light = |nodes, e, pose| match e.kind {
-	Pickup => nodes.append(Light(pickup_light(pose.pos)))
-	_ => nodes
-}
-
 # ---- helpers -------------------------------------------------------------
 
-# A List.update loop, because List.map copies the list under --opt=dev.
-# The fallback must not name $entities: a second reference makes each update
-# copy the list. The index is always in range, so [] is never used.
 map_entities : Model, (Entity -> Entity) -> Model
-map_entities = |m, f| {
-	var $entities = m.entities
-	var $i = 0
-	while $i < List.len($entities) {
-		$entities = List.update($entities, $i, f) ?? []
-		$i = $i + 1
-	}
-	{ ..m, entities: $entities }
-}
+map_entities = |m, f| { ..m, entities: List.map(m.entities, f) }
 
 player_middle : Entity -> Vec3
 player_middle = |p| { ..p.pos, y: p.pos.y + player_half.y }
@@ -1003,19 +952,19 @@ expect {
 # The leaves of a Scene in walk order, each at its world Pose, as the host
 # composes them.
 world_leaves : Vocabulary.Scene -> List(Vocabulary.Node)
-world_leaves = |scene| List.fold(scene.nodes, [], |acc, node| with_world(acc, Pose.identity, node))
+world_leaves = |scene| List.join_map(scene.nodes, |node| leaves_under(Pose.identity, node))
 
-with_world : List(Vocabulary.Node), Pose.Pose, Vocabulary.Node -> List(Vocabulary.Node)
-with_world = |acc, parent, node| match node {
+leaves_under : Pose.Pose, Vocabulary.Node -> List(Vocabulary.Node)
+leaves_under = |parent, node| match node {
 	Group(g, children) => {
 		group = Pose.compose(parent, { pos: g.pos, rot: g.rot })
-		List.fold(children, acc, |more, child| with_world(more, group, child))
+		List.join_map(children, |child| leaves_under(group, child))
 	}
-	Draw(d) => acc.append(Draw(in_world(parent, d)))
-	Collider(c) => acc.append(Collider(in_world(parent, c)))
-	Light(Point(l)) => acc.append(Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos })))
-	Light(Directional(l)) => acc.append(Light(Directional({ ..l, dir: Quat.rotate(l.dir, parent.rot) })))
-	Light(l) => acc.append(Light(l))
+	Draw(d) => [Draw(in_world(parent, d))]
+	Collider(c) => [Collider(in_world(parent, c))]
+	Light(Point(l)) => [Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos }))]
+	Light(Directional(l)) => [Light(Directional({ ..l, dir: Quat.rotate(l.dir, parent.rot) }))]
+	Light(l) => [Light(l)]
 }
 
 # A leaf with its pos and rot moved from its parent's space to the world.

@@ -1035,7 +1035,7 @@ Results, 2026-10-23: `Scene.nodes : List(Node)` replaces `draws`,
 guide page writes `Scene.nodes`. entity-game parents its drops with a
 Group. It has no hand-written composition and no `World.yaw`. On a quiet
 step, entity-game makes 3 allocs and 0 reallocs, against 5 allocs before.
-With drops, the player's Group adds 1 alloc. The alloc check records the
+With drops, the player's Group adds 1 alloc. The alloc check recorded the
 3. A tracked host shows no leak over 20000 Headless steps.
 `bench/colliders` (Headless, Apple M5, N = 4096) gives a `queries` median
 of 93.8 us with the general box test, against 97.6 us with the yaw-only
@@ -1044,6 +1044,16 @@ test. The tree walk adds about 8% to the `interpolation` median and about
 `interpolation` median of 51.5 to 52.8 us, against 47.6 to 49.2 us
 before. `bench/colliders` (N = 4096) gives a `queries` median of 105.3 us,
 against 95.5 us before. No figure has a target. ADR 0014 is accepted.
+
+Update, 2026-10-23: game code stays idiomatic. entity-game and cards build
+their Scenes with list literals, `List.map`, `List.keep_if`,
+`List.join_map` and `List.concat`, with no `List.with_capacity` and no
+counting pass. On a quiet step, entity-game makes 33 allocs and 4 reallocs
+under `--opt=speed`, and 42 allocs and 4 reallocs under `--opt=dev`. cards
+makes 2 allocs and 1 realloc. The release `view` Span median of
+entity-game (Headless, Apple M5, 5 runs) is 2.25 us, against 0.83 us
+before. The `step` Span median stays at 0.92 to 0.96 us. The alloc check
+records the new counts.
 
 Done when `Scene.nodes : List(Node)` replaces `draws`, `lights` and
 `colliders`, and entity-game parents its drops with a Group.

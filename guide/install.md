@@ -123,11 +123,11 @@ ambient = Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })
 sun : Vocabulary.Light
 sun = Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })
 
-# The Lights, then one Draw for each card, in one list.
+# The Lights, then one Draw for each card.
 view : Model -> Vocabulary.Scene
 view = |m| {
-	lights = List.with_capacity(List.len(m.hand) + 2).append(Light(ambient)).append(Light(sun))
-	nodes = List.fold_with_index(m.hand, lights, |acc, card, i| acc.append(Draw(card_draw(m, card, i))))
+	cards = List.map_with_index(m.hand, |card, i| Draw(card_draw(m, card, i)))
+	nodes = [Light(ambient), Light(sun)].concat(cards)
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes }
 }
 

@@ -98,7 +98,7 @@ A [Collider] is a shape with the id of a [Draw]. Put your Colliders in
 
 An entity with no Collider touches nothing. The shape of a Collider does
 not need to match the mesh of the Draw. The entity game gives each kind of
-entity its own shape:
+entity its own shape, next to its Draw:
 
 <!-- region: examples/entity-game/main.roc#colliders -->
 ```roc
@@ -118,16 +118,21 @@ goal_half = { x: 1.0, y: 0.05, z: 0.75 }
 pickup_radius : F32
 pickup_radius = 0.4
 
-# Floor and drops touch nothing. The pose is local to the entity's parent, as
-# its Draw's is, and the host composes the world Pose before the Queries.
-with_collider : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
-with_collider = |nodes, e, pose| match e.kind {
-	Player(_) => nodes.append(Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half)))
-	Pickup => nodes.append(Collider(Collider.sphere(e.id, pose.pos, pickup_radius)))
-	Block => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, block_half)))
-	Goal => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half)))
-	Door(_) => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, door_half)))
-	Drop(_) => nodes
+# The floor and drops touch nothing, and a drop is not drawn until its delay
+# ends. The pose is local to the entity's parent, and the host composes the
+# world Pose before the Queries.
+leaves : MeshIds, Entity, Pose.Pose -> List(Vocabulary.Node)
+leaves = |meshes, e, pose| {
+	drawn = Draw(draw(meshes, e, pose))
+	match e.kind {
+		Player(_) => [drawn, Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half))]
+		Pickup => [drawn, Collider(Collider.sphere(e.id, pose.pos, pickup_radius)), Light(pickup_light(pose.pos))]
+		Block => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, block_half))]
+		Goal => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half))]
+		Door(_) => [drawn, Collider(Collider.box(e.id, pose.pos, pose.rot, door_half))]
+		Drop(_) if waiting(e) => []
+		Drop(_) => [drawn]
+	}
 }
 ```
 <!-- endregion -->

@@ -888,7 +888,10 @@ the grilling:
   would go from 5 allocations per step to 6 for the player group.
   Measured in Milestone 22: one `nodes` list replaces three lists, so the
   entity game went from 5 allocations per quiet step to 3, and to 4 while
-  the player's Group carries drops.
+  the player's Group carries drops. Later the entity game moved to plain
+  list code, with a list for each entity's leaves and `List.keep_if` for
+  the roots. It now makes 33 allocations per quiet step under
+  `--opt=speed`. That count comes from the game code, not from the tree.
   Colliders inside a Group are composed by the host too, and the game reads
   contacts by id as now.
 
