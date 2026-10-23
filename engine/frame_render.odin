@@ -83,13 +83,15 @@ Placed :: struct {
 	model:     Mat4,
 }
 
-// Maps each draw id and each Group id of the previous Scene to that Node.
-// Rebuilt every Frame with clear, so the maps keep the capacity init
-// reserved. The Group map takes no more than group_capacity Groups, so it
-// never grows.
+// Maps each draw id of the previous Scene to its index in prev_draws, and
+// each Group id to that Group's Pose. Rebuilt every Frame with clear, so the
+// maps keep the capacity init reserved. The Group map takes no more than
+// group_capacity Groups, so it never grows. A small map value keeps the
+// robin hood moves of an insert short.
 Pairing :: struct {
-	draws:                  map[u64]Prev_Node,
-	groups:                 map[u64]Prev_Node,
+	draws:                  map[u64]i32,
+	prev_draws:             [dynamic]Prev_Draw,
+	groups:                 map[u64]Prev_Pose,
 	logged:                 map[u64]struct {},
 	capacity:               int,
 	group_capacity:         int,
@@ -97,6 +99,12 @@ Pairing :: struct {
 	over_capacity_logged:   bool,
 	groups_full_logged:     bool,
 	group_duplicate_logged: bool,
+}
+
+// A Draw of the previous Scene. pairing_draw makes its Pose when it pairs.
+Prev_Draw :: struct {
+	draw:   ^Draw,
+	parent: Parent_Id,
 }
 
 // What the Frame's walk of the current Scene gathers.
@@ -178,7 +186,8 @@ frame_render_draw :: proc(
 		alpha   = alpha,
 		data    = &frame_walk,
 	}
-	tree_walk(&walk, curr.nodes.elements[:curr.nodes.length], WALK_ROOT)
+	root := WALK_ROOT
+	tree_walk(&walk, curr.nodes.elements[:curr.nodes.length], &root)
 	if frame_walk.draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
 		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
@@ -225,7 +234,7 @@ frame_render_draw :: proc(
 // Places each Draw at its Pose for this Frame and gathers each Light, both
 // in walk order. Past the draw capacity, it counts the Draws and skips them.
 @(private = "file")
-frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent) {
+frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	fw := (^Frame_Walk)(walk.data)
 	fr := fw.fr
 	switch node.tag {
@@ -235,9 +244,9 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent) {
 		if len(fr.placed) == fr.draw_capacity {
 			return
 		}
-		prev := pairing_draw(walk.pairing, d.id)
-		world, _ := node_place(prev, parent, pose_of(d.pos, d.rot), walk.alpha)
-		x := draw_transform(prev.draw if prev != nil else d, d, world, walk.alpha)
+		from, prev, paired := pairing_draw(walk.pairing, d.id, parent.id)
+		world := node_world(&prev if paired else nil, parent, pose_of(d.pos, d.rot), walk.alpha)
+		x := draw_transform(from if paired else d, d, world, walk.alpha)
 		mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
 		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
 	case .Light:
@@ -369,16 +378,18 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 pairing_init :: proc(p: ^Pairing, capacity, group_capacity: int, allocator: mem.Allocator) {
 	p.capacity = capacity
 	p.group_capacity = group_capacity
-	p.draws = make(map[u64]Prev_Node, allocator)
+	p.draws = make(map[u64]i32, allocator)
 	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
 	reserve(&p.draws, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
-	p.groups = make(map[u64]Prev_Node, allocator)
+	p.prev_draws = make([dynamic]Prev_Draw, 0, capacity, allocator)
+	p.groups = make(map[u64]Prev_Pose, allocator)
 	reserve(&p.groups, group_capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
 	p.logged = make(map[u64]struct {}, allocator)
 }
 
 pairing_destroy :: proc(p: ^Pairing) {
 	delete(p.draws)
+	delete(p.prev_draws)
 	delete(p.groups)
 	delete(p.logged)
 }
@@ -389,13 +400,15 @@ pairing_destroy :: proc(p: ^Pairing) {
 // group_capacity, the first Groups pair.
 pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 	clear(&p.draws)
+	clear(&p.prev_draws)
 	clear(&p.groups)
 	p.draws_seen = 0
 	walk := Tree_Walk {
 		visit = pairing_visit,
 		data  = p,
 	}
-	tree_walk(&walk, nodes, WALK_ROOT)
+	root := WALK_ROOT
+	tree_walk(&walk, nodes, &root)
 	if p.draws_seen > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
 		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
@@ -403,21 +416,22 @@ pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 }
 
 @(private = "file")
-pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent) {
+pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	p := (^Pairing)(walk.data)
 	switch node.tag {
 	case .Draw:
 		d := &node.payload.draw
 		p.draws_seen += 1
-		if d.id in p.draws {
+		_, index, inserted, _ := map_entry(&p.draws, d.id)
+		if !inserted {
 			if d.id not_in p.logged {
 				p.logged[d.id] = {}
 				fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
 			}
 			return
 		}
-		local := pose_of(d.pos, d.rot)
-		p.draws[d.id] = {parent = parent.id, local = local, world = pose_under(parent, parent.scene, local), draw = d}
+		index^ = i32(len(p.prev_draws))
+		append(&p.prev_draws, Prev_Draw{draw = d, parent = parent.id})
 	case .Group:
 		g := node.payload.group._0
 		if g.id in p.groups {
@@ -435,19 +449,36 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent) {
 			return
 		}
 		local := pose_of(g.pos, g.rot)
-		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent, parent.scene, local)}
+		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene, local)}
 	case .Light, .Collider:
 	}
 }
 
-// nil when the previous Scene has no Draw with this id.
-pairing_draw :: proc(p: ^Pairing, id: u64) -> ^Prev_Node {
-	return &p.draws[id] if id in p.draws else nil
+// The previous Draw with this id and its Pose, for a Draw whose parent is
+// now. Not paired when the previous Scene has no such Draw, or when the
+// parent changed and the previous parent Group did not pair, so its world
+// Pose is unknown.
+pairing_draw :: #force_inline proc(p: ^Pairing, id: u64, now: Parent_Id) -> (draw: ^Draw, prev: Prev_Pose, paired: bool) {
+	index := p.draws[id] or_return
+	entry := &p.prev_draws[index]
+	prev = {parent = entry.parent, local = pose_of(entry.draw.pos, entry.draw.rot)}
+	prev.world = prev.local
+	if entry.parent != now && entry.parent.grouped {
+		group := pairing_group(p, entry.parent.id)
+		if group == nil {
+			return
+		}
+		prev.world = pose_compose(group.world, prev.local)
+	}
+	return entry.draw, prev, true
 }
 
 // nil when the previous Scene has no paired Group with this id.
-pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Node {
-	return &p.groups[id] if id in p.groups else nil
+pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
+	if found, ok := &p.groups[id]; ok {
+		return found
+	}
+	return nil
 }
 
 // world is the Draw's Pose for this Frame. A Draw with no partner passes

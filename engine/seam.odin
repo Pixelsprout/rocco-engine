@@ -118,8 +118,11 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 // until the copy into Roc.
 @(private = "file")
 seam_query_search :: proc(s: ^Seam) -> Query_Answers {
-	colliders := scene_colliders(s.curr.nodes.elements[:s.curr.nodes.length], context.temp_allocator)
 	queries := s.curr.queries.elements[:s.curr.queries.length]
+	if len(queries) == 0 {
+		return {}
+	}
+	colliders := scene_colliders(s.curr.nodes.elements[:s.curr.nodes.length], context.temp_allocator)
 	return queries_answer(&s.search, colliders, queries, context.temp_allocator)
 }
 

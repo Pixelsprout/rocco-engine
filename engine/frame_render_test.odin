@@ -72,12 +72,14 @@ test_pairing_finds_the_previous_draw_by_id :: proc(t: ^testing.T) {
 
 	nodes := draw_nodes({{id = 7}, {id = 3}})
 	pairing_build(&p, nodes)
-	found := pairing_draw(&p, 3)
-	testing.expect(t, found != nil && found.draw == &nodes[1].payload.draw)
-	testing.expect(t, pairing_draw(&p, 9) == nil)
+	found, _, ok := pairing_draw(&p, 3, {})
+	testing.expect(t, ok && found == &nodes[1].payload.draw)
+	_, _, missing := pairing_draw(&p, 9, {})
+	testing.expect(t, !missing)
 
 	pairing_build(&p, draw_nodes({{id = 9}}))
-	testing.expect(t, pairing_draw(&p, 7) == nil)
+	_, _, stale := pairing_draw(&p, 7, {})
+	testing.expect(t, !stale)
 }
 
 @(test)
@@ -90,7 +92,8 @@ test_pairing_keeps_the_first_of_a_duplicate_id_and_logs_it_once :: proc(t: ^test
 	pairing_build(&p, nodes)
 	pairing_build(&p, draw_nodes({{id = 5}, {id = 5}}))
 	pairing_build(&p, nodes)
-	testing.expect(t, pairing_draw(&p, 5).draw == &nodes[0].payload.draw)
+	first, _, _ := pairing_draw(&p, 5, {})
+	testing.expect(t, first == &nodes[0].payload.draw)
 	testing.expect_value(t, len(p.logged), 1)
 }
 
@@ -144,8 +147,8 @@ test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: 
 	nodes := draw_nodes(draws)
 	pairing_build(&p, nodes)
 	testing.expect(t, p.over_capacity_logged)
-	found := pairing_draw(&p, SMALL_DRAWS)
-	testing.expect(t, found != nil && found.draw == &nodes[SMALL_DRAWS].payload.draw)
+	found, _, ok := pairing_draw(&p, SMALL_DRAWS, {})
+	testing.expect(t, ok && found == &nodes[SMALL_DRAWS].payload.draw)
 }
 
 @(test)
@@ -190,12 +193,12 @@ test_draw_interpolates_scale_rot :: proc(t: ^testing.T) {
 
 // A root Draw paired with prev, as the Frame's walk places it.
 draw_transform_at_root :: proc(prev, curr: ^Draw, alpha: f32) -> Draw_Transform {
-	paired := Prev_Node {
+	paired := Prev_Pose {
 		local = pose_of(prev.pos, prev.rot),
 		world = pose_of(prev.pos, prev.rot),
-		draw  = prev,
 	}
-	world, _ := node_place(&paired, WALK_ROOT, pose_of(curr.pos, curr.rot), alpha)
+	root := WALK_ROOT
+	world := node_world(&paired, &root, pose_of(curr.pos, curr.rot), alpha)
 	return draw_transform(prev, curr, world, alpha)
 }
 
