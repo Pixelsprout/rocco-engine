@@ -146,7 +146,7 @@ view = |model| {
 	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, Quat.from_yaw(model.yaw), pip_half)
 	colliders = [Collider(pip_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = lights.concat([Draw(ground), Draw(pip)]).concat(pickups).concat(colliders)
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip)].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries }
 }
 

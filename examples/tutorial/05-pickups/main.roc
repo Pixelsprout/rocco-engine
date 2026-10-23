@@ -110,11 +110,8 @@ sky_light = Light.ambient({ r: 0.2, g: 0.25, b: 0.35 })
 
 # The sun shines from behind the camera and to the right, so Pip's shadow falls
 # behind it and to the left.
-sun : Vocabulary.Light
-sun = Light.sun({ x: -0.5, y: -0.75, z: -0.45 }, { r: 4.5, g: 4.0, b: 3.4 })
-
-lights : List(Vocabulary.Node)
-lights = [Light(sky_light), Light(sun)]
+sunlight : Vocabulary.Light
+sunlight = Light.sun({ x: -0.5, y: -0.75, z: -0.45 }, { r: 4.5, g: 4.0, b: 3.4 })
 
 # region: view
 pip_half : Vec3
@@ -133,7 +130,7 @@ view = |model| {
 	pip_box = Collider.box(pip_id, { ..model.pos, y: pip_half.y }, Quat.from_yaw(model.yaw), pip_half)
 	colliders = [Collider(pip_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = lights.concat([Draw(ground), Draw(pip)]).concat(pickups).concat(colliders)
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip)].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries }
 }
 

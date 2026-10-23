@@ -40,7 +40,7 @@ $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
 {"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":1,"live":3,"step_us":5.8,"view_us":4.7}}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
 {"ok":true,"steps":30,"scene":{"camera":{...},"nodes":[{"Light":{...}},{"Light":{...}},{"Draw":{"id":1,"mesh":1,...}},{"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},...}}],...},"results":{...}}
 $ python3 scripts/bridge.py screenshot pip.png
@@ -152,7 +152,7 @@ the last one:
 
 ```
 {"op":"step","n":30,"held":["W"],"tap":["Space"],"mouse":[4,-2]}
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":1,"live":3,"step_us":10.2,"view_us":8.9}}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.2,"view_us":0.9}}
 ```
 
 `n` is the number of steps, 1 when you leave it out. `held` lists the keys
@@ -187,7 +187,7 @@ quits on Escape, so a tap of Escape stops a `step` of 10 after one step:
 
 ```
 {"op":"step","n":10,"tap":["Escape"]}
-{"ok":true,"steps":1,"commands":["Quit"],"alloc":{"step":1,"allocs":12,"deallocs":10,"reallocs":7,"live":4,"step_us":12.9,"view_us":14.5}}
+{"ok":true,"steps":1,"commands":["Quit"],"alloc":{"step":1,"allocs":12,"deallocs":10,"reallocs":6,"live":4,"step_us":65.6,"view_us":93.8}}
 ```
 
 The host runs one step for each frame. In a window you see each step, and
@@ -244,7 +244,7 @@ trimmed to the `queries` and the `results`:
 
 ```
 {"op":"step","n":27,"held":["W"]}
-{"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":7,"live":5,"step_us":16.1,"view_us":13.3}}
+{"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":6,"live":5,"step_us":5.1,"view_us":4.0}}
 {"op":"scene"}
 {"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[]}}
 ```

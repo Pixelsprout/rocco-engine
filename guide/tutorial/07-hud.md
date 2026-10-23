@@ -131,7 +131,7 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = lights.concat([Draw(ground), Draw(pip), Draw(door)]).concat(pickups).concat(colliders)
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 ```

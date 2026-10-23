@@ -134,17 +134,17 @@ the host what to draw:
 
 <!-- region: examples/tutorial/01-window/main.roc#view -->
 ```roc
-lights : List(Vocabulary.Node)
-lights = [
-	Light(Light.ambient({ r: 0.3, g: 0.3, b: 0.3 })),
-	Light(Light.directional({ x: -0.4, y: -0.8, z: -0.45 }, { r: 4.0, g: 4.0, b: 4.0 })),
-]
+sky_light : Vocabulary.Light
+sky_light = Light.ambient({ r: 0.3, g: 0.3, b: 0.3 })
+
+sunlight : Vocabulary.Light
+sunlight = Light.directional({ x: -0.4, y: -0.8, z: -0.45 }, { r: 4.0, g: 4.0, b: 4.0 })
 
 view : Model -> Vocabulary.Scene
 view = |model| {
 	cube = { ..Draw.default, id: 1, mesh: model.cube, tint: { r: 0.9, g: 0.22, b: 0.03 } }
 	camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
-	{ ..Scene.empty, camera, nodes: lights.concat([Draw(cube)]) }
+	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(cube)] }
 }
 ```
 <!-- endregion -->
@@ -155,12 +155,12 @@ view = |model| {
 - `Cam.look_at` puts the eye at (2, 2, 4) and points it at the origin.
   `+y` is up.
 - The host has no light of its own, so with no lights the cube would be
-  black. The ambient light lights every side a little, and the directional
-  light lights the sides that face it. [The Scene](../scene.md#lights)
-  covers lights in more detail.
+  black. `sky_light` is an ambient light, which lights every side a
+  little. `sunlight` is a directional light, which lights the sides that
+  face it. [The Scene](../scene.md#lights) covers lights in more detail.
 - `nodes` holds everything in the 3D view. Each thing is a Node, and you
   write its tag around it: `Light(...)` for a light and `Draw(...)` for a
-  Draw. `lights.concat([Draw(cube)])` puts the lights first, then the cube.
+  Draw. The list puts the lights first, then the cube.
 - `Scene.empty` fills in the other fields of the Scene.
 
 ## Run the game
