@@ -58,12 +58,9 @@ Tree_Walk :: struct {
 	group_unpaired: bool,
 }
 
-tree_walk_scene :: proc(walk: ^Tree_Walk, nodes: []Node) {
-	root := WALK_ROOT
-	tree_walk(walk, nodes, &root)
-}
-
-// The parent is a pointer, because the walk passes it to every visit.
+// The parent is a pointer, because the walk passes it to every visit. Each
+// caller loops over the root Nodes itself: a root Draw or Collider is at its
+// world Pose already, so only the other root Nodes need the walk.
 tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 	for &node in nodes {
 		walk.visit(walk, &node, parent)
@@ -156,7 +153,28 @@ scene_colliders :: proc(nodes: []Node, allocator: mem.Allocator) -> []Collider {
 		visit = collider_visit,
 		data  = &colliders,
 	}
-	tree_walk_scene(&walk, nodes)
+	root := WALK_ROOT
+	// A root Collider is at its world Pose already. It goes straight into the
+	// spare capacity, because append costs twice as much here.
+	spare := ([^]Collider)(raw_data(colliders))
+	count := 0
+	for &node, i in nodes {
+		#partial switch node.tag {
+		case .Collider:
+			if count == cap(colliders) {
+				non_zero_resize(&colliders, count)
+				reserve(&colliders, 2 * count)
+				spare = raw_data(colliders)
+			}
+			spare[count] = node.payload.collider
+			count += 1
+		case .Group:
+			non_zero_resize(&colliders, count)
+			tree_walk(&walk, nodes[i:i + 1], &root)
+			spare, count = raw_data(colliders), len(colliders)
+		}
+	}
+	non_zero_resize(&colliders, count)
 	return colliders[:]
 }
 

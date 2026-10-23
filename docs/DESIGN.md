@@ -575,9 +575,10 @@ zero scale factor gives a zero normal along that axis. Decision.
 and its children's Poses are local to it. A Group has no scale, and a
 Draw's scale acts on that Draw only. A game with no Groups writes a flat
 list of leaves. The tree is still a Description: the host keeps no Node
-from one `Scene` to build the next. One recursive procedure,
-`tree_walk` in `engine/scene_tree.odin`, walks the tree for the Frame
-render, the Pairing and the Queries. Queries, Contacts, RayHits and
+from one `Scene` to build the next. The Frame render, the Pairing and the
+Queries each loop over the root Nodes. A root Draw or Collider skips the
+walk, because its Pose is already a world Pose. One recursive procedure,
+`tree_walk` in `engine/scene_tree.odin`, walks each other root Node. Queries, Contacts, RayHits and
 OverlapHits stay in world space. `Pose.compose` and `Pose.relative` in
 `packages/linalg` give a game the host's rule. ADR 0014 records the
 decision.

@@ -230,6 +230,22 @@ test_scene_colliders_compose_each_world_pose_from_the_scene :: proc(t: ^testing.
 }
 
 @(test)
+test_scene_colliders_keep_tree_order_past_the_root_count :: proc(t: ^testing.T) {
+	ball :: proc(id: u64) -> Node {
+		return node_collider({id = id, rot = IDENTITY, shape = {tag = .Sphere, payload = {sphere = 1}}})
+	}
+	// The Group holds more Colliders than the Scene has root Nodes.
+	inner := []Node{ball(1), ball(2), ball(3)}
+	nodes := []Node{node_group(9, {}, IDENTITY, inner), ball(4), ball(5)}
+	got := scene_colliders(nodes, context.temp_allocator)
+
+	testing.expect_value(t, len(got), 5)
+	for c, i in got {
+		testing.expect_value(t, c.id, u64(i + 1))
+	}
+}
+
+@(test)
 test_the_queries_see_a_grouped_collider_at_its_world_pose :: proc(t: ^testing.T) {
 	search: Query_Search
 	query_search_init(&search, context.allocator)

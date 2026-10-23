@@ -25,11 +25,14 @@ N = 16,384. Git history keeps that run's summaries. `render_submit` now takes
 the largest part of the `mixed` Frame.
 
 The reference run comes before Milestone 22, which made the 3D Scene a tree.
-On an Apple M-series machine, Headless and Lockstep, the tree walk raised
-the `interpolation` median of `draws` by about 8% at N = 1,024 and
-N = 16,384. It raised the `queries` median of `colliders` by about 9%, for
-the copy of each Collider to its world Pose. The next reference run
-includes the tree.
+On an Apple M5, Headless and Lockstep, the first tree walk raised the
+`interpolation` median of `draws` by about 8% at N = 1,024 and N = 16,384,
+and the `queries` median of `colliders` by about 9%. A root Draw or
+Collider now skips the walk. The `interpolation` median of `draws` is then
+within 1% of the flat list before the tree, at N = 1,024 and N = 16,384.
+The `queries` median of `colliders` stays 4% to 7% above it, for the copy
+of each Collider into the list that the search reads. The next reference
+run includes the tree.
 
 The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
