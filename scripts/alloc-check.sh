@@ -4,9 +4,14 @@
 # game's expected allocs and as many deallocs, its expected reallocs and a
 # constant live block count. Each count records what the game makes today.
 # None is a target: a change that moves a count updates it here.
-# cards expects 2 allocs: the box shell and the nodes list. entity-game
-# expects 3: the box shell, the nodes list and the queries list. With no
-# input the player carries no drops, so it is no Group.
+# Each entry is game:dev allocs:speed allocs:reallocs.
+# cards expects 2 allocs and 1 realloc: the box shell and the cards list,
+# which the concat after the Lights grows.
+# entity-game expects 33 allocs and 4 reallocs under --opt=speed. view makes
+# one list for the leaves of each entity, and List.keep_if makes one list for
+# each root it keeps. Under --opt=dev, List.map copies the entity list in each
+# of the 9 stages that map it, so it expects 42. With no input the player
+# carries no drops, so it is no Group.
 # pong expects 6 allocs and 1 realloc: the box shell, the nodes list, the ui
 # list, the scoreboard's children and its two cells' children. The realloc
 # is the concat that joins the scoreboard, the banner and the hints.
@@ -31,12 +36,15 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:0 entity-game:3:0 pong:6:1; do
+for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1; do
 	game=${entry%%:*}
 	rest=${entry#*:}
-	want=${rest%%:*}
+	want_dev=${rest%%:*}
+	rest=${rest#*:}
+	want_speed=${rest%%:*}
 	want_re=${rest##*:}
 	for opt in dev speed; do
+		if [ "$opt" = dev ]; then want=$want_dev; else want=$want_speed; fi
 		bin="./${game}_alloc_${opt}${suffix}"
 		# Exit 2 is warnings only, such as the dbg in packages/mesh. build.roc allows it too.
 		set +e
