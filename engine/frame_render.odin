@@ -188,7 +188,15 @@ frame_render_draw :: proc(
 		alpha   = alpha,
 		data    = &frame_walk,
 	}
-	tree_walk_scene(&walk, curr.nodes.elements[:curr.nodes.length])
+	root := WALK_ROOT
+	nodes := curr.nodes.elements[:curr.nodes.length]
+	for &node, i in nodes {
+		if node.tag != .Draw {
+			tree_walk(&walk, nodes[i:i + 1], &root)
+		} else if d := &node.payload.draw; frame_counts_draw(&frame_walk) {
+			frame_place(&frame_walk, d, draw_place_root(&fr.pairing, d, alpha))
+		}
+	}
 	if frame_walk.draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
 		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
@@ -232,28 +240,34 @@ frame_render_draw :: proc(
 	span_close(spans, .Render_Submit, span)
 }
 
-// Places each Draw at its Pose for this Frame and gathers each Light, both
-// in walk order. Past the draw capacity, it counts the Draws and skips them.
+// Places each Draw in a Group at its Pose for this Frame and gathers each
+// Light, both in walk order. frame_render_draw places the root Draws itself.
 @(private = "file")
 frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	fw := (^Frame_Walk)(walk.data)
-	fr := fw.fr
 	switch node.tag {
 	case .Draw:
 		d := &node.payload.draw
-		fw.draws_seen += 1
-		if len(fr.placed) == fr.draw_capacity {
-			return
+		if frame_counts_draw(fw) {
+			frame_place(fw, d, draw_place(walk.pairing, d, parent, walk.alpha))
 		}
-		from, prev, paired := pairing_draw(walk.pairing, d.id, parent.id)
-		world := node_world(&prev if paired else nil, parent, pose_of(d.pos, d.rot), walk.alpha)
-		x := draw_transform(from if paired else d, d, world, walk.alpha)
-		mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
-		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
 	case .Light:
-		light_gather(fr, &fw.lights, light_under(node.payload.light, parent))
+		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
 	case .Group, .Collider:
 	}
+}
+
+// Past the draw capacity, the Frame counts a Draw and skips it.
+@(private = "file")
+frame_counts_draw :: #force_inline proc(fw: ^Frame_Walk) -> bool {
+	fw.draws_seen += 1
+	return len(fw.fr.placed) < fw.fr.draw_capacity
+}
+
+@(private = "file")
+frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, x: Draw_Transform) {
+	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
+	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
@@ -413,7 +427,14 @@ pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 		visit = pairing_visit,
 		data  = p,
 	}
-	tree_walk_scene(&walk, nodes)
+	root := WALK_ROOT
+	for &node, i in nodes {
+		if node.tag == .Draw {
+			pairing_add(p, &node.payload.draw, root.id, false)
+		} else {
+			tree_walk(&walk, nodes[i:i + 1], &root)
+		}
+	}
 	if p.draws_seen > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
 		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
@@ -425,18 +446,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	p := (^Pairing)(walk.data)
 	switch node.tag {
 	case .Draw:
-		d := &node.payload.draw
-		p.draws_seen += 1
-		_, index, inserted, _ := map_entry(&p.draws, d.id)
-		if !inserted {
-			if d.id not_in p.logged {
-				p.logged[d.id] = {}
-				fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
-			}
-			return
-		}
-		index^ = i32(len(p.prev_draws))
-		append(&p.prev_draws, Prev_Draw{draw = d, parent = parent.id, parent_unpaired = parent.unpaired})
+		pairing_add(p, &node.payload.draw, parent.id, parent.unpaired)
 	case .Group:
 		g := node.payload.group._0
 		if g.id in p.groups {
@@ -461,6 +471,20 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	}
 }
 
+// An `in` test and an insert cost less here than map_entry.
+pairing_add :: #force_inline proc(p: ^Pairing, d: ^Draw, parent: Parent_Id, parent_unpaired: bool) {
+	p.draws_seen += 1
+	if d.id in p.draws {
+		if d.id not_in p.logged {
+			p.logged[d.id] = {}
+			fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
+		}
+		return
+	}
+	p.draws[d.id] = i32(len(p.prev_draws))
+	append(&p.prev_draws, Prev_Draw{draw = d, parent = parent, parent_unpaired = parent_unpaired})
+}
+
 // The previous Draw with this id and its Pose, for a Draw whose parent is
 // now. Not paired when the previous Scene has no such Draw, or when the
 // parent changed and the previous parent Group did not pair, so its world
@@ -479,6 +503,27 @@ pairing_draw :: #force_inline proc(p: ^Pairing, id: u64, now: Parent_Id) -> (dra
 	return entry.draw, prev, true
 }
 
+// A root Pose is a world Pose. So a root Draw whose partner was also a root
+// Draw interpolates its own Pose, with no parent to compose.
+draw_place_root :: #force_inline proc(p: ^Pairing, d: ^Draw, alpha: f32) -> Draw_Transform {
+	index, found := p.draws[d.id]
+	if !found {
+		return draw_transform(d, d, pose_of(d.pos, d.rot), alpha)
+	}
+	from := p.prev_draws[index]
+	if from.parent.grouped {
+		root := WALK_ROOT
+		return draw_place(p, d, &root, alpha)
+	}
+	return draw_transform(from.draw, d, pose_lerp(pose_of(from.draw.pos, from.draw.rot), pose_of(d.pos, d.rot), alpha), alpha)
+}
+
+draw_place :: proc(p: ^Pairing, d: ^Draw, parent: ^Walk_Parent, alpha: f32) -> Draw_Transform {
+	from, prev, paired := pairing_draw(p, d.id, parent.id)
+	world := node_world(&prev if paired else nil, parent, pose_of(d.pos, d.rot), alpha)
+	return draw_transform(from if paired else d, d, world, alpha)
+}
+
 // nil when the previous Scene has no paired Group with this id.
 pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
 	if found, ok := &p.groups[id]; ok {
@@ -490,7 +535,7 @@ pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
 // world is the Draw's Pose for this Frame. A Draw with no partner passes
 // itself as prev. A Group has no scale, so scale and scale_rot interpolate
 // on their own.
-draw_transform :: proc(prev, curr: ^Draw, world: Pose, alpha: f32) -> Draw_Transform {
+draw_transform :: #force_inline proc(prev, curr: ^Draw, world: Pose, alpha: f32) -> Draw_Transform {
 	return {
 		position = world.pos,
 		scale = v3_lerp(prev.scale, curr.scale, alpha),
@@ -501,7 +546,7 @@ draw_transform :: proc(prev, curr: ^Draw, world: Pose, alpha: f32) -> Draw_Trans
 }
 
 // The scale acts along the axes of scale_rotation, then rotation turns the result.
-draw_model_matrix :: proc(x: Draw_Transform) -> Mat4 {
+draw_model_matrix :: #force_inline proc(x: Draw_Transform) -> Mat4 {
 	return mat4_translate(x.position) * draw_rotate_scale(x, x.scale)
 }
 
