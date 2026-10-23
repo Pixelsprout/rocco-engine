@@ -184,22 +184,22 @@ test_contact_search_box_turns_the_way_a_draw_does :: proc(t: ^testing.T) {
 	expect_contact(t, got[0], 1, 2, across, 0.35)
 }
 
-// Pitched 45 degrees, a tall thin box leans over a small box that it misses
-// when upright.
+// Pitched 45 degrees about x, a tall thin box leans over a small box that it
+// misses when upright.
 @(test)
 test_contact_search_box_box_honours_pitch :: proc(t: ^testing.T) {
 	search: Query_Search
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	small := test_box(2, {0.65, 0.55, 0}, IDENTITY, {0.1, 0.1, 1})
-	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {0.1, 1, 1}), small)), 0)
+	small := test_box(2, {0, 0.55, 0.65}, IDENTITY, {1, 0.1, 0.1})
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 0.1}), small)), 0)
 
-	pitched := test_turn({0, 0, 1}, -math.PI / 4)
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, pitched, {0.1, 1, 1}), small)
+	pitched := test_turn({1, 0, 0}, math.PI / 4)
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, pitched, {1, 1, 0.1}), small)
 	testing.expect_value(t, len(got), 1)
 	h := f32(math.SQRT_TWO / 2)
-	expect_contact(t, got[0], 1, 2, {h, -h, 0}, 0.1 + 0.1 * math.SQRT_TWO - 0.1 * h)
+	expect_contact(t, got[0], 1, 2, {0, -h, h}, 0.1 + 0.1 * math.SQRT_TWO - 0.1 * h)
 }
 
 // Two cubes meet edge to edge: an edge along a's z and an edge along b's y.
