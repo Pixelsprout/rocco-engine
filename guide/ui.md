@@ -45,7 +45,9 @@ text. The config type is called `BoxConfig` because the `Box` tag, and
 Roc's builtin `Box`, already have the name.
 
 An Element has no id. Its place in the tree is its identity, and the host
-keeps nothing from one step to the next.
+keeps nothing from one step to the next. The 3D part of the Scene is a
+tree too, in `Scene.nodes`, but there a Group pairs by its Group id. See
+[Groups](scene.md#groups).
 
 ## A first UI
 

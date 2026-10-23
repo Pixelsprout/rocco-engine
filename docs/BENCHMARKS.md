@@ -24,6 +24,13 @@ ADR 0008 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
 N = 16,384. Git history keeps that run's summaries. `render_submit` now takes
 the largest part of the `mixed` Frame.
 
+The reference run comes before Milestone 22, which made the 3D Scene a tree.
+On an Apple M-series machine, Headless and Lockstep, the tree walk raised
+the `interpolation` median of `draws` by about 8% at N = 1,024 and
+N = 16,384. It raised the `queries` median of `colliders` by about 9%, for
+the copy of each Collider to its world Pose. The next reference run
+includes the tree.
+
 The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
 power with other programs running. Its numbers were noise, so it is deleted.

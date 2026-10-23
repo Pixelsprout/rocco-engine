@@ -94,11 +94,12 @@ slot, the host logs once and answers the first. A Raycast and an Overlap can
 use the same owner and slot.
 
 The host answers the Queries in `engine/collision.odin`. Once per step it
-builds the Shapes and a uniform grid over them on the ground plane. ADR 0008
-records the grid. The grid finds the pairs whose world boxes overlap. A test
-for each pair of shapes then gives the normal and depth. Two boxes get a
-separating axis test. A box turns only in the ground plane, so five axes are
-enough. Two spheres, and a box and a sphere, get direct tests. When two
+composes each Collider's world Pose down the tree of the current Scene. It
+skips that walk when the Scene has no Queries. Then it builds the Shapes and
+a uniform grid over them on the ground plane. ADR 0008 records the grid. The
+grid finds the pairs whose world boxes overlap. A test for each pair of
+shapes then gives the normal and depth. Two boxes get a separating axis test
+on 15 axes. Two spheres, and a box and a sphere, get direct tests. When two
 Colliders share an id, the first one collides. The host logs each shared id
 and each unknown kind once per run, and skips the Collider. A skipped
 Collider does not claim its id. Decision.
@@ -111,11 +112,11 @@ Collider does not claim its id. Decision.
   │ QueryResults from Scene[n-1]      │      │ cursor from Scene[n] → mouse lock  │
   │                                   │      │ ui from Scene[n] → layout, quads   │
   └──────────────┬────────────────────┘      └──────────────┬─────────────────────┘
-                 │ Input, QueryResults, dt                  │ pair draws by id, lerp
+                 │ Input, QueryResults, dt                  │ pair Draws, Groups by id
                  ▼                                          ▼
-   step : Model, Input, QueryResults, F32          model matrix per draw
-                 │ Model (one reference, mutated in place)  mesh id → mesh handle
-                 │ and List(Command)
+   step : Model, Input, QueryResults, F32          lerp local, compose world
+                 │ Model (one reference, mutated in place)  model matrix per Draw
+                 │ and List(Command)                        mesh id → mesh handle
                  ▼
   ┌────────────── Odin ───────────────┐
   │ run each command in list order;   │
@@ -132,8 +133,9 @@ Collider does not claim its id. Decision.
 ```
 
 The Frame render is the host module on the render frame side. Once per
-frame it builds the Pairing from the previous `Scene`, then interpolates each
-draw at the Alpha and submits it.
+frame it builds the Pairing from the previous `Scene`. Then it walks the tree
+of the current `Scene`, interpolates each Group and Draw at the Alpha, and
+submits each Draw.
 
 ## 3. The vocabulary
 
@@ -149,19 +151,20 @@ Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
-Capacity : { meshes : U32, skies : U32, draws : U32, ui_quads : U32, sounds : U32, voices : U32 }
+Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32 })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
-Collider : { id : U64, pos : Vec3, yaw : F32, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
+Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 OverlapHit : { owner : U64, slot : U32, id : U64 }
 QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
 Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
-Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb }), Point({ pos : Vec3, color : Rgb, range : F32 })]
+Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
+Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider)]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
@@ -169,7 +172,7 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Box(BoxConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Loop     : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
@@ -182,7 +185,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | draws by mesh id with a stable draw id; a camera eye, target, up and field of view; the Colliders that can touch; the Lights; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights and the Colliders that can touch; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -199,12 +202,15 @@ or frees the mouse only when the state changes. The debug camera forces
 `Locked` and ignores `Scene.cursor`. Decision.
 
 A Collider has the id of the entity it belongs to. An entity with no
-Collider touches nothing, so a game opts in per entity. The render shape is
+Collider touches nothing, so a game opts in per entity. A Collider is a leaf
+Node, and its `pos` and `rot` are local to its Group. The render shape is
 not the collision shape. `shape` is a tag union. `Box` carries the half
-extents, and `yaw` turns the box in the ground plane. `Sphere` carries the
-radius. `Capsule` carries the radius and the half height of a segment along
-y. The host does not test capsules yet. Games build Colliders with
-`pf.Collider`, for example `Collider.box(id, pos, yaw, half)`. The host
+extents, and `rot`, a unit quaternion, turns the box in any direction. Two
+boxes are tested on 15 separating axes: three face axes each and nine edge
+cross products. `Sphere` carries the radius. `Capsule` carries the radius
+and the half height of a segment along its own y, which `rot` turns. The
+host does not test capsules yet. Games build Colliders with
+`pf.Collider`, for example `Collider.box(id, pos, rot, half)`. The host
 switches on every tag, so a new shape breaks the Odin compile until the host
 adds a case for it. Decision.
 
@@ -258,10 +264,11 @@ then ignores `Scene.camera`, and the game still gets all input.
 
 ### Lights are data
 
-The game decides the Lights in its Scene. `Scene.lights` is a list of `Ambient`,
-`Directional` and `Point` lights. Games build them with `pf.Light`, for
-example `Light.point(pos, color, range)`. The host has no light of its own,
-so an empty list draws black. Decision.
+The game decides the Lights in its Scene. A Light is a leaf Node:
+`Light(light)`, where `light` is `Ambient`, `Directional` or `Point`. Games
+build them with `pf.Light`, for example `Light.point(pos, color, range)`.
+The host has no light of its own, so a Scene with no Light draws black.
+Decision.
 
 A Directional `dir` is the way the light travels. The host negates and
 normalises it. A Point light falls off as
@@ -275,9 +282,10 @@ A white matte surface facing a directional light of colour `c` shows about
 
 ### Shadows
 
-Only the Sun casts a shadow. The Sun is the first Directional that sets
-`shadow`, which `pf.Light.sun` does. A second Directional that sets `shadow`
-still lights but casts no shadow, and the host logs it once. Decision.
+Only the Sun casts a shadow. The Sun is the first Directional, in Node
+order, that sets `shadow`, which `pf.Light.sun` does. A second Directional
+that sets `shadow` still lights but casts no shadow, and the host logs it
+once. Decision.
 
 The host draws one shadow map from the Sun before the main pass. Its
 orthographic view covers the box of every Draw at its interpolated pose. The
@@ -305,13 +313,16 @@ and no environment map. A mesh with `KHR_materials_unlit` skips the lights
 and the tone map and draws its base colour.
 
 The host takes the first ambient and the first 8 directional and point
-lights, in list order. It drops a second ambient, a light past the 8th, a
-Directional with a zero `dir` and a Point with a range <= 0. It logs each
-reason once per run. The cap of 8 is the size of the light arrays in the
-shader.
+lights, in the depth-first, pre-order walk of the tree. It drops a second
+ambient, a light past the 8th, a Directional with a zero `dir` and a Point
+with a range <= 0. It logs each reason once per run. The cap of 8 is the
+size of the light arrays in the shader.
 
 The host uses the current `Scene`'s lights for the whole frame. Lights have
-no id and do not interpolate. A light that moves jumps once per fixed step.
+no id, and a Light's own Pose does not interpolate. A Light in a Group
+follows the Group's interpolated Pose: the Group moves a Point and turns a
+Directional `dir`, and does not change an Ambient. A Light that moves inside
+its Group jumps once per fixed step.
 
 ### The UI is a Description
 
@@ -377,7 +388,7 @@ Once per frame, the host lays out the current Scene's UI against
 in pre-order. A `Box` opens and configures a Clay element, walks its
 children, then closes the element. A `Text` adds text. A tree cannot be
 unbalanced, so the host has no open or close to repair. The UI does not
-interpolate. It changes once per fixed step, like the Lights. Text strings
+interpolate. It changes once per fixed step. Text strings
 point into the current Scene, which lives for the frame, so the host copies
 no string. Decision.
 
@@ -558,22 +569,50 @@ transpose of the model matrix, so a non-uniform scale keeps them correct. A
 zero scale factor gives a zero normal along that axis. Decision.
 `docs/adr/0002-a-scale-acts-along-its-own-axes.md` records the options.
 
+### The 3D Scene is a tree
+
+`Scene.nodes` holds the root Nodes. A Group carries a Group id and a Pose,
+and its children's Poses are local to it. A Group has no scale, and a
+Draw's scale acts on that Draw only. A game with no Groups writes a flat
+list of leaves. The tree is still a Description: the host keeps no Node
+from one `Scene` to build the next. One recursive procedure,
+`tree_walk` in `engine/scene_tree.odin`, walks the tree for the Frame
+render, the Pairing and the Queries. Queries, Contacts, RayHits and
+OverlapHits stay in world space. `Pose.compose` and `Pose.relative` in
+`packages/linalg` give a game the host's rule. ADR 0014 records the
+decision.
+
+The host interpolates in local space, then composes. If a Node's parent
+Group id is the same in both `Scene`s, the host lerps and slerps its local
+Pose. If the parent changed, it interpolates between the two world Poses.
+So a child of a turning Group follows an arc, not a chord.
+
+A Group pairs only with a Group, by its Group id. Group ids and draw ids
+are apart, so an entity's Group and its Draw can both carry the entity id.
+If the previous `Scene` has two Groups with one id, the first pairs, and the
+host logs the first duplicate once per run. Both Groups still draw their
+children. `Launch.capacity.groups` sizes the Group map, so the Frame render
+does not allocate. Past it, the first Groups pair and the host logs once.
+A Draw whose parent changed, and whose previous parent Group did not pair,
+does not pair. It draws at its current Pose.
+
 ### Draws carry a stable id
 
 The host pairs draws across two `Scene`s by `id` and interpolates position,
-scale, rot and scale_rot between them. A draw whose id has no partner in the
-previous `Scene` is drawn where it is. Entities use their entity id. Fixed scenery uses ids the
-entities never reach.
+scale, rot and scale_rot between them, in the space of their Group. A draw
+whose id has no partner in the previous `Scene` is drawn where it is.
+Entities use their entity id. Fixed scenery uses ids the entities never
+reach.
 
-Draw ids must be unique in a `Scene`. The Frame render pairs each current
-draw with the previous `Scene`. If the previous `Scene` has two draws with
-one id, the first one pairs, and the Frame render logs the id once per run.
-If the current `Scene` has two draws with one id, each one draws and
-interpolates from the same previous draw. The log then comes at the next
-frame, if that `Scene` is the previous one when the frame renders. The
-Pairing is built once per frame, so a `Scene` that is previous only between
-two steps inside one frame is never checked. A duplicate that persists is
-still logged.
+Draw ids must be unique in a `Scene`, across all Groups. The Frame render
+pairs each current draw with the previous `Scene`. If the previous `Scene`
+has two draws with one id, the first one pairs, and the Frame render logs
+the id once per run. If the current `Scene` has two draws with one id, each
+one draws and interpolates from the same previous draw. The log then comes
+at the next frame, if that `Scene` is the previous one when the frame
+renders. The Pairing is built once per frame, so a `Scene` that is previous
+only between two steps inside one frame is never checked. A duplicate that
+persists is still logged.
 
 ## 4. The platform does not know the game
 
@@ -588,7 +627,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Collider, Config, Draw, Input, Key, Launch, Light, Query, QueryResults, Scene, Vocabulary]
+    exposes [Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -650,7 +689,7 @@ import pf.Vocabulary exposing [Command, Manifest]
 import pf.Scene
 
 view : Model -> Vocabulary.Scene
-view = |m| { ..Scene.empty, camera: m.camera, draws: m.draws }
+view = |m| { ..Scene.empty, camera: m.camera, nodes: [Draw(m.player)] }
 ```
 
 Packages declare the types they need by shape and never import the platform,
@@ -791,10 +830,11 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
-- One allocation per step for each non-empty `Scene` list: the draws, and
-  the colliders, the UI and the queries when a game returns any. It is the extract; it
-  would exist anyway. A long Text string built at run time adds one
-  allocation. A short one fits inside the `Str` and adds none.
+- One allocation per step for each non-empty `Scene` list: the root Nodes,
+  each Group's children, the root Elements, each Box's children, the queries
+  and the loops. It is the extract; it would exist anyway. A long Text
+  string built at run time adds one allocation. A short one fits inside the
+  `Str` and adds none.
 - One allocation and one free per step for each non-empty `QueryResults`
   list. An empty list allocates nothing.
 - The Query search runs only when a Query asks. It then builds the grid,

@@ -34,7 +34,7 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	capacity := s.launch.capacity
 	mesh_table_init(&s.renderer.meshes, int(capacity.meshes), context.allocator, context.allocator)
 	sky_table_init(&s.renderer.skies, int(capacity.skies), context.allocator, context.allocator)
-	frame_render_init(&s.frame_render, int(capacity.draws), context.allocator)
+	frame_render_init(&s.frame_render, int(capacity.draws), int(capacity.groups), context.allocator)
 	sync.mutex_lock(&g_clay_lock)
 	ui_err := headless_init(s, context.allocator)
 	assert(ui_err == nil)
@@ -289,7 +289,7 @@ test_headless_run_answers_queries :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, IDENTITY, {1, 1, 1})}
 	queries := []Query{test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10)}
 	fake_frame_state_init(&s, exit_after_frames = 2, mode = .Headless, colliders = colliders, queries = queries)
 	defer fake_frame_state_destroy(&s)

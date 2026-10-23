@@ -170,12 +170,12 @@ hud = |m| [scoreboard(m.state, m.score)].concat(banner(m.state, m.score)).concat
 
 # endregion
 
+ambient : Vocabulary.Light
+ambient = Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })
+
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
-lights : List(Vocabulary.Light)
-lights = [
-	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
-]
+sun : Vocabulary.Light
+sun = Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })
 
 # region: view
 box : U32, U64, Vec3, Vec3, Rgb -> Vocabulary.Draw
@@ -184,16 +184,18 @@ box = |mesh, id, pos, scale, tint| { ..Draw.default, id, mesh, pos, scale, tint 
 view : Model -> Vocabulary.Scene
 view = |m| {
 	c = m.cube
-	fixed = [
-		box(c, 10, { x: 0.0, y: -0.1, z: 0.0 }, { x: 2.0 * half_width, y: 0.1, z: 2.0 * half_depth }, { r: 0.01, g: 0.013, b: 0.02 }),
-		box(c, 11, { x: 0.0, y: 0.1, z: -half_depth - 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white),
-		box(c, 12, { x: 0.0, y: 0.1, z: half_depth + 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white),
-		box(c, 0, { x: -paddle_x, y: 0.2, z: m.left }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 0.073, g: 0.448, b: 1.0 }),
-		box(c, 1, { x: paddle_x, y: 0.2, z: m.right }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 1.0, g: 0.214, b: 0.073 }),
-		box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white),
+	nodes = [
+		Light(ambient),
+		Light(sun),
+		Draw(box(c, 10, { x: 0.0, y: -0.1, z: 0.0 }, { x: 2.0 * half_width, y: 0.1, z: 2.0 * half_depth }, { r: 0.01, g: 0.013, b: 0.02 })),
+		Draw(box(c, 11, { x: 0.0, y: 0.1, z: -half_depth - 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white)),
+		Draw(box(c, 12, { x: 0.0, y: 0.1, z: half_depth + 0.15 }, { x: 2.0 * half_width, y: 0.3, z: 0.3 }, white)),
+		Draw(box(c, 0, { x: -paddle_x, y: 0.2, z: m.left }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 0.073, g: 0.448, b: 1.0 })),
+		Draw(box(c, 1, { x: paddle_x, y: 0.2, z: m.right }, { x: 2.0 * paddle_half_thick, y: 0.4, z: 2.0 * paddle_half_len }, { r: 1.0, g: 0.214, b: 0.073 })),
+		Draw(box(c, m.ball.id, { x: m.ball.x, y: 0.2, z: m.ball.z }, { x: 2.0 * ball_half, y: 2.0 * ball_half, z: 2.0 * ball_half }, white)),
 	]
 
-	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws: fixed, lights, ui: hud(m) }
+	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 14.0, z: 7.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes, ui: hud(m) }
 }
 
 # endregion
@@ -315,7 +317,16 @@ expect init(Config.empty).commands == []
 expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9 }]).cube == Mesh.primitive(Cube)
 
 # A fresh scene draws the floor, two walls, two paddles and the ball.
-expect List.len(view(init(Config.empty).model).draws) == 6
+expect draw_count(view(init(Config.empty).model)) == 6
+
+draw_count : Vocabulary.Scene -> U64
+draw_count = |scene| List.count_if(
+	scene.nodes,
+	|node| match node {
+		Draw(_) => Bool.True
+		_ => Bool.False
+	},
+)
 
 # clamp caps above the top and below the bottom.
 expect clamp(1.0, 2.0, 2.1) == 2.0
@@ -376,7 +387,7 @@ expect {
 expect {
 	m = init(Config.empty).model
 	scored = { ..m, score: { left: 3, right: 2 } }
-	List.len(view(scored).draws) == 6
+	draw_count(view(scored)) == 6
 }
 
 # Space pauses a running game and resumes it without touching the score.

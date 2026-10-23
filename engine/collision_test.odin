@@ -14,12 +14,12 @@ TIMING_COLLIDERS :: 1000
 RANDOM_SPHERES :: 3000
 RANDOM_HALF :: f32(40)
 
-test_box :: proc(id: u64, pos: [3]f32, yaw: f32, half: [3]f32) -> Collider {
-	return {id = id, pos = {pos.x, pos.y, pos.z}, yaw = yaw, shape = {payload = {box = {half.x, half.y, half.z}}, tag = .Box}}
+test_box :: proc(id: u64, pos: [3]f32, rot: Quat, half: [3]f32) -> Collider {
+	return {id = id, pos = {pos.x, pos.y, pos.z}, rot = rot, shape = {payload = {box = {half.x, half.y, half.z}}, tag = .Box}}
 }
 
 test_sphere :: proc(id: u64, pos: [3]f32, radius: f32) -> Collider {
-	return {id = id, pos = {pos.x, pos.y, pos.z}, shape = {payload = {sphere = radius}, tag = .Sphere}}
+	return {id = id, pos = {pos.x, pos.y, pos.z}, rot = IDENTITY, shape = {payload = {sphere = radius}, tag = .Sphere}}
 }
 
 contacts_of :: proc(search: ^Query_Search, colliders: ..Collider) -> []Contact {
@@ -50,8 +50,17 @@ test_ray :: proc(owner: u64, slot: u32, origin, dir: [3]f32, max_distance: f32, 
 	return {payload = {raycast = ray}, tag = .Raycast}
 }
 
+test_turn :: proc(axis: [3]f32, rad: f32) -> Quat {
+	return to_quat(quat_from_axis_angle(axis, rad))
+}
+
+// b first, then a, as Quat.mul in packages/linalg.
+test_turn_then :: proc(a, b: Quat) -> Quat {
+	return to_quat(quat_of(a) * quat_of(b))
+}
+
 test_capsule :: proc(id: u64, pos: [3]f32) -> Collider {
-	return {id = id, pos = {pos.x, pos.y, pos.z}, shape = {payload = {capsule = {radius = 1, half_height = 1}}, tag = .Capsule}}
+	return {id = id, pos = {pos.x, pos.y, pos.z}, rot = IDENTITY, shape = {payload = {capsule = {radius = 1, half_height = 1}}, tag = .Capsule}}
 }
 
 rays_of :: proc(search: ^Query_Search, colliders: []Collider, queries: ..Query) -> []Ray_Hit {
@@ -110,7 +119,7 @@ test_contact_search_box_box_overlap_takes_the_least_overlap_axis :: proc(t: ^tes
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {1.8, 0.5, 0}, 0, {1, 1, 1}))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(2, {1.8, 0.5, 0}, IDENTITY, {1, 1, 1}))
 
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, {1, 0, 0}, 0.2)
@@ -122,8 +131,8 @@ test_contact_search_box_box_apart_has_no_contact :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {2.5, 0, 0}, 0, {1, 1, 1}))), 0)
-	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {0, 2.5, 0}, 0, {1, 1, 1}))), 0)
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(2, {2.5, 0, 0}, IDENTITY, {1, 1, 1}))), 0)
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(2, {0, 2.5, 0}, IDENTITY, {1, 1, 1}))), 0)
 }
 
 @(test)
@@ -132,7 +141,7 @@ test_contact_search_box_box_stacked_pushes_along_y :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(1, {0, 1.9, 0}, 0, {1, 1, 1}), test_box(2, {0.2, 0, 0}, 0, {1, 1, 1}))
+	got := contacts_of(&search, test_box(1, {0, 1.9, 0}, IDENTITY, {1, 1, 1}), test_box(2, {0.2, 0, 0}, IDENTITY, {1, 1, 1}))
 
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, {0, -1, 0}, 0.1)
@@ -145,12 +154,12 @@ test_contact_search_box_box_honours_yaw :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	turned := test_box(2, {2.3, 0, 2.3}, math.PI / 4, {1, 1, 1})
-	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), turned)), 0)
+	turned := test_box(2, {2.3, 0, 2.3}, quat_yaw(math.PI / 4), {1, 1, 1})
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), turned)), 0)
 
 	// Turned a quarter, a long thin box covers z instead of x.
-	long := test_box(4, {0.2, 0, 1.5}, math.PI / 2, {2, 1, 0.1})
-	got := contacts_of(&search, test_box(3, {0, 0, 0}, 0, {1, 1, 1}), long)
+	long := test_box(4, {0.2, 0, 1.5}, quat_yaw(math.PI / 2), {2, 1, 0.1})
+	got := contacts_of(&search, test_box(3, {0, 0, 0}, IDENTITY, {1, 1, 1}), long)
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 3, 4, {1, 0, 0}, 0.9)
 }
@@ -167,10 +176,66 @@ test_contact_search_box_turns_the_way_a_draw_does :: proc(t: ^testing.T) {
 	s, c := math.sincos(yaw)
 	along := [3]f32{c, 0, -s}
 	across := [3]f32{s, 0, c}
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, yaw, {2, 1, 0.1}), test_sphere(2, 1.8 * along + 0.05 * across, 0.3))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, quat_yaw(yaw), {2, 1, 0.1}), test_sphere(2, 1.8 * along + 0.05 * across, 0.3))
 
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, across, 0.35)
+}
+
+// Pitched 45 degrees about x, a tall thin box leans over a small box that it
+// misses when upright.
+@(test)
+test_contact_search_box_box_honours_pitch :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	small := test_box(2, {0, 0.55, 0.65}, IDENTITY, {1, 0.1, 0.1})
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 0.1}), small)), 0)
+
+	pitched := test_turn({1, 0, 0}, math.PI / 4)
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, pitched, {1, 1, 0.1}), small)
+	testing.expect_value(t, len(got), 1)
+	h := f32(math.SQRT_TWO / 2)
+	expect_contact(t, got[0], 1, 2, {0, -h, h}, 0.1 + 0.1 * math.SQRT_TWO - 0.1 * h)
+}
+
+// Two cubes meet edge to edge: an edge along a's z and an edge along b's y.
+// No face axis of either cube separates them, so only the cross product of
+// the two edges finds the gap or the overlap.
+@(test)
+test_contact_search_box_box_edge_axis_decides :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	turn := test_turn(UP, math.PI / 6)
+	a := test_box(1, {0, 0, 0}, test_turn_then(turn, test_turn({0, 0, 1}, math.PI / 4)), {1, 1, 1})
+	b_rot := test_turn_then(turn, test_turn(UP, math.PI / 4))
+	s, c := math.sincos(f32(math.PI / 6))
+	across := [3]f32{c, 0, -s}
+
+	apart := test_box(2, (2 * math.SQRT_TWO + 0.1) * across, b_rot, {1, 1, 1})
+	testing.expect_value(t, len(contacts_of(&search, a, apart)), 0)
+
+	got := contacts_of(&search, a, test_box(2, (2 * math.SQRT_TWO - 0.1) * across, b_rot, {1, 1, 1}))
+	testing.expect_value(t, len(got), 1)
+	expect_contact(t, got[0], 1, 2, across, 0.1)
+}
+
+// Rolled a quarter about z, the box's long x half stands along y.
+@(test)
+test_contact_search_box_sphere_honours_roll :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	sphere := test_sphere(2, {0, 2.25, 0}, 0.5)
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {2, 0.1, 0.5}), sphere)), 0)
+
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, test_turn({0, 0, 1}, math.PI / 2), {2, 0.1, 0.5}), sphere)
+	testing.expect_value(t, len(got), 1)
+	expect_contact(t, got[0], 1, 2, {0, 1, 0}, 0.25)
 }
 
 @(test)
@@ -192,12 +257,12 @@ test_contact_search_box_sphere_beside_the_box :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_sphere(2, {1.25, 0, 0}, 0.5))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(2, {1.25, 0, 0}, 0.5))
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, {1, 0, 0}, 0.25)
 
 	// Past the corner on the diagonal, the sphere misses the box.
-	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_sphere(2, {1.4, 0, 1.4}, 0.5))), 0)
+	testing.expect_value(t, len(contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(2, {1.4, 0, 1.4}, 0.5))), 0)
 }
 
 @(test)
@@ -206,7 +271,7 @@ test_contact_search_box_sphere_with_its_centre_inside_the_box :: proc(t: ^testin
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_sphere(2, {0, 0, -0.75}, 0.5))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(2, {0, 0, -0.75}, 0.5))
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, {0, 0, -1}, 0.75)
 }
@@ -218,7 +283,7 @@ test_contact_search_box_sphere_honours_yaw :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	// Turned a quarter, the box's long side lies along z.
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, math.PI / 2, {2, 1, 0.5}), test_sphere(2, {0, 0, 2.25}, 0.5))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, quat_yaw(math.PI / 2), {2, 1, 0.5}), test_sphere(2, {0, 0, 2.25}, 0.5))
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 1, 2, {0, 0, 1}, 0.25)
 }
@@ -230,7 +295,7 @@ test_contact_search_normal_points_from_the_lower_id :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(9, {0, 0, 0}, 0, {1, 1, 1}), test_sphere(3, {1.25, 0, 0}, 0.5))
+	got := contacts_of(&search, test_box(9, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(3, {1.25, 0, 0}, 0.5))
 	testing.expect_value(t, len(got), 1)
 	expect_contact(t, got[0], 3, 9, {-1, 0, 0}, 0.25)
 }
@@ -267,7 +332,7 @@ test_contact_search_broadphase_needs_overlap_on_every_axis :: proc(t: ^testing.T
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := contacts_of(&search, test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {0.5, 0, 5}, 0, {1, 1, 1}), test_box(3, {0.5, 5, 0}, 0, {1, 1, 1}))
+	got := contacts_of(&search, test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(2, {0.5, 0, 5}, IDENTITY, {1, 1, 1}), test_box(3, {0.5, 5, 0}, IDENTITY, {1, 1, 1}))
 	testing.expect_value(t, len(got), 0)
 }
 
@@ -322,7 +387,7 @@ test_contact_search_timing_at_1000_colliders :: proc(t: ^testing.T) {
 	colliders := make([]Collider, TIMING_COLLIDERS, context.temp_allocator)
 	for &col, i in colliders {
 		pos := [3]f32{rand.float32_range(-50, 50), 0.5, rand.float32_range(-50, 50)}
-		col = test_box(u64(i), pos, rand.float32_range(-math.PI, math.PI), {0.5, 0.5, 0.5}) if i % 2 == 0 else test_sphere(u64(i), pos, 0.5)
+		col = test_box(u64(i), pos, quat_yaw(rand.float32_range(-math.PI, math.PI)), {0.5, 0.5, 0.5}) if i % 2 == 0 else test_sphere(u64(i), pos, 0.5)
 	}
 
 	RUNS :: 50
@@ -345,7 +410,7 @@ test_contacts_asked_with_no_contacts_of_query_is_empty :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	// A search would log the shared id.
-	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(1, {1, 0, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(1, {1, 0, 0}, IDENTITY, {1, 1, 1})}
 	testing.expect_value(t, len(contacts_asked(&search, colliders, nil, context.temp_allocator)), 0)
 	testing.expect_value(t, len(search.logged_ids), 0)
 }
@@ -358,10 +423,10 @@ test_contacts_asked_keeps_only_the_pairs_of_an_asking_owner :: proc(t: ^testing.
 
 	// 1 touches 2, and 3 touches 4. Only 4 asks.
 	colliders := []Collider {
-		test_box(1, {0, 0, 0}, 0, {1, 1, 1}),
-		test_box(2, {1, 0, 0}, 0, {1, 1, 1}),
-		test_box(3, {10, 0, 0}, 0, {1, 1, 1}),
-		test_box(4, {11, 0, 0}, 0, {1, 1, 1}),
+		test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}),
+		test_box(2, {1, 0, 0}, IDENTITY, {1, 1, 1}),
+		test_box(3, {10, 0, 0}, IDENTITY, {1, 1, 1}),
+		test_box(4, {11, 0, 0}, IDENTITY, {1, 1, 1}),
 	}
 	got := contacts_asked(&search, colliders, []Query{test_contacts_of(4)}, context.temp_allocator)
 
@@ -375,7 +440,7 @@ test_contacts_asked_gives_a_pair_of_two_asking_owners_once :: proc(t: ^testing.T
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(2, {1, 0, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(2, {1, 0, 0}, IDENTITY, {1, 1, 1})}
 	got := contacts_asked(&search, colliders, []Query{test_contacts_of(2), test_contacts_of(1), test_contacts_of(2)}, context.temp_allocator)
 
 	testing.expect_value(t, len(got), 1)
@@ -417,7 +482,7 @@ test_contacts_asked_with_only_a_raycast_does_no_search :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	// A search would log the shared id.
-	colliders := []Collider{test_box(1, {0, 0, 0}, 0, {1, 1, 1}), test_box(1, {1, 0, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(1, {0, 0, 0}, IDENTITY, {1, 1, 1}), test_box(1, {1, 0, 0}, IDENTITY, {1, 1, 1})}
 	queries := []Query{test_ray(1, 0, {0, 5, 0}, {0, -1, 0}, 10)}
 	testing.expect_value(t, len(contacts_asked(&search, colliders, queries, context.temp_allocator)), 0)
 	testing.expect_value(t, len(search.logged_ids), 0)
@@ -429,7 +494,7 @@ test_rays_find_hits_the_top_of_a_box :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	got := rays_of(&search, {test_box(2, {0, 0, 0}, 0, {1, 1, 1})}, test_ray(7, 0, {0.5, 5, 0}, {0, -1, 0}, 10))
+	got := rays_of(&search, {test_box(2, {0, 0, 0}, IDENTITY, {1, 1, 1})}, test_ray(7, 0, {0.5, 5, 0}, {0, -1, 0}, 10))
 
 	testing.expect_value(t, len(got), 1)
 	expect_ray_hit(t, got[0], 7, 0, 2, {0.5, 1, 0}, {0, 1, 0}, 4)
@@ -442,10 +507,23 @@ test_rays_find_hits_a_turned_box :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	// A quarter turn lays the long x half along z.
-	got := rays_of(&search, {test_box(2, {0, 0, 0}, math.PI / 2, {2, 1, 1})}, test_ray(7, 0, {-5, 0, 0}, {1, 0, 0}, 10))
+	got := rays_of(&search, {test_box(2, {0, 0, 0}, quat_yaw(math.PI / 2), {2, 1, 1})}, test_ray(7, 0, {-5, 0, 0}, {1, 0, 0}, 10))
 
 	testing.expect_value(t, len(got), 1)
 	expect_ray_hit(t, got[0], 7, 0, 2, {-1, 0, 0}, {-1, 0, 0}, 4)
+}
+
+@(test)
+test_rays_find_hits_a_pitched_box :: proc(t: ^testing.T) {
+	search: Query_Search
+	query_search_init(&search, context.allocator)
+	defer query_search_destroy(&search)
+
+	// A quarter turn about x lays the long y half along z.
+	got := rays_of(&search, {test_box(2, {0, 0, 0}, test_turn({1, 0, 0}, math.PI / 2), {1, 2, 1})}, test_ray(7, 0, {0, 0, -5}, {0, 0, 1}, 10))
+
+	testing.expect_value(t, len(got), 1)
+	expect_ray_hit(t, got[0], 7, 0, 2, {0, 0, -2}, {0, 0, -1}, 3)
 }
 
 @(test)
@@ -478,7 +556,7 @@ test_rays_find_misses_past_max_distance_beside_behind_or_with_no_dir :: proc(t: 
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	colliders := []Collider{test_sphere(3, {0, 0, 0}, 1), test_box(4, {0, 0, 10}, 0, {1, 1, 1})}
+	colliders := []Collider{test_sphere(3, {0, 0, 0}, 1), test_box(4, {0, 0, 10}, IDENTITY, {1, 1, 1})}
 	testing.expect_value(t, len(rays_of(&search, colliders, test_ray(7, 0, {-5, 0, 0}, {1, 0, 0}, 3.9))), 0)
 	testing.expect_value(t, len(rays_of(&search, colliders, test_ray(7, 0, {-5, 2, 0}, {1, 0, 0}, 10))), 0)
 	testing.expect_value(t, len(rays_of(&search, colliders, test_ray(7, 0, {-5, 0, 0}, {-1, 0, 0}, 10))), 0)
@@ -492,7 +570,7 @@ test_rays_find_from_inside_a_collider_hits_it_at_the_origin :: proc(t: ^testing.
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	box := rays_of(&search, {test_box(2, {0, 0, 0}, 0, {1, 1, 1})}, test_ray(7, 0, {0.5, 0, 0}, {0, -1, 0}, 10))
+	box := rays_of(&search, {test_box(2, {0, 0, 0}, IDENTITY, {1, 1, 1})}, test_ray(7, 0, {0.5, 0, 0}, {0, -1, 0}, 10))
 	testing.expect_value(t, len(box), 1)
 	expect_ray_hit(t, box[0], 7, 0, 2, {0.5, 0, 0}, {0, 1, 0}, 0)
 
@@ -508,7 +586,7 @@ test_rays_find_skips_the_owners_collider :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	// The ray starts inside the owner's box.
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, IDENTITY, {1, 1, 1})}
 	got := rays_of(&search, colliders, test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10))
 
 	testing.expect_value(t, len(got), 1)
@@ -534,7 +612,7 @@ test_rays_find_gives_only_the_nearest_hit :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	colliders := []Collider{test_sphere(5, {6, 0, 0}, 1), test_box(4, {3, 0, 0}, 0, {1, 1, 1}), test_sphere(3, {0, 0, 0}, 1)}
+	colliders := []Collider{test_sphere(5, {6, 0, 0}, 1), test_box(4, {3, 0, 0}, IDENTITY, {1, 1, 1}), test_sphere(3, {0, 0, 0}, 1)}
 	got := rays_of(&search, colliders, test_ray(7, 0, {10, 0, 0}, {-1, 0, 0}, 20))
 
 	testing.expect_value(t, len(got), 1)
@@ -609,9 +687,9 @@ test_overlaps_find_box_touches_boxes_and_spheres :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	colliders := []Collider {
-		test_box(3, {1.5, 0, 0}, 0, {1, 1, 1}),
+		test_box(3, {1.5, 0, 0}, IDENTITY, {1, 1, 1}),
 		test_sphere(4, {0, 1.5, 0}, 1),
-		test_box(5, {2.5, 0, 0}, 0, {0.4, 1, 1}),
+		test_box(5, {2.5, 0, 0}, IDENTITY, {0.4, 1, 1}),
 		test_sphere(6, {0, 0, 2.5}, 1),
 	}
 	got := overlaps_of(&search, colliders, test_overlap_box(9, 0, {0, 0, 0}, {1, 1, 1}))
@@ -640,9 +718,9 @@ test_overlaps_find_sphere_touches_boxes_and_spheres :: proc(t: ^testing.T) {
 
 	colliders := []Collider {
 		test_sphere(3, {2.5, 0, 0}, 1),
-		test_box(4, {0, 0, 2.5}, 0, {1, 1, 1}),
+		test_box(4, {0, 0, 2.5}, IDENTITY, {1, 1, 1}),
 		test_sphere(5, {3.5, 0, 0}, 1),
-		test_box(6, {2, 0, 2}, 0, {0.5, 0.5, 0.5}),
+		test_box(6, {2, 0, 2}, IDENTITY, {0.5, 0.5, 0.5}),
 	}
 	got := overlaps_of(&search, colliders, test_overlap_sphere(9, 0, {0, 0, 0}, 2))
 
@@ -655,7 +733,7 @@ test_overlaps_find_skips_the_owners_collider :: proc(t: ^testing.T) {
 	query_search_init(&search, context.allocator)
 	defer query_search_destroy(&search)
 
-	colliders := []Collider{test_box(9, {0, 0, 0}, 0, {0.5, 0.5, 0.5}), test_sphere(3, {1, 0, 0}, 0.5)}
+	colliders := []Collider{test_box(9, {0, 0, 0}, IDENTITY, {0.5, 0.5, 0.5}), test_sphere(3, {1, 0, 0}, 0.5)}
 	got := overlaps_of(&search, colliders, test_overlap_sphere(9, 0, {0, 0, 0}, 2))
 
 	expect_overlap_hits(t, got, {{owner = 9, slot = 0, id = 3}})
@@ -929,7 +1007,7 @@ test_contacts_find_gives_a_large_pair_once :: proc(t: ^testing.T) {
 		for i in 0 ..< 400 {
 			append(&colliders, test_sphere(u64(10 + i), {f32(i % 20) - 10, 0, f32(i / 20) - 10}, 0.1))
 		}
-		append(&colliders, test_box(1, {0, 5, 0}, 0, {half, 0.5, half}), test_box(2, {half * 0.5, 5, half * 0.5}, 0.3, {half, 0.5, half}))
+		append(&colliders, test_box(1, {0, 5, 0}, IDENTITY, {half, 0.5, half}), test_box(2, {half * 0.5, 5, half * 0.5}, quat_yaw(0.3), {half, 0.5, half}))
 
 		got := contacts_find(&search, colliders[:], context.temp_allocator)
 
@@ -947,7 +1025,7 @@ test_queries_find_a_ground_box_under_every_sphere :: proc(t: ^testing.T) {
 	defer query_search_destroy(&search)
 
 	colliders := make([dynamic]Collider, context.temp_allocator)
-	append(&colliders, test_box(1, {0, 0, 0}, 0, {50, 0.5, 50}))
+	append(&colliders, test_box(1, {0, 0, 0}, IDENTITY, {50, 0.5, 50}))
 	for i in 0 ..< 100 {
 		append(&colliders, test_sphere(u64(2 + i), {f32(i % 10) * 5 - 25, 0.9, f32(i / 10) * 5 - 25}, 0.5))
 	}

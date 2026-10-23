@@ -2,10 +2,12 @@
 # Build each game under --opt=dev and --opt=speed, run it with no input and
 # ROCCO_ALLOC_REPORT=1, and check every fixed step after the first 10: the
 # game's expected allocs and as many deallocs, its expected reallocs and a
-# constant live block count. cards expects 2 allocs: the box shell and the
-# draws list. entity-game expects 5, because it also returns a colliders list,
-# a lights list and a queries list.
-# pong expects 6 allocs and 1 realloc: the box shell, the draws list, the ui
+# constant live block count. Each count records what the game makes today.
+# None is a target: a change that moves a count updates it here.
+# cards expects 2 allocs: the box shell and the nodes list. entity-game
+# expects 3: the box shell, the nodes list and the queries list. With no
+# input the player carries no drops, so it is no Group.
+# pong expects 6 allocs and 1 realloc: the box shell, the nodes list, the ui
 # list, the scoreboard's children and its two cells' children. The realloc
 # is the concat that joins the scoreboard, the banner and the hints.
 # The script rebuilds the host library with the host tracking allocator, and
@@ -29,7 +31,7 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:0 entity-game:5:0 pong:6:1; do
+for entry in cards:2:0 entity-game:3:0 pong:6:1; do
 	game=${entry%%:*}
 	rest=${entry#*:}
 	want=${rest%%:*}

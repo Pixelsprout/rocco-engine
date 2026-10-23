@@ -83,13 +83,47 @@ Placed :: struct {
 	model:     Mat4,
 }
 
-// Maps each draw id of the previous Scene to its index. Rebuilt every Frame
-// with clear, so the map keeps the capacity init reserved.
+// Maps each draw id of the previous Scene to its index in prev_draws, and
+// each Group id to that Group's Pose. Rebuilt every Frame with clear, so the
+// maps keep the capacity init reserved. The Group map takes no more than
+// group_capacity Groups, so it never grows. The draw map holds an index, not
+// the Draw, so its small value keeps the robin hood moves of an insert short.
 Pairing :: struct {
-	index:                map[u64]int,
-	logged:               map[u64]struct {},
-	capacity:             int,
-	over_capacity_logged: bool,
+	draws:                  map[u64]i32,
+	prev_draws:             [dynamic]Prev_Draw,
+	groups:                 map[u64]Prev_Pose,
+	logged:                 map[u64]struct {},
+	capacity:               int,
+	group_capacity:         int,
+	draws_seen:             int,
+	over_capacity_logged:   bool,
+	groups_full_logged:     bool,
+	group_duplicate_logged: bool,
+}
+
+// A Draw of the previous Scene. pairing_draw makes its Pose when it pairs.
+Prev_Draw :: struct {
+	draw:            ^Draw,
+	parent:          Parent_Id,
+	parent_unpaired: bool,
+}
+
+// What the Frame's walk of the current Scene gathers.
+@(private = "file")
+Frame_Walk :: struct {
+	fr:         ^Frame_Render,
+	meshes:     ^Mesh_Table,
+	lights:     Light_Gather,
+	draws_seen: int,
+}
+
+// The Lights so far in walk order. used is the count of filled slots. sun is
+// the Sun's slot, or -1 with no Sun.
+Light_Gather :: struct {
+	out:         Fs_Lights,
+	sun:         int,
+	used:        int,
+	has_ambient: bool,
 }
 
 // The camera the host draws a frame with.
@@ -98,9 +132,9 @@ Camera_Pose :: struct {
 	fov_y:           f32,
 }
 
-frame_render_init :: proc(fr: ^Frame_Render, draws: int, perm: mem.Allocator) {
+frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, perm: mem.Allocator) {
 	fr.draw_capacity = draws
-	pairing_init(&fr.pairing, draws, perm)
+	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
 }
 
@@ -141,27 +175,26 @@ frame_render_draw :: proc(
 	submit := true,
 ) {
 	span := span_open()
-	lights, sun := frame_render_lights(fr, curr.lights.elements[:curr.lights.length])
-	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
-	pairing_build(&fr.pairing, prev.draws.elements[:prev.draws.length])
+	pairing_build(&fr.pairing, prev.nodes.elements[:prev.nodes.length])
 	clear(&fr.placed)
-	draws := curr.draws.elements[:curr.draws.length]
-	if len(draws) > fr.draw_capacity {
-		if !fr.draws_logged {
-			fr.draws_logged = true
-			fmt.eprintfln("a Scene has %v draws; the host draws the first %v", len(draws), fr.draw_capacity)
-		}
-		draws = draws[:fr.draw_capacity]
+	frame_walk := Frame_Walk {
+		fr = fr,
+		meshes = meshes,
+		lights = {sun = -1},
 	}
-	for d in draws {
-		from := d
-		if i, ok := pairing_find(&fr.pairing, d.id); ok {
-			from = prev.draws.elements[i]
-		}
-		x := draw_transform(from, d, alpha)
-		mesh, fallback := mesh_resolve(meshes, d.mesh, d.id)
-		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
+	walk := Tree_Walk {
+		visit   = frame_render_visit,
+		pairing = &fr.pairing,
+		alpha   = alpha,
+		data    = &frame_walk,
 	}
+	tree_walk_scene(&walk, curr.nodes.elements[:curr.nodes.length])
+	if frame_walk.draws_seen > fr.draw_capacity && !fr.draws_logged {
+		fr.draws_logged = true
+		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
+	}
+	lights, sun := frame_walk.lights.out, frame_walk.lights.sun
+	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	span = span_close(spans, .Interpolation, span)
 
 	quads: []Ui_Quad
@@ -197,6 +230,30 @@ frame_render_draw :: proc(
 	}
 	fr.end_pass(fr.submit_ctx)
 	span_close(spans, .Render_Submit, span)
+}
+
+// Places each Draw at its Pose for this Frame and gathers each Light, both
+// in walk order. Past the draw capacity, it counts the Draws and skips them.
+@(private = "file")
+frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
+	fw := (^Frame_Walk)(walk.data)
+	fr := fw.fr
+	switch node.tag {
+	case .Draw:
+		d := &node.payload.draw
+		fw.draws_seen += 1
+		if len(fr.placed) == fr.draw_capacity {
+			return
+		}
+		from, prev, paired := pairing_draw(walk.pairing, d.id, parent.id)
+		world := node_world(&prev if paired else nil, parent, pose_of(d.pos, d.rot), walk.alpha)
+		x := draw_transform(from if paired else d, d, world, walk.alpha)
+		mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
+		append(&fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
+	case .Light:
+		light_gather(fr, &fw.lights, light_under(node.payload.light, parent))
+	case .Group, .Collider:
+	}
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
@@ -248,59 +305,52 @@ shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
 }
 
 // A dropped light does not take a slot. An unused slot keeps a zero colour, so it adds no light.
-// sun is the Sun's slot, or -1 with no Sun.
-frame_render_lights :: proc(fr: ^Frame_Render, lights: []Light) -> (out: Fs_Lights, sun: int) {
-	sun = -1
-	has_ambient := false
-	n := 0
-	for l in lights {
-		pos: [4]f32
-		color: Rgb
-		range: f32
-		switch l.tag {
-		case .Ambient:
-			if has_ambient {
-				light_drop(fr, .Second_Ambient)
-				continue
-			}
-			has_ambient = true
-			c := l.payload.ambient
-			out.ambient = {c.r, c.g, c.b, 1}
-			continue
-		case .Directional:
-			d := l.payload.directional
-			to_light := -v3_normalize_or_zero(vec3_array(d.dir))
-			if to_light == 0 {
-				light_drop(fr, .Zero_Dir)
-				continue
-			}
-			if d.shadow && sun >= 0 {
-				light_drop(fr, .Second_Sun)
-			} else if d.shadow && n < MAX_LIGHTS {
-				sun = n
-			}
-			pos = {to_light.x, to_light.y, to_light.z, 0}
-			color = d.color
-		case .Point:
-			p := l.payload.point
-			// Written this way round so a NaN range drops too.
-			if !(p.range > 0) {
-				light_drop(fr, .Bad_Range)
-				continue
-			}
-			pos = {p.pos.x, p.pos.y, p.pos.z, 1}
-			color = p.color
-			range = p.range
+light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
+	pos: [4]f32
+	color: Rgb
+	range: f32
+	switch l.tag {
+	case .Ambient:
+		if g.has_ambient {
+			light_drop(fr, .Second_Ambient)
+			return
 		}
-		if n == MAX_LIGHTS {
-			light_drop(fr, .Over_Limit)
-			continue
+		g.has_ambient = true
+		c := l.payload.ambient
+		g.out.ambient = {c.r, c.g, c.b, 1}
+		return
+	case .Directional:
+		d := l.payload.directional
+		to_light := -v3_normalize_or_zero(vec3_array(d.dir))
+		if to_light == 0 {
+			light_drop(fr, .Zero_Dir)
+			return
 		}
-		out.light_pos[n] = pos
-		out.light_color[n] = {color.r, color.g, color.b, range}
-		n += 1
+		if d.shadow && g.sun >= 0 {
+			light_drop(fr, .Second_Sun)
+		} else if d.shadow && g.used < MAX_LIGHTS {
+			g.sun = g.used
+		}
+		pos = {to_light.x, to_light.y, to_light.z, 0}
+		color = d.color
+	case .Point:
+		p := l.payload.point
+		// Written this way round so a NaN range drops too.
+		if !(p.range > 0) {
+			light_drop(fr, .Bad_Range)
+			return
+		}
+		pos = {p.pos.x, p.pos.y, p.pos.z, 1}
+		color = p.color
+		range = p.range
 	}
-	return
+	if g.used == MAX_LIGHTS {
+		light_drop(fr, .Over_Limit)
+		return
+	}
+	g.out.light_pos[g.used] = pos
+	g.out.light_color[g.used] = {color.r, color.g, color.b, range}
+	g.used += 1
 }
 
 light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
@@ -326,48 +376,125 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, camera.up)
 }
 
-pairing_init :: proc(p: ^Pairing, capacity: int, allocator: mem.Allocator) {
+pairing_init :: proc(p: ^Pairing, capacity, group_capacity: int, allocator: mem.Allocator) {
 	p.capacity = capacity
-	p.index = make(map[u64]int, allocator)
-	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-	reserve(&p.index, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
+	p.group_capacity = group_capacity
+	p.draws = make(map[u64]i32, allocator)
+	map_reserve_unfilled(&p.draws, capacity)
+	p.prev_draws = make([dynamic]Prev_Draw, 0, capacity, allocator)
+	p.groups = make(map[u64]Prev_Pose, allocator)
+	map_reserve_unfilled(&p.groups, group_capacity)
 	p.logged = make(map[u64]struct {}, allocator)
 }
 
+// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
+// So it takes n entries without growing.
+map_reserve_unfilled :: proc(m: ^$M/map[$K]$V, n: int) {
+	reserve(m, n * 100 / runtime.MAP_LOAD_FACTOR + 1)
+}
+
 pairing_destroy :: proc(p: ^Pairing) {
-	delete(p.index)
+	delete(p.draws)
+	delete(p.prev_draws)
+	delete(p.groups)
 	delete(p.logged)
 }
 
-// On a duplicate id the first draw wins. Each duplicate id is logged once per run.
-pairing_build :: proc(p: ^Pairing, draws: []Draw) {
-	if len(draws) > p.capacity && !p.over_capacity_logged {
-		p.over_capacity_logged = true
-		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", len(draws), p.capacity)
+// On a duplicate draw id the first Draw in walk order wins, and each
+// duplicate id is logged once per run. On a duplicate Group id the first
+// Group wins, and the first duplicate of the run is logged. Past
+// group_capacity, the first Groups pair.
+pairing_build :: proc(p: ^Pairing, nodes: []Node) {
+	clear(&p.draws)
+	clear(&p.prev_draws)
+	clear(&p.groups)
+	p.draws_seen = 0
+	walk := Tree_Walk {
+		visit = pairing_visit,
+		data  = p,
 	}
-	clear(&p.index)
-	for d, i in draws {
-		if d.id in p.index {
+	tree_walk_scene(&walk, nodes)
+	if p.draws_seen > p.capacity && !p.over_capacity_logged {
+		p.over_capacity_logged = true
+		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
+	}
+}
+
+@(private = "file")
+pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
+	p := (^Pairing)(walk.data)
+	switch node.tag {
+	case .Draw:
+		d := &node.payload.draw
+		p.draws_seen += 1
+		_, index, inserted, _ := map_entry(&p.draws, d.id)
+		if !inserted {
 			if d.id not_in p.logged {
 				p.logged[d.id] = {}
 				fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
 			}
-			continue
+			return
 		}
-		p.index[d.id] = i
+		index^ = i32(len(p.prev_draws))
+		append(&p.prev_draws, Prev_Draw{draw = d, parent = parent.id, parent_unpaired = parent.unpaired})
+	case .Group:
+		g := node.payload.group._0
+		if g.id in p.groups {
+			if !p.group_duplicate_logged {
+				p.group_duplicate_logged = true
+				fmt.eprintfln("two groups share id %v; the first one pairs", g.id)
+			}
+			walk.group_unpaired = true
+			return
+		}
+		if len(p.groups) == p.group_capacity {
+			if !p.groups_full_logged {
+				p.groups_full_logged = true
+				fmt.eprintfln("a Scene has more than %v groups; the host pairs the first %v", p.group_capacity, p.group_capacity)
+			}
+			walk.group_unpaired = true
+			return
+		}
+		local := pose_of(g.pos, g.rot)
+		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
+	case .Light, .Collider:
 	}
 }
 
-pairing_find :: proc(p: ^Pairing, id: u64) -> (int, bool) {
-	return p.index[id]
+// The previous Draw with this id and its Pose, for a Draw whose parent is
+// now. Not paired when the previous Scene has no such Draw, or when the
+// parent changed and the previous parent Group did not pair, so its world
+// Pose is unknown.
+pairing_draw :: #force_inline proc(p: ^Pairing, id: u64, now: Parent_Id) -> (draw: ^Draw, prev: Prev_Pose, paired: bool) {
+	index := p.draws[id] or_return
+	entry := &p.prev_draws[index]
+	prev = {parent = entry.parent, local = pose_of(entry.draw.pos, entry.draw.rot)}
+	prev.world = prev.local
+	if entry.parent != now && entry.parent.grouped {
+		if entry.parent_unpaired {
+			return
+		}
+		prev.world = pose_compose(pairing_group(p, entry.parent.id).world, prev.local)
+	}
+	return entry.draw, prev, true
 }
 
-// A draw with no partner passes itself as prev.
-draw_transform :: proc(prev, curr: Draw, alpha: f32) -> Draw_Transform {
+// nil when the previous Scene has no paired Group with this id.
+pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
+	if found, ok := &p.groups[id]; ok {
+		return found
+	}
+	return nil
+}
+
+// world is the Draw's Pose for this Frame. A Draw with no partner passes
+// itself as prev. A Group has no scale, so scale and scale_rot interpolate
+// on their own.
+draw_transform :: proc(prev, curr: ^Draw, world: Pose, alpha: f32) -> Draw_Transform {
 	return {
-		position = v3_lerp(prev.pos, curr.pos, alpha),
+		position = world.pos,
 		scale = v3_lerp(prev.scale, curr.scale, alpha),
-		rotation = quat_slerp(quat_of(prev.rot), quat_of(curr.rot), alpha),
+		rotation = world.rot,
 		// Most draws keep one scale_rot, so most skip the slerp.
 		scale_rotation = quat_of(curr.scale_rot) if prev.scale_rot == curr.scale_rot else quat_slerp(quat_of(prev.scale_rot), quat_of(curr.scale_rot), alpha),
 	}
@@ -412,5 +539,13 @@ vec3_array :: proc(v: Vec3) -> [3]f32 {
 
 quat_of :: proc(q: Quat) -> quaternion128 {
 	return quaternion(w = q.w, x = q.x, y = q.y, z = q.z)
+}
+
+to_vec3 :: proc(v: [3]f32) -> Vec3 {
+	return {v.x, v.y, v.z}
+}
+
+to_quat :: proc(q: quaternion128) -> Quat {
+	return {x = q.x, y = q.y, z = q.z, w = q.w}
 }
 

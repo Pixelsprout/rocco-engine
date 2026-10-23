@@ -26,6 +26,10 @@ those defaults in one place. Each one links to the page that explains it.
   with the Draw that had the same `id` in the previous Scene. If a new thing
   reuses an old id, it slides from the old thing's place. See
   [Pairing by id](scene.md#pairing-by-id).
+- **A child's Pose is local to its Group.** A Draw, Light or Collider inside
+  a Group sits at its `pos` in the Group's space and turns with the Group.
+  Groups pair by their own ids, apart from draw ids. See
+  [Groups](scene.md#groups).
 - **Colours are linear, not sRGB.** Tints and Light colours are linear. The
   host converts to sRGB for the screen. A Light colour carries its
   intensity, so it can go above 1: a directional colour of about 3.14 lights
@@ -34,7 +38,11 @@ those defaults in one place. Each one links to the page that explains it.
 - **Only the sun casts a shadow.** `Light.directional` casts no shadow. Use
   `Light.sun` for the one light that does.
 - **Lights and the UI do not interpolate.** They change once per fixed step,
-  so a light that moves jumps a little each step.
+  so a light that moves jumps a little each step. A Light inside a Group
+  moves smoothly with its Group.
+- **The first Sun wins.** The host takes the Sun and the first 8
+  Directional and Point lights in the order of a depth-first walk of
+  `Scene.nodes`.
 - **The default camera** in `Scene.empty` is at (0, 5, 10), looks at the
   origin, and has a vertical field of view of about 60 degrees.
 

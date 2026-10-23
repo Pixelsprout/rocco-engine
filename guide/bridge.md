@@ -40,9 +40,9 @@ $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
 {"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":10.5,"view_us":4.1}}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
-{"ok":true,"steps":30,"scene":{"camera":{...},"draws":[{"id":1,"mesh":1,...},{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},...}],...},"results":{...}}
+{"ok":true,"steps":30,"scene":{"camera":{...},"nodes":[{"Light":{...}},{"Light":{...}},{"Draw":{"id":1,"mesh":1,...}},{"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},...}}],...},"results":{...}}
 $ python3 scripts/bridge.py screenshot pip.png
 {"ok":true,"path":".../pip.png","physical":[1920,1080],"logical":[960,540]}
 $ python3 scripts/bridge.py quit
@@ -74,11 +74,15 @@ import sys
 sys.path.insert(0, "scripts")
 from bridge import Bridge
 
+def draw(reply, id):
+    nodes = reply["scene"]["nodes"]
+    return next(n["Draw"] for n in nodes if "Draw" in n and n["Draw"]["id"] == id)
+
 with Bridge.connect(7878, wait=30) as b:
     b.hello()
-    before = b.scene()["scene"]["draws"][1]["pos"]["z"]
+    before = draw(b.scene(), 2)["pos"]["z"]
     b.step(30, held=["W"])
-    after = b.scene()["scene"]["draws"][1]["pos"]["z"]
+    after = draw(b.scene(), 2)["pos"]["z"]
     print(f"Pip walked from z {before} to z {after}")
     b.screenshot("pip.png")
     b.quit()
@@ -148,7 +152,7 @@ the last one:
 
 ```
 {"op":"step","n":30,"held":["W"],"tap":["Space"],"mouse":[4,-2]}
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":2.8,"view_us":1.4}}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.2,"view_us":0.9}}
 ```
 
 `n` is the number of steps, 1 when you leave it out. `held` lists the keys
@@ -183,7 +187,7 @@ quits on Escape, so a tap of Escape stops a `step` of 10 after one step:
 
 ```
 {"op":"step","n":10,"tap":["Escape"]}
-{"ok":true,"steps":1,"commands":["Quit"],"alloc":{"step":1,"allocs":12,"deallocs":9,"reallocs":5,"live":6,"step_us":8.8,"view_us":5.2}}
+{"ok":true,"steps":1,"commands":["Quit"],"alloc":{"step":1,"allocs":12,"deallocs":10,"reallocs":6,"live":4,"step_us":65.6,"view_us":93.8}}
 ```
 
 The host runs one step for each frame. In a window you see each step, and
@@ -202,19 +206,37 @@ host sends it on one line, and it is split into lines here:
 {"op":"scene"}
 {"ok":true,"steps":30,
  "scene":{"camera":{"eye":{"x":0,"y":3.6,"z":4.8},"target":{"x":0,"y":0,"z":0.3},"up":{"x":0,"y":1,"z":0},"fov_y":1.047},
-  "draws":[{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1}},
-   {"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}],
-  "colliders":[],
-  "lights":[{"Ambient":{"r":0.3,"g":0.3,"b":0.3}},{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}],
+  "nodes":[{"Light":{"Ambient":{"r":0.3,"g":0.3,"b":0.3}}},
+   {"Light":{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}},
+   {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1}}},
+   {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1}}}],
   "cursor":"Free","sky":0,"ui":[],"queries":[],"loops":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[]}}
 ```
 
 The fields and the tags have the names you use in the game, from the
-Vocabulary: `draws[].scale_rot`, `{"Directional":{...}}`, `"Free"`. Tags
+Vocabulary: `scale_rot`, `{"Light":{"Directional":{...}}}`, `"Free"`. Tags
 follow the same rule as the Commands in `step`. Each number is the
 shortest one that reads back as the same `F32`, so Pip's z is
 `-0.62499994`, not `-0.625`.
+
+The `nodes` field mirrors the tree of Nodes that the game wrote, with each
+Pose local to its Group, as the game wrote it. A Group is an object with
+its `id`, its `pose` and its `children`, and each child is a Node in the
+same form:
+
+```
+{"Group":{"id":0,"pose":{"pos":{"x":1,"y":0,"z":2},"rot":{"x":0,"y":0.38268343,"z":0,"w":0.9238795}},
+  "children":[{"Draw":{"id":0,...}},{"Collider":{"id":0,...}},{"Draw":{"id":40,...}}]}}
+```
+
+The leaves are `{"Draw":{...}}`, `{"Light":{...}}` and
+`{"Collider":{...}}`. The reply does not give world Poses. To find where a
+child is in the world, compose the Poses down the tree yourself, with the
+rule of `Pose.compose` in `packages/linalg`: the world `pos` is the
+parent's `pos` plus the child's `pos` turned by the parent's `rot`, and the
+world `rot` is the parent's `rot` times the child's `rot`. Queries and
+`results` are in world space already.
 
 A Scene with Colliders and Queries gives `results` rows. In chapter 6, Pip
 touches the pickup with id 12 after 27 steps with W held. This reply is
@@ -222,13 +244,13 @@ trimmed to the `queries` and the `results`:
 
 ```
 {"op":"step","n":27,"held":["W"]}
-{"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":5,"live":7,"step_us":38.7,"view_us":15.4}}
+{"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":6,"live":5,"step_us":5.1,"view_us":4.0}}
 {"op":"scene"}
 {"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[]}}
 ```
 
-The game sees this Contact in its next step, and the pickup is then gone
-from `draws`.
+The game sees this Contact in its next step, and the pickup's Draw is then
+gone from `nodes`.
 
 The `ui` field mirrors the UI tree that the game wrote. A `Box` is an
 object with its `config` and its `children`, and each child is a `Box` or a
@@ -412,7 +434,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `mouse` | `[dx, dy]`, the mouse movement in the first step only. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
-| `scene` | The Scene of the last step: `camera`, `draws`, `colliders`, `lights`, `cursor`, `sky`, `ui`, `queries` and `loops`. |
+| `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui`, `queries` and `loops`. `nodes` mirrors the tree with local Poses. |
 | `results` | The QueryResults that the next step gets: `contacts`, `rays` and `overlaps`. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |

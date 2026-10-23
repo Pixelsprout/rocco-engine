@@ -5,6 +5,9 @@ import "core:math"
 import "core:mem"
 import "core:slice"
 
+// Two box edges whose cross product is shorter than this squared are near
+// parallel. Their face axes already test the gap such an axis would.
+EDGE_PARALLEL_SQ :: f32(1e-6)
 // A grid cell is this many times a typical Shape's size on the ground plane.
 GRID_CELL_SCALE :: f32(2)
 // The grid has at most about this many cells per Shape, so a sparse scene
@@ -31,14 +34,14 @@ Owner_Slot :: struct {
 }
 
 // A Collider in world space. A box keeps its half extents in extent and its
-// turned ground-plane axes in axes. A sphere keeps its radius in extent.x.
+// turned x, y and z axes in axes. A sphere keeps its radius in extent.x.
 @(private = "file")
 Shape :: struct {
 	id:       u64,
 	tag:      Collider_Shape_Tag,
 	centre:   [3]f32,
 	extent:   [3]f32,
-	axes:     [2][3]f32,
+	axes:     [3][3]f32,
 	min, max: [3]f32,
 }
 
@@ -671,9 +674,8 @@ ray_shape :: proc(origin, dir: [3]f32, shape: Shape) -> (distance: f32, normal: 
 // A slab test in the box's frame.
 @(private = "file")
 ray_box :: proc(origin, dir: [3]f32, box: Shape) -> (distance: f32, normal: [3]f32, ok: bool) {
-	d := origin - box.centre
-	local_origin := [3]f32{v3_dot(d, box.axes[0]), d.y, v3_dot(d, box.axes[1])}
-	local_dir := [3]f32{v3_dot(dir, box.axes[0]), dir.y, v3_dot(dir, box.axes[1])}
+	local_origin := box_local(box, origin - box.centre)
+	local_dir := box_local(box, dir)
 
 	enter, exit := min(f32), max(f32)
 	local_normal: [3]f32
@@ -699,7 +701,7 @@ ray_box :: proc(origin, dir: [3]f32, box: Shape) -> (distance: f32, normal: [3]f
 	if enter <= 0 {
 		return 0, -dir, true
 	}
-	return enter, local_normal.x * box.axes[0] + local_normal.y * UP + local_normal.z * box.axes[1], true
+	return enter, box_world(box, local_normal), true
 }
 
 @(private = "file")
@@ -783,10 +785,8 @@ shape_make :: proc(col: Collider) -> (b: Shape, ok: bool) {
 	case .Box:
 		half := col.shape.payload.box
 		b.extent = {half.x, half.y, half.z}
-		// Turned the way the host turns a Draw: +z goes to (sin, 0, cos).
-		s, c := math.sincos(col.yaw)
-		b.axes = {{c, 0, -s}, {s, 0, c}}
-		reach = {abs(c) * b.extent.x + abs(s) * b.extent.z, b.extent.y, abs(s) * b.extent.x + abs(c) * b.extent.z}
+		b.axes = quat_axes(col.rot)
+		reach = v3_abs(b.axes[0]) * b.extent.x + v3_abs(b.axes[1]) * b.extent.y + v3_abs(b.axes[2]) * b.extent.z
 	case .Sphere:
 		b.extent.x = col.shape.payload.sphere
 		reach = b.extent.x
@@ -803,7 +803,7 @@ shape_make :: proc(col: Collider) -> (b: Shape, ok: bool) {
 overlap_shape_make :: proc(overlap: Query_Overlap) -> Shape {
 	shape := Shape {
 		centre = {overlap.pos.x, overlap.pos.y, overlap.pos.z},
-		axes   = {{1, 0, 0}, {0, 0, 1}},
+		axes   = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
 	}
 	switch overlap.shape.tag {
 	case .Box:
@@ -847,29 +847,72 @@ narrowphase :: proc(a, b: Shape) -> (normal: [3]f32, depth: f32, ok: bool) {
 	return {}, 0, false
 }
 
-// A separating axis test on y and the ground-plane axes of each box. A box
-// only turns about y, so no edge cross product can separate them.
+// A separating axis test on the 3 face axes of each box and the 9 cross
+// products of an edge of a with an edge of b. Each box's y axis goes first,
+// so a tie between two upright boxes pushes along y.
 @(private = "file")
 box_box :: proc(a, b: Shape) -> (normal: [3]f32, depth: f32, ok: bool) {
 	d := b.centre - a.centre
 	depth = max(f32)
-	for axis in ([5][3]f32{UP, a.axes[0], a.axes[1], b.axes[0], b.axes[1]}) {
-		along := v3_dot(d, axis)
-		overlap := box_reach(a, axis) + box_reach(b, axis) - abs(along)
-		if overlap <= 0 {
-			return {}, 0, false
-		}
-		if overlap < depth {
-			depth = overlap
-			normal = axis if along >= 0 else -axis
+	for axis in ([6][3]f32{a.axes[1], a.axes[0], a.axes[2], b.axes[1], b.axes[0], b.axes[2]}) {
+		box_axis_overlaps(a, b, d, axis, &normal, &depth) or_return
+	}
+	for edge_a in a.axes {
+		for edge_b in b.axes {
+			axis := v3_cross(edge_a, edge_b)
+			length_sq := v3_dot(axis, axis)
+			if length_sq < EDGE_PARALLEL_SQ {
+				continue
+			}
+			box_axis_overlaps(a, b, d, axis / math.sqrt(length_sq), &normal, &depth) or_return
 		}
 	}
 	return normal, depth, true
 }
 
+// false if the unit axis separates the boxes. Else it keeps the axis in
+// normal and depth when the boxes overlap least along it.
+@(private = "file")
+box_axis_overlaps :: proc(a, b: Shape, d, axis: [3]f32, normal: ^[3]f32, depth: ^f32) -> bool {
+	along := v3_dot(d, axis)
+	overlap := box_reach(a, axis) + box_reach(b, axis) - abs(along)
+	if overlap <= 0 {
+		return false
+	}
+	if overlap < depth^ {
+		depth^ = overlap
+		normal^ = axis if along >= 0 else -axis
+	}
+	return true
+}
+
 @(private = "file")
 box_reach :: proc(box: Shape, axis: [3]f32) -> f32 {
-	return box.extent.x * abs(v3_dot(box.axes[0], axis)) + box.extent.y * abs(axis.y) + box.extent.z * abs(v3_dot(box.axes[1], axis))
+	return box.extent.x * abs(v3_dot(box.axes[0], axis)) + box.extent.y * abs(v3_dot(box.axes[1], axis)) + box.extent.z * abs(v3_dot(box.axes[2], axis))
+}
+
+// A world direction in the box's frame.
+@(private = "file")
+box_local :: proc(box: Shape, v: [3]f32) -> [3]f32 {
+	return {v3_dot(v, box.axes[0]), v3_dot(v, box.axes[1]), v3_dot(v, box.axes[2])}
+}
+
+// A direction in the box's frame in world space.
+@(private = "file")
+box_world :: proc(box: Shape, v: [3]f32) -> [3]f32 {
+	return v.x * box.axes[0] + v.y * box.axes[1] + v.z * box.axes[2]
+}
+
+// The turned x, y and z axes, the columns of the rotation matrix. rot is a
+// unit quaternion.
+@(private = "file")
+quat_axes :: proc(rot: Quat) -> [3][3]f32 {
+	x, y, z, w := rot.x, rot.y, rot.z, rot.w
+	return {
+		{1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y)},
+		{2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)},
+		{2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)},
+	}
 }
 
 // Two spheres at the same centre push apart along +y.
@@ -888,8 +931,7 @@ sphere_sphere :: proc(a, b: Shape) -> (normal: [3]f32, depth: f32, ok: bool) {
 // inside the box leaves through the face nearest its centre.
 @(private = "file")
 box_sphere :: proc(box, sphere: Shape) -> (normal: [3]f32, depth: f32, ok: bool) {
-	d := sphere.centre - box.centre
-	local := [3]f32{v3_dot(d, box.axes[0]), d.y, v3_dot(d, box.axes[1])}
+	local := box_local(box, sphere.centre - box.centre)
 	off := local - [3]f32{clamp(local.x, -box.extent.x, box.extent.x), clamp(local.y, -box.extent.y, box.extent.y), clamp(local.z, -box.extent.z, box.extent.z)}
 	dist := v3_length(off)
 	radius := sphere.extent.x
@@ -912,7 +954,7 @@ box_sphere :: proc(box, sphere: Shape) -> (normal: [3]f32, depth: f32, ok: bool)
 			}
 		}
 	}
-	return local_normal.x * box.axes[0] + local_normal.y * UP + local_normal.z * box.axes[1], depth, true
+	return box_world(box, local_normal), depth, true
 }
 
 // slice.sort_by calls less through a pointer and swaps bytes. This one is
@@ -947,6 +989,6 @@ heap_sort :: proc(data: []$T, $less: proc(a, b: T) -> bool) {
 }
 
 @(private = "file")
-to_vec3 :: proc(v: [3]f32) -> Vec3 {
-	return {v.x, v.y, v.z}
+v3_abs :: proc(v: [3]f32) -> [3]f32 {
+	return {abs(v.x), abs(v.y), abs(v.z)}
 }

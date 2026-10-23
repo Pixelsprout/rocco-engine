@@ -162,14 +162,19 @@ move_light = |m| if m.labels.is_empty() m else { ..m, lit: (m.lit + 1) % m.label
 view : Model -> Scene
 view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: m.half * 2.0, z: m.half * 1.5 }, { x: 0.0, y: 0.0, z: 0.0 }),
-	draws: m.entities.map(|e| to_draw(m, e)),
-	colliders: m.entities.map(to_collider),
-	lights: lights(m.half),
+	nodes: nodes_of(m),
 	cursor: Free,
 	sky: 0,
 	ui: elements(m),
 	queries: queries(m.half),
 	loops: [],
+}
+
+# The 4 Lights, then each entity's Draw and Collider, in one list.
+nodes_of : Model -> List(Vocabulary.Node)
+nodes_of = |m| {
+	first = List.with_capacity(4 + 2 * m.entities.len()) |> with_lights(m.half)
+	m.entities.fold(first, |nodes, e| nodes.append(Draw(to_draw(m, e))).append(Collider(to_collider(e))))
 }
 
 # Even ids are spheres and odd ids are turned boxes, so both narrowphases run.
@@ -187,18 +192,17 @@ to_collider = |e| {
 	if is_sphere(e) {
 		Collider.sphere(e.id, e.pos, radius)
 	} else {
-		Collider.box(e.id, e.pos, e.yaw, { x: radius, y: radius, z: radius })
+		Collider.box(e.id, e.pos, Quat.from_yaw(e.yaw), { x: radius, y: radius, z: radius })
 	}
 }
 
 # One Ambient, one Sun with shadows and two Points over opposite corners.
-lights : F32 -> List(Vocabulary.Light)
-lights = |half| [
-	Light.ambient({ r: 0.05, g: 0.05, b: 0.05 }),
-	Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
-	Light.point({ x: -half / 2.0, y: 4.0, z: -half / 2.0 }, { r: 3.0, g: 2.0, b: 1.0 }, half),
-	Light.point({ x: half / 2.0, y: 4.0, z: half / 2.0 }, { r: 1.0, g: 2.0, b: 3.0 }, half),
-]
+with_lights : List(Vocabulary.Node), F32 -> List(Vocabulary.Node)
+with_lights = |nodes, half| nodes
+	.append(Light(Light.ambient({ r: 0.05, g: 0.05, b: 0.05 })))
+	.append(Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })))
+	.append(Light(Light.point({ x: -half / 2.0, y: 4.0, z: -half / 2.0 }, { r: 3.0, g: 2.0, b: 1.0 }, half)))
+	.append(Light(Light.point({ x: half / 2.0, y: 4.0, z: half / 2.0 }, { r: 1.0, g: 2.0, b: 3.0 }, half)))
 
 # Each raycast crosses the arena along x in its own lane. The overlaps sit on
 # the diagonal through the lanes.
@@ -231,6 +235,30 @@ cell = |text, lit| {
 
 scene_of : U64 -> Scene
 scene_of = |n| view(init(Bench.with_n(n)).model)
+
+draws_of : Scene -> List(Draw)
+draws_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Draw(d) => Ok(d)
+		_ => Err(NotADraw)
+	},
+)
+
+colliders_of : Scene -> List(Vocabulary.Collider)
+colliders_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Collider(c) => Ok(c)
+		_ => Err(NotACollider)
+	},
+)
+
+lights_of : Scene -> List(Vocabulary.Light)
+lights_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Light(l) => Ok(l)
+		_ => Err(NotALight)
+	},
+)
 
 boxes : List(Element) -> U64
 boxes = |ui| ui.fold(
@@ -285,12 +313,12 @@ expect {
 # One N scales the Draws, the Colliders and the UI at the stated ratio.
 expect {
 	scene = scene_of(64)
-	scene.draws.len() == 64 and scene.colliders.len() == 64 and ui_element_count(scene.ui) == 6
+	draws_of(scene).len() == 64 and colliders_of(scene).len() == 64 and ui_element_count(scene.ui) == 6
 }
 
 expect {
 	scene = scene_of(16384)
-	scene.draws.len() == 16384 and scene.colliders.len() == 16384 and ui_element_count(scene.ui) == 1638 and texts(scene.ui) == 819
+	draws_of(scene).len() == 16384 and colliders_of(scene).len() == 16384 and ui_element_count(scene.ui) == 1638 and texts(scene.ui) == 819
 }
 
 expect ui_element_count(scene_of(30).ui) == 3 and texts(scene_of(30).ui) == 1
@@ -299,13 +327,13 @@ expect scene_of(9).ui == []
 # Each entity's Draw and Collider share its id and position.
 expect {
 	scene = scene_of(32)
-	scene.draws.map(|d| (d.id, d.pos)) == scene.colliders.map(|c| (c.id, c.pos))
+	draws_of(scene).map(|d| (d.id, d.pos)) == colliders_of(scene).map(|c| (c.id, c.pos))
 }
 
 expect {
 	scene = scene_of(4)
-	scene.colliders.map(|c| c.shape) == [Box({ x: radius, y: radius, z: radius }), Sphere(radius), Box({ x: radius, y: radius, z: radius }), Sphere(radius)]
-		and scene.draws.map(|d| d.mesh) == [Mesh.primitive(Cube), Mesh.primitive(Sphere), Mesh.primitive(Cube), Mesh.primitive(Sphere)]
+	colliders_of(scene).map(|c| c.shape) == [Box({ x: radius, y: radius, z: radius }), Sphere(radius), Box({ x: radius, y: radius, z: radius }), Sphere(radius)]
+		and draws_of(scene).map(|d| d.mesh) == [Mesh.primitive(Cube), Mesh.primitive(Sphere), Mesh.primitive(Cube), Mesh.primitive(Sphere)]
 }
 
 # The Queries and the Light count stay the same at every N.
@@ -315,8 +343,9 @@ expect {
 }
 
 expect scene_of(64).queries.last() == Ok(ContactsOf(watched))
-expect scene_of(64).lights.len() == 4 and scene_of(4096).lights.len() == 4
-expect scene_of(64).lights.count_if(
+expect lights_of(scene_of(64)).len() == 4 and lights_of(scene_of(4096)).len() == 4
+expect scene_of(64).nodes.take_first(4) == with_lights([], 8.0)
+expect lights_of(scene_of(64)).count_if(
 	|l| match l {
 		Directional(d) => d.shadow
 		_ => Bool.False

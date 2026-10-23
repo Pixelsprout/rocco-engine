@@ -1,7 +1,7 @@
 import Vocabulary exposing [Rgb, Vec3]
 
-## Builds the Lights that your game returns in `Scene.lights`. A colour carries
-## its intensity and can exceed 1.
+## Builds the Lights that your game puts in `Scene.nodes` with the `Light` tag.
+## A colour carries its intensity and can exceed 1.
 Light := [].{
 
 	## Light from all directions.
@@ -12,8 +12,8 @@ Light := [].{
 	directional : Vec3, Rgb -> Vocabulary.Light
 	directional = |dir, color| Directional({ dir, color, shadow: False })
 
-	## A Directional light that casts a shadow. Only the first one in the list
-	## casts a shadow.
+	## A Directional light that casts a shadow. Only the first one in a
+	## depth-first walk of `Scene.nodes` casts a shadow.
 	sun : Vec3, Rgb -> Vocabulary.Light
 	sun = |dir, color| Directional({ dir, color, shadow: True })
 

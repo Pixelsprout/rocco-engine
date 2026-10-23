@@ -150,7 +150,7 @@ view = |model| {
 	ground = { ..Draw.default, id: 1, mesh: model.ground, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: 2, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw) }
 	camera = Cam.look_at({ x: 0.0, y: 3.6, z: 4.8 }, { x: 0.0, y: 0.0, z: 0.3 })
-	{ ..Scene.empty, camera, draws: [ground, pip], lights }
+	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip)] }
 }
 ```
 <!-- endregion -->

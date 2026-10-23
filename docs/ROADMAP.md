@@ -13,15 +13,15 @@ Built and running:
 - Two arenas by lifetime: permanent and frame. Each loaded mesh lives on
   the heap from the first Pack that names it to the unload of the last one.
 - Rendering through sokol: one mesh pipeline, a mesh table, index buffers,
-  back-face culling, reversed-Z depth, PBR shading from `Scene.lights`, a
+  back-face culling, reversed-Z depth, PBR shading from the Light Nodes, a
   shadow map from one sun, a cubemap sky and an ACES tone map. The backend
   is Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
   source in `engine/shaders/basic.glsl` compiles to all three with
   `sokol-shdc`.
 - The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
   game. The host holds the `Model` as one boxed pointer. The Seam keeps the
-  two `Scene`s. The Frame render pairs draws by id and interpolates them at
-  the Alpha.
+  two `Scene`s. The Frame render pairs Draws and Groups by id. It
+  interpolates each local Pose at the Alpha, then composes it.
 - The mesh table holds the magenta fallback mesh at id 0 and the cube,
   sphere and plane primitives, named `primitive/<name>`. A game loads the
   `.glb` files, textures and skies in `assets/` as Packs with `Load` and
@@ -31,6 +31,9 @@ Built and running:
 - The game defines five calls: `launch`, `init`, `step`, `loaded` and
   `view`. `launch` sets the window, the step rate, the shadow map size and
   the table capacities before the window opens.
+- `Scene.nodes` carries the 3D Scene as a tree of Groups, Draws, Lights
+  and Colliders. A Group carries a Pose, and the Poses of its children are
+  local to it.
 - `Scene.ui` carries the UI as a tree of `Box` and `Text` Elements. The
   tree crosses the seam as it is. The host walks it with one recursive
   procedure, and Clay lays it out in the host.
@@ -38,8 +41,9 @@ Built and running:
   come back in the next step's `QueryResults`.
 - Games import the seam types from `pf.Vocabulary` and name keys with
   `pf.Key`, which `scripts/build.roc` generates from sokol.
-- The game gives colliders in `Scene.colliders`. The host finds the
-  contacts and passes them to the next `step` as `List(Contact)`.
+- The game gives Colliders as Nodes in `Scene.nodes`. A Collider turns by
+  a Quat. The host finds the contacts and passes them to the next `step`
+  in `QueryResults.contacts`.
   The game decides what each contact means.
 - The entity game is playable start to finish: jump, collect the pickups,
   pass the door, win on the goal pad and start a new round. Two strangers
@@ -876,7 +880,7 @@ sound and a pad the engine feels incomplete, and Look is polish. The Bridge
 stays first, because it lets a script inject Input for the gamepad tests.
 On 2026-10-22 the UI tree (Milestone 21) moved ahead of Gamepad, so every
 later guide page and game writes its UI as a tree. Milestone 22, the 3D
-tree, is a placeholder until its grilling.
+tree, follows it. ADR 0014 records its decisions.
 `docs/RESEARCH-SCALING.md` holds the research behind each milestone.
 
 Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
@@ -1024,7 +1028,22 @@ The alloc check records pong's allocations per step, against 13 allocs and
 Headless run. The Results line records `bench ui` before and after, with
 no target.
 
-## Milestone 22: the 3D tree
+## Milestone 22: the 3D tree (done)
+
+Results, 2026-10-23: `Scene.nodes : List(Node)` replaces `draws`,
+`lights` and `colliders`. Every game, bench game, tutorial chapter and
+guide page writes `Scene.nodes`. entity-game parents its drops with a
+Group. It has no hand-written composition and no `World.yaw`. On a quiet
+step, entity-game makes 3 allocs and 0 reallocs, against 5 allocs before.
+With drops, the player's Group adds 1 alloc. The alloc check records the
+3. A tracked host shows no leak over 20000 Headless steps.
+`bench/colliders` (Headless, Apple M5, N = 4096) gives a `queries` median
+of 93.8 us with the general box test, against 97.6 us with the yaw-only
+test. The tree walk adds about 8% to the `interpolation` median and about
+9% to the `queries` median. `bench/draws` (N = 1024) gives an
+`interpolation` median of 51.5 to 52.8 us, against 47.6 to 49.2 us
+before. `bench/colliders` (N = 4096) gives a `queries` median of 105.3 us,
+against 95.5 us before. No figure has a target. ADR 0014 is accepted.
 
 Done when `Scene.nodes : List(Node)` replaces `draws`, `lights` and
 `colliders`, and entity-game parents its drops with a Group.

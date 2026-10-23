@@ -2,6 +2,7 @@
 package engine
 
 import "core:fmt"
+import "core:math"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -75,9 +76,11 @@ Fake_Game :: struct {
 	// strings fresh.
 	ui:              []Element,
 	// view returns these. With no draws, it returns one Draw whose id is the
-	// view count.
+	// view count. The root Nodes follow the Draws, the Colliders and the
+	// Lights. Each view copies their children lists into Roc lists.
 	camera:          Scene_Camera,
 	draws:           []Draw,
+	nodes:           []Node,
 	lights:          []Light,
 	loops:           []Loop,
 	cursor:          Cursor,
@@ -238,11 +241,22 @@ fake_view :: proc(model: rawptr) -> Scene {
 		append(&ui, fake_element_refcounted(e))
 	}
 	draws := g_fake.draws if g_fake.draws != nil else []Draw{{id = u64(g_fake.views)}}
+	nodes := make([dynamic]Node, context.temp_allocator)
+	for d in draws {
+		append(&nodes, node_draw(d))
+	}
+	for c in g_fake.colliders {
+		append(&nodes, node_collider(c))
+	}
+	for l in g_fake.lights {
+		append(&nodes, node_light(l))
+	}
+	for n in g_fake.nodes {
+		append(&nodes, fake_node_refcounted(n))
+	}
 	return {
 		camera = g_fake.camera,
-		draws = roc_list_from_slice(draws),
-		colliders = roc_list_from_slice(g_fake.colliders),
-		lights = roc_list_from_slice(g_fake.lights),
+		nodes = roc_list_from_slice(nodes[:]),
 		cursor = g_fake.cursor,
 		sky = g_fake.sky,
 		queries = roc_list_from_slice(g_fake.queries),
@@ -264,6 +278,21 @@ fake_element_refcounted :: proc(e: Element) -> Element {
 	}
 	box._1 = roc_list_from_slice(children)
 	return {tag = .Box, payload = {box = box}}
+}
+
+// The host frees each Scene, so every Group's children list it gets must be a Roc allocation.
+fake_node_refcounted :: proc(n: Node) -> Node {
+	if n.tag != .Group {
+		return n
+	}
+	group := n.payload.group
+	old_children := group._1
+	children := make([]Node, old_children.length, context.temp_allocator)
+	for child, i in old_children.elements[:old_children.length] {
+		children[i] = fake_node_refcounted(child)
+	}
+	group._1 = roc_list_from_slice(children)
+	return {tag = .Group, payload = {group = group}}
 }
 
 fake_drop_model :: proc(model: rawptr) {
@@ -357,7 +386,7 @@ test_seam_init_pairs_the_first_scene_with_itself :: proc(t: ^testing.T) {
 	defer fake_seam_shutdown(&s)
 
 	prev, curr := seam_scenes(&s)
-	testing.expect_value(t, prev.draws.elements, curr.draws.elements)
+	testing.expect_value(t, prev.nodes.elements, curr.nodes.elements)
 	testing.expect_value(t, g_fake.inits, 1)
 	testing.expect_value(t, g_fake.seed, 42)
 	testing.expect_value(t, g_fake.views, 1)
@@ -377,9 +406,9 @@ test_seam_step_rotates_the_scenes_and_hands_the_new_box_to_view :: proc(t: ^test
 	seam_step(&s, {}, 1.0 / 60)
 
 	prev, curr := seam_scenes(&s)
-	testing.expect_value(t, prev.draws.elements, first.draws.elements)
-	testing.expect(t, curr.draws.elements != first.draws.elements)
-	testing.expect_value(t, curr.draws.elements[0].id, 2)
+	testing.expect_value(t, prev.nodes.elements, first.nodes.elements)
+	testing.expect(t, curr.nodes.elements != first.nodes.elements)
+	testing.expect_value(t, curr.nodes.elements[0].payload.draw.id, 2)
 	testing.expect_value(t, g_fake.step_in, g_fake.init_box)
 	testing.expect_value(t, g_fake.step_in_rc, 1)
 	testing.expect_value(t, g_fake.view_box, g_fake.step_out)
@@ -453,7 +482,7 @@ test_seam_step_frees_the_text_strings_of_the_last_scene :: proc(t: ^testing.T) {
 	testing.expect_value(t, children.elements[0].tag, Element_Tag.Text)
 	testing.expect_value(t, roc_str_string(&children.elements[0].payload.text.str), "a string longer than twenty-three bytes")
 
-	// Each step frees the box, the draws list, the ui list, two children lists and one long string.
+	// Each step frees the box, the nodes list, the ui list, two children lists and one long string.
 	before := roc_heap_counters()
 	seam_step(&s, {}, 1.0 / 60)
 	after := roc_heap_counters()
@@ -540,7 +569,7 @@ test_seam_step_hands_step_the_ray_hits_of_the_last_scene :: proc(t: ^testing.T) 
 	defer roc_heap_test_end()
 
 	s: Seam
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, 0, {1, 1, 1})}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, IDENTITY, {1, 1, 1})}
 	fake_seam_init(&s, colliders = colliders, queries = []Query{test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10)})
 	defer fake_seam_shutdown(&s)
 
@@ -559,7 +588,7 @@ test_seam_step_hands_step_the_overlaps_of_the_last_scene :: proc(t: ^testing.T) 
 	defer roc_heap_test_end()
 
 	s: Seam
-	colliders := []Collider{test_box(7, {0, 0.5, 0}, 0, {0.3, 0.5, 0.3}), test_sphere(2, {1, 0.5, 0}, 0.4)}
+	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_sphere(2, {1, 0.5, 0}, 0.4)}
 	fake_seam_init(&s, colliders = colliders, queries = []Query{test_overlap_sphere(7, 0, {0, 0.5, 0}, 1)})
 	defer fake_seam_shutdown(&s)
 
@@ -569,6 +598,33 @@ test_seam_step_hands_step_the_overlaps_of_the_last_scene :: proc(t: ^testing.T) 
 	seam_step(&s, {}, 1.0 / 60)
 	testing.expect_value(t, g_fake.overlaps_len, 1)
 	testing.expect_value(t, g_fake.overlaps[0], Overlap_Hit{owner = 7, slot = 0, id = 2})
+}
+
+// The Group turns the box at local (0, 0, 2) to (2, 0, 0), where it touches
+// the box at the root.
+@(test)
+test_seam_step_answers_the_queries_against_the_world_poses_of_grouped_colliders :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	inner := []Node{node_collider(test_box(7, {0, 0, 2}, IDENTITY, {0.5, 0.5, 0.5}))}
+	s: Seam
+	fake_seam_init(&s, colliders = []Collider{test_box(3, {2.5, 0, 0}, IDENTITY, {0.5, 0.5, 0.5})}, queries = []Query{test_contacts_of(7)})
+	g_fake.nodes = {node_group(1, {}, quat_yaw(math.PI / 2), inner)}
+
+	seam_step(&s, {}, 1.0 / 60)
+	seam_step(&s, {}, 1.0 / 60)
+	testing.expect_value(t, g_fake.contacts_len, 1)
+	testing.expect_value(t, [2]u64{g_fake.contacts[0].a, g_fake.contacts[0].b}, [2]u64{3, 7})
+
+	// The Group's children list is one more allocation, and the host frees it.
+	before := roc_heap_counters()
+	seam_step(&s, {}, 1.0 / 60)
+	after := roc_heap_counters()
+	testing.expect_value(t, after.allocs - before.allocs, after.deallocs - before.deallocs)
+	testing.expect_value(t, after.live, before.live)
+	fake_seam_shutdown(&s)
+	testing.expect_value(t, roc_heap_counters().live, 0)
 }
 
 @(test)

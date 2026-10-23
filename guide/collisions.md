@@ -87,11 +87,11 @@ The rest of this page explains each part.
 ## Colliders
 
 A [Collider] is a shape with the id of a [Draw]. Put your Colliders in
-`Scene.colliders`, and make each one with the
+`Scene.nodes` with the `Collider` tag, and make each one with the
 [Collider module][Collider module]:
 
-- [`Collider.box`][Collider.box] makes a box. Its `yaw` turns it about +y
-  only.
+- [`Collider.box`][Collider.box] makes a box. Its `rot` turns it in any
+  direction. `Quat.from_yaw` gives a turn about +y.
 - [`Collider.sphere`][Collider.sphere] makes a sphere.
 - [`Collider.capsule`][Collider.capsule] makes a capsule. The host does not
   test capsules yet: it skips each one and logs one line.
@@ -118,21 +118,28 @@ goal_half = { x: 1.0, y: 0.05, z: 0.75 }
 pickup_radius : F32
 pickup_radius = 0.4
 
-# Floor and drops touch nothing.
-with_collider : List(Vocabulary.Collider), Entity, World -> List(Vocabulary.Collider)
-with_collider = |colliders, e, world| match e.kind {
-	Player(_) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + player_half.y }, world.yaw, player_half))
-	Pickup => colliders.append(Collider.sphere(e.id, world.pos, pickup_radius))
-	Block => colliders.append(Collider.box(e.id, world.pos, world.yaw, block_half))
-	Goal => colliders.append(Collider.box(e.id, world.pos, world.yaw, goal_half))
-	Door(d) => colliders.append(Collider.box(e.id, { ..world.pos, y: world.pos.y + d.lift }, world.yaw, door_half))
-	Drop(_) => colliders
+# Floor and drops touch nothing. The pose is local to the entity's parent, as
+# its Draw's is, and the host composes the world Pose before the Queries.
+with_collider : List(Vocabulary.Node), Entity, Pose.Pose -> List(Vocabulary.Node)
+with_collider = |nodes, e, pose| match e.kind {
+	Player(_) => nodes.append(Collider(Collider.box(e.id, { ..pose.pos, y: pose.pos.y + player_half.y }, pose.rot, player_half)))
+	Pickup => nodes.append(Collider(Collider.sphere(e.id, pose.pos, pickup_radius)))
+	Block => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, block_half)))
+	Goal => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, goal_half)))
+	Door(_) => nodes.append(Collider(Collider.box(e.id, pose.pos, pose.rot, door_half)))
+	Drop(_) => nodes
 }
 ```
 <!-- endregion -->
 
 If two Colliders have the same id, the host uses the first one, skips the
 second and logs the id once.
+
+A Collider's `pos` and `rot` are local to its Group, as a Draw's are. Before
+it answers the Queries, the host composes each Collider's world Pose from
+the current Scene, so a Collider turns with its Group in pitch and roll as
+well as yaw. It does not interpolate Colliders. A Collider at the root of
+the tree is already in the world. See [Groups](scene.md#groups).
 
 ## Queries
 
@@ -144,6 +151,11 @@ A [Query] asks the host about the Colliders. Put your Queries in
 | `ContactsOf` | each Collider that overlaps the owner's Collider | [`Query.contacts_of`][Query.contacts_of] |
 | `Raycast` | the nearest Collider along a ray | [`Query.ray`][Query.ray] or [`Query.ray_slot`][Query.ray_slot] |
 | `Overlap` | each Collider that a box or a sphere touches | [`Query.overlap`][Query.overlap] or [`Query.overlap_slot`][Query.overlap_slot] |
+
+Queries stay in world space, even for an owner inside a Group. Give a
+Query a world position. `Pose.compose` in `packages/linalg` gives the
+world Pose of a child. Contacts, RayHits and OverlapHits are in world
+space too.
 
 The owner is the draw id that a Query belongs to. A slot tells apart two
 Raycasts, or two Overlaps, of one owner. A Raycast and an Overlap can use

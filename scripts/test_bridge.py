@@ -71,7 +71,7 @@ class LibraryTest(unittest.TestCase):
             [
                 '{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}',
                 '{"ok":true,"steps":30,"commands":[],"alloc":{}}',
-                '{"ok":true,"steps":30,"scene":{"draws":[]},"results":{}}',
+                '{"ok":true,"steps":30,"scene":{"nodes":[]},"results":{}}',
                 '{"ok":true,"path":"x","physical":[1920,1080],"logical":[960,540]}',
                 '{"ok":true}',
             ]
@@ -79,7 +79,7 @@ class LibraryTest(unittest.TestCase):
         with bridge.Bridge.connect(host.port) as b:
             self.assertEqual(b.hello()["step_hz"], 120)
             self.assertEqual(b.step(30, held=["W"], tap=["Space"], mouse=[4, -2])["steps"], 30)
-            self.assertEqual(b.scene()["scene"], {"draws": []})
+            self.assertEqual(b.scene()["scene"], {"nodes": []})
             self.assertEqual(b.screenshot("out.png")["logical"], [960, 540])
             self.assertEqual(b.quit(), {"ok": True})
         host.close()

@@ -62,12 +62,12 @@ spawn_help = |m, n| {
 view : Model -> Scene
 view = |m| {
 	n = m.entities.len()
-	draws = List.with_capacity(draw_count) |> add_draws(m, n, 0)
+	# The Draws, then the Lights, in one list. With the Lights first, add_draws
+	# grew the list again from a small size: 6 reallocs a step.
+	nodes = List.with_capacity(draw_count + 2) |> add_draws(m, n, 0) |> with_lights
 	{
 		camera: Cam.look_at({ x: 0.0, y: 40.0, z: 30.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
-		draws,
-		colliders: [],
-		lights,
+		nodes,
 		cursor: Free,
 		sky: 0,
 		ui: [],
@@ -76,14 +76,14 @@ view = |m| {
 	}
 }
 
-add_draws : List(Draw), Model, U64, U64 -> List(Draw)
-add_draws = |draws, m, n, i| {
+add_draws : List(Vocabulary.Node), Model, U64, U64 -> List(Vocabulary.Node)
+add_draws = |nodes, m, n, i| {
 	if i >= draw_count {
-		draws
+		nodes
 	} else {
 		next = match m.entities.get(i * n // draw_count) {
-			Ok(e) => draws.append(cube_draw(m.cube, i, e.pos))
-			Err(_) => draws
+			Ok(e) => nodes.append(Draw(cube_draw(m.cube, i, e.pos)))
+			Err(_) => nodes
 		}
 		add_draws(next, m, n, i + 1)
 	}
@@ -92,11 +92,18 @@ add_draws = |draws, m, n, i| {
 cube_draw : U32, U64, Vec3 -> Draw
 cube_draw = |mesh, id, pos| { id, mesh, pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 } }
 
-lights : List(Vocabulary.Light)
-lights = [
-	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
-]
+with_lights : List(Vocabulary.Node) -> List(Vocabulary.Node)
+with_lights = |nodes| nodes
+	.append(Light(Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })))
+	.append(Light(Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })))
+
+draws_of : Scene -> List(Draw)
+draws_of = |scene| scene.nodes.keep_oks(
+	|node| match node {
+		Draw(d) => Ok(d)
+		_ => Err(NotADraw)
+	},
+)
 
 expect launch(Bench.no_args).window.high_dpi == False
 expect init(Bench.with_n(64)).model.entities.len() == 64
@@ -108,6 +115,6 @@ expect {
 }
 
 expect {
-	draws = view(init(Bench.with_n(1000)).model).draws
+	draws = draws_of(view(init(Bench.with_n(1000)).model))
 	draws.len() == draw_count and Bench.counts_up(draws.map(|d| d.id))
 }

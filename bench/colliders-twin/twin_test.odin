@@ -48,7 +48,8 @@ twin_colliders :: proc(seed: u64, n: string, steps: int) -> string {
 	engine.roc_incref_box(model)
 	scene := TWIN.view(model)
 	b := strings.builder_make(context.temp_allocator)
-	for c in scene.colliders.elements[:scene.colliders.length] {
+	for node in scene.nodes.elements[:scene.nodes.length] {
+		c := node.payload.collider
 		fmt.sbprintf(&b, "%v ", c.id)
 		switch c.shape.tag {
 		case .Sphere:
@@ -59,7 +60,8 @@ twin_colliders :: proc(seed: u64, n: string, steps: int) -> string {
 		case .Capsule:
 			fmt.sbprint(&b, "capsule")
 		}
-		fmt.sbprintf(&b, " %v %v %v %v\n", bits(c.pos.x), bits(c.pos.y), bits(c.pos.z), bits(c.yaw))
+		fmt.sbprintf(&b, " %v %v %v", bits(c.pos.x), bits(c.pos.y), bits(c.pos.z))
+		fmt.sbprintf(&b, " %v %v %v %v\n", bits(c.rot.x), bits(c.rot.y), bits(c.rot.z), bits(c.rot.w))
 	}
 	engine.roc_decref(scene)
 	TWIN.drop_model(model)
@@ -108,7 +110,7 @@ twin_view_asks_the_same_queries_at_every_n :: proc(t: ^testing.T) {
 
 		scene := view(&m)
 		defer engine.roc_decref(scene)
-		testing.expect_value(t, int(scene.colliders.length), n)
+		testing.expect_value(t, int(scene.nodes.length), n)
 		qs := scene.queries.elements[:scene.queries.length]
 		testing.expect_value(t, len(qs), QUERY_COUNT)
 		for q, i in qs {
@@ -129,9 +131,10 @@ twin_colliders_alternate_box_and_sphere :: proc(t: ^testing.T) {
 	scene := view(&m)
 	defer engine.roc_decref(scene)
 	want := []engine.Collider_Shape_Tag{.Box, .Sphere, .Box, .Sphere}
-	for c, i in scene.colliders.elements[:scene.colliders.length] {
-		testing.expect_value(t, c.id, u64(i + 1))
-		testing.expect_value(t, c.shape.tag, want[i])
+	for node, i in scene.nodes.elements[:scene.nodes.length] {
+		testing.expect_value(t, node.tag, engine.Node_Tag.Collider)
+		testing.expect_value(t, node.payload.collider.id, u64(i + 1))
+		testing.expect_value(t, node.payload.collider.shape.tag, want[i])
 	}
 }
 

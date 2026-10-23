@@ -65,9 +65,7 @@ move_light = |m| { ..m, lit: (m.lit + 1) % m.labels.len() }
 view : Model -> Scene
 view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: 10.0, z: 10.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
-	draws: [],
-	colliders: [],
-	lights: [],
+	nodes: [],
 	cursor: Free,
 	sky: 0,
 	ui: elements(m),
@@ -132,7 +130,7 @@ expect box_and_text_count(ui_of(7)) == 7 and texts(ui_of(7)) == 3
 expect box_and_text_count(ui_of(16384)) == 16384
 expect ui_of(64).len() == 1 and cells_of(ui_of(64)).len() == 32
 
-expect view(init(Bench.with_n(64)).model).draws == []
+expect view(init(Bench.with_n(64)).model).nodes == []
 
 expect {
 	m = init(Bench.with_n(6)).model

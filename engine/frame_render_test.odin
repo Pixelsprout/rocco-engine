@@ -11,6 +11,8 @@ EPS :: f32(1e-5)
 IDENTITY :: Quat{w = 1}
 // Above the Draw count of every fixture Scene except the capacity tests.
 SMALL_DRAWS :: 8
+// Above the Group count of every fixture Scene except the capacity tests.
+SMALL_GROUPS :: 4
 
 Submitted :: struct {
 	mesh:         ^Mesh,
@@ -65,41 +67,43 @@ Frame_Fixture :: struct {
 @(test)
 test_pairing_finds_the_previous_draw_by_id :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, SMALL_DRAWS, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
 	defer pairing_destroy(&p)
 
-	pairing_build(&p, []Draw{{id = 7}, {id = 3}})
-	i, ok := pairing_find(&p, 3)
-	testing.expect(t, ok)
-	testing.expect_value(t, i, 1)
-	_, missing := pairing_find(&p, 9)
+	nodes := draw_nodes({{id = 7}, {id = 3}})
+	pairing_build(&p, nodes)
+	found, _, ok := pairing_draw(&p, 3, {})
+	testing.expect(t, ok && found == &nodes[1].payload.draw)
+	_, _, missing := pairing_draw(&p, 9, {})
 	testing.expect(t, !missing)
 
-	pairing_build(&p, []Draw{{id = 9}})
-	_, stale := pairing_find(&p, 7)
+	pairing_build(&p, draw_nodes({{id = 9}}))
+	_, _, stale := pairing_draw(&p, 7, {})
 	testing.expect(t, !stale)
 }
 
 @(test)
 test_pairing_keeps_the_first_of_a_duplicate_id_and_logs_it_once :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, SMALL_DRAWS, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
 	defer pairing_destroy(&p)
 
-	pairing_build(&p, []Draw{{id = 5}, {id = 5}, {id = 5}})
-	pairing_build(&p, []Draw{{id = 5}, {id = 5}})
-	i, _ := pairing_find(&p, 5)
-	testing.expect_value(t, i, 0)
+	nodes := draw_nodes({{id = 5}, {id = 5}, {id = 5}})
+	pairing_build(&p, nodes)
+	pairing_build(&p, draw_nodes({{id = 5}, {id = 5}}))
+	pairing_build(&p, nodes)
+	first, _, _ := pairing_draw(&p, 5, {})
+	testing.expect(t, first == &nodes[0].payload.draw)
 	testing.expect_value(t, len(p.logged), 1)
 }
 
 @(test)
-test_pairing_builds_its_capacity_of_draws_without_allocating :: proc(t: ^testing.T) {
+test_pairing_builds_its_capacity_of_draws_and_groups_without_allocating :: proc(t: ^testing.T) {
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
 	p: Pairing
-	pairing_init(&p, SMALL_DRAWS, mem.tracking_allocator(&track))
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, mem.tracking_allocator(&track))
 	defer pairing_destroy(&p)
 
 	draws := make([]Draw, SMALL_DRAWS)
@@ -107,16 +111,30 @@ test_pairing_builds_its_capacity_of_draws_without_allocating :: proc(t: ^testing
 	for &d, i in draws {
 		d.id = u64(i)
 	}
+	groups := make([]Node, SMALL_GROUPS + 1)
+	defer delete(groups)
+	groups[0] = node_group(100, {}, IDENTITY, draw_nodes(draws))
+	for i in 1 ..< len(groups) {
+		groups[i] = node_group(u64(100 + i), {}, IDENTITY, nil)
+	}
 	after_init := track.total_allocation_count
-	pairing_build(&p, draws)
+	pairing_build(&p, groups[:SMALL_GROUPS])
 	testing.expect_value(t, track.total_allocation_count, after_init)
 	testing.expect(t, !p.over_capacity_logged)
+	testing.expect_value(t, len(p.groups), SMALL_GROUPS)
+
+	// Past group_capacity the first Groups pair, and the map does not grow.
+	pairing_build(&p, groups)
+	testing.expect_value(t, track.total_allocation_count, after_init)
+	testing.expect_value(t, len(p.groups), SMALL_GROUPS)
+	testing.expect(t, pairing_group(&p, 100 + SMALL_GROUPS) == nil)
+	testing.expect(t, p.groups_full_logged)
 }
 
 @(test)
 test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: ^testing.T) {
 	p: Pairing
-	pairing_init(&p, SMALL_DRAWS, context.allocator)
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
 	defer pairing_destroy(&p)
 
 	draws := make([]Draw, SMALL_DRAWS + 1)
@@ -124,20 +142,33 @@ test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: 
 	for &d, i in draws {
 		d.id = u64(i)
 	}
-	pairing_build(&p, draws[:SMALL_DRAWS])
+	pairing_build(&p, draw_nodes(draws[:SMALL_DRAWS]))
 	testing.expect(t, !p.over_capacity_logged)
-	pairing_build(&p, draws)
+	nodes := draw_nodes(draws)
+	pairing_build(&p, nodes)
 	testing.expect(t, p.over_capacity_logged)
-	i, ok := pairing_find(&p, SMALL_DRAWS)
-	testing.expect(t, ok)
-	testing.expect_value(t, i, SMALL_DRAWS)
+	found, _, ok := pairing_draw(&p, SMALL_DRAWS, {})
+	testing.expect(t, ok && found == &nodes[SMALL_DRAWS].payload.draw)
+}
+
+@(test)
+test_pairing_keeps_the_first_of_a_duplicate_group_id_and_logs_once :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
+	defer pairing_destroy(&p)
+
+	inner := []Node{node_group(5, {x = 2}, IDENTITY, nil)}
+	nodes := []Node{node_group(5, {x = 1}, IDENTITY, inner), node_group(5, {x = 3}, IDENTITY, nil), node_group(6, {}, IDENTITY, nil), node_group(6, {}, IDENTITY, nil)}
+	pairing_build(&p, nodes)
+	testing.expect_value(t, pairing_group(&p, 5).local.pos, [3]f32{1, 0, 0})
+	testing.expect(t, p.group_duplicate_logged)
 }
 
 @(test)
 test_draw_interpolates_pos_scale_and_rot :: proc(t: ^testing.T) {
 	prev := Draw{pos = {0, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}
 	curr := Draw{pos = {2, 4, 6}, scale = {3, 1, 1}, rot = quat_yaw(1)}
-	x := draw_transform(prev, curr, 0.25)
+	x := draw_transform_at_root(&prev, &curr, 0.25)
 	testing.expect_value(t, x.position, [3]f32{0.5, 1, 1.5})
 	testing.expect_value(t, x.scale, [3]f32{1.5, 1, 1})
 	expect_quat_near(t, x.rotation, quat_from_axis_angle(UP, 0.25))
@@ -148,7 +179,7 @@ test_draw_interpolates_pos_scale_and_rot :: proc(t: ^testing.T) {
 test_draw_rot_stays_put_between_a_quaternion_and_its_negation :: proc(t: ^testing.T) {
 	prev := Draw{rot = IDENTITY}
 	curr := Draw{rot = {w = -1}}
-	x := draw_transform(prev, curr, 0.5)
+	x := draw_transform_at_root(&prev, &curr, 0.5)
 	expect_quat_near(t, x.rotation, 1)
 }
 
@@ -156,8 +187,19 @@ test_draw_rot_stays_put_between_a_quaternion_and_its_negation :: proc(t: ^testin
 test_draw_interpolates_scale_rot :: proc(t: ^testing.T) {
 	prev := Draw{rot = IDENTITY, scale_rot = IDENTITY}
 	curr := Draw{rot = IDENTITY, scale_rot = quat_yaw(1)}
-	x := draw_transform(prev, curr, 0.25)
+	x := draw_transform_at_root(&prev, &curr, 0.25)
 	expect_quat_near(t, x.scale_rotation, quat_from_axis_angle(UP, 0.25))
+}
+
+// A root Draw paired with prev, as the Frame's walk places it.
+draw_transform_at_root :: proc(prev, curr: ^Draw, alpha: f32) -> Draw_Transform {
+	paired := Prev_Pose {
+		local = pose_of(prev.pos, prev.rot),
+		world = pose_of(prev.pos, prev.rot),
+	}
+	root := WALK_ROOT
+	world := node_world(&paired, &root, pose_of(curr.pos, curr.rot), alpha)
+	return draw_transform(prev, curr, world, alpha)
 }
 
 @(test)
@@ -272,7 +314,7 @@ record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {
 }
 
 frame_fixture_init :: proc(f: ^Frame_Fixture) {
-	frame_render_init(&f.fr, SMALL_DRAWS, context.allocator)
+	frame_render_init(&f.fr, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
 	mesh_table_init(&f.meshes, SMALL_MESHES, context.allocator, context.allocator)
 	sky_table_init(&f.skies, SMALL_SKIES, context.allocator, context.allocator)
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
@@ -314,11 +356,11 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
 scene_of :: proc(draws: []Draw) -> Scene {
-	return {draws = {elements = raw_data(draws), length = uint(len(draws))}}
+	return {nodes = roc_list_view(draw_nodes(draws))}
 }
 
 frame_fixture_lights :: proc(f: ^Frame_Fixture, lights: []Light) -> Fs_Lights {
-	s := Scene{lights = {elements = raw_data(lights), length = uint(len(lights))}}
+	s := Scene{nodes = roc_list_view(light_nodes(lights))}
 	frame_fixture_draw(f, s, s, 0)
 	return f.rec.lights
 }
@@ -335,10 +377,12 @@ light_sun :: proc(dir: Vec3, c: Rgb) -> Light {
 	return {tag = .Directional, payload = {directional = {dir = dir, color = c, shadow = true}}}
 }
 
+// The Lights come first in the tree, as a game writes them.
 scene_lit :: proc(draws: []Draw, lights: []Light) -> Scene {
-	s := scene_of(draws)
-	s.lights = {elements = raw_data(lights), length = uint(len(lights))}
-	return s
+	nodes := make([dynamic]Node, context.temp_allocator)
+	append(&nodes, ..light_nodes(lights))
+	append(&nodes, ..draw_nodes(draws))
+	return {nodes = roc_list_view(nodes[:])}
 }
 
 light_point :: proc(pos: Vec3, c: Rgb, range: f32) -> Light {
@@ -580,8 +624,7 @@ test_frame_render_logs_each_light_drop_reason_once_per_run :: proc(t: ^testing.T
 }
 
 quat_yaw :: proc(rad: f32) -> Quat {
-	q := quat_from_axis_angle(UP, rad)
-	return {w = q.w, x = q.x, y = q.y, z = q.z}
+	return test_turn(UP, rad)
 }
 
 expect_v4_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_location) {
@@ -731,7 +774,7 @@ test_frame_render_places_its_draw_capacity_without_allocating :: proc(t: ^testin
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
 	fr: Frame_Render
-	frame_render_init(&fr, SMALL_DRAWS, mem.tracking_allocator(&track))
+	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, mem.tracking_allocator(&track))
 	defer frame_render_destroy(&fr)
 	meshes: Mesh_Table
 	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)

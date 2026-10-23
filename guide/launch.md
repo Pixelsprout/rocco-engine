@@ -43,7 +43,8 @@ game can open fullscreen when its Args hold `--fullscreen`.
 ## The checks at startup
 
 The host checks the Launch before it opens the window. No number field can
-be zero, and each capacity must be inside its limits. If a field fails, the
+be zero, and each capacity must be inside its limits. For example,
+`capacity.groups` must be above zero and at most 1048576. If a field fails, the
 host prints the name of the field and the rule, then exits with code 1. For
 example:
 
@@ -61,7 +62,11 @@ A capacity sets the size of a table. If a table fills up during the run,
 the host does not stop. It logs once and carries on:
 
 - `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
-- `draws`: the host draws the first Draws of the Scene and drops the rest.
+- `draws`: the host draws the first Draws of the Scene, in the order of a
+  depth-first walk of `Scene.nodes`, and drops the rest.
+- `groups`: the host pairs the first Groups of the Scene, in the same
+  order. Every Group still draws its children, but a Group past the
+  capacity does not interpolate. See [Groups](scene.md#groups).
 - `ui_quads`: the host draws the first quads of the UI and drops the rest.
 - `voices`: a `Play` takes the voice of the oldest Play that still sounds.
   If Loops hold every voice, the Play plays nothing. A new Loop waits
@@ -85,6 +90,7 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `capacity.meshes` | 64 | No |
 | `capacity.skies` | 16 | No |
 | `capacity.draws` | 16384 | No |
+| `capacity.groups` | 1024 | No |
 | `capacity.ui_quads` | 16384 | No |
 | `capacity.sounds` | 64 | No |
 | `capacity.voices` | 64 | No |

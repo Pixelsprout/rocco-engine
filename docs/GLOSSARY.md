@@ -48,7 +48,7 @@ A procedure declared `proc "c"` so C code can call it. Odin's implicit `context`
 
 ## Clay {#clay}
 
-Nic Barker's single-header C library for UI layout. Each frame the caller opens and closes Clay elements in tree order and configures their sizing, padding, gap and alignment. Clay returns a flat list of render commands with final positions: rectangles, text runs and scissor changes. It measures text through a callback the caller supplies, such as one backed by [SDF text](#sdf-text). It allocates nothing after one arena at init. Clay lays out; it does not draw. Here the host feeds it the `Scene.ui` stream and draws the commands itself. See `docs/adr/0004-ui-layout-runs-in-the-host.md`.
+Nic Barker's single-header C library for UI layout. Each frame the caller opens and closes Clay elements in tree order and configures their sizing, padding, gap and alignment. Clay returns a flat list of render commands with final positions: rectangles, text runs and scissor changes. It measures text through a callback the caller supplies, such as one backed by [SDF text](#sdf-text). It allocates nothing after one arena at init. Clay lays out; it does not draw. Here the host walks the `Scene.ui` tree into it and draws the commands itself. See `docs/adr/0004-ui-layout-runs-in-the-host.md`.
 
 ## Clip space {#clip-space}
 

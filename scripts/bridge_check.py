@@ -56,10 +56,12 @@ def binary_suffix():
     raise RuntimeError("roc scripts/build.roc -- target printed no suffix")
 
 
+# Pip is a root Node of the tutorial's Scene, so its pos is in the world.
 def pip_pos(reply):
-    draws = [d for d in reply["scene"]["draws"] if d["id"] == PIP_ID]
+    nodes = reply["scene"]["nodes"]
+    draws = [n["Draw"] for n in nodes if "Draw" in n and n["Draw"]["id"] == PIP_ID]
     if len(draws) != 1:
-        raise AssertionError(f"expected one Draw with id {PIP_ID}, got {reply['scene']['draws']}")
+        raise AssertionError(f"expected one root Draw with id {PIP_ID}, got {nodes}")
     return draws[0]["pos"]
 
 
