@@ -26,7 +26,9 @@ This section shows the engine on 2026-10-20. Milestone 17 then moved the
 window size and title, `high_dpi`, the sample count, the step rate, the
 capacities and the shadow map size into the Launch. `launch` now runs before
 the window opens. ADR 0007 records the decision. The other constants below
-stay host constants.
+stay host constants. Milestone 22 then replaced the `draws`, `colliders` and
+`lights` fields of the Scene with `nodes`, a tree of Nodes. ADR 0014 records
+that decision.
 
 What crosses the seam, from `platform/Vocabulary.roc` and `docs/DESIGN.md`
 section 3:
@@ -557,7 +559,7 @@ the shape; the text gives the library and its cost.
 |---|---|---|---|---|
 | Audio | the Manifest of sound ids | `Scene.sounds`: loops and music by id | `Play`: a one-shot | the device, the mixer, the decoders, the thread |
 | Particles | nothing | `Scene.emitters`: emitters by id | `Burst`: a one-shot | the particle buffers, the host RNG, the instancing pipeline |
-| Physics, now | Contacts, RayHits, OverlapHits | `Scene.colliders` and `Scene.queries` | nothing | the broad phase and the shape tests |
+| Physics, now | Contacts, RayHits, OverlapHits | Collider Nodes in `Scene.nodes`, and `Scene.queries` | nothing | the broad phase and the shape tests |
 | Physics, later | body poses in `QueryResults.bodies` | `Scene.forces` | `Spawn(Body)`, `Destroy(id)` | the world, with its warm-start cache |
 
 ### 5a. Audio
@@ -706,7 +708,7 @@ what the design predicts. Do not build this before a game asks.
 - **Scenery crosses the seam every step.** A level of fixed blocks is
   rebuilt as Draws in every `view`, 80 bytes each. Blender as a level editor
   (dex task 99iz77jj) is the fix. A glTF scene loads as a Pack with its node
-  transforms. The host draws the placed nodes itself. `Scene.draws` then
+  transforms. The host draws the placed nodes itself. `Scene.nodes` then
   carries only what moves. With instancing from 5b and frustum culling
   from the mesh boxes the host already has, this is the biggest "bigger
   games" lever.
@@ -790,7 +792,7 @@ by flattening becomes the value itself:
 
 ```roc
 view : Model -> Scene
-view = |m| { camera, draws: draws(m), colliders: [], lights, cursor: Free, sky: 0, ui: hud(m), queries: [] }
+view = |m| { ..Scene.empty, camera, nodes: nodes(m), ui: hud(m) }
 
 hud : Model -> List(Element)
 hud = |m| [scoreboard(m.state, m.score), banner(m.state, m.score), hints_left, hints_right]
@@ -884,6 +886,9 @@ the grilling:
 - Allocations scale with groups, not leaves. Ten thousand leaves in one
   list is still one allocation. Each Group adds one list. The entity game
   would go from 5 allocations per step to 6 for the player group.
+  Measured in Milestone 22: one `nodes` list replaces three lists, so the
+  entity game went from 5 allocations per quiet step to 3, and to 4 while
+  the player's Group carries drops.
   Colliders inside a Group are composed by the host too, and the game reads
   contacts by id as now.
 
