@@ -1039,7 +1039,8 @@ With drops, the player's Group adds 1 alloc. The alloc check records the
 3. A tracked host shows no leak over 20000 Headless steps.
 `bench/colliders` (Headless, Apple M5, N = 4096) gives a `queries` median
 of 93.8 us with the general box test, against 97.6 us with the yaw-only
-test. The tree walk then costs time. `bench/draws` (N = 1024) gives an
+test. The tree walk adds about 8% to the `interpolation` median and about
+9% to the `queries` median. `bench/draws` (N = 1024) gives an
 `interpolation` median of 51.5 to 52.8 us, against 47.6 to 49.2 us
 before. `bench/colliders` (N = 4096) gives a `queries` median of 105.3 us,
 against 95.5 us before. No figure has a target. ADR 0014 is accepted.
