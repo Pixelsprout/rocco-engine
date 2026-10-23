@@ -178,14 +178,16 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 @(test)
 test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	draws := []Draw{{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}, tint = {r = 1, g = 0.5, b = 0.25}}}
+	draw := Draw{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}, tint = {r = 1, g = 0.5, b = 0.25}}
+	children := []Node{node_draw(draw), node_light(light_ambient({r = 1}))}
+	nodes := []Node{node_group(4, {0, 1, 0}, {w = 1}, children), node_collider(test_sphere(2, {1, 0, 0}, 0.5))}
 	loops := []Loop {
 		{id = 9, sound = 2, gain = 0.5, pitch = 1, at = {tag = .Here}},
 		{id = 10, sound = 3, gain = 1, pitch = 2, at = {tag = .At, payload = {at = {pos = {0, 1, 0}, range = 4}}}},
 	}
 	scene := Scene {
 		camera = {eye = {0, 2, 5}, up = {0, 1, 0}, fov_y = 1},
-		draws  = json_test_list(draws),
+		nodes  = json_test_list(nodes),
 		cursor = .Locked,
 		sky    = 2,
 		loops  = json_test_list(loops),
@@ -198,9 +200,12 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		t,
 		&b,
 		`{"camera":{"eye":{"x":0,"y":2,"z":5},"target":{"x":0,"y":0,"z":0},"up":{"x":0,"y":1,"z":0},"fov_y":1},` +
-		`"draws":[{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
-		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25}}],` +
-		`"colliders":[],"lights":[],"cursor":"Locked","sky":2,"ui":[],"queries":[],` +
+		`"nodes":[{"Group":{"id":4,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
+		`{"Draw":{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
+		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25}}},` +
+		`{"Light":{"Ambient":{"r":1,"g":0,"b":0}}}]}},` +
+		`{"Collider":{"id":2,"pos":{"x":1,"y":0,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Sphere":0.5}}}],` +
+		`"cursor":"Locked","sky":2,"ui":[],"queries":[],` +
 		`"loops":[{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here"},` +
 		`{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}}}]}`,
 	)

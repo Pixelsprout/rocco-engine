@@ -1,7 +1,8 @@
 import Vocabulary exposing [Quat, Vec3]
 
-## Builds the Colliders that your game returns in `Scene.colliders`. The `id`
-## is the draw id of the Collider.
+## Builds the Colliders that your game puts in `Scene.nodes` with the
+## `Collider` tag. The `id` is the draw id of the Collider. `pos` and `rot`
+## are local to the Collider's Group.
 Collider := [].{
 
 	## A box at `pos` with half extents `half`, turned by `rot`.

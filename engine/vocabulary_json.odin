@@ -67,12 +67,8 @@ json_write_commands :: proc(b: ^strings.Builder, commands: Roc_List(Command)) {
 json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_key(b, "camera", first = true)
 	json_write_camera(b, &scene.camera)
-	json_key(b, "draws")
-	json_write_list(b, scene.draws, json_write_draw)
-	json_key(b, "colliders")
-	json_write_list(b, scene.colliders, json_write_collider)
-	json_key(b, "lights")
-	json_write_list(b, scene.lights, json_write_light)
+	json_key(b, "nodes")
+	json_write_list(b, scene.nodes, json_write_node)
 	json_key(b, "cursor")
 	json_write_tag(b, scene.cursor)
 	json_key(b, "sky")
@@ -105,6 +101,36 @@ json_write_camera :: proc(b: ^strings.Builder, camera: ^Scene_Camera) {
 	json_write_vec3(b, camera.up)
 	json_key(b, "fov_y")
 	json_write_f32(b, camera.fov_y)
+	strings.write_byte(b, '}')
+}
+
+// Each Pose is local to its Group, as the game wrote it.
+json_write_node :: proc(b: ^strings.Builder, node: ^Node) {
+	switch node.tag {
+	case .Group:
+		pose, children := &node.payload.group._0, node.payload.group._1
+		json_key(b, "Group", first = true)
+		json_key(b, "id", first = true)
+		strings.write_u64(b, pose.id)
+		json_key(b, "pose")
+		json_key(b, "pos", first = true)
+		json_write_vec3(b, pose.pos)
+		json_key(b, "rot")
+		json_write_quat(b, pose.rot)
+		strings.write_byte(b, '}')
+		json_key(b, "children")
+		json_write_list(b, children, json_write_node)
+		strings.write_byte(b, '}')
+	case .Draw:
+		json_key(b, "Draw", first = true)
+		json_write_draw(b, &node.payload.draw)
+	case .Light:
+		json_key(b, "Light", first = true)
+		json_write_light(b, &node.payload.light)
+	case .Collider:
+		json_key(b, "Collider", first = true)
+		json_write_collider(b, &node.payload.collider)
+	}
 	strings.write_byte(b, '}')
 }
 

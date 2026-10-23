@@ -44,7 +44,8 @@ twin_positions :: proc(seed: u64, n: string, steps: int) -> string {
 	engine.roc_incref_box(model)
 	scene := TWIN.view(model)
 	b := strings.builder_make(context.temp_allocator)
-	for d in scene.draws.elements[:scene.draws.length] {
+	for node in scene.nodes.elements[LIGHT_COUNT:scene.nodes.length] {
+		d := node.payload.draw
 		fmt.sbprintf(&b, "%v %v\n", transmute(u32)d.pos.x, transmute(u32)d.pos.z)
 	}
 	engine.roc_decref(scene)
@@ -75,10 +76,11 @@ twin_view_gives_draw_count_draws :: proc(t: ^testing.T) {
 
 	scene := view(&m)
 	defer engine.roc_decref(scene)
-	testing.expect_value(t, int(scene.draws.length), DRAW_COUNT)
-	for d, i in scene.draws.elements[:scene.draws.length] {
-		testing.expect_value(t, d.id, u64(i))
-		testing.expect_value(t, d.mesh, CUBE_MESH)
+	testing.expect_value(t, int(scene.nodes.length), LIGHT_COUNT + DRAW_COUNT)
+	for node, i in scene.nodes.elements[LIGHT_COUNT:scene.nodes.length] {
+		testing.expect_value(t, node.tag, engine.Node_Tag.Draw)
+		testing.expect_value(t, node.payload.draw.id, u64(i))
+		testing.expect_value(t, node.payload.draw.mesh, CUBE_MESH)
 	}
 }
 

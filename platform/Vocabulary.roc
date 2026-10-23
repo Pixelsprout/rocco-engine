@@ -79,6 +79,9 @@ Vocabulary := [].{
 	##   at most 65536.
 	## - `draws`: Draws per Frame. Above zero and at most 2796197. The uniform
 	##   buffer grows with it.
+	## - `groups`: the Groups per Scene that the host pairs to interpolate.
+	##   Above zero and at most 1048576. Past it, the host pairs the first
+	##   Groups.
 	## - `ui_quads`: UI quads per Frame. Above zero and at most 16384, the u16
 	##   index bound.
 	## - `sounds`: Sound slots. At least 2, for the reserved slot and one Sound,
@@ -90,6 +93,7 @@ Vocabulary := [].{
 		meshes : U32,
 		skies : U32,
 		draws : U32,
+		groups : U32,
 		ui_quads : U32,
 		sounds : U32,
 		voices : U32,
@@ -119,8 +123,10 @@ Vocabulary := [].{
 	##   in the previous Scene and interpolates between them.
 	## - `mesh`: a mesh id from a Manifest. An id that the engine does not know
 	##   draws the Fallback mesh.
-	## - `pos`: the position in the world.
+	## - `pos`: the position in the space of the Draw's Group, or in the world
+	##   for a Draw with no Group.
 	## - `scale`: acts along the axes of `scale_rot`. Then `rot` turns the result.
+	##   A Group's rot turns it after that. A Group has no scale.
 	## - `rot`, `scale_rot`: unit quaternions.
 	## - `tint`: the host multiplies the mesh colour by it.
 	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
@@ -130,7 +136,9 @@ Vocabulary := [].{
 	##
 	## - `id`: the draw id of the Collider. A Query skips the Collider whose id
 	##   is the Query's owner.
-	## - `rot`: turns the shape. A unit quaternion.
+	## - `pos`, `rot`: the Pose in the space of the Collider's Group. `rot` turns
+	##   the shape and is a unit quaternion. The host composes the world Pose
+	##   from the current Scene before it answers the Queries.
 	## - `shape`: a `Box` carries its half extents. A `Capsule` is a radius
 	##   around a segment of `half_height` along its own `y`, which `rot` turns.
 	##   The host does not test a `Capsule` yet.
@@ -161,16 +169,17 @@ Vocabulary := [].{
 	## its half extents and does not turn.
 	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
 
-	## One light in `Scene.lights`. Build one with the functions in `Light`.
+	## One light in the Scene. Build one with the functions in `Light`.
 	##
-	## - `Ambient`: light from all directions.
-	## - `Directional`: `dir` is the direction the light travels. The first
-	##   Directional that sets `shadow` is the Sun, the only Light that casts a
-	##   shadow.
-	## - `Point`: falls off to zero at `range`.
+	## - `Ambient`: light from all directions. A Group does not change it.
+	## - `Directional`: `dir` is the direction the light travels. A Group turns
+	##   it. The first Directional that sets `shadow` is the Sun, the only Light
+	##   that casts a shadow.
+	## - `Point`: falls off to zero at `range`. A Group moves and turns `pos`.
 	##
 	## A colour carries its intensity and can exceed 1. The host uses the first
-	## Ambient and the first 8 other Lights. An empty list draws black.
+	## Ambient and the first 8 other Lights, in the order of a depth-first walk
+	## of `Scene.nodes`. A Scene with no Light draws black.
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 
 	## How a Box sizes along one axis, in logical pixels. The names and the
@@ -225,9 +234,38 @@ Vocabulary := [].{
 			}
 	}
 
+	## One part of the 3D tree. Write the tags directly.
+	##
+	## - `Group`: a Group id, a Pose and the children. The children's Poses are
+	##   local to the Group. The host pairs a Group with the first Group of the
+	##   same id in the previous Scene. Group ids and draw ids are apart.
+	## - `Draw`, `Light`, `Collider`: the leaves.
+	##
+	## The host interpolates a Node's local Pose and then composes it, if its
+	## parent Group id is the same in both Scenes. If the parent changed, it
+	## interpolates between the two world Poses. A game with no Groups writes a
+	## flat list of leaves. The type is nominal, because only a nominal
+	## recursive union crosses the seam.
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider)].{
+
+		## Two Nodes are equal when their tags, payloads and children are
+		## equal. A nominal type gets no `==` of its own.
+		is_eq : Node, Node -> Bool
+		is_eq = |a, b|
+			match (a, b) {
+				(Group(group_a, children_a), Group(group_b, children_b)) => group_a == group_b and children_a == children_b
+				(Draw(draw_a), Draw(draw_b)) => draw_a == draw_b
+				(Light(light_a), Light(light_b)) => light_a == light_b
+				(Collider(collider_a), Collider(collider_b)) => collider_a == collider_b
+				_ => Bool.False
+			}
+	}
+
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
+	## - `nodes`: the root Nodes of the 3D tree. A root Node's Pose is in the
+	##   world.
 	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
 	##   know, draws no sky.
 	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
@@ -235,7 +273,7 @@ Vocabulary := [].{
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
 	## - `loops`: the Sounds that repeat while their Loop stays in the Scene.
-	Scene : { camera : Camera, draws : List(Draw), colliders : List(Collider), lights : List(Light), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
 
 	## Where a Play or a Loop sounds. The Listener is the Camera of the current
 	## Scene.

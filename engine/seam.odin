@@ -114,10 +114,11 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
 }
 
-// The answers live in the Frame allocator until the copy into Roc.
+// The answers and the world-space Colliders live in the Frame allocator
+// until the copy into Roc.
 @(private = "file")
 seam_query_search :: proc(s: ^Seam) -> Query_Answers {
-	colliders := s.curr.colliders.elements[:s.curr.colliders.length]
+	colliders := scene_colliders(s.curr.nodes.elements[:s.curr.nodes.length], context.temp_allocator)
 	queries := s.curr.queries.elements[:s.curr.queries.length]
 	return queries_answer(&s.search, colliders, queries, context.temp_allocator)
 }

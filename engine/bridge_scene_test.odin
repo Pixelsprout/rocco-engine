@@ -23,6 +23,8 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	g_fake.draws = []Draw{{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}}}
 	g_fake.lights = []Light{light_ambient({r = 0.1, g = 0.1, b = 0.1}), light_sun({0, -1, 0}, {1, 1, 1}), light_point({0, 3, 0}, {r = 1}, 5)}
 	g_fake.loops = []Loop{{id = 4, sound = 6, gain = 1, pitch = 1, at = {tag = .Here}}}
+	child := []Node{node_draw({id = 8, pos = {0, 0, 1}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}})}
+	g_fake.nodes = {node_group(5, {x = 4}, quat_yaw(1), child)}
 	g_fake.cursor = .Locked
 	g_fake.sky = 2
 	g_fake.ui_texts = {"Pip"}
@@ -36,7 +38,10 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	camera := scene["camera"].(json.Object)
 	testing.expect_value(t, camera["eye"].(json.Object)["z"].(json.Float), 5)
 	testing.expect_value(t, camera["fov_y"].(json.Float), 1)
-	draw := scene["draws"].(json.Array)[0].(json.Object)
+	// fake_view puts the Draws, then the Colliders, the Lights and the Nodes.
+	nodes := scene["nodes"].(json.Array)
+	expect_tags(t, nodes, {"Draw", "Collider", "Collider", "Collider", "Light", "Light", "Light", "Group"})
+	draw := expect_tag(t, nodes[0], "Draw").(json.Object)
 	testing.expect_value(t, draw["id"].(json.Float), 7)
 	testing.expect_value(t, draw["mesh"].(json.Float), 3)
 	testing.expect_value(t, draw["pos"].(json.Object)["y"].(json.Float), 2)
@@ -44,11 +49,24 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	testing.expect_value(t, scene["cursor"].(json.String), "Locked")
 	testing.expect_value(t, scene["sky"].(json.Float), 2)
 	shapes := make(json.Array, 0, 3, context.temp_allocator)
-	for collider in scene["colliders"].(json.Array) {
-		append(&shapes, collider.(json.Object)["shape"])
+	for collider in nodes[1:4] {
+		append(&shapes, expect_tag(t, collider, "Collider").(json.Object)["shape"])
 	}
 	expect_tags(t, shapes, {"Box", "Sphere", "Capsule"})
-	expect_tags(t, scene["lights"].(json.Array), {"Ambient", "Directional", "Point"})
+	lights := make(json.Array, 0, 3, context.temp_allocator)
+	for light in nodes[4:7] {
+		append(&lights, expect_tag(t, light, "Light"))
+	}
+	expect_tags(t, lights, {"Ambient", "Directional", "Point"})
+	// A Group shows its id, its Pose and its children with their local Poses.
+	group := expect_tag(t, nodes[7], "Group").(json.Object)
+	testing.expect_value(t, group["id"].(json.Float), 5)
+	pose := group["pose"].(json.Object)
+	testing.expect_value(t, pose["pos"].(json.Object)["x"].(json.Float), 4)
+	testing.expect_value(t, f32(pose["rot"].(json.Object)["y"].(json.Float)), quat_yaw(1).y)
+	children := group["children"].(json.Array)
+	expect_tags(t, children, {"Draw"})
+	testing.expect_value(t, expect_tag(t, children[0], "Draw").(json.Object)["pos"].(json.Object)["z"].(json.Float), 1)
 	expect_tags(t, scene["queries"].(json.Array), {"ContactsOf", "Raycast", "Overlap"})
 	loops := scene["loops"].(json.Array)
 	testing.expect_value(t, len(loops), 1)
@@ -108,7 +126,7 @@ test_bridge_paused_render_draws_the_scene_that_scene_replies :: proc(t: ^testing
 
 	testing.expect_value(t, g_fake.steps, 1)
 	reply := scene_reply(t, &s)
-	pos := reply["scene"].(json.Object)["draws"].(json.Array)[0].(json.Object)["pos"].(json.Object)
+	pos := reply["scene"].(json.Object)["nodes"].(json.Array)[0].(json.Object)["Draw"].(json.Object)["pos"].(json.Object)
 	testing.expect_value(t, pos["x"].(json.Float), 2)
 }
 

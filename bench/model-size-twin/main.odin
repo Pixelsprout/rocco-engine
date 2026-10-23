@@ -10,6 +10,7 @@ import "core:strconv"
 
 // These match bench/model-size/main.roc.
 DRAW_COUNT :: 100
+LIGHT_COUNT :: 2
 HALF_EXTENT :: f32(20)
 MAX_SPEED :: f32(4)
 CUBE_MESH :: u32(1)
@@ -160,25 +161,23 @@ turn_back :: proc(pos, vel: f32) -> f32 {
 	return vel
 }
 
-// Draw id i shows entity i * N / DRAW_COUNT, as in the Roc game.
+// The two Lights come first, as in the Roc game. Draw id i shows entity
+// i * N / DRAW_COUNT.
 view :: proc(m: ^Model) -> engine.Scene {
-	draws: [DRAW_COUNT]engine.Draw
+	nodes: [LIGHT_COUNT + DRAW_COUNT]engine.Node
+	nodes[0] = {tag = .Light}
+	nodes[0].payload.light = {tag = .Ambient}
+	nodes[0].payload.light.payload.ambient = {r = 0.2, g = 0.2, b = 0.2}
+	nodes[1] = {tag = .Light}
+	nodes[1].payload.light = {tag = .Directional}
+	nodes[1].payload.light.payload.directional = {dir = {x = -2.0 / 7.0, y = -3.0 / 7.0, z = -6.0 / 7.0}, color = {r = 5.03, g = 5.03, b = 5.03}}
 	n := len(m.entities)
-	for &d, i in draws {
-		d = cube_draw(m.cube, u64(i), m.entities[i * n / DRAW_COUNT].pos)
+	for &node, i in nodes[LIGHT_COUNT:] {
+		node = {tag = .Draw, payload = {draw = cube_draw(m.cube, u64(i), m.entities[i * n / DRAW_COUNT].pos)}}
 	}
-	ambient := engine.Light {
-		tag = .Ambient,
-	}
-	ambient.payload.ambient = {r = 0.2, g = 0.2, b = 0.2}
-	sun := engine.Light {
-		tag = .Directional,
-	}
-	sun.payload.directional = {dir = {x = -2.0 / 7.0, y = -3.0 / 7.0, z = -6.0 / 7.0}, color = {r = 5.03, g = 5.03, b = 5.03}}
 	return {
 		camera = {eye = {x = 0, y = 40, z = 30}, target = {}, up = {x = 0, y = 1, z = 0}, fov_y = 1.047},
-		draws = engine.roc_list_from_slice(draws[:]),
-		lights = engine.roc_list_from_slice([]engine.Light{ambient, sun}),
+		nodes = engine.roc_list_from_slice(nodes[:]),
 		cursor = .Free,
 	}
 }

@@ -52,27 +52,29 @@ step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model,
 step = |m, input, results, dt| { model: update(m, input, results, dt), commands: [] }
 
 # The BRDF divides diffuse light by pi, so 5.03 (1.6 pi) lights a white surface facing it to 1.6.
-lights : List(Vocabulary.Light)
+lights : List(Vocabulary.Node)
 lights = [
-	Light.ambient({ r: 0.2, g: 0.2, b: 0.2 }),
-	Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }),
+	Light(Light.ambient({ r: 0.2, g: 0.2, b: 0.2 })),
+	Light(Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 })),
 ]
 
+# The Lights, then one Draw for each card, in one list.
 view : Model -> Vocabulary.Scene
 view = |m| {
-	draws = List.map_with_index(
-		m.hand,
-		|card, i| {
-			tint = match card {
-				Ace => { r: 1.0, g: 0.787, b: 0.033 }
-				King => { r: 0.604, g: 0.033, b: 0.033 }
-				Number(_) => { r: 0.787, g: 0.787, b: 0.787 }
-			}
-			# The slot index is the draw id: a card slides to its slot when dealt.
-			{ ..Draw.default, id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, tint }
-		},
-	)
-	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), draws, lights }
+	first = List.with_capacity(List.len(m.hand) + List.len(lights)).concat(lights)
+	nodes = List.fold_with_index(m.hand, first, |acc, card, i| acc.append(Draw(card_draw(m, card, i))))
+	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes }
+}
+
+card_draw : Model, Card, U64 -> Vocabulary.Draw
+card_draw = |m, card, i| {
+	tint = match card {
+		Ace => { r: 1.0, g: 0.787, b: 0.033 }
+		King => { r: 0.604, g: 0.033, b: 0.033 }
+		Number(_) => { r: 0.787, g: 0.787, b: 0.787 }
+	}
+	# The slot index is the draw id: a card slides to its slot when dealt.
+	{ ..Draw.default, id: i, mesh: m.card_mesh, pos: { x: i.to_f32() * 1.2, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.4 }, tint }
 }
 # endregion
 
@@ -83,6 +85,15 @@ expect {
 }
 
 expect launch(Config.empty) == Launch.default
+
+expect {
+	# Two Lights, then the two cards of the first hand at their slots.
+	nodes = view(init(Config.empty).model).nodes
+	match nodes {
+		[Light(_), Light(_), Draw(ace), Draw(seven)] => ace.id == 0 and seven.id == 1 and seven.pos.x == 1.2
+		_ => Bool.False
+	}
+}
 expect init(Config.empty).commands == [Load({ pack: "cards", assets: [] })]
 expect init({ ..Config.empty, assets: ["card"] }).commands == [Load({ pack: "cards", assets: ["card"] })]
 expect loaded(init({ ..Config.empty, assets: ["card"] }).model, "cards", [{ name: "card", id: 4 }]).card_mesh == 4

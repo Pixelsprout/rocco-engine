@@ -169,14 +169,14 @@ turn_back :: proc(pos, vel, half: f32) -> f32 {
 }
 
 view :: proc(m: ^Model) -> engine.Scene {
-	colliders := make([]engine.Collider, len(m.bodies), context.temp_allocator)
+	nodes := make([]engine.Node, len(m.bodies), context.temp_allocator)
 	for b, i in m.bodies {
-		colliders[i] = to_collider(b)
+		nodes[i] = {tag = .Collider, payload = {collider = to_collider(b)}}
 	}
 	qs := queries(m.half)
 	return {
 		camera = {eye = {x = 0, y = m.half * 2, z = m.half * 1.5}, target = {}, up = {x = 0, y = 1, z = 0}, fov_y = 1.047},
-		colliders = engine.roc_list_from_slice(colliders),
+		nodes = engine.roc_list_from_slice(nodes),
 		queries = engine.roc_list_from_slice(qs[:]),
 		cursor = .Free,
 	}

@@ -1,0 +1,164 @@
+package engine
+
+import "core:math/linalg"
+import "core:mem"
+
+POSE_IDENTITY :: Pose {
+	rot = 1,
+}
+WALK_ROOT :: Walk_Parent {
+	world = POSE_IDENTITY,
+	scene = POSE_IDENTITY,
+}
+
+// A position and a rotation. pose_compose uses the rule of Pose.compose in
+// packages/linalg, so a Roc test and the host agree on a world Pose.
+Pose :: struct {
+	pos: [3]f32,
+	rot: quaternion128,
+}
+
+// The Group that a Node sits in. A root Node has grouped false.
+Parent_Id :: struct {
+	id:      u64,
+	grouped: bool,
+}
+
+// The parent Group of the Nodes that a walk visits. world is its
+// interpolated world Pose and scene its world Pose in the walked Scene.
+Walk_Parent :: struct {
+	id:    Parent_Id,
+	world: Pose,
+	scene: Pose,
+}
+
+// A Node of the previous Scene, kept to pair with. draw is nil for a Group.
+Prev_Node :: struct {
+	parent: Parent_Id,
+	local:  Pose,
+	world:  Pose,
+	draw:   ^Draw,
+}
+
+// Runs for every Node in depth-first pre-order, before a Group's children.
+Tree_Visit :: #type proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent)
+
+// With a pairing, the walk interpolates each Group from its partner in the
+// previous Scene. Without one, world and scene are the same Pose.
+Tree_Walk :: struct {
+	visit:   Tree_Visit,
+	pairing: ^Pairing,
+	alpha:   f32,
+	data:    rawptr,
+}
+
+tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: Walk_Parent) {
+	for &node in nodes {
+		walk.visit(walk, &node, parent)
+		if node.tag != .Group {
+			continue
+		}
+		group := &node.payload.group
+		local := pose_of(group._0.pos, group._0.rot)
+		child := Walk_Parent {
+			id = {id = group._0.id, grouped = true},
+		}
+		if walk.pairing == nil {
+			child.scene = pose_under(parent, parent.scene, local)
+			child.world = child.scene
+		} else {
+			child.world, child.scene = node_place(pairing_group(walk.pairing, group._0.id), parent, local, walk.alpha)
+		}
+		tree_walk(walk, group._1.elements[:group._1.length], child)
+	}
+}
+
+// world is the Node's Pose for this Frame and scene its world Pose in the
+// walked Scene. If prev has the same parent Group id, the local Pose
+// interpolates and then composes, so a child of a turning Group follows an
+// arc. If the parent changed, the two world Poses interpolate. With no prev,
+// the Node takes its local Pose under the interpolated parent.
+node_place :: proc(prev: ^Prev_Node, parent: Walk_Parent, local: Pose, alpha: f32) -> (world, scene: Pose) {
+	scene = pose_under(parent, parent.scene, local)
+	switch {
+	case prev == nil:
+		world = pose_under(parent, parent.world, local)
+	case prev.parent == parent.id:
+		world = pose_under(parent, parent.world, pose_lerp(prev.local, local, alpha))
+	case:
+		world = pose_lerp(prev.world, scene, alpha)
+	}
+	return
+}
+
+// A root Node's Pose is already in the world, so it skips the arithmetic.
+pose_under :: proc(parent: Walk_Parent, parent_pose, local: Pose) -> Pose {
+	if !parent.id.grouped {
+		return local
+	}
+	return pose_compose(parent_pose, local)
+}
+
+pose_compose :: proc(parent, local: Pose) -> Pose {
+	return {pos = parent.pos + linalg.quaternion128_mul_vector3(parent.rot, local.pos), rot = parent.rot * local.rot}
+}
+
+pose_lerp :: proc(a, b: Pose, t: f32) -> Pose {
+	return {pos = linalg.lerp(a.pos, b.pos, t), rot = quat_slerp(a.rot, b.rot, t)}
+}
+
+pose_of :: proc(pos: Vec3, rot: Quat) -> Pose {
+	return {pos = vec3_array(pos), rot = quat_of(rot)}
+}
+
+// A Group moves and turns a Point and turns a Directional's dir. It does not
+// change an Ambient.
+light_under :: proc(light: Light, parent: Walk_Parent) -> Light {
+	if !parent.id.grouped {
+		return light
+	}
+	out := light
+	switch light.tag {
+	case .Ambient:
+	case .Directional:
+		dir := linalg.quaternion128_mul_vector3(parent.world.rot, vec3_array(light.payload.directional.dir))
+		out.payload.directional.dir = vec3_of(dir)
+	case .Point:
+		pos := pose_compose(parent.world, {pos = vec3_array(light.payload.point.pos), rot = 1}).pos
+		out.payload.point.pos = vec3_of(pos)
+	}
+	return out
+}
+
+// Each Collider of the Scene at its world Pose, in tree order. The Queries
+// test these.
+scene_colliders :: proc(nodes: []Node, allocator: mem.Allocator) -> []Collider {
+	// A flat Scene has at most this many Colliders, so it does not grow.
+	colliders := make([dynamic]Collider, 0, len(nodes), allocator)
+	walk := Tree_Walk {
+		visit = collider_visit,
+		data  = &colliders,
+	}
+	tree_walk(&walk, nodes, WALK_ROOT)
+	return colliders[:]
+}
+
+@(private = "file")
+collider_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: Walk_Parent) {
+	if node.tag != .Collider {
+		return
+	}
+	c := node.payload.collider
+	world := pose_under(parent, parent.scene, pose_of(c.pos, c.rot))
+	c.pos = vec3_of(world.pos)
+	c.rot = quat_value(world.rot)
+	append((^[dynamic]Collider)(walk.data), c)
+}
+
+vec3_of :: proc(v: [3]f32) -> Vec3 {
+	return {x = v.x, y = v.y, z = v.z}
+}
+
+quat_value :: proc(q: quaternion128) -> Quat {
+	return {x = q.x, y = q.y, z = q.z, w = q.w}
+}

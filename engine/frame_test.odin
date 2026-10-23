@@ -34,7 +34,7 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	capacity := s.launch.capacity
 	mesh_table_init(&s.renderer.meshes, int(capacity.meshes), context.allocator, context.allocator)
 	sky_table_init(&s.renderer.skies, int(capacity.skies), context.allocator, context.allocator)
-	frame_render_init(&s.frame_render, int(capacity.draws), context.allocator)
+	frame_render_init(&s.frame_render, int(capacity.draws), int(capacity.groups), context.allocator)
 	sync.mutex_lock(&g_clay_lock)
 	ui_err := headless_init(s, context.allocator)
 	assert(ui_err == nil)
