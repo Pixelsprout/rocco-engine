@@ -404,7 +404,7 @@ expect {
 # South on a pad pauses as Space does. Holding it does not resume.
 expect {
 	m = init(Config.empty).model
-	pad = { slot: 0, held: [Button.code(South)], pressed: [Button.code(South)], left_stick: { x: 0.0, y: 0.0 }, right_stick: { x: 0.0, y: 0.0 }, left_trigger: 0.0, right_trigger: 0.0 }
+	pad = { ..Input.idle_gamepad, held: [Button.code(South)], pressed: [Button.code(South)] }
 	paused = game_state(m, { ..Input.empty, gamepads: [pad] })
 	still = game_state(paused, { ..Input.empty, gamepads: [{ ..pad, pressed: [] }] })
 	paused.state == Paused and still.state == Paused
