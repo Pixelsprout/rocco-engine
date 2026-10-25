@@ -13,14 +13,16 @@ library opened at run time costs no catalog entry.
 ## Decision
 
 - The host polls the pads once per frame, before the steps of that frame,
-  through one file per OS beside sokol: `engine/gamepad_darwin.odin`,
-  `engine/gamepad_windows.odin` and `engine/gamepad_linux.odin`. A shared
-  file, `engine/gamepad.odin`, owns the slots, the latch, the dead zones
-  and the focus clear. It has no OS calls.
-- Each backend reports every connected pad, up to 8, with an id that stays
-  the same while the pad stays connected. The id is a device key, not the
-  slot. The shared slot table gives a new pad the lowest free slot of 4 on
-  every OS. A pad past the 4 slots takes the first slot that frees.
+  through one Gamepad reader per OS, each in its own file:
+  `engine/gamepad_darwin.odin`, `engine/gamepad_windows.odin` and
+  `engine/gamepad_linux.odin`. A shared file, `engine/gamepad.odin`, owns
+  the slots, the latch, the dead zones and the focus clear. It has no OS
+  calls.
+- Each Gamepad reader reports every connected pad, up to 8, with an id
+  that stays the same while the pad stays connected. The id is a device
+  key, not the slot. The shared slot table gives a new pad the lowest free
+  slot of 4 on every OS. A pad past the 4 slots takes the first slot that
+  frees.
 - macOS: `GameController.framework`, opened with `dlopen`, through our own
   thin bindings with the Odin objc intrinsics. The host finds the
   `GCController` class with `objc_lookUpClass` after the `dlopen`, because
@@ -39,12 +41,12 @@ library opened at run time costs no catalog entry.
   sets the access rights after it makes the node. `xpad` reports X as
   0x133 (`BTN_NORTH`) and Y as 0x134 (`BTN_WEST`), so the host reads each
   pad's driver name from sysfs and swaps the two codes for `xpad` only.
-- No backend adds a catalog entry. `dlopen`, `objc_lookUpClass`,
+- No Gamepad reader adds a catalog entry. `dlopen`, `objc_lookUpClass`,
   `LoadLibraryA`, `GetProcAddress` and `FreeLibrary` are already in the
   catalogs, and `core:sys/linux` makes raw syscalls.
-- Each backend copies the OS state into a plain value and maps it with a
-  pure procedure in a file with no OS suffix, so Odin tests cover the
-  mapping on every runner: `gc_map` in `engine/gamepad_gc.odin`,
+- Each Gamepad reader copies the OS state into a plain value and maps it
+  with a pure procedure in a file with no OS suffix, so Odin tests cover
+  the mapping on every runner: `gc_map` in `engine/gamepad_gc.odin`,
   `xinput_map` in `engine/gamepad_xinput.odin`, and `evdev_apply` and
   `evdev_map` in `engine/gamepad_evdev.odin`.
 - While the Bridge is on, its pads replace the real pads, so CI tests
@@ -78,7 +80,9 @@ library opened at run time costs no catalog entry.
   needs read access to the event node; logind gives it on most desktops.
   Bluetooth Xbox pads use other drivers, which the host does not map
   specially.
-- XInput polls only, so a tap shorter than one frame can be lost on
-  Windows.
-- Rumble later needs a write path in each backend: `XInputSetState`,
-  `GCDeviceHaptics` and evdev `EV_FF`.
+- The macOS and Windows readers poll the state of each pad, so a tap
+  shorter than one frame can be lost there. The Linux reader reads every
+  evdev event and keeps each button that went down until the next poll,
+  so it keeps such a tap.
+- Rumble later needs a write path in each Gamepad reader:
+  `XInputSetState`, `GCDeviceHaptics` and evdev `EV_FF`.

@@ -119,10 +119,10 @@ seam_gamepads :: proc(step_pads: []Step_Gamepad) -> Roc_List(Gamepad) {
 			slot          = pad.slot,
 			held          = roc_list_from_slice(pad.held),
 			pressed       = roc_list_from_slice(pad.pressed),
-			left_stick    = {x = pad.left_stick.x, y = pad.left_stick.y},
-			right_stick   = {x = pad.right_stick.x, y = pad.right_stick.y},
-			left_trigger  = pad.left_trigger,
-			right_trigger = pad.right_trigger,
+			left_stick    = {x = pad.axes.left_stick.x, y = pad.axes.left_stick.y},
+			right_stick   = {x = pad.axes.right_stick.x, y = pad.axes.right_stick.y},
+			left_trigger  = pad.axes.left_trigger,
+			right_trigger = pad.axes.right_trigger,
 		}
 	}
 	return roc_list_from_slice(pads[:len(step_pads)])

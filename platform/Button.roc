@@ -65,8 +65,7 @@ expect Button.code(South) == 0
 expect Button.code(Start) == 8
 expect Button.code(DpadRight) == 13
 
-idle : Gamepad
-idle = { slot: 0, held: [], pressed: [], left_stick: { x: 0.0, y: 0.0 }, right_stick: { x: 0.0, y: 0.0 }, left_trigger: 0.0, right_trigger: 0.0 }
+idle = Input.idle_gamepad
 
 expect Button.held({ ..idle, held: [0] }, South) and !Button.held({ ..idle, pressed: [0] }, South)
 expect Button.pressed({ ..idle, pressed: [8] }, Start) and !Button.pressed({ ..idle, held: [8] }, Start)

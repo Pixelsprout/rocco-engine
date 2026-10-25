@@ -15,11 +15,11 @@ XINPUT_DLL :: "xinput1_4.dll"
 XINPUT_EMPTY_CHECK_INTERVAL :: time.Second
 
 // The foreign XInput procs of core:sys/windows link xinput.lib, so the
-// backend gets XInputGetState from the DLL at run time.
+// reader gets XInputGetState from the DLL at run time.
 Xinput_Get_State :: #type proc "system" (user: win32.XUSER, state: ^win32.XINPUT_STATE) -> win32.System_Error
 
 // A pad's id is its XInput index. The shared slot table picks its slot.
-Gamepad_Backend :: struct {
+Gamepad_Reader :: struct {
 	lib:              win32.HMODULE,
 	get_state:        Xinput_Get_State,
 	connected:        [win32.XUSER_MAX_COUNT]bool,
@@ -33,40 +33,39 @@ foreign kernel32 {
 	LoadLibraryA :: proc(name: cstring) -> win32.HMODULE ---
 }
 
-gamepad_backend_init :: proc(backend: ^Gamepad_Backend) {
-	backend^ = {}
+gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
+	reader^ = {}
 	lib := LoadLibraryA(XINPUT_DLL)
 	if lib == nil {
-		fmt.eprintln("the host cannot load " + XINPUT_DLL + "; it reports no gamepads")
+		fmt.eprintln(XINPUT_DLL + " did not load. The run reads no gamepads.")
 		return
 	}
 	get_state := Xinput_Get_State(win32.GetProcAddress(lib, "XInputGetState"))
 	if get_state == nil {
-		fmt.eprintln(XINPUT_DLL + " has no XInputGetState; the host reports no gamepads")
+		fmt.eprintln(XINPUT_DLL + " has no XInputGetState. The run reads no gamepads.")
 		win32.FreeLibrary(lib)
 		return
 	}
-	backend.lib = lib
-	backend.get_state = get_state
+	reader.lib = lib
+	reader.get_state = get_state
 }
 
-// Writes each connected pad to out and returns the count. See Gamepad_Raw.
-gamepad_backend_poll :: proc(backend: ^Gamepad_Backend, out: []Gamepad_Raw) -> int {
-	if backend.get_state == nil {
+gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
+	if reader.get_state == nil {
 		return 0
 	}
 	now := time.tick_now()
-	check_empty := time.tick_diff(backend.next_empty_check, now) >= 0
+	check_empty := time.tick_diff(reader.next_empty_check, now) >= 0
 	if check_empty {
-		backend.next_empty_check = time.tick_add(now, XINPUT_EMPTY_CHECK_INTERVAL)
+		reader.next_empty_check = time.tick_add(now, XINPUT_EMPTY_CHECK_INTERVAL)
 	}
 	n := 0
-	for &connected, index in backend.connected {
+	for &connected, index in reader.connected {
 		if !connected && !check_empty {
 			continue
 		}
 		state: win32.XINPUT_STATE
-		connected = backend.get_state(win32.XUSER(index), &state) == .SUCCESS
+		connected = reader.get_state(win32.XUSER(index), &state) == .SUCCESS
 		if connected && n < len(out) {
 			out[n] = xinput_map(transmute(Xinput_Gamepad)state.Gamepad, u64(index))
 			n += 1
@@ -75,9 +74,9 @@ gamepad_backend_poll :: proc(backend: ^Gamepad_Backend, out: []Gamepad_Raw) -> i
 	return n
 }
 
-gamepad_backend_shutdown :: proc(backend: ^Gamepad_Backend) {
-	if backend.lib != nil {
-		win32.FreeLibrary(backend.lib)
+gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
+	if reader.lib != nil {
+		win32.FreeLibrary(reader.lib)
 	}
-	backend^ = {}
+	reader^ = {}
 }

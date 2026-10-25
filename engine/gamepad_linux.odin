@@ -8,7 +8,8 @@ import "core:sys/linux"
 import "core:time"
 
 GAMEPAD_INPUT_DIR :: "/dev/input"
-// The ioctl numbers from linux/input.h, worked out for x86_64.
+// The ioctl numbers from linux/input.h. x86_64 and arm64 share the generic
+// ioctl layout, so the numbers hold on both.
 EVIOCGBIT_KEY :: 0x80604521
 EVIOCGKEY :: 0x80604518
 // Add the ABS code to get EVIOCGABS(code).
@@ -23,7 +24,7 @@ Evdev_Device :: struct {
 	// N in /dev/input/eventN.
 	number: u32,
 	id:     u64,
-	pad:    Evdev_Pad,
+	pad:    Evdev_Gamepad,
 }
 
 Evdev_Retry :: struct {
@@ -31,12 +32,12 @@ Evdev_Retry :: struct {
 	since:  time.Tick,
 }
 
-Gamepad_Backend :: struct {
+Gamepad_Reader :: struct {
 	devices:     [GAMEPAD_RAW_MAX]Evdev_Device,
 	count:       int,
 	retries:     [EVDEV_RETRIES_MAX]Evdev_Retry,
 	retry_count: int,
-	// A zero backend has inotify == 0, which is stdin, so only close it
+	// A zero reader has inotify == 0, which is stdin, so only close it
 	// when watching is set.
 	watching:    bool,
 	inotify:     linux.Fd,
@@ -45,61 +46,61 @@ Gamepad_Backend :: struct {
 	next_id:     u64,
 }
 
-gamepad_backend_init :: proc(backend: ^Gamepad_Backend) {
+gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	// Watch before the scan, so that a pad that connects during the scan is
 	// not missed.
 	fd, err := linux.inotify_init1({.NONBLOCK, .CLOEXEC})
 	if err != .NONE {
-		fmt.eprintln("gamepad: inotify_init1 failed, so pads that connect later are not seen:", err)
+		fmt.eprintfln("inotify_init1 failed: %v. The run sees no gamepad that connects later.", err)
 	} else if _, watch_err := linux.inotify_add_watch(fd, GAMEPAD_INPUT_DIR, {.CREATE, .ATTRIB, .MOVED_TO}); watch_err != .NONE {
 		if watch_err != .ENOENT {
-			fmt.eprintln("gamepad: cannot watch", GAMEPAD_INPUT_DIR, "so pads that connect later are not seen:", watch_err)
+			fmt.eprintfln("the host cannot watch %v: %v. The run sees no gamepad that connects later.", GAMEPAD_INPUT_DIR, watch_err)
 		}
 		linux.close(fd)
 	} else {
-		backend.inotify = fd
-		backend.watching = true
+		reader.inotify = fd
+		reader.watching = true
 	}
-	evdev_scan(backend)
+	evdev_scan(reader)
 }
 
-gamepad_backend_poll :: proc(backend: ^Gamepad_Backend, out: []Gamepad_Raw) -> int {
+gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
 	// Read the pads first. A pad that left frees its node number only after
 	// its reads fail, and a new pad can take that number.
-	for i := 0; i < backend.count; {
-		if evdev_read(&backend.devices[i]) {
+	for i := 0; i < reader.count; {
+		if evdev_read(&reader.devices[i]) {
 			i += 1
 		} else {
-			evdev_remove(backend, i)
+			evdev_remove(reader, i)
 		}
 	}
-	evdev_watch(backend)
-	evdev_retry(backend)
-	n := min(backend.count, len(out))
+	evdev_watch(reader)
+	evdev_retry(reader)
+	n := min(reader.count, len(out))
 	for i in 0 ..< n {
-		device := &backend.devices[i]
-		out[i] = evdev_map(device.pad, device.id)
+		device := &reader.devices[i]
+		out[i] = evdev_poll(&device.pad, device.id)
 	}
 	return n
 }
 
-gamepad_backend_shutdown :: proc(backend: ^Gamepad_Backend) {
-	for device in backend.devices[:backend.count] {
+gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
+	for device in reader.devices[:reader.count] {
 		linux.close(device.fd)
 	}
-	if backend.watching {
-		linux.close(backend.inotify)
+	if reader.watching {
+		linux.close(reader.inotify)
 	}
-	backend^ = {}
+	reader^ = {}
 }
 
 // A missing /dev/input, as in a container, means no pads.
 @(private = "file")
-evdev_scan :: proc(backend: ^Gamepad_Backend) {
+evdev_scan :: proc(reader: ^Gamepad_Reader) {
 	dir, err := linux.open(GAMEPAD_INPUT_DIR, {.DIRECTORY, .CLOEXEC})
 	if err != .NONE {
 		if err != .ENOENT {
-			fmt.eprintln("gamepad: cannot read", GAMEPAD_INPUT_DIR, err)
+			fmt.eprintfln("the host cannot read %v: %v. The run sees only the gamepads that connect later.", GAMEPAD_INPUT_DIR, err)
 		}
 		return
 	}
@@ -114,7 +115,7 @@ evdev_scan :: proc(backend: ^Gamepad_Backend) {
 		offset := 0
 		for d in linux.dirent_iterate_buf(bytes[:n], &offset) {
 			if number, ok := evdev_node_number(linux.dirent_name(d)); ok {
-				evdev_open(backend, number)
+				evdev_open(reader, number)
 			}
 		}
 	}
@@ -122,13 +123,13 @@ evdev_scan :: proc(backend: ^Gamepad_Backend) {
 
 // Opens /dev/input/eventN and keeps it if it is a gamepad.
 @(private = "file")
-evdev_open :: proc(backend: ^Gamepad_Backend, number: u32) -> linux.Errno {
-	for device in backend.devices[:backend.count] {
+evdev_open :: proc(reader: ^Gamepad_Reader, number: u32) -> linux.Errno {
+	for device in reader.devices[:reader.count] {
 		if device.number == number {
 			return .NONE
 		}
 	}
-	if backend.count == len(backend.devices) {
+	if reader.count == len(reader.devices) {
 		return .NONE
 	}
 	path_buf: [64]u8
@@ -144,13 +145,13 @@ evdev_open :: proc(backend: ^Gamepad_Backend, number: u32) -> linux.Errno {
 	device := Evdev_Device {
 		fd     = fd,
 		number = number,
-		id     = backend.next_id,
+		id     = reader.next_id,
 		pad    = {xpad = evdev_driver_is_xpad(number)},
 	}
-	backend.next_id += 1
+	reader.next_id += 1
 	evdev_load_state(fd, &device.pad)
-	backend.devices[backend.count] = device
-	backend.count += 1
+	reader.devices[reader.count] = device
+	reader.count += 1
 	return .NONE
 }
 
@@ -184,7 +185,7 @@ evdev_read :: proc(device: ^Evdev_Device) -> bool {
 
 // Reads the buttons down now and the axis ranges and values.
 @(private = "file")
-evdev_load_state :: proc(fd: linux.Fd, pad: ^Evdev_Pad) {
+evdev_load_state :: proc(fd: linux.Fd, pad: ^Evdev_Gamepad) {
 	bits: [EVDEV_KEY_BYTES]u8
 	if evdev_ioctl(fd, EVIOCGKEY, &bits) {
 		evdev_set_keys(pad, bits[:])
@@ -198,15 +199,15 @@ evdev_load_state :: proc(fd: linux.Fd, pad: ^Evdev_Pad) {
 }
 
 @(private = "file")
-evdev_watch :: proc(backend: ^Gamepad_Backend) {
-	if !backend.watching {
+evdev_watch :: proc(reader: ^Gamepad_Reader) {
+	if !reader.watching {
 		return
 	}
 	// u32 keeps each linux.Inotify_Event aligned.
 	buf: [1024]u32
 	bytes := slice.to_bytes(buf[:])
 	for {
-		n, err := linux.read(backend.inotify, bytes)
+		n, err := linux.read(reader.inotify, bytes)
 		if err == .EINTR {
 			continue
 		}
@@ -219,48 +220,48 @@ evdev_watch :: proc(backend: ^Gamepad_Backend) {
 			name_start := offset + size_of(linux.Inotify_Event)
 			offset = name_start + int(event.len)
 			if .Q_OVERFLOW in event.mask {
-				evdev_scan(backend)
+				evdev_scan(reader)
 				continue
 			}
 			name := strings.truncate_to_byte(string(bytes[name_start:offset]), 0)
-			if number, ok := evdev_node_number(name); ok && evdev_open(backend, number) == .EACCES {
-				evdev_add_retry(backend, number)
+			if number, ok := evdev_node_number(name); ok && evdev_open(reader, number) == .EACCES {
+				evdev_add_retry(reader, number)
 			}
 		}
 	}
 }
 
 @(private = "file")
-evdev_add_retry :: proc(backend: ^Gamepad_Backend, number: u32) {
-	for r in backend.retries[:backend.retry_count] {
+evdev_add_retry :: proc(reader: ^Gamepad_Reader, number: u32) {
+	for r in reader.retries[:reader.retry_count] {
 		if r.number == number {
 			return
 		}
 	}
-	if backend.retry_count < len(backend.retries) {
-		backend.retries[backend.retry_count] = {number, time.tick_now()}
-		backend.retry_count += 1
+	if reader.retry_count < len(reader.retries) {
+		reader.retries[reader.retry_count] = {number, time.tick_now()}
+		reader.retry_count += 1
 	}
 }
 
 @(private = "file")
-evdev_retry :: proc(backend: ^Gamepad_Backend) {
-	for i := 0; i < backend.retry_count; {
-		r := backend.retries[i]
-		if evdev_open(backend, r.number) == .EACCES && time.tick_since(r.since) < EVDEV_RETRY_TIME {
+evdev_retry :: proc(reader: ^Gamepad_Reader) {
+	for i := 0; i < reader.retry_count; {
+		r := reader.retries[i]
+		if evdev_open(reader, r.number) == .EACCES && time.tick_since(r.since) < EVDEV_RETRY_TIME {
 			i += 1
 			continue
 		}
-		backend.retry_count -= 1
-		backend.retries[i] = backend.retries[backend.retry_count]
+		reader.retry_count -= 1
+		reader.retries[i] = reader.retries[reader.retry_count]
 	}
 }
 
 @(private = "file")
-evdev_remove :: proc(backend: ^Gamepad_Backend, i: int) {
-	linux.close(backend.devices[i].fd)
-	copy(backend.devices[i:backend.count], backend.devices[i + 1:backend.count])
-	backend.count -= 1
+evdev_remove :: proc(reader: ^Gamepad_Reader, i: int) {
+	linux.close(reader.devices[i].fd)
+	copy(reader.devices[i:reader.count], reader.devices[i + 1:reader.count])
+	reader.count -= 1
 }
 
 // xpad's driver link ends in .../drivers/xpad.

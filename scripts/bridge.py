@@ -16,7 +16,7 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
 
     python3 scripts/bridge.py hello
     python3 scripts/bridge.py step 30 --held W --tap Space --mouse 4,0
-    python3 scripts/bridge.py step 30 --button South --left-stick 0,1
+    python3 scripts/bridge.py step 30 --held-button South --left-stick 0,1
     python3 scripts/bridge.py step --gamepads '[{"slot":1,"held":["Start"]}]'
     python3 scripts/bridge.py scene
     python3 scripts/bridge.py screenshot out.png
@@ -182,8 +182,8 @@ def step_gamepads(args):
     pad = {}
     if args.slot is not None:
         pad["slot"] = args.slot
-    if args.button:
-        pad["held"] = args.button
+    if args.held_button:
+        pad["held"] = args.held_button
     if args.tap_button:
         pad["tap"] = args.tap_button
     for field in ("left_stick", "right_stick", "left_trigger", "right_trigger"):
@@ -206,7 +206,7 @@ def parse_args(argv):
     step.add_argument("--mouse", type=mouse_arg, metavar="DX,DY", help="the mouse movement in the first step")
     pad = step.add_argument_group("one gamepad", "any of these connects one pad for the steps")
     pad.add_argument("--slot", type=int, help="the pad's slot, 0 to 3 (default: 0)")
-    pad.add_argument("--button", action="append", default=[], metavar="BUTTON", help="a button held for every step; repeat for more buttons")
+    pad.add_argument("--held-button", action="append", default=[], metavar="BUTTON", help="a button held for every step; repeat for more buttons")
     pad.add_argument("--tap-button", action="append", default=[], metavar="BUTTON", help="a button tapped before the first step; repeat for more buttons")
     pad.add_argument("--left-stick", type=stick_arg, metavar="X,Y", help="the left stick for every step, +y up")
     pad.add_argument("--right-stick", type=stick_arg, metavar="X,Y", help="the right stick for every step, +y up")

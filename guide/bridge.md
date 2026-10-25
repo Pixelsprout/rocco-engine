@@ -232,7 +232,7 @@ and no step runs:
 ```
 
 The `step` reply does not repeat the pads or the keys back.
-[Gamepads](gamepad.md#gamepads-and-the-bridge) explains what a game sees.
+[Gamepads](gamepad.md) explains how a game reads a Gamepad.
 
 ## scene
 
@@ -390,8 +390,9 @@ A Bridge pad differs from a real pad in three ways:
   buttons are pressed in its first step. A real pad that connects with a
   button down holds it but does not press it.
 - The Bridge applies no dead zone. `step` gets the sticks and the triggers
-  as the request gives them. A real pad's stick goes through the host's
-  dead zone first.
+  as the request gives them, so `[0, 0.5]` is 0.5. A real stick pushed
+  halfway reads less, because the dead zone takes the first 0.2 of its
+  travel.
 - A stick outside the unit disc fails the request. The host pulls a real
   stick there back to the edge of the disc.
 
@@ -555,7 +556,7 @@ A Headless run takes one frame for each step, and draws nothing.
 |---|---|
 | `bridge.py hello` | `hello` |
 | `bridge.py step [N] [--held KEY]... [--tap KEY]... [--mouse DX,DY]` | `step`. Give `--held` and `--tap` once for each key. |
-| `bridge.py step [N] [--slot S] [--button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
+| `bridge.py step [N] [--slot S] [--held-button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
 | `bridge.py step [N] --gamepads JSON` | `step` with the whole `gamepads` list, such as `'[{"slot":1,"held":["Start"]}]'`. |
 | `bridge.py scene` | `scene` |
 | `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |

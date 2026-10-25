@@ -50,11 +50,13 @@ Xinput_Gamepad :: struct {
 // XInput reports +y up, as Gamepad_Raw does.
 xinput_map :: proc(pad: Xinput_Gamepad, id: u64) -> Gamepad_Raw {
 	raw := Gamepad_Raw {
-		id            = id,
-		left_stick    = {xinput_axis(pad.thumb_lx), xinput_axis(pad.thumb_ly)},
-		right_stick   = {xinput_axis(pad.thumb_rx), xinput_axis(pad.thumb_ry)},
-		left_trigger  = f32(pad.left_trigger) / 255,
-		right_trigger = f32(pad.right_trigger) / 255,
+		id   = id,
+		axes = {
+			left_stick    = {xinput_axis(pad.thumb_lx), xinput_axis(pad.thumb_ly)},
+			right_stick   = {xinput_axis(pad.thumb_rx), xinput_axis(pad.thumb_ry)},
+			left_trigger  = f32(pad.left_trigger) / 255,
+			right_trigger = f32(pad.right_trigger) / 255,
+		},
 	}
 	for bit, button in XINPUT_BUTTON_BITS {
 		if pad.buttons & bit != 0 {

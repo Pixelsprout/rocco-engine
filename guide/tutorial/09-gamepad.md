@@ -169,53 +169,51 @@ Add these tests below the tests from chapter 8:
 
 <!-- region: examples/tutorial/09-gamepad/main.roc#tests -->
 ```roc
-# A pad in slot 0, at rest, with no button down.
-idle_pad : Vocabulary.Gamepad
-idle_pad = { slot: 0, held: [], pressed: [], left_stick: { x: 0.0, y: 0.0 }, right_stick: { x: 0.0, y: 0.0 }, left_trigger: 0.0, right_trigger: 0.0 }
-
 with_pads : List(Vocabulary.Gamepad) -> Vocabulary.Input
 with_pads = |pads| { ..Input.empty, gamepads: pads }
 
 # The stick halfway up walks Pip toward -z at half speed.
 expect {
-	half_up = { ..idle_pad, left_stick: { x: 0.0, y: 0.5 } }
+	half_up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 0.5 } }
 	moved = step(start, with_pads([half_up]), QueryResults.empty, 0.1).model
 	near(moved.pos.z, -0.125) and near(moved.pos.x, 0.0) and near(moved.yaw, pi)
 }
 
 # The stick all the way right walks Pip toward +x at full speed.
 expect {
-	right = { ..idle_pad, left_stick: { x: 1.0, y: 0.0 } }
+	right = { ..Input.idle_gamepad, left_stick: { x: 1.0, y: 0.0 } }
 	moved = step(start, with_pads([right]), QueryResults.empty, 0.1).model
 	near(moved.pos.x, 0.25) and near(moved.pos.z, 0.0)
 }
 
 # W and the stick up together walk Pip no faster than W alone.
 expect {
-	up = { ..idle_pad, left_stick: { x: 0.0, y: 1.0 } }
+	up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 1.0 } }
 	both = { ..with_pads([up]), held: [Key.code(W)] }
 	moved = step(start, both, QueryResults.empty, 0.1).model
 	near(V.length(moved.pos), 0.25)
 }
 
 # A pad at rest leaves Pip where it is.
-expect step(start, with_pads([idle_pad]), QueryResults.empty, 0.1).model == start
+expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).model == start
 
 # Start pressed on any pad quits, here on the pad in slot 2.
 expect {
-	start_pressed = { ..idle_pad, slot: 2, pressed: [Button.code(Start)] }
-	step(start, with_pads([idle_pad, start_pressed]), QueryResults.empty, 0.1).commands == [Quit]
+	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [Button.code(Start)] }
+	step(start, with_pads([Input.idle_gamepad, start_pressed]), QueryResults.empty, 0.1).commands == [Quit]
 }
 
 # Start held from an earlier step does not quit again.
 expect {
-	start_held = { ..idle_pad, held: [Button.code(Start)] }
+	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
 ```
 <!-- endregion -->
 
-A Gamepad holds button codes, as the Input holds key codes, so the tests
+`Input.idle_gamepad` is a pad in slot 0 with no button down and the sticks
+at rest. Each test copies it and changes only the fields it needs. A
+Gamepad holds button codes, as the Input holds key codes, so the tests
 make them with `Button.code`. Also change the test of the win message to
 "You win! Press Escape or Start to quit."
 
@@ -239,7 +237,7 @@ door, then press Start to quit.
 
 If Pip doesn't move, check that the game window is in front: on macOS, the
 pad sends nothing to a window in the back. Then read the limits for your OS
-in [Gamepads](../gamepad.md#the-limits-on-each-os). On Windows, a pad that
+in [Gamepads](../gamepad.md#limits). On Windows, a pad that
 you plug in can take a second to appear.
 
 The tutorial goes on when rocco gets animation. Until then, read

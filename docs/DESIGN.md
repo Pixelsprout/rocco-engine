@@ -234,7 +234,7 @@ window loses focus, the host releases every held key, because their key-up
 events go to the other window. Decision.
 
 The host polls the gamepads once per frame, before the steps of that frame,
-through one backend file per OS (ADR 0015). Button presses latch as key
+through one Gamepad reader per OS (ADR 0015). Button presses latch as key
 presses do. A button that is down when its pad connects is held, not
 pressed. The sticks and the triggers carry the last polled value, after the
 dead zones. When the window loses focus, the host releases every held

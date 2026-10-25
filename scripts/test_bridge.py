@@ -154,7 +154,7 @@ class CliTest(unittest.TestCase):
 
     def test_step_sends_one_pad_from_the_pad_flags(self):
         host = FakeHost(['{"ok":true,"steps":2,"commands":[],"alloc":{}}'])
-        argv = ["--port", str(host.port), "step", "2", "--slot", "2", "--button", "South", "--button", "DpadUp", "--tap-button", "Start"]
+        argv = ["--port", str(host.port), "step", "2", "--slot", "2", "--held-button", "South", "--held-button", "DpadUp", "--tap-button", "Start"]
         argv += ["--left-stick", "0.5,-0.25", "--right-stick", "0,1", "--left-trigger", "0.75", "--right-trigger", "1"]
         code, _, _ = run_cli(argv)
         host.close()

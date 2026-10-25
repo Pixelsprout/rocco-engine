@@ -1080,7 +1080,7 @@ Done when Kula plays with an Xbox pad on macOS and Windows from the v0.5.0
 release URLs, and CI tests the mapping of each OS. A person checks Linux
 later; a bug found there ships in a v0.5.x patch. Grilled 2026-10-23 to
 2026-10-26. The dex task oo56i7qp holds the decisions and the tasks.
-`docs/adr/0015-gamepads-are-polled-in-the-host.md` records the backends.
+`docs/adr/0015-gamepads-are-polled-in-the-host.md` records the Gamepad readers.
 
 1. One Vocabulary change: `Input.gamepads : List(Gamepad)`, with a slot,
    held and pressed buttons, two sticks and two triggers. `pf.Button`
@@ -1092,7 +1092,7 @@ later; a bug found there ships in a v0.5.x patch. Grilled 2026-10-23 to
 3. sokol has no gamepad module, so the host calls the OS. macOS uses
    GameController through `dlopen` and our own objc bindings. Windows uses
    XInput through `LoadLibraryA`. Linux uses evdev and `inotify` through
-   `core:sys/linux`. No backend adds a catalog entry.
+   `core:sys/linux`. No Gamepad reader adds a catalog entry.
 4. The Bridge `step` op gains `gamepads`, so CI tests pad Input with no
    pad. A pure mapping procedure for each OS has Odin tests on every
    runner.
