@@ -237,7 +237,7 @@ door, then press Start to quit.
 
 If Pip doesn't move, check that the game window is in front: on macOS, the
 pad sends nothing to a window in the back. Then read the limits for your OS
-in [Gamepads](../gamepad.md#the-limits-on-each-os). On Windows, a pad that
+in [Gamepads](../gamepad.md#limits). On Windows, a pad that
 you plug in can take a second to appear.
 
 The tutorial goes on when rocco gets animation. Until then, read

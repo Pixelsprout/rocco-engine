@@ -232,7 +232,7 @@ and no step runs:
 ```
 
 The `step` reply does not repeat the pads or the keys back.
-[Gamepads](gamepad.md#gamepads-and-the-bridge) explains what a game sees.
+[Gamepads](gamepad.md) explains how a game reads a Gamepad.
 
 ## scene
 
@@ -390,8 +390,9 @@ A Bridge pad differs from a real pad in three ways:
   buttons are pressed in its first step. A real pad that connects with a
   button down holds it but does not press it.
 - The Bridge applies no dead zone. `step` gets the sticks and the triggers
-  as the request gives them. A real pad's stick goes through the host's
-  dead zone first.
+  as the request gives them, so `[0, 0.5]` is 0.5. A real stick pushed
+  halfway reads less, because the dead zone takes the first 0.2 of its
+  travel.
 - A stick outside the unit disc fails the request. The host pulls a real
   stick there back to the edge of the disc.
 

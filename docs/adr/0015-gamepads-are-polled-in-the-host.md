@@ -80,7 +80,9 @@ library opened at run time costs no catalog entry.
   needs read access to the event node; logind gives it on most desktops.
   Bluetooth Xbox pads use other drivers, which the host does not map
   specially.
-- XInput polls only, so a tap shorter than one frame can be lost on
-  Windows.
+- The macOS and Windows readers poll the state of each pad, so a tap
+  shorter than one frame can be lost there. The Linux reader reads every
+  evdev event and keeps each button that went down until the next poll,
+  so it keeps such a tap.
 - Rumble later needs a write path in each Gamepad reader:
   `XInputSetState`, `GCDeviceHaptics` and evdev `EV_FF`.

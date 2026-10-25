@@ -69,7 +69,7 @@ those defaults in one place. Each one links to the page that explains it.
   [Gamepads](gamepad.md#the-buttons).
 - **A stick at rest reads 0, but only on a real pad.** The host applies a
   dead zone to a real pad. The Bridge applies none. See
-  [Gamepads and the Bridge](gamepad.md#gamepads-and-the-bridge).
+  [The Input rules](bridge.md#the-input-rules) of the Bridge.
 - **Find a player's pad by its slot.** The `gamepads` list skips the free
   slots, so its first entry is not always slot 0. See
   [Slots](gamepad.md#slots-and-more-than-one-player).

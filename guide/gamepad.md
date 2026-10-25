@@ -1,6 +1,6 @@
 ---
 title: Gamepads
-summary: Buttons named by their place on the pad, sticks and triggers with the dead zone applied, slots for more than one player, the limits on each OS, and gamepads through the Bridge.
+summary: Buttons named by their place on the pad, sticks and triggers with the dead zone applied, slots for more than one player, and the limits on each OS.
 order: 7
 ---
 
@@ -217,30 +217,9 @@ Put a stick at `y: 0.5`, and `step` sees 0.5.
 
 The [Bridge](bridge.md) can connect pads with the `gamepads` field of a
 `step` request, so a script or CI can play with a pad that does not exist.
-While the Bridge is on, its pads replace the real ones. This request walks
-Pip in chapter 9 with the left stick halfway up:
-
-```
-{"op":"step","n":30,"gamepads":[{"slot":0,"left_stick":[0,0.5]}]}
-{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":15,"deallocs":15,"reallocs":6,"live":12,"step_us":23.1,"view_us":24.0}}
-```
-
-After it, the `scene` reply has Pip at z `-0.31249997`: half of the
-`-0.625` that W gives in 30 steps.
-
-A Bridge pad differs from a real pad in three ways:
-
-- A pad that was not in the step before held nothing, so its held buttons
-  are pressed in its first step. A real pad that connects with a button
-  down holds it but does not press it.
-- The Bridge applies no dead zone. `step` gets the sticks and the triggers
-  as the request gives them, so `[0, 0.5]` is 0.5. A real stick pushed
-  halfway reads less, because the dead zone takes the first 0.2 of its
-  travel.
-- A stick outside the unit disc fails the request. A real stick there is
-  pulled back to the edge of the disc.
-
-[The Bridge](bridge.md#step) lists every field and error.
+While the Bridge is on, its pads replace the real ones, and they skip the
+dead zones. [The Bridge](bridge.md#gamepads) gives the fields, the errors
+and the ways a Bridge pad differs from a real pad.
 
 ## Reference
 
@@ -281,7 +260,20 @@ columns give the label at each place. An OS driver that reports a pad by
 its labels, not by their places, swaps `South` with `East` and `West` with
 `North` on a Switch pad.
 
-### The limits on each OS
+### Limits
+
+On every OS:
+
+- No rumble, lights, gyro or touchpad.
+- No Guide button, and no button pictures for the prompts in your UI.
+- At most 4 pads.
+- The dead zones are fixed. A game cannot change them.
+- The host reads the pads once per frame. On macOS and Windows it polls
+  the state of each pad, so a tap shorter than one frame can be lost
+  there. On Linux it reads every button event, so it keeps such a tap,
+  and the step gets the press.
+- A Headless run reads no pads. While the Bridge is on, only the Bridge
+  pads reach the game.
 
 **macOS** reads the pads that Apple's GameController knows: Xbox,
 PlayStation, Switch Pro and MFi pads, on a cable or over Bluetooth.
@@ -297,7 +289,6 @@ PlayStation, Switch Pro and MFi pads, on a cable or over Bluetooth.
   look like an Xbox pad.
 - A pad that you plug in can take up to 1 s to appear. The host checks for
   a new pad once a second, as Microsoft advises.
-- XInput can only poll, so a tap shorter than one frame can be lost.
 - The host needs `xinput1_4.dll`, which is part of Windows 8 and later. If
   it is missing, the host logs one line and reports no pads.
 
@@ -313,31 +304,6 @@ PlayStation, Switch Pro and MFi pads, on a cable or over Bluetooth.
 - Bluetooth Xbox pads use other drivers, which the host does not map
   specially. Use a cable.
 - rocco has not been checked with a real pad on Linux yet.
-
-On every OS, a Headless run reads no pads, and while the Bridge is on, only
-the Bridge pads reach the game.
-
-### The Bridge fields
-
-Each entry of `gamepads` in a `step` request is an object. A field that you
-leave out is 0 or empty.
-
-| Field | Means |
-|---|---|
-| `slot` | The pad's slot, a whole number from 0 to 3. The default is 0. Two pads cannot share a slot. |
-| `held` | A list of Button names, such as `"South"` and `"DpadUp"`, held for every step. |
-| `tap` | A list of Button names, pressed but not held, in the first step only. |
-| `left_stick`, `right_stick` | `[x, y]`, for every step. `+y` is up. It must be inside the unit disc. |
-| `left_trigger`, `right_trigger` | A number from 0 to 1, for every step. |
-
-A request with no `gamepads` has no pad connected.
-
-### Limits
-
-- No rumble, lights, gyro or touchpad.
-- No Guide button, and no button pictures for the prompts in your UI.
-- At most 4 pads.
-- The dead zones are fixed. A game cannot change them.
 
 [Input]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Input
 [Gamepad]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Gamepad
