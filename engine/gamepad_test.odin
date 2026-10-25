@@ -14,15 +14,16 @@ pad_raw :: proc(id: u64, buttons: Gamepad_Buttons = {}, axes: Gamepad_Axes = {})
 	return {id = id, buttons = buttons, axes = axes}
 }
 
-pad_take :: proc(latch: ^Gamepad_Latch, buf: ^Gamepad_Buffers) -> []Step_Gamepad {
-	return gamepad_latch_take(latch, buf)
+button_codes :: proc(buttons: []Gamepad_Button) -> []u8 {
+	codes := make([]u8, len(buttons), context.temp_allocator)
+	for b, i in buttons {
+		codes[i] = u8(b)
+	}
+	return codes
 }
 
 expect_buttons :: proc(t: ^testing.T, got: []u8, want: []Gamepad_Button, loc := #caller_location) {
-	codes := make([]u8, len(want), context.temp_allocator)
-	for b, i in want {
-		codes[i] = u8(b)
-	}
+	codes := button_codes(want)
 	testing.expectf(t, slice.equal(got, codes), "got buttons %v, want %v", got, codes, loc = loc)
 }
 
@@ -57,7 +58,7 @@ test_gamepad_stick_up_is_plus_y :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {pad_raw(1, axes = {left_stick = {0, 1}, right_stick = {0, -1}})})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
 	expect_near(t, pads[0].axes.left_stick.y, 1)
 	expect_near(t, pads[0].axes.right_stick.y, -1)
@@ -78,7 +79,7 @@ test_gamepad_with_no_pad_takes_an_empty_list :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {})
-	testing.expect_value(t, len(pad_take(&latch, &buf)), 0)
+	testing.expect_value(t, len(gamepad_latch_take(&latch, &buf)), 0)
 }
 
 // A pad keeps its slot while it stays connected, and a new pad takes the
@@ -88,19 +89,19 @@ test_gamepad_slots_are_kept_and_the_lowest_free_slot_is_reused :: proc(t: ^testi
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {pad_raw(10), pad_raw(20)})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 2)
 	testing.expect_value(t, pads[0].slot, 0)
 	testing.expect_value(t, pads[1].slot, 1)
 
 	gamepad_latch_poll(&latch, {pad_raw(20)})
-	pads = pad_take(&latch, &buf)
+	pads = gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
 	testing.expect_value(t, pads[0].slot, 1)
 
 	gamepad_latch_poll(&latch, {pad_raw(30), pad_raw(20)})
 	gamepad_latch_poll(&latch, {pad_raw(20), pad_raw(30), pad_raw(40)})
-	pads = pad_take(&latch, &buf)
+	pads = gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 3)
 	testing.expect_value(t, latch.slots[0].id, 30)
 	testing.expect_value(t, latch.slots[1].id, 20)
@@ -112,11 +113,11 @@ test_gamepad_reports_at_most_the_slot_count :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {pad_raw(1), pad_raw(2), pad_raw(3), pad_raw(4), pad_raw(5)})
-	testing.expect_value(t, len(pad_take(&latch, &buf)), GAMEPAD_SLOTS)
+	testing.expect_value(t, len(gamepad_latch_take(&latch, &buf)), GAMEPAD_SLOTS)
 
 	// A pad past the slots gets the first slot that frees.
 	gamepad_latch_poll(&latch, {pad_raw(2), pad_raw(3), pad_raw(4), pad_raw(5)})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), GAMEPAD_SLOTS)
 	testing.expect_value(t, latch.slots[0].id, 5)
 }
@@ -126,12 +127,12 @@ test_gamepad_button_down_at_connect_is_held_not_pressed :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {pad_raw(1, {.South})})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].held, {.South})
 	expect_buttons(t, pads[0].pressed, {})
 
 	gamepad_latch_poll(&latch, {pad_raw(1, {.South, .East})})
-	pads = pad_take(&latch, &buf)
+	pads = gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].held, {.South, .East})
 	expect_buttons(t, pads[0].pressed, {.East})
 }
@@ -143,15 +144,15 @@ test_gamepad_pressed_waits_through_a_frame_with_no_step :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {pad_raw(1)})
-	_ = pad_take(&latch, &buf)
+	_ = gamepad_latch_take(&latch, &buf)
 
 	gamepad_latch_poll(&latch, {pad_raw(1, {.Start})})
 	gamepad_latch_poll(&latch, {pad_raw(1, {.Start})})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].pressed, {.Start})
 	expect_buttons(t, pads[0].held, {.Start})
 
-	pads = pad_take(&latch, &buf)
+	pads = gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].pressed, {})
 	expect_buttons(t, pads[0].held, {.Start})
 }
@@ -163,7 +164,7 @@ test_gamepad_a_tap_between_steps_is_pressed_but_not_held :: proc(t: ^testing.T) 
 	gamepad_latch_poll(&latch, {pad_raw(1)})
 	gamepad_latch_poll(&latch, {pad_raw(1, {.North})})
 	gamepad_latch_poll(&latch, {pad_raw(1)})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].pressed, {.North})
 	expect_buttons(t, pads[0].held, {})
 }
@@ -175,7 +176,7 @@ test_gamepad_drop_keeps_held_and_drops_pressed :: proc(t: ^testing.T) {
 	gamepad_latch_poll(&latch, {pad_raw(1)})
 	gamepad_latch_poll(&latch, {pad_raw(1, {.West})})
 	gamepad_latch_drop(&latch)
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].pressed, {})
 	expect_buttons(t, pads[0].held, {.West})
 }

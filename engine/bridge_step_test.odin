@@ -262,18 +262,8 @@ test_bridge_step_ignores_the_real_keyboard_and_mouse :: proc(t: ^testing.T) {
 
 @(private = "file")
 expect_pad_buttons :: proc(t: ^testing.T, pad: ^Fake_Gamepad, held: []Gamepad_Button, pressed: []Gamepad_Button, loc := #caller_location) {
-	got_held, got_pressed := pad.held[:pad.held_len], pad.pressed[:pad.pressed_len]
-	testing.expectf(t, slice.equal(got_held, button_codes(held)), "got held %v, want %v", got_held, held, loc = loc)
-	testing.expectf(t, slice.equal(got_pressed, button_codes(pressed)), "got pressed %v, want %v", got_pressed, pressed, loc = loc)
-}
-
-@(private = "file")
-button_codes :: proc(buttons: []Gamepad_Button) -> []u8 {
-	out := make([]u8, len(buttons), context.temp_allocator)
-	for b, i in buttons {
-		out[i] = u8(b)
-	}
-	return out
+	expect_buttons(t, pad.held[:pad.held_len], held, loc)
+	expect_buttons(t, pad.pressed[:pad.pressed_len], pressed, loc)
 }
 
 // The pad buttons follow the Input rules of the keys. The axes hold for every

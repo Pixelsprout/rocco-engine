@@ -89,13 +89,13 @@ test_xinput_map_feeds_the_latch :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {xinput_map({thumb_lx = 2000, left_trigger = 5}, id = 3)})
-	pads := pad_take(&latch, &buf)
+	pads := gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
 	testing.expect_value(t, pads[0].axes.left_stick, [2]f32{})
 	testing.expect_value(t, pads[0].axes.left_trigger, 0)
 
 	gamepad_latch_poll(&latch, {xinput_map({buttons = XINPUT_A, thumb_ly = 32767, right_trigger = 255}, id = 3)})
-	pads = pad_take(&latch, &buf)
+	pads = gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
 	expect_buttons(t, pads[0].held, {.South})
 	expect_buttons(t, pads[0].pressed, {.South})
