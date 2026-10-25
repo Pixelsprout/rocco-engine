@@ -54,7 +54,7 @@ EVDEV_AXIS_CODES := [Evdev_Axis]u16 {
 	.Hat_Y = ABS_HAT0Y,
 }
 
-// struct input_event on 64-bit Linux. The backend reads an event node
+// struct input_event on 64-bit Linux. The Linux reader copies an event node
 // straight into an array of these.
 Evdev_Event :: struct {
 	time_sec:  i64,
@@ -88,7 +88,7 @@ Evdev_Axis :: enum u8 {
 }
 
 // One pad's state, built from its evdev events.
-Evdev_Pad :: struct {
+Evdev_Gamepad :: struct {
 	// xpad reports the Xbox X button as BTN_NORTH and Y as BTN_WEST, by
 	// label and not by position. It also may send the D-pad as
 	// BTN_TRIGGER_HAPPY1 to 4.
@@ -99,12 +99,12 @@ Evdev_Pad :: struct {
 	axes:     [Evdev_Axis]Evdev_Absinfo,
 	// After SYN_DROPPED the events up to the next SYN_REPORT are stale.
 	dropping: bool,
-	// Set when a drop ends. The backend reads the key and axis state again
+	// Set when a drop ends. The Linux reader loads the key and axis state again
 	// and clears it.
 	resync:   bool,
 }
 
-evdev_apply :: proc(pad: ^Evdev_Pad, events: []Evdev_Event) {
+evdev_apply :: proc(pad: ^Evdev_Gamepad, events: []Evdev_Event) {
 	for e in events {
 		if pad.dropping {
 			if e.type == EV_SYN && e.code == SYN_REPORT {
@@ -135,7 +135,7 @@ evdev_apply :: proc(pad: ^Evdev_Pad, events: []Evdev_Event) {
 	}
 }
 
-evdev_map :: proc(pad: Evdev_Pad, id: u64) -> Gamepad_Raw {
+evdev_map :: proc(pad: Evdev_Gamepad, id: u64) -> Gamepad_Raw {
 	buttons := pad.buttons
 	hat_x := pad.axes[.Hat_X].value
 	hat_y := pad.axes[.Hat_Y].value
@@ -154,7 +154,7 @@ evdev_map :: proc(pad: Evdev_Pad, id: u64) -> Gamepad_Raw {
 }
 
 // Sets the buttons from an EVIOCGKEY bit array.
-evdev_set_keys :: proc(pad: ^Evdev_Pad, bits: []u8) {
+evdev_set_keys :: proc(pad: ^Evdev_Gamepad, bits: []u8) {
 	pad.buttons = {}
 	for byte, i in bits {
 		if byte == 0 {

@@ -1,6 +1,6 @@
 package engine
 
-// The values the macOS backend reads from one GCExtendedGamepad. Each field
+// The values the macOS reader takes from one GCExtendedGamepad. Each field
 // is named after its GameController selector, so the snapshot keeps the
 // labels and gc_map gives the positions.
 Gc_Snapshot :: struct {

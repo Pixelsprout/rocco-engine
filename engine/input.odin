@@ -66,14 +66,14 @@ input_take :: proc(latch: ^Input_Latch, buf: ^Input_Buffers) -> Step_Input {
 			n_pressed += 1
 		}
 	}
-	keys := Step_Input {
+	step_input := Step_Input {
 		held    = buf.held[:n_held],
 		pressed = buf.pressed[:n_pressed],
 		mouse   = latch.mouse,
 	}
-	keys.gamepads = gamepad_latch_take(&latch.gamepads, &buf.gamepads)
+	step_input.gamepads = gamepad_latch_take(&latch.gamepads, &buf.gamepads)
 	input_drop(latch)
-	return keys
+	return step_input
 }
 
 // Drops the pressed keys and buttons and the mouse delta. The held keys and

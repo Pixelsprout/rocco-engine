@@ -4,7 +4,7 @@ import "core:math"
 
 // The host reports at most this many pads. A Gamepad's slot is below it.
 GAMEPAD_SLOTS :: 4
-// A backend may see more pads than there are slots. A pad past the slots
+// A Gamepad reader may see more pads than there are slots. A pad past the slots
 // takes the first slot that frees.
 GAMEPAD_RAW_MAX :: 8
 // A stick nearer the centre than this reads 0. The rest of the travel is
@@ -51,8 +51,8 @@ Gamepad_Button :: enum u8 {
 
 Gamepad_Buttons :: bit_set[Gamepad_Button;u16]
 
-// What a backend reads from one connected pad in one poll. See
-// gamepad_backend_poll.
+// What a Gamepad reader gets from one connected pad in one poll. See
+// gamepad_reader_poll.
 Gamepad_Raw :: struct {
 	// Stays the same while the pad stays connected. The latch keeps the
 	// pad's slot by it.
@@ -71,7 +71,7 @@ Gamepad_Slot :: struct {
 	connected:     bool,
 	id:            u64,
 	// The buttons of the last poll. A button that goes down after it is pressed.
-	down:          Gamepad_Buttons,
+	polled:        Gamepad_Buttons,
 	held:          Gamepad_Buttons,
 	pressed:       Gamepad_Buttons,
 	left_stick:    [2]f32,
@@ -105,10 +105,10 @@ Gamepad_Buffers :: struct {
 	pressed: [GAMEPAD_SLOTS][len(Gamepad_Button)]u8,
 }
 
-// Reads the backend once. The host calls it once per frame, before the steps.
-gamepads_poll :: proc(latch: ^Gamepad_Latch, backend: ^Gamepad_Backend) {
+// Polls the Gamepad reader once. The host calls it once per frame, before the steps.
+gamepads_poll :: proc(latch: ^Gamepad_Latch, reader: ^Gamepad_Reader) {
 	raws: [GAMEPAD_RAW_MAX]Gamepad_Raw
-	n := gamepad_backend_poll(backend, raws[:])
+	n := gamepad_reader_poll(reader, raws[:])
 	gamepad_latch_poll(latch, raws[:clamp(n, 0, GAMEPAD_RAW_MAX)])
 }
 
@@ -127,14 +127,14 @@ gamepad_latch_poll :: proc(latch: ^Gamepad_Latch, raws: []Gamepad_Raw) {
 		if latch.unfocused {
 			gamepad_slot_idle(slot)
 		} else {
-			slot.pressed += raw.buttons - slot.down
+			slot.pressed += raw.buttons - slot.polled
 			slot.held = raw.buttons
 			slot.left_stick = gamepad_stick(raw.left_stick)
 			slot.right_stick = gamepad_stick(raw.right_stick)
 			slot.left_trigger = gamepad_trigger(raw.left_trigger)
 			slot.right_trigger = gamepad_trigger(raw.right_trigger)
 		}
-		slot.down = raw.buttons
+		slot.polled = raw.buttons
 	}
 }
 
@@ -226,7 +226,7 @@ gamepad_slot_for :: proc(latch: ^Gamepad_Latch, raw: Gamepad_Raw) -> ^Gamepad_Sl
 	}
 	for &slot in latch.slots {
 		if !slot.connected {
-			slot = {connected = true, id = raw.id, down = raw.buttons}
+			slot = {connected = true, id = raw.id, polled = raw.buttons}
 			return &slot
 		}
 	}

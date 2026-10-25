@@ -39,30 +39,30 @@ Gc_Axis :: struct {
 
 // The GCController class. It is nil when GameController did not load, and
 // then each poll reports no pads.
-Gamepad_Backend :: struct {
+Gamepad_Reader :: struct {
 	controller_class: NS.Class,
 }
 
 // dlerror is not in the macOS catalog, so the log gives no reason.
-gamepad_backend_init :: proc(backend: ^Gamepad_Backend) {
+gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	if posix.dlopen(GC_FRAMEWORK, posix.RTLD_LOCAL + {.LAZY}) == nil {
 		fmt.eprintln("rocco: GameController did not load, so no gamepads are read")
 		return
 	}
-	backend.controller_class = NS.objc_lookUpClass("GCController")
-	if backend.controller_class == nil {
+	reader.controller_class = NS.objc_lookUpClass("GCController")
+	if reader.controller_class == nil {
 		fmt.eprintln("rocco: GameController has no GCController class, so no gamepads are read")
 	}
 }
 
 // The list can stay empty for the first frames, because AppKit connects the
 // pads on the main run loop.
-gamepad_backend_poll :: proc(backend: ^Gamepad_Backend, out: []Gamepad_Raw) -> int {
-	if backend.controller_class == nil {
+gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
+	if reader.controller_class == nil {
 		return 0
 	}
 	NS.scoped_autoreleasepool()
-	controllers := intrinsics.objc_send(^NS.Array, (^Gc_Controller)(backend.controller_class), "controllers")
+	controllers := intrinsics.objc_send(^NS.Array, (^Gc_Controller)(reader.controller_class), "controllers")
 	if controllers == nil {
 		return 0
 	}
@@ -85,9 +85,9 @@ gamepad_backend_poll :: proc(backend: ^Gamepad_Backend, out: []Gamepad_Raw) -> i
 }
 
 // dyld does not unload an image that holds Objective-C classes, so the
-// backend does not dlclose GameController.
-gamepad_backend_shutdown :: proc(backend: ^Gamepad_Backend) {
-	backend^ = {}
+// reader does not dlclose GameController.
+gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
+	reader^ = {}
 }
 
 @(private = "file")

@@ -10,8 +10,8 @@ Evdev_Case :: struct {
 
 // The ranges xpad gives an Xbox One pad on a cable. An Xbox 360 pad has
 // triggers from 0 to 255.
-xpad_pad :: proc(trigger_max: i32 = 1023) -> Evdev_Pad {
-	pad := Evdev_Pad {
+xpad_pad :: proc(trigger_max: i32 = 1023) -> Evdev_Gamepad {
+	pad := Evdev_Gamepad {
 		xpad = true,
 	}
 	for axis in ([]Evdev_Axis{.X, .Y, .RX, .RY}) {
@@ -25,8 +25,8 @@ xpad_pad :: proc(trigger_max: i32 = 1023) -> Evdev_Pad {
 }
 
 // hid-playstation: sticks from 0 to 255 with the centre at 128.
-playstation_pad :: proc() -> Evdev_Pad {
-	pad: Evdev_Pad
+playstation_pad :: proc() -> Evdev_Gamepad {
+	pad: Evdev_Gamepad
 	for axis in ([]Evdev_Axis{.X, .Y, .RX, .RY}) {
 		pad.axes[axis] = {value = 128, maximum = 255}
 	}
@@ -49,7 +49,7 @@ ev_syn :: proc(code: u16 = SYN_REPORT) -> Evdev_Event {
 	return {type = EV_SYN, code = code}
 }
 
-evdev_pressed :: proc(pad: Evdev_Pad, events: []Evdev_Event) -> Gamepad_Buttons {
+evdev_pressed :: proc(pad: Evdev_Gamepad, events: []Evdev_Event) -> Gamepad_Buttons {
 	pad := pad
 	evdev_apply(&pad, events)
 	return evdev_map(pad, 1).buttons
@@ -152,7 +152,7 @@ test_evdev_trigger_ends_follow_the_abs_range :: proc(t: ^testing.T) {
 
 @(test)
 test_evdev_pad_at_rest_reads_nothing :: proc(t: ^testing.T) {
-	for pad in ([]Evdev_Pad{xpad_pad(), playstation_pad()}) {
+	for pad in ([]Evdev_Gamepad{xpad_pad(), playstation_pad()}) {
 		raw := evdev_map(pad, 7)
 		testing.expect_value(t, raw.id, 7)
 		testing.expect_value(t, raw.buttons, Gamepad_Buttons{})
@@ -165,7 +165,7 @@ test_evdev_pad_at_rest_reads_nothing :: proc(t: ^testing.T) {
 // A pad with no ABS axis, such as one with digital triggers only.
 @(test)
 test_evdev_missing_axis_reads_zero :: proc(t: ^testing.T) {
-	pad: Evdev_Pad
+	pad: Evdev_Gamepad
 	evdev_apply(&pad, {ev_abs(ABS_Z, 1), ev_abs(ABS_X, 1), ev_syn()})
 	raw := evdev_map(pad, 1)
 	testing.expect_value(t, raw.left_trigger, 0)

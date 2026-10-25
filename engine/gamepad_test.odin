@@ -51,7 +51,7 @@ test_gamepad_stick_past_the_dead_zone_rescales_to_the_unit_disc :: proc(t: ^test
 	expect_near(t, corner.x, corner.y)
 }
 
-// Each backend reports +y up, so up stays up through the dead zone.
+// Each reader reports +y up, so up stays up through the dead zone.
 @(test)
 test_gamepad_stick_up_is_plus_y :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
@@ -240,13 +240,13 @@ test_button_tags_match_the_codes_in_button_roc :: proc(t: ^testing.T) {
 // The OS calls get a smoke test only. CI runners have no pad, but a
 // developer's machine may have one.
 @(test)
-test_gamepad_backend_polls_without_a_crash :: proc(t: ^testing.T) {
-	backend: Gamepad_Backend
-	gamepad_backend_init(&backend)
-	defer gamepad_backend_shutdown(&backend)
+test_gamepad_reader_polls_without_a_crash :: proc(t: ^testing.T) {
+	reader: Gamepad_Reader
+	gamepad_reader_init(&reader)
+	defer gamepad_reader_shutdown(&reader)
 	raws: [GAMEPAD_RAW_MAX]Gamepad_Raw
 	for _ in 0 ..< 3 {
-		n := gamepad_backend_poll(&backend, raws[:])
-		testing.expectf(t, n >= 0 && n <= GAMEPAD_RAW_MAX, "the backend reported %v pads", n)
+		n := gamepad_reader_poll(&reader, raws[:])
+		testing.expectf(t, n >= 0 && n <= GAMEPAD_RAW_MAX, "the reader reported %v pads", n)
 	}
 }
