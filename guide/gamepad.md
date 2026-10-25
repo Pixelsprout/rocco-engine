@@ -275,9 +275,12 @@ On every OS:
 - A Headless run reads no pads. While the Bridge is on, only the Bridge
   pads reach the game.
 
-**macOS** reads the pads that Apple's GameController knows: Xbox,
-PlayStation, Switch Pro and MFi pads, on a cable or over Bluetooth.
+**macOS** reads the pads that Apple's GameController knows: Microsoft's
+Xbox Wireless pads over Bluetooth, and PlayStation, Switch Pro and MFi pads.
 
+- A wired Xbox One pad from another brand, such as the PDP Afterglow, does
+  not appear. macOS has no driver for it, so GameController never sees it.
+  A later release reads these pads itself.
 - GameController sends nothing while the game window is not in front.
 - GameController applies its own small dead zone before the host's.
 - A pad that is connected at start can take a few frames to appear.

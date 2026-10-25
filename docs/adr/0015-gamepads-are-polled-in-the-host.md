@@ -69,9 +69,16 @@ library opened at run time costs no catalog entry.
 
 ## Consequences
 
-- macOS reads only the pads that GameController knows: Xbox, PlayStation,
-  Switch Pro and MFi. GameController sends no input while the game window
-  is not in front, and the host keeps that default.
+- macOS reads only the pads that GameController knows: Xbox Wireless pads
+  over Bluetooth, PlayStation, Switch Pro and MFi. GameController sends no
+  input while the game window is not in front, and the host keeps that
+  default.
+- macOS has no driver for wired third-party Xbox One pads, which speak GIP
+  over USB with a vendor-specific class. GameController never lists them.
+  Found on 2026-10-26 with a PDP Afterglow (`0e6f:0139`). SDL reads such
+  pads by speaking GIP itself over libusb. A GIP reader over IOKit USB
+  would amend this decision: GIP is one protocol for every Xbox One pad,
+  so the mapping-table reason for rejecting IOKit HID does not apply.
 - Windows reads only Xbox-compatible pads. A PlayStation pad works through
   Steam Input or DS4Windows. A pad that connects can take up to 1 s to
   appear.
