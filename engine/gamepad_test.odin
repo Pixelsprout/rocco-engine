@@ -10,8 +10,8 @@ import "core:testing"
 
 BUTTON_ROC :: #load("../platform/Button.roc", string)
 
-pad_raw :: proc(id: u64, buttons: Gamepad_Buttons = {}, left_stick: [2]f32 = {}, right_stick: [2]f32 = {}, left_trigger: f32 = 0, right_trigger: f32 = 0) -> Gamepad_Raw {
-	return {id = id, buttons = buttons, left_stick = left_stick, right_stick = right_stick, left_trigger = left_trigger, right_trigger = right_trigger}
+pad_raw :: proc(id: u64, buttons: Gamepad_Buttons = {}, axes: Gamepad_Axes = {}) -> Gamepad_Raw {
+	return {id = id, buttons = buttons, axes = axes}
 }
 
 pad_take :: proc(latch: ^Gamepad_Latch, buf: ^Gamepad_Buffers) -> []Step_Gamepad {
@@ -56,11 +56,11 @@ test_gamepad_stick_past_the_dead_zone_rescales_to_the_unit_disc :: proc(t: ^test
 test_gamepad_stick_up_is_plus_y :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buf: Gamepad_Buffers
-	gamepad_latch_poll(&latch, {pad_raw(1, left_stick = {0, 1}, right_stick = {0, -1})})
+	gamepad_latch_poll(&latch, {pad_raw(1, axes = {left_stick = {0, 1}, right_stick = {0, -1}})})
 	pads := pad_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
-	expect_near(t, pads[0].left_stick.y, 1)
-	expect_near(t, pads[0].right_stick.y, -1)
+	expect_near(t, pads[0].axes.left_stick.y, 1)
+	expect_near(t, pads[0].axes.right_stick.y, -1)
 }
 
 @(test)
@@ -186,31 +186,31 @@ test_gamepad_drop_keeps_held_and_drops_pressed :: proc(t: ^testing.T) {
 test_gamepad_unfocus_clears_held_and_axes_until_focus_returns :: proc(t: ^testing.T) {
 	latch: Input_Latch
 	buf: Input_Buffers
-	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South}, {0.9, 0}, {0, 0.9}, 0.8, 0.8)})
+	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South}, {{0.9, 0}, {0, 0.9}, 0.8, 0.8})})
 	unfocused := sapp.Event{type = .UNFOCUSED}
 	input_on_event(&latch, &unfocused)
 
 	pads := input_take(&latch, &buf).gamepads
 	testing.expect_value(t, len(pads), 1)
 	expect_buttons(t, pads[0].held, {})
-	testing.expect_value(t, pads[0].left_stick, [2]f32{})
-	testing.expect_value(t, pads[0].right_stick, [2]f32{})
-	testing.expect_value(t, pads[0].left_trigger, 0)
-	testing.expect_value(t, pads[0].right_trigger, 0)
+	testing.expect_value(t, pads[0].axes.left_stick, [2]f32{})
+	testing.expect_value(t, pads[0].axes.right_stick, [2]f32{})
+	testing.expect_value(t, pads[0].axes.left_trigger, 0)
+	testing.expect_value(t, pads[0].axes.right_trigger, 0)
 
-	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South, .East}, {0.9, 0})})
+	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South, .East}, {left_stick = {0.9, 0}})})
 	pads = input_take(&latch, &buf).gamepads
 	expect_buttons(t, pads[0].held, {})
 	expect_buttons(t, pads[0].pressed, {})
-	testing.expect_value(t, pads[0].left_stick, [2]f32{})
+	testing.expect_value(t, pads[0].axes.left_stick, [2]f32{})
 
 	focused := sapp.Event{type = .FOCUSED}
 	input_on_event(&latch, &focused)
-	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South, .East}, {0.9, 0})})
+	gamepad_latch_poll(&latch.gamepads, {pad_raw(1, {.South, .East}, {left_stick = {0.9, 0}})})
 	pads = input_take(&latch, &buf).gamepads
 	expect_buttons(t, pads[0].held, {.South, .East})
 	expect_buttons(t, pads[0].pressed, {})
-	testing.expect(t, pads[0].left_stick.x > 0)
+	testing.expect(t, pads[0].axes.left_stick.x > 0)
 }
 
 @(test)

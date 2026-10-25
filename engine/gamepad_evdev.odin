@@ -144,12 +144,14 @@ evdev_map :: proc(pad: Evdev_Gamepad, id: u64) -> Gamepad_Raw {
 	if hat_y < 0 do buttons += {.Dpad_Up}
 	if hat_y > 0 do buttons += {.Dpad_Down}
 	return {
-		id            = id,
-		buttons       = buttons,
-		left_stick    = {evdev_stick(pad.axes[.X]), -evdev_stick(pad.axes[.Y])},
-		right_stick   = {evdev_stick(pad.axes[.RX]), -evdev_stick(pad.axes[.RY])},
-		left_trigger  = evdev_unit(pad.axes[.Z]),
-		right_trigger = evdev_unit(pad.axes[.RZ]),
+		id      = id,
+		buttons = buttons,
+		axes    = {
+			left_stick    = {evdev_stick(pad.axes[.X]), -evdev_stick(pad.axes[.Y])},
+			right_stick   = {evdev_stick(pad.axes[.RX]), -evdev_stick(pad.axes[.RY])},
+			left_trigger  = evdev_unit(pad.axes[.Z]),
+			right_trigger = evdev_unit(pad.axes[.RZ]),
+		},
 	}
 }
 

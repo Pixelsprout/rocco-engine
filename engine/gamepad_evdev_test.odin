@@ -125,16 +125,16 @@ test_evdev_stick_up_is_plus_y_and_right_is_plus_x :: proc(t: ^testing.T) {
 	pad := xpad_pad()
 	evdev_apply(&pad, {ev_abs(ABS_X, 32767), ev_abs(ABS_Y, -32768), ev_abs(ABS_RX, -32768), ev_abs(ABS_RY, 32767), ev_syn()})
 	raw := evdev_map(pad, 1)
-	expect_near(t, raw.left_stick.x, 1)
-	expect_near(t, raw.left_stick.y, 1)
-	expect_near(t, raw.right_stick.x, -1)
-	expect_near(t, raw.right_stick.y, -1)
+	expect_near(t, raw.axes.left_stick.x, 1)
+	expect_near(t, raw.axes.left_stick.y, 1)
+	expect_near(t, raw.axes.right_stick.x, -1)
+	expect_near(t, raw.axes.right_stick.y, -1)
 
 	ps := playstation_pad()
 	evdev_apply(&ps, {ev_abs(ABS_X, 255), ev_abs(ABS_Y, 0), ev_syn()})
 	raw = evdev_map(ps, 1)
-	expect_near(t, raw.left_stick.x, 1)
-	expect_near(t, raw.left_stick.y, 1)
+	expect_near(t, raw.axes.left_stick.x, 1)
+	expect_near(t, raw.axes.left_stick.y, 1)
 }
 
 @(test)
@@ -142,12 +142,12 @@ test_evdev_trigger_ends_follow_the_abs_range :: proc(t: ^testing.T) {
 	one := xpad_pad(trigger_max = 1023)
 	evdev_apply(&one, {ev_abs(ABS_Z, 1023), ev_abs(ABS_RZ, 0), ev_syn()})
 	raw := evdev_map(one, 1)
-	expect_near(t, raw.left_trigger, 1)
-	expect_near(t, raw.right_trigger, 0)
+	expect_near(t, raw.axes.left_trigger, 1)
+	expect_near(t, raw.axes.right_trigger, 0)
 
 	x360 := xpad_pad(trigger_max = 255)
 	evdev_apply(&x360, {ev_abs(ABS_RZ, 255), ev_syn()})
-	expect_near(t, evdev_map(x360, 1).right_trigger, 1)
+	expect_near(t, evdev_map(x360, 1).axes.right_trigger, 1)
 }
 
 @(test)
@@ -156,7 +156,7 @@ test_evdev_pad_at_rest_reads_nothing :: proc(t: ^testing.T) {
 		raw := evdev_map(pad, 7)
 		testing.expect_value(t, raw.id, 7)
 		testing.expect_value(t, raw.buttons, Gamepad_Buttons{})
-		for v in ([]f32{raw.left_stick.x, raw.left_stick.y, raw.right_stick.x, raw.right_stick.y, raw.left_trigger, raw.right_trigger}) {
+		for v in ([]f32{raw.axes.left_stick.x, raw.axes.left_stick.y, raw.axes.right_stick.x, raw.axes.right_stick.y, raw.axes.left_trigger, raw.axes.right_trigger}) {
 			testing.expectf(t, abs(v) < 0.01, "an axis at rest read %v", v)
 		}
 	}
@@ -168,8 +168,8 @@ test_evdev_missing_axis_reads_zero :: proc(t: ^testing.T) {
 	pad: Evdev_Gamepad
 	evdev_apply(&pad, {ev_abs(ABS_Z, 1), ev_abs(ABS_X, 1), ev_syn()})
 	raw := evdev_map(pad, 1)
-	testing.expect_value(t, raw.left_trigger, 0)
-	testing.expect_value(t, raw.left_stick, [2]f32{})
+	testing.expect_value(t, raw.axes.left_trigger, 0)
+	testing.expect_value(t, raw.axes.left_stick, [2]f32{})
 }
 
 @(test)
@@ -215,7 +215,7 @@ test_evdev_pad_through_the_latch :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(pads), 1)
 	expect_buttons(t, pads[0].held, {.South})
 	expect_buttons(t, pads[0].pressed, {})
-	expect_near(t, pads[0].left_stick.y, 1)
+	expect_near(t, pads[0].axes.left_stick.y, 1)
 
 	evdev_apply(&pad, {ev_key(BTN_NORTH), ev_syn()})
 	gamepad_latch_poll(&latch, {evdev_map(pad, 3)})

@@ -40,26 +40,26 @@ test_gc_map_keeps_the_id :: proc(t: ^testing.T) {
 @(test)
 test_gc_map_keeps_plus_y_up_and_plus_x_right :: proc(t: ^testing.T) {
 	raw := gc_map({left_thumbstick = {0, 1}, right_thumbstick = {1, 0}}, id = 1)
-	testing.expect_value(t, raw.left_stick, [2]f32{0, 1})
-	testing.expect_value(t, raw.right_stick, [2]f32{1, 0})
+	testing.expect_value(t, raw.axes.left_stick, [2]f32{0, 1})
+	testing.expect_value(t, raw.axes.right_stick, [2]f32{1, 0})
 }
 
 @(test)
 test_gc_map_gives_the_ends_of_the_axes :: proc(t: ^testing.T) {
 	low := gc_map({left_thumbstick = {-1, -1}, right_thumbstick = {-1, -1}}, id = 1)
-	testing.expect_value(t, low.left_stick, [2]f32{-1, -1})
-	testing.expect_value(t, low.right_stick, [2]f32{-1, -1})
-	testing.expect_value(t, low.left_trigger, 0)
-	testing.expect_value(t, low.right_trigger, 0)
+	testing.expect_value(t, low.axes.left_stick, [2]f32{-1, -1})
+	testing.expect_value(t, low.axes.right_stick, [2]f32{-1, -1})
+	testing.expect_value(t, low.axes.left_trigger, 0)
+	testing.expect_value(t, low.axes.right_trigger, 0)
 
 	high := gc_map(
 		{left_thumbstick = {1, 1}, right_thumbstick = {1, 1}, left_trigger = 1, right_trigger = 1},
 		id = 1,
 	)
-	testing.expect_value(t, high.left_stick, [2]f32{1, 1})
-	testing.expect_value(t, high.right_stick, [2]f32{1, 1})
-	testing.expect_value(t, high.left_trigger, 1)
-	testing.expect_value(t, high.right_trigger, 1)
+	testing.expect_value(t, high.axes.left_stick, [2]f32{1, 1})
+	testing.expect_value(t, high.axes.right_stick, [2]f32{1, 1})
+	testing.expect_value(t, high.axes.left_trigger, 1)
+	testing.expect_value(t, high.axes.right_trigger, 1)
 }
 
 @(test)
@@ -83,6 +83,6 @@ test_gc_map_feeds_the_latch :: proc(t: ^testing.T) {
 	if len(pads[0].pressed) == 1 {
 		testing.expect_value(t, Gamepad_Button(pads[0].pressed[0]), Gamepad_Button.South)
 	}
-	testing.expect_value(t, pads[0].right_trigger, 1)
-	testing.expect_value(t, pads[0].left_stick, [2]f32{0, 1})
+	testing.expect_value(t, pads[0].axes.right_trigger, 1)
+	testing.expect_value(t, pads[0].axes.left_stick, [2]f32{0, 1})
 }

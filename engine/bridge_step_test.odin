@@ -295,15 +295,15 @@ test_bridge_step_gives_the_pads_of_the_request :: proc(t: ^testing.T) {
 	expect_pad_buttons(t, &first, {.Dpad_Up}, {.Dpad_Up})
 	testing.expect_value(t, third.slot, 2)
 	expect_pad_buttons(t, &third, {.South}, {.South, .Start})
-	testing.expect_value(t, third.left_stick, [2]f32{0.5, -0.25})
-	testing.expect_value(t, third.right_stick, [2]f32{})
-	testing.expect_value(t, third.left_trigger, 0)
-	testing.expect_value(t, third.right_trigger, 1)
+	testing.expect_value(t, third.axes.left_stick, [2]f32{0.5, -0.25})
+	testing.expect_value(t, third.axes.right_stick, [2]f32{})
+	testing.expect_value(t, third.axes.left_trigger, 0)
+	testing.expect_value(t, third.axes.right_trigger, 1)
 
 	step_run_frame(&r)
 	third = g_fake.gamepads[1]
 	expect_pad_buttons(t, &third, {.South}, {})
-	testing.expect_value(t, third.left_stick, [2]f32{0.5, -0.25})
+	testing.expect_value(t, third.axes.left_stick, [2]f32{0.5, -0.25})
 	_ = driver_read_reply(t, r.driver)
 }
 

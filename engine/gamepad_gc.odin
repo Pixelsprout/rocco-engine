@@ -50,11 +50,13 @@ Gc_Snapshot :: struct {
 
 gc_map :: proc(snapshot: Gc_Snapshot, id: u64) -> Gamepad_Raw {
 	raw := Gamepad_Raw {
-		id            = id,
-		left_stick    = snapshot.left_thumbstick,
-		right_stick   = snapshot.right_thumbstick,
-		left_trigger  = snapshot.left_trigger,
-		right_trigger = snapshot.right_trigger,
+		id   = id,
+		axes = {
+			left_stick    = snapshot.left_thumbstick,
+			right_stick   = snapshot.right_thumbstick,
+			left_trigger  = snapshot.left_trigger,
+			right_trigger = snapshot.right_trigger,
+		},
 	}
 	for selector, button in GC_BUTTON_SELECTORS {
 		if snapshot.pressed[selector] {

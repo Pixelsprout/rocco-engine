@@ -45,13 +45,10 @@ Bridge :: struct {
 // One pad of a step op. A slot that the request does not name has no pad.
 // The axes are for every step, and skip the dead zones.
 Bridge_Gamepad :: struct {
-	connected:     bool,
-	held:          Gamepad_Buttons,
-	tap:           Gamepad_Buttons,
-	left_stick:    [2]f32,
-	right_stick:   [2]f32,
-	left_trigger:  f32,
-	right_trigger: f32,
+	connected: bool,
+	held:      Gamepad_Buttons,
+	tap:       Gamepad_Buttons,
+	axes:      Gamepad_Axes,
 }
 
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
@@ -149,13 +146,10 @@ bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
 	for &pad, i in b.gamepads {
 		if pad.connected {
 			latch.gamepads.slots[i] = {
-				connected     = true,
-				held          = pad.held,
-				pressed       = (pad.held - b.prev_buttons[i]) + pad.tap,
-				left_stick    = pad.left_stick,
-				right_stick   = pad.right_stick,
-				left_trigger  = pad.left_trigger,
-				right_trigger = pad.right_trigger,
+				connected = true,
+				held      = pad.held,
+				pressed   = (pad.held - b.prev_buttons[i]) + pad.tap,
+				axes      = pad.axes,
 			}
 		}
 		b.prev_buttons[i] = pad.held

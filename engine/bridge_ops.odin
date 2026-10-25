@@ -260,16 +260,16 @@ bridge_read_gamepad :: proc(fields: json.Object, pad: ^Bridge_Gamepad) -> (error
 		pad.tap, error = bridge_read_buttons(fields, "tap")
 	}
 	if error == "" {
-		pad.left_stick, error = bridge_read_stick(fields, "left_stick")
+		pad.axes.left_stick, error = bridge_read_stick(fields, "left_stick")
 	}
 	if error == "" {
-		pad.right_stick, error = bridge_read_stick(fields, "right_stick")
+		pad.axes.right_stick, error = bridge_read_stick(fields, "right_stick")
 	}
 	if error == "" {
-		pad.left_trigger, error = bridge_read_trigger(fields, "left_trigger")
+		pad.axes.left_trigger, error = bridge_read_trigger(fields, "left_trigger")
 	}
 	if error == "" {
-		pad.right_trigger, error = bridge_read_trigger(fields, "right_trigger")
+		pad.axes.right_trigger, error = bridge_read_trigger(fields, "right_trigger")
 	}
 	return
 }
