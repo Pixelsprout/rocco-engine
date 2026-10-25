@@ -12,9 +12,12 @@ down?" makes the player jump once. If you answer the second question with
 the first, the player jumps at every step while Space is down.
 
 So the host gives `step` an [Input] at each fixed step with both answers:
-the keys that are held, the keys that were pressed, and the mouse movement.
-The host never decides what a key means, and it removes no key from the
-Input. What each key does is up to your game.
+the keys that are held, the keys that were pressed, the mouse movement and
+the gamepads. The host never decides what a key means, and it removes no
+key from the Input. What each key does is up to your game.
+
+This page covers the keyboard and the mouse. [Gamepads](gamepad.md) covers
+the pads.
 
 ## Read the keys
 
@@ -93,7 +96,7 @@ and with the mouse lock, so tune your game's mouse speed on each OS. As
 with presses, the first step of a frame gets the movement, and the later
 steps of that frame get zero.
 
-The Input has no mouse buttons and no gamepad yet.
+The Input has no mouse buttons yet.
 
 ## The mouse lock
 

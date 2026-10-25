@@ -1,7 +1,7 @@
 ---
 title: The Bridge
 summary: Let a script, a CI test or an agent play a run over a localhost socket. Inject Input for N steps, read the Scene as JSON and save a screenshot.
-order: 12
+order: 13
 ---
 
 # The Bridge
@@ -96,7 +96,8 @@ trying to connect for 30 seconds while the game starts.
 `scripts/bridge_check.py` is the same session with checks. It starts the
 game itself on a free port, and CI runs it on Linux, macOS and Windows.
 It also walks Pip into a pickup in chapter 8 and checks that the `step`
-reply holds the `Play` of the blip.
+reply holds the `Play` of the blip. In chapter 9, it walks Pip with the
+stick of a pad and quits with Start.
 
 ### Screenshots of any example
 
@@ -158,6 +159,7 @@ the last one:
 `n` is the number of steps, 1 when you leave it out. `held` lists the keys
 that are down for every step. `tap` lists keys pressed and let go before
 the first step. `mouse` is the mouse movement `[dx, dy]` of the first step.
+`gamepads` connects pads, as the [gamepads](#gamepads) section shows.
 [The Input rules](#the-input-rules) say how the host turns these fields
 into the Input that `step` gets.
 
@@ -194,6 +196,43 @@ The host runs one step for each frame. In a window you see each step, and
 the steps run as fast as the window draws, not at `step_hz`. While they
 run, the host reads no other request. It reads the next one after it has
 sent the reply.
+
+### gamepads
+
+`gamepads` is a list of pads that are connected for the steps of the
+request. Each pad is an object much like a [Gamepad], with `slot`,
+`held`, `tap`, `left_stick`, `right_stick`, `left_trigger` and
+`right_trigger`. A field that you leave out is 0 or empty, so a pad with no
+`slot` is in slot 0. This request walks Pip in chapter 9 with the left
+stick halfway up:
+
+```
+{"op":"step","n":30,"gamepads":[{"slot":0,"left_stick":[0,0.5]}]}
+{"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":15,"deallocs":15,"reallocs":6,"live":12,"step_us":23.1,"view_us":24.0}}
+```
+
+After it, `scene` has Pip at z `-0.31249997`, half of the `-0.625` that W
+gives in 30 steps.
+
+- `held` and `tap` take the names from `pf.Button`, such as `"South"`,
+  `"Start"` and `"DpadUp"`. They work as the `held` and `tap` of the keys.
+- `left_stick` and `right_stick` are `[x, y]`, with `+y` up, for every
+  step. Each must be inside the unit disc.
+- `left_trigger` and `right_trigger` are numbers from 0 to 1, for every
+  step.
+- Two pads cannot have the same `slot`.
+
+A request with no `gamepads` has no pad connected. So a pad stays
+connected only while each request lists it. A bad pad fails the request,
+and no step runs:
+
+```
+{"op":"step","gamepads":[{"left_stick":[1,1]}]}
+{"ok":false,"error":"\"left_stick\" must be [x, y] inside the unit disc"}
+```
+
+The `step` reply does not repeat the pads or the keys back.
+[Gamepads](gamepad.md#gamepads-and-the-bridge) explains what a game sees.
 
 ## scene
 
@@ -326,9 +365,10 @@ requests that come after `quit`.
 ## The Input rules
 
 While the Bridge is on, `step` gets its Input from the Driver only. The
-real keyboard and mouse do not reach the game, so a run does not depend on
-where the mouse is. The debug camera still reads them, so you can fly it
-with `ROCCO_DEBUG_CAMERA=1` while a Driver plays.
+real keyboard, mouse and gamepads do not reach the game, so a run does not
+depend on where the mouse is or which pads are plugged in. The debug camera
+still reads the keyboard and the mouse, so you can fly it with
+`ROCCO_DEBUG_CAMERA=1` while a Driver plays.
 
 The host builds the Input of each step from the `step` request:
 
@@ -339,6 +379,21 @@ The host builds the Input of each step from the `step` request:
   first step, and it is not Held.
 - **Mouse**: the `mouse` movement, in the first step only. The other steps
   get no movement.
+- **Gamepads**: one Gamepad for each pad in `gamepads`, in every step of
+  the request, in slot order. Each pad's buttons follow the rules of Held
+  and Pressed above, by slot. The sticks and the triggers are the same in
+  every step.
+
+A Bridge pad differs from a real pad in three ways:
+
+- A pad that was absent in the step before held nothing, so its held
+  buttons are pressed in its first step. A real pad that connects with a
+  button down holds it but does not press it.
+- The Bridge applies no dead zone. `step` gets the sticks and the triggers
+  as the request gives them. A real pad's stick goes through the host's
+  dead zone first.
+- A stick outside the unit disc fails the request. The host pulls a real
+  stick there back to the edge of the disc.
 
 Pressed follows the steps, not the requests. If one request holds W and the
 next one holds W too, W is Pressed only in the first step of the first
@@ -353,6 +408,16 @@ again.
 
 So to walk, put the key in `held`. To jump once, put Space in `tap`, or
 start a `held` of Space after a step where it was not held.
+
+The same holds for the buttons of a pad. Chapter 9 quits on Start. A pad
+in slot 2 that was absent in the step before, with Start in `held`,
+presses Start, so the game quits at the first step of the request. This
+run had taken 31 steps before it:
+
+```
+{"op":"step","n":10,"gamepads":[{"slot":2,"held":["Start"]}]}
+{"ok":true,"steps":32,"commands":["Quit"],"alloc":{"step":32,"allocs":18,"deallocs":18,"reallocs":6,"live":12,"step_us":19.5,"view_us":22.5}}
+```
 
 ## The lifecycle
 
@@ -415,7 +480,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | Op | Fields | Reply fields |
 |---|---|---|
 | `hello` | none | `protocol`, `step_hz`, `steps`, `headless` |
-| `step` | `n`, `held`, `tap`, `mouse`, each optional | `steps`, `commands`, `alloc` |
+| `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, each optional | `steps`, `commands`, `alloc` |
 | `scene` | none | `steps`, `scene`, `results` |
 | `screenshot` | `path` | `path`, `physical`, `logical` |
 | `quit` | none | none |
@@ -432,6 +497,12 @@ A Headless run takes one frame for each step, and draws nothing.
 | `held` | A list of Key names, held for every step. |
 | `tap` | A list of Key names, Pressed but not Held, in the first step only. |
 | `mouse` | `[dx, dy]`, the mouse movement in the first step only. |
+| `gamepads` | A list of pad objects, connected for every step. With no `gamepads`, no pad is connected. |
+| `slot` | In a pad: its slot, a whole number from 0 to 3. The default is 0. |
+| `held` (pad) | In a pad: a list of Button names, held for every step. |
+| `tap` (pad) | In a pad: a list of Button names, Pressed but not Held, in the first step only. |
+| `left_stick`, `right_stick` | In a pad: `[x, y]` inside the unit disc, `+y` up, for every step. |
+| `left_trigger`, `right_trigger` | In a pad: a number from 0 to 1, for every step. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
 | `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui`, `queries` and `loops`. `nodes` mirrors the tree with local Poses. |
@@ -467,6 +538,13 @@ A Headless run takes one frame for each step, and draws nothing.
 | `"held" must be a list of Key names` | `held` or `tap` is not a list of strings. The error names the field. |
 | `unknown Key "<name>" in "held"` | A name is not in `pf.Key`. The error names the field. |
 | `"mouse" must be [dx, dy]` | `mouse` is not a list of two numbers. |
+| `"gamepads" must be a list of objects` | `gamepads` is not a list, or an entry is not an object. |
+| `"slot" must be a whole number from 0 to 3` | A pad's `slot` is out of range or not a whole number. |
+| `two gamepads have slot <n>` | Two pads have the same `slot`. |
+| `"held" must be a list of Button names` | A pad's `held` or `tap` is not a list of strings. The error names the field. |
+| `unknown Button "<name>" in "held"` | A name is not in `pf.Button`. The error names the field. |
+| `"left_stick" must be [x, y] inside the unit disc` | A stick is not a list of two numbers, or it is outside the unit disc. The error names the stick. |
+| `"right_trigger" must be a number from 0 to 1` | A trigger is not a number from 0 to 1. The error names the trigger. |
 | `"path" must be a file path` | `path` is missing, empty or not a string. |
 | `a Headless run draws no image to screenshot` | A `screenshot` in Headless. |
 | `the host cannot write "<path>": <reason>` | The host cannot write the PNG. |
@@ -477,6 +555,8 @@ A Headless run takes one frame for each step, and draws nothing.
 |---|---|
 | `bridge.py hello` | `hello` |
 | `bridge.py step [N] [--held KEY]... [--tap KEY]... [--mouse DX,DY]` | `step`. Give `--held` and `--tap` once for each key. |
+| `bridge.py step [N] [--slot S] [--button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
+| `bridge.py step [N] --gamepads JSON` | `step` with the whole `gamepads` list, such as `'[{"slot":1,"held":["Start"]}]'`. |
 | `bridge.py scene` | `scene` |
 | `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |
 | `bridge.py quit` | `quit` |
@@ -488,3 +568,5 @@ the host sent it. It exits with 0 on `"ok": true`, with 1 on
 `"ok": false`, and with 2 when it cannot talk to the host. So a shell
 script with `set -e` stops at the first failed request. It needs Python 3
 and nothing else.
+
+[Gamepad]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Gamepad

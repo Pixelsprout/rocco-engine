@@ -314,10 +314,10 @@ is wrong, the log names it.
 
 You have made a whole game: a character that you load from a file, moves
 with the keys, collects pickups and wins, with lights, a shadow, a HUD and
-sound.
+sound. Next, read [9. A gamepad](09-gamepad.md). It walks Pip with the
+stick of a gamepad.
 
-The tutorial goes on when rocco gets a gamepad and animation. Until then,
-the guide pages explain each part in more detail. Start with
+The guide pages explain each part in more detail. Start with
 [Sound](../sound.md), [Collisions and Queries](../collisions.md) and
 [The UI](../ui.md), or read [Shipping a game](../shipping.md) to build your
 game for other people.

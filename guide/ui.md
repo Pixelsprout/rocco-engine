@@ -1,7 +1,7 @@
 ---
 title: The UI
 summary: Why the host lays out the UI, how a game writes it as a tree of Boxes and Text, the ui package's defaults and helpers, and the layout rules.
-order: 8
+order: 9
 ---
 
 # The UI

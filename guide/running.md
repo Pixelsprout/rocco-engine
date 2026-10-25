@@ -1,7 +1,7 @@
 ---
 title: Running and debugging
 summary: Run, check and test a game with roc, read the log, use hot reload and know its limits, and set the ROCCO_ variables.
-order: 11
+order: 12
 ---
 
 # Running and debugging
