@@ -555,7 +555,7 @@ A Headless run takes one frame for each step, and draws nothing.
 |---|---|
 | `bridge.py hello` | `hello` |
 | `bridge.py step [N] [--held KEY]... [--tap KEY]... [--mouse DX,DY]` | `step`. Give `--held` and `--tap` once for each key. |
-| `bridge.py step [N] [--slot S] [--button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
+| `bridge.py step [N] [--slot S] [--held-button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
 | `bridge.py step [N] --gamepads JSON` | `step` with the whole `gamepads` list, such as `'[{"slot":1,"held":["Start"]}]'`. |
 | `bridge.py scene` | `scene` |
 | `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |
