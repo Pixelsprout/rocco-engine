@@ -15,6 +15,7 @@ Msaa :: Roc_Launch_Window_Samples
 Capacity :: Roc_Launch_Capacity
 Init_Result :: Roc_Init
 Input :: Roc_Step_Arg1
+Gamepad :: Roc_Step_Arg1_Gamepads
 Step_Result :: Roc_Step
 Command :: Roc_Init_Commands
 Load_Command :: Roc_Init_Commands_Load

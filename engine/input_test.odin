@@ -22,7 +22,7 @@ mouse_move :: proc(latch: ^Input_Latch, dx, dy: f32) {
 @(test)
 test_first_step_takes_pressed_and_mouse :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .SPACE)
 	mouse_move(&latch, 3, -2)
 
@@ -42,7 +42,7 @@ test_first_step_takes_pressed_and_mouse :: proc(t: ^testing.T) {
 @(test)
 test_a_tap_between_steps_is_pressed_but_not_held :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .W)
 	key_up(&latch, .W)
 
@@ -55,7 +55,7 @@ test_a_tap_between_steps_is_pressed_but_not_held :: proc(t: ^testing.T) {
 @(test)
 test_a_key_repeat_is_not_a_press :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .A)
 	_ = input_take(&latch, &buf)
 	key_down(&latch, .A, repeat = true)
@@ -68,7 +68,7 @@ test_a_key_repeat_is_not_a_press :: proc(t: ^testing.T) {
 @(test)
 test_input_waits_for_a_step :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .D)
 	mouse_move(&latch, 1, 1)
 	input_end_frame(&latch)
@@ -83,7 +83,7 @@ test_input_waits_for_a_step :: proc(t: ^testing.T) {
 @(test)
 test_keys_come_out_in_key_code_order :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .W)
 	key_down(&latch, .ESCAPE)
 	key_down(&latch, .A)
@@ -99,7 +99,7 @@ test_keys_come_out_in_key_code_order :: proc(t: ^testing.T) {
 @(test)
 test_frame_mouse_resets_every_frame :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	mouse_move(&latch, 4, 5)
 	testing.expect_value(t, latch.frame_mouse, [2]f32{4, 5})
 	_ = input_take(&latch, &buf)
@@ -111,7 +111,7 @@ test_frame_mouse_resets_every_frame :: proc(t: ^testing.T) {
 @(test)
 test_losing_focus_releases_every_held_key :: proc(t: ^testing.T) {
 	latch: Input_Latch
-	buf: Key_Buffers
+	buf: Input_Buffers
 	key_down(&latch, .LEFT_SUPER)
 	key_down(&latch, .W)
 	e := sapp.Event{type = .UNFOCUSED}

@@ -16,6 +16,8 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
 
     python3 scripts/bridge.py hello
     python3 scripts/bridge.py step 30 --held W --tap Space --mouse 4,0
+    python3 scripts/bridge.py step 30 --button South --left-stick 0,1
+    python3 scripts/bridge.py step --gamepads '[{"slot":1,"held":["Start"]}]'
     python3 scripts/bridge.py scene
     python3 scripts/bridge.py screenshot out.png
     python3 scripts/bridge.py quit
@@ -94,7 +96,9 @@ class Bridge:
     def hello(self):
         return self.request({"op": "hello"})
 
-    def step(self, n=1, held=(), tap=(), mouse=None):
+    # gamepads is a list of pad dicts, as guide/bridge.md gives them. With
+    # none, no pad is connected.
+    def step(self, n=1, held=(), tap=(), mouse=None, gamepads=()):
         req = {"op": "step", "n": n}
         if held:
             req["held"] = list(held)
@@ -102,6 +106,8 @@ class Bridge:
             req["tap"] = list(tap)
         if mouse is not None:
             req["mouse"] = list(mouse)
+        if gamepads:
+            req["gamepads"] = list(gamepads)
         return self.request(req)
 
     def scene(self):
@@ -144,6 +150,49 @@ def mouse_arg(text):
         raise argparse.ArgumentTypeError("the mouse movement is dx,dy, such as 4,-2") from None
 
 
+def stick_arg(text):
+    parts = text.split(",")
+    try:
+        if len(parts) == 2:
+            return [number(p) for p in parts]
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError("a stick is x,y, such as 0,1")
+
+
+def number(text):
+    text = text.strip()
+    return int(text) if text.lstrip("-").isdigit() else float(text)
+
+
+def gamepads_arg(text):
+    try:
+        pads = json.loads(text)
+    except ValueError:
+        pads = None
+    if not isinstance(pads, list):
+        raise argparse.ArgumentTypeError('the gamepads are a JSON list, such as [{"slot":0,"held":["South"]}]')
+    return pads
+
+
+# The pad flags build one pad. --gamepads gives the whole list instead.
+def step_gamepads(args):
+    if args.gamepads is not None:
+        return args.gamepads
+    pad = {}
+    if args.slot is not None:
+        pad["slot"] = args.slot
+    if args.button:
+        pad["held"] = args.button
+    if args.tap_button:
+        pad["tap"] = args.tap_button
+    for field in ("left_stick", "right_stick", "left_trigger", "right_trigger"):
+        value = getattr(args, field)
+        if value is not None:
+            pad[field] = value
+    return [pad] if pad else []
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Send one Bridge request and print the reply.")
     parser.add_argument("--port", type=int, help=f"the host's port (default: ${PORT_ENV})")
@@ -155,6 +204,15 @@ def parse_args(argv):
     step.add_argument("--held", action="append", default=[], metavar="KEY", help="a key held for every step; repeat for more keys")
     step.add_argument("--tap", action="append", default=[], metavar="KEY", help="a key tapped before the first step; repeat for more keys")
     step.add_argument("--mouse", type=mouse_arg, metavar="DX,DY", help="the mouse movement in the first step")
+    pad = step.add_argument_group("one gamepad", "any of these connects one pad for the steps")
+    pad.add_argument("--slot", type=int, help="the pad's slot, 0 to 3 (default: 0)")
+    pad.add_argument("--button", action="append", default=[], metavar="BUTTON", help="a button held for every step; repeat for more buttons")
+    pad.add_argument("--tap-button", action="append", default=[], metavar="BUTTON", help="a button tapped before the first step; repeat for more buttons")
+    pad.add_argument("--left-stick", type=stick_arg, metavar="X,Y", help="the left stick for every step, +y up")
+    pad.add_argument("--right-stick", type=stick_arg, metavar="X,Y", help="the right stick for every step, +y up")
+    pad.add_argument("--left-trigger", type=number, metavar="V", help="the left trigger for every step, 0 to 1")
+    pad.add_argument("--right-trigger", type=number, metavar="V", help="the right trigger for every step, 0 to 1")
+    step.add_argument("--gamepads", type=gamepads_arg, metavar="JSON", help="the whole gamepads list as JSON, in place of the pad flags")
     ops.add_parser("scene")
     shot = ops.add_parser("screenshot")
     shot.add_argument("path")
@@ -181,7 +239,7 @@ def main(argv=None):
                 if args.op == "hello":
                     b.hello()
                 elif args.op == "step":
-                    b.step(args.n, held=args.held, tap=args.tap, mouse=args.mouse)
+                    b.step(args.n, held=args.held, tap=args.tap, mouse=args.mouse, gamepads=step_gamepads(args))
                 elif args.op == "scene":
                     b.scene()
                 elif args.op == "screenshot":

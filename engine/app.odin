@@ -18,7 +18,8 @@ State :: struct {
 	frame_count:       int,
 	clock:             Clock,
 	input:             Input_Latch,
-	keys:              Key_Buffers,
+	input_buffers:     Input_Buffers,
+	gamepad_backend:   Gamepad_Backend,
 	renderer:          Renderer,
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
@@ -159,6 +160,7 @@ init_cb :: proc "c" () {
 	g_state.frame_render.submit_sky = renderer_sky
 	g_state.frame_render.submit_ui = renderer_ui
 	g_state.frame_render.submit_ctx = &g_state.renderer
+	gamepad_backend_init(&g_state.gamepad_backend)
 }
 
 frame_cb :: proc "c" () {
@@ -175,6 +177,7 @@ frame_cb :: proc "c" () {
 	if g_state.bridge.quit {
 		sapp.request_quit()
 	}
+	gamepads_poll(&g_state.input.gamepads, &g_state.gamepad_backend)
 	frame_run(
 		&g_state,
 		{
@@ -213,6 +216,7 @@ app_shutdown :: proc() {
 	frame_render_destroy(&g_state.frame_render)
 
 	if g_state.mode != .Headless {
+		gamepad_backend_shutdown(&g_state.gamepad_backend)
 		sg.shutdown()
 	}
 	memory_shutdown(&g_state.mem)

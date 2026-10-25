@@ -33,13 +33,13 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		before := roc_heap_counters()
 		// Under the Bridge, only the Driver gives step its Input. The real
 		// devices still reach the latch, which the debug camera reads.
-		keys: Step_Keys
+		keys: Step_Input
 		commands_json: ^strings.Builder
 		if s.bridge.on {
-			keys = bridge_input_take(&s.bridge, &s.keys)
+			keys = bridge_input_take(&s.bridge, &s.input_buffers)
 			commands_json = &s.bridge.commands
 		} else {
-			keys = input_take(&s.input, &s.keys)
+			keys = input_take(&s.input, &s.input_buffers)
 		}
 		step_time, view_time, quit := seam_step(&s.seam, keys, dt, &s.spans, commands_json)
 		audio_advance(&s.audio, dt)

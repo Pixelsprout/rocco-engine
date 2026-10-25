@@ -66,14 +66,15 @@ seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: 
 // alloc report keeps. With commands_json, it appends the step's Commands
 // there, because the host frees them after it runs them. quit is true when
 // the game returned Quit.
-seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, commands_json: ^strings.Builder = nil) -> (step_time, view_time: time.Duration, quit: bool) {
+seam_step :: proc(s: ^Seam, step_input: Step_Input, dt: f32, spans: ^Span_Sink = nil, commands_json: ^strings.Builder = nil) -> (step_time, view_time: time.Duration, quit: bool) {
 	start := time.tick_now()
 	span := span_open()
 
 	input := Input {
-		held    = roc_list_from_slice(keys.held),
-		pressed = roc_list_from_slice(keys.pressed),
-		mouse   = {dx = keys.mouse.x, dy = keys.mouse.y},
+		held     = roc_list_from_slice(step_input.held),
+		pressed  = roc_list_from_slice(step_input.pressed),
+		mouse    = {dx = step_input.mouse.x, dy = step_input.mouse.y},
+		gamepads = seam_gamepads(step_input.gamepads),
 	}
 	span = span_close(spans, .Input, span)
 	// step frees the old box and consumes the results. Never touch either again.
@@ -107,6 +108,24 @@ seam_step :: proc(s: ^Seam, keys: Step_Keys, dt: f32, spans: ^Span_Sink = nil, c
 	span_close(spans, .Query_Results, span)
 
 	return time.tick_diff(start, stepped), time.tick_diff(stepped, viewed), quit
+}
+
+// With no pad the list is empty, and it allocates nothing.
+@(private = "file")
+seam_gamepads :: proc(step_pads: []Step_Gamepad) -> Roc_List(Gamepad) {
+	pads: [GAMEPAD_SLOTS]Gamepad
+	for pad, i in step_pads {
+		pads[i] = {
+			slot          = pad.slot,
+			held          = roc_list_from_slice(pad.held),
+			pressed       = roc_list_from_slice(pad.pressed),
+			left_stick    = {x = pad.left_stick.x, y = pad.left_stick.y},
+			right_stick   = {x = pad.right_stick.x, y = pad.right_stick.y},
+			left_trigger  = pad.left_trigger,
+			right_trigger = pad.right_trigger,
+		}
+	}
+	return roc_list_from_slice(pads[:len(step_pads)])
 }
 
 // Before the first step there is one Scene, and it pairs with itself.

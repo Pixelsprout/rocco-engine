@@ -101,6 +101,14 @@ class LibraryTest(unittest.TestCase):
         host.close()
         self.assertEqual(host.requests, [{"op": "step", "n": 1}])
 
+    def test_step_sends_the_gamepads(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        pads = [{"slot": 1, "held": ["South"], "left_stick": [0, 1]}]
+        with bridge.Bridge.connect(host.port) as b:
+            b.step(gamepads=pads)
+        host.close()
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "gamepads": pads}])
+
     def test_an_error_reply_raises(self):
         host = FakeHost(['{"ok":false,"error":"unknown Key \\"Jump\\" in \\"held\\""}'])
         with bridge.Bridge.connect(host.port) as b:
@@ -143,6 +151,31 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(out, reply + "\n")
         self.assertEqual(host.requests, [{"op": "step", "n": 30, "held": ["W", "A"], "tap": ["Space"], "mouse": [4, 0.5]}])
+
+    def test_step_sends_one_pad_from_the_pad_flags(self):
+        host = FakeHost(['{"ok":true,"steps":2,"commands":[],"alloc":{}}'])
+        argv = ["--port", str(host.port), "step", "2", "--slot", "2", "--button", "South", "--button", "DpadUp", "--tap-button", "Start"]
+        argv += ["--left-stick", "0.5,-0.25", "--right-stick", "0,1", "--left-trigger", "0.75", "--right-trigger", "1"]
+        code, _, _ = run_cli(argv)
+        host.close()
+        self.assertEqual(code, 0)
+        pad = {"slot": 2, "held": ["South", "DpadUp"], "tap": ["Start"], "left_stick": [0.5, -0.25], "right_stick": [0, 1], "left_trigger": 0.75, "right_trigger": 1}
+        self.assertEqual(host.requests, [{"op": "step", "n": 2, "gamepads": [pad]}])
+
+    def test_step_sends_the_gamepads_as_json(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        pads = [{"held": ["East"]}, {"slot": 3}]
+        code, _, _ = run_cli(["--port", str(host.port), "step", "--gamepads", json.dumps(pads)])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "gamepads": pads}])
+
+    def test_step_with_no_pad_flags_sends_no_gamepads(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        code, _, _ = run_cli(["--port", str(host.port), "step", "--held", "W"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "held": ["W"]}])
 
     def test_port_from_the_environment(self):
         host = FakeHost(['{"ok":true}'])

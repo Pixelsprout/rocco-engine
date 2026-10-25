@@ -99,12 +99,16 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	}
 	held, tap: #sparse[sapp.Keycode]bool
 	mouse: [2]f32
+	gamepads: [GAMEPAD_SLOTS]Bridge_Gamepad
 	held, error = bridge_read_keys(request, "held")
 	if error == "" {
 		tap, error = bridge_read_keys(request, "tap")
 	}
 	if error == "" {
 		mouse, error = bridge_read_mouse(request)
+	}
+	if error == "" {
+		gamepads, error = bridge_read_gamepads(request)
 	}
 	if error != "" {
 		return .Read, error
@@ -113,6 +117,7 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	s.bridge.held = held
 	s.bridge.tap = tap
 	s.bridge.mouse = mouse
+	s.bridge.gamepads = gamepads
 	s.bridge.owed_steps = int(n)
 	return .Hold, ""
 }
@@ -202,14 +207,143 @@ bridge_read_mouse :: proc(request: json.Object) -> (mouse: [2]f32, error: string
 		return mouse, `"mouse" must be [dx, dy]`
 	}
 	for item, i in pair {
-		#partial switch number in item {
-		case json.Integer:
-			mouse[i] = f32(number)
-		case json.Float:
-			mouse[i] = f32(number)
-		case:
+		number, is_number := bridge_number(item)
+		if !is_number {
 			return mouse, `"mouse" must be [dx, dy]`
+		}
+		mouse[i] = number
+	}
+	return
+}
+
+// An absent gamepads means no pad is connected. A missing field of a pad is
+// zero, so a pad with no slot is in slot 0.
+@(private = "file")
+bridge_read_gamepads :: proc(request: json.Object) -> (pads: [GAMEPAD_SLOTS]Bridge_Gamepad, error: string) {
+	value, has_field := request["gamepads"]
+	if !has_field {
+		return
+	}
+	list, is_array := value.(json.Array)
+	if !is_array {
+		return pads, `"gamepads" must be a list of objects`
+	}
+	for item in list {
+		fields, is_object := item.(json.Object)
+		if !is_object {
+			return pads, `"gamepads" must be a list of objects`
+		}
+		slot := i64(0)
+		if slot_value, has_slot := fields["slot"]; has_slot {
+			number, is_integer := slot_value.(json.Integer)
+			if !is_integer || number < 0 || number >= GAMEPAD_SLOTS {
+				return pads, fmt.tprintf(`"slot" must be a whole number from 0 to %v`, GAMEPAD_SLOTS - 1)
+			}
+			slot = number
+		}
+		pad := &pads[slot]
+		if pad.connected {
+			return pads, fmt.tprintf(`two gamepads have slot %v`, slot)
+		}
+		pad.connected = true
+		if error = bridge_read_gamepad(fields, pad); error != "" {
+			return
 		}
 	}
 	return
+}
+
+@(private = "file")
+bridge_read_gamepad :: proc(fields: json.Object, pad: ^Bridge_Gamepad) -> (error: string) {
+	pad.held, error = bridge_read_buttons(fields, "held")
+	if error == "" {
+		pad.tap, error = bridge_read_buttons(fields, "tap")
+	}
+	if error == "" {
+		pad.left_stick, error = bridge_read_stick(fields, "left_stick")
+	}
+	if error == "" {
+		pad.right_stick, error = bridge_read_stick(fields, "right_stick")
+	}
+	if error == "" {
+		pad.left_trigger, error = bridge_read_trigger(fields, "left_trigger")
+	}
+	if error == "" {
+		pad.right_trigger, error = bridge_read_trigger(fields, "right_trigger")
+	}
+	return
+}
+
+@(private = "file")
+bridge_read_buttons :: proc(fields: json.Object, field: string) -> (buttons: Gamepad_Buttons, error: string) {
+	value, has_field := fields[field]
+	if !has_field {
+		return
+	}
+	names, is_array := value.(json.Array)
+	if !is_array {
+		return buttons, fmt.tprintf("%q must be a list of Button names", field)
+	}
+	for item in names {
+		name, is_string := item.(json.String)
+		if !is_string {
+			return buttons, fmt.tprintf("%q must be a list of Button names", field)
+		}
+		button, known := button_from_tag(name)
+		if !known {
+			return buttons, fmt.tprintf("unknown Button %q in %q", name, field)
+		}
+		buttons += {button}
+	}
+	return
+}
+
+// The Bridge gives the stick as step gets it, so it must be inside the unit
+// disc.
+@(private = "file")
+bridge_read_stick :: proc(fields: json.Object, field: string) -> (stick: [2]f32, error: string) {
+	value, has_field := fields[field]
+	if !has_field {
+		return
+	}
+	message := fmt.tprintf("%q must be [x, y] inside the unit disc", field)
+	pair, is_array := value.(json.Array)
+	if !is_array || len(pair) != 2 {
+		return stick, message
+	}
+	for item, i in pair {
+		number, is_number := bridge_number(item)
+		if !is_number {
+			return stick, message
+		}
+		stick[i] = number
+	}
+	if stick.x * stick.x + stick.y * stick.y > 1 + 1e-6 {
+		return {}, message
+	}
+	return
+}
+
+@(private = "file")
+bridge_read_trigger :: proc(fields: json.Object, field: string) -> (trigger: f32, error: string) {
+	value, has_field := fields[field]
+	if !has_field {
+		return
+	}
+	number, is_number := bridge_number(value)
+	if !is_number || !(number >= 0 && number <= 1) {
+		return 0, fmt.tprintf("%q must be a number from 0 to 1", field)
+	}
+	return number, ""
+}
+
+@(private = "file")
+bridge_number :: proc(value: json.Value) -> (number: f32, ok: bool) {
+	#partial switch n in value {
+	case json.Integer:
+		return f32(n), true
+	case json.Float:
+		return f32(n), true
+	}
+	return 0, false
 }
