@@ -79,7 +79,7 @@ gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int 
 	n := min(reader.count, len(out))
 	for i in 0 ..< n {
 		device := &reader.devices[i]
-		out[i] = evdev_map(device.pad, device.id)
+		out[i] = evdev_poll(&device.pad, device.id)
 	}
 	return n
 }

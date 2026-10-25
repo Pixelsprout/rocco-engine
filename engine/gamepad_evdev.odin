@@ -95,6 +95,9 @@ Evdev_Gamepad :: struct {
 	xpad:     bool,
 	// The key buttons down now. The hat adds the D-pad in evdev_map.
 	buttons:  Gamepad_Buttons,
+	// The buttons that went down since the last evdev_poll, so that a tap
+	// shorter than one frame still reads as down in one poll.
+	latched:  Gamepad_Buttons,
 	// An axis the pad lacks keeps maximum == minimum and reads 0.
 	axes:     [Evdev_Axis]Evdev_Absinfo,
 	// After SYN_DROPPED the events up to the next SYN_REPORT are stale.
@@ -123,6 +126,7 @@ evdev_apply :: proc(pad: ^Evdev_Gamepad, events: []Evdev_Event) {
 					pad.buttons -= {b}
 				} else {
 					pad.buttons += {b}
+					pad.latched += {b}
 				}
 			}
 		case EV_ABS:
@@ -131,21 +135,15 @@ evdev_apply :: proc(pad: ^Evdev_Gamepad, events: []Evdev_Event) {
 					pad.axes[axis].value = e.value
 				}
 			}
+			pad.latched += evdev_hat(pad^)
 		}
 	}
 }
 
 evdev_map :: proc(pad: Evdev_Gamepad, id: u64) -> Gamepad_Raw {
-	buttons := pad.buttons
-	hat_x := pad.axes[.Hat_X].value
-	hat_y := pad.axes[.Hat_Y].value
-	if hat_x < 0 do buttons += {.Dpad_Left}
-	if hat_x > 0 do buttons += {.Dpad_Right}
-	if hat_y < 0 do buttons += {.Dpad_Up}
-	if hat_y > 0 do buttons += {.Dpad_Down}
 	return {
 		id      = id,
-		buttons = buttons,
+		buttons = pad.buttons + pad.latched + evdev_hat(pad),
 		axes    = {
 			left_stick    = {evdev_stick(pad.axes[.X]), -evdev_stick(pad.axes[.Y])},
 			right_stick   = {evdev_stick(pad.axes[.RX]), -evdev_stick(pad.axes[.RY])},
@@ -153,6 +151,13 @@ evdev_map :: proc(pad: Evdev_Gamepad, id: u64) -> Gamepad_Raw {
 			right_trigger = evdev_unit(pad.axes[.RZ]),
 		},
 	}
+}
+
+// Maps the pad for one poll and clears the latched buttons.
+evdev_poll :: proc(pad: ^Evdev_Gamepad, id: u64) -> Gamepad_Raw {
+	raw := evdev_map(pad^, id)
+	pad.latched = {}
+	return raw
 }
 
 // Sets the buttons from an EVIOCGKEY bit array.
@@ -240,4 +245,17 @@ evdev_stick :: proc(a: Evdev_Absinfo) -> f32 {
 		return 0
 	}
 	return evdev_unit(a) * 2 - 1
+}
+
+// The D-pad of a pad that sends it as ABS_HAT0X and ABS_HAT0Y. -1 on y is up.
+@(private = "file")
+evdev_hat :: proc(pad: Evdev_Gamepad) -> Gamepad_Buttons {
+	buttons: Gamepad_Buttons
+	hat_x := pad.axes[.Hat_X].value
+	hat_y := pad.axes[.Hat_Y].value
+	if hat_x < 0 do buttons += {.Dpad_Left}
+	if hat_x > 0 do buttons += {.Dpad_Right}
+	if hat_y < 0 do buttons += {.Dpad_Up}
+	if hat_y > 0 do buttons += {.Dpad_Down}
+	return buttons
 }

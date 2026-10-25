@@ -4,6 +4,7 @@ package engine
 import sapp "../sokol-odin/sokol/app"
 import "core:fmt"
 import "core:math"
+import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:testing"
@@ -238,16 +239,21 @@ test_button_tags_match_the_codes_in_button_roc :: proc(t: ^testing.T) {
 	testing.expect_value(t, strings.count(BUTTON_ROC, " => "), len(Gamepad_Button))
 }
 
-// The OS calls get a smoke test only. CI runners have no pad, but a
-// developer's machine may have one.
+// The OS calls get a smoke test only. A CI runner has no pad, so it must
+// report none. A developer's machine may have one.
 @(test)
 test_gamepad_reader_polls_without_a_crash :: proc(t: ^testing.T) {
 	reader: Gamepad_Reader
 	gamepad_reader_init(&reader)
 	defer gamepad_reader_shutdown(&reader)
 	raws: [GAMEPAD_RAW_MAX]Gamepad_Raw
+	on_ci := os.get_env("CI", context.temp_allocator) != ""
 	for _ in 0 ..< 3 {
 		n := gamepad_reader_poll(&reader, raws[:])
-		testing.expectf(t, n >= 0 && n <= GAMEPAD_RAW_MAX, "the reader reported %v pads", n)
+		if on_ci {
+			testing.expectf(t, n == 0, "the reader reported %v pads on CI", n)
+		} else {
+			testing.expectf(t, n >= 0 && n <= GAMEPAD_RAW_MAX, "the reader reported %v pads", n)
+		}
 	}
 }

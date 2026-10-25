@@ -110,13 +110,14 @@ test_evdev_other_drivers_follow_the_kernel_positions :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_evdev_buttons_release_and_ignore_repeats :: proc(t: ^testing.T) {
+test_evdev_buttons_release_at_the_next_poll_and_ignore_repeats :: proc(t: ^testing.T) {
 	pad := xpad_pad()
 	evdev_apply(&pad, {ev_key(BTN_SOUTH), ev_key(BTN_EAST), ev_syn()})
+	testing.expect_value(t, evdev_poll(&pad, 1).buttons, Gamepad_Buttons{.South, .East})
 	evdev_apply(&pad, {ev_key(BTN_SOUTH, 2), ev_key(BTN_EAST, 0), ev_syn()})
-	testing.expect_value(t, evdev_map(pad, 1).buttons, Gamepad_Buttons{.South})
+	testing.expect_value(t, evdev_poll(&pad, 1).buttons, Gamepad_Buttons{.South})
 	evdev_apply(&pad, {ev_key(BTN_SOUTH, 0), ev_syn()})
-	testing.expect_value(t, evdev_map(pad, 1).buttons, Gamepad_Buttons{})
+	testing.expect_value(t, evdev_poll(&pad, 1).buttons, Gamepad_Buttons{})
 }
 
 // xpad inverts ABS_Y and ABS_RY, so stick up reads the minimum.
@@ -210,7 +211,7 @@ test_evdev_pad_through_the_latch :: proc(t: ^testing.T) {
 	buf: Gamepad_Buffers
 	pad := xpad_pad()
 	evdev_apply(&pad, {ev_key(BTN_SOUTH), ev_abs(ABS_Y, -32768), ev_syn()})
-	gamepad_latch_poll(&latch, {evdev_map(pad, 3)})
+	gamepad_latch_poll(&latch, {evdev_poll(&pad, 3)})
 	pads := gamepad_latch_take(&latch, &buf)
 	testing.expect_value(t, len(pads), 1)
 	expect_buttons(t, pads[0].held, {.South})
@@ -218,7 +219,27 @@ test_evdev_pad_through_the_latch :: proc(t: ^testing.T) {
 	expect_near(t, pads[0].axes.left_stick.y, 1)
 
 	evdev_apply(&pad, {ev_key(BTN_NORTH), ev_syn()})
-	gamepad_latch_poll(&latch, {evdev_map(pad, 3)})
+	gamepad_latch_poll(&latch, {evdev_poll(&pad, 3)})
 	pads = gamepad_latch_take(&latch, &buf)
 	expect_buttons(t, pads[0].pressed, {.West})
+}
+
+// A tap shorter than one frame goes down and up between two polls. The
+// poll still reports it, so the step gets a press.
+@(test)
+test_evdev_poll_keeps_a_tap_between_two_polls :: proc(t: ^testing.T) {
+	latch: Gamepad_Latch
+	buf: Gamepad_Buffers
+	pad := xpad_pad()
+	gamepad_latch_poll(&latch, {evdev_poll(&pad, 3)})
+
+	evdev_apply(&pad, {ev_key(BTN_SOUTH), ev_syn(), ev_key(BTN_SOUTH, 0), ev_syn()})
+	evdev_apply(&pad, {ev_abs(ABS_HAT0Y, -1), ev_syn(), ev_abs(ABS_HAT0Y, 0), ev_syn()})
+	testing.expect_value(t, evdev_map(pad, 3).buttons, Gamepad_Buttons{.South, .Dpad_Up})
+	gamepad_latch_poll(&latch, {evdev_poll(&pad, 3)})
+	pads := gamepad_latch_take(&latch, &buf)
+	testing.expect_value(t, len(pads), 1)
+	expect_buttons(t, pads[0].pressed, {.South, .Dpad_Up})
+
+	testing.expect_value(t, evdev_poll(&pad, 3).buttons, Gamepad_Buttons{})
 }
