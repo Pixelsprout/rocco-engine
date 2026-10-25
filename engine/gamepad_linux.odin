@@ -8,7 +8,8 @@ import "core:sys/linux"
 import "core:time"
 
 GAMEPAD_INPUT_DIR :: "/dev/input"
-// The ioctl numbers from linux/input.h, worked out for x86_64.
+// The ioctl numbers from linux/input.h. x86_64 and arm64 share the generic
+// ioctl layout, so the numbers hold on both.
 EVIOCGBIT_KEY :: 0x80604521
 EVIOCGKEY :: 0x80604518
 // Add the ABS code to get EVIOCGABS(code).
@@ -50,10 +51,10 @@ gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	// not missed.
 	fd, err := linux.inotify_init1({.NONBLOCK, .CLOEXEC})
 	if err != .NONE {
-		fmt.eprintln("gamepad: inotify_init1 failed, so pads that connect later are not seen:", err)
+		fmt.eprintfln("inotify_init1 failed: %v. The run sees no gamepad that connects later.", err)
 	} else if _, watch_err := linux.inotify_add_watch(fd, GAMEPAD_INPUT_DIR, {.CREATE, .ATTRIB, .MOVED_TO}); watch_err != .NONE {
 		if watch_err != .ENOENT {
-			fmt.eprintln("gamepad: cannot watch", GAMEPAD_INPUT_DIR, "so pads that connect later are not seen:", watch_err)
+			fmt.eprintfln("the host cannot watch %v: %v. The run sees no gamepad that connects later.", GAMEPAD_INPUT_DIR, watch_err)
 		}
 		linux.close(fd)
 	} else {
@@ -99,7 +100,7 @@ evdev_scan :: proc(reader: ^Gamepad_Reader) {
 	dir, err := linux.open(GAMEPAD_INPUT_DIR, {.DIRECTORY, .CLOEXEC})
 	if err != .NONE {
 		if err != .ENOENT {
-			fmt.eprintln("gamepad: cannot read", GAMEPAD_INPUT_DIR, err)
+			fmt.eprintfln("the host cannot read %v: %v. The run sees only the gamepads that connect later.", GAMEPAD_INPUT_DIR, err)
 		}
 		return
 	}

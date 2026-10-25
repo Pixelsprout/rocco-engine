@@ -46,12 +46,12 @@ Gamepad_Reader :: struct {
 // dlerror is not in the macOS catalog, so the log gives no reason.
 gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	if posix.dlopen(GC_FRAMEWORK, posix.RTLD_LOCAL + {.LAZY}) == nil {
-		fmt.eprintln("rocco: GameController did not load, so no gamepads are read")
+		fmt.eprintln("the GameController framework did not load. The run reads no gamepads.")
 		return
 	}
 	reader.controller_class = NS.objc_lookUpClass("GCController")
 	if reader.controller_class == nil {
-		fmt.eprintln("rocco: GameController has no GCController class, so no gamepads are read")
+		fmt.eprintln("GameController has no GCController class. The run reads no gamepads.")
 	}
 }
 
@@ -94,21 +94,23 @@ gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
 gc_read :: proc(pad: ^Gc_Extended_Gamepad) -> Gc_Snapshot {
 	dpad := intrinsics.objc_send(^Gc_Direction_Pad, pad, "dpad")
 	return {
-		button_a = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonA")),
-		button_b = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonB")),
-		button_x = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonX")),
-		button_y = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonY")),
-		left_shoulder = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "leftShoulder")),
-		right_shoulder = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "rightShoulder")),
-		left_thumbstick_button = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "leftThumbstickButton")),
-		right_thumbstick_button = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "rightThumbstickButton")),
-		button_menu = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonMenu")),
-		button_options = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonOptions")),
-		dpad_up = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "up")),
-		dpad_down = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "down")),
-		dpad_left = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "left")),
-		dpad_right = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "right")),
-		left_thumbstick = gc_stick(intrinsics.objc_send(^Gc_Direction_Pad, pad, "leftThumbstick")),
+		pressed = {
+			.Button_A = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonA")),
+			.Button_B = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonB")),
+			.Button_X = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonX")),
+			.Button_Y = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonY")),
+			.Left_Shoulder = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "leftShoulder")),
+			.Right_Shoulder = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "rightShoulder")),
+			.Left_Thumbstick_Button = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "leftThumbstickButton")),
+			.Right_Thumbstick_Button = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "rightThumbstickButton")),
+			.Button_Menu = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonMenu")),
+			.Button_Options = gc_pressed(intrinsics.objc_send(^Gc_Button, pad, "buttonOptions")),
+			.Dpad_Up = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "up")),
+			.Dpad_Down = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "down")),
+			.Dpad_Left = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "left")),
+			.Dpad_Right = gc_pressed(intrinsics.objc_send(^Gc_Button, dpad, "right")),
+		},
+		left_thumbstick =gc_stick(intrinsics.objc_send(^Gc_Direction_Pad, pad, "leftThumbstick")),
 		right_thumbstick = gc_stick(intrinsics.objc_send(^Gc_Direction_Pad, pad, "rightThumbstick")),
 		left_trigger = gc_value(intrinsics.objc_send(^Gc_Button, pad, "leftTrigger")),
 		right_trigger = gc_value(intrinsics.objc_send(^Gc_Button, pad, "rightTrigger")),

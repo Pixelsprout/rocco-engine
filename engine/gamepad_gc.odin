@@ -1,52 +1,65 @@
 package engine
 
-// The values the macOS reader takes from one GCExtendedGamepad. Each field
-// is named after its GameController selector, so the snapshot keeps the
-// labels and gc_map gives the positions.
+@(rodata)
+GC_BUTTON_SELECTORS := [Gamepad_Button]Gc_Button_Selector {
+	.South          = .Button_A,
+	.East           = .Button_B,
+	.West           = .Button_X,
+	.North          = .Button_Y,
+	.Left_Shoulder  = .Left_Shoulder,
+	.Right_Shoulder = .Right_Shoulder,
+	.Left_Stick     = .Left_Thumbstick_Button,
+	.Right_Stick    = .Right_Thumbstick_Button,
+	.Start          = .Button_Menu,
+	.Back           = .Button_Options,
+	.Dpad_Up        = .Dpad_Up,
+	.Dpad_Down      = .Dpad_Down,
+	.Dpad_Left      = .Dpad_Left,
+	.Dpad_Right     = .Dpad_Right,
+}
+
+// The GCExtendedGamepad button selectors. The D-pad ones are the up, down,
+// left and right of its dpad.
+Gc_Button_Selector :: enum u8 {
+	Button_A,
+	Button_B,
+	Button_X,
+	Button_Y,
+	Left_Shoulder,
+	Right_Shoulder,
+	Left_Thumbstick_Button,
+	Right_Thumbstick_Button,
+	Button_Menu,
+	Button_Options,
+	Dpad_Up,
+	Dpad_Down,
+	Dpad_Left,
+	Dpad_Right,
+}
+
+// The values the macOS reader takes from one GCExtendedGamepad. The snapshot
+// keeps the GameController labels, and gc_map gives the positions.
 Gc_Snapshot :: struct {
-	button_a:                bool,
-	button_b:                bool,
-	button_x:                bool,
-	button_y:                bool,
-	left_shoulder:           bool,
-	right_shoulder:          bool,
-	left_thumbstick_button:  bool,
-	right_thumbstick_button: bool,
-	button_menu:             bool,
-	button_options:          bool,
-	dpad_up:                 bool,
-	dpad_down:               bool,
-	dpad_left:               bool,
-	dpad_right:              bool,
+	pressed:          [Gc_Button_Selector]bool,
 	// GameController reports +y up, as Gamepad_Raw does.
-	left_thumbstick:         [2]f32,
-	right_thumbstick:        [2]f32,
-	left_trigger:            f32,
-	right_trigger:           f32,
+	left_thumbstick:  [2]f32,
+	right_thumbstick: [2]f32,
+	left_trigger:     f32,
+	right_trigger:    f32,
 }
 
 gc_map :: proc(snapshot: Gc_Snapshot, id: u64) -> Gamepad_Raw {
-	buttons: Gamepad_Buttons
-	if snapshot.button_a {buttons += {.South}}
-	if snapshot.button_b {buttons += {.East}}
-	if snapshot.button_x {buttons += {.West}}
-	if snapshot.button_y {buttons += {.North}}
-	if snapshot.left_shoulder {buttons += {.Left_Shoulder}}
-	if snapshot.right_shoulder {buttons += {.Right_Shoulder}}
-	if snapshot.left_thumbstick_button {buttons += {.Left_Stick}}
-	if snapshot.right_thumbstick_button {buttons += {.Right_Stick}}
-	if snapshot.button_menu {buttons += {.Start}}
-	if snapshot.button_options {buttons += {.Back}}
-	if snapshot.dpad_up {buttons += {.Dpad_Up}}
-	if snapshot.dpad_down {buttons += {.Dpad_Down}}
-	if snapshot.dpad_left {buttons += {.Dpad_Left}}
-	if snapshot.dpad_right {buttons += {.Dpad_Right}}
-	return {
-		id = id,
-		buttons = buttons,
-		left_stick = snapshot.left_thumbstick,
-		right_stick = snapshot.right_thumbstick,
-		left_trigger = snapshot.left_trigger,
+	raw := Gamepad_Raw {
+		id            = id,
+		left_stick    = snapshot.left_thumbstick,
+		right_stick   = snapshot.right_thumbstick,
+		left_trigger  = snapshot.left_trigger,
 		right_trigger = snapshot.right_trigger,
 	}
+	for selector, button in GC_BUTTON_SELECTORS {
+		if snapshot.pressed[selector] {
+			raw.buttons += {button}
+		}
+	}
+	return raw
 }

@@ -9,20 +9,20 @@ test_gc_map_gives_each_button_its_position :: proc(t: ^testing.T) {
 		snapshot: Gc_Snapshot,
 		button:   Gamepad_Button,
 	} {
-		{{button_a = true}, .South},
-		{{button_b = true}, .East},
-		{{button_x = true}, .West},
-		{{button_y = true}, .North},
-		{{left_shoulder = true}, .Left_Shoulder},
-		{{right_shoulder = true}, .Right_Shoulder},
-		{{left_thumbstick_button = true}, .Left_Stick},
-		{{right_thumbstick_button = true}, .Right_Stick},
-		{{button_menu = true}, .Start},
-		{{button_options = true}, .Back},
-		{{dpad_up = true}, .Dpad_Up},
-		{{dpad_down = true}, .Dpad_Down},
-		{{dpad_left = true}, .Dpad_Left},
-		{{dpad_right = true}, .Dpad_Right},
+		{{pressed = #partial {.Button_A = true}}, .South},
+		{{pressed = #partial {.Button_B = true}}, .East},
+		{{pressed = #partial {.Button_X = true}}, .West},
+		{{pressed = #partial {.Button_Y = true}}, .North},
+		{{pressed = #partial {.Left_Shoulder = true}}, .Left_Shoulder},
+		{{pressed = #partial {.Right_Shoulder = true}}, .Right_Shoulder},
+		{{pressed = #partial {.Left_Thumbstick_Button = true}}, .Left_Stick},
+		{{pressed = #partial {.Right_Thumbstick_Button = true}}, .Right_Stick},
+		{{pressed = #partial {.Button_Menu = true}}, .Start},
+		{{pressed = #partial {.Button_Options = true}}, .Back},
+		{{pressed = #partial {.Dpad_Up = true}}, .Dpad_Up},
+		{{pressed = #partial {.Dpad_Down = true}}, .Dpad_Down},
+		{{pressed = #partial {.Dpad_Left = true}}, .Dpad_Left},
+		{{pressed = #partial {.Dpad_Right = true}}, .Dpad_Right},
 	}
 	testing.expect_value(t, len(cases), len(Gamepad_Button))
 	for c in cases {
@@ -73,7 +73,7 @@ test_gc_map_feeds_the_latch :: proc(t: ^testing.T) {
 	latch: Gamepad_Latch
 	buffers: Gamepad_Buffers
 	gamepad_latch_poll(&latch, {gc_map({}, id = 9)})
-	gamepad_latch_poll(&latch, {gc_map({button_a = true, right_trigger = 1, left_thumbstick = {0, 1}}, id = 9)})
+	gamepad_latch_poll(&latch, {gc_map({pressed = #partial {.Button_A = true}, right_trigger = 1, left_thumbstick = {0, 1}}, id = 9)})
 	pads := gamepad_latch_take(&latch, &buffers)
 	testing.expect_value(t, len(pads), 1)
 	if len(pads) != 1 {

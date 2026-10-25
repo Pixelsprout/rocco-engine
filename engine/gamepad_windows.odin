@@ -37,12 +37,12 @@ gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	reader^ = {}
 	lib := LoadLibraryA(XINPUT_DLL)
 	if lib == nil {
-		fmt.eprintln("the host cannot load " + XINPUT_DLL + "; it reports no gamepads")
+		fmt.eprintln(XINPUT_DLL + " did not load. The run reads no gamepads.")
 		return
 	}
 	get_state := Xinput_Get_State(win32.GetProcAddress(lib, "XInputGetState"))
 	if get_state == nil {
-		fmt.eprintln(XINPUT_DLL + " has no XInputGetState; the host reports no gamepads")
+		fmt.eprintln(XINPUT_DLL + " has no XInputGetState. The run reads no gamepads.")
 		win32.FreeLibrary(lib)
 		return
 	}
@@ -50,7 +50,6 @@ gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 	reader.get_state = get_state
 }
 
-// Writes each connected pad to out and returns the count. See Gamepad_Raw.
 gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
 	if reader.get_state == nil {
 		return 0
