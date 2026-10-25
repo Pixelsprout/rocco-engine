@@ -1076,12 +1076,33 @@ world space.
 
 ## Milestone 23: Gamepad
 
-Done when Kula plays with a gamepad on all three targets. sokol_app reads no
-gamepad, so this is a host module with one file per OS. `Input` gains the
-sticks, the triggers and the buttons. The grilling chooses the OS interface
-per target and counts the catalog cost of each. The Bridge from Milestone 19
-can inject the new Input, so CI can test it with no pad. Tutorial chapter 9
-adds the gamepad.
+Done when Kula plays with an Xbox pad on macOS and Windows from the v0.5.0
+release URLs, and CI tests the mapping of each OS. A person checks Linux
+later; a bug found there ships in a v0.5.x patch. Grilled 2026-10-23 to
+2026-10-26. The dex task oo56i7qp holds the decisions and the tasks.
+`docs/adr/0015-gamepads-are-polled-in-the-host.md` records the backends.
+
+1. One Vocabulary change: `Input.gamepads : List(Gamepad)`, with a slot,
+   held and pressed buttons, two sticks and two triggers. `pf.Button`
+   names 14 buttons by position (`South`, `East`, `West`, `North` and the
+   others) and gives `held`, `pressed`, `held_any` and `pressed_any`.
+2. The host polls each pad once per frame. It applies the dead zones, makes
+   +y up, keeps a pad's slot while it is connected and reports at most 4
+   pads. On unfocus it clears the buttons and the axes.
+3. sokol has no gamepad module, so the host calls the OS. macOS uses
+   GameController through `dlopen` and our own objc bindings. Windows uses
+   XInput through `LoadLibraryA`. Linux uses evdev and `inotify` through
+   `core:sys/linux`. No backend adds a catalog entry.
+4. The Bridge `step` op gains `gamepads`, so CI tests pad Input with no
+   pad. A pure mapping procedure for each OS has Odin tests on every
+   runner.
+5. Tutorial chapter 9 walks Pip with the left stick. `guide/gamepad.md`
+   documents the buttons and the limits on each OS. v0.5.0 closes the
+   milestone, and Kula moves to it with the D-pad, South and Start.
+
+Check: a Bridge run holds South and reads the result. A person plays Kula
+with an Xbox pad on macOS and on Windows. The alloc check counts do not
+change with no pad connected.
 
 ## Milestone 24: Animation
 
