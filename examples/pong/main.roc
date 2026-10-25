@@ -12,6 +12,7 @@ import pf.Input
 import pf.Launch
 import pf.Scene
 import pf.Key
+import pf.Button
 import pf.Light
 import pf.QueryResults
 
@@ -200,9 +201,10 @@ view = |m| {
 
 # endregion
 
+# South on any pad does what Space does, so the Bridge check can press it.
 game_state : Model, Vocabulary.Input -> Model
 game_state = |m, input| {
-	if Key.pressed(input, Space) {
+	if Key.pressed(input, Space) or Button.pressed_any(input, South) {
 		match m.state {
 			Paused => { ..m, state: Running }
 			EndGame => reset(m)
@@ -397,6 +399,15 @@ expect {
 	paused = game_state(m, press)
 	resumed = game_state(paused, press)
 	paused.state == Paused and resumed.state == Running and resumed.score == m.score
+}
+
+# South on a pad pauses as Space does. Holding it does not resume.
+expect {
+	m = init(Config.empty).model
+	pad = { slot: 0, held: [Button.code(South)], pressed: [Button.code(South)], left_stick: { x: 0.0, y: 0.0 }, right_stick: { x: 0.0, y: 0.0 }, left_trigger: 0.0, right_trigger: 0.0 }
+	paused = game_state(m, { ..Input.empty, gamepads: [pad] })
+	still = game_state(paused, { ..Input.empty, gamepads: [{ ..pad, pressed: [] }] })
+	paused.state == Paused and still.state == Paused
 }
 
 # A score of 7 ends the game, and the paddles and ball freeze there.

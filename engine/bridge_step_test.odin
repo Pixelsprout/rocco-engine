@@ -259,3 +259,116 @@ test_bridge_step_ignores_the_real_keyboard_and_mouse :: proc(t: ^testing.T) {
 	testing.expect_value(t, g_fake.mouse, [2]f32{})
 	testing.expect(t, r.s.input.held[.W])
 }
+
+@(private = "file")
+expect_pad_buttons :: proc(t: ^testing.T, pad: ^Fake_Gamepad, held: []Gamepad_Button, pressed: []Gamepad_Button, loc := #caller_location) {
+	got_held, got_pressed := pad.held[:pad.held_len], pad.pressed[:pad.pressed_len]
+	testing.expectf(t, slice.equal(got_held, button_codes(held)), "got held %v, want %v", got_held, held, loc = loc)
+	testing.expectf(t, slice.equal(got_pressed, button_codes(pressed)), "got pressed %v, want %v", got_pressed, pressed, loc = loc)
+}
+
+@(private = "file")
+button_codes :: proc(buttons: []Gamepad_Button) -> []u8 {
+	out := make([]u8, len(buttons), context.temp_allocator)
+	for b, i in buttons {
+		out[i] = u8(b)
+	}
+	return out
+}
+
+// The pad buttons follow the Input rules of the keys. The axes hold for every
+// step, as the request gives them.
+@(test)
+test_bridge_step_gives_the_pads_of_the_request :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_send(t, &r, `{"op":"step","n":2,"gamepads":[{"slot":2,"held":["South"],"tap":["Start"],"left_stick":[0.5,-0.25],"right_trigger":1},{"held":["DpadUp"]}]}`)
+	step_run_frame(&r)
+	testing.expect_value(t, g_fake.gamepads_len, 2)
+	first, third := g_fake.gamepads[0], g_fake.gamepads[1]
+	testing.expect_value(t, first.slot, 0)
+	expect_pad_buttons(t, &first, {.Dpad_Up}, {.Dpad_Up})
+	testing.expect_value(t, third.slot, 2)
+	expect_pad_buttons(t, &third, {.South}, {.South, .Start})
+	testing.expect_value(t, third.left_stick, [2]f32{0.5, -0.25})
+	testing.expect_value(t, third.right_stick, [2]f32{})
+	testing.expect_value(t, third.left_trigger, 0)
+	testing.expect_value(t, third.right_trigger, 1)
+
+	step_run_frame(&r)
+	third = g_fake.gamepads[1]
+	expect_pad_buttons(t, &third, {.South}, {})
+	testing.expect_value(t, third.left_stick, [2]f32{0.5, -0.25})
+	_ = driver_read_reply(t, r.driver)
+}
+
+// A request with no gamepads has no pad connected, so the next hold presses
+// the button again.
+@(test)
+test_bridge_step_with_no_gamepads_has_no_pad :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","gamepads":[{"held":["East"]}]}`)
+	step_run_request(t, &r, `{"op":"step","gamepads":[{"held":["East"]}]}`)
+	expect_pad_buttons(t, &g_fake.gamepads[0], {.East}, {})
+	step_run_request(t, &r, `{"op":"step"}`)
+	testing.expect_value(t, g_fake.gamepads_len, 0)
+	step_run_request(t, &r, `{"op":"step","gamepads":[{"held":["East"]}]}`)
+	expect_pad_buttons(t, &g_fake.gamepads[0], {.East}, {.East})
+}
+
+@(test)
+test_bridge_step_ignores_the_real_pads :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	gamepad_latch_poll(&r.s.input.gamepads, {{id = 1, buttons = {.South}}})
+	step_run_request(t, &r, `{"op":"step"}`)
+
+	testing.expect_value(t, g_fake.gamepads_len, 0)
+}
+
+@(test)
+test_bridge_step_with_a_bad_gamepad_fails_before_any_step :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	cases := []struct {
+		request, error: string,
+	} {
+		{`{"op":"step","gamepads":[{"held":["South","Jump"]}]}`, `unknown Button "Jump" in "held"`},
+		{`{"op":"step","gamepads":[{"tap":["A"]}]}`, `unknown Button "A" in "tap"`},
+		{`{"op":"step","gamepads":[{"slot":4}]}`, `"slot" must be a whole number from 0 to 3`},
+		{`{"op":"step","gamepads":[{"slot":1},{"slot":1}]}`, `two gamepads have slot 1`},
+		{`{"op":"step","gamepads":[{"left_stick":[1,1]}]}`, `"left_stick" must be [x, y] inside the unit disc`},
+		{`{"op":"step","gamepads":[{"right_trigger":1.5}]}`, `"right_trigger" must be a number from 0 to 1`},
+		{`{"op":"step","gamepads":{"slot":0}}`, `"gamepads" must be a list of objects`},
+	}
+	for c in cases {
+		step_run_send(t, &r, c.request)
+		reply := driver_read_reply(t, r.driver)
+		step_run_frame(&r)
+		testing.expect_value(t, reply["ok"].(json.Boolean), false)
+		testing.expect_value(t, reply["error"].(json.String), c.error)
+	}
+	testing.expect_value(t, g_fake.steps, 0)
+	testing.expect_value(t, r.s.bridge.owed_steps, 0)
+}

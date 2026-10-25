@@ -70,7 +70,8 @@ Keys := [].{
 
 	key_module_intro : Str
 	key_module_intro =
-		\\import Vocabulary exposing [Input]
+		\\import Vocabulary
+		\\import Input
 		\\
 		\\## A named sokol key code, such as `W` or `Space`. Input carries the code.
 		\\## Your game decides what a key means.
@@ -88,17 +89,17 @@ Keys := [].{
 		\\	}
 		\\
 		\\	## True while the key is down. Ask twice in one step and you get the same answer.
-		\\	held : Input, Key -> Bool
+		\\	held : Vocabulary.Input, Key -> Bool
 		\\	held = |input, key| List.contains(input.held, code(key))
 		\\
 		\\	## True in the first step after the key went down. A key tapped between
 		\\	## two steps is pressed but not held.
-		\\	pressed : Input, Key -> Bool
+		\\	pressed : Vocabulary.Input, Key -> Bool
 		\\	pressed = |input, key| List.contains(input.pressed, code(key))
 		\\
 		\\	## 1.0 when only `pos` is held, -1.0 when only `neg` is held, else 0.0.
 		\\	## For example, `Key.axis(input, S, W)` gives a forward speed.
-		\\	axis : Input, Key, Key -> F32
+		\\	axis : Vocabulary.Input, Key, Key -> F32
 		\\	axis = |input, neg, pos| (if held(input, pos) 1.0 else 0.0) - (if held(input, neg) 1.0 else 0.0)
 		\\}
 		\\
@@ -108,8 +109,8 @@ Keys := [].{
 		\\expect Key.code(Kp0) == 320
 		\\expect Key.code(Escape) == 256
 		\\
-		\\idle : Input
-		\\idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 } }
+		\\idle : Vocabulary.Input
+		\\idle = Input.empty
 		\\
 		\\expect Key.held({ ..idle, held: [87] }, W) and !Key.held({ ..idle, pressed: [87] }, W)
 		\\expect Key.pressed({ ..idle, pressed: [32] }, Space) and !Key.pressed({ ..idle, held: [32] }, Space)

@@ -6,7 +6,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
+	exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -26,6 +26,7 @@ platform ""
 import Vocabulary exposing [Command, Manifest]
 
 # Only here because every exposes entry needs a matching import.
+import Button
 import Key
 import Collider
 import Light
