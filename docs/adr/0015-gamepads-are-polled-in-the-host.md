@@ -1,6 +1,6 @@
 # 0015: Gamepads are polled in the host
 
-Status: proposed, 2026-10-26.
+Status: accepted, 2026-10-26.
 
 ## Context
 
@@ -12,22 +12,43 @@ library opened at run time costs no catalog entry.
 
 ## Decision
 
-- The host polls the pads once per frame through one file per OS, beside
-  sokol. A shared file, `engine/gamepad.odin`, owns the slots, the latch,
-  the dead zones and the focus clear. It has no OS calls.
+- The host polls the pads once per frame, before the steps of that frame,
+  through one file per OS beside sokol: `engine/gamepad_darwin.odin`,
+  `engine/gamepad_windows.odin` and `engine/gamepad_linux.odin`. A shared
+  file, `engine/gamepad.odin`, owns the slots, the latch, the dead zones
+  and the focus clear. It has no OS calls.
+- Each backend reports every connected pad, up to 8, with an id that stays
+  the same while the pad stays connected. The id is a device key, not the
+  slot. The shared slot table gives a new pad the lowest free slot of 4 on
+  every OS. A pad past the 4 slots takes the first slot that frees.
 - macOS: `GameController.framework`, opened with `dlopen`, through our own
-  thin bindings with the Odin objc intrinsics. The host polls
-  `GCController.controllers` and reads `extendedGamepad`.
+  thin bindings with the Odin objc intrinsics. The host finds the
+  `GCController` class with `objc_lookUpClass` after the `dlopen`, because
+  Odin resolves the classes that the code names before `main`. The host
+  polls `GCController.controllers` and reads `extendedGamepad`.
 - Windows: XInput. The host opens `xinput1_4.dll` with `LoadLibraryA` and
   gets `XInputGetState` with `GetProcAddress`. It uses the types from
-  `core:sys/windows`, but not its foreign procs.
+  `core:sys/windows`, but not its foreign procs, which link `xinput.lib`.
+  `core:sys/windows` binds no `LoadLibraryA`, so the engine declares it.
+  The XInput index, 0 to 3, is the pad's id. The host checks an empty
+  index once a second, as Microsoft advises.
 - Linux: evdev through `core:sys/linux` syscalls. The host scans
-  `/dev/input/event*` at startup and watches `/dev/input` with `inotify`.
+  `/dev/input/event*` at startup for nodes with `BTN_GAMEPAD`, and watches
+  `/dev/input` with `inotify`. An open that fails with `EACCES` is tried
+  again for 1 s, and an `IN_ATTRIB` event tries it again too, because udev
+  sets the access rights after it makes the node. `xpad` reports X as
+  0x133 (`BTN_NORTH`) and Y as 0x134 (`BTN_WEST`), so the host reads each
+  pad's driver name from sysfs and swaps the two codes for `xpad` only.
 - No backend adds a catalog entry. `dlopen`, `objc_lookUpClass`,
-  `LoadLibraryA` and `GetProcAddress` are already in the catalogs, and
-  `core:sys/linux` makes raw syscalls.
+  `LoadLibraryA`, `GetProcAddress` and `FreeLibrary` are already in the
+  catalogs, and `core:sys/linux` makes raw syscalls.
 - Each backend copies the OS state into a plain value and maps it with a
-  pure procedure, so Odin tests cover the mapping on every runner.
+  pure procedure in a file with no OS suffix, so Odin tests cover the
+  mapping on every runner: `gc_map` in `engine/gamepad_gc.odin`,
+  `xinput_map` in `engine/gamepad_xinput.odin`, and `evdev_apply` and
+  `evdev_map` in `engine/gamepad_evdev.odin`.
+- While the Bridge is on, its pads replace the real pads, so CI tests
+  gamepad Input with no pad.
 
 ## Considered options
 
@@ -47,12 +68,16 @@ library opened at run time costs no catalog entry.
 ## Consequences
 
 - macOS reads only the pads that GameController knows: Xbox, PlayStation,
-  Switch Pro and MFi.
+  Switch Pro and MFi. GameController sends no input while the game window
+  is not in front, and the host keeps that default.
 - Windows reads only Xbox-compatible pads. A PlayStation pad works through
-  Steam Input or DS4Windows.
+  Steam Input or DS4Windows. A pad that connects can take up to 1 s to
+  appear.
 - Linux reads only pads whose kernel driver uses the standard gamepad
   layout, such as `xpad`, `hid-playstation` and `hid-nintendo`. The player
   needs read access to the event node; logind gives it on most desktops.
+  Bluetooth Xbox pads use other drivers, which the host does not map
+  specially.
 - XInput polls only, so a tap shorter than one frame can be lost on
   Windows.
 - Rumble later needs a write path in each backend: `XInputSetState`,

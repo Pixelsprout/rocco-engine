@@ -27,8 +27,9 @@ start a game with it:
 - **Desktop only.** rocco runs on macOS arm64, Linux x64 and Windows x64.
   On Linux it needs an X11 desktop and an OpenGL driver. You build on each
   OS that you ship to, because there is no cross-compiling.
-- **Keyboard and mouse movement only.** The Input has no gamepad and no
-  mouse buttons.
+- **No mouse buttons.** The Input has the keyboard, the mouse movement and
+  up to 4 gamepads, but no mouse buttons. Windows reads Xbox-compatible
+  pads only. See [Gamepads](gamepad.md).
 - **No physics.** The engine answers questions about shapes, such as "what
   does this ray hit?", but it moves nothing and pushes nothing apart. See
   [Collisions and Queries](collisions.md).

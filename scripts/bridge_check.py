@@ -11,6 +11,9 @@ Then it runs tutorial chapter 8, checks its two Loops, and holds W until Pip
 takes a pickup. The step reply must hold the Play of the blip. A run with no
 audio device still returns the Play, so the check needs no sound card.
 
+Then it runs tutorial chapter 9 with the left stick of one pad halfway up,
+and checks that Pip walks at half the speed of W. A tap of Start must quit.
+
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Box that holds two cell Boxes, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
@@ -44,6 +47,9 @@ WINDOW = [960, 540]
 MUSIC_LOOP_ID = 1
 HUM_LOOP_ID = 2
 HUM_AT = {"At": {"pos": {"x": 0, "y": 1, "z": -2.9}, "range": 10}}
+
+# examples/tutorial/09-gamepad/main.roc: the stick's length scales the speed.
+HALF_STICK_DZ = EXPECTED_DZ / 2
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Box that holds the score as one Text.
@@ -115,6 +121,22 @@ def drive_sound(b, _out):
     b.quit()
 
 
+def drive_gamepad(b, _out):
+    b.hello()
+
+    before = pip_pos(b.scene())
+    b.step(STEPS, gamepads=[{"slot": 0, "left_stick": [0.0, 0.5]}])
+    after_reply = b.scene()
+    after = pip_pos(after_reply)
+    dz = after["z"] - before["z"]
+    check(abs(dz - HALF_STICK_DZ) < TOLERANCE, f"the stick halfway up moved Pip {dz} along z, expected {HALF_STICK_DZ}")
+    check(after["x"] == before["x"], f"Pip stayed at x {after['x']}")
+
+    stepped = b.step(10, gamepads=[{"slot": 0, "tap": ["Start"]}])
+    check(stepped["commands"] == ["Quit"], f"a tap of Start returns Quit: {stepped['commands']}")
+    check(stepped["steps"] == after_reply["steps"] + 1, f"the run stopped at the step that quit, step {stepped['steps']}")
+
+
 def drive_ui(b, _out):
     b.hello()
 
@@ -160,7 +182,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("pong", drive_ui)]
+GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("pong", drive_ui)]
 
 
 def run_game(game, drive, out, tmp, suffix):
