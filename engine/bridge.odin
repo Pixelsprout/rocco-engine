@@ -17,24 +17,38 @@ BRIDGE_PAUSE_WAIT :: 16 * time.Millisecond
 // A Bridge run is Lockstep that pauses: a Frame takes one fixed step while
 // the Driver is owed steps, and none otherwise.
 Bridge :: struct {
-	on:         bool,
-	transport:  Bridge_Transport,
-	owed_steps: int,
+	on:           bool,
+	transport:    Bridge_Transport,
+	owed_steps:   int,
 	// Set by the quit op, a Quit from the game or the Frame limit. The host
 	// ends the run after the Frame.
-	quit:       bool,
+	quit:         bool,
 	// The step op's Input. held is for every step. tap and mouse are for the
 	// first step only.
-	held:       #sparse[sapp.Keycode]bool,
-	tap:        #sparse[sapp.Keycode]bool,
-	mouse:      [2]f32,
+	held:         #sparse[sapp.Keycode]bool,
+	tap:          #sparse[sapp.Keycode]bool,
+	mouse:        [2]f32,
 	// The held keys of the step before. Pressed is held minus these.
-	prev_held:  #sparse[sapp.Keycode]bool,
+	prev_held:    #sparse[sapp.Keycode]bool,
+	// The step op's pads by slot, with the same rules as the keys. They
+	// replace the real pads.
+	gamepads:     [GAMEPAD_SLOTS]Bridge_Gamepad,
+	// The held buttons of the step before, by slot.
+	prev_buttons: [GAMEPAD_SLOTS]Gamepad_Buttons,
 	// The step op's Commands so far, as JSON array elements. They must
 	// outlive the Frame arena, because the reply waits for the last step.
-	commands:   strings.Builder,
+	commands:     strings.Builder,
 	// The alloc line fields of the last step, for the step op's reply.
-	alloc:      Alloc_Report,
+	alloc:        Alloc_Report,
+}
+
+// One pad of a step op. A slot that the request does not name has no pad.
+// The axes are for every step, and skip the dead zones.
+Bridge_Gamepad :: struct {
+	connected: bool,
+	held:      Gamepad_Buttons,
+	tap:       Gamepad_Buttons,
+	axes:      Gamepad_Axes,
 }
 
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
@@ -121,13 +135,25 @@ bridge_paused :: proc(b: ^Bridge) -> bool {
 // The Input for one step under the Bridge, in place of the real devices. It
 // derives Pressed from the held keys of the step before, as the real latch
 // does from key-down events.
-bridge_input_take :: proc(b: ^Bridge, buf: ^Key_Buffers) -> Step_Keys {
+bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
 	latch := Input_Latch {
 		held  = b.held,
 		mouse = b.mouse,
 	}
 	for k in sapp.Keycode {
 		latch.pressed[k] = (b.held[k] && !b.prev_held[k]) || b.tap[k]
+	}
+	for &pad, i in b.gamepads {
+		if pad.connected {
+			latch.gamepads.slots[i] = {
+				connected = true,
+				held      = pad.held,
+				pressed   = (pad.held - b.prev_buttons[i]) + pad.tap,
+				axes      = pad.axes,
+			}
+		}
+		b.prev_buttons[i] = pad.held
+		pad.tap = {}
 	}
 	b.prev_held = b.held
 	b.tap = {}

@@ -391,20 +391,63 @@ Roc_Loaded_Arg2 :: struct {
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
 
 Roc_Step_Arg1 :: struct {
+	gamepads: Roc_List(Roc_Step_Arg1_Gamepads),
 	held: Roc_List(u16),
 	pressed: Roc_List(u16),
 	mouse: Roc_Step_Arg1_Mouse,
 }
 
-#assert(size_of(Roc_Step_Arg1) == 56)
+#assert(size_of(Roc_Step_Arg1) == 80)
 #assert(align_of(Roc_Step_Arg1) == 8)
-#assert(offset_of(Roc_Step_Arg1, held) == 0)
+#assert(offset_of(Roc_Step_Arg1, gamepads) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1{}.gamepads)) == 24)
+#assert(offset_of(Roc_Step_Arg1, held) == 24)
 #assert(size_of(type_of(Roc_Step_Arg1{}.held)) == 24)
-#assert(offset_of(Roc_Step_Arg1, pressed) == 24)
+#assert(offset_of(Roc_Step_Arg1, pressed) == 48)
 #assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == 24)
-#assert(offset_of(Roc_Step_Arg1, mouse) == 48)
+#assert(offset_of(Roc_Step_Arg1, mouse) == 72)
 #assert(size_of(type_of(Roc_Step_Arg1{}.mouse)) == 8)
 
+Roc_Step_Arg1_Gamepads :: struct {
+	held: Roc_List(u8),
+	pressed: Roc_List(u8),
+	left_stick: Roc_Step_Arg1_Gamepads_LeftStick,
+	left_trigger: f32,
+	right_stick: Roc_Step_Arg1_Gamepads_LeftStick,
+	right_trigger: f32,
+	slot: u8,
+}
+
+#assert(size_of(Roc_Step_Arg1_Gamepads) == 80)
+#assert(align_of(Roc_Step_Arg1_Gamepads) == 8)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, held) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.held)) == 24)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, pressed) == 24)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.pressed)) == 24)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, left_stick) == 48)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.left_stick)) == 8)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, left_trigger) == 56)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.left_trigger)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, right_stick) == 60)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.right_stick)) == 8)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, right_trigger) == 68)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.right_trigger)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, slot) == 72)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.slot)) == 1)
+
+Roc_Step_Arg1_Gamepads_LeftStick :: struct {
+	x: f32,
+	y: f32,
+}
+
+#assert(size_of(Roc_Step_Arg1_Gamepads_LeftStick) == 8)
+#assert(align_of(Roc_Step_Arg1_Gamepads_LeftStick) == 4)
+#assert(offset_of(Roc_Step_Arg1_Gamepads_LeftStick, x) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads_LeftStick{}.x)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Gamepads_LeftStick, y) == 4)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads_LeftStick{}.y)) == 4)
+
+Roc_Step_Arg1_Gamepads_RightStick :: Roc_Step_Arg1_Gamepads_LeftStick
 Roc_Step_Arg1_Mouse :: struct {
 	dx: f32,
 	dy: f32,
@@ -965,7 +1008,7 @@ Roc_VocabularyElement_Box_0_Floating :: struct {
 #assert(offset_of(Roc_VocabularyElement_Box_0_Floating, tag) == 12)
 
 Roc_VocabularyElement_Box_0_Floating_Float :: struct {
-	offset: Roc_VocabularyElement_Box_0_Floating_Float_Offset,
+	offset: Roc_Step_Arg1_Gamepads_LeftStick,
 	attach: Roc_VocabularyElement_Box_0_Floating_Float_Attach,
 }
 
@@ -976,18 +1019,7 @@ Roc_VocabularyElement_Box_0_Floating_Float :: struct {
 #assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, attach) == 8)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.attach)) == 1)
 
-Roc_VocabularyElement_Box_0_Floating_Float_Offset :: struct {
-	x: f32,
-	y: f32,
-}
-
-#assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset) == 8)
-#assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset) == 4)
-#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset, x) == 0)
-#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset{}.x)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset, y) == 4)
-#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float_Offset{}.y)) == 4)
-
+Roc_VocabularyElement_Box_0_Floating_Float_Offset :: Roc_Step_Arg1_Gamepads_LeftStick
 Roc_VocabularyElement_Box_0_Floating_Float_Attach :: enum u8 {
 	CenterBottom = 0,
 	CenterCenter = 1,
@@ -1183,8 +1215,14 @@ roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
 }
 
 roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
+	roc_list_decref_roc_step_arg1_gamepads(value.gamepads)
 	roc_list_decref_u16(value.held)
 	roc_list_decref_u16(value.pressed)
+}
+
+roc_step_arg1_gamepads_decref :: proc(value: Roc_Step_Arg1_Gamepads) {
+	roc_list_decref_u8(value.held)
+	roc_list_decref_u8(value.pressed)
 }
 
 roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
@@ -1259,6 +1297,22 @@ roc_list_decref_roc_loaded_arg2 :: proc(list: Roc_List(Roc_Loaded_Arg2)) {
 
 roc_list_from_slice_roc_loaded_arg2 :: proc(elems: []Roc_Loaded_Arg2) -> Roc_List(Roc_Loaded_Arg2) {
 	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_roc_step_arg1_gamepads :: proc(list: Roc_List(Roc_Step_Arg1_Gamepads)) {
+	roc_list_decref_elements(list, roc_step_arg1_gamepads_decref)
+}
+
+roc_list_from_slice_roc_step_arg1_gamepads :: proc(elems: []Roc_Step_Arg1_Gamepads) -> Roc_List(Roc_Step_Arg1_Gamepads) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_u8 :: proc(list: Roc_List(u8)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_u8 :: proc(elems: []u8) -> Roc_List(u8) {
+	return roc_list_from_slice_with(elems, false)
 }
 
 roc_list_decref_u16 :: proc(list: Roc_List(u16)) {
@@ -1343,6 +1397,7 @@ roc_decref :: proc {
 	roc_launch_window_decref,
 	roc_loaded_arg2_decref,
 	roc_step_arg1_decref,
+	roc_step_arg1_gamepads_decref,
 	roc_step_arg2_decref,
 	roc_view_decref,
 	roc_vocabularynode_decref,
@@ -1357,6 +1412,8 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_str,
 	roc_list_decref_roc_init_commands,
 	roc_list_decref_roc_loaded_arg2,
+	roc_list_decref_roc_step_arg1_gamepads,
+	roc_list_decref_u8,
 	roc_list_decref_u16,
 	roc_list_decref_roc_step_arg2_contacts,
 	roc_list_decref_roc_step_arg2_overlaps,
@@ -1372,6 +1429,8 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_str,
 	roc_list_from_slice_roc_init_commands,
 	roc_list_from_slice_roc_loaded_arg2,
+	roc_list_from_slice_roc_step_arg1_gamepads,
+	roc_list_from_slice_u8,
 	roc_list_from_slice_u16,
 	roc_list_from_slice_roc_step_arg2_contacts,
 	roc_list_from_slice_roc_step_arg2_overlaps,

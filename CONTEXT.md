@@ -124,8 +124,9 @@ _Avoid_: random seed, RNG, salt
 
 **Input**:
 What the host gives `step` each fixed step: the keys held, the keys pressed
-since the previous step, and the mouse delta. Key codes are sokol's; which
-key means what is the game's decision. Tests start from `pf.Input.empty`.
+since the previous step, the mouse delta and one Gamepad for each connected
+pad. Key codes are sokol's; which key means what is the game's decision.
+Tests start from `pf.Input.empty`.
 _Avoid_: events, controls, actions, commands
 
 **Key**:
@@ -144,6 +145,26 @@ A key in Input that went down since the previous fixed step. An edge: it
 appears in exactly one Input, the first fixed step after the key event. A
 key tapped between two steps is pressed but not held.
 _Avoid_: held, down, just pressed, triggered, edge
+
+**Gamepad**:
+One connected pad in `Input.gamepads`, at one step: its Gamepad slot, the
+Buttons held and pressed, two sticks inside the unit disc with +y up, and
+two triggers from 0 to 1. The host applies the dead zones; the Bridge
+applies none. At most 4.
+_Avoid_: Pad (it can mean padding), controller, joystick
+
+**Button**:
+A gamepad button named by its place on the pad, from `pf.Button`, such as
+`South` for the bottom face button. Not its label: `South` is A on Xbox,
+Cross on PlayStation and B on Switch. A Gamepad carries the code. The
+triggers are not Buttons.
+_Avoid_: key, face button label (A, Cross), action
+
+**Gamepad slot**:
+A Gamepad's number, from 0 to 3. A pad keeps its slot while it stays
+connected, and a new pad takes the lowest free slot. A game tells players
+apart by slot. Not the Slot of a Query.
+_Avoid_: player index, port, controller id, XInput index
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of root Nodes, a
@@ -423,6 +444,7 @@ _Avoid_: source, caller, query id
 **Slot**:
 A number that tells apart the Raycast or Overlap Queries of one owner. Two
 Queries of one kind with the same owner and slot: the host keeps the first.
+Not the Gamepad slot.
 _Avoid_: index, channel, query id
 
 **QueryResults**:

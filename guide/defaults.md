@@ -62,6 +62,18 @@ those defaults in one place. Each one links to the page that explains it.
 - **A Loop repeats with no crossfade.** Its file must loop cleanly, or it
   clicks each time it repeats.
 
+## Gamepads
+
+- **Buttons are named by their place, not their label.** `South` is A on
+  an Xbox pad, Cross on a PlayStation pad and B on a Switch pad. See
+  [Gamepads](gamepad.md#the-buttons).
+- **A stick at rest reads 0, but only on a real pad.** The host applies a
+  dead zone to a real pad. The Bridge applies none. See
+  [The Input rules](bridge.md#the-input-rules) of the Bridge.
+- **Find a player's pad by its slot.** The `gamepads` list skips the free
+  slots, so its first entry is not always slot 0. See
+  [Slots](gamepad.md#slots-and-more-than-one-player).
+
 ## Time
 
 - **120 fixed steps each second.** The host calls `step` and `view` 120

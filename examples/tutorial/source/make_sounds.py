@@ -14,7 +14,7 @@ import wave
 TUTORIAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 # Each chapter app keeps its own copy, so it runs with no ROCCO_ASSETS.
-CHAPTERS = ["08-sound"]
+CHAPTERS = ["08-sound", "09-gamepad"]
 
 RATE = 48000
 TAU = 2.0 * math.pi

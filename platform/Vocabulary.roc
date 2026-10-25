@@ -109,9 +109,32 @@ Vocabulary := [].{
 	## - `held`: the key codes that are down at this step.
 	## - `pressed`: the key codes that went down since the previous step.
 	## - `mouse`: the mouse movement since the previous step.
+	## - `gamepads`: one Gamepad for each connected pad, at most 4. With no pad
+	##   the list is empty.
 	##
 	## The key codes are sokol's. Use `Key` to name them.
-	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
+	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
+
+	## One connected gamepad at one step. Use `Button` to name the buttons.
+	##
+	## - `slot`: from 0 to 3. A pad keeps its slot while it stays connected. A
+	##   new pad takes the lowest free slot.
+	## - `held`: the button codes that are down at this step. A button that is
+	##   down when its pad connects is held, not pressed.
+	## - `pressed`: the button codes that went down since the previous step.
+	## - `left_stick`, `right_stick`: inside the unit disc. `+x` is right and
+	##   `+y` is up. The host applies a dead zone, so a stick at rest is 0.
+	## - `left_trigger`, `right_trigger`: from 0.0, at rest, to 1.0, pulled all
+	##   the way. The host applies a small dead zone.
+	Gamepad : {
+		slot : U8,
+		held : List(U8),
+		pressed : List(U8),
+		left_stick : { x : F32, y : F32 },
+		right_stick : { x : F32, y : F32 },
+		left_trigger : F32,
+		right_trigger : F32,
+	}
 
 	## Where the eye is, the point it looks at, the up direction and the
 	## vertical field of view in radians. The host interpolates it.

@@ -153,7 +153,8 @@ Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32 })
-Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 } }
+Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
+Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
@@ -183,7 +184,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
-| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta | a movement vector; a jump flag |
+| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights and the Colliders that can touch; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
@@ -231,6 +232,14 @@ empty `pressed` and a zero delta. If a frame runs no step, the next step that
 runs gets them. `held` is the key state when the step runs. When the
 window loses focus, the host releases every held key, because their key-up
 events go to the other window. Decision.
+
+The host polls the gamepads once per frame, before the steps of that frame,
+through one Gamepad reader per OS (ADR 0015). Button presses latch as key
+presses do. A button that is down when its pad connects is held, not
+pressed. The sticks and the triggers carry the last polled value, after the
+dead zones. When the window loses focus, the host releases every held
+button and sets the axes to zero. While the Bridge is on, the Bridge pads
+replace the real pads. Decision.
 
 A tint and a light colour are each an `Rgb`, not a `Vec3`. Roc records are
 structural, so the two names keep a position from passing as a colour. Each
@@ -628,7 +637,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
+    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest

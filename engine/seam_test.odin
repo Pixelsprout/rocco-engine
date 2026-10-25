@@ -24,6 +24,16 @@ FAKE_GAME :: Game_Calls {
 	drop_model = fake_drop_model,
 }
 
+// One pad of the last step's Input.
+Fake_Gamepad :: struct {
+	slot:        u8,
+	held:        [len(Gamepad_Button)]u8,
+	held_len:    int,
+	pressed:     [len(Gamepad_Button)]u8,
+	pressed_len: int,
+	axes:        Gamepad_Axes,
+}
+
 // When the fake runner ran a command, counted in steps and views.
 Fake_Command_Run :: struct {
 	steps: int,
@@ -54,6 +64,8 @@ Fake_Game :: struct {
 	pressed:         [FAKE_KEYS_MAX]u16,
 	pressed_len:     int,
 	mouse:           [2]f32,
+	gamepads:        [GAMEPAD_SLOTS]Fake_Gamepad,
+	gamepads_len:    int,
 	contacts:        [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:    int,
 	rays:            [FAKE_RAYS_MAX]Ray_Hit,
@@ -189,6 +201,19 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
 	g_fake.mouse = {input.mouse.dx, input.mouse.dy}
+	g_fake.gamepads_len = int(input.gamepads.length)
+	for pad, i in input.gamepads.elements[:input.gamepads.length] {
+		fake := &g_fake.gamepads[i]
+		fake.slot = pad.slot
+		fake.held_len = copy(fake.held[:], pad.held.elements[:pad.held.length])
+		fake.pressed_len = copy(fake.pressed[:], pad.pressed.elements[:pad.pressed.length])
+		fake.axes = {
+			left_stick    = {pad.left_stick.x, pad.left_stick.y},
+			right_stick   = {pad.right_stick.x, pad.right_stick.y},
+			left_trigger  = pad.left_trigger,
+			right_trigger = pad.right_trigger,
+		}
+	}
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
