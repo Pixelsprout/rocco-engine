@@ -300,6 +300,8 @@ once. Decision.
 The host draws one shadow map from the Sun before the main pass. Its
 orthographic view covers the box of every Draw at its interpolated pose. The
 host snaps that box outward to whole units, so the map changes size in steps.
+A skinned mesh's box is padded at load by 25% of its largest side, so the
+view also covers its posed limbs.
 The shadow darkens only the Sun's own light. Unlit meshes cast a shadow but
 do not receive one, and the sky does neither.
 
@@ -555,6 +557,15 @@ so the same Loads give the same ids. The primitives are named
 the name of a primitive. A name that is not on disk, or a file that does
 not load, gets id 0 in the Manifest and one log line per run.
 
+A skinned mesh draws through its own pipeline and its own shadow
+pipeline, with a 56-byte vertex that adds four Joint indices and four
+weights. Once per frame, the host samples each skinned Draw's `pose` into
+a skin block of 64 Joint matrices, which both passes apply. The vertex
+shader moves each vertex and its normal by the weighted Joint matrices. The
+uniform buffer holds skin blocks for at most 256 skinned Draws per frame.
+Past that, the host drops the rest and logs once. ADR 0016 records the
+decision.
+
 The primitives have type-safe tags in the mesh package:
 `Mesh.primitive(Cube)` returns the fixed id and takes no `Config`.
 `Mesh.resolve(manifest, "name")` resolves a loaded name to its mesh id. It
@@ -614,6 +625,11 @@ scale, rot and scale_rot between them, in the space of their Group. A draw
 whose id has no partner in the previous `Scene` is drawn where it is.
 Entities use their entity id. Fixed scenery uses ids the entities never
 reach.
+
+The host also blends a draw's `pose`. A `time` blends when its `clip` is
+the same in both `Scene`s and the time did not go back, as it does at a
+loop's wrap. `fade` blends when `fade_clip` is the same, and `fade_time`
+blends by the rule of `time`. Otherwise the pose takes the current values.
 
 Draw ids must be unique in a `Scene`, across all Groups. The Frame render
 pairs each current draw with the previous `Scene`. If the previous `Scene`

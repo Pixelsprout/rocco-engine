@@ -328,10 +328,15 @@ mesh_texture_destroy :: proc(tex: Mesh_Texture) {
 	}
 }
 
+// A skinned mesh uploads Skinned_Vertex, for the skinned pipelines. sokol
+// copies the data, so the skinned vertices are scratch.
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
-	m.vertices = sg.make_buffer(
-		{label = "mesh-vertices", data = {ptr = raw_data(data.vertices), size = uint(len(data.vertices) * size_of(Vertex))}},
-	)
+	vertices := sg.Range{raw_data(data.vertices), uint(len(data.vertices) * size_of(Vertex))}
+	if len(data.influences) > 0 {
+		skinned := skinned_vertices(data.vertices, data.influences, context.temp_allocator)
+		vertices = {raw_data(skinned), uint(len(skinned) * size_of(Skinned_Vertex))}
+	}
+	m.vertices = sg.make_buffer({label = "mesh-vertices", data = vertices})
 	m.indices = sg.make_buffer(
 		{
 			label = "mesh-indices",

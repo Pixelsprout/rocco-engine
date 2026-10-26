@@ -141,8 +141,14 @@ previous Scene and the current one.
 
 To do that, the host pairs each Draw in the current Scene with the Draw
 that has the same `id` in the previous Scene. It interpolates `pos`,
-`scale`, `rot` and `scale_rot` between the two, but not `mesh`, `tint` or
-`pose`. A Draw with no partner simply draws where it is.
+`scale`, `rot` and `scale_rot` between the two, but not `mesh` or `tint`.
+A Draw with no partner simply draws where it is.
+
+The host blends the `pose` too. The `time` blends when the `clip` is the
+same in both Scenes and the time did not go back. The `fade` blends when
+the `fade_clip` is the same, and the `fade_time` blends by the same rule
+as the `time`. Anything else takes the current value, so a looping time
+that wraps back to the start does not play the Clip backwards for a frame.
 
 So the ids matter. Follow these rules:
 

@@ -8,6 +8,7 @@ import "core:strings"
 MAX_JOINTS :: 64
 
 #assert(size_of(Skinned_Vertex) == 56)
+#assert(len(Skin_Params{}.joints) == MAX_JOINTS)
 
 // The vertex layout of the skinned pipeline.
 Skinned_Vertex :: struct {
@@ -80,6 +81,11 @@ Skin :: struct {
 	channels: []Clip_Channel,
 	times:    []f32,
 	values:   [][4]f32,
+}
+
+// A skinned mesh draws through the skinned pipelines.
+mesh_skinned :: proc(m: ^Mesh) -> bool {
+	return len(m.skin.joints) > 0
 }
 
 // Clip id 0 and the Clips of other meshes are not the mesh's.
