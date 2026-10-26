@@ -441,6 +441,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
 | `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from and puts in `Scene.nodes` as `Draw(...)`. |
 | `platform/Sound.roc` | Builds the Play Command, for example `Sound.play(id)`. |
+| `platform/Pose.roc` | Builds the Pose of a Draw with `Pose.still(clip, time)`, and wraps a Clip's time with `Pose.loop(time, duration)`. |
 | `platform/Loop.roc` | Gives `Loop.default`, the Loop a game starts a record update from in `Scene.loops`. |
 | `platform/Launch.roc` | Gives `Launch.default`, the Launch a game returns from `launch` or starts a record update from. |
 | `platform/Config.roc` | Gives `Config.empty`, the Config a test gives `launch` and `init`. |
@@ -456,7 +457,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character with a 12-Joint Skin and the Clips Idle and Walk, into each chapter in its `CHAPTERS` list. It also writes `engine/testdata/skinned.glb`, the small skinned fixture for the loader tests. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
-| `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`. Games import it as `import mesh.Mesh as Mesh`. |
+| `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`, and Clip ids and durations with `clip` and `clip_duration`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package for the `Scene.ui` tree. Games write `Box(config, [...])` and `Text(...)` themselves and take the configs from here: `default_box` holds Clay's defaults, `default_text` the Text defaults, and `float_at`, `panel`, `label` and `pad_all` are small helpers. Games import it as `import ui.Ui`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |

@@ -6,7 +6,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
+	exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Pose, Query, QueryResults, Scene, Sound, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -37,6 +37,7 @@ import Draw
 import Input
 import Launch
 import Loop
+import Pose
 import Scene
 import Sound
 

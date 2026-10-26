@@ -149,6 +149,18 @@ json_write_draw :: proc(b: ^strings.Builder, draw: ^Draw) {
 	json_write_quat(b, draw.scale_rot)
 	json_key(b, "tint")
 	json_write_rgb(b, draw.tint)
+	json_key(b, "pose")
+	json_key(b, "clip", first = true)
+	strings.write_u64(b, u64(draw.pose.clip))
+	json_key(b, "time")
+	json_write_f32(b, draw.pose.time)
+	json_key(b, "fade_clip")
+	strings.write_u64(b, u64(draw.pose.fade_clip))
+	json_key(b, "fade_time")
+	json_write_f32(b, draw.pose.fade_time)
+	json_key(b, "fade")
+	json_write_f32(b, draw.pose.fade)
+	strings.write_byte(b, '}')
 	strings.write_byte(b, '}')
 }
 
