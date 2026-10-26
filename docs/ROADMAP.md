@@ -1151,12 +1151,33 @@ Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
 colour. One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
-## Milestone 26: the announcement release
+## Milestone 26: Speakers
+
+Done when tutorial chapter 8 plays music, a hum that rises with the door,
+and a creak that stops early, all from Speaker Nodes. Grilled 2026-10-27.
+The dex task 6xt6s5jm holds the decisions and the tasks.
+`docs/adr/0017-sounds-the-game-controls-are-speaker-nodes.md` records them.
+
+1. One Vocabulary change: a `Speaker` Node `{ id, sound, gain, pitch, at,
+   repeat : [Loop, Once] }` replaces `Scene.loops` and the Loop. `Play`
+   stays. Each Manifest entry gains `duration`, a Sound's length at pitch 1.
+2. The host pairs Speakers by id across the tree, places them from the
+   current Scene, and frees the voice of a `Once` that ends.
+3. Chapter 8 puts the music in a `Here` Speaker, the hum in the door's
+   Group, and a `Once` creak that stops when Pip walks through.
+   `guide/sound.md` and CONTEXT.md move from Loops to Speakers.
+4. The milestone cuts a release.
+
+Check: host tests cover a `Once` that ends, a Loop to Once change and a
+Speaker in a moving Group. The Bridge `scene` reply shows a `Speaker`
+Node. A person hears chapter 8 on macOS, Linux and Windows.
+
+## Milestone 27: the announcement release
 
 Done when the release is published, the docs show it, and the announcement
-links the release, the docs and Kula. Each of milestones 19 to 25 adds its
+links the release, the docs and Kula. Each of milestones 19 to 26 adds its
 guide page, so this milestone checks the docs end to end and does not write
-them.
+them. Kula moves to the Milestone 26 release here.
 
 ## Later arcs
 

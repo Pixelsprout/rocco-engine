@@ -496,6 +496,18 @@ A stable number on a Loop that pairs it with the Loop of the previous
 Scene, as a Draw id pairs Draws.
 _Avoid_: Sound id, voice id, channel
 
+**Speaker**:
+A Node that plays a Sound while it stays in the Scene. Its `repeat` is
+`Loop` or `Once`; a `Once` that ends stays silent until it leaves. It takes
+its place from the Groups above it. It is a Description, and it replaces the
+Loop in Milestone 26 (ADR 0017).
+_Avoid_: emitter, source, track, channel, voice, audio player
+
+**Speaker id**:
+A stable number on a Speaker that pairs it with the Speaker of the previous
+Scene anywhere in the tree. Apart from draw ids and Group ids.
+_Avoid_: Sound id, voice id, Loop id
+
 **Listener**:
 The ear for a Play or a Loop placed at a point: the Camera of the current
 Scene, not the interpolated one. A Sound placed `Here` plays at the
