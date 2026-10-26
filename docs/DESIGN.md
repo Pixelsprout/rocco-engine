@@ -433,7 +433,7 @@ A Clay error, such as a `Percent` over 1, logs once per kind, and the host
 draws what fits. The UI draws in every case. A bug is visible, not fatal.
 Decision.
 
-### The look is Scene data, proposed
+### The environment is Scene data, proposed
 
 Today the shader uses one fixed ACES fit. A later change can let a game
 choose the tone map, for example ACES, AgX or Khronos PBR Neutral.
@@ -442,9 +442,9 @@ The choice goes in `Scene`, like the Lights. `Config` cannot carry it,
 because `Config` goes from the host to the game. A start-up `Command` locks
 the choice for the whole game, but a Theme can change the look per level.
 
-The tone map, the exposure and the fog go in one `Scene` record for the
-look. Then `Scene` does not gain one field for each effect, and a game
-builds the record once per Theme. The host passes the tone map as an int in
+The tone map, the exposure and the fog go in one `Scene` record,
+`Scene.environment`. Then `Scene` does not gain one field for each effect,
+and a game builds the record once per Theme. The host passes the tone map as an int in
 `fs_params`, and the fragment shader branches on it.
 
 Proposed, not decided. The dex task `yjtqgdd4` holds the decision.

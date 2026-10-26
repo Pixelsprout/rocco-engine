@@ -1145,11 +1145,11 @@ zw7aks62 holds the decisions and the tasks.
 Check: a Bridge screenshot shows Pip mid-walk. Odin tests cover the
 sampler, the fade and the loader errors. The alloc check covers chapter 10.
 
-## Milestone 25: Look
+## Milestone 25: Environment
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
-knobs in `Scene.look`, and Kula fades distant blocks toward its Theme colour.
-One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
+knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
+colour. One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
 ## Milestone 26: the announcement release
 
