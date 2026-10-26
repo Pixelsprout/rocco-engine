@@ -398,7 +398,7 @@ expect status_text({ ..start, pickups: [], door_lift: door_height }) == "The doo
 expect status_text({ ..start, phase: Won }) == "You win! Press Escape to quit."
 
 # region: tests
-# The Speakers of a Scene, in walk order.
+# The root Speakers of a Scene, in list order.
 speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
 speakers_of = |scene| List.keep_oks(
 	scene.nodes,

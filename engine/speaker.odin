@@ -101,8 +101,7 @@ place_equal :: proc(a, b: Place) -> bool {
 	return false
 }
 
-// Fills p.curr in walk order. Only Groups need the walk, because a root
-// Speaker's Place is in the world already.
+// Fills p.curr in walk order.
 @(private = "file")
 speakers_gather :: proc(p: ^Speaker_Pairing, nodes: []Node) {
 	walk := Tree_Walk {

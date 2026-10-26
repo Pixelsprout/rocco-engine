@@ -37,9 +37,9 @@ import Draw
 import Input
 import Launch
 import Pose
-import Speaker
 import Scene
 import Sound
+import Speaker
 
 # A Launch has no Model, so nothing is boxed.
 launch_for_host : Vocabulary.Config -> Vocabulary.Launch

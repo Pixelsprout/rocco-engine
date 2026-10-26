@@ -49,78 +49,77 @@ Fake_Clip :: struct {
 }
 
 Fake_Game :: struct {
-	launches:        int,
+	launches:         int,
 	// inits when launch ran, so 0 means launch came first.
-	launch_inits:    int,
-	launch_seed:     u64,
-	launch_assets:   []string,
-	launch_args:     []string,
-	launch_out:      Launch,
-	inits:           int,
-	seed:            u64,
-	assets:          []string,
-	args:            []string,
-	init_box:        rawptr,
-	init_commands:   []Command,
-	steps:           int,
-	step_in:         rawptr,
-	step_in_rc:      int,
-	step_out:        rawptr,
-	step_dt:         f32,
-	held:            [FAKE_KEYS_MAX]u16,
-	held_len:        int,
-	pressed:         [FAKE_KEYS_MAX]u16,
-	pressed_len:     int,
-	mouse:           [2]f32,
-	gamepads:        [GAMEPAD_SLOTS]Fake_Gamepad,
-	gamepads_len:    int,
-	contacts:        [FAKE_CONTACTS_MAX]Contact,
-	contacts_len:    int,
-	rays:            [FAKE_RAYS_MAX]Ray_Hit,
-	rays_len:        int,
-	overlaps:        [FAKE_OVERLAPS_MAX]Overlap_Hit,
-	overlaps_len:    int,
-	views:           int,
+	launch_inits:     int,
+	launch_seed:      u64,
+	launch_assets:    []string,
+	launch_args:      []string,
+	launch_out:       Launch,
+	inits:            int,
+	seed:             u64,
+	assets:           []string,
+	args:             []string,
+	init_box:         rawptr,
+	init_commands:    []Command,
+	steps:            int,
+	step_in:          rawptr,
+	step_in_rc:       int,
+	step_out:         rawptr,
+	step_dt:          f32,
+	held:             [FAKE_KEYS_MAX]u16,
+	held_len:         int,
+	pressed:          [FAKE_KEYS_MAX]u16,
+	pressed_len:      int,
+	mouse:            [2]f32,
+	gamepads:         [GAMEPAD_SLOTS]Fake_Gamepad,
+	gamepads_len:     int,
+	contacts:         [FAKE_CONTACTS_MAX]Contact,
+	contacts_len:     int,
+	rays:             [FAKE_RAYS_MAX]Ray_Hit,
+	rays_len:         int,
+	overlaps:         [FAKE_OVERLAPS_MAX]Overlap_Hit,
+	overlaps_len:     int,
+	views:            int,
 	// The voices in use when view ran.
-	view_voices:     int,
-	view_box:        rawptr,
-	view_rc:         int,
-	drops:           int,
-	drop_box:        rawptr,
-	drop_rc:         int,
-	colliders:       []Collider,
-	queries:         []Query,
-	ui_texts:        []string,
+	view_voices:      int,
+	view_box:         rawptr,
+	view_rc:          int,
+	drops:            int,
+	drop_box:         rawptr,
+	drop_rc:          int,
+	colliders:        []Collider,
+	queries:          []Query,
+	ui_texts:         []string,
 	// Root Elements with no Roc_Str. Each view copies their children lists
 	// into Roc lists. ui_texts stays separate because each view must make its
 	// strings fresh.
-	ui:              []Element,
+	ui:               []Element,
 	// view returns these. With no draws, it returns one Draw whose id is the
 	// view count. The root Nodes follow the Draws, the Colliders, the Lights
 	// and the Speakers. Each view copies their children lists into Roc lists.
-	camera:          Scene_Camera,
-	draws:           []Draw,
-	nodes:           []Node,
-	lights:          []Light,
-	speakers:        []Speaker,
-	cursor:          Cursor,
-	sky:             u32,
-	commands_out:    int,
-	next_commands:   []Command,
-	runs:            [FAKE_COMMANDS_MAX]Fake_Command_Run,
-	runs_len:        int,
-	loadeds:         int,
-	loaded_at:       Fake_Command_Run,
-	loaded_pack:     string,
-	loaded_manifest: []Manifest_Line,
-	// The duration of each entry of loaded_manifest.
-	loaded_lengths:  []f32,
-	loaded_clips:    []Fake_Clip,
-	loaded_out:      rawptr,
-	meshes:          Mesh_Table,
-	skies:           Sky_Table,
-	audio:           Audio,
-	packs:           Packs,
+	camera:           Scene_Camera,
+	draws:            []Draw,
+	nodes:            []Node,
+	lights:           []Light,
+	speakers:         []Speaker,
+	cursor:           Cursor,
+	sky:              u32,
+	commands_out:     int,
+	next_commands:    []Command,
+	runs:             [FAKE_COMMANDS_MAX]Fake_Command_Run,
+	runs_len:         int,
+	loadeds:          int,
+	loaded_at:        Fake_Command_Run,
+	loaded_pack:      string,
+	loaded_manifest:  []Manifest_Line,
+	loaded_durations: []f32,
+	loaded_clips:     []Fake_Clip,
+	loaded_out:       rawptr,
+	meshes:           Mesh_Table,
+	skies:            Sky_Table,
+	audio:            Audio,
+	packs:            Packs,
 }
 
 // Guarded by the Roc heap test lock. Call fake_seam_init after roc_heap_test_begin.
@@ -250,12 +249,12 @@ fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_En
 	g_fake.loaded_pack = strings.clone(roc_str_string(&name), context.temp_allocator)
 	roc_decref(pack)
 	g_fake.loaded_manifest = make([]Manifest_Line, manifest.length, context.temp_allocator)
-	g_fake.loaded_lengths = make([]f32, manifest.length, context.temp_allocator)
+	g_fake.loaded_durations = make([]f32, manifest.length, context.temp_allocator)
 	clips := make([dynamic]Fake_Clip, context.temp_allocator)
 	for &entry, i in manifest.elements[:manifest.length] {
 		mesh := strings.clone(roc_str_string(&entry.name), context.temp_allocator)
 		g_fake.loaded_manifest[i] = {mesh, entry.id}
-		g_fake.loaded_lengths[i] = entry.duration
+		g_fake.loaded_durations[i] = entry.duration
 		for &clip in entry.clips.elements[:entry.clips.length] {
 			name := strings.clone(roc_str_string(&clip.name), context.temp_allocator)
 			append(&clips, Fake_Clip{mesh, name, clip.id, clip.duration})

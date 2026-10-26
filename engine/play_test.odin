@@ -107,10 +107,10 @@ test_the_manifest_gives_a_sound_its_duration_and_other_names_0 :: proc(t: ^testi
 	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low", "sound/blip", "sound/missing", "cube")})
 	defer fake_seam_shutdown(&s)
 
-	testing.expect_value(t, g_fake.loaded_lengths[0], f32(TONE_FRAMES) / WAV_RATE)
-	testing.expect_value(t, g_fake.loaded_lengths[1], f32(3) / WAV_RATE)
-	testing.expect_value(t, g_fake.loaded_lengths[2], 0)
-	testing.expect_value(t, g_fake.loaded_lengths[3], 0)
+	testing.expect_value(t, g_fake.loaded_durations[0], f32(TONE_FRAMES) / WAV_RATE)
+	testing.expect_value(t, g_fake.loaded_durations[1], f32(3) / WAV_RATE)
+	testing.expect_value(t, g_fake.loaded_durations[2], 0)
+	testing.expect_value(t, g_fake.loaded_durations[3], 0)
 }
 
 @(test)

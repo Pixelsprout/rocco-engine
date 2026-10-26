@@ -541,7 +541,7 @@ expect {
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
 
-# The Speakers of a Scene, in walk order.
+# The root Speakers of a Scene, in list order.
 speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
 speakers_of = |scene| List.keep_oks(
 	scene.nodes,

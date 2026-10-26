@@ -263,7 +263,7 @@ Nodes. Add these tests below the tests from chapter 7:
 
 <!-- region: examples/tutorial/08-sound/main.roc#tests -->
 ```roc
-# The Speakers of a Scene, in walk order.
+# The root Speakers of a Scene, in list order.
 speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
 speakers_of = |scene| List.keep_oks(
 	scene.nodes,

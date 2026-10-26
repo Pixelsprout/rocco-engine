@@ -107,7 +107,7 @@ once: remove the Loop and the sound stops.
 
 A Loop is a Description, like a Draw. Your game says which sounds repeat
 now, and the host works out what to start and stop. Start each Loop from
-[`Loop.default`][Loop.default] and set its `id` and `sound`:
+[`Speaker.default`][Speaker.default] and set its `id` and `sound`:
 
 <!-- region: examples/tutorial/08-sound/main.roc#speakers -->
 ```roc
@@ -297,4 +297,4 @@ end, and the Loops keep repeating. Nothing changes until the next step.
 
 [Command]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Command
 [Scene]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Scene
-[Loop.default]: https://pixelsprout.dev/projects/rocco/api/platform/Loop/#Loop.default
+[Speaker.default]: https://pixelsprout.dev/projects/rocco/api/platform/Speaker/#Speaker.default
