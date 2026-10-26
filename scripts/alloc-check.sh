@@ -19,7 +19,8 @@
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must
 # already be in place for this machine. Each game opens a window. Do not type
-# into it: a key press allocates the Input lists.
+# into it: a key press allocates the Input lists. A connected gamepad also
+# allocates them, so the runs set ROCCO_NO_GAMEPADS=1.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
 set -eu
 cd "$(dirname "$0")/.."
@@ -57,7 +58,7 @@ for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1; do
 			exit 1
 		fi
 		set +e
-		(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES ROCCO_ALLOC_REPORT=1 ${RUN_PREFIX:-} "$bin") > "$log" 2>&1
+		(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES ROCCO_ALLOC_REPORT=1 ROCCO_NO_GAMEPADS=1 ${RUN_PREFIX:-} "$bin") > "$log" 2>&1
 		code=$?
 		set -e
 		if [ "$code" -ne 0 ]; then

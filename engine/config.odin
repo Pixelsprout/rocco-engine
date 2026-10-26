@@ -9,6 +9,7 @@ import "core:strings"
 SEED_ENV :: "ROCCO_SEED"
 DEBUG_CAMERA_ENV :: "ROCCO_DEBUG_CAMERA"
 ALLOC_REPORT_ENV :: "ROCCO_ALLOC_REPORT"
+NO_GAMEPADS_ENV :: "ROCCO_NO_GAMEPADS"
 ASSETS_ENV :: "ROCCO_ASSETS"
 DEFAULT_ASSETS :: "assets"
 
@@ -39,6 +40,10 @@ debug_camera_from_env :: proc() -> bool {
 
 alloc_report_from_env :: proc() -> bool {
 	return os.get_env(ALLOC_REPORT_ENV, context.temp_allocator) == "1"
+}
+
+no_gamepads_from_env :: proc() -> bool {
+	return os.get_env(NO_GAMEPADS_ENV, context.temp_allocator) == "1"
 }
 
 assets_dir_from_env :: proc() -> string {

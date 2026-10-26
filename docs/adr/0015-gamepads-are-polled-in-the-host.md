@@ -1,6 +1,7 @@
 # 0015: Gamepads are polled in the host
 
-Status: accepted, 2026-10-26.
+Status: accepted, 2026-10-26. Amended on 2026-10-26: macOS also reads
+wired Xbox One pads through GIP over IOKit USB.
 
 ## Context
 
@@ -28,6 +29,24 @@ library opened at run time costs no catalog entry.
   `GCController` class with `objc_lookUpClass` after the `dlopen`, because
   Odin resolves the classes that the code names before `main`. The host
   polls `GCController.controllers` and reads `extendedGamepad`.
+- macOS also reads wired Xbox One pads, which GameController never lists,
+  through a GIP reader in `engine/gamepad_gip_darwin.odin`. It opens IOKit
+  and CoreFoundation with `dlopen`, gets each call with `dlsym`, and calls
+  the IOUSBLib plug-in through Odin structs of procedure pointers. Once a
+  second it lists the USB devices and opens each new device that has an
+  interface with class ff, subclass 47 and protocol d0. It sets the
+  configuration if macOS left the device unconfigured, opens that
+  interface, sends power on, and the PDP LED and auth packets to vendor
+  0x0e6f, as xpad does. Its reads complete in a private run-loop mode that
+  only the poll runs, so no callback runs outside the poll. It skips
+  vendor 0x045e (Microsoft), so GameController keeps the official pads and
+  no pad shows up twice. A device that fails to open, configure or start
+  is logged once and skipped until it reconnects. A pad gives a new client
+  the reports that the last client did not read, such as the Start that
+  quit the last run. So the reader lists a pad 100 ms after it opens it,
+  and the first poll drops the tap latch. A GIP pad's id is its
+  IOKit registry entry ID with the top bit set, which no GameController
+  object address has.
 - Windows: XInput. The host opens `xinput1_4.dll` with `LoadLibraryA` and
   gets `XInputGetState` with `GetProcAddress`. It uses the types from
   `core:sys/windows`, but not its foreign procs, which link `xinput.lib`.
@@ -41,21 +60,29 @@ library opened at run time costs no catalog entry.
   sets the access rights after it makes the node. `xpad` reports X as
   0x133 (`BTN_NORTH`) and Y as 0x134 (`BTN_WEST`), so the host reads each
   pad's driver name from sysfs and swaps the two codes for `xpad` only.
-- No Gamepad reader adds a catalog entry. `dlopen`, `objc_lookUpClass`,
-  `LoadLibraryA`, `GetProcAddress` and `FreeLibrary` are already in the
-  catalogs, and `core:sys/linux` makes raw syscalls.
+- No Gamepad reader adds a catalog entry. `dlopen`, `dlsym`,
+  `objc_lookUpClass`, `LoadLibraryA`, `GetProcAddress` and `FreeLibrary`
+  are already in the catalogs, and `core:sys/linux` makes raw syscalls.
 - Each Gamepad reader copies the OS state into a plain value and maps it
   with a pure procedure in a file with no OS suffix, so Odin tests cover
   the mapping on every runner: `gc_map` in `engine/gamepad_gc.odin`,
-  `xinput_map` in `engine/gamepad_xinput.odin`, and `evdev_apply` and
-  `evdev_map` in `engine/gamepad_evdev.odin`.
+  `gip_apply` and `gip_poll` in `engine/gamepad_gip.odin`, `xinput_map` in
+  `engine/gamepad_xinput.odin`, and `evdev_apply` and `evdev_map` in
+  `engine/gamepad_evdev.odin`.
 - While the Bridge is on, its pads replace the real pads, so CI tests
   gamepad Input with no pad.
 
 ## Considered options
 
 - IOKit HID on macOS, raw HID input on Windows, or a mapping database such
-  as SDL's. Rejected: each needs a mapping table for each pad model.
+  as SDL's. Rejected: each needs a mapping table for each pad model. The
+  GIP reader is not one of these: GIP is one protocol for every Xbox One
+  pad, so it needs one report layout and no table.
+- libusb for the GIP reader, as SDL uses. Rejected: a player would need
+  Homebrew. IOKit USB does the same steps with no install.
+- IOKit notifications or a run-loop source for GIP hot-plug. Rejected: a
+  scan once a second matches the Windows and Linux readers and needs no
+  callback outside the poll.
 - `vendor:darwin/GameController`. Rejected: the pinned Odin (dev-2026-08)
   does not have it. A newer Odin has it, but it links the framework, which
   adds an entry to the macOS catalog. Our bindings need about ten
@@ -69,16 +96,18 @@ library opened at run time costs no catalog entry.
 
 ## Consequences
 
-- macOS reads only the pads that GameController knows: Xbox Wireless pads
-  over Bluetooth, PlayStation, Switch Pro and MFi. GameController sends no
+- macOS reads the pads that GameController knows: Xbox Wireless pads over
+  Bluetooth, PlayStation, Switch Pro and MFi. GameController sends no
   input while the game window is not in front, and the host keeps that
   default.
 - macOS has no driver for wired third-party Xbox One pads, which speak GIP
-  over USB with a vendor-specific class. GameController never lists them.
-  Found on 2026-10-26 with a PDP Afterglow (`0e6f:0139`). SDL reads such
-  pads by speaking GIP itself over libusb. A GIP reader over IOKit USB
-  would amend this decision: GIP is one protocol for every Xbox One pad,
-  so the mapping-table reason for rejecting IOKit HID does not apply.
+  over USB with a vendor-specific class, so GameController never lists
+  them. Found on 2026-10-26 with a PDP Afterglow (`0e6f:0139`). The GIP
+  reader reads them. It was built against that pad. It reads while the
+  window is not in front too; the focus clear in the shared code idles the
+  pad. A pad can take up to 1 s to appear.
+- Whether GameController reads an official Microsoft pad on a cable is
+  untested. The GIP reader skips those pads.
 - Windows reads only Xbox-compatible pads. A PlayStation pad works through
   Steam Input or DS4Windows. A pad that connects can take up to 1 s to
   appear.
@@ -87,9 +116,10 @@ library opened at run time costs no catalog entry.
   needs read access to the event node; logind gives it on most desktops.
   Bluetooth Xbox pads use other drivers, which the host does not map
   specially.
-- The macOS and Windows readers poll the state of each pad, so a tap
-  shorter than one frame can be lost there. The Linux reader reads every
-  evdev event and keeps each button that went down until the next poll,
-  so it keeps such a tap.
+- The GameController and Windows readers poll the state of each pad, so a
+  tap shorter than one frame can be lost there. The Linux and GIP readers
+  read every event or report and keep each button that went down until
+  the next poll, so they keep such a tap.
 - Rumble later needs a write path in each Gamepad reader:
-  `XInputSetState`, `GCDeviceHaptics` and evdev `EV_FF`.
+  `XInputSetState`, `GCDeviceHaptics`, evdev `EV_FF` and a GIP rumble
+  packet.
