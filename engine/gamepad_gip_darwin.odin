@@ -11,6 +11,10 @@ CORE_FOUNDATION_FRAMEWORK :: "/System/Library/Frameworks/CoreFoundation.framewor
 
 // The Windows and Linux readers also look for a new pad once a second.
 GIP_SCAN_INTERVAL :: time.Second
+// A pad gives a new client the reports that the last client did not read.
+// They arrive within a few frames of the open, so the reader lists the pad
+// after them.
+GIP_SETTLE_TIME :: 100 * time.Millisecond
 // Reads queued on each pad, so that the reports of one frame do not wait
 // for the next frame.
 GIP_READS_IN_FLIGHT :: 4
@@ -187,6 +191,7 @@ Gip_Pad :: struct {
 	error:       i32,
 	// The packets read since the pad opened.
 	packets:     u64,
+	opened:      time.Tick,
 	state:       Gip_Gamepad,
 	reads:       [GIP_READS_IN_FLIGHT]Gip_Read,
 }
@@ -269,7 +274,7 @@ gip_reader_poll :: proc(reader: ^Gip_Reader, out: []Gamepad_Raw) -> int {
 	}
 	n := 0
 	for &pad in reader.pads {
-		if pad.open && n < len(out) {
+		if pad.open && n < len(out) && time.tick_diff(pad.opened, now) >= GIP_SETTLE_TIME {
 			out[n] = gip_poll(&pad.state, gip_pad_id(pad.registry_id))
 			n += 1
 		}
@@ -424,6 +429,7 @@ gip_open :: proc(reader: ^Gip_Reader, service: u32, registry_id: u64) {
 		return
 	}
 	slot.open = true
+	slot.opened = time.tick_now()
 }
 
 // Logs the step that failed.

@@ -41,7 +41,10 @@ library opened at run time costs no catalog entry.
   only the poll runs, so no callback runs outside the poll. It skips
   vendor 0x045e (Microsoft), so GameController keeps the official pads and
   no pad shows up twice. A device that fails to open, configure or start
-  is logged once and skipped until it reconnects. A GIP pad's id is its
+  is logged once and skipped until it reconnects. A pad gives a new client
+  the reports that the last client did not read, such as the Start that
+  quit the last run. So the reader lists a pad 100 ms after it opens it,
+  and the first poll drops the tap latch. A GIP pad's id is its
   IOKit registry entry ID with the top bit set, which no GameController
   object address has.
 - Windows: XInput. The host opens `xinput1_4.dll` with `LoadLibraryA` and

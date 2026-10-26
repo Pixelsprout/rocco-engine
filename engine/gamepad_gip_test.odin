@@ -135,12 +135,34 @@ test_gip_ignores_the_heartbeat_the_guide_button_and_short_reports :: proc(t: ^te
 @(test)
 test_gip_keeps_a_tap_between_two_polls :: proc(t: ^testing.T) {
 	pad: Gip_Gamepad
+	gip_poll(&pad, id = 1)
 	down := gip_test_report(buttons = {0x10, 0x00})
 	up := gip_test_report()
 	gip_apply(&pad, down[:])
 	gip_apply(&pad, up[:])
 	testing.expect_value(t, gip_poll(&pad, id = 1).buttons, Gamepad_Buttons{.South})
 	testing.expect_value(t, gip_poll(&pad, id = 1).buttons, Gamepad_Buttons{})
+}
+
+// A pad queues the reports that no client read, and gives them to the next
+// client that opens it. Found with a PDP Afterglow after a run that quit on
+// Start.
+@(test)
+test_gip_first_poll_drops_a_tap_queued_before_the_open :: proc(t: ^testing.T) {
+	latch: Gamepad_Latch
+	buffers: Gamepad_Buffers
+	pad: Gip_Gamepad
+	down := gip_test_report(buttons = {0x04, 0x00})
+	up := gip_test_report()
+	gip_apply(&pad, down[:])
+	gip_apply(&pad, up[:])
+	gamepad_latch_poll(&latch, {gip_poll(&pad, id = 9)})
+	pads := gamepad_latch_take(&latch, &buffers)
+	testing.expect_value(t, len(pads), 1)
+	if len(pads) == 1 {
+		testing.expect_value(t, len(pads[0].held), 0)
+		testing.expect_value(t, len(pads[0].pressed), 0)
+	}
 }
 
 @(test)

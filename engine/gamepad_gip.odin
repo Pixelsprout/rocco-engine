@@ -87,6 +87,9 @@ Gip_Gamepad :: struct {
 	// The buttons that went down since the last gip_poll, so that a tap
 	// shorter than one frame still reads as down in one poll.
 	latched: u16,
+	// The first poll drops the latch. A pad gives a new client the reports
+	// that the last client did not read, such as the Start that quit it.
+	polled:  bool,
 }
 
 // Reads one packet from the pad. Only the input report changes the pad.
@@ -116,12 +119,17 @@ gip_poll :: proc(pad: ^Gip_Gamepad, id: u64) -> Gamepad_Raw {
 			right_trigger = gip_trigger(input.right_trigger),
 		},
 	}
+	down := input.buttons
+	if pad.polled {
+		down |= pad.latched
+	}
 	for bit, button in GIP_BUTTON_BITS {
-		if (input.buttons | pad.latched) & bit != 0 {
+		if down & bit != 0 {
 			raw.buttons += {button}
 		}
 	}
 	pad.latched = 0
+	pad.polled = true
 	return raw
 }
 
