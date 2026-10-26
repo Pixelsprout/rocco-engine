@@ -1106,12 +1106,28 @@ change with no pad connected.
 
 ## Milestone 24: Animation
 
-Done when the tutorial character plays a walk clip in chapter 10. The glTF
-loader reads skins and animation clips. The Manifest gives the clip ids of
-each mesh. A Draw names a clip and a time, so the Model owns the time and
-`step` stays pure. The host samples the skeleton and skins the mesh on the
-GPU with a second vertex layout. The tutorial character's Blender script
-gains a rig.
+Done when Pip plays Idle while still and Walk while moving in tutorial
+chapter 10, and fades between the two Clips. Grilled 2026-10-26. The dex task
+zw7aks62 holds the decisions and the tasks.
+`docs/adr/0016-skinned-meshes-are-posed-in-the-host.md` records them.
+
+1. One Vocabulary change: a Draw gains `pose : { clip, time, fade_clip,
+   fade_time, fade }`, all zero by default. Each Manifest mesh entry gains
+   `clips : List({ name, id, duration })`. The Model owns the time and the
+   fade, and wraps a looping time itself.
+2. The glTF loader reads one Skin per file, at most 64 Joints, and Clips
+   with translation, rotation and scale keys, LINEAR or STEP. A skinned mesh
+   stays in bind-pose space.
+3. The host samples both Clips, mixes them by the fade, and skins on the
+   GPU with `Skinned_Vertex` and a 64-Joint uniform block. Skinned meshes
+   cast shadows.
+4. The tutorial Blender script rigs Pip with about 12 Joints and keys Idle
+   and Walk.
+5. Chapter 10 walks Pip with the Clips. `guide/tutorial/10-animation.md`
+   teaches it.
+
+Check: a Bridge screenshot shows Pip mid-walk. Odin tests cover the
+sampler, the fade and the loader errors. The alloc check covers chapter 10.
 
 ## Milestone 25: Look
 

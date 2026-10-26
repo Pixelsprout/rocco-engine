@@ -200,8 +200,8 @@ host uses.
 _Avoid_: frame, transform, matrix, placement
 
 **Draw**:
-A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot and tint,
-local to its Group or to the world at the root.
+A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot, tint
+and Pose, local to its Group or to the world at the root.
 The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
 interpolates it between two Scenes. A game starts from `pf.Draw.default`.
@@ -311,8 +311,8 @@ _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 
 **Manifest**:
 The name-to-id list the host hands `loaded` for one Pack. It holds every name
-the Load asked for. A name that did not load has id 0. The game keeps the
-ids it needs in its Model.
+the Load asked for. A name that did not load has id 0. A skinned mesh's
+entry also lists its Clips. The game keeps the ids it needs in its Model.
 _Avoid_: mesh table, catalogue, registry, asset list
 
 **Pack**:
@@ -522,6 +522,37 @@ One Play or one Loop that sounds now. The voice capacity in Launch caps
 how many sound at once. When the voices are full, a Play takes the voice of
 the oldest Play, and a new Loop waits silent for a free voice.
 _Avoid_: channel, source, instance, Sound
+
+## Animation
+
+**Skin**:
+The Joints of a skinned mesh and the inverse bind matrix of each. A .glb
+holds at most one Skin, with at most 64 Joints. A skinned mesh with no
+Clip named draws in its bind pose.
+_Avoid_: skeleton, armature (the Blender term), rig
+
+**Joint**:
+One node of a Skin. The host poses each Joint and moves the vertices
+weighted to it.
+_Avoid_: bone
+
+**Clip**:
+One entry in the `animations` array of a skinned .glb: named, timed keys
+for the Joints of its Skin. A Clip loops only if the game wraps its time.
+_Avoid_: animation (the feature, or a value the Model moves each step),
+action (the Blender term), track
+
+**Clip id**:
+A number the engine assigns to each Clip it loaded, published in the
+Manifest entry of its mesh with the Clip's name and duration. Ids are unique
+across a Pack. Id 0 is no Clip.
+_Avoid_: animation index, clip handle
+
+**Pose**:
+The `pose` field of a Draw: a Clip and its time, a fade Clip and its time,
+and the fade weight from 0 to 1. The Model owns every value. The host
+samples both Clips and mixes them by the fade.
+_Avoid_: anim, animation state, blend tree
 
 ## Memory lifetimes
 
