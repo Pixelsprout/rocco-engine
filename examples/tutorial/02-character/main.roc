@@ -56,7 +56,7 @@ view = |model| {
 expect init(Config.empty).commands == [Load({ pack: "pip", assets: ["pip"] })]
 
 expect {
-	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4 }])
+	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4, clips: [] }])
 	model.pip == 4
 }
 

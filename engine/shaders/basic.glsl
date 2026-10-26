@@ -1,7 +1,8 @@
 // basic: a metallic-roughness BRDF under the Scene's lights, tone mapped. An
 // unlit mesh draws its base colour with no lights and no tone map.
+// skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, at its authored colour.
-// shadow: depth only, from the Sun.
+// shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored colour.
 // blit: copies the render target to the swapchain.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
@@ -19,15 +20,38 @@ vec3 linear_to_srgb(vec3 c) {
 }
 @end
 
-@vs vs
-// GL clips z to -w..w. Remap from the 0..w range the reversed-Z projection writes.
-@glsl_options fixup_clipspace
+@block vs_params
 layout(binding = 0) uniform vs_params {
     mat4 mvp;
     mat4 model;
     // The inverse transpose of model, so a non-uniform scale keeps normals at right angles to the surface.
     mat4 normal_model;
 };
+@end
+
+// The array size is MAX_JOINTS in engine/skin.odin. Matrix j takes a vertex
+// from the bind pose to the Draw's pose, in the mesh's own space. With
+// vs_params, the skinned GL vertex shader needs 268 vec4 of uniforms. GL 4.3
+// promises only 256, so a GL driver must give more, as Mesa and the desktop
+// drivers do.
+@block skin
+layout(binding = 3) uniform skin_params {
+    mat4 joints[64];
+};
+
+// The weights sum to 1.
+mat4 skin_matrix(uvec4 joint_ids, vec4 joint_weights) {
+    return joints[joint_ids.x] * joint_weights.x
+        + joints[joint_ids.y] * joint_weights.y
+        + joints[joint_ids.z] * joint_weights.z
+        + joints[joint_ids.w] * joint_weights.w;
+}
+@end
+
+@vs vs
+// GL clips z to -w..w. Remap from the 0..w range the reversed-Z projection writes.
+@glsl_options fixup_clipspace
+@include_block vs_params
 
 in vec3 pos;
 in vec4 col;
@@ -231,6 +255,39 @@ void main() {
 
 @program basic vs fs
 
+@vs skinned_vs
+@glsl_options fixup_clipspace
+@include_block vs_params
+@include_block skin
+
+in vec3 pos;
+in vec4 col;
+in vec3 nrm;
+in vec2 uv;
+// UBYTE4 needs an integer input, or sokol rejects the pipeline.
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+out vec4 v_col;
+out vec3 v_nrm;
+out vec3 v_world;
+out vec2 v_uv;
+
+// A Joint has no non-uniform scale, so the skin matrix turns a normal
+// without the inverse transpose.
+void main() {
+    mat4 skin = skin_matrix(joint_ids, joint_weights);
+    vec4 posed = skin * vec4(pos, 1.0);
+    gl_Position = mvp * posed;
+    v_col = col;
+    v_nrm = (normal_model * (skin * vec4(nrm, 0.0))).xyz;
+    v_world = (model * posed).xyz;
+    v_uv = uv;
+}
+@end
+
+@program skinned skinned_vs fs
+
 @vs sky_vs
 @glsl_options fixup_clipspace
 layout(binding = 0) uniform sky_vs_params {
@@ -268,11 +325,15 @@ void main() {
 
 @program sky sky_vs sky_fs
 
-@vs shadow_vs
-@glsl_options fixup_clipspace
+@block shadow_vs_params
 layout(binding = 0) uniform shadow_vs_params {
     mat4 light_mvp;
 };
+@end
+
+@vs shadow_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
 
 in vec3 pos;
 
@@ -287,6 +348,22 @@ void main() {
 @end
 
 @program shadow shadow_vs shadow_fs
+
+@vs skinned_shadow_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+@include_block skin
+
+in vec3 pos;
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+void main() {
+    gl_Position = light_mvp * (skin_matrix(joint_ids, joint_weights) * vec4(pos, 1.0));
+}
+@end
+
+@program skinned_shadow skinned_shadow_vs shadow_fs
 
 @vs ui_vs
 layout(binding = 0) uniform ui_vs_params {

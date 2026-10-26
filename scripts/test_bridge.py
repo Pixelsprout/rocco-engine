@@ -48,12 +48,16 @@ class FakeHost:
         self.listener.close()
 
 
-def png_bytes(width, height):
+# lit holds the (x, y) of each white pixel. The rest are zero.
+def png_bytes(width, height, lit=()):
     def chunk(kind, body):
         return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
 
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
-    rows = b"".join(b"\x00" + b"\x00" * (width * 4) for _ in range(height))
+    pixels = bytearray(width * height * 4)
+    for x, y in lit:
+        pixels[(y * width + x) * 4 : (y * width + x + 1) * 4] = b"\xff" * 4
+    rows = b"".join(b"\x00" + bytes(pixels[y * width * 4 : (y + 1) * width * 4]) for y in range(height))
     return bridge.PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
 
 
@@ -140,6 +144,21 @@ class LibraryTest(unittest.TestCase):
                 f.write(b"not a png at all, not at all")
             with self.assertRaises(ValueError):
                 bridge.png_size(path)
+
+    def test_png_changed_pixels_counts_the_pixels_that_differ(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            a = os.path.join(tmp, "a.png")
+            b = os.path.join(tmp, "b.png")
+            with open(a, "wb") as f:
+                f.write(png_bytes(4, 3, lit=[(0, 0)]))
+            with open(b, "wb") as f:
+                f.write(png_bytes(4, 3, lit=[(1, 2), (3, 1)]))
+            self.assertEqual(bridge.png_changed_pixels(a, a), 0)
+            self.assertEqual(bridge.png_changed_pixels(a, b), 3)
+            with open(b, "wb") as f:
+                f.write(png_bytes(3, 4))
+            with self.assertRaises(ValueError):
+                bridge.png_changed_pixels(a, b)
 
 
 class CliTest(unittest.TestCase):

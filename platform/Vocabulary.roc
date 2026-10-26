@@ -77,7 +77,7 @@ Vocabulary := [].{
 	##   Primitives, and at most 65536.
 	## - `skies`: sky slots. At least 2, for the reserved slot and one sky, and
 	##   at most 65536.
-	## - `draws`: Draws per Frame. Above zero and at most 2796197. The uniform
+	## - `draws`: Draws per Frame. Above zero and at most 2793466. The uniform
 	##   buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
@@ -102,7 +102,15 @@ Vocabulary := [].{
 	## The name-to-id list that `loaded` gets for one Pack. It holds every name
 	## that the Load asked for. A name that did not load has id 0. Keep the ids
 	## you need in your Model.
-	Manifest : List({ name : Str, id : U32 })
+	##
+	## - `name`: an asset name from the Load.
+	## - `id`: the mesh, sky or Sound id of the name, or 0.
+	## - `clips`: the Clips of a skinned mesh, in file order. Every other entry
+	##   has an empty list. Each Clip has its `name` in the file, its Clip
+	##   `id`, and its `duration`, the time of its last key in seconds. Clip
+	##   ids start at 1 and are unique across a Pack. `Mesh.clip` and
+	##   `Mesh.clip_duration` in the mesh package read them.
+	Manifest : List({ name : Str, id : U32, clips : List({ name : Str, id : U32, duration : F32 }) })
 
 	## What the host gives `step` each fixed step. Tests start from `Input.empty`.
 	##
@@ -152,7 +160,24 @@ Vocabulary := [].{
 	##   A Group's rot turns it after that. A Group has no scale.
 	## - `rot`, `scale_rot`: unit quaternions.
 	## - `tint`: the host multiplies the mesh colour by it.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
+	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
+	##   ignores it.
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
+
+	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
+	## value. The host samples both Clips and mixes them by `fade`. Start from
+	## `Pose.still`.
+	##
+	## - `clip`: a Clip id from the Manifest entry of the Draw's mesh. 0 is no
+	##   Clip, and the mesh draws in its bind pose. A Clip of another mesh also
+	##   draws the bind pose, and the host logs once.
+	## - `time`: the time in `clip`, in seconds. The host does not wrap it. Use
+	##   `Pose.loop` to repeat a Clip.
+	## - `fade_clip`, `fade_time`: a second Clip and its time, with the same
+	##   rules.
+	## - `fade`: the weight of `fade_clip`, from 0 to 1. At 0 the host draws
+	##   only `clip`.
+	Pose : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
 
 	## A shape that Queries can test. Build one with `Collider.box`,
 	## `Collider.sphere` or `Collider.capsule`.

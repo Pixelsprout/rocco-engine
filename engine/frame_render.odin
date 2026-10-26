@@ -31,11 +31,12 @@ Pass :: enum {
 // per shadow view, then one Main pass. submit_shadow runs only in a Shadow
 // pass. In the Main pass, submit_lights runs before any submit,
 // submit_sky runs at most once, after every submit, and submit_ui runs at
-// most once, last.
+// most once, last. In each pass, the skinned Draws follow the rigid ones, so
+// the renderer changes pipeline once. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int)
 End_Pass :: #type proc(ctx: rawptr)
-Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params)
-Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params)
+Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
+Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
@@ -48,12 +49,14 @@ Light_Drop :: enum {
 	Bad_Range,
 }
 
-// The renderer sizes its uniform buffer for draw_capacity Draws per Frame.
-// The host drops the rest, because a release sokol writes past a full buffer.
+// The renderer sizes its uniform buffer for draw_capacity Draws per Frame,
+// and len(skins) of them skinned. The host drops the rest, because a release
+// sokol writes past a full buffer.
 Frame_Render :: struct {
 	pairing:            Pairing,
 	placed:             [dynamic]Placed,
 	draw_capacity:      int,
+	skins:              []Skin_Params,
 	begin_pass:         Begin_Pass,
 	end_pass:           End_Pass,
 	submit_shadow:      Submit_Shadow,
@@ -65,6 +68,8 @@ Frame_Render :: struct {
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
 	draws_logged:       bool,
+	skinned_logged:     bool,
+	allocator:          mem.Allocator,
 }
 
 Draw_Transform :: struct {
@@ -72,15 +77,19 @@ Draw_Transform :: struct {
 	scale:          [3]f32,
 	rotation:       quaternion128,
 	scale_rotation: quaternion128,
+	pose:           Draw_Pose,
 }
 
 // A Draw at its interpolated pose, kept so both passes use one transform.
+// skin is a slot of Frame_Render.skins for a skinned mesh, and nil for a
+// rigid one.
 Placed :: struct {
 	mesh:      ^Mesh,
 	fallback:  bool,
 	tint:      Rgb,
 	transform: Draw_Transform,
 	model:     Mat4,
+	skin:      ^Skin_Params,
 }
 
 // Maps each draw id of the previous Scene to its index in prev_draws, and
@@ -108,13 +117,22 @@ Prev_Draw :: struct {
 	parent_unpaired: bool,
 }
 
+// placed_next gives the rigid Draws first, then the skinned ones, so the
+// renderer changes pipeline once per pass.
+Placed_Order :: struct {
+	placed:  []Placed,
+	skinned: bool,
+	next:    int,
+}
+
 // What the Frame's walk of the current Scene gathers.
 @(private = "file")
 Frame_Walk :: struct {
-	fr:         ^Frame_Render,
-	meshes:     ^Mesh_Table,
-	lights:     Light_Gather,
-	draws_seen: int,
+	fr:           ^Frame_Render,
+	meshes:       ^Mesh_Table,
+	lights:       Light_Gather,
+	draws_seen:   int,
+	skinned_seen: int,
 }
 
 // The Lights so far in walk order. used is the count of filled slots. sun is
@@ -134,12 +152,15 @@ Camera_Pose :: struct {
 
 frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, perm: mem.Allocator) {
 	fr.draw_capacity = draws
+	fr.allocator = perm
 	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
+	fr.skins = make([]Skin_Params, skinned_draw_capacity(draws), perm)
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
 	pairing_destroy(&fr.pairing)
+	delete(fr.skins, fr.allocator)
 	delete(fr.placed)
 }
 
@@ -201,8 +222,15 @@ frame_render_draw :: proc(
 		fr.draws_logged = true
 		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
 	}
+	if frame_walk.skinned_seen > len(fr.skins) && !fr.skinned_logged {
+		fr.skinned_logged = true
+		fmt.eprintfln("a Scene has %v skinned draws; the host draws the first %v", frame_walk.skinned_seen, len(fr.skins))
+	}
 	lights, sun := frame_walk.lights.out, frame_walk.lights.sun
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
+	if submit {
+		frame_render_pose(fr, meshes)
+	}
 	span = span_close(spans, .Interpolation, span)
 
 	quads: []Ui_Quad
@@ -220,7 +248,10 @@ frame_render_draw :: proc(
 
 	frame_render_begin_pass(fr, .Main, 0, &span)
 	fr.submit_lights(fr.submit_ctx, lights)
-	for p in fr.placed {
+	order := Placed_Order {
+		placed = fr.placed[:],
+	}
+	for p in placed_next(&order) {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
 		material := p.mesh.material
 		fr.submit(
@@ -228,6 +259,7 @@ frame_render_draw :: proc(
 			p.mesh,
 			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
 			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
+			skin = p.skin,
 		)
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
@@ -264,10 +296,29 @@ frame_counts_draw :: #force_inline proc(fw: ^Frame_Walk) -> bool {
 	return len(fw.fr.placed) < fw.fr.draw_capacity
 }
 
+// Past the skinned capacity, the Frame counts a skinned Draw and skips it.
 @(private = "file")
 frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, x: Draw_Transform) {
 	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
-	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x)})
+	skin: ^Skin_Params
+	if mesh_skinned(mesh) {
+		fw.skinned_seen += 1
+		if fw.skinned_seen > len(fw.fr.skins) {
+			return
+		}
+		skin = &fw.fr.skins[fw.skinned_seen - 1]
+	}
+	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x), skin = skin})
+}
+
+// A mesh with fewer than MAX_JOINTS Joints leaves the rest of its skin as it
+// was, and no vertex reads it.
+frame_render_pose :: proc(fr: ^Frame_Render, meshes: ^Mesh_Table) {
+	for p in fr.placed {
+		if p.skin != nil {
+			skin_matrices(meshes, p.mesh, p.transform.pose, &p.skin.joints)
+		}
+	}
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
@@ -277,10 +328,31 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, spa
 	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
 	frame_render_begin_pass(fr, .Shadow, 0, span)
-	for p in fr.placed {
-		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model})
+	order := Placed_Order {
+		placed = fr.placed[:],
+	}
+	for p in placed_next(&order) {
+		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
 	}
 	fr.end_pass(fr.submit_ctx)
+}
+
+placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
+	for {
+		if order.next == len(order.placed) {
+			if order.skinned {
+				return nil, false
+			}
+			order.skinned = true
+			order.next = 0
+			continue
+		}
+		p = &order.placed[order.next]
+		order.next += 1
+		if (p.skin != nil) == order.skinned {
+			return p, true
+		}
+	}
 }
 
 // On Metal, the first begin_pass of a Frame waits for a free in-flight frame,
@@ -293,7 +365,8 @@ frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, span: 
 	span^ = span_skip(span^, waited)
 }
 
-// An orthographic view from the Sun over the box of every placed Draw.
+// An orthographic view from the Sun over the box of every placed Draw. A
+// skinned mesh's box is padded at load, so it holds the posed mesh.
 shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
 	up := UP if abs(to_light.y) < 0.99 else [3]f32{0, 0, 1}
 	light_view := mat4_look_at({}, -to_light, up)
@@ -542,7 +615,27 @@ draw_transform :: #force_inline proc(prev, curr: ^Draw, world: Pose, alpha: f32)
 		rotation = world.rot,
 		// Most draws keep one scale_rot, so most skip the slerp.
 		scale_rotation = quat_of(curr.scale_rot) if prev.scale_rot == curr.scale_rot else quat_slerp(quat_of(prev.scale_rot), quat_of(curr.scale_rot), alpha),
+		pose = draw_pose_lerp(prev.pose, curr.pose, alpha),
 	}
+}
+
+// A time blends only when its Clip is the same in both Scenes and the time
+// did not go back, as it does when the game wraps a loop. The fade blends
+// only when both Clips are the same. The rest takes the current values.
+draw_pose_lerp :: proc(prev, curr: Draw_Pose, alpha: f32) -> Draw_Pose {
+	pose := curr
+	same_clip := prev.clip == curr.clip
+	same_fade_clip := prev.fade_clip == curr.fade_clip
+	if same_clip && curr.time >= prev.time {
+		pose.time = prev.time + (curr.time - prev.time) * alpha
+	}
+	if same_fade_clip && curr.fade_time >= prev.fade_time {
+		pose.fade_time = prev.fade_time + (curr.fade_time - prev.fade_time) * alpha
+	}
+	if same_clip && same_fade_clip {
+		pose.fade = prev.fade + (curr.fade - prev.fade) * alpha
+	}
+	return pose
 }
 
 // The scale acts along the axes of scale_rotation, then rotation turns the result.

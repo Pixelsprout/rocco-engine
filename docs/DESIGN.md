@@ -152,11 +152,12 @@ Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capaci
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
-Manifest : List({ name : Str, id : U32 })
+Manifest : List({ name : Str, id : U32, clips : List({ name : Str, id : U32, duration : F32 }) })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
+Pose     : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
@@ -299,6 +300,8 @@ once. Decision.
 The host draws one shadow map from the Sun before the main pass. Its
 orthographic view covers the box of every Draw at its interpolated pose. The
 host snaps that box outward to whole units, so the map changes size in steps.
+A skinned mesh's box is padded at load by 25% of its largest side, so the
+view also covers its posed limbs.
 The shadow darkens only the Sun's own light. Unlit meshes cast a shadow but
 do not receive one, and the sky does neither.
 
@@ -554,6 +557,15 @@ so the same Loads give the same ids. The primitives are named
 the name of a primitive. A name that is not on disk, or a file that does
 not load, gets id 0 in the Manifest and one log line per run.
 
+A skinned mesh draws through its own pipeline and its own shadow
+pipeline, with a 56-byte vertex that adds four Joint indices and four
+weights. Once per frame, the host samples each skinned Draw's `pose` into
+a skin block of 64 Joint matrices, which both passes apply. The vertex
+shader moves each vertex and its normal by the weighted Joint matrices. The
+uniform buffer holds skin blocks for at most 256 skinned Draws per frame.
+Past that, the host drops the rest and logs once. ADR 0016 records the
+decision.
+
 The primitives have type-safe tags in the mesh package:
 `Mesh.primitive(Cube)` returns the fixed id and takes no `Config`.
 `Mesh.resolve(manifest, "name")` resolves a loaded name to its mesh id. It
@@ -614,6 +626,12 @@ whose id has no partner in the previous `Scene` is drawn where it is.
 Entities use their entity id. Fixed scenery uses ids the entities never
 reach.
 
+The host also blends a draw's `pose`. A `time` blends when its `clip` is
+the same in both `Scene`s and the time did not go back, as it does at a
+loop's wrap. `fade_time` blends by the rule of `time` with `fade_clip`.
+`fade` blends only when both `clip` and `fade_clip` are the same.
+Otherwise the pose takes the current values.
+
 Draw ids must be unique in a `Scene`, across all Groups. The Frame render
 pairs each current draw with the previous `Scene`. If the previous `Scene`
 has two draws with one id, the first one pairs, and the Frame render logs
@@ -637,7 +655,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Query, QueryResults, Scene, Sound, Vocabulary]
+    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Pose, Query, QueryResults, Scene, Sound, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest

@@ -14,12 +14,15 @@ SMALL_DRAWS :: 8
 // Above the Group count of every fixture Scene except the capacity tests.
 SMALL_GROUPS :: 4
 
+// joints holds the first skin matrices of a skinned Draw, as they were at the submit.
 Submitted :: struct {
 	mesh:         ^Mesh,
 	model:        Mat4,
 	normal_model: Mat4,
 	tint:         [4]f32,
 	material:     [4]f32,
+	skinned:      bool,
+	joints:       [2]Mat4,
 }
 
 // main_before is the number of main pass submits before this shadow submit.
@@ -28,6 +31,8 @@ Shadow_Submitted :: struct {
 	light_mvp:   Mat4,
 	view:        int,
 	main_before: int,
+	skinned:     bool,
+	joints:      [2]Mat4,
 }
 
 Pass_Begun :: struct {
@@ -191,6 +196,15 @@ test_draw_interpolates_scale_rot :: proc(t: ^testing.T) {
 	expect_quat_near(t, x.scale_rotation, quat_from_axis_angle(UP, 0.25))
 }
 
+@(test)
+test_draw_blends_the_pose_with_its_partner :: proc(t: ^testing.T) {
+	prev := Draw{rot = IDENTITY, scale_rot = IDENTITY, pose = {clip = 1, time = 0.2, fade_clip = 2, fade_time = 0.1, fade = 0.25}}
+	curr := Draw{rot = IDENTITY, scale_rot = IDENTITY, pose = {clip = 1, time = 0.4, fade_clip = 2, fade_time = 0.3, fade = 0.5}}
+	x := draw_transform_at_root(&prev, &curr, 0.5)
+	want := Draw_Pose{clip = 1, time = 0.3, fade_clip = 2, fade_time = 0.2, fade = 0.375}
+	testing.expectf(t, draw_pose_near(x.pose, want), "got %v, want %v", x.pose, want)
+}
+
 // A root Draw paired with prev, as the Frame's walk places it.
 draw_transform_at_root :: proc(prev, curr: ^Draw, alpha: f32) -> Draw_Transform {
 	paired := Prev_Pose {
@@ -262,7 +276,7 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 	testing.expect_value(t, c.fov_y, 2)
 }
 
-record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params) {
+record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.submits,
@@ -272,6 +286,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 			normal_model = vs_params.normal_model,
 			tint = fs_params.tint,
 			material = fs_params.material,
+			skinned = skin != nil,
+			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 		},
 	)
 }
@@ -308,9 +324,19 @@ record_end_pass :: proc(ctx: rawptr) {
 	r.pass_ends += 1
 }
 
-record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params) {
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
-	append(&r.shadows, Shadow_Submitted{mesh = mesh, light_mvp = vs_params.light_mvp, view = r.passes[len(r.passes) - 1].view, main_before = len(r.submits)})
+	append(
+		&r.shadows,
+		Shadow_Submitted {
+			mesh = mesh,
+			light_mvp = vs_params.light_mvp,
+			view = r.passes[len(r.passes) - 1].view,
+			main_before = len(r.submits),
+			skinned = skin != nil,
+			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
+		},
+	)
 }
 
 frame_fixture_init :: proc(f: ^Frame_Fixture) {
@@ -426,6 +452,65 @@ test_frame_render_draws_a_draw_with_no_partner_at_itself :: proc(t: ^testing.T) 
 
 	testing.expect_value(t, len(got), 1)
 	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {4, 0, 0}, scale = {1, 1, 1}, rotation = quat_from_axis_angle(UP, 1)}))
+}
+
+@(test)
+test_frame_render_blends_the_pose_of_each_root_and_grouped_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 3, time = 0.5}}, {id = 2, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 4, time = 0}}}
+	child := []Node{node_draw({id = 2, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 4, time = 1}})}
+	curr := []Node{node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 3, time = 0.75}}), node_group(9, {}, IDENTITY, child)}
+	frame_fixture_draw(&f, scene_of(prev), {nodes = roc_list_view(curr)}, 0.5)
+
+	testing.expect_value(t, len(f.fr.placed), 2)
+	testing.expect_value(t, f.fr.placed[0].transform.pose, Draw_Pose{clip = 3, time = 0.625})
+	testing.expect_value(t, f.fr.placed[1].transform.pose, Draw_Pose{clip = 4, time = 0.5})
+}
+
+@(test)
+test_draw_pose_lerp_blends_a_time_on_its_clip_going_forward_and_the_fade_on_both_clips :: proc(t: ^testing.T) {
+	Case :: struct {
+		name:       string,
+		prev, curr: Draw_Pose,
+		want:       Draw_Pose,
+	}
+	cases := []Case {
+		{"same clip, forward", {clip = 3, time = 1}, {clip = 3, time = 2}, {clip = 3, time = 1.25}},
+		{"same clip, still", {clip = 3, time = 1}, {clip = 3, time = 1}, {clip = 3, time = 1}},
+		{"same clip, wrapped back", {clip = 3, time = 0.9}, {clip = 3, time = 0.1}, {clip = 3, time = 0.1}},
+		{"new clip", {clip = 3, time = 1}, {clip = 4, time = 2}, {clip = 4, time = 2}},
+		{
+			"same fade clip blends the fade and its time",
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0, fade = 0},
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0.4, fade = 0.8},
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0.1, fade = 0.2},
+		},
+		{
+			"same fade clip with its time wrapped back still blends the fade",
+			{clip = 3, fade_clip = 5, fade_time = 0.9, fade = 1},
+			{clip = 3, fade_clip = 5, fade_time = 0.1, fade = 0.6},
+			{clip = 3, fade_clip = 5, fade_time = 0.1, fade = 0.9},
+		},
+		{
+			"new fade clip takes the current fade",
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0, fade = 0},
+			{clip = 3, time = 2, fade_clip = 6, fade_time = 0.4, fade = 0.8},
+			{clip = 3, time = 1.25, fade_clip = 6, fade_time = 0.4, fade = 0.8},
+		},
+		{
+			"new clip with the same fade clip takes the current fade",
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0, fade = 0},
+			{clip = 4, time = 2, fade_clip = 5, fade_time = 0.4, fade = 0.8},
+			{clip = 4, time = 2, fade_clip = 5, fade_time = 0.1, fade = 0.8},
+		},
+	}
+	for c in cases {
+		got := draw_pose_lerp(c.prev, c.curr, 0.25)
+		testing.expectf(t, draw_pose_near(got, c.want), "%v: got %v, want %v", c.name, got, c.want)
+	}
 }
 
 @(test)
@@ -855,4 +940,142 @@ test_frame_render_fits_the_sun_view_to_the_draws_snapped_to_whole_units :: proc(
 	top := light_view_proj * [4]f32{0, 1, 0, 1}
 	bottom := light_view_proj * [4]f32{0, -1, 0, 1}
 	testing.expectf(t, top.z > bottom.z, "the side nearer the Sun is nearer in reversed-Z: %v, %v", top.z, bottom.z)
+}
+
+draw_pose_near :: proc(a, b: Draw_Pose) -> bool {
+	return a.clip == b.clip && a.fade_clip == b.fade_clip && abs(a.time - b.time) < EPS && abs(a.fade_time - b.fade_time) < EPS && abs(a.fade - b.fade) < EPS
+}
+
+// Gives the Sphere slot the chain Skin, so its id draws as a skinned mesh.
+frame_fixture_skinned :: proc(f: ^Frame_Fixture) -> u32 {
+	chain := chain_mesh()
+	m := &f.meshes.meshes[Primitive.Sphere]
+	m.skin = chain.skin
+	m.first_clip = chain.first_clip
+	return u32(Primitive.Sphere)
+}
+
+expect_skin_of_pose :: proc(t: ^testing.T, f: ^Frame_Fixture, got: [2]Mat4, pose: Draw_Pose, loc := #caller_location) {
+	want: [MAX_JOINTS]Mat4
+	skin_matrices(&f.meshes, &f.meshes.meshes[Primitive.Sphere], pose, &want)
+	expect_mat4_near(t, got[0], want[0], loc)
+	expect_mat4_near(t, got[1], want[1], loc)
+}
+
+@(test)
+test_frame_render_submits_the_skin_of_the_blended_pose_in_both_passes :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	prev := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.25}}}
+	curr := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.75}}}
+	got := frame_fixture_draw(&f, scene_lit(prev, lights), scene_lit(curr, lights), 0.5)
+
+	testing.expect_value(t, len(got), 1)
+	testing.expect(t, got[0].skinned)
+	expect_mat4_near(t, got[0].joints[0], mat4_translate({0, 1, 0}))
+	expect_mat4_near(t, got[0].joints[1], mat4_translate({0, 1, 0}))
+	testing.expect_value(t, len(f.rec.shadows), 1)
+	testing.expect(t, f.rec.shadows[0].skinned)
+	expect_mat4_near(t, f.rec.shadows[0].joints[0], mat4_translate({0, 1, 0}))
+}
+
+@(test)
+test_frame_render_takes_the_current_time_when_a_looped_time_wraps :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+
+	prev := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.9}}}
+	curr := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.1}}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.5)
+
+	expect_mat4_near(t, got[0].joints[0], mat4_translate({0, 0.2, 0}))
+}
+
+@(test)
+test_frame_render_submits_the_skin_of_the_blended_fade :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+
+	prev := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LEAN, fade_clip = LIFT, fade_time = 1, fade = 0}}}
+	curr := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LEAN, fade_clip = LIFT, fade_time = 1, fade = 1}}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.5)
+
+	expect_skin_of_pose(t, &f, got[0].joints, {clip = LEAN, fade_clip = LIFT, fade_time = 1, fade = 0.5})
+	half_turn := linalg.matrix4_from_trs_f32({0, 1, 0}, quat_from_axis_angle({0, 0, 1}, math.PI / 4), 1)
+	expect_mat4_near(t, got[0].joints[0], half_turn)
+}
+
+@(test)
+test_frame_render_submits_skinned_draws_after_rigid_draws_in_each_pass :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw {
+		{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 4, mesh = u32(Primitive.Plane), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_lit(draws, lights)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	want := []bool{false, false, true, true}
+	testing.expect_value(t, len(got), len(want))
+	testing.expect_value(t, len(f.rec.shadows), len(want))
+	for skinned, i in want {
+		testing.expectf(t, got[i].skinned == skinned, "submit %v: skinned is %v", i, got[i].skinned)
+		testing.expectf(t, f.rec.shadows[i].skinned == skinned, "shadow %v: skinned is %v", i, f.rec.shadows[i].skinned)
+	}
+	testing.expect_value(t, got[0].mesh, &f.meshes.meshes[Primitive.Cube])
+	testing.expect_value(t, got[1].mesh, &f.meshes.meshes[Primitive.Plane])
+}
+
+@(test)
+test_frame_render_draws_its_skinned_capacity_and_logs_the_rest_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+	delete(f.fr.skins)
+	f.fr.skins = make([]Skin_Params, 2)
+
+	draws := []Draw {
+		{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 4, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	testing.expect_value(t, len(got), 3)
+	testing.expect(t, f.fr.skinned_logged)
+	testing.expect(t, !f.fr.draws_logged)
+}
+
+// The skins start at zero, and a posed skin is not zero.
+@(test)
+test_frame_render_skips_the_skin_with_submit_off :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+
+	draws := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LEAN}}}
+	frame_render_draw(&f.fr, scene_of(draws), scene_of(draws), 0, 1, {}, &f.meshes, &f.skies, nil, f.window, submit = false)
+
+	testing.expect_value(t, len(f.fr.placed), 1)
+	testing.expect(t, f.fr.placed[0].skin != nil)
+	expect_mat4_near(t, f.fr.placed[0].skin.joints[0], 0)
 }

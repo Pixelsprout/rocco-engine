@@ -11,6 +11,9 @@ MESH_SLOT_BITS :: 16
 SLOT_LIMIT :: 1 << MESH_SLOT_BITS
 SPHERE_RINGS :: 16
 SPHERE_SEGMENTS :: 32
+// A posed mesh can reach past its bind-pose box, so the box of a skinned
+// mesh grows by this share of its largest side on every side.
+SKINNED_BOX_PAD :: 0.25
 
 // A file stem cannot contain "/", so a loaded file never takes a primitive's name.
 PRIMITIVE_NAMES := [Primitive]string {
@@ -135,28 +138,38 @@ Mesh :: struct {
 	metallic_roughness: Mesh_Texture,
 	material:           Material,
 	box:                Box,
+	skin:               Skin,
+	first_clip:         u32,
 	generation:         u16,
 }
 
 // After mesh_table_upload, a new mesh uploads when it is added. The table
 // owns each loaded mesh's name and data. The slots never grow.
 Mesh_Table :: struct {
-	meshes:     []Mesh,
-	count:      int,
-	free:       []int,
-	free_count: int,
-	logged:     map[u32]struct {},
-	uploaded:   bool,
-	allocator:  mem.Allocator,
-	perm:       mem.Allocator,
+	meshes:       []Mesh,
+	count:        int,
+	free:         []int,
+	free_count:   int,
+	logged:       map[u32]struct {},
+	// The Clip ids that skin_matrices found on another mesh.
+	clips_logged: map[u32]struct {},
+	// Clip ids are never reused, so a stale Clip id names no Clip.
+	next_clip:    u32,
+	uploaded:     bool,
+	allocator:    mem.Allocator,
+	perm:         mem.Allocator,
 }
 
+// A skinned mesh has one Influence per vertex. Its skin moves to the Mesh
+// at mesh_table_add, because the upload deletes the rest.
 Mesh_Data :: struct {
 	vertices:           []Vertex,
+	influences:         []Influence,
 	indices:            []u16,
 	texture:            Maybe(Texture),
 	metallic_roughness: Maybe(Texture),
 	material:           Material,
+	skin:               Skin,
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -169,6 +182,8 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 	t.meshes = make([]Mesh, capacity, perm)
 	t.free = make([]int, capacity, perm)
 	t.logged = make(map[u32]struct {}, allocator)
+	t.clips_logged = make(map[u32]struct {}, allocator)
+	t.next_clip = 1
 	for p in Primitive {
 		box := mesh_box(primitive_build(p, context.temp_allocator).vertices)
 		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true, material = MATERIAL_MATTE, box = box}
@@ -182,9 +197,11 @@ mesh_table_destroy :: proc(t: ^Mesh_Table) {
 		if m.live {
 			delete(m.name, t.allocator)
 			mesh_data_delete(t, m.data)
+			skin_delete(m.skin, t.allocator)
 		}
 	}
 	delete(t.logged)
+	delete(t.clips_logged)
 	delete(t.meshes, t.perm)
 	delete(t.free, t.perm)
 }
@@ -227,7 +244,22 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		slot = t.count
 		t.count += 1
 	}
-	t.meshes[slot] = {name = name, data = data, live = true, material = data.material, box = mesh_box(data.vertices), generation = t.meshes[slot].generation}
+	box := mesh_box(data.vertices)
+	if len(data.influences) > 0 {
+		box = box_pad(box, SKINNED_BOX_PAD)
+	}
+	t.meshes[slot] = {
+		name       = name,
+		data       = data,
+		live       = true,
+		material   = data.material,
+		box        = box,
+		skin       = data.skin,
+		first_clip = t.next_clip,
+		generation = t.meshes[slot].generation,
+	}
+	t.meshes[slot].data.skin = {}
+	t.next_clip += u32(len(data.skin.clips))
 	if t.uploaded {
 		mesh_upload_loaded(t, &t.meshes[slot])
 	}
@@ -247,6 +279,7 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 	mesh_texture_destroy(m.metallic_roughness)
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
+	skin_delete(m.skin, t.allocator)
 	m^ = {generation = m.generation + 1}
 	t.free[t.free_count] = slot
 	t.free_count += 1
@@ -276,6 +309,7 @@ mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 @(private = "file")
 mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	delete(data.vertices, t.allocator)
+	delete(data.influences, t.allocator)
 	delete(data.indices, t.allocator)
 	if tex, ok := data.texture.?; ok {
 		texture_delete(tex, t.allocator)
@@ -294,10 +328,15 @@ mesh_texture_destroy :: proc(tex: Mesh_Texture) {
 	}
 }
 
+// A skinned mesh uploads Skinned_Vertex, for the skinned pipelines. sokol
+// copies the data, so the skinned vertices are scratch.
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
-	m.vertices = sg.make_buffer(
-		{label = "mesh-vertices", data = {ptr = raw_data(data.vertices), size = uint(len(data.vertices) * size_of(Vertex))}},
-	)
+	vertices := sg.Range{raw_data(data.vertices), uint(len(data.vertices) * size_of(Vertex))}
+	if len(data.influences) > 0 {
+		skinned := skinned_vertices(data.vertices, data.influences, context.temp_allocator)
+		vertices = {raw_data(skinned), uint(len(skinned) * size_of(Skinned_Vertex))}
+	}
+	m.vertices = sg.make_buffer({label = "mesh-vertices", data = vertices})
 	m.indices = sg.make_buffer(
 		{
 			label = "mesh-indices",
@@ -323,11 +362,11 @@ mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughnes
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.
 mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fallback: bool) {
+	if found, ok := mesh_lookup(t, id); ok {
+		return found, false
+	}
 	slot := mesh_slot(id)
 	generation := id >> MESH_SLOT_BITS
-	if id != 0 && slot < t.count && t.meshes[slot].live && mesh_id(t, slot) == id {
-		return &t.meshes[slot], false
-	}
 	stale := slot >= len(Primitive) && slot < len(t.meshes) && generation != u32(t.meshes[slot].generation)
 	if id not_in t.logged {
 		t.logged[id] = {}
@@ -342,6 +381,15 @@ mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fal
 	return &t.meshes[Primitive.Fallback], true
 }
 
+// Id 0, an id past the table and a stale id find no mesh. Nothing logs.
+mesh_lookup :: proc(t: ^Mesh_Table, id: u32) -> (mesh: ^Mesh, ok: bool) {
+	slot := mesh_slot(id)
+	if id != 0 && slot < t.count && t.meshes[slot].live && mesh_id(t, slot) == id {
+		return &t.meshes[slot], true
+	}
+	return nil, false
+}
+
 mesh_box :: proc(vertices: []Vertex) -> Box {
 	if len(vertices) == 0 {
 		return {}
@@ -352,6 +400,12 @@ mesh_box :: proc(vertices: []Vertex) -> Box {
 		box.max = linalg.max(box.max, v.pos)
 	}
 	return box
+}
+
+box_pad :: proc(box: Box, share: f32) -> Box {
+	size := box.max - box.min
+	pad := share * max(size.x, size.y, size.z)
+	return {box.min - pad, box.max + pad}
 }
 
 primitive_build :: proc(p: Primitive, allocator: mem.Allocator) -> Mesh_Data {

@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Ve
 import pf.Light
 import pf.QueryResults
 import pf.Launch
+import pf.Pose
 
 # The Draws bench game. view returns one primitive cube Draw per entity, lit by
 # one Sun, so the Draw count is N and the rest of the Scene stays fixed.
@@ -106,7 +107,7 @@ view = |m| {
 }
 
 cube_draw : U32, Entity -> Draw
-cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 } }
+cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, pose: Pose.still(0, 0.0) }
 
 sun : Vocabulary.Node
 sun = Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }))

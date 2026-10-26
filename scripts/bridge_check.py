@@ -14,6 +14,11 @@ audio device still returns the Play, so the check needs no sound card.
 Then it runs tutorial chapter 9 with the left stick of one pad halfway up,
 and checks that Pip walks at half the speed of W. A tap of Start must quit.
 
+Then it runs tutorial chapter 10, checks that Pip stands in Idle and saves
+a screenshot next to the first one, with "-still" before the extension. It
+holds D until Pip is mid-walk, checks the Pose, saves a "-walk" screenshot
+and checks that the two screenshots differ.
+
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Box that holds two cell Boxes, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
@@ -50,6 +55,16 @@ HUM_AT = {"At": {"pos": {"x": 0, "y": 1, "z": -2.9}, "range": 10}}
 
 # examples/tutorial/09-gamepad/main.roc: the stick's length scales the speed.
 HALF_STICK_DZ = EXPECTED_DZ / 2
+
+# examples/tutorial/10-animation/main.roc: the walk time moves by dt x speed
+# over the walk speed, and both speeds are 2.5, so it moves 1 s each second. D
+# for 70 steps puts Pip mid-stride in the 1 s Walk Clip.
+WALK_STEPS = 70
+EXPECTED_WALK_TIME = WALK_STEPS / 120
+WALK_TOLERANCE = 1e-3
+# Pip and the camera move between the still and the walk screenshots, so far
+# more pixels than this change.
+MIN_CHANGED_PIXELS = 1000
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Box that holds the score as one Text.
@@ -137,6 +152,37 @@ def drive_gamepad(b, _out):
     check(stepped["steps"] == after_reply["steps"] + 1, f"the run stopped at the step that quit, step {stepped['steps']}")
 
 
+def pip_pose(reply):
+    nodes = reply["scene"]["nodes"]
+    return [n["Draw"]["pose"] for n in nodes if "Draw" in n and n["Draw"]["id"] == PIP_ID][0]
+
+
+def drive_animation(b, out):
+    b.hello()
+
+    still = pip_pose(b.scene())
+    check(still["clip"] != 0 and still["fade_clip"] not in (0, still["clip"]), f"Pip's Pose names Idle and Walk: {still}")
+    check(still["fade"] == 0, f"Pip stands in Idle: {still}")
+    stem, ext = os.path.splitext(out)
+    still_out = f"{stem}-still{ext}"
+    b.screenshot(still_out)
+
+    b.step(WALK_STEPS, held=["D"])
+    walking = pip_pose(b.scene())
+    check(walking["fade"] == 1, f"D held faded all the way to Walk: {walking}")
+    walk_time = walking["fade_time"]
+    check(abs(walk_time - EXPECTED_WALK_TIME) < WALK_TOLERANCE, f"the walk time is {walk_time}, expected {EXPECTED_WALK_TIME}")
+
+    walk_out = f"{stem}-walk{ext}"
+    shot = b.screenshot(walk_out)
+    size = bridge.png_size(walk_out)
+    check(size == shot["physical"], f"PNG of Pip mid-walk is the physical size {shot['physical']}")
+    changed = bridge.png_changed_pixels(still_out, walk_out)
+    check(changed > MIN_CHANGED_PIXELS, f"{changed} pixels differ between the still and the walk screenshots")
+
+    b.quit()
+
+
 def drive_ui(b, _out):
     b.hello()
 
@@ -182,7 +228,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("pong", drive_ui)]
+GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui)]
 
 
 def run_game(game, drive, out, tmp, suffix):

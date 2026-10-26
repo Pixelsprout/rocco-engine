@@ -162,6 +162,49 @@ mesh node in the glTF scene into one mesh.
 - The material is glTF metallic-roughness.
 - A mesh with `KHR_materials_unlit` skips the lights and draws its base
   colour.
+- A file with a Skin loads as one skinned mesh. See
+  [Skinned meshes](#skinned-meshes).
+
+### Skinned meshes
+
+A `.glb` with a Skin loads as one skinned mesh, and its Manifest entry
+lists its Clips, each with a name, an id and a duration. A Draw plays a
+Clip through its `pose`. With no Clip named, the mesh draws in its bind
+pose. [Tutorial chapter 10](tutorial/10-animation.md) walks through it.
+
+The file must follow these rules:
+
+- It has at most one Skin, with at most 64 Joints.
+- Every mesh node uses that Skin. A file that mixes skinned and unskinned
+  mesh nodes does not load.
+- Each primitive has `JOINTS_0` and `WEIGHTS_0`. The host reads up to 4
+  Joints for each vertex, and keeps each weight in 8 bits.
+- Clip keys are LINEAR or STEP, not CUBICSPLINE. A Clip can key the
+  translation, the rotation and the scale of a Joint.
+- No Joint scales more along one axis than another. The host turns the
+  normals with the skin matrix, so a non-uniform scale lights the mesh
+  wrong. The file loads, so nothing warns you.
+
+If a file breaks one of the first four rules, it does not load, its name
+gets id 0, and the host logs the reason, for example:
+
+```
+pack "pip" names "pip", but the file has more than one Skin; its id is 0
+```
+
+The other reasons are "the file mixes skinned and unskinned mesh nodes",
+"the Skin has more than 64 Joints", "a Clip has CUBICSPLINE keys; export
+LINEAR or STEP keys", "a skinned primitive has no JOINTS_0 or WEIGHTS_0",
+and two for a broken file: one for a bad Skin and one for a bad Clip.
+
+A Clip that moves morph weights or a node that is not a Joint still
+loads. The host skips that part of the Clip and logs a line that ends in
+"so the Clip skips that channel". A file with no Skin loads as a rigid
+mesh, and the host ignores its Clips.
+
+The host pads the box of a skinned mesh by a quarter of its largest side.
+The shadow map fits the boxes, so an arm or a leg that a Clip swings out
+still casts its shadow.
 
 ### Capacities
 

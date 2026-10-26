@@ -379,16 +379,34 @@ Roc_Launch_Capacity :: struct {
 #assert(size_of(type_of(Roc_Launch_Capacity{}.voices)) == 4)
 
 Roc_Loaded_Arg2 :: struct {
+	clips: Roc_List(Roc_Loaded_Arg2_Clips),
 	name: Roc_Str,
 	id: u32,
 }
 
-#assert(size_of(Roc_Loaded_Arg2) == 32)
+#assert(size_of(Roc_Loaded_Arg2) == 56)
 #assert(align_of(Roc_Loaded_Arg2) == 8)
-#assert(offset_of(Roc_Loaded_Arg2, name) == 0)
+#assert(offset_of(Roc_Loaded_Arg2, clips) == 0)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.clips)) == 24)
+#assert(offset_of(Roc_Loaded_Arg2, name) == 24)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2, id) == 24)
+#assert(offset_of(Roc_Loaded_Arg2, id) == 48)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
+
+Roc_Loaded_Arg2_Clips :: struct {
+	name: Roc_Str,
+	duration: f32,
+	id: u32,
+}
+
+#assert(size_of(Roc_Loaded_Arg2_Clips) == 32)
+#assert(align_of(Roc_Loaded_Arg2_Clips) == 8)
+#assert(offset_of(Roc_Loaded_Arg2_Clips, name) == 0)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.name)) == 24)
+#assert(offset_of(Roc_Loaded_Arg2_Clips, duration) == 24)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.duration)) == 4)
+#assert(offset_of(Roc_Loaded_Arg2_Clips, id) == 28)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.id)) == 4)
 
 Roc_Step_Arg1 :: struct {
 	gamepads: Roc_List(Roc_Step_Arg1_Gamepads),
@@ -624,9 +642,9 @@ Roc_VocabularyNode :: struct {
 	tag: Roc_VocabularyNode_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode) == 88)
+#assert(size_of(Roc_VocabularyNode) == 112)
 #assert(align_of(Roc_VocabularyNode) == 8)
-#assert(offset_of(Roc_VocabularyNode, tag) == 80)
+#assert(offset_of(Roc_VocabularyNode, tag) == 104)
 
 Roc_VocabularyNode_Collider :: struct {
 	id: u64,
@@ -703,13 +721,14 @@ Roc_VocabularyNode_Draw :: struct {
 	id: u64,
 	mesh: u32,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
+	pose: Roc_VocabularyNode_Draw_Pose,
 	rot: Roc_VocabularyNode_Collider_Rot,
 	scale: Roc_Init_Commands_Play_At_At_Pos,
 	scale_rot: Roc_VocabularyNode_Collider_Rot,
 	tint: Roc_VocabularyNode_Draw_Tint,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw) == 80)
+#assert(size_of(Roc_VocabularyNode_Draw) == 104)
 #assert(align_of(Roc_VocabularyNode_Draw) == 8)
 #assert(offset_of(Roc_VocabularyNode_Draw, id) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.id)) == 8)
@@ -717,16 +736,39 @@ Roc_VocabularyNode_Draw :: struct {
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.mesh)) == 4)
 #assert(offset_of(Roc_VocabularyNode_Draw, pos) == 12)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pos)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, rot) == 24)
+#assert(offset_of(Roc_VocabularyNode_Draw, pose) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pose)) == 20)
+#assert(offset_of(Roc_VocabularyNode_Draw, rot) == 44)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale) == 40)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale) == 60)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == 52)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == 72)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale_rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, tint) == 68)
+#assert(offset_of(Roc_VocabularyNode_Draw, tint) == 88)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.tint)) == 12)
 
 Roc_VocabularyNode_Draw_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_VocabularyNode_Draw_Pose :: struct {
+	clip: u32,
+	fade: f32,
+	fade_clip: u32,
+	fade_time: f32,
+	time: f32,
+}
+
+#assert(size_of(Roc_VocabularyNode_Draw_Pose) == 20)
+#assert(align_of(Roc_VocabularyNode_Draw_Pose) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Pose, clip) == 0)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Pose{}.clip)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Pose, fade) == 4)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Pose{}.fade)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Pose, fade_clip) == 8)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Pose{}.fade_clip)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Pose, fade_time) == 12)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Pose{}.fade_time)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Pose, time) == 16)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Pose{}.time)) == 4)
+
 Roc_VocabularyNode_Draw_Rot :: Roc_VocabularyNode_Collider_Rot
 Roc_VocabularyNode_Draw_Scale :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Draw_ScaleRot :: Roc_VocabularyNode_Collider_Rot
@@ -1211,6 +1253,11 @@ roc_launch_window_decref :: proc(value: Roc_Launch_Window) {
 }
 
 roc_loaded_arg2_decref :: proc(value: Roc_Loaded_Arg2) {
+	roc_list_decref_roc_loaded_arg2_clips(value.clips)
+	roc_str_decref(value.name)
+}
+
+roc_loaded_arg2_clips_decref :: proc(value: Roc_Loaded_Arg2_Clips) {
 	roc_str_decref(value.name)
 }
 
@@ -1296,6 +1343,14 @@ roc_list_decref_roc_loaded_arg2 :: proc(list: Roc_List(Roc_Loaded_Arg2)) {
 }
 
 roc_list_from_slice_roc_loaded_arg2 :: proc(elems: []Roc_Loaded_Arg2) -> Roc_List(Roc_Loaded_Arg2) {
+	return roc_list_from_slice_with(elems, true)
+}
+
+roc_list_decref_roc_loaded_arg2_clips :: proc(list: Roc_List(Roc_Loaded_Arg2_Clips)) {
+	roc_list_decref_elements(list, roc_loaded_arg2_clips_decref)
+}
+
+roc_list_from_slice_roc_loaded_arg2_clips :: proc(elems: []Roc_Loaded_Arg2_Clips) -> Roc_List(Roc_Loaded_Arg2_Clips) {
 	return roc_list_from_slice_with(elems, true)
 }
 
@@ -1396,6 +1451,7 @@ roc_decref :: proc {
 	roc_launch_decref,
 	roc_launch_window_decref,
 	roc_loaded_arg2_decref,
+	roc_loaded_arg2_clips_decref,
 	roc_step_arg1_decref,
 	roc_step_arg1_gamepads_decref,
 	roc_step_arg2_decref,
@@ -1412,6 +1468,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_str,
 	roc_list_decref_roc_init_commands,
 	roc_list_decref_roc_loaded_arg2,
+	roc_list_decref_roc_loaded_arg2_clips,
 	roc_list_decref_roc_step_arg1_gamepads,
 	roc_list_decref_u8,
 	roc_list_decref_u16,
@@ -1429,6 +1486,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_str,
 	roc_list_from_slice_roc_init_commands,
 	roc_list_from_slice_roc_loaded_arg2,
+	roc_list_from_slice_roc_loaded_arg2_clips,
 	roc_list_from_slice_roc_step_arg1_gamepads,
 	roc_list_from_slice_u8,
 	roc_list_from_slice_u16,

@@ -13,7 +13,9 @@ GLB_CHUNK_BIN :: 0x004E4942 // "BIN\0"
 GLB_MAX_VERTICES :: 65_535
 
 GLTF_MODE_TRIANGLES :: 4
+GLTF_I8 :: 5120
 GLTF_U8 :: 5121
+GLTF_I16 :: 5122
 GLTF_U16 :: 5123
 GLTF_U32 :: 5125
 GLTF_F32 :: 5126
@@ -44,6 +46,13 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 	.Bad_Accessor      = "an accessor has the wrong type, is sparse or reads past its buffer",
 	.Bad_Index         = "an index is out of range or the index count is not a multiple of 3",
 	.Too_Many_Vertices = "the mesh has more than 65,535 vertices",
+	.Two_Skins         = "the file has more than one Skin",
+	.Mixed_Skinning    = "the file mixes skinned and unskinned mesh nodes",
+	.Too_Many_Joints   = "the Skin has more than 64 Joints",
+	.Cubic_Spline      = "a Clip has CUBICSPLINE keys; export LINEAR or STEP keys",
+	.No_Influences     = "a skinned primitive has no JOINTS_0 or WEIGHTS_0",
+	.Bad_Skin          = "a Skin has no Joints, names a node twice or out of range, or a vertex names a Joint past the Skin",
+	.Bad_Clip          = "a Clip names a sampler or node out of range, or its key times do not rise or do not match its values",
 }
 
 GLB_NOTE_REASONS := [Glb_Note]string {
@@ -52,6 +61,7 @@ GLB_NOTE_REASONS := [Glb_Note]string {
 	.Unsupported_Image = "a texture is not an embedded PNG, so it draws without that texture",
 	.Mixed_Textures    = "its primitives do not share one base colour texture, so they all draw the first",
 	.Mixed_Materials   = "its primitives do not share one roughness, metallic, unlit flag and metallic-roughness texture, so they all draw the first",
+	.Channel_Skipped   = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
 }
 
 Glb_Error :: enum {
@@ -71,15 +81,23 @@ Glb_Error :: enum {
 	Bad_Accessor,
 	Bad_Index,
 	Too_Many_Vertices,
+	Two_Skins,
+	Mixed_Skinning,
+	Too_Many_Joints,
+	Cubic_Spline,
+	No_Influences,
+	Bad_Skin,
+	Bad_Clip,
 }
 
-// A texture problem that does not stop the mesh loading.
+// A problem that does not stop the mesh loading.
 Glb_Note :: enum {
 	Jpeg_Skipped,
 	Bad_Png,
 	Unsupported_Image,
 	Mixed_Textures,
 	Mixed_Materials,
+	Channel_Skipped,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -122,6 +140,8 @@ Gltf :: struct {
 	},
 	accessors:    []Gltf_Accessor,
 	buffer_views: []Gltf_Buffer_View `json:"bufferViews"`,
+	skins:        []Gltf_Skin,
+	animations:   []Gltf_Animation,
 }
 
 Gltf_Texture_Ref :: struct {
@@ -130,6 +150,7 @@ Gltf_Texture_Ref :: struct {
 
 Gltf_Node :: struct {
 	mesh:        Maybe(int),
+	skin:        Maybe(int),
 	children:    []int,
 	mat:         Maybe([16]f32) `json:"matrix"`,
 	translation: Maybe([3]f32),
@@ -153,6 +174,27 @@ Gltf_Accessor :: struct {
 	sparse:         json.Value,
 }
 
+Gltf_Skin :: struct {
+	joints:                []int,
+	inverse_bind_matrices: Maybe(int) `json:"inverseBindMatrices"`,
+}
+
+Gltf_Animation :: struct {
+	name:     string,
+	channels: []struct {
+		sampler: int,
+		target:  struct {
+			node: Maybe(int),
+			path: string,
+		},
+	},
+	samplers: []struct {
+		input:         int,
+		output:        int,
+		interpolation: string,
+	},
+}
+
 Gltf_Buffer_View :: struct {
 	buffer:      int,
 	byte_offset: int `json:"byteOffset"`,
@@ -161,22 +203,32 @@ Gltf_Buffer_View :: struct {
 }
 
 Glb_Loader :: struct {
-	gltf:     Gltf,
-	bin:      []byte,
-	vertices: [dynamic]Vertex,
-	indices:  [dynamic]u16,
-	texture:  Maybe(int),
+	gltf:       Gltf,
+	bin:        []byte,
+	vertices:   [dynamic]Vertex,
+	// One per vertex when the mesh nodes are skinned.
+	influences: [dynamic]Glb_Influence,
+	indices:    [dynamic]u16,
+	texture:    Maybe(int),
 	// The primitives so far name one texture, or none, between them.
-	first:    Maybe(Maybe(int)),
-	mixed:    bool,
+	first:      Maybe(Maybe(int)),
+	mixed:      bool,
 	// The first primitive's, which the whole mesh draws with.
-	material: Maybe(Glb_Material),
-	notes:    Glb_Notes,
+	material:   Maybe(Glb_Material),
+	notes:      Glb_Notes,
+	skinned:    bool,
+	rigid:      bool,
 }
 
 Glb_Material :: struct {
 	values:             Material,
 	metallic_roughness: Maybe(int),
+}
+
+// joints index the glTF skin's joints, which the Skin puts in another order.
+Glb_Influence :: struct {
+	joints:  [4]u16,
+	weights: [4]u8,
 }
 
 // One accessor's elements in the BIN chunk. data starts at element 0.
@@ -189,17 +241,22 @@ Glb_View :: struct {
 
 // Merges every triangle primitive of every mesh node in the glTF scene into
 // one mesh with one base colour texture and one material. Scratch is frame memory, so a
-// rejected file leaves nothing in allocator.
+// rejected file leaves nothing in allocator. Skinned mesh nodes merge in
+// bind-pose space with their Skin and Clips.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
 	json_chunk, bin := glb_chunks(bytes) or_return
 
 	l := Glb_Loader {
 		bin      = bin,
-		vertices = make([dynamic]Vertex, context.temp_allocator),
-		indices  = make([dynamic]u16, context.temp_allocator),
+		vertices   = make([dynamic]Vertex, context.temp_allocator),
+		influences = make([dynamic]Glb_Influence, context.temp_allocator),
+		indices    = make([dynamic]u16, context.temp_allocator),
 	}
 	if json.unmarshal(json_chunk, &l.gltf, allocator = context.temp_allocator) != nil {
 		return {}, {}, .Bad_Json
+	}
+	if len(l.gltf.skins) > 1 {
+		return {}, {}, .Two_Skins
 	}
 
 	for root in glb_roots(&l.gltf) {
@@ -207,6 +264,11 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	}
 	if len(l.vertices) == 0 {
 		return {}, {}, .No_Mesh
+	}
+	skin: Skin
+	influences: []Influence
+	if l.skinned {
+		skin, influences = glb_skin(&l) or_return
 	}
 	texture: Maybe(Texture)
 	if index, ok := l.texture.?; ok {
@@ -222,10 +284,12 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	}
 	data = {
 		vertices           = slice.clone(l.vertices[:], allocator),
+		influences         = slice.clone(influences, allocator),
 		indices            = slice.clone(l.indices[:], allocator),
 		texture            = texture,
 		material           = material.values,
 		metallic_roughness = metallic_roughness,
+		skin               = skin_clone(skin, allocator),
 	}
 	return data, l.notes, .None
 }
@@ -302,8 +366,19 @@ glb_visit :: proc(l: ^Glb_Loader, index: int, parent: Mat4, depth: int) -> Glb_E
 		if mesh < 0 || mesh >= len(l.gltf.meshes) {
 			return .Bad_Node
 		}
+		skin, skinned := node.skin.?
+		if skinned && (skin < 0 || skin >= len(l.gltf.skins)) {
+			return .Bad_Skin
+		}
+		l.skinned ||= skinned
+		l.rigid ||= !skinned
+		if l.skinned && l.rigid {
+			return .Mixed_Skinning
+		}
+		// glTF ignores the transform of a skinned mesh node.
+		place := mat4_identity() if skinned else world
 		for &p in l.gltf.meshes[mesh].primitives {
-			glb_add_primitive(l, &p, world) or_return
+			glb_add_primitive(l, &p, place, skinned) or_return
 		}
 	}
 	for child in node.children {
@@ -312,25 +387,29 @@ glb_visit :: proc(l: ^Glb_Loader, index: int, parent: Mat4, depth: int) -> Glb_E
 	return .None
 }
 
-// glTF stores matrix column-major, and a node without one is T * R * S.
+// A node without a matrix is T * R * S.
 glb_node_local :: proc(node: ^Gltf_Node) -> Mat4 {
 	if m, ok := node.mat.?; ok {
-		out: Mat4
-		for col in 0 ..< 4 {
-			for row in 0 ..< 4 {
-				out[row, col] = m[col * 4 + row]
-			}
-		}
-		return out
+		return glb_mat4(m)
 	}
 	t := node.translation.? or_else {0, 0, 0}
 	r := node.rotation.? or_else {0, 0, 0, 1}
 	s := node.scale.? or_else {1, 1, 1}
-	q := quaternion(w = r[3], x = r[0], y = r[1], z = r[2])
-	return linalg.matrix4_translate_f32(t) * linalg.matrix4_from_quaternion_f32(q) * linalg.matrix4_scale_f32(s)
+	return linalg.matrix4_translate_f32(t) * linalg.matrix4_from_quaternion_f32(key_rotation(r)) * linalg.matrix4_scale_f32(s)
 }
 
-glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Glb_Error {
+// glTF stores a matrix column-major.
+glb_mat4 :: proc(m: [16]f32) -> Mat4 {
+	out: Mat4
+	for col in 0 ..< 4 {
+		for row in 0 ..< 4 {
+			out[row, col] = m[col * 4 + row]
+		}
+	}
+	return out
+}
+
+glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinned: bool) -> Glb_Error {
 	if (p.mode.? or_else GLTF_MODE_TRIANGLES) != GLTF_MODE_TRIANGLES {
 		return .Not_Triangles
 	}
@@ -360,6 +439,9 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4) -> Gl
 		if uvs.component_type != GLTF_F32 || uvs.count != count {
 			return .Bad_Accessor
 		}
+	}
+	if skinned {
+		glb_add_influences(l, p, count) or_return
 	}
 
 	color := GREY
@@ -457,7 +539,11 @@ glb_vec3_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: G
 
 glb_index_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {
 	view = glb_accessor(l, index, "SCALAR") or_return
-	return view, .None if view.component_type != GLTF_F32 else .Bad_Accessor
+	switch view.component_type {
+	case GLTF_U8, GLTF_U16, GLTF_U32:
+		return view, .None
+	}
+	return view, .Bad_Accessor
 }
 
 // Every bounds check is written so a hostile int in the JSON cannot overflow it.
@@ -471,9 +557,9 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 	}
 	size: int
 	switch a.component_type {
-	case GLTF_U8:
+	case GLTF_I8, GLTF_U8:
 		size = 1
-	case GLTF_U16:
+	case GLTF_I16, GLTF_U16:
 		size = 2
 	case GLTF_U32, GLTF_F32:
 		size = 4
@@ -485,6 +571,10 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 		size *= 2
 	case "VEC3":
 		size *= 3
+	case "VEC4":
+		size *= 4
+	case "MAT4":
+		size *= 16
 	}
 
 	// An accessor without a buffer view is all zeros. Exporters do not write one for meshes.
