@@ -162,6 +162,11 @@ mesh node in the glTF scene into one mesh.
 - The material is glTF metallic-roughness.
 - A mesh with `KHR_materials_unlit` skips the lights and draws its base
   colour.
+- A file with a Skin loads as one skinned mesh in its bind pose, and its
+  Manifest entry lists its Clips. The file must have one Skin with at most
+  64 Joints, and every mesh node must use that Skin. Clip keys must be
+  LINEAR or STEP, not CUBICSPLINE. If a file breaks one of these rules, it
+  does not load, and its name gets id 0.
 
 ### Capacities
 
