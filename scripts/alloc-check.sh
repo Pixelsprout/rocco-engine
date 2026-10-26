@@ -19,7 +19,8 @@
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must
 # already be in place for this machine. Each game opens a window. Do not type
-# into it: a key press allocates the Input lists.
+# into it: a key press allocates the Input lists. A connected gamepad also
+# allocates them, so unplug every pad first.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
 set -eu
 cd "$(dirname "$0")/.."
@@ -92,7 +93,7 @@ for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1; do
 		' "$log"; then
 			echo "PASS: $game --opt=$opt"
 		else
-			echo "FAIL: $game --opt=$opt. Each extra alloc and dealloc pair is usually a held or pressed key: keep your hands off the game window." >&2
+			echo "FAIL: $game --opt=$opt. Each extra alloc and dealloc pair is usually a held or pressed key or a connected gamepad: keep your hands off the game window and unplug every pad." >&2
 			failed=1
 		fi
 	done
