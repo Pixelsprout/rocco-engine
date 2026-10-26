@@ -40,6 +40,14 @@ Fake_Command_Run :: struct {
 	views: int,
 }
 
+// One Clip of a Manifest entry, with the name of its mesh.
+Fake_Clip :: struct {
+	mesh:     string,
+	name:     string,
+	id:       u32,
+	duration: f32,
+}
+
 Fake_Game :: struct {
 	launches:        int,
 	// inits when launch ran, so 0 means launch came first.
@@ -105,6 +113,7 @@ Fake_Game :: struct {
 	loaded_at:       Fake_Command_Run,
 	loaded_pack:     string,
 	loaded_manifest: []Manifest_Line,
+	loaded_clips:    []Fake_Clip,
 	loaded_out:      rawptr,
 	meshes:          Mesh_Table,
 	skies:           Sky_Table,
@@ -239,9 +248,16 @@ fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_En
 	g_fake.loaded_pack = strings.clone(roc_str_string(&name), context.temp_allocator)
 	roc_decref(pack)
 	g_fake.loaded_manifest = make([]Manifest_Line, manifest.length, context.temp_allocator)
+	clips := make([dynamic]Fake_Clip, context.temp_allocator)
 	for &entry, i in manifest.elements[:manifest.length] {
-		g_fake.loaded_manifest[i] = {strings.clone(roc_str_string(&entry.name), context.temp_allocator), entry.id}
+		mesh := strings.clone(roc_str_string(&entry.name), context.temp_allocator)
+		g_fake.loaded_manifest[i] = {mesh, entry.id}
+		for &clip in entry.clips.elements[:entry.clips.length] {
+			name := strings.clone(roc_str_string(&clip.name), context.temp_allocator)
+			append(&clips, Fake_Clip{mesh, name, clip.id, clip.duration})
+		}
 	}
+	g_fake.loaded_clips = clips[:]
 	roc_list_decref(manifest)
 
 	g_fake.loaded_out = fake_box_new()
@@ -871,6 +887,28 @@ test_seam_step_runs_a_load_after_step_and_calls_loaded_before_view :: proc(t: ^t
 	testing.expect_value(t, g_fake.loaded_at, Fake_Command_Run{steps = 1, views = 1})
 	testing.expect_value(t, g_fake.views, 2)
 	testing.expect_value(t, g_fake.view_box, g_fake.loaded_out)
+}
+
+@(test)
+test_loaded_lists_the_clips_of_each_skinned_mesh_with_ids_unique_across_the_pack :: proc(t: ^testing.T) {
+	files := make(map[string][]byte, context.temp_allocator)
+	files["meshes/pip.glb"] = PIP_GLB
+	files["meshes/strip.glb"] = SKINNED_GLB
+	dir := temp_assets_dir(t, files)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir)
+	defer fake_seam_shutdown(&s)
+
+	fake_step_with(&s, fake_load("room", "pip", "primitive/cube", "strip"))
+	want := []Fake_Clip{{"pip", "Idle", 1, 2}, {"pip", "Walk", 2, 1}, {"strip", "Bend", 3, 1}}
+	testing.expectf(t, slice.equal(g_fake.loaded_clips, want), "the Clips are %v", g_fake.loaded_clips)
+
+	fake_step_with(&s, fake_load("hall", "strip"))
+	testing.expect(t, slice.equal(g_fake.loaded_clips, want[2:]))
 }
 
 @(test)

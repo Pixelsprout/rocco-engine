@@ -147,6 +147,14 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 	return manifest, true
 }
 
+// The mesh a Manifest line names, if the line names a loaded mesh.
+pack_line_mesh :: proc(p: ^Packs, line: Manifest_Line) -> (mesh: ^Mesh, ok: bool) {
+	if pack_kind(line.name) != .Mesh {
+		return nil, false
+	}
+	return mesh_lookup(p.meshes, line.id)
+}
+
 // Unloads each asset no other loaded pack holds. An unknown pack gives
 // ok = false.
 pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
