@@ -31,16 +31,12 @@ skinned_glb :: proc(t: ^testing.T, edits: ..[2]string, loc := #caller_location) 
 	return glb_make(json, bin)
 }
 
-// world * inverse bind of each Joint in its rest TRS.
 rest_skin_matrices :: proc(skin: Skin) -> []Mat4 {
-	world := make([]Mat4, len(skin.joints), context.temp_allocator)
+	skin := skin
+	locals := make([]Joint_Trs, len(skin.joints), context.temp_allocator)
+	skin_sample(&skin, nil, 0, locals)
 	out := make([]Mat4, len(skin.joints), context.temp_allocator)
-	for joint, j in skin.joints {
-		local := linalg.matrix4_from_trs_f32(joint.rest.translation, joint.rest.rotation, joint.rest.scale)
-		parent := world[joint.parent] if joint.parent != -1 else mat4_identity()
-		world[j] = parent * joint.base * local
-		out[j] = world[j] * joint.inverse_bind
-	}
+	skin_compose(&skin, locals, out)
 	return out
 }
 
@@ -176,7 +172,7 @@ test_glb_puts_each_joint_after_its_parent :: proc(t: ^testing.T) {
 	testing.expect_value(t, channels[1].joint, 2)
 }
 
-// Blender's inverse bind matrices include the armature node above the root bone.
+// Blender's inverse bind matrices include the armature node above the root Joint.
 @(test)
 test_glb_folds_the_nodes_above_the_root_joint_into_its_base :: proc(t: ^testing.T) {
 	rig := SKIN_FIXTURE_LAST_NODE + `,{"name":"rig","translation":[0,0,5],"children":[1]}`
@@ -262,6 +258,13 @@ test_glb_rejects_each_skin_and_clip_the_engine_cannot_draw :: proc(t: ^testing.T
 	bytes := skinned_glb(t, {SKIN_FIXTURE_LAST_NODE, strings.to_string(extra_nodes)}, {SKIN_FIXTURE_JOINTS, strings.to_string(joints)})
 	_, _, err := glb_parse(bytes, context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.Too_Many_Joints)
+}
+
+@(test)
+test_glb_rejects_two_skins_in_a_file_whose_mesh_nodes_have_no_skin :: proc(t: ^testing.T) {
+	skins := `"skins":[{"joints":[0]},{"joints":[0]}],`
+	_, _, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES, extra = skins), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Two_Skins)
 }
 
 @(test)

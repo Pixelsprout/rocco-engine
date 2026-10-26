@@ -255,6 +255,9 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	if json.unmarshal(json_chunk, &l.gltf, allocator = context.temp_allocator) != nil {
 		return {}, {}, .Bad_Json
 	}
+	if len(l.gltf.skins) > 1 {
+		return {}, {}, .Two_Skins
+	}
 
 	for root in glb_roots(&l.gltf) {
 		glb_visit(&l, root, mat4_identity(), 0) or_return
@@ -392,8 +395,7 @@ glb_node_local :: proc(node: ^Gltf_Node) -> Mat4 {
 	t := node.translation.? or_else {0, 0, 0}
 	r := node.rotation.? or_else {0, 0, 0, 1}
 	s := node.scale.? or_else {1, 1, 1}
-	q := quaternion(w = r[3], x = r[0], y = r[1], z = r[2])
-	return linalg.matrix4_translate_f32(t) * linalg.matrix4_from_quaternion_f32(q) * linalg.matrix4_scale_f32(s)
+	return linalg.matrix4_translate_f32(t) * linalg.matrix4_from_quaternion_f32(key_rotation(r)) * linalg.matrix4_scale_f32(s)
 }
 
 // glTF stores a matrix column-major.
