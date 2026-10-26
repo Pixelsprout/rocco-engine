@@ -203,7 +203,10 @@ map it. With no input the player carries no drops, so the Scene has no
 Group. pong expects 6 allocs and 1 realloc: the box shell, the nodes list,
 the ui list, the scoreboard's children and its two cells' children. The
 realloc is the concat that joins the scoreboard, the banner and the hints.
-Each count records what the game makes today. None is a target. The games
+Tutorial chapter 10 expects 14 allocs and 6 reallocs: its `view` builds the
+Nodes, the pickup Draws and Colliders, the HUD with its count text and the
+Loops, and each concat grows a list. It is the one skinned game in the
+check. Each count records what the game makes today. None is a target. The games
 stay in plain Roc, so a change that moves a count updates the script, and
 its commit says why. The script rebuilds the host with
 `host --release --track-alloc` and fails on a `LEAK` or `BAD Free` line. It
@@ -258,8 +261,10 @@ game by hand, or import its `Bridge` class in a Python script.
 drives tutorial chapter 3 and checks that Pip moves and that the screenshot
 has the right size. Then it drives chapter 8 to a pickup and checks that the
 `step` reply holds the `Play` of the blip. Then it walks Pip in chapter 9
-with a pad's stick halfway up and checks the half speed. Last it drives
-pong and checks that the `scene` reply holds a Box nested in a Box.
+with a pad's stick halfway up and checks the half speed. Then it holds D in
+chapter 10, checks that Pip's Pose faded to Walk, and saves a screenshot of
+Pip mid-walk. Last it drives pong and checks that the `scene` reply holds a
+Box nested in a Box.
 
 ### Docs
 
@@ -487,7 +492,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `guide/` | The docs for game authors. `guide/install.md` is the first page. `guide/tutorial/` holds the tutorial chapters and `guide/images/` their screenshots. See "Docs". |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
-| `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game and pong. |
+| `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game, pong and tutorial chapter 10. |
 | `scripts/host-check.sh` | Checks that linking cards, entity-game and pong does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |
 | `scripts/macos-sysroot/` | The reviewed catalog of macOS system symbols, its `PROVENANCE.md`, and `evidence.py`, which adds a symbol with its evidence. |
@@ -500,7 +505,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op. |
-| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then walks Pip in chapter 9 with a Bridge pad's stick, then checks pong's nested Boxes in the `scene` reply. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then walks Pip in chapter 9 with a Bridge pad's stick, then walks Pip in chapter 10 and checks its Pose and a screenshot, then checks pong's nested Boxes in the `scene` reply. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |

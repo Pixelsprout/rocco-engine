@@ -63,7 +63,9 @@ the host does not stop. It logs once and carries on:
 
 - `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
 - `draws`: the host draws the first Draws of the Scene, in the order of a
-  depth-first walk of `Scene.nodes`, and drops the rest.
+  depth-first walk of `Scene.nodes`, and drops the rest. It also draws at
+  most 256 Draws of skinned meshes, or `draws` if that is lower, in the
+  same order.
 - `groups`: the host pairs the first Groups of the Scene, in the same
   order. Every Group still draws its children, but a Group past the
   capacity does not interpolate. See [Groups](scene.md#groups).

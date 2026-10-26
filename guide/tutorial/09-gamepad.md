@@ -240,6 +240,6 @@ pad sends nothing to a window in the back. Then read the limits for your OS
 in [Gamepads](../gamepad.md#limits). On Windows, a pad that
 you plug in can take a second to appear.
 
-The tutorial goes on when rocco gets animation. Until then, read
-[Gamepads](../gamepad.md) for the triggers, the slots and the Bridge, or
-[Shipping a game](../shipping.md) to build your game for other people.
+Next, read [10. Animation](10-animation.md). It plays the Idle and Walk
+Clips on Pip, so it walks instead of gliding. For the triggers, the slots
+and the Bridge, read [Gamepads](../gamepad.md).
