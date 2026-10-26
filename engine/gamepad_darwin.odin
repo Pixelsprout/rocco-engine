@@ -37,27 +37,44 @@ Gc_Axis :: struct {
 	using _: NS.Object,
 }
 
-// The GCController class. It is nil when GameController did not load, and
-// then each poll reports no pads.
+// GameController reads Bluetooth and MFi pads. The GIP reader reads wired
+// Xbox One pads, which GameController never lists.
 Gamepad_Reader :: struct {
+	// The GCController class. It is nil when GameController did not load,
+	// and then GameController reports no pads.
 	controller_class: NS.Class,
+	gip:              Gip_Reader,
 }
 
 // dlerror is not in the macOS catalog, so the log gives no reason.
 gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
+	gip_reader_init(&reader.gip)
 	if posix.dlopen(GC_FRAMEWORK, posix.RTLD_LOCAL + {.LAZY}) == nil {
-		fmt.eprintln("the GameController framework did not load. The run reads no gamepads.")
+		fmt.eprintln("the GameController framework did not load. The run reads only wired Xbox One pads.")
 		return
 	}
 	reader.controller_class = NS.objc_lookUpClass("GCController")
 	if reader.controller_class == nil {
-		fmt.eprintln("GameController has no GCController class. The run reads no gamepads.")
+		fmt.eprintln("GameController has no GCController class. The run reads only wired Xbox One pads.")
 	}
+}
+
+gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
+	n := gamepad_gc_poll(reader, out)
+	return n + gip_reader_poll(&reader.gip, out[n:])
+}
+
+// dyld does not unload an image that holds Objective-C classes, so the
+// reader does not dlclose GameController.
+gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
+	gip_reader_shutdown(&reader.gip)
+	reader^ = {}
 }
 
 // The list can stay empty for the first frames, because AppKit connects the
 // pads on the main run loop.
-gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
+@(private = "file")
+gamepad_gc_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int {
 	if reader.controller_class == nil {
 		return 0
 	}
@@ -82,12 +99,6 @@ gamepad_reader_poll :: proc(reader: ^Gamepad_Reader, out: []Gamepad_Raw) -> int 
 		n += 1
 	}
 	return n
-}
-
-// dyld does not unload an image that holds Objective-C classes, so the
-// reader does not dlclose GameController.
-gamepad_reader_shutdown :: proc(reader: ^Gamepad_Reader) {
-	reader^ = {}
 }
 
 @(private = "file")

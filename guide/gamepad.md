@@ -268,19 +268,29 @@ On every OS:
 - No Guide button, and no button pictures for the prompts in your UI.
 - At most 4 pads.
 - The dead zones are fixed. A game cannot change them.
-- The host reads the pads once per frame. On macOS and Windows it polls
-  the state of each pad, so a tap shorter than one frame can be lost
-  there. On Linux it reads every button event, so it keeps such a tap,
+- The host reads the pads once per frame. Through GameController on macOS,
+  and on Windows, it polls the state of each pad, so a tap shorter than
+  one frame can be lost there. For a wired Xbox One pad on macOS, and on
+  Linux, it reads every report or button event, so it keeps such a tap,
   and the step gets the press.
 - A Headless run reads no pads. While the Bridge is on, only the Bridge
   pads reach the game.
 
 **macOS** reads the pads that Apple's GameController knows: Microsoft's
 Xbox Wireless pads over Bluetooth, and PlayStation, Switch Pro and MFi pads.
+The host also reads wired Xbox One pads from other brands, such as the PDP
+Afterglow, by itself.
 
-- A wired Xbox One pad from another brand, such as the PDP Afterglow, does
-  not appear. macOS has no driver for it, so GameController never sees it.
-  A later release reads these pads itself.
+- macOS has no driver for a wired Xbox One pad from another brand, so
+  GameController never sees it. The host speaks the pad's own USB
+  protocol, GIP, to read it. You install nothing.
+- A wired pad that you plug in can take up to 1 s to appear. The host
+  checks for a new one once a second.
+- An official Microsoft Xbox pad on a cable is left to GameController.
+  Whether GameController reads it on a cable has not been checked. Use
+  Bluetooth if it does not appear.
+- Only one program can read a wired Xbox One pad at a time. Close an
+  emulator or another game that reads the pad before you start yours.
 - GameController sends nothing while the game window is not in front.
 - GameController applies its own small dead zone before the host's.
 - A pad that is connected at start can take a few frames to appear.
