@@ -471,7 +471,7 @@ test_frame_render_blends_the_pose_of_each_root_and_grouped_draw :: proc(t: ^test
 }
 
 @(test)
-test_draw_pose_lerp_blends_a_time_only_on_the_same_clip_going_forward :: proc(t: ^testing.T) {
+test_draw_pose_lerp_blends_a_time_on_its_clip_going_forward_and_the_fade_on_both_clips :: proc(t: ^testing.T) {
 	Case :: struct {
 		name:       string,
 		prev, curr: Draw_Pose,
@@ -499,6 +499,12 @@ test_draw_pose_lerp_blends_a_time_only_on_the_same_clip_going_forward :: proc(t:
 			{clip = 3, time = 1, fade_clip = 5, fade_time = 0, fade = 0},
 			{clip = 3, time = 2, fade_clip = 6, fade_time = 0.4, fade = 0.8},
 			{clip = 3, time = 1.25, fade_clip = 6, fade_time = 0.4, fade = 0.8},
+		},
+		{
+			"new clip with the same fade clip takes the current fade",
+			{clip = 3, time = 1, fade_clip = 5, fade_time = 0, fade = 0},
+			{clip = 4, time = 2, fade_clip = 5, fade_time = 0.4, fade = 0.8},
+			{clip = 4, time = 2, fade_clip = 5, fade_time = 0.1, fade = 0.8},
 		},
 	}
 	for c in cases {

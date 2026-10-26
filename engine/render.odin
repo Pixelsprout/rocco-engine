@@ -11,8 +11,8 @@ SKINNED_DRAW_LIMIT :: 256
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must fit one.
 DRAW_LIMIT :: ((1 << 31 - 1) / UNIFORM_ALIGN - 16 - 2 * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) / 3
 
-// The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN)
+// The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 
 SHADOW_DEPTH_BIAS :: f32(0)
@@ -231,8 +231,7 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
 	case .Shadow:
 		// sokol discards depth at the end of a pass unless told to store it.
 		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
-		sg.apply_pipeline(r.shadow_pip)
-		r.applied = r.shadow_pip
+		renderer_apply_pipeline(r, r.shadow_pip)
 	case .Main:
 		r.applied = {}
 		r.swapchain = sglue.swapchain()
@@ -252,32 +251,41 @@ renderer_end_pass :: proc(ctx: rawptr) {
 // A nil skin draws a rigid mesh.
 renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
-	pip := r.skinned_shadow_pip if skin != nil else r.shadow_pip
-	if r.applied != pip {
-		sg.apply_pipeline(pip)
-		r.applied = pip
-	}
+	renderer_apply_skin(r, r.shadow_pip, r.skinned_shadow_pip, skin)
 	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
 	vs := vs_params
 	sg.apply_uniforms(UB_shadow_vs_params, {ptr = &vs, size = size_of(Shadow_Vs_Params)})
-	if skin != nil {
-		sg.apply_uniforms(UB_skin_params, {ptr = skin, size = size_of(Skin_Params)})
-	}
 	sg.draw(0, mesh.index_count, 1)
 }
 
 renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 	r := (^Renderer)(ctx)
 	r.lights = lights
-	renderer_apply_main(r, r.pip)
+	renderer_apply_pipeline(r, r.pip)
 }
 
-// sokol keeps the applied fs_lights only until the next apply_pipeline.
-@(private = "file")
-renderer_apply_main :: proc(r: ^Renderer, pip: sg.Pipeline) {
+// Every apply_pipeline of a pass goes through here, so r.applied stays true.
+// sokol drops the applied fs_lights at each apply_pipeline, so the Main
+// pass applies them again after a change to a mesh pipeline.
+renderer_apply_pipeline :: proc(r: ^Renderer, pip: sg.Pipeline) {
 	sg.apply_pipeline(pip)
 	r.applied = pip
-	sg.apply_uniforms(UB_fs_lights, {ptr = &r.lights, size = size_of(Fs_Lights)})
+	if pip == r.pip || pip == r.skinned_pip {
+		sg.apply_uniforms(UB_fs_lights, {ptr = &r.lights, size = size_of(Fs_Lights)})
+	}
+}
+
+// Changes to the rigid or the skinned pipeline of the pass when the Draw
+// needs the other one, then applies the skin block of a skinned Draw.
+@(private = "file")
+renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Skin_Params) {
+	pip := skinned if skin != nil else rigid
+	if r.applied != pip {
+		renderer_apply_pipeline(r, pip)
+	}
+	if skin != nil {
+		sg.apply_uniforms(UB_skin_params, {ptr = skin, size = size_of(Skin_Params)})
+	}
 }
 
 // A nil skin draws a rigid mesh. Each change between the rigid and the
@@ -285,10 +293,7 @@ renderer_apply_main :: proc(r: ^Renderer, pip: sg.Pipeline) {
 // for one change per Frame.
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
-	pip := r.skinned_pip if skin != nil else r.pip
-	if r.applied != pip {
-		renderer_apply_main(r, pip)
-	}
+	renderer_apply_skin(r, r.pip, r.skinned_pip, skin)
 	base, metallic_roughness := mesh_textures(mesh, r.white)
 	sg.apply_bindings(
 		{
@@ -303,9 +308,6 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 	fs := fs_params
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
 	sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
-	if skin != nil {
-		sg.apply_uniforms(UB_skin_params, {ptr = skin, size = size_of(Skin_Params)})
-	}
 
 	sg.draw(0, mesh.index_count, 1)
 }
@@ -314,8 +316,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r := (^Renderer)(ctx)
 	cube := &r.meshes.meshes[Primitive.Cube]
-	sg.apply_pipeline(r.sky_pip)
-	r.applied = r.sky_pip
+	renderer_apply_pipeline(r, r.sky_pip)
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = cube.vertices},

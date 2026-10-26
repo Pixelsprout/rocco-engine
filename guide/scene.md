@@ -145,10 +145,11 @@ that has the same `id` in the previous Scene. It interpolates `pos`,
 A Draw with no partner simply draws where it is.
 
 The host blends the `pose` too. The `time` blends when the `clip` is the
-same in both Scenes and the time did not go back. The `fade` blends when
-the `fade_clip` is the same, and the `fade_time` blends by the same rule
-as the `time`. Anything else takes the current value, so a looping time
-that wraps back to the start does not play the Clip backwards for a frame.
+same in both Scenes and the time did not go back. The `fade_time` blends
+by the same rule with the `fade_clip`. The `fade` blends only when both
+the `clip` and the `fade_clip` are the same. Anything else takes the
+current value, so a looping time that wraps back to the start does not
+play the Clip backwards for a frame.
 
 So the ids matter. Follow these rules:
 
