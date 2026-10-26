@@ -146,16 +146,18 @@ Mesh :: struct {
 // After mesh_table_upload, a new mesh uploads when it is added. The table
 // owns each loaded mesh's name and data. The slots never grow.
 Mesh_Table :: struct {
-	meshes:     []Mesh,
-	count:      int,
-	free:       []int,
-	free_count: int,
-	logged:     map[u32]struct {},
+	meshes:       []Mesh,
+	count:        int,
+	free:         []int,
+	free_count:   int,
+	logged:       map[u32]struct {},
+	// The Clip ids that skin_matrices found on another mesh.
+	clips_logged: map[u32]struct {},
 	// Clip ids are never reused, so a stale Clip id names no Clip.
-	next_clip:  u32,
-	uploaded:   bool,
-	allocator:  mem.Allocator,
-	perm:       mem.Allocator,
+	next_clip:    u32,
+	uploaded:     bool,
+	allocator:    mem.Allocator,
+	perm:         mem.Allocator,
 }
 
 // A skinned mesh has one Influence per vertex. Its skin moves to the Mesh
@@ -180,6 +182,7 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 	t.meshes = make([]Mesh, capacity, perm)
 	t.free = make([]int, capacity, perm)
 	t.logged = make(map[u32]struct {}, allocator)
+	t.clips_logged = make(map[u32]struct {}, allocator)
 	t.next_clip = 1
 	for p in Primitive {
 		box := mesh_box(primitive_build(p, context.temp_allocator).vertices)
@@ -198,6 +201,7 @@ mesh_table_destroy :: proc(t: ^Mesh_Table) {
 		}
 	}
 	delete(t.logged)
+	delete(t.clips_logged)
 	delete(t.meshes, t.perm)
 	delete(t.free, t.perm)
 }
