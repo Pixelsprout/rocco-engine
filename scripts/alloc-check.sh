@@ -20,7 +20,7 @@
 # in place. The sokol and Clay inputs must
 # already be in place for this machine. Each game opens a window. Do not type
 # into it: a key press allocates the Input lists. A connected gamepad also
-# allocates them, so unplug every pad first.
+# allocates them, so the runs set ROCCO_NO_GAMEPADS=1.
 # RUN_PREFIX wraps each run, for example "xvfb-run -a" in the Linux image.
 set -eu
 cd "$(dirname "$0")/.."
@@ -58,7 +58,7 @@ for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1; do
 			exit 1
 		fi
 		set +e
-		(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES ROCCO_ALLOC_REPORT=1 ${RUN_PREFIX:-} "$bin") > "$log" 2>&1
+		(cd "examples/$game" && ROCCO_EXIT_AFTER_FRAMES=$FRAMES ROCCO_ALLOC_REPORT=1 ROCCO_NO_GAMEPADS=1 ${RUN_PREFIX:-} "$bin") > "$log" 2>&1
 		code=$?
 		set -e
 		if [ "$code" -ne 0 ]; then
@@ -93,7 +93,7 @@ for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1; do
 		' "$log"; then
 			echo "PASS: $game --opt=$opt"
 		else
-			echo "FAIL: $game --opt=$opt. Each extra alloc and dealloc pair is usually a held or pressed key or a connected gamepad: keep your hands off the game window and unplug every pad." >&2
+			echo "FAIL: $game --opt=$opt. Each extra alloc and dealloc pair is usually a held or pressed key: keep your hands off the game window." >&2
 			failed=1
 		fi
 	done

@@ -100,13 +100,14 @@ Set a variable before the command, for example
 | `ROCCO_LOCKSTEP=1` | Lockstep: each frame runs one fixed step and draws once, whatever the time. Turns vsync off. `0` is the real clock. |
 | `ROCCO_HEADLESS=1` | Headless: Lockstep with no window and no GPU. Needs `ROCCO_EXIT_AFTER_FRAMES` or `ROCCO_BRIDGE`. |
 | `ROCCO_BRIDGE=N` | Turns on [the Bridge](bridge.md) on port N of 127.0.0.1. N is a port from 1 to 65535. The run is Lockstep that pauses until a Driver asks for steps. |
+| `ROCCO_NO_GAMEPADS=1` | Reads no gamepads. `Input.gamepads` stays empty, even with a pad connected. The Bridge pads still reach the game. |
 | `ROCCO_ALLOC_REPORT=1` | Prints one line for each fixed step: the Roc allocations, frees and reallocations, the live blocks, and the time of `step` and `view` in microseconds. |
 | `ROCCO_ASSETS=path` | Gives the path of the `assets` folder. See [Assets and Packs](assets.md). |
 
 The host checks the values of `ROCCO_SEED`, `ROCCO_EXIT_AFTER_FRAMES`,
 `ROCCO_LOCKSTEP`, `ROCCO_HEADLESS` and `ROCCO_BRIDGE`. If one of them is not
-valid, the game prints the rule and exits with code 1. `ROCCO_DEBUG_CAMERA`
-and `ROCCO_ALLOC_REPORT` are on only for the value `1`.
+valid, the game prints the rule and exits with code 1. `ROCCO_DEBUG_CAMERA`,
+`ROCCO_NO_GAMEPADS` and `ROCCO_ALLOC_REPORT` are on only for the value `1`.
 
 `ROCCO_SPANS_CSV` is only for a host that an engine developer builds with
 Spans. A release host stops with exit code 1 if it is set.

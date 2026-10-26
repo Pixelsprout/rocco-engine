@@ -20,6 +20,7 @@ State :: struct {
 	input:             Input_Latch,
 	input_buffers:     Input_Buffers,
 	gamepad_reader:    Gamepad_Reader,
+	read_gamepads:     bool,
 	renderer:          Renderer,
 	debug_camera:      Debug_Camera,
 	use_debug_camera:  bool,
@@ -59,6 +60,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	audio_init(&g_state.audio, device = g_state.mode != .Headless)
 	g_state.use_debug_camera = debug_camera_from_env()
 	g_state.alloc_report = alloc_report_from_env()
+	g_state.read_gamepads = !no_gamepads_from_env()
 
 	camera_init(&g_state.debug_camera)
 
@@ -160,7 +162,9 @@ init_cb :: proc "c" () {
 	g_state.frame_render.submit_sky = renderer_sky
 	g_state.frame_render.submit_ui = renderer_ui
 	g_state.frame_render.submit_ctx = &g_state.renderer
-	gamepad_reader_init(&g_state.gamepad_reader)
+	if g_state.read_gamepads {
+		gamepad_reader_init(&g_state.gamepad_reader)
+	}
 }
 
 frame_cb :: proc "c" () {
@@ -177,7 +181,9 @@ frame_cb :: proc "c" () {
 	if g_state.bridge.quit {
 		sapp.request_quit()
 	}
-	gamepads_poll(&g_state.input.gamepads, &g_state.gamepad_reader)
+	if g_state.read_gamepads {
+		gamepads_poll(&g_state.input.gamepads, &g_state.gamepad_reader)
+	}
 	frame_run(
 		&g_state,
 		{
@@ -216,7 +222,9 @@ app_shutdown :: proc() {
 	frame_render_destroy(&g_state.frame_render)
 
 	if g_state.mode != .Headless {
-		gamepad_reader_shutdown(&g_state.gamepad_reader)
+		if g_state.read_gamepads {
+			gamepad_reader_shutdown(&g_state.gamepad_reader)
+		}
 		sg.shutdown()
 	}
 	memory_shutdown(&g_state.mem)
