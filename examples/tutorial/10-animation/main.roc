@@ -100,10 +100,9 @@ step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model,
 step = |model, input, results, dt| {
 	contacts = results.contacts
 	next = match model.phase {
-		Playing => collect(model, contacts) |> push_out(contacts) |> walk(input, dt) |> raise_door(dt) |> win(contacts)
-		Won => spin(model, dt)
+		Playing => collect(model, contacts) |> push_out(contacts) |> walk(input, dt) |> raise_door(dt) |> win(contacts) |> animate(input_speed(input), dt)
+		Won => spin(model, dt) |> animate(0.0, dt)
 	}
-		|> animate(model.pos, dt)
 	{ model: next, commands: quit(input).concat(blip(model, next)) }
 }
 
@@ -198,11 +197,17 @@ clamp_to_disc = |v|
 		v
 	}
 
+# region: move
 # W and the stick pushed up move away from the camera, toward -z.
+move_dir : Vocabulary.Input -> Vec3
+move_dir = |input| {
+	stick = left_stick(input)
+	clamp_to_disc({ x: Key.axis(input, A, D) + stick.x, y: 0.0, z: Key.axis(input, W, S) - stick.y })
+}
+
 walk : Model, Vocabulary.Input, F32 -> Model
 walk = |model, input, dt| {
-	stick = left_stick(input)
-	dir = clamp_to_disc({ x: Key.axis(input, A, D) + stick.x, y: 0.0, z: Key.axis(input, W, S) - stick.y })
+	dir = move_dir(input)
 	if dir == V.zero {
 		model
 	} else {
@@ -210,6 +215,8 @@ walk = |model, input, dt| {
 		{ ..model, pos: { x: keep_on_ground(moved.x), y: 0.0, z: keep_on_ground(moved.z) }, yaw: F32.atan2({ x: dir.z, y: dir.x }) }
 	}
 }
+
+# endregion
 
 keep_on_ground : F32 -> F32
 keep_on_ground = |v| F32.max(-edge, F32.min(v, edge))
@@ -223,17 +230,21 @@ walk_speed = 2.5
 fade_seconds : F32
 fade_seconds = 0.2
 
-# Idle plays at its own pace. Walk plays as fast as Pip moves, so the feet
-# keep up with the ground. The fade moves toward Walk while Pip moves.
-animate : Model, Vec3, F32 -> Model
-animate = |model, before, dt| {
+# The speed that the keys and the sticks ask Pip to walk at, in units each second.
+input_speed : Vocabulary.Input -> F32
+input_speed = |input| speed * V.length(move_dir(input))
+
+# Idle plays at its own pace. Walk plays at the speed the input asks for, so
+# the feet keep up with the ground. The fade moves toward Walk while the input
+# asks Pip to walk.
+animate : Model, F32, F32 -> Model
+animate = |model, walking_speed, dt| {
 	c = model.clips
 	a = model.animation
-	moved = V.length(V.sub(model.pos, before))
 	step_fade = dt / fade_seconds
-	fade = if moved > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
+	fade = if walking_speed > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
 	idle_time = Pose.loop(a.idle_time + dt, c.idle_duration)
-	walk_time = Pose.loop(a.walk_time + moved / walk_speed, c.walk_duration)
+	walk_time = Pose.loop(a.walk_time + dt * walking_speed / walk_speed, c.walk_duration)
 	{ ..model, animation: { idle_time, walk_time, fade } }
 }
 
@@ -535,7 +546,7 @@ expect {
 animated : Model
 animated = { ..start, clips: { idle: 1, walk: 2, idle_duration: 2.0, walk_duration: 1.0 } }
 
-# One step of W fades halfway to Walk. Walk moves by the distance over walk_speed.
+# One step of W fades halfway to Walk. Walk moves by dt x speed / walk_speed.
 expect {
 	a = step(animated, hold([W]), QueryResults.empty, 0.1).model.animation
 	near(a.fade, 0.5) and near(a.walk_time, 0.1) and near(a.idle_time, 0.1)
@@ -558,6 +569,20 @@ expect {
 expect {
 	half_up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 0.5 } }
 	near(step(animated, with_pads([half_up]), QueryResults.empty, 0.1).model.animation.walk_time, 0.05)
+}
+
+# The shut door pushes Pip back with no key held, and Pip does not walk.
+expect {
+	at_door = { ..animated, pos: { x: 0.0, y: 0.0, z: -2.6 } }
+	a = step(at_door, Input.empty, contact_with(door_id), 0.1).model.animation
+	a.fade == 0.0 and a.walk_time == 0.0
+}
+
+# After the win, Pip spins in Idle, even with W held.
+expect {
+	won = { ..animated, phase: Won, animation: { idle_time: 0.0, walk_time: 0.5, fade: 1.0 } }
+	a = step(won, hold([W]), QueryResults.empty, 0.1).model.animation
+	near(a.fade, 0.5) and a.walk_time == 0.5
 }
 
 # Each time wraps back to the start of its Clip.
