@@ -19,7 +19,7 @@ TUTORIAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 FIXTURE = os.path.join(TUTORIAL, "..", "..", "engine", "testdata", "skinned.glb")
 
 # Each chapter app keeps its own copy, so it runs with no ROCCO_ASSETS.
-CHAPTERS = ["02-character", "03-moving", "04-lights", "05-pickups", "06-door", "07-hud", "08-sound", "09-gamepad"]
+CHAPTERS = ["02-character", "03-moving", "04-lights", "05-pickups", "06-door", "07-hud", "08-sound", "09-gamepad", "10-animation"]
 
 # The loader draws every part with the first part's roughness and metallic,
 # so all materials share them.

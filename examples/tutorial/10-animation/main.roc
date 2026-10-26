@@ -1,8 +1,8 @@
 app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../../packages/ui/main.roc" }
 
-# A draft of chapter 10: chapter 9 with Idle and Walk on Pip. Ticket j7qp6ugu
-# writes the chapter and its guide page.
+# guide/tutorial/10-animation.md copies the regions in this file. Run roc scripts/build.roc docs after a change.
 
+# region: imports
 import cam.Camera as Cam
 import linalg.Vec3 as V
 import linalg.Quat
@@ -23,6 +23,7 @@ import pf.Query
 import pf.QueryResults
 import pf.Scene
 import pf.Sound
+# endregion
 
 # id is the draw id of the pickup and of its Collider.
 Pickup : { id : U64, pos : Vec3 }
@@ -32,17 +33,21 @@ Phase : [Playing, Won]
 # A Sound id of 0 plays nothing.
 Sounds : { blip : U32, hum : U32, music : U32 }
 
-# A Clip id of 0 draws the bind pose. Each duration is 0 until loaded gives it.
+# region: model
+# A Clip id of 0 is no Clip, so Pip stands in its bind pose. Each duration is
+# 0 until loaded gives it.
 Clips : { idle : U32, walk : U32, idle_duration : F32, walk_duration : F32 }
 
-# The times are seconds into each Clip, not yet wrapped. fade goes from 0,
-# all Idle, to 1, all Walk.
+# Each time is in seconds, wrapped into its Clip. fade goes from 0, all Idle,
+# to 1, all Walk.
 Animation : { idle_time : F32, walk_time : F32, fade : F32 }
 
 # pip is 0, the fallback mesh, and each Sound id is 0 until loaded gives the ids.
 # yaw turns Pip about +y. At 0, Pip faces +z.
 # door_lift goes from 0, shut, to door_height, open.
 Model : { cube : U32, sphere : U32, pip : U32, sounds : Sounds, clips : Clips, animation : Animation, pos : Vec3, yaw : F32, pickups : List(Pickup), door_lift : F32, phase : Phase }
+
+# endregion
 
 ground_id : U64
 ground_id = 1
@@ -67,6 +72,7 @@ start_pickups = [
 	{ id: 14, pos: { x: 1.8, y: 0.45, z: 1.9 } },
 ]
 
+# region: init
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| {
 	clips = { idle: 0, walk: 0, idle_duration: 0.0, walk_duration: 0.0 }
@@ -75,6 +81,9 @@ init = |_config| {
 	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
 }
 
+# endregion
+
+# region: loaded
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
 	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
@@ -84,6 +93,9 @@ loaded = |model, _pack, manifest| {
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), sounds, clips }
 }
 
+# endregion
+
+# region: step
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| {
 	contacts = results.contacts
@@ -94,6 +106,8 @@ step = |model, input, results, dt| {
 		|> animate(model.pos, dt)
 	{ model: next, commands: quit(input).concat(blip(model, next)) }
 }
+
+# endregion
 
 # A blip plays once when Pip collects a pickup. Two pickups in one step make one blip.
 blip : Model, Model -> List(Command)
@@ -197,36 +211,43 @@ walk = |model, input, dt| {
 	}
 }
 
-# Walk matches this ground speed, in units each second.
-walk_clip_speed : F32
-walk_clip_speed = 2.5
+keep_on_ground : F32 -> F32
+keep_on_ground = |v| F32.max(-edge, F32.min(v, edge))
 
-# Seconds to fade all the way from Idle to Walk.
+# region: animate
+# The ground speed that the feet of the Walk Clip match, in units each second.
+walk_speed : F32
+walk_speed = 2.5
+
+# Seconds to fade all the way from Idle to Walk, or back.
 fade_seconds : F32
 fade_seconds = 0.2
 
-# Idle always plays. Walk plays at the speed Pip moves, and the fade turns
-# toward Walk while Pip moves.
+# Idle plays at its own pace. Walk plays as fast as Pip moves, so the feet
+# keep up with the ground. The fade moves toward Walk while Pip moves.
 animate : Model, Vec3, F32 -> Model
 animate = |model, before, dt| {
-	moved = V.length(V.sub(model.pos, before))
+	c = model.clips
 	a = model.animation
-	target = if moved > 0.0 1.0 else 0.0
+	moved = V.length(V.sub(model.pos, before))
 	step_fade = dt / fade_seconds
-	fade = if target > a.fade F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
-	walk_time = a.walk_time + moved / walk_clip_speed
-	{ ..model, animation: { idle_time: a.idle_time + dt, walk_time, fade } }
+	fade = if moved > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
+	idle_time = Pose.loop(a.idle_time + dt, c.idle_duration)
+	walk_time = Pose.loop(a.walk_time + moved / walk_speed, c.walk_duration)
+	{ ..model, animation: { idle_time, walk_time, fade } }
 }
 
+# endregion
+
+# region: pose
 pip_pose : Model -> Vocabulary.Pose
 pip_pose = |model| {
 	c = model.clips
 	a = model.animation
-	{ clip: c.idle, time: Pose.loop(a.idle_time, c.idle_duration), fade_clip: c.walk, fade_time: Pose.loop(a.walk_time, c.walk_duration), fade: a.fade }
+	{ clip: c.idle, time: a.idle_time, fade_clip: c.walk, fade_time: a.walk_time, fade: a.fade }
 }
 
-keep_on_ground : F32 -> F32
-keep_on_ground = |v| F32.max(-edge, F32.min(v, edge))
+# endregion
 
 # A cool sky lights the sides that the sun misses.
 sky_light : Vocabulary.Light
@@ -275,6 +296,7 @@ loops = |model| {
 camera_offset : Vec3
 camera_offset = { x: 0.0, y: 3.6, z: 4.5 }
 
+# region: view
 view : Model -> Vocabulary.Scene
 view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
@@ -292,6 +314,8 @@ view = |model| {
 	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries, ui: hud(model), loops: loops(model) }
 }
+
+# endregion
 
 # A line of HUD text never wraps.
 label : Str -> Ui.Text
@@ -360,27 +384,7 @@ expect {
 # With no key, Pip stays where it is and keeps its yaw.
 expect {
 	turned = { ..start, yaw: 1.0 }
-	after = step(turned, Input.empty, QueryResults.empty, 0.1).model
-	after.pos == turned.pos and after.yaw == turned.yaw
-}
-
-# Walking fades toward Walk and moves the walk time with the distance.
-expect {
-	a = step(start, hold([W]), QueryResults.empty, 0.1).model.animation
-	near(a.fade, 0.5) and near(a.walk_time, 0.1) and near(a.idle_time, 0.1)
-}
-
-# Standing still fades back toward Idle.
-expect {
-	walking = { ..start, animation: { idle_time: 0.0, walk_time: 0.0, fade: 1.0 } }
-	near(step(walking, Input.empty, QueryResults.empty, 0.1).model.animation.fade, 0.5)
-}
-
-# The view wraps each time into its Clip.
-expect {
-	clips = { idle: 1, walk: 2, idle_duration: 2.0, walk_duration: 1.0 }
-	pose = pip_pose({ ..start, clips, animation: { idle_time: 5.0, walk_time: 1.25, fade: 0.5 } })
-	pose.clip == 1 and near(pose.time, 1.0) and pose.fade_clip == 2 and near(pose.fade_time, 0.25) and pose.fade == 0.5
+	step(turned, Input.empty, QueryResults.empty, 0.1).model == turned
 }
 
 contact_with : U64 -> Vocabulary.QueryResults
@@ -512,7 +516,7 @@ expect {
 }
 
 # A pad at rest leaves Pip where it is.
-expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).model.pos == start.pos
+expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).model == start
 
 # Start pressed on any pad quits, here on the pad in slot 2.
 expect {
@@ -525,3 +529,47 @@ expect {
 	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
+
+# region: tests
+# Pip after loaded, with the Idle Clip 2 s long and the Walk Clip 1 s long.
+animated : Model
+animated = { ..start, clips: { idle: 1, walk: 2, idle_duration: 2.0, walk_duration: 1.0 } }
+
+# One step of W fades halfway to Walk. Walk moves by the distance over walk_speed.
+expect {
+	a = step(animated, hold([W]), QueryResults.empty, 0.1).model.animation
+	near(a.fade, 0.5) and near(a.walk_time, 0.1) and near(a.idle_time, 0.1)
+}
+
+# The fade stops at 1, all Walk.
+expect {
+	walking = { ..animated, animation: { idle_time: 0.0, walk_time: 0.0, fade: 0.9 } }
+	step(walking, hold([W]), QueryResults.empty, 0.1).model.animation.fade == 1.0
+}
+
+# Standing still fades back toward Idle, and the walk time stays.
+expect {
+	walking = { ..animated, animation: { idle_time: 0.0, walk_time: 0.5, fade: 1.0 } }
+	a = step(walking, Input.empty, QueryResults.empty, 0.1).model.animation
+	near(a.fade, 0.5) and a.walk_time == 0.5
+}
+
+# The stick halfway up plays Walk at half speed.
+expect {
+	half_up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 0.5 } }
+	near(step(animated, with_pads([half_up]), QueryResults.empty, 0.1).model.animation.walk_time, 0.05)
+}
+
+# Each time wraps back to the start of its Clip.
+expect {
+	late = { ..animated, animation: { idle_time: 1.95, walk_time: 0.95, fade: 1.0 } }
+	a = step(late, hold([W]), QueryResults.empty, 0.1).model.animation
+	near(a.idle_time, 0.05) and near(a.walk_time, 0.05)
+}
+
+# Pip's Draw plays Idle and fades to Walk.
+expect {
+	pose = pip_pose({ ..animated, animation: { idle_time: 1.5, walk_time: 0.25, fade: 0.5 } })
+	pose == { clip: 1, time: 1.5, fade_clip: 2, fade_time: 0.25, fade: 0.5 }
+}
+# endregion
