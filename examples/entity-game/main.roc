@@ -856,7 +856,7 @@ pi = 3.1415927
 
 # What the engine would hand loaded on this machine.
 manifest : Manifest
-manifest = [{ name: "sprout", id: 4 }, { name: "sky/meadow", id: 1 }]
+manifest = [{ name: "sprout", id: 4, clips: [] }, { name: "sky/meadow", id: 1, clips: [] }]
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)

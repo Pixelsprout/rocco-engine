@@ -141,8 +141,8 @@ previous Scene and the current one.
 
 To do that, the host pairs each Draw in the current Scene with the Draw
 that has the same `id` in the previous Scene. It interpolates `pos`,
-`scale`, `rot` and `scale_rot` between the two, but not `mesh` or `tint`. A
-Draw with no partner simply draws where it is.
+`scale`, `rot` and `scale_rot` between the two, but not `mesh`, `tint` or
+`pose`. A Draw with no partner simply draws where it is.
 
 So the ids matter. Follow these rules:
 

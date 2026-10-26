@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Ve
 import pf.Light
 import pf.QueryResults
 import pf.Launch
+import pf.Pose
 import "../model-size/model.golden" as golden_model : Str
 
 # The tuned Model size bench game. It has the behaviour of bench/model-size,
@@ -120,7 +121,7 @@ add_draws = |nodes, m, n, i| {
 }
 
 cube_draw : U32, U64, Vec3 -> Draw
-cube_draw = |mesh, id, pos| { id, mesh, pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 } }
+cube_draw = |mesh, id, pos| { id, mesh, pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, pose: Pose.still(0, 0.0) }
 
 with_lights : List(Vocabulary.Node) -> List(Vocabulary.Node)
 with_lights = |nodes| nodes

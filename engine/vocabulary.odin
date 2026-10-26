@@ -7,7 +7,8 @@ package engine
 // Box background. A nominal type keeps its own name, so Element is
 // Roc_VocabularyElement and Node is Roc_VocabularyNode. The glue names the
 // fields of a Box and a Group _0 (the config, or the Group's id and Pose)
-// and _1 (the children).
+// and _1 (the children). A Draw's pose is a Draw_Pose, because the host's
+// Pose is a position and a rot.
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
 Window :: Roc_Launch_Window
@@ -24,6 +25,7 @@ Place :: Roc_Init_Commands_Play_At
 Place_Tag :: Roc_Init_Commands_Play_At_Tag
 Place_At :: Roc_Init_Commands_Play_At_At
 Manifest_Entry :: Roc_Loaded_Arg2
+Manifest_Clip :: Roc_Loaded_Arg2_Clips
 Query_Results :: Roc_Step_Arg2
 Contact :: Roc_Step_Arg2_Contacts
 Ray_Hit :: Roc_Step_Arg2_Rays
@@ -33,6 +35,7 @@ Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag
 Group :: Roc_VocabularyNode_Group
 Draw :: Roc_VocabularyNode_Draw
+Draw_Pose :: Roc_VocabularyNode_Draw_Pose
 Collider :: Roc_VocabularyNode_Collider
 Query :: Roc_View_Queries
 Loop :: Roc_View_Loops

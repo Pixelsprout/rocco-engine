@@ -20,7 +20,7 @@ Sound := [].{
 	play = |id| Play({ sound: id, gain: 1.0, pitch: 1.0, at: Here })
 }
 
-expect Sound.resolve([{ name: "pip", id: 4 }, { name: "sound/jump", id: 65541 }], "sound/jump") == 65541
-expect Sound.resolve([{ name: "sound/jump", id: 0 }], "sound/jump") == 0
-expect Sound.resolve([{ name: "sound/jump", id: 5 }], "sound/jmup") == 0
+expect Sound.resolve([{ name: "pip", id: 4, clips: [] }, { name: "sound/jump", id: 65541, clips: [] }], "sound/jump") == 65541
+expect Sound.resolve([{ name: "sound/jump", id: 0, clips: [] }], "sound/jump") == 0
+expect Sound.resolve([{ name: "sound/jump", id: 5, clips: [] }], "sound/jmup") == 0
 expect Sound.play(3) == Play({ sound: 3, gain: 1.0, pitch: 1.0, at: Here })

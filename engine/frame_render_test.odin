@@ -191,6 +191,14 @@ test_draw_interpolates_scale_rot :: proc(t: ^testing.T) {
 	expect_quat_near(t, x.scale_rotation, quat_from_axis_angle(UP, 0.25))
 }
 
+@(test)
+test_draw_takes_the_current_pose :: proc(t: ^testing.T) {
+	prev := Draw{rot = IDENTITY, scale_rot = IDENTITY, pose = {clip = 1, time = 0.2, fade_clip = 2, fade_time = 0.1, fade = 0.25}}
+	curr := Draw{rot = IDENTITY, scale_rot = IDENTITY, pose = {clip = 1, time = 0.4, fade_clip = 2, fade_time = 0.3, fade = 0.5}}
+	x := draw_transform_at_root(&prev, &curr, 0.5)
+	testing.expect_value(t, x.pose, curr.pose)
+}
+
 // A root Draw paired with prev, as the Frame's walk places it.
 draw_transform_at_root :: proc(prev, curr: ^Draw, alpha: f32) -> Draw_Transform {
 	paired := Prev_Pose {
@@ -426,6 +434,22 @@ test_frame_render_draws_a_draw_with_no_partner_at_itself :: proc(t: ^testing.T) 
 
 	testing.expect_value(t, len(got), 1)
 	expect_mat4_near(t, got[0].model, draw_model_matrix({position = {4, 0, 0}, scale = {1, 1, 1}, rotation = quat_from_axis_angle(UP, 1)}))
+}
+
+@(test)
+test_frame_render_places_each_draw_with_its_current_pose :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 3, time = 0.5}}}
+	child := []Node{node_draw({id = 2, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 4, time = 1}})}
+	curr := []Node{node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = 3, time = 0.75}}), node_group(9, {}, IDENTITY, child)}
+	frame_fixture_draw(&f, scene_of(prev), {nodes = roc_list_view(curr)}, 0.5)
+
+	testing.expect_value(t, len(f.fr.placed), 2)
+	testing.expect_value(t, f.fr.placed[0].transform.pose, Draw_Pose{clip = 3, time = 0.75})
+	testing.expect_value(t, f.fr.placed[1].transform.pose, Draw_Pose{clip = 4, time = 1})
 }
 
 @(test)

@@ -72,6 +72,7 @@ Draw_Transform :: struct {
 	scale:          [3]f32,
 	rotation:       quaternion128,
 	scale_rotation: quaternion128,
+	pose:           Draw_Pose,
 }
 
 // A Draw at its interpolated pose, kept so both passes use one transform.
@@ -534,7 +535,7 @@ pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
 
 // world is the Draw's Pose for this Frame. A Draw with no partner passes
 // itself as prev. A Group has no scale, so scale and scale_rot interpolate
-// on their own.
+// on their own. pose takes the current values.
 draw_transform :: #force_inline proc(prev, curr: ^Draw, world: Pose, alpha: f32) -> Draw_Transform {
 	return {
 		position = world.pos,
@@ -542,6 +543,7 @@ draw_transform :: #force_inline proc(prev, curr: ^Draw, world: Pose, alpha: f32)
 		rotation = world.rot,
 		// Most draws keep one scale_rot, so most skip the slerp.
 		scale_rotation = quat_of(curr.scale_rot) if prev.scale_rot == curr.scale_rot else quat_slerp(quat_of(prev.scale_rot), quat_of(curr.scale_rot), alpha),
+		pose = curr.pose,
 	}
 }
 
