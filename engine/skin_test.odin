@@ -10,7 +10,6 @@ skinned_fixture_data :: proc(t: ^testing.T) -> Mesh_Data {
 	return data
 }
 
-// The fixture spans x -0.5..0.5 and y 0..2, so each side grows by 0.5.
 @(test)
 test_mesh_table_pads_the_box_of_a_skinned_mesh_by_a_quarter_of_its_largest_side :: proc(t: ^testing.T) {
 	table: Mesh_Table

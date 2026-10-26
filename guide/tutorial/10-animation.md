@@ -137,8 +137,35 @@ The host has no clock for a Clip. Each step, the Model moves the time of
 each Clip, and `view` tells the host which Clip to draw at which time. That
 keeps `step` pure: a test can put Pip at any moment of any Clip.
 
-In `step`, pipe the next Model through `animate`. It runs after the
-`match`, so it sees how far Pip moved in this step, in either phase:
+Walk should play at the speed you ask Pip to walk at. That speed comes
+from the input, so first pull the direction out of `walk` into its own
+function, `move_dir`:
+
+<!-- region: examples/tutorial/10-animation/main.roc#move -->
+```roc
+# W and the stick pushed up move away from the camera, toward -z.
+move_dir : Vocabulary.Input -> Vec3
+move_dir = |input| {
+	stick = left_stick(input)
+	clamp_to_disc({ x: Key.axis(input, A, D) + stick.x, y: 0.0, z: Key.axis(input, W, S) - stick.y })
+}
+
+walk : Model, Vocabulary.Input, F32 -> Model
+walk = |model, input, dt| {
+	dir = move_dir(input)
+	if dir == V.zero {
+		model
+	} else {
+		moved = V.add(model.pos, V.scale(dir, speed * dt))
+		{ ..model, pos: { x: keep_on_ground(moved.x), y: 0.0, z: keep_on_ground(moved.z) }, yaw: F32.atan2({ x: dir.z, y: dir.x }) }
+	}
+}
+```
+<!-- endregion -->
+
+In `step`, pipe the next Model through `animate` in each phase. While
+playing, it gets the speed the input asks for. After the win, Pip spins in
+place, so it gets 0:
 
 <!-- region: examples/tutorial/10-animation/main.roc#step -->
 ```roc
@@ -146,10 +173,9 @@ step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model,
 step = |model, input, results, dt| {
 	contacts = results.contacts
 	next = match model.phase {
-		Playing => collect(model, contacts) |> push_out(contacts) |> walk(input, dt) |> raise_door(dt) |> win(contacts)
-		Won => spin(model, dt)
+		Playing => collect(model, contacts) |> push_out(contacts) |> walk(input, dt) |> raise_door(dt) |> win(contacts) |> animate(input_speed(input), dt)
+		Won => spin(model, dt) |> animate(0.0, dt)
 	}
-		|> animate(model.pos, dt)
 	{ model: next, commands: quit(input).concat(blip(model, next)) }
 }
 ```
@@ -167,28 +193,36 @@ walk_speed = 2.5
 fade_seconds : F32
 fade_seconds = 0.2
 
-# Idle plays at its own pace. Walk plays as fast as Pip moves, so the feet
-# keep up with the ground. The fade moves toward Walk while Pip moves.
-animate : Model, Vec3, F32 -> Model
-animate = |model, before, dt| {
+# The speed that the keys and the sticks ask Pip to walk at, in units each second.
+input_speed : Vocabulary.Input -> F32
+input_speed = |input| speed * V.length(move_dir(input))
+
+# Idle plays at its own pace. Walk plays at the speed the input asks for, so
+# the feet keep up with the ground. The fade moves toward Walk while the input
+# asks Pip to walk.
+animate : Model, F32, F32 -> Model
+animate = |model, walking_speed, dt| {
 	c = model.clips
 	a = model.animation
-	moved = V.length(V.sub(model.pos, before))
 	step_fade = dt / fade_seconds
-	fade = if moved > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
+	fade = if walking_speed > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
 	idle_time = Pose.loop(a.idle_time + dt, c.idle_duration)
-	walk_time = Pose.loop(a.walk_time + moved / walk_speed, c.walk_duration)
+	walk_time = Pose.loop(a.walk_time + dt * walking_speed / walk_speed, c.walk_duration)
 	{ ..model, animation: { idle_time, walk_time, fade } }
 }
 ```
 <!-- endregion -->
 
+- `input_speed` is Pip's `speed` times the length of `move_dir`. With the
+  stick pushed halfway, it is half of `speed`.
 - Idle's time moves by `dt`, so Idle plays at its own pace.
-- Walk's time moves by the distance Pip moved over `walk_speed`. That is
-  `dt * speed / walk_speed`. At full speed the Walk Clip plays at its
-  normal pace, and the feet keep up with the ground. With the stick pushed
-  halfway, Pip walks at half speed, and so does the Clip. When Pip stops,
-  the Walk time stops too.
+- Walk's time moves by `dt * walking_speed / walk_speed`. At full speed the
+  Walk Clip plays at its normal pace, and the feet keep up with the ground.
+  With the stick pushed halfway, Pip walks at half speed, and so does the
+  Clip. When you let go, the Walk time stops too.
+- The speed comes from the input, not from how far Pip moved. The shut
+  door pushes Pip back with no key held, and that push should not play
+  Walk.
 - `Pose.loop(time, duration)` wraps a time into the range from 0 up to the
   duration, so the Clip repeats. Wrap the time each step, and it stays
   small enough for an `F32` to keep it exact. Before `loaded`, the
@@ -200,9 +234,9 @@ its last frame.
 
 ## The fade
 
-The `fade` goes from 0, all Idle, to 1, all Walk. While Pip moves, it rises
-by `dt / fade_seconds` each step, and while Pip stands, it falls by the same
-amount. So it takes 0.2 s to fade all the way from one Clip to the other.
+The `fade` goes from 0, all Idle, to 1, all Walk. While you ask Pip to
+walk, it rises by `dt / fade_seconds` each step, and while you do not, it
+falls by the same amount. So it takes 0.2 s to fade all the way from one Clip to the other.
 Halfway through, Pip is half in Idle and half in Walk.
 
 You do not mix the Clips yourself. The host samples both Clips at their own
@@ -290,7 +324,7 @@ like Pip's position. Add these tests below the tests from chapter 9:
 animated : Model
 animated = { ..start, clips: { idle: 1, walk: 2, idle_duration: 2.0, walk_duration: 1.0 } }
 
-# One step of W fades halfway to Walk. Walk moves by the distance over walk_speed.
+# One step of W fades halfway to Walk. Walk moves by dt x speed / walk_speed.
 expect {
 	a = step(animated, hold([W]), QueryResults.empty, 0.1).model.animation
 	near(a.fade, 0.5) and near(a.walk_time, 0.1) and near(a.idle_time, 0.1)
@@ -313,6 +347,20 @@ expect {
 expect {
 	half_up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 0.5 } }
 	near(step(animated, with_pads([half_up]), QueryResults.empty, 0.1).model.animation.walk_time, 0.05)
+}
+
+# The shut door pushes Pip back with no key held, and Pip does not walk.
+expect {
+	at_door = { ..animated, pos: { x: 0.0, y: 0.0, z: -2.6 } }
+	a = step(at_door, Input.empty, contact_with(door_id), 0.1).model.animation
+	a.fade == 0.0 and a.walk_time == 0.0
+}
+
+# After the win, Pip spins in Idle, even with W held.
+expect {
+	won = { ..animated, phase: Won, animation: { idle_time: 0.0, walk_time: 0.5, fade: 1.0 } }
+	a = step(won, hold([W]), QueryResults.empty, 0.1).model.animation
+	near(a.fade, 0.5) and a.walk_time == 0.5
 }
 
 # Each time wraps back to the start of its Clip.

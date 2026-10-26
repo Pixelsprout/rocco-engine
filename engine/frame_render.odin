@@ -69,6 +69,7 @@ Frame_Render :: struct {
 	lights_logged:      bit_set[Light_Drop],
 	draws_logged:       bool,
 	skinned_logged:     bool,
+	allocator:          mem.Allocator,
 }
 
 Draw_Transform :: struct {
@@ -116,6 +117,14 @@ Prev_Draw :: struct {
 	parent_unpaired: bool,
 }
 
+// placed_next gives the rigid Draws first, then the skinned ones, so the
+// renderer changes pipeline once per pass.
+Placed_Order :: struct {
+	placed:  []Placed,
+	skinned: bool,
+	next:    int,
+}
+
 // What the Frame's walk of the current Scene gathers.
 @(private = "file")
 Frame_Walk :: struct {
@@ -143,6 +152,7 @@ Camera_Pose :: struct {
 
 frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, perm: mem.Allocator) {
 	fr.draw_capacity = draws
+	fr.allocator = perm
 	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
 	fr.skins = make([]Skin_Params, skinned_draw_capacity(draws), perm)
@@ -150,7 +160,7 @@ frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, perm: mem.Alloc
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
 	pairing_destroy(&fr.pairing)
-	delete(fr.skins, fr.placed.allocator)
+	delete(fr.skins, fr.allocator)
 	delete(fr.placed)
 }
 
@@ -238,21 +248,19 @@ frame_render_draw :: proc(
 
 	frame_render_begin_pass(fr, .Main, 0, &span)
 	fr.submit_lights(fr.submit_ctx, lights)
-	for skinned in ([2]bool{false, true}) {
-		for p in fr.placed {
-			if (p.skin != nil) != skinned {
-				continue
-			}
-			tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
-			material := p.mesh.material
-			fr.submit(
-				fr.submit_ctx,
-				p.mesh,
-				vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
-				fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
-				skin = p.skin,
-			)
-		}
+	order := Placed_Order {
+		placed = fr.placed[:],
+	}
+	for p in placed_next(&order) {
+		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
+		material := p.mesh.material
+		fr.submit(
+			fr.submit_ctx,
+			p.mesh,
+			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
+			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
+			skin = p.skin,
+		)
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
@@ -320,14 +328,31 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, spa
 	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
 	frame_render_begin_pass(fr, .Shadow, 0, span)
-	for skinned in ([2]bool{false, true}) {
-		for p in fr.placed {
-			if (p.skin != nil) == skinned {
-				fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
-			}
-		}
+	order := Placed_Order {
+		placed = fr.placed[:],
+	}
+	for p in placed_next(&order) {
+		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
 	}
 	fr.end_pass(fr.submit_ctx)
+}
+
+placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
+	for {
+		if order.next == len(order.placed) {
+			if order.skinned {
+				return nil, false
+			}
+			order.skinned = true
+			order.next = 0
+			continue
+		}
+		p = &order.placed[order.next]
+		order.next += 1
+		if (p.skin != nil) == order.skinned {
+			return p, true
+		}
+	}
 }
 
 // On Metal, the first begin_pass of a Frame waits for a free in-flight frame,
@@ -596,16 +621,18 @@ draw_transform :: #force_inline proc(prev, curr: ^Draw, world: Pose, alpha: f32)
 
 // A time blends only when its Clip is the same in both Scenes and the time
 // did not go back, as it does when the game wraps a loop. The fade blends
-// when the fade Clip is the same. The rest takes the current values.
+// only when both Clips are the same. The rest takes the current values.
 draw_pose_lerp :: proc(prev, curr: Draw_Pose, alpha: f32) -> Draw_Pose {
 	pose := curr
-	if prev.clip == curr.clip && curr.time >= prev.time {
+	same_clip := prev.clip == curr.clip
+	same_fade_clip := prev.fade_clip == curr.fade_clip
+	if same_clip && curr.time >= prev.time {
 		pose.time = prev.time + (curr.time - prev.time) * alpha
 	}
-	if prev.fade_clip == curr.fade_clip {
-		if curr.fade_time >= prev.fade_time {
-			pose.fade_time = prev.fade_time + (curr.fade_time - prev.fade_time) * alpha
-		}
+	if same_fade_clip && curr.fade_time >= prev.fade_time {
+		pose.fade_time = prev.fade_time + (curr.fade_time - prev.fade_time) * alpha
+	}
+	if same_clip && same_fade_clip {
 		pose.fade = prev.fade + (curr.fade - prev.fade) * alpha
 	}
 	return pose

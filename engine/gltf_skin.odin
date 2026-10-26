@@ -64,9 +64,6 @@ glb_weights_u8 :: proc(weights: [4]f32) -> [4]u8 {
 // first, and the influences and channels take the new Joint indices.
 glb_skin :: proc(l: ^Glb_Loader) -> (skin: Skin, influences: []Influence, err: Glb_Error) {
 	g := &l.gltf
-	if len(g.skins) > 1 {
-		return {}, nil, .Two_Skins
-	}
 	file_joints := g.skins[0].joints
 	count := len(file_joints)
 	if count > MAX_JOINTS {
@@ -201,7 +198,7 @@ glb_node_trs :: proc(node: ^Gltf_Node) -> Joint_Trs {
 	r := node.rotation.? or_else {0, 0, 0, 1}
 	return {
 		translation = node.translation.? or_else {0, 0, 0},
-		rotation = quaternion(w = r[3], x = r[0], y = r[1], z = r[2]),
+		rotation = key_rotation(r),
 		scale = node.scale.? or_else {1, 1, 1},
 	}
 }

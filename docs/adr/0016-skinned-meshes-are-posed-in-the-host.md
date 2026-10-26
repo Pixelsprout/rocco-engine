@@ -19,16 +19,16 @@ stay pure, and each Vocabulary change rebuilds the host and every game
 - The fade is in the one Vocabulary change. The Model moves the weight from
   0 to 1; the host samples both Clips and mixes each Joint, with lerp for
   translation and scale and slerp for rotation. The host clamps the fade to
-  [0, 1]. At 0 it samples only `clip`, and at 1 only `fade_clip`, so a bad
-  Clip id on the unused side has no effect.
-- Clip id 0 on one side of a fade gives the rest pose of each Joint on that
-  side, and the mix runs as usual. Clip id 0 on both sides draws the bind
-  pose.
+  [0, 1]. At 0 it samples only `clip`, and at 1 only `fade_clip`.
+- Clip id 0 on one side of a fade gives each Joint its rest TRS from the
+  file on that side, and the mix runs as usual. Clip id 0 on both sides
+  draws the bind pose.
 - A time before the first key of a channel holds the first key, and a time
   after the last key holds the last key. The host never wraps a time.
 - Each Manifest mesh entry gains `clips : List({ name, id, duration })`.
   Clip ids are unique across a Pack and start at 1. A Draw that names a
-  Clip of another mesh draws the bind pose and logs once for each Clip id.
+  Clip of another mesh on either side draws the bind pose and logs once
+  for each Clip id, even when the fade leaves that side out.
 - The loader keeps a skinned mesh in bind-pose space. A .glb with a Skin
   loads as one skinned mesh. More than one Skin, a mix of skinned and
   unskinned mesh nodes, more than 64 Joints, and CUBICSPLINE keys each fail
@@ -55,8 +55,9 @@ stay pure, and each Vocabulary change rebuilds the host and every game
   engine has no culling, so the box serves the shadow box.
 - Between two Scenes, the renderer blends the time when the Clip is the
   same in both and the time did not go back, as it does when the game wraps
-  a loop. It blends the fade when the fade Clip is the same, and the fade
-  time by the same rule as the time. Otherwise it takes the current values.
+  a loop. It blends the fade time by the same rule with the fade Clip. It
+  blends the fade only when both the Clip and the fade Clip are the same in
+  both. Otherwise it takes the current values.
 
 ## Considered options
 
@@ -68,15 +69,15 @@ stay pure, and each Vocabulary change rebuilds the host and every game
   in the host. The game has the duration.
 - A joint texture or storage buffers for the Joint matrices. Rejected for
   now: no other part of the engine uses them, and the tutorial character
-  needs about 12 Joints. Either is a contained change if a rig needs more
-  than 64.
+  needs about 12 Joints. Either is a contained change if a Skin needs more
+  than 64 Joints.
 - Root motion. Rejected: the Model owns the position.
 - "Animation" as the name of a Clip. Rejected: it also names the feature
   and any value the Model moves each step.
 
 ## Consequences
 
-- A rig with more than 64 Joints and a file that mixes skinned and
+- A Skin with more than 64 Joints and a file that mixes skinned and
   unskinned meshes do not load. The host skips morph weight channels and
   the channels of nodes that are not Joints. Each is a follow-up task.
 - The game cannot read a Joint's position back, so it cannot attach a mesh

@@ -159,19 +159,20 @@ test_skin_matrices_mix_each_joint_of_the_two_clips_at_fade_half :: proc(t: ^test
 	expect_mat4_near(t, out[0], mat4_translate({0, 1, 0}) * mat4_from_quat(quat_from_axis_angle({0, 0, 1}, math.PI / 4)))
 }
 
-// A fade of 0 samples no fade Clip, and a fade of 1 samples no first Clip,
-// so a Clip of another mesh there neither logs nor draws the bind pose.
+// A fade of 0 samples no fade Clip, and a fade of 1 samples no first Clip.
 @(test)
-test_skin_matrices_skip_the_clip_that_the_fade_leaves_out :: proc(t: ^testing.T) {
+test_skin_matrices_draw_the_bind_pose_for_a_clip_of_another_mesh_that_the_fade_leaves_out :: proc(t: ^testing.T) {
 	table := clip_table()
 	defer delete(table.clips_logged)
 	m := chain_mesh()
 	out: [MAX_JOINTS]Mat4
 	skin_matrices(&table, &m, {clip = LEAN, fade_clip = OTHER_CLIP, fade = 0}, &out)
-	expect_mat4_near(t, out[0], mat4_from_quat(quat_from_axis_angle({0, 0, 1}, math.PI / 2)))
+	testing.expect_value(t, out[0], mat4_identity())
+	testing.expect_value(t, out[1], mat4_identity())
 	skin_matrices(&table, &m, {clip = OTHER_CLIP, fade_clip = LEAN, fade = 1}, &out)
-	expect_mat4_near(t, out[0], mat4_from_quat(quat_from_axis_angle({0, 0, 1}, math.PI / 2)))
-	testing.expect_value(t, len(table.clips_logged), 0)
+	testing.expect_value(t, out[0], mat4_identity())
+	testing.expect_value(t, out[1], mat4_identity())
+	testing.expect_value(t, len(table.clips_logged), 1)
 }
 
 @(test)

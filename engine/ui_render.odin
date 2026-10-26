@@ -85,7 +85,7 @@ renderer_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 		copy(g.scratch[i * 4:], corners[:])
 	}
 	sg.update_buffer(g.vertices, {ptr = raw_data(g.scratch), size = uint(len(quads) * 4 * size_of(Ui_Vertex))})
-	sg.apply_pipeline(g.pip)
+	renderer_apply_pipeline(r, g.pip)
 	sg.apply_bindings({vertex_buffers = {0 = g.vertices}, index_buffer = g.indices, views = {VIEW_font_tex = g.atlas.view}, samplers = {SMP_font_smp = g.atlas.sampler}})
 	vs := Ui_Vs_Params{screen = {screen.x, screen.y, 0, 0}}
 	sg.apply_uniforms(UB_ui_vs_params, {ptr = &vs, size = size_of(Ui_Vs_Params)})

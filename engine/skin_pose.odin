@@ -6,20 +6,20 @@ import "core:math/linalg"
 // Fills out with the skin matrices of the Draw's pose and returns the Joint
 // count. A fade of 0 samples only pose.clip, and a fade of 1 only
 // pose.fade_clip. Clip id 0 alone draws the bind pose; mixed with a Clip it
-// gives the rest TRS. A Clip id of another mesh draws the bind pose and logs
-// once, which is the only allocation.
+// gives the rest TRS. A Clip id of another mesh on either side, sampled or
+// not, draws the bind pose and logs once, which is the only allocation.
 skin_matrices :: proc(t: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, out: ^[MAX_JOINTS]Mat4) -> int {
 	count := len(m.skin.joints)
 	fade := clamp(pose.fade, 0, 1)
-	first, second: ^Clip
-	ok := true
-	if fade < 1 {
-		first, ok = skin_clip(t, m, pose.clip)
+	first, first_ok := skin_clip(t, m, pose.clip)
+	second, second_ok := skin_clip(t, m, pose.fade_clip)
+	if fade == 1 {
+		first = nil
 	}
-	if ok && fade > 0 {
-		second, ok = skin_clip(t, m, pose.fade_clip)
+	if fade == 0 {
+		second = nil
 	}
-	if !ok || (first == nil && second == nil) {
+	if !first_ok || !second_ok || (first == nil && second == nil) {
 		for &mat in out[:count] {
 			mat = mat4_identity()
 		}

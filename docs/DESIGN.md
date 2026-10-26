@@ -628,8 +628,9 @@ reach.
 
 The host also blends a draw's `pose`. A `time` blends when its `clip` is
 the same in both `Scene`s and the time did not go back, as it does at a
-loop's wrap. `fade` blends when `fade_clip` is the same, and `fade_time`
-blends by the rule of `time`. Otherwise the pose takes the current values.
+loop's wrap. `fade_time` blends by the rule of `time` with `fade_clip`.
+`fade` blends only when both `clip` and `fade_clip` are the same.
+Otherwise the pose takes the current values.
 
 Draw ids must be unique in a `Scene`, across all Groups. The Frame render
 pairs each current draw with the previous `Scene`. If the previous `Scene`
