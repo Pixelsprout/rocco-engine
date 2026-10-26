@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.4.0 is the latest release.
+  bundles. v0.5.0 is the latest release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
