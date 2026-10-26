@@ -402,7 +402,6 @@ mesh_box :: proc(vertices: []Vertex) -> Box {
 	return box
 }
 
-// Grows the box on every side by share of its largest side.
 box_pad :: proc(box: Box, share: f32) -> Box {
 	size := box.max - box.min
 	pad := share * max(size.x, size.y, size.z)

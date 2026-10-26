@@ -264,7 +264,8 @@ renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 	renderer_apply_pipeline(r, r.pip)
 }
 
-// Every apply_pipeline of a pass goes through here, so r.applied stays true.
+// Every apply_pipeline of the Shadow and Main passes goes through here, so
+// r.applied stays true.
 // sokol drops the applied fs_lights at each apply_pipeline, so the Main
 // pass applies them again after a change to a mesh pipeline.
 renderer_apply_pipeline :: proc(r: ^Renderer, pip: sg.Pipeline) {
