@@ -18,6 +18,10 @@ Built and running:
   is Metal on macOS, GL core on Linux and D3D11 on Windows. One shader
   source in `engine/shaders/basic.glsl` compiles to all three with
   `sokol-shdc`.
+- Skinned meshes: a `.glb` with one Skin of at most 64 Joints loads with
+  its Clips, and the Manifest lists each Clip id. A Draw's `pose` names two
+  Clips, their times and a fade. The host samples and mixes them, and a
+  skinned pipeline poses the mesh on the GPU, shadow included.
 - The generic platform in `docs/DESIGN.md`. `platform/main.roc` names no
   game. The host holds the `Model` as one boxed pointer. The Seam keeps the
   two `Scene`s. The Frame render pairs Draws and Groups by id. It
@@ -1104,7 +1108,19 @@ Check: a Bridge run holds South and reads the result. A person plays Kula
 with an Xbox pad on macOS and on Windows. The alloc check counts do not
 change with no pad connected.
 
-## Milestone 24: Animation
+## Milestone 24: Animation (done)
+
+Results, 2026-10-26: Pip plays Idle while still and Walk while moving in
+tutorial chapter 10, and fades between the two Clips over 0.2 s. A person
+played chapter 10 on macOS. The glTF loader reads one Skin and its Clips,
+and the host samples them in `engine/skin_pose.odin` and skins on the GPU in
+the main and shadow passes. The Bridge check holds D and finds the walk
+screenshot differs from the still one. The alloc check records chapter 10
+at 14 allocs and 6 reallocs per step. Each pass draws at most 256 skinned
+Draws, so the `draws` limit drops from 2796197 to 2793466. CI passes on
+macOS, Linux and Windows (PR #14). Two risks stay open: the skinned GL
+vertex shader needs 268 vec4 of uniforms where GL 4.3 promises 256, and no
+person has run the D3D11 skinned path on a Windows machine.
 
 Done when Pip plays Idle while still and Walk while moving in tutorial
 chapter 10, and fades between the two Clips. Grilled 2026-10-26. The dex task
