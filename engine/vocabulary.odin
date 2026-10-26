@@ -37,8 +37,9 @@ Group :: Roc_VocabularyNode_Group
 Draw :: Roc_VocabularyNode_Draw
 Draw_Pose :: Roc_VocabularyNode_Draw_Pose
 Collider :: Roc_VocabularyNode_Collider
+Speaker :: Roc_VocabularyNode_Speaker
+Speaker_Repeat :: Roc_VocabularyNode_Speaker_Repeat
 Query :: Roc_View_Queries
-Loop :: Roc_View_Loops
 Query_Tag :: Roc_View_Queries_Tag
 Query_Raycast :: Roc_View_Queries_Raycast
 Query_Overlap :: Roc_View_Queries_Overlap

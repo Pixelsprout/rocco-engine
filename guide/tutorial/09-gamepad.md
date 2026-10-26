@@ -51,11 +51,11 @@ import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
-import pf.Loop
 import pf.Query
 import pf.QueryResults
 import pf.Scene
 import pf.Sound
+import pf.Speaker
 ```
 <!-- endregion -->
 

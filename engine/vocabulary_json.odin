@@ -77,8 +77,6 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_write_list(b, scene.ui, json_write_element)
 	json_key(b, "queries")
 	json_write_list(b, scene.queries, json_write_query)
-	json_key(b, "loops")
-	json_write_list(b, scene.loops, json_write_loop)
 	strings.write_byte(b, '}')
 }
 
@@ -130,6 +128,9 @@ json_write_node :: proc(b: ^strings.Builder, node: ^Node) {
 	case .Collider:
 		json_key(b, "Collider", first = true)
 		json_write_collider(b, &node.payload.collider)
+	case .Speaker:
+		json_key(b, "Speaker", first = true)
+		json_write_speaker(b, &node.payload.speaker)
 	}
 	strings.write_byte(b, '}')
 }
@@ -305,17 +306,19 @@ json_write_light :: proc(b: ^strings.Builder, light: ^Light) {
 	strings.write_byte(b, '}')
 }
 
-json_write_loop :: proc(b: ^strings.Builder, loop: ^Loop) {
+json_write_speaker :: proc(b: ^strings.Builder, speaker: ^Speaker) {
 	json_key(b, "id", first = true)
-	strings.write_u64(b, loop.id)
+	strings.write_u64(b, speaker.id)
 	json_key(b, "sound")
-	strings.write_u64(b, u64(loop.sound))
+	strings.write_u64(b, u64(speaker.sound))
 	json_key(b, "gain")
-	json_write_f32(b, loop.gain)
+	json_write_f32(b, speaker.gain)
 	json_key(b, "pitch")
-	json_write_f32(b, loop.pitch)
+	json_write_f32(b, speaker.pitch)
 	json_key(b, "at")
-	json_write_place(b, &loop.at)
+	json_write_place(b, &speaker.at)
+	json_key(b, "repeat")
+	json_write_tag(b, speaker.repeat)
 	strings.write_byte(b, '}')
 }
 

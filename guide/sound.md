@@ -109,28 +109,28 @@ A Loop is a Description, like a Draw. Your game says which sounds repeat
 now, and the host works out what to start and stop. Start each Loop from
 [`Loop.default`][Loop.default] and set its `id` and `sound`:
 
-<!-- region: examples/tutorial/08-sound/main.roc#loops -->
+<!-- region: examples/tutorial/08-sound/main.roc#speakers -->
 ```roc
 # The door's centre, as it rises.
 door_at : Model -> Vec3
 door_at = |model| { ..door_pos, y: door_pos.y + model.door_lift }
 
-music_loop_id : U64
-music_loop_id = 1
+music_speaker_id : U64
+music_speaker_id = 1
 
-hum_loop_id : U64
-hum_loop_id = 2
+hum_speaker_id : U64
+hum_speaker_id = 2
 
 # Past this distance from the camera, the hum is silent.
 hum_range : F32
 hum_range = 10.0
 
 # The hum fades as the door rises, and stops when the door is open.
-loops : Model -> List(Vocabulary.Loop)
-loops = |model| {
-	music = { ..Loop.default, id: music_loop_id, sound: model.sounds.music, gain: 0.5 }
-	hum = { ..Loop.default, id: hum_loop_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
-	if is_open(model) [music] else [music, hum]
+speakers : Model -> List(Vocabulary.Node)
+speakers = |model| {
+	music = { ..Speaker.default, id: music_speaker_id, sound: model.sounds.music, gain: 0.5 }
+	hum = { ..Speaker.default, id: hum_speaker_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
+	if is_open(model) [Speaker(music)] else [Speaker(music), Speaker(hum)]
 }
 ```
 <!-- endregion -->

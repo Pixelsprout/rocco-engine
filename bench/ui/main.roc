@@ -70,7 +70,6 @@ view = |m| {
 	sky: 0,
 	ui: elements(m),
 	queries: [],
-	loops: [],
 }
 
 elements : Model -> List(Element)

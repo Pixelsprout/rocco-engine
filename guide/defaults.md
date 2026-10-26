@@ -51,16 +51,16 @@ those defaults in one place. Each one links to the page that explains it.
 - **Sound id 0 plays nothing.** A misspelt name, a missing file and a stale
   id are silent, with no fallback sound. The host logs each bad id once. See
   [Sound](sound.md#bad-sound-ids).
-- **`Loop.default` has Sound 0 and id 0.** Set `sound` and `id` on each
-  Loop. Loops pair by id, as Draws do.
+- **`Speaker.default` has Sound 0 and id 0.** Set `sound` and `id` on each
+  Speaker. Speakers pair by id, as Draws do.
 - **The Listener is the camera.** A sound placed `At` a point is loud when
   the camera is near it, not when the player is. See
   [Sound](sound.md#the-listener-and-the-place).
-- **A Loop that leaves the Scene stops in 5 milliseconds.** To fade it out,
-  lower its gain over several steps first. See
+- **A Speaker that leaves the Scene stops in 5 milliseconds.** To fade it
+  out, lower its gain over several steps first. See
   [Sound](sound.md#stopping-and-fading).
-- **A Loop repeats with no crossfade.** Its file must loop cleanly, or it
-  clicks each time it repeats.
+- **A `Loop` Speaker repeats with no crossfade.** Its file must loop
+  cleanly, or it clicks each time it repeats.
 
 ## Gamepads
 

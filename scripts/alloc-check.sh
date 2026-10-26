@@ -17,7 +17,7 @@
 # is the concat that joins the scoreboard, the banner and the hints.
 # tutorial/10-animation expects 14 allocs and 6 reallocs: its view builds the
 # Nodes, the pickup Draws and Colliders, the HUD with its count text and the
-# Loops, and each concat grows a list.
+# Speakers, and each concat grows a list.
 # The script rebuilds the host library with the host tracking allocator, and
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must

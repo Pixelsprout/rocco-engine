@@ -316,7 +316,7 @@ unit = |s| (s.shr_zf_wrap(40) % 1000).to_f32() / 1000.0
 # Paddle movement, wall and paddle bounces, scoring and serve state.
 expect launch(Config.empty) == { ..Launch.default, window: { ..Launch.default.window, title: "pong" } }
 expect init(Config.empty).commands == []
-expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9, clips: [] }]).cube == Mesh.primitive(Cube)
+expect loaded(init(Config.empty).model, "pong", [{ name: "cube", id: 9, duration: 0.0, clips: [] }]).cube == Mesh.primitive(Cube)
 
 # A fresh scene draws the floor, two walls, two paddles and the ball.
 expect draw_count(view(init(Config.empty).model)) == 6

@@ -155,6 +155,15 @@ pack_line_mesh :: proc(p: ^Packs, line: Manifest_Line) -> (mesh: ^Mesh, ok: bool
 	return mesh_lookup(p.meshes, line.id)
 }
 
+// A Sound's length in seconds at pitch 1. A mesh, a sky or a name that did
+// not load has 0.
+pack_line_duration :: proc(p: ^Packs, line: Manifest_Line) -> f32 {
+	if pack_kind(line.name) != .Sound {
+		return 0
+	}
+	return sound_duration(&p.audio.sounds, line.id)
+}
+
 // Unloads each asset no other loaded pack holds. An unknown pack gives
 // ok = false.
 pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {

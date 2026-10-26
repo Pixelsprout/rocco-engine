@@ -17,7 +17,7 @@ Audio :: struct {
 	device:       bool,
 	sounds:       Sound_Table,
 	voices:       Voice_Pool,
-	loops:        Loop_Pairing,
+	speakers:     Speaker_Pairing,
 	// The part of a frame that audio_advance has not mixed yet.
 	advance_left: f64,
 }
@@ -45,7 +45,7 @@ audio_init :: proc(audio: ^Audio, device: bool) {
 audio_tables_init :: proc(audio: ^Audio, sounds, voices: int, perm, allocator: mem.Allocator) {
 	sound_table_init(&audio.sounds, sounds, ma_engine_get_sample_rate(&audio.engine), perm, allocator)
 	voice_pool_init(&audio.voices, voices, perm)
-	loop_pairing_init(&audio.loops, voices, allocator)
+	speaker_pairing_init(&audio.speakers, voices, allocator)
 }
 
 // The voices stop before the engine, which each ma_sound_uninit reads, and
@@ -54,7 +54,7 @@ audio_shutdown :: proc(audio: ^Audio) {
 	if !audio.engine_ready {
 		return
 	}
-	loop_pairing_destroy(&audio.loops)
+	speaker_pairing_destroy(&audio.speakers)
 	voice_pool_destroy(&audio.voices)
 	ma_engine_uninit(&audio.engine)
 	sound_table_destroy(&audio.sounds)

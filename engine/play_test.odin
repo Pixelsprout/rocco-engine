@@ -97,6 +97,23 @@ test_a_play_with_no_device_mixes_samples_that_are_not_zero :: proc(t: ^testing.T
 }
 
 @(test)
+test_the_manifest_gives_a_sound_its_duration_and_other_names_0 :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low", "sound/blip", "sound/missing", "cube")})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect_value(t, g_fake.loaded_lengths[0], f32(TONE_FRAMES) / WAV_RATE)
+	testing.expect_value(t, g_fake.loaded_lengths[1], f32(3) / WAV_RATE)
+	testing.expect_value(t, g_fake.loaded_lengths[2], 0)
+	testing.expect_value(t, g_fake.loaded_lengths[3], 0)
+}
+
+@(test)
 test_a_play_mixes_at_its_gain_and_a_negative_gain_is_silent :: proc(t: ^testing.T) {
 	dir := play_assets_dir(t)
 	defer os.remove_all(dir)
@@ -384,7 +401,7 @@ test_audio_advance_mixes_an_engine_with_no_device_in_step_time :: proc(t: ^testi
 }
 
 @(test)
-test_a_play_gets_no_voice_when_loops_hold_every_voice :: proc(t: ^testing.T) {
+test_a_play_gets_no_voice_when_speakers_hold_every_voice :: proc(t: ^testing.T) {
 	dir := play_assets_dir(t)
 	defer os.remove_all(dir)
 	roc_heap_test_begin()
@@ -397,18 +414,18 @@ test_a_play_gets_no_voice_when_loops_hold_every_voice :: proc(t: ^testing.T) {
 	sound, _ := sound_resolve(&g_fake.audio.sounds, low)
 	pool := &g_fake.audio.voices
 	for _ in 0 ..< SMALL_VOICES {
-		index, ok := voice_take(pool, .Loop)
+		index, ok := voice_take(pool, .Speaker)
 		testing.expect(t, ok)
 		testing.expect(t, voice_start(pool, index, &g_fake.audio.engine, sound, low, 1, 1, place_here()))
 	}
-	_, ok := voice_take(pool, .Loop)
+	_, ok := voice_take(pool, .Speaker)
 	testing.expect(t, !ok)
 	testing.expect(t, !pool.steal_logged && !pool.no_play_logged)
 
 	fake_step_with(&s, fake_play(low, 1, 1, place_here()))
 	testing.expect(t, pool.no_play_logged)
 
-	// A Loop's voice repeats past the end of its Sound.
+	// A Speaker's voice repeats past the end of its Sound.
 	mix_skip(TONE_FRAMES + MIX_FRAMES)
 	testing.expect(t, fake_voice_playing(0))
 	testing.expect(t, fake_voice_playing(1))

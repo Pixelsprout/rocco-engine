@@ -168,7 +168,6 @@ view = |m| {
 	sky: 0,
 	ui: elements(m),
 	queries: queries(m.half),
-	loops: [],
 }
 
 # The 4 Lights, then each entity's Draw and Collider, in one list.

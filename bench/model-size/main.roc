@@ -107,7 +107,6 @@ view = |m| {
 		sky: 0,
 		ui: [],
 		queries: [],
-		loops: [],
 	}
 }
 

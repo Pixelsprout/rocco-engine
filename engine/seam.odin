@@ -176,7 +176,7 @@ seam_sound :: proc(s: ^Seam, plays: []Play_Command) {
 	for play in plays {
 		audio_play(s.audio, play)
 	}
-	audio_loops(s.audio, s.curr.loops.elements[:s.curr.loops.length])
+	audio_speakers(s.audio, s.curr.nodes.elements[:s.curr.nodes.length])
 }
 
 // loaded consumes the box, the pack name and the manifest, as step does.
@@ -194,7 +194,7 @@ seam_load :: proc(s: ^Seam, load: ^Load_Command) {
 
 	entries := make([]Manifest_Entry, len(lines), context.temp_allocator)
 	for line, i in lines {
-		entries[i] = {name = roc_str_from_slice(line.name), id = line.id}
+		entries[i] = {name = roc_str_from_slice(line.name), id = line.id, duration = pack_line_duration(s.packs, line)}
 		mesh := pack_line_mesh(s.packs, line) or_continue
 		clips := make([]Manifest_Clip, len(mesh.skin.clips), context.temp_allocator)
 		for clip, c in mesh.skin.clips {

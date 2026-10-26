@@ -285,7 +285,7 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 		}
 	case .Light:
 		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
-	case .Group, .Collider:
+	case .Group, .Collider, .Speaker:
 	}
 }
 
@@ -540,7 +540,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		}
 		local := pose_of(g.pos, g.rot)
 		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
-	case .Light, .Collider:
+	case .Light, .Collider, .Speaker:
 	}
 }
 

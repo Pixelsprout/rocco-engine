@@ -125,10 +125,10 @@ sound_table_remove :: proc(t: ^Sound_Table, slot: int) {
 // Id 0, a stale id and an unknown id play nothing. Each is logged once per
 // run.
 sound_resolve :: proc(t: ^Sound_Table, id: u32) -> (sound: ^Sound, ok: bool) {
-	slot := sound_slot(id)
-	if id != 0 && slot < t.count && t.sounds[slot].live && sound_id(t, slot) == id {
-		return &t.sounds[slot], true
+	if sound, ok = sound_lookup(t, id); ok {
+		return
 	}
+	slot := sound_slot(id)
 	if id not_in t.logged {
 		t.logged[id] = {}
 		stale := slot >= 1 && slot < len(t.sounds) && id >> MESH_SLOT_BITS != u32(t.sounds[slot].generation)
@@ -139,6 +139,24 @@ sound_resolve :: proc(t: ^Sound_Table, id: u32) -> (sound: ^Sound, ok: bool) {
 		} else {
 			fmt.eprintfln("Sound id %v is not in the table; playing nothing", id)
 		}
+	}
+	return nil, false
+}
+
+// The length in seconds at pitch 1, or 0 for an id that plays nothing.
+sound_duration :: proc(t: ^Sound_Table, id: u32) -> f32 {
+	sound, ok := sound_lookup(t, id)
+	if !ok {
+		return 0
+	}
+	return f32(f64(sound.frames) / f64(t.sample_rate))
+}
+
+@(private = "file")
+sound_lookup :: proc(t: ^Sound_Table, id: u32) -> (sound: ^Sound, ok: bool) {
+	slot := sound_slot(id)
+	if id != 0 && slot < t.count && t.sounds[slot].live && sound_id(t, slot) == id {
+		return &t.sounds[slot], true
 	}
 	return nil, false
 }

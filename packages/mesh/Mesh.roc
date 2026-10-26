@@ -3,7 +3,7 @@ Mesh := [].{
 
 	## The name-to-id list that `loaded` gets for one Pack. It has the same
 	## shape as `Vocabulary.Manifest`.
-	Manifest : List({ name : Str, id : U32, clips : List({ name : Str, id : U32, duration : F32 }) })
+	Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
 
 	## The meshes that the engine builds itself. A loaded file has no tag. Give
 	## its name to `resolve`.
@@ -69,10 +69,10 @@ expect Mesh.primitive(Plane) == 3
 
 manifest : Mesh.Manifest
 manifest = [
-	{ name: "sprout", id: 4, clips: [] },
-	{ name: "missing", id: 0, clips: [] },
-	{ name: "pip", id: 5, clips: [{ name: "Idle", id: 1, duration: 2.0 }, { name: "Walk", id: 2, duration: 1.0 }] },
-	{ name: "crab", id: 6, clips: [{ name: "Walk", id: 3, duration: 0.5 }] },
+	{ name: "sprout", id: 4, duration: 0.0, clips: [] },
+	{ name: "missing", id: 0, duration: 0.0, clips: [] },
+	{ name: "pip", id: 5, duration: 0.0, clips: [{ name: "Idle", id: 1, duration: 2.0 }, { name: "Walk", id: 2, duration: 1.0 }] },
+	{ name: "crab", id: 6, duration: 0.0, clips: [{ name: "Walk", id: 3, duration: 0.5 }] },
 ]
 
 expect Mesh.resolve(manifest, "sprout") == 4

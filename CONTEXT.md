@@ -168,7 +168,7 @@ _Avoid_: player index, port, controller id, XInput index
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of root Nodes, a
-Cursor, a sky id, the UI, a list of Queries and a list of Loops. It
+Cursor, a sky id, the UI and a list of Queries. It
 describes what should be on screen now and what can touch. Derived from the
 Model, rebuilt every step, stored by the host and never by the game. Its
 Nodes form a tree, but the host keeps no Node from one Scene to build the
@@ -178,11 +178,11 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Node**:
 One part of the Scene's 3D tree: a Group, which holds its children, or a
-leaf, which is a Draw, a Light or a Collider. The game writes the tags
-itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`. "First"
-among Nodes means first in a depth-first, pre-order walk: a Group, then its
-children, then the Group's next sibling. That is the order the game wrote
-them, read top to bottom.
+leaf, which is a Draw, a Light, a Collider or a Speaker. The game writes
+the tags itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`.
+"First" among Nodes means first in a depth-first, pre-order walk: a Group,
+then its children, then the Group's next sibling. That is the order the
+game wrote them, read top to bottom.
 _Avoid_: scene node, game object, entity, object
 
 **Group**:
@@ -473,34 +473,25 @@ _Avoid_: clip (an animation word), sample, audio file, track, sfx
 
 **Sound id**:
 A number the engine assigns to each Sound it loaded, published in a
-Manifest and carried on a Play or a Loop. Id 0, or an id from an unloaded
-pack, plays nothing and logs once.
-_Avoid_: sound handle, voice, Loop id
+Manifest with the Sound's duration and carried on a Play or a Speaker. Id 0,
+or an id from an unloaded pack, plays nothing and logs once.
+_Avoid_: sound handle, voice, Speaker id
 
 **Play**:
 The Command that starts one Sound once. Nothing pairs it and the game
 cannot stop it; it plays to its end, or until its pack unloads. The host
 starts it after the `view` of the same fixed step, so it sounds from the
-Listener of that Scene. Music that plays once is a Play.
+Listener of that Scene. A sound the game must stop, or one that follows a
+moving object, is a Speaker.
 _Avoid_: one-shot (in the vocabulary), trigger, emit, sfx
-
-**Loop**:
-One entry in `Scene.loops`: a Sound that repeats while its entry stays in
-the Scene. A new Loop id starts it and a missing one stops it. A changed
-gain, pitch or place applies on the next fixed step; a changed Sound id
-restarts it. It is a Description. Music that repeats is a Loop.
-_Avoid_: sound (for the entry), track, channel, ambient, emitter
-
-**Loop id**:
-A stable number on a Loop that pairs it with the Loop of the previous
-Scene, as a Draw id pairs Draws.
-_Avoid_: Sound id, voice id, channel
 
 **Speaker**:
 A Node that plays a Sound while it stays in the Scene. Its `repeat` is
-`Loop` or `Once`; a `Once` that ends stays silent until it leaves. It takes
-its place from the Groups above it. It is a Description, and it replaces the
-Loop in Milestone 26 (ADR 0017).
+`Loop` or `Once`; a `Once` that ends stays silent until it leaves. A new
+Speaker id starts it and a missing one stops it. A changed gain, pitch or
+place applies on the next fixed step; a changed Sound id restarts it. It
+takes its place from the Groups above it. It is a Description (ADR 0017).
+Music that repeats is a Speaker.
 _Avoid_: emitter, source, track, channel, voice, audio player
 
 **Speaker id**:
@@ -509,30 +500,33 @@ Scene anywhere in the tree. Apart from draw ids and Group ids.
 _Avoid_: Sound id, voice id, Loop id
 
 **Listener**:
-The ear for a Play or a Loop placed at a point: the Camera of the current
+The ear for a Play or a Speaker placed at a point: the Camera of the current
 Scene, not the interpolated one. A Sound placed `Here` plays at the
 Listener with no direction.
 _Avoid_: microphone, audio camera, ears
 
 **Place**:
-Where a Play or a Loop sounds: `Here` or `At`. It is their `at` field.
+Where a Play or a Speaker sounds: `Here` or `At`. It is their `at` field.
+A Play's `At` is in the world. A Speaker's `At` is local to its Group, as a
+Draw's `pos` is.
 _Avoid_: position, location, spatial mode
 
 **Here**:
 The Place at the Listener, with no direction and no falloff. `Sound.play`
-and `Loop.default` use it.
+and `Speaker.default` use it. A `Here` Speaker ignores its Group, as an
+Ambient Light does.
 _Avoid_: 2D, non-spatial, global, unplaced
 
 **At**:
-The Place `At({ pos, range })`: a point in the world. The gain falls off
+The Place `At({ pos, range })`: a point. The gain falls off
 linearly from full at the Listener to zero at `range`, as a Point Light
 does, and pans to the side the point is on. A range of 0 or less is silent.
 _Avoid_: 3D, positional, spatial, emitter
 
 **Voice**:
-One Play or one Loop that sounds now. The voice capacity in Launch caps
+One Play or one Speaker that sounds now. The voice capacity in Launch caps
 how many sound at once. When the voices are full, a Play takes the voice of
-the oldest Play, and a new Loop waits silent for a free voice.
+the oldest Play, and a new Speaker waits silent for a free voice.
 _Avoid_: channel, source, instance, Sound
 
 ## Animation

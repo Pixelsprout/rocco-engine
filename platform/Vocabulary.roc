@@ -70,7 +70,7 @@ Vocabulary := [].{
 	Msaa : [Off, X2, X4, X8]
 
 	## The sizes of the engine's tables. Past a capacity, a Load gives id 0,
-	## the host draws the first entries, or a new Loop waits for a voice, and
+	## the host draws the first entries, or a new Speaker waits for a voice, and
 	## the host logs once.
 	##
 	## - `meshes`: mesh slots. At least 4, for the Fallback mesh and the three
@@ -86,9 +86,9 @@ Vocabulary := [].{
 	##   index bound.
 	## - `sounds`: Sound slots. At least 2, for the reserved slot and one Sound,
 	##   and at most 65536.
-	## - `voices`: the Plays and Loops that sound at once. Above zero and at
+	## - `voices`: the Plays and Speakers that sound at once. Above zero and at
 	##   most 65536. When the voices are full, a Play takes the voice of the
-	##   oldest Play, and a new Loop waits silent for a free voice.
+	##   oldest Play, and a new Speaker waits silent for a free voice.
 	Capacity : {
 		meshes : U32,
 		skies : U32,
@@ -105,12 +105,14 @@ Vocabulary := [].{
 	##
 	## - `name`: an asset name from the Load.
 	## - `id`: the mesh, sky or Sound id of the name, or 0.
+	## - `duration`: the length of a Sound in seconds at pitch 1. A mesh, a sky
+	##   or a name that did not load has 0. `Sound.duration` reads it.
 	## - `clips`: the Clips of a skinned mesh, in file order. Every other entry
 	##   has an empty list. Each Clip has its `name` in the file, its Clip
 	##   `id`, and its `duration`, the time of its last key in seconds. Clip
 	##   ids start at 1 and are unique across a Pack. `Mesh.clip` and
 	##   `Mesh.clip_duration` in the mesh package read them.
-	Manifest : List({ name : Str, id : U32, clips : List({ name : Str, id : U32, duration : F32 }) })
+	Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
 
 	## What the host gives `step` each fixed step. Tests start from `Input.empty`.
 	##
@@ -287,14 +289,14 @@ Vocabulary := [].{
 	## - `Group`: a Group id, a Pose and the children. The children's Poses are
 	##   local to the Group. The host pairs a Group with the first Group of the
 	##   same id in the previous Scene. Group ids and draw ids are apart.
-	## - `Draw`, `Light`, `Collider`: the leaves.
+	## - `Draw`, `Light`, `Collider`, `Speaker`: the leaves.
 	##
 	## The host interpolates a Node's local Pose and then composes it, if its
 	## parent Group id is the same in both Scenes. If the parent changed, it
 	## interpolates between the two world Poses. A game with no Groups writes a
 	## flat list of leaves. The type is nominal, because only a nominal
 	## recursive union crosses the seam.
-	Node := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider)].{
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
 
 		## Two Nodes are equal when their tags, payloads and children are
 		## equal. A nominal type gets no `==` of its own.
@@ -305,6 +307,7 @@ Vocabulary := [].{
 				(Draw(draw_a), Draw(draw_b)) => draw_a == draw_b
 				(Light(light_a), Light(light_b)) => light_a == light_b
 				(Collider(collider_a), Collider(collider_b)) => collider_a == collider_b
+				(Speaker(speaker_a), Speaker(speaker_b)) => speaker_a == speaker_b
 				_ => Bool.False
 			}
 	}
@@ -320,36 +323,42 @@ Vocabulary := [].{
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	## - `loops`: the Sounds that repeat while their Loop stays in the Scene.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 
-	## Where a Play or a Loop sounds. The Listener is the Camera of the current
-	## Scene.
+	## Where a Play or a Speaker sounds. The Listener is the Camera of the
+	## current Scene.
 	##
-	## - `Here`: at the Listener, with no direction.
+	## - `Here`: at the Listener, with no direction. A `Here` Speaker ignores
+	##   its Group.
 	## - `At`: at `pos`. It falls off linearly to zero at `range`, as a Point
 	##   Light does, and pans to the side it is on. A `range` of 0 or less is
-	##   silent.
+	##   silent. A Play's `pos` is in the world. A Speaker's `pos` is local to
+	##   its Group, as a Draw's `pos` is.
 	Place : [Here, At({ pos : Vec3, range : F32 })]
 
-	## One Sound that repeats while it stays in `Scene.loops`. Start from
-	## `Loop.default`.
+	## A Sound that the game controls while its Speaker stays in the Scene.
+	## Start from `Speaker.default`.
 	##
-	## - `id`: the Loop id. The host pairs a Loop with the Loop of the same id
-	##   in the previous Scene. A new id starts the Sound and a missing id stops
-	##   it with a short fade. If two Loops in one Scene share an id, the first
-	##   one plays and the host logs once.
+	## - `id`: the Speaker id. The host pairs a Speaker with the Speaker of the
+	##   same id anywhere in the previous Scene, so a Speaker that moves to
+	##   another Group keeps playing. A new id starts the Sound and a missing id
+	##   stops it with a short fade. If two Speakers in one Scene share an id,
+	##   the first in a depth-first walk plays and the host logs once. Speaker
+	##   ids are apart from draw ids and Group ids.
 	## - `sound`: a Sound id from a Manifest. Id 0, or an id that the engine does
 	##   not know, plays nothing and logs once. A changed Sound id restarts the
-	##   Loop.
+	##   Speaker.
 	## - `gain`: linear. 1 plays the Sound as recorded. A negative gain plays
 	##   as 0.
 	## - `pitch`: the playback rate. 1 plays the Sound as recorded. 0 or less
 	##   plays at 1 and logs once.
-	## - `at`: the Place.
+	## - `at`: the Place. The host takes it from the current Scene, with no
+	##   interpolation, as it takes the Listener.
+	## - `repeat`: `Loop` plays the Sound again at its end. `Once` plays it to
+	##   its end. `Sound.duration` gives its length.
 	##
 	## A changed gain, pitch or Place applies on the next fixed step.
-	Loop : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
+	Speaker : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 
 	## If the mouse is `Free` or `Locked`. The host locks or frees the mouse only
 	## when the value changes.
@@ -366,6 +375,7 @@ Vocabulary := [].{
 	## - `Play`: play a Sound once, to its end or until its pack unloads. The
 	##   game cannot stop it. It starts after the `view` of the same step, from
 	##   the Listener of that Scene. `sound`, `gain`, `pitch` and `at` follow
-	##   the rules of a Loop. Build one with `Sound.play`.
+	##   the rules of a Speaker, but `at` is in the world. Build one with
+	##   `Sound.play`.
 	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 }

@@ -71,9 +71,9 @@ the host does not stop. It logs once and carries on:
   capacity does not interpolate. See [Groups](scene.md#groups).
 - `ui_quads`: the host draws the first quads of the UI and drops the rest.
 - `voices`: a `Play` takes the voice of the oldest Play that still sounds.
-  If Loops hold every voice, the Play plays nothing. A new Loop waits
-  silent for a free voice, and starts when one frees if it is still in the
-  Scene.
+  If Speakers hold every voice, the Play plays nothing. A new Speaker
+  waits silent for a free voice, and starts when one frees if it is still
+  in the Scene.
 
 ## The fields
 

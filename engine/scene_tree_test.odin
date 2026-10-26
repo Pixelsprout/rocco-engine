@@ -295,6 +295,10 @@ node_collider :: proc(c: Collider) -> Node {
 	return {tag = .Collider, payload = {collider = c}}
 }
 
+node_speaker :: proc(speaker: Speaker) -> Node {
+	return {tag = .Speaker, payload = {speaker = speaker}}
+}
+
 // In the temp allocator, so a test can return the slice from a helper.
 draw_nodes :: proc(draws: []Draw) -> []Node {
 	nodes := make([]Node, len(draws), context.temp_allocator)

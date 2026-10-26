@@ -7,7 +7,7 @@ It runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and checks
 that Pip's Draw moved by the expected distance. Then it saves a screenshot,
 by default into a temporary folder, and checks its size.
 
-Then it runs tutorial chapter 8, checks its two Loops, and holds W until Pip
+Then it runs tutorial chapter 8, checks its two Speakers, and holds W until Pip
 takes a pickup. The step reply must hold the Play of the blip. A run with no
 audio device still returns the Play, so the check needs no sound card.
 
@@ -46,11 +46,11 @@ EXPECTED_DZ = -2.5 * STEPS / 120
 TOLERANCE = 1e-4
 WINDOW = [960, 540]
 
-# examples/tutorial/08-sound/main.roc: the Loop ids, and the door the hum
+# examples/tutorial/08-sound/main.roc: the Speaker ids, and the door the hum
 # plays at. With W held, Pip touches pickup 12 in step 27 (guide/bridge.md),
 # so the game collects it in step 28.
-MUSIC_LOOP_ID = 1
-HUM_LOOP_ID = 2
+MUSIC_SPEAKER_ID = 1
+HUM_SPEAKER_ID = 2
 HUM_AT = {"At": {"pos": {"x": 0, "y": 1, "z": -2.9}, "range": 10}}
 
 # examples/tutorial/09-gamepad/main.roc: the stick's length scales the speed.
@@ -120,10 +120,11 @@ def drive_moving(b, out):
 def drive_sound(b, _out):
     b.hello()
 
-    loops = b.scene()["scene"]["loops"]
-    check([loop["id"] for loop in loops] == [MUSIC_LOOP_ID, HUM_LOOP_ID], f"the Loops are the music and the hum: {loops}")
-    music, hum = loops
-    check(music["sound"] != 0 and hum["sound"] != 0, f"the Loops have Sound ids {music['sound']} and {hum['sound']}")
+    nodes = b.scene()["scene"]["nodes"]
+    speakers = [node["Speaker"] for node in nodes if "Speaker" in node]
+    check([s["id"] for s in speakers] == [MUSIC_SPEAKER_ID, HUM_SPEAKER_ID], f"the Speakers are the music and the hum: {speakers}")
+    music, hum = speakers
+    check(music["sound"] != 0 and hum["sound"] != 0, f"the Speakers have Sound ids {music['sound']} and {hum['sound']}")
     check(music["at"] == "Here" and hum["at"] == HUM_AT, f"the music plays Here and the hum at the door: {hum['at']}")
 
     stepped = b.step(STEPS, held=["W"])

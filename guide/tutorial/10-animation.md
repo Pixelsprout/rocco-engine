@@ -52,12 +52,12 @@ import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
-import pf.Loop
 import pf.Pose
 import pf.Query
 import pf.QueryResults
 import pf.Scene
 import pf.Sound
+import pf.Speaker
 ```
 <!-- endregion -->
 
@@ -282,8 +282,8 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders)
-	{ ..Scene.empty, camera, nodes, queries, ui: hud(model), loops: loops(model) }
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders).concat(speakers(model))
+	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 ```
 <!-- endregion -->

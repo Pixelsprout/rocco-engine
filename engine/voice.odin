@@ -6,7 +6,7 @@ import "core:mem"
 Voice_Use :: enum u8 {
 	Free,
 	Play,
-	Loop,
+	Speaker,
 }
 
 // One ma_sound and its own data source over the samples of a Sound. A voice
@@ -60,7 +60,7 @@ voice_pool_destroy :: proc(pool: ^Voice_Pool) {
 }
 
 // A free voice, or the voice of a finished sound. When none is left, a Play
-// takes the voice of the oldest Play, and a Loop gets none.
+// takes the voice of the oldest Play, and a Speaker gets none.
 voice_take :: proc(pool: ^Voice_Pool, use: Voice_Use) -> (index: int, ok: bool) {
 	assert(use != .Free)
 	if pool.free_count == 0 {
@@ -69,14 +69,14 @@ voice_take :: proc(pool: ^Voice_Pool, use: Voice_Use) -> (index: int, ok: bool) 
 	if pool.free_count > 0 {
 		pool.free_count -= 1
 		index = pool.free[pool.free_count]
-	} else if use == .Loop {
+	} else if use == .Speaker {
 		return 0, false
 	} else {
 		index, ok = voice_oldest_play(pool)
 		if !ok {
 			if !pool.no_play_logged {
 				pool.no_play_logged = true
-				fmt.eprintfln("all %v voices hold Loops; a Play plays nothing", len(pool.voices))
+				fmt.eprintfln("all %v voices hold Speakers; a Play plays nothing", len(pool.voices))
 			}
 			return 0, false
 		}
@@ -95,7 +95,8 @@ voice_take :: proc(pool: ^Voice_Pool, use: Voice_Use) -> (index: int, ok: bool) 
 }
 
 // Starts a voice from voice_take on sound, which must outlive the voice. A
-// Loop's voice repeats. If miniaudio fails, the voice frees and plays nothing.
+// Speaker's voice repeats. If miniaudio fails, the voice frees and plays
+// nothing.
 voice_start :: proc(pool: ^Voice_Pool, index: int, engine: ^Ma_Engine, sound: ^Sound, sound_id: u32, gain, pitch: f32, at: Place) -> bool {
 	v := &pool.voices[index]
 	assert(v.use != .Free, "voice_take gives the voice")
@@ -115,7 +116,7 @@ voice_start :: proc(pool: ^Voice_Pool, index: int, engine: ^Ma_Engine, sound: ^S
 		voice_free(pool, index)
 		return false
 	}
-	ma_sound_set_looping(&v.sound, b32(v.use == .Loop))
+	ma_sound_set_looping(&v.sound, b32(v.use == .Speaker))
 	ma_sound_set_doppler_factor(&v.sound, 0)
 	voice_set(pool, index, gain, pitch, at)
 	ma_sound_start(&v.sound)
@@ -168,8 +169,8 @@ voice_release :: proc(pool: ^Voice_Pool, index: int) {
 	voice_free(pool, index)
 }
 
-// Frees each voice whose sound has stopped: a Play at its end, or a Loop
-// after its fade.
+// Frees each voice whose sound has stopped: a Play at its end, or a
+// Speaker after its fade.
 voices_reap :: proc(pool: ^Voice_Pool) {
 	for i in 0 ..< len(pool.voices) {
 		if pool.voices[i].use != .Free && !ma_sound_is_playing(&pool.voices[i].sound) {

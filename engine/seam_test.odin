@@ -96,13 +96,13 @@ Fake_Game :: struct {
 	// strings fresh.
 	ui:              []Element,
 	// view returns these. With no draws, it returns one Draw whose id is the
-	// view count. The root Nodes follow the Draws, the Colliders and the
-	// Lights. Each view copies their children lists into Roc lists.
+	// view count. The root Nodes follow the Draws, the Colliders, the Lights
+	// and the Speakers. Each view copies their children lists into Roc lists.
 	camera:          Scene_Camera,
 	draws:           []Draw,
 	nodes:           []Node,
 	lights:          []Light,
-	loops:           []Loop,
+	speakers:        []Speaker,
 	cursor:          Cursor,
 	sky:             u32,
 	commands_out:    int,
@@ -113,6 +113,8 @@ Fake_Game :: struct {
 	loaded_at:       Fake_Command_Run,
 	loaded_pack:     string,
 	loaded_manifest: []Manifest_Line,
+	// The duration of each entry of loaded_manifest.
+	loaded_lengths:  []f32,
 	loaded_clips:    []Fake_Clip,
 	loaded_out:      rawptr,
 	meshes:          Mesh_Table,
@@ -248,10 +250,12 @@ fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_En
 	g_fake.loaded_pack = strings.clone(roc_str_string(&name), context.temp_allocator)
 	roc_decref(pack)
 	g_fake.loaded_manifest = make([]Manifest_Line, manifest.length, context.temp_allocator)
+	g_fake.loaded_lengths = make([]f32, manifest.length, context.temp_allocator)
 	clips := make([dynamic]Fake_Clip, context.temp_allocator)
 	for &entry, i in manifest.elements[:manifest.length] {
 		mesh := strings.clone(roc_str_string(&entry.name), context.temp_allocator)
 		g_fake.loaded_manifest[i] = {mesh, entry.id}
+		g_fake.loaded_lengths[i] = entry.duration
 		for &clip in entry.clips.elements[:entry.clips.length] {
 			name := strings.clone(roc_str_string(&clip.name), context.temp_allocator)
 			append(&clips, Fake_Clip{mesh, name, clip.id, clip.duration})
@@ -292,6 +296,9 @@ fake_view :: proc(model: rawptr) -> Scene {
 	for l in g_fake.lights {
 		append(&nodes, node_light(l))
 	}
+	for speaker in g_fake.speakers {
+		append(&nodes, node_speaker(speaker))
+	}
 	for n in g_fake.nodes {
 		append(&nodes, fake_node_refcounted(n))
 	}
@@ -302,7 +309,6 @@ fake_view :: proc(model: rawptr) -> Scene {
 		sky = g_fake.sky,
 		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
-		loops = roc_list_from_slice(g_fake.loops),
 	}
 }
 

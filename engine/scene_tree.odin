@@ -59,8 +59,8 @@ Tree_Walk :: struct {
 }
 
 // The parent is a pointer, because the walk passes it to every visit. Each
-// caller loops over the root Nodes itself: a root Draw or Collider is at its
-// world Pose already, so only the other root Nodes need the walk.
+// caller loops over the root Nodes itself: a root Draw, Collider or Speaker is
+// at its world Pose already, so only the other root Nodes need the walk.
 tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 	for &node in nodes {
 		walk.visit(walk, &node, parent)

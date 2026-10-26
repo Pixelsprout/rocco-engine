@@ -249,7 +249,7 @@ host sends it on one line, and it is split into lines here:
    {"Light":{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}},
    {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
    {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
-  "cursor":"Free","sky":0,"ui":[],"queries":[],"loops":[]},
+  "cursor":"Free","sky":0,"ui":[],"queries":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[]}}
 ```
 
@@ -506,7 +506,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `left_trigger`, `right_trigger` | In a pad: a number from 0 to 1, for every step. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
-| `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui`, `queries` and `loops`. `nodes` mirrors the tree with local Poses. |
+| `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. |
 | `results` | The QueryResults that the next step gets: `contacts`, `rays` and `overlaps`. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |

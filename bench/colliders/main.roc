@@ -121,7 +121,6 @@ view = |m| {
 		sky: 0,
 		ui: [],
 		queries: queries(m.half),
-		loops: [],
 	}
 }
 

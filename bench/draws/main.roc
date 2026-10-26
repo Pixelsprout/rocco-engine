@@ -103,7 +103,6 @@ view = |m| {
 	sky: 0,
 	ui: [],
 	queries: [],
-	loops: [],
 }
 
 cube_draw : U32, Entity -> Draw

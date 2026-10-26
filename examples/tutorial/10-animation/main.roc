@@ -17,12 +17,12 @@ import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
-import pf.Loop
 import pf.Pose
 import pf.Query
 import pf.QueryResults
 import pf.Scene
 import pf.Sound
+import pf.Speaker
 # endregion
 
 # id is the draw id of the pickup and of its Collider.
@@ -286,22 +286,22 @@ door_pos = { x: 0.0, y: door_half.y, z: -2.9 }
 door_at : Model -> Vec3
 door_at = |model| { ..door_pos, y: door_pos.y + model.door_lift }
 
-music_loop_id : U64
-music_loop_id = 1
+music_speaker_id : U64
+music_speaker_id = 1
 
-hum_loop_id : U64
-hum_loop_id = 2
+hum_speaker_id : U64
+hum_speaker_id = 2
 
 # Past this distance from the camera, the hum is silent.
 hum_range : F32
 hum_range = 10.0
 
 # The hum fades as the door rises, and stops when the door is open.
-loops : Model -> List(Vocabulary.Loop)
-loops = |model| {
-	music = { ..Loop.default, id: music_loop_id, sound: model.sounds.music, gain: 0.5 }
-	hum = { ..Loop.default, id: hum_loop_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
-	if is_open(model) [music] else [music, hum]
+speakers : Model -> List(Vocabulary.Node)
+speakers = |model| {
+	music = { ..Speaker.default, id: music_speaker_id, sound: model.sounds.music, gain: 0.5 }
+	hum = { ..Speaker.default, id: hum_speaker_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
+	if is_open(model) [Speaker(music)] else [Speaker(music), Speaker(hum)]
 }
 
 camera_offset : Vec3
@@ -322,8 +322,8 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders)
-	{ ..Scene.empty, camera, nodes, queries, ui: hud(model), loops: loops(model) }
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders).concat(speakers(model))
+	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 
 # endregion
@@ -486,20 +486,20 @@ expect step(with_sounds, Input.empty, QueryResults.empty, 0.1).commands == []
 # The music plays Here, and the hum plays at the door while it is shut.
 expect {
 	scene = view(with_sounds)
-	ids = scene.loops.map(|l| l.id)
-	sounds = scene.loops.map(|l| l.sound)
-	places = scene.loops.map(|l| l.at)
-	ids == [music_loop_id, hum_loop_id] and sounds == [9, 8] and places == [Here, At({ pos: door_pos, range: hum_range })]
+	ids = speakers_of(scene).map(|s| s.id)
+	sounds = speakers_of(scene).map(|s| s.sound)
+	places = speakers_of(scene).map(|s| s.at)
+	ids == [music_speaker_id, hum_speaker_id] and sounds == [9, 8] and places == [Here, At({ pos: door_pos, range: hum_range })]
 }
 
 # Halfway up, the hum plays at half gain.
 expect {
 	half = view({ ..with_sounds, pickups: [], door_lift: 0.5 * door_height })
-	half.loops.map(|l| l.gain) == [0.5, 0.5]
+	speakers_of(half).map(|s| s.gain) == [0.5, 0.5]
 }
 
 # Once the door is open, only the music plays.
-expect view({ ..with_sounds, pickups: [], door_lift: door_height }).loops.map(|l| l.id) == [music_loop_id]
+expect speakers_of(view({ ..with_sounds, pickups: [], door_lift: door_height })).map(|s| s.id) == [music_speaker_id]
 
 with_pads : List(Vocabulary.Gamepad) -> Vocabulary.Input
 with_pads = |pads| { ..Input.empty, gamepads: pads }
@@ -540,6 +540,16 @@ expect {
 	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
+
+# The Speakers of a Scene, in walk order.
+speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
+speakers_of = |scene| List.keep_oks(
+	scene.nodes,
+	|node| match node {
+		Speaker(s) => Ok(s)
+		_ => Err(NotSpeaker)
+	},
+)
 
 # region: tests
 # Pip after loaded, with the Idle Clip 2 s long and the Walk Clip 1 s long.

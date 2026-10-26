@@ -1,6 +1,6 @@
 ---
 title: "8. Sound"
-summary: Play a blip when Pip takes a pickup with the Play Command, and add music and a hum at the door with Scene.loops.
+summary: Play a blip when Pip takes a pickup with the Play Command, and add music and a hum at the door with Speakers.
 order: 8
 ---
 
@@ -10,9 +10,9 @@ The game works, and the HUD tells the player what is going on, but the game
 is silent. In this chapter, you add three sounds:
 
 - a blip when Pip takes a pickup, with the `Play` Command,
-- music that plays all the time, with a Loop in the Scene,
-- a hum at the door that gets louder as Pip comes closer, with a Loop that
-  has a place.
+- music that plays all the time, with a Speaker in the Scene,
+- a hum at the door that gets louder as Pip comes closer, with a Speaker
+  that has a place.
 
 ![Pip walks toward the door, with "Pickups: 1 / 5" at the top left](../images/tutorial-08-sound.png)
 
@@ -50,7 +50,7 @@ again.
 
 ## The imports
 
-Import `pf.Loop` and `pf.Sound`:
+Import `pf.Sound` and `pf.Speaker`:
 
 <!-- region: examples/tutorial/08-sound/main.roc#imports -->
 ```roc
@@ -67,11 +67,11 @@ import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
-import pf.Loop
 import pf.Query
 import pf.QueryResults
 import pf.Scene
 import pf.Sound
+import pf.Speaker
 ```
 <!-- endregion -->
 
@@ -159,46 +159,47 @@ doesn't need to remember it.
 
 ## The music and the hum
 
-A sound that repeats is a Loop. A Loop is not a Command: it goes in the
-`loops` field of the Scene, like a Draw goes in `nodes`. The Sound plays for
-as long as its Loop stays in the Scene. Add the Loops:
+A sound that the game controls is a Speaker. A Speaker is not a Command:
+it is a Node, like a Draw, so it goes in `nodes`. The Sound plays for as
+long as its Speaker stays in the Scene, and `Speaker.default` repeats it.
+Add the Speakers:
 
-<!-- region: examples/tutorial/08-sound/main.roc#loops -->
+<!-- region: examples/tutorial/08-sound/main.roc#speakers -->
 ```roc
 # The door's centre, as it rises.
 door_at : Model -> Vec3
 door_at = |model| { ..door_pos, y: door_pos.y + model.door_lift }
 
-music_loop_id : U64
-music_loop_id = 1
+music_speaker_id : U64
+music_speaker_id = 1
 
-hum_loop_id : U64
-hum_loop_id = 2
+hum_speaker_id : U64
+hum_speaker_id = 2
 
 # Past this distance from the camera, the hum is silent.
 hum_range : F32
 hum_range = 10.0
 
 # The hum fades as the door rises, and stops when the door is open.
-loops : Model -> List(Vocabulary.Loop)
-loops = |model| {
-	music = { ..Loop.default, id: music_loop_id, sound: model.sounds.music, gain: 0.5 }
-	hum = { ..Loop.default, id: hum_loop_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
-	if is_open(model) [music] else [music, hum]
+speakers : Model -> List(Vocabulary.Node)
+speakers = |model| {
+	music = { ..Speaker.default, id: music_speaker_id, sound: model.sounds.music, gain: 0.5 }
+	hum = { ..Speaker.default, id: hum_speaker_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
+	if is_open(model) [Speaker(music)] else [Speaker(music), Speaker(hum)]
 }
 ```
 <!-- endregion -->
 
-The host pairs each Loop with the Loop that had the same `id` in the
-previous Scene, as it pairs Draws:
+The host pairs each Speaker with the Speaker that had the same `id` in
+the previous Scene, as it pairs Draws:
 
 - A new id starts the Sound from its start.
 - An id that stays keeps the Sound playing. If its gain, pitch or place
   changed, the change applies on the next fixed step.
 - An id that leaves the Scene stops the Sound.
 
-Loop ids are separate from Draw ids, so the music can be 1 while the ground
-is Draw 1. Keep each Loop's id the same from step to step.
+Speaker ids are separate from Draw ids, so the music can be 1 while the
+ground is Draw 1. Keep each Speaker's id the same from step to step.
 
 The music plays `Here`, at half its recorded gain. The hum plays `At` the
 door, with a `range` of 10. `door_at` gives the centre of the door as it
@@ -207,16 +208,16 @@ distance, and is silent 10 units away. It also comes from the side it is
 on: if the door is on your left, you hear the hum in your left ear.
 
 When the door opens, the hum stops. Why not take it out of the list at
-once? A Loop that leaves the Scene stops in 5 milliseconds. That is fast
-enough to sound like a cut, but it keeps the speaker from clicking. To fade
+once? A Speaker that leaves the Scene stops in 5 milliseconds. That is
+fast enough to sound like a cut, but it keeps the sound from clicking. To fade
 a sound out, lower its gain over many steps instead. So the hum's gain goes
-from 1 down to 0 as the door rises, and the Loop leaves the list only when
+from 1 down to 0 as the door rises, and the Speaker leaves the list only when
 the door is open and the hum is already silent.
 
 ## The Listener follows Pip
 
 Who hears the hum? In rocco, the Listener is the camera of the Scene. A
-Loop `At` the door is loud when the camera is close to the door.
+Speaker `At` the door is loud when the camera is close to the door.
 
 In chapter 7, the camera stands still, so the hum would sound the same
 wherever Pip went. In `view`, make the camera follow Pip with `Cam.follow`:
@@ -240,8 +241,8 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders)
-	{ ..Scene.empty, camera, nodes, queries, ui: hud(model), loops: loops(model) }
+	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders).concat(speakers(model))
+	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 ```
 <!-- endregion -->
@@ -251,16 +252,27 @@ camera keeps the same offset behind Pip, and so does the Listener. Walk
 toward the door, and the hum gets louder. Walk to the left, and the hum
 moves to your right ear.
 
-`view` also puts the Loops in the Scene, with `loops: loops(model)`. The
+`view` also puts the Speakers in `nodes`, with `.concat(speakers(model))`. The
 door's Draw now uses `door_at` too, so the door and its hum rise together.
 
 ## Test the sounds
 
-A Play is a value, like `Quit`, and the Loops are part of the Scene. So you
-test them without the host. Add these tests below the tests from chapter 7:
+A Play is a value, like `Quit`, and the Speakers are part of the Scene. So
+you test them without the host. `speakers_of` picks the Speakers out of the
+Nodes. Add these tests below the tests from chapter 7:
 
 <!-- region: examples/tutorial/08-sound/main.roc#tests -->
 ```roc
+# The Speakers of a Scene, in walk order.
+speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
+speakers_of = |scene| List.keep_oks(
+	scene.nodes,
+	|node| match node {
+		Speaker(s) => Ok(s)
+		_ => Err(NotSpeaker)
+	},
+)
+
 with_sounds : Model
 with_sounds = { ..start, sounds: { blip: 7, hum: 8, music: 9 } }
 
@@ -273,20 +285,20 @@ expect step(with_sounds, Input.empty, QueryResults.empty, 0.1).commands == []
 # The music plays Here, and the hum plays at the door while it is shut.
 expect {
 	scene = view(with_sounds)
-	ids = scene.loops.map(|l| l.id)
-	sounds = scene.loops.map(|l| l.sound)
-	places = scene.loops.map(|l| l.at)
-	ids == [music_loop_id, hum_loop_id] and sounds == [9, 8] and places == [Here, At({ pos: door_pos, range: hum_range })]
+	ids = speakers_of(scene).map(|s| s.id)
+	sounds = speakers_of(scene).map(|s| s.sound)
+	places = speakers_of(scene).map(|s| s.at)
+	ids == [music_speaker_id, hum_speaker_id] and sounds == [9, 8] and places == [Here, At({ pos: door_pos, range: hum_range })]
 }
 
 # Halfway up, the hum plays at half gain.
 expect {
 	half = view({ ..with_sounds, pickups: [], door_lift: 0.5 * door_height })
-	half.loops.map(|l| l.gain) == [0.5, 0.5]
+	speakers_of(half).map(|s| s.gain) == [0.5, 0.5]
 }
 
 # Once the door is open, only the music plays.
-expect view({ ..with_sounds, pickups: [], door_lift: door_height }).loops.map(|l| l.id) == [music_loop_id]
+expect speakers_of(view({ ..with_sounds, pickups: [], door_lift: door_height })).map(|s| s.id) == [music_speaker_id]
 ```
 <!-- endregion -->
 

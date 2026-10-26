@@ -381,6 +381,7 @@ Roc_Launch_Capacity :: struct {
 Roc_Loaded_Arg2 :: struct {
 	clips: Roc_List(Roc_Loaded_Arg2_Clips),
 	name: Roc_Str,
+	duration: f32,
 	id: u32,
 }
 
@@ -390,7 +391,9 @@ Roc_Loaded_Arg2 :: struct {
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.clips)) == 24)
 #assert(offset_of(Roc_Loaded_Arg2, name) == 24)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2, id) == 48)
+#assert(offset_of(Roc_Loaded_Arg2, duration) == 48)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.duration)) == 4)
+#assert(offset_of(Roc_Loaded_Arg2, id) == 52)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
 
 Roc_Loaded_Arg2_Clips :: struct {
@@ -561,7 +564,6 @@ Roc_Step_Commands_Play_At :: Roc_Init_Commands_Play_At
 Roc_Step_Commands_Play_At_At :: Roc_Init_Commands_Play_At_At
 Roc_Step_Commands_Play_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View :: struct {
-	loops: Roc_List(Roc_View_Loops),
 	nodes: Roc_List(Roc_VocabularyNode),
 	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_VocabularyElement),
@@ -570,47 +572,21 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 144)
+#assert(size_of(Roc_View) == 120)
 #assert(align_of(Roc_View) == 8)
-#assert(offset_of(Roc_View, loops) == 0)
-#assert(size_of(type_of(Roc_View{}.loops)) == 24)
-#assert(offset_of(Roc_View, nodes) == 24)
+#assert(offset_of(Roc_View, nodes) == 0)
 #assert(size_of(type_of(Roc_View{}.nodes)) == 24)
-#assert(offset_of(Roc_View, queries) == 48)
+#assert(offset_of(Roc_View, queries) == 24)
 #assert(size_of(type_of(Roc_View{}.queries)) == 24)
-#assert(offset_of(Roc_View, ui) == 72)
+#assert(offset_of(Roc_View, ui) == 48)
 #assert(size_of(type_of(Roc_View{}.ui)) == 24)
-#assert(offset_of(Roc_View, camera) == 96)
+#assert(offset_of(Roc_View, camera) == 72)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, sky) == 136)
+#assert(offset_of(Roc_View, sky) == 112)
 #assert(size_of(type_of(Roc_View{}.sky)) == 4)
-#assert(offset_of(Roc_View, cursor) == 140)
+#assert(offset_of(Roc_View, cursor) == 116)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
-Roc_View_Loops :: struct {
-	id: u64,
-	at: Roc_Init_Commands_Play_At,
-	gain: f32,
-	pitch: f32,
-	sound: u32,
-}
-
-#assert(size_of(Roc_View_Loops) == 40)
-#assert(align_of(Roc_View_Loops) == 8)
-#assert(offset_of(Roc_View_Loops, id) == 0)
-#assert(size_of(type_of(Roc_View_Loops{}.id)) == 8)
-#assert(offset_of(Roc_View_Loops, at) == 8)
-#assert(size_of(type_of(Roc_View_Loops{}.at)) == 20)
-#assert(offset_of(Roc_View_Loops, gain) == 28)
-#assert(size_of(type_of(Roc_View_Loops{}.gain)) == 4)
-#assert(offset_of(Roc_View_Loops, pitch) == 32)
-#assert(size_of(type_of(Roc_View_Loops{}.pitch)) == 4)
-#assert(offset_of(Roc_View_Loops, sound) == 36)
-#assert(size_of(type_of(Roc_View_Loops{}.sound)) == 4)
-
-Roc_View_Loops_At :: Roc_Init_Commands_Play_At
-Roc_View_Loops_At_At :: Roc_Init_Commands_Play_At_At
-Roc_View_Loops_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Group :: struct {
 	_0: Roc_VocabularyNode_Group_0,
 	_1: Roc_List(Roc_VocabularyNode),
@@ -628,6 +604,7 @@ Roc_VocabularyNode_Tag :: enum u8 {
 	Draw = 1,
 	Group = 2,
 	Light = 3,
+	Speaker = 4,
 }
 
 Roc_VocabularyNode_Payload :: struct #raw_union {
@@ -635,6 +612,7 @@ Roc_VocabularyNode_Payload :: struct #raw_union {
 	draw: Roc_VocabularyNode_Draw,
 	group: Roc_VocabularyNode_Group,
 	light: Roc_VocabularyNode_Light,
+	speaker: Roc_VocabularyNode_Speaker,
 }
 
 Roc_VocabularyNode :: struct {
@@ -860,6 +838,41 @@ Roc_VocabularyNode_Light_Point :: struct {
 
 Roc_VocabularyNode_Light_Point_Color :: Roc_VocabularyNode_Draw_Tint
 Roc_VocabularyNode_Light_Point_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_VocabularyNode_Speaker :: struct {
+	id: u64,
+	at: Roc_Init_Commands_Play_At,
+	gain: f32,
+	pitch: f32,
+	sound: u32,
+	repeat: Roc_VocabularyNode_Speaker_Repeat,
+}
+
+#assert(size_of(Roc_VocabularyNode_Speaker) == 48)
+#assert(align_of(Roc_VocabularyNode_Speaker) == 8)
+#assert(offset_of(Roc_VocabularyNode_Speaker, id) == 0)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.id)) == 8)
+#assert(offset_of(Roc_VocabularyNode_Speaker, at) == 8)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.at)) == 20)
+#assert(offset_of(Roc_VocabularyNode_Speaker, gain) == 28)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.gain)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Speaker, pitch) == 32)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.pitch)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Speaker, sound) == 36)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.sound)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Speaker, repeat) == 40)
+#assert(size_of(type_of(Roc_VocabularyNode_Speaker{}.repeat)) == 1)
+
+Roc_VocabularyNode_Speaker_At :: Roc_Init_Commands_Play_At
+Roc_VocabularyNode_Speaker_At_At :: Roc_Init_Commands_Play_At_At
+Roc_VocabularyNode_Speaker_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_VocabularyNode_Speaker_Repeat :: enum u8 {
+	Loop = 0,
+	Once = 1,
+}
+
+#assert(size_of(Roc_VocabularyNode_Speaker_Repeat) == 1)
+#assert(align_of(Roc_VocabularyNode_Speaker_Repeat) == 1)
+
 Roc_View_Queries_Tag :: enum u8 {
 	ContactsOf = 0,
 	Overlap = 1,
@@ -1279,7 +1292,6 @@ roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
 }
 
 roc_view_decref :: proc(value: Roc_View) {
-	roc_list_decref_roc_view_loops(value.loops)
 	roc_list_decref_roc_vocabularynode(value.nodes)
 	roc_list_decref_roc_view_queries(value.queries)
 	roc_list_decref_roc_vocabularyelement(value.ui)
@@ -1402,14 +1414,6 @@ roc_list_from_slice_roc_step_arg2_rays :: proc(elems: []Roc_Step_Arg2_Rays) -> R
 	return roc_list_from_slice_with(elems, false)
 }
 
-roc_list_decref_roc_view_loops :: proc(list: Roc_List(Roc_View_Loops)) {
-	roc_list_decref_flat(list)
-}
-
-roc_list_from_slice_roc_view_loops :: proc(elems: []Roc_View_Loops) -> Roc_List(Roc_View_Loops) {
-	return roc_list_from_slice_with(elems, false)
-}
-
 roc_list_decref_roc_vocabularynode :: proc(list: Roc_List(Roc_VocabularyNode)) {
 	roc_list_decref_elements(list, roc_vocabularynode_decref)
 }
@@ -1475,7 +1479,6 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_step_arg2_contacts,
 	roc_list_decref_roc_step_arg2_overlaps,
 	roc_list_decref_roc_step_arg2_rays,
-	roc_list_decref_roc_view_loops,
 	roc_list_decref_roc_vocabularynode,
 	roc_list_decref_roc_view_queries,
 	roc_list_decref_u64,
@@ -1493,7 +1496,6 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_step_arg2_contacts,
 	roc_list_from_slice_roc_step_arg2_overlaps,
 	roc_list_from_slice_roc_step_arg2_rays,
-	roc_list_from_slice_roc_view_loops,
 	roc_list_from_slice_roc_vocabularynode,
 	roc_list_from_slice_roc_view_queries,
 	roc_list_from_slice_u64,

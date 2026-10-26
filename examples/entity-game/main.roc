@@ -856,7 +856,7 @@ pi = 3.1415927
 
 # What the engine would hand loaded on this machine.
 manifest : Manifest
-manifest = [{ name: "sprout", id: 4, clips: [] }, { name: "sky/meadow", id: 1, clips: [] }]
+manifest = [{ name: "sprout", id: 4, duration: 0.0, clips: [] }, { name: "sky/meadow", id: 1, duration: 0.0, clips: [] }]
 
 test_meshes : MeshIds
 test_meshes = resolve_meshes(manifest)
@@ -965,6 +965,10 @@ leaves_under = |parent, node| match node {
 	Light(Point(l)) => [Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos }))]
 	Light(Directional(l)) => [Light(Directional({ ..l, dir: Quat.rotate(l.dir, parent.rot) }))]
 	Light(l) => [Light(l)]
+	Speaker(s) => match s.at {
+		At(a) => [Speaker({ ..s, at: At({ ..a, pos: Pose.compose(parent, { pos: a.pos, rot: Quat.identity }).pos }) })]
+		Here => [Speaker(s)]
+	}
 }
 
 # A leaf with its pos and rot moved from its parent's space to the world.
