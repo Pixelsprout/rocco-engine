@@ -416,7 +416,7 @@ test_a_play_gets_no_voice_when_speakers_hold_every_voice :: proc(t: ^testing.T) 
 	for _ in 0 ..< SMALL_VOICES {
 		index, ok := voice_take(pool, .Speaker)
 		testing.expect(t, ok)
-		testing.expect(t, voice_start(pool, index, &g_fake.audio.engine, sound, low, 1, 1, place_here()))
+		testing.expect(t, voice_start(pool, index, &g_fake.audio.engine, sound, low, 1, 1, place_here(), looping = true))
 	}
 	_, ok := voice_take(pool, .Speaker)
 	testing.expect(t, !ok)
@@ -425,7 +425,7 @@ test_a_play_gets_no_voice_when_speakers_hold_every_voice :: proc(t: ^testing.T) 
 	fake_step_with(&s, fake_play(low, 1, 1, place_here()))
 	testing.expect(t, pool.no_play_logged)
 
-	// A Speaker's voice repeats past the end of its Sound.
+	// A Loop repeats past the end of its Sound.
 	mix_skip(TONE_FRAMES + MIX_FRAMES)
 	testing.expect(t, fake_voice_playing(0))
 	testing.expect(t, fake_voice_playing(1))

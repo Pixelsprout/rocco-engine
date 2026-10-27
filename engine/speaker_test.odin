@@ -9,8 +9,8 @@ import "core:testing"
 // SPEAKER_FADE_MS at the mix rate, with room for the resampler's delay.
 FADE_FRAMES :: AUDIO_SAMPLE_RATE * SPEAKER_FADE_MS / 1000 + 64
 
-fake_speaker :: proc(id: u64, sound: u32, gain: f32 = 1, pitch: f32 = 1, at := Place{tag = .Here}) -> Speaker {
-	return {id = id, sound = sound, gain = gain, pitch = pitch, at = at, repeat = .Loop}
+fake_speaker :: proc(id: u64, sound: u32, gain: f32 = 1, pitch: f32 = 1, at := Place{tag = .Here}, repeat := Speaker_Repeat.Loop) -> Speaker {
+	return {id = id, sound = sound, gain = gain, pitch = pitch, at = at, repeat = repeat}
 }
 
 // The voice that the Speaker of the last Scene holds.
@@ -31,6 +31,15 @@ expect_speaker_pos :: proc(t: ^testing.T, id: u64, want: [3]f32, loc := #caller_
 	testing.expect_value(t, at.tag, Place_Tag.At, loc = loc)
 	got := vec3_array(at.payload.at.pos)
 	testing.expectf(t, linalg.length(got - want) < 1e-4, "got %v, want %v", got, want, loc = loc)
+}
+
+// The peak of one channel of a stereo mix: 0 is the left, 1 the right.
+channel_peak :: proc(mixed: []f32, channel: int) -> f32 {
+	peak: f32
+	for i := channel; i < len(mixed); i += AUDIO_CHANNELS {
+		peak = max(peak, abs(mixed[i]))
+	}
+	return peak
 }
 
 @(test)
@@ -352,4 +361,183 @@ test_two_speakers_with_one_id_keep_the_first_in_walk_order :: proc(t: ^testing.T
 	testing.expect_value(t, len(g_fake.audio.speakers.logged), 1)
 	voice, _ := fake_speaker_voice(1)
 	testing.expect_value(t, voice.sound_id, low)
+}
+
+@(test)
+test_a_once_speaker_gives_its_voice_back_at_its_end_and_does_not_play_again :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low", "sound/high")})
+	defer fake_seam_shutdown(&s)
+	low, high := g_fake.loaded_manifest[0].id, g_fake.loaded_manifest[1].id
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once), fake_speaker(2, low), fake_speaker(3, high)}
+	fake_step_with(&s)
+	_, waiting := fake_speaker_voice(3)
+	testing.expect(t, !waiting)
+
+	// With no device, the host mixes in step time, so the Once still ends.
+	audio_advance(&g_fake.audio, 2 * f32(TONE_FRAMES) / WAV_RATE)
+	fake_step_with(&s)
+	_, ok := fake_speaker_voice(1)
+	testing.expect(t, !ok)
+	voice, started := fake_speaker_voice(3)
+	testing.expect(t, started)
+	testing.expect_value(t, voice.sound_id, high)
+
+	// It stays silent while its id stays, also as a Loop.
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once)}
+	fake_step_with(&s)
+	mix_skip(MIX_FRAMES)
+	g_fake.speakers = {fake_speaker(1, low)}
+	fake_step_with(&s)
+	_, ok = fake_speaker_voice(1)
+	testing.expect(t, !ok)
+	voices_reap(&g_fake.audio.voices)
+	testing.expect_value(t, fake_voices_in_use(), 0)
+	testing.expect_value(t, mix_peak(mix_read(MIX_FRAMES)), 0)
+
+	// One step out of the Scene, and it plays again.
+	g_fake.speakers = nil
+	fake_step_with(&s)
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once)}
+	fake_step_with(&s)
+	_, ok = fake_speaker_voice(1)
+	testing.expect(t, ok)
+	testing.expect(t, abs(mix_peak(mix_read(MIX_FRAMES)) - LOW_LEVEL) < LEVEL_EPSILON)
+}
+
+@(test)
+test_a_loop_changed_to_once_stops_at_the_end_of_the_current_pass :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low")})
+	defer fake_seam_shutdown(&s)
+	low := g_fake.loaded_manifest[0].id
+	g_fake.speakers = {fake_speaker(1, low)}
+	fake_step_with(&s)
+	mix_skip(TONE_FRAMES / 2)
+
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once)}
+	fake_step_with(&s)
+	testing.expect(t, abs(mix_peak(mix_read(MIX_FRAMES)) - LOW_LEVEL) < LEVEL_EPSILON)
+	mix_skip(TONE_FRAMES / 2 + MIX_FRAMES)
+	testing.expect_value(t, mix_peak(mix_read(MIX_FRAMES)), 0)
+
+	fake_step_with(&s)
+	_, ok := fake_speaker_voice(1)
+	testing.expect(t, !ok)
+	testing.expect_value(t, fake_voices_in_use(), 0)
+}
+
+@(test)
+test_a_once_changed_to_loop_keeps_repeating :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low")})
+	defer fake_seam_shutdown(&s)
+	low := g_fake.loaded_manifest[0].id
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once)}
+	fake_step_with(&s)
+	voice, _ := fake_speaker_voice(1)
+	taken := voice.taken
+	mix_skip(TONE_FRAMES / 2)
+
+	g_fake.speakers = {fake_speaker(1, low)}
+	fake_step_with(&s)
+	mix_skip(2 * TONE_FRAMES)
+	fake_step_with(&s)
+
+	looping, ok := fake_speaker_voice(1)
+	testing.expect(t, ok)
+	testing.expect_value(t, looping.taken, taken)
+	testing.expect(t, abs(mix_peak(mix_read(MIX_FRAMES)) - LOW_LEVEL) < LEVEL_EPSILON)
+}
+
+@(test)
+test_a_changed_sound_id_plays_a_once_that_ended_again :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low", "sound/high")})
+	defer fake_seam_shutdown(&s)
+	low, high := g_fake.loaded_manifest[0].id, g_fake.loaded_manifest[1].id
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once)}
+	fake_step_with(&s)
+	mix_skip(TONE_FRAMES + MIX_FRAMES)
+	fake_step_with(&s)
+	_, ok := fake_speaker_voice(1)
+	testing.expect(t, !ok)
+
+	g_fake.speakers = {fake_speaker(1, high, repeat = .Once)}
+	fake_step_with(&s)
+	voice, started := fake_speaker_voice(1)
+	testing.expect(t, started)
+	testing.expect_value(t, voice.sound_id, high)
+	testing.expect(t, abs(mix_peak(mix_read(MIX_FRAMES)) - HIGH_LEVEL) < LEVEL_EPSILON)
+}
+
+@(test)
+test_a_speaker_in_a_group_that_moves_across_the_listener_pans_with_it :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low")})
+	defer fake_seam_shutdown(&s)
+	low := g_fake.loaded_manifest[0].id
+	g_fake.camera = camera_facing_forward()
+	hum := []Node{node_speaker(fake_speaker(1, low, at = place_at({0, 0, -1}, 20)))}
+
+	g_fake.nodes = {node_group(5, {-3, 0, 0}, {w = 1}, hum)}
+	fake_step_with(&s)
+	mix_skip(MIX_FRAMES)
+	mixed := mix_read(MIX_FRAMES)
+	testing.expect(t, channel_peak(mixed, 0) > 2 * channel_peak(mixed, 1))
+
+	g_fake.nodes = {node_group(5, {3, 0, 0}, {w = 1}, hum)}
+	fake_step_with(&s)
+	mix_skip(MIX_FRAMES)
+	mixed = mix_read(MIX_FRAMES)
+	testing.expect(t, channel_peak(mixed, 1) > 2 * channel_peak(mixed, 0))
+}
+
+@(test)
+test_a_once_whose_ended_voice_a_play_took_does_not_play_again :: proc(t: ^testing.T) {
+	dir := play_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "sound/low", "sound/blip")})
+	defer fake_seam_shutdown(&s)
+	low, blip := g_fake.loaded_manifest[0].id, g_fake.loaded_manifest[1].id
+	g_fake.speakers = {fake_speaker(1, low, repeat = .Once), fake_speaker(2, low)}
+	fake_step_with(&s)
+	mix_skip(TONE_FRAMES + MIX_FRAMES)
+
+	// The Play runs before the pairing and reaps the Once's voice.
+	fake_step_with(&s, fake_play(blip, 1, 1, place_here()))
+	testing.expect_value(t, g_fake.audio.voices.voices[0].use, Voice_Use.Play)
+	mix_skip(MIX_FRAMES)
+	fake_step_with(&s)
+	_, ok := fake_speaker_voice(1)
+	testing.expect(t, !ok)
 }

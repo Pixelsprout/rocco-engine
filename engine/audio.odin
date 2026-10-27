@@ -70,7 +70,7 @@ audio_play :: proc(audio: ^Audio, play: Play_Command) {
 	if !taken {
 		return
 	}
-	voice_start(&audio.voices, index, &audio.engine, sound, play.sound, play.gain, play.pitch, play.at)
+	voice_start(&audio.voices, index, &audio.engine, sound, play.sound, play.gain, play.pitch, play.at, looping = false)
 }
 
 // The Listener is the Camera of the current Scene, not the interpolated one.

@@ -11,12 +11,15 @@ SPEAKER_FADE_MS :: 5
 // holds.
 Speaker_Voice :: struct {
 	speaker: Speaker,
-	// -1 while the Speaker has no voice: it waits for one, or its Sound id
-	// resolves to nothing.
+	// -1 while the Speaker has no voice: it waits for one, its Sound id
+	// resolves to nothing, or it is a Once that ended.
 	voice:   int,
 	// Unload can free the voice and another sound can take it, so the
 	// Speaker holds the voice only while the voice keeps this take count.
 	taken:   u64,
+	// A Once that played to its end stays silent until its Sound id changes
+	// or its id leaves the Scene.
+	ended:   bool,
 }
 
 // Pairs the Speakers of each Scene with the Speakers of the one before by
@@ -53,8 +56,9 @@ speaker_pairing_destroy :: proc(p: ^Speaker_Pairing) {
 
 // Runs after each view on the current Scene's Nodes. A missing Speaker id
 // fades out, and voices_reap frees its voice when the fade ends. A changed
-// Sound id restarts at once with no fade. A Speaker with no voice tries again
-// on each call while it stays in the Scene.
+// Sound id restarts at once with no fade. A Once that ended frees its voice
+// at once. Any other Speaker with no voice tries again on each call while it
+// stays in the Scene.
 audio_speakers :: proc(audio: ^Audio, nodes: []Node) {
 	p := &audio.speakers
 	pool := &audio.voices
@@ -69,19 +73,44 @@ audio_speakers :: proc(audio: ^Audio, nodes: []Node) {
 	}
 
 	for &entry in p.curr {
-		if speaker_holds_voice(pool, entry) {
-			old := p.prev[p.prev_index[entry.speaker.id]].speaker
-			if old.sound != entry.speaker.sound {
-				voice_release(pool, entry.voice)
-			} else {
-				if old.gain != entry.speaker.gain || old.pitch != entry.speaker.pitch || !place_equal(old.at, entry.speaker.at) {
-					voice_set(pool, entry.voice, entry.speaker.gain, entry.speaker.pitch, entry.speaker.at)
-				}
-				continue
-			}
+		i, paired := p.prev_index[entry.speaker.id]
+		if !paired {
+			speaker_start(audio, &entry)
+			continue
 		}
-		entry.voice = -1
-		speaker_start(audio, &entry)
+		old := p.prev[i].speaker
+		holds := speaker_holds_voice(pool, entry)
+		if old.sound != entry.speaker.sound {
+			if holds {
+				voice_release(pool, entry.voice)
+			}
+			entry.voice = -1
+			entry.ended = false
+			speaker_start(audio, &entry)
+			continue
+		}
+		if speaker_once_ended(pool, entry, old.repeat) {
+			if holds {
+				voice_release(pool, entry.voice)
+			}
+			entry.voice = -1
+			entry.ended = true
+		}
+		if entry.ended {
+			continue
+		}
+		if !holds {
+			entry.voice = -1
+			speaker_start(audio, &entry)
+			continue
+		}
+		v := &pool.voices[entry.voice]
+		if old.repeat != entry.speaker.repeat {
+			ma_sound_set_looping(&v.sound, b32(entry.speaker.repeat == .Loop))
+		}
+		if old.gain != entry.speaker.gain || old.pitch != entry.speaker.pitch || !place_equal(old.at, entry.speaker.at) {
+			voice_set(pool, entry.voice, entry.speaker.gain, entry.speaker.pitch, entry.speaker.at)
+		}
 	}
 
 	p.prev, p.curr = p.curr, p.prev
@@ -150,7 +179,7 @@ speaker_pair :: proc(p: ^Speaker_Pairing, speaker: Speaker) {
 		voice   = -1,
 	}
 	if i, had := p.prev_index[speaker.id]; had {
-		entry.voice, entry.taken = p.prev[i].voice, p.prev[i].taken
+		entry.voice, entry.taken, entry.ended = p.prev[i].voice, p.prev[i].taken, p.prev[i].ended
 	}
 	append(&p.curr, entry)
 }
@@ -162,6 +191,21 @@ speaker_holds_voice :: proc(pool: ^Voice_Pool, entry: Speaker_Voice) -> bool {
 	}
 	v := &pool.voices[entry.voice]
 	return v.use == .Speaker && v.taken == entry.taken
+}
+
+// A held voice stops only at the end of a Once, even one that became a Loop
+// as it ended. voices_reap can free that voice first, so a lost Once also
+// ended. A lost Loop went to Unload. A Once that Unload took counts as ended,
+// which sounds the same, because its stale Sound id plays nothing.
+@(private = "file")
+speaker_once_ended :: proc(pool: ^Voice_Pool, entry: Speaker_Voice, prev_repeat: Speaker_Repeat) -> bool {
+	if entry.voice < 0 {
+		return false
+	}
+	if speaker_holds_voice(pool, entry) {
+		return !ma_sound_is_playing(&pool.voices[entry.voice].sound)
+	}
+	return prev_repeat == .Once
 }
 
 @(private = "file")
@@ -179,7 +223,7 @@ speaker_start :: proc(audio: ^Audio, entry: ^Speaker_Voice) {
 		return
 	}
 	speaker := entry.speaker
-	if voice_start(&audio.voices, index, &audio.engine, sound, speaker.sound, speaker.gain, speaker.pitch, speaker.at) {
+	if voice_start(&audio.voices, index, &audio.engine, sound, speaker.sound, speaker.gain, speaker.pitch, speaker.at, looping = speaker.repeat == .Loop) {
 		entry.voice = index
 		entry.taken = audio.voices.voices[index].taken
 	}
