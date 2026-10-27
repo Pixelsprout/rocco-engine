@@ -79,7 +79,8 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.6.0 is the latest release.
+  bundles. v0.5.0 is the latest release, and v0.6.0-rc.1 is a
+  pre-release. A tag with a hyphen stays a pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
@@ -1153,7 +1154,8 @@ colour. One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
 ## Milestone 26: Speakers
 
-Results, 2026-10-27: v0.6.0 is published. Tutorial chapter 8 plays its music
+Results, 2026-10-27: v0.6.0-rc.1 is published as a pre-release. Milestone 27
+checks it and cuts the final v0.6.0. Tutorial chapter 8 plays its music
 from a `Here` Speaker, and the hum and a `Once` creak from Speakers in the
 door's Group. The hum rises with the door, and the creak stops when Pip walks
 through. A person heard chapter 8 on macOS. Linux and Windows are still to
@@ -1190,7 +1192,9 @@ Node. A person hears chapter 8 on macOS, Linux and Windows.
 Done when the release is published, the docs show it, and the announcement
 links the release, the docs and Kula. Each of milestones 19 to 26 adds its
 guide page, so this milestone checks the docs end to end and does not write
-them. Kula moves to the Milestone 26 release here.
+them. Kula moves to v0.6.0-rc.1 to test it. A fix that a check finds ships
+in the next rc. The milestone then tags the final v0.6.0 as the announcement
+release, and Kula moves to it.
 
 ## Later arcs
 
