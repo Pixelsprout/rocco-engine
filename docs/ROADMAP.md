@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.5.0 is the latest release.
+  bundles. v0.6.0 is the latest release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
@@ -1152,6 +1152,19 @@ knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
 colour. One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
 
 ## Milestone 26: Speakers
+
+Results, 2026-10-27: v0.6.0 is published. Tutorial chapter 8 plays its music
+from a `Here` Speaker, and the hum and a `Once` creak from Speakers in the
+door's Group. The hum rises with the door, and the creak stops when Pip walks
+through. A person heard chapter 8 on macOS. Linux and Windows are still to
+hear. `Scene.loops` and the Loop are gone, each Manifest entry has a
+`duration`, and the host frees the voice of a `Once` that ends. The Bridge
+check walks Pip through all five pickups, and finds the creak in the door's
+Group until Pip walks through. `guide/sound.md`, CONTEXT.md and `DESIGN.md`
+use Speakers, and ADR 0017 is accepted. The alloc check records chapter 10
+at 15 allocs and 7 reallocs per step: the door's Group adds its children
+list and one concat. Known: a `Once` that an Unload stops counts as ended,
+and the unloaded-pack log does not print for it.
 
 Done when tutorial chapter 8 plays music, a hum that rises with the door,
 and a creak that stops early, all from Speaker Nodes. Grilled 2026-10-27.
