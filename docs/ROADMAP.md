@@ -886,10 +886,12 @@ stays first, because it lets a script inject Input for the gamepad tests.
 On 2026-10-22 the UI tree (Milestone 21) moved ahead of Gamepad, so every
 later guide page and game writes its UI as a tree. Milestone 22, the 3D
 tree, follows it. ADR 0014 records its decisions.
+On 2026-10-27 Environment moved after the announcement release, and Kula
+took the first three levels of the original in its place.
 `docs/RESEARCH-SCALING.md` holds the research behind each milestone.
 
-Check for the arc: Kula plays with a gamepad, with a landing sound and fog,
-from the release URLs. A person with only Roc installed follows the tutorial
+Check for the arc: Kula plays the first three levels of the original with a
+gamepad and a landing sound, from the release URLs. A person with only Roc installed follows the tutorial
 to a running game.
 
 ## Milestone 18: docs and v0.2.0
@@ -1146,20 +1148,14 @@ zw7aks62 holds the decisions and the tasks.
 Check: a Bridge screenshot shows Pip mid-walk. Odin tests cover the
 sampler, the fade and the loader errors. The alloc check covers chapter 10.
 
-## Milestone 25: Environment
-
-Done when a game sets its tone map, its exposure, its fog and its shadow
-knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
-colour. One Vocabulary change. Closes dex tasks yjtqgdd4 and s1zhf2hf.
-
-## Milestone 26: Speakers
+## Milestone 26: Speakers (done)
 
 Results, 2026-10-27: v0.6.0-rc.1 is published as a pre-release. Milestone 27
 checks it and cuts the final v0.6.0. Tutorial chapter 8 plays its music
 from a `Here` Speaker, and the hum and a `Once` creak from Speakers in the
 door's Group. The hum rises with the door, and the creak stops when Pip walks
-through. A person heard chapter 8 on macOS. Linux and Windows are still to
-hear. `Scene.loops` and the Loop are gone, each Manifest entry has a
+through. A person heard chapter 8 on macOS. Linux and Windows moved to the
+rc checks of Milestone 27. `Scene.loops` and the Loop are gone, each Manifest entry has a
 `duration`, and the host frees the voice of a `Once` that ends. The Bridge
 check walks Pip through all five pickups, and finds the creak in the door's
 Group until Pip walks through. `guide/sound.md`, CONTEXT.md and `DESIGN.md`
@@ -1189,12 +1185,49 @@ Node. A person hears chapter 8 on macOS, Linux and Windows.
 
 ## Milestone 27: the announcement release
 
-Done when the release is published, the docs show it, and the announcement
-links the release, the docs and Kula. Each of milestones 19 to 26 adds its
-guide page, so this milestone checks the docs end to end and does not write
-them. Kula moves to v0.6.0-rc.1 to test it. A fix that a check finds ships
-in the next rc. The milestone then tags the final v0.6.0 as the announcement
-release, and Kula moves to it.
+Done when v0.6.0 is published, the docs show it, Kula plays the first three
+levels of the original from the v0.6.0 URLs, and the announcement links the
+release, the docs and Kula. Grilled 2026-10-27. The dex task 2q7iq76d holds
+the decisions and the tasks.
+
+v0.6.0 is rc.1, plus fixes, plus the engine features that Kula's new levels
+need. Environment moved after the announcement as Milestone 28, so the rc
+does not take a Vocabulary change that no game tested.
+
+1. Kula moves to v0.6.0-rc.1 on a branch, in one PR, and plays with a
+   gamepad. Kula skips v0.5.0. Kula `main` never pins a pre-release.
+2. Kula recreates Roll Away (USA) Hiro levels 1 to 3, in one Theme. A
+   standard-library Python script reads the levels from a disc image and
+   writes Kula's text format. The format gains a list of items by face and
+   a start pose. Kula commits the levels and credits the original, and
+   takes no texture, model or sound from the disc.
+3. Kula adds every feature that the three levels use. If a feature needs
+   the engine, the engine adds it, documents it in its guide page and cuts
+   the next rc. The results name each feature that Kula pulled.
+4. The rc checks: Kula CI on macOS, Linux and Windows, a person plays the
+   three levels with the keyboard on macOS and with an Xbox pad on macOS
+   and Windows, a Bridge run finds the landing `Play`, a person hears
+   chapter 8 on Linux and Windows, and a person checks the docs end to end.
+   Each of milestones 19 to 26 adds its guide page, so this milestone does
+   not write them.
+5. An rc with fixes only reruns Kula CI and the person checks that the fix
+   touches. An rc with an engine feature reruns every check.
+6. The milestone tags the final v0.6.0 from the last rc. Kula swaps to the
+   v0.6.0 URLs and merges right before the announcement.
+7. The announcement goes to the Roc Zulip. The v0.6.0 release body holds
+   its main text.
+
+Check: a person compares a Bridge screenshot of each level start with an
+emulator frame of the same start. The Linux pad check of Milestone 23 stays
+open.
+
+## Milestone 28: Environment
+
+Done when a game sets its tone map, its exposure, its fog and its shadow
+knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
+colour. One Vocabulary change, released as v0.7.0. Closes dex tasks yjtqgdd4
+and s1zhf2hf. It was Milestone 25 until 2026-10-27, when it moved after the
+announcement release.
 
 ## Later arcs
 
@@ -1246,7 +1279,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
 
-Audio and fog moved into milestones 20 and 25. World-space sprites, Blender
+Audio and fog moved into milestones 20 and 28. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
