@@ -1,6 +1,6 @@
 # 0017: Sounds the game controls are Speaker Nodes
 
-Status: draft, 2026-10-27. It replaces the Loop decision of ADR 0012. The
+Status: accepted, 2026-10-27. It replaces the Loop decision of ADR 0012. The
 Play decision stands.
 
 ## Context

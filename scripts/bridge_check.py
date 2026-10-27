@@ -7,9 +7,12 @@ It runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and checks
 that Pip's Draw moved by the expected distance. Then it saves a screenshot,
 by default into a temporary folder, and checks its size.
 
-Then it runs tutorial chapter 8, checks its two Speakers, and holds W until Pip
-takes a pickup. The step reply must hold the Play of the blip. A run with no
-audio device still returns the Play, so the check needs no sound card.
+Then it runs tutorial chapter 8 and checks the music and the hum in the door's
+Group. It holds W until Pip takes a pickup. The step reply must hold the Play
+of the blip. Pip then takes the other pickups, and the creak Speaker must join
+the door's Group as the door rises. Pip walks through the open door before the
+creak ends, and the creak must leave the Scene. A run with no audio device
+still returns the Play and the Speakers, so the check needs no sound card.
 
 Then it runs tutorial chapter 9 with the left stick of one pad halfway up,
 and checks that Pip walks at half the speed of W. A tap of Start must quit.
@@ -46,12 +49,24 @@ EXPECTED_DZ = -2.5 * STEPS / 120
 TOLERANCE = 1e-4
 WINDOW = [960, 540]
 
-# examples/tutorial/08-sound/main.roc: the Speaker ids, and the door the hum
-# plays at. With W held, Pip touches pickup 12 in step 27 (guide/bridge.md),
-# so the game collects it in step 28.
+# examples/tutorial/08-sound/main.roc: the Speaker ids, the door's Group id,
+# and the place of the door's Speakers in the Group. With W held, Pip touches
+# pickup 12 in step 27 (guide/bridge.md), so the game collects it in step 28.
 MUSIC_SPEAKER_ID = 1
 HUM_SPEAKER_ID = 2
-HUM_AT = {"At": {"pos": {"x": 0, "y": 1, "z": -2.9}, "range": 10}}
+CREAK_SPEAKER_ID = 3
+DOOR_GROUP_ID = 1
+DOOR_SPEAKER_AT = {"At": {"pos": {"x": 0, "y": 0, "z": 0}, "range": 10}}
+# Pip walks 2.5 / 120 units a step. After the first STEPS of W, these legs take
+# pickups 10, 13 and 14, and stop just short of pickup 11.
+PICKUP_ROUTE = [("W", 54), ("A", 96), ("S", 168), ("D", 190), ("W", 144)]
+# W then takes pickup 11, and the door starts to rise. A walks Pip to the middle
+# of the doorway, and W pushes Pip into the door until it opens.
+LAST_PICKUP_STEPS = 12
+TO_DOORWAY_STEPS = 94
+THROUGH_STEPS = 80
+# examples/tutorial/source/make_sounds.py: the creak lasts 4 seconds.
+CREAK_STEPS = 4 * 120
 
 # examples/tutorial/09-gamepad/main.roc: the stick's length scales the speed.
 HALF_STICK_DZ = EXPECTED_DZ / 2
@@ -117,15 +132,29 @@ def drive_moving(b, out):
     b.quit()
 
 
+def speakers_in(nodes):
+    return [node["Speaker"] for node in nodes if "Speaker" in node]
+
+
+def door_speakers(scene):
+    groups = [n["Group"] for n in scene["nodes"] if "Group" in n and n["Group"]["id"] == DOOR_GROUP_ID]
+    if len(groups) != 1:
+        raise AssertionError(f"expected one Group with id {DOOR_GROUP_ID}, got {scene['nodes']}")
+    return speakers_in(groups[0]["children"])
+
+
 def drive_sound(b, _out):
     b.hello()
 
-    nodes = b.scene()["scene"]["nodes"]
-    speakers = [node["Speaker"] for node in nodes if "Speaker" in node]
-    check([s["id"] for s in speakers] == [MUSIC_SPEAKER_ID, HUM_SPEAKER_ID], f"the Speakers are the music and the hum: {speakers}")
-    music, hum = speakers
-    check(music["sound"] != 0 and hum["sound"] != 0, f"the Speakers have Sound ids {music['sound']} and {hum['sound']}")
-    check(music["at"] == "Here" and hum["at"] == HUM_AT, f"the music plays Here and the hum at the door: {hum['at']}")
+    scene = b.scene()["scene"]
+    root = speakers_in(scene["nodes"])
+    check([s["id"] for s in root] == [MUSIC_SPEAKER_ID], f"the root Speaker is the music: {root}")
+    music = root[0]
+    check(music["sound"] != 0 and music["at"] == "Here", f"the music plays Here: {music}")
+    door = door_speakers(scene)
+    check([s["id"] for s in door] == [HUM_SPEAKER_ID], f"the door's Group holds the hum and no creak: {door}")
+    hum = door[0]
+    check(hum["sound"] != 0 and hum["at"] == DOOR_SPEAKER_AT, f"the hum plays at the centre of the door's Group: {hum}")
 
     stepped = b.step(STEPS, held=["W"])
     plays = [c["Play"] for c in stepped["commands"] if isinstance(c, dict) and "Play" in c]
@@ -133,6 +162,27 @@ def drive_sound(b, _out):
     play = plays[0]
     check(play["sound"] not in (0, music["sound"], hum["sound"]), f"the Play has the blip's Sound id {play['sound']}")
     check(play["gain"] == 1 and play["pitch"] == 1 and play["at"] == "Here", f"the Play is Sound.play: {play}")
+
+    for key, n in PICKUP_ROUTE:
+        b.step(n, held=[key])
+    shut = b.scene()
+    check("Pickups: 4 / 5" in ui_strings(shut["scene"]["ui"]), "Pip took four pickups")
+    check([s["id"] for s in door_speakers(shut["scene"])] == [HUM_SPEAKER_ID], "the door is shut, so there is no creak")
+
+    b.step(LAST_PICKUP_STEPS, held=["W"])
+    door = door_speakers(b.scene()["scene"])
+    check([s["id"] for s in door] == [HUM_SPEAKER_ID, CREAK_SPEAKER_ID], f"the door rises with the hum and the creak in its Group: {door}")
+    creak = door[1]
+    check(creak["sound"] not in (0, music["sound"], hum["sound"], play["sound"]), f"the creak has its own Sound id {creak['sound']}")
+    check(creak["repeat"] == "Once" and creak["at"] == DOOR_SPEAKER_AT, f"the creak plays once at the door: {creak}")
+
+    b.step(TO_DOORWAY_STEPS, held=["A"])
+    b.step(THROUGH_STEPS, held=["W"])
+    won = b.scene()
+    check("You win! Press Escape to quit." in ui_strings(won["scene"]["ui"]), "Pip walked through the open door")
+    check(door_speakers(won["scene"]) == [], "the creak left the door's Group, after the hum")
+    elapsed = won["steps"] - shut["steps"]
+    check(elapsed < CREAK_STEPS, f"Pip walked through less than {elapsed} steps after the creak started, before it ended")
 
     b.quit()
 

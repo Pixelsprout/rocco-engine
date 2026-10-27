@@ -104,8 +104,8 @@ init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| {
 	clips = { idle: 0, walk: 0, idle_duration: 0.0, walk_duration: 0.0 }
 	animation = { idle_time: 0.0, walk_time: 0.0, fade: 0.0 }
-	model = { cube: Mesh.primitive(Cube), sphere: Mesh.primitive(Sphere), pip: 0, sounds: { blip: 0, hum: 0, music: 0 }, clips, animation, pos: V.zero, yaw: 0.0, pickups: start_pickups, door_lift: 0.0, phase: Playing }
-	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
+	model = { cube: Mesh.primitive(Cube), sphere: Mesh.primitive(Sphere), pip: 0, sounds: { blip: 0, creak: 0, hum: 0, music: 0 }, clips, animation, pos: V.zero, yaw: 0.0, pickups: start_pickups, door_lift: 0.0, phase: Playing }
+	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/creak", "sound/hum", "sound/music"] })] }
 }
 ```
 <!-- endregion -->
@@ -116,7 +116,7 @@ In `loaded`, find the two Clips by the mesh's name and the Clip's name:
 ```roc
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
-	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
+	sounds = { blip: Sound.resolve(manifest, "sound/blip"), creak: Sound.resolve(manifest, "sound/creak"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
 	idle = Mesh.clip(manifest, "pip", "Idle")
 	walk = Mesh.clip(manifest, "pip", "Walk")
 	clips = { idle, walk, idle_duration: Mesh.clip_duration(manifest, idle), walk_duration: Mesh.clip_duration(manifest, walk) }
@@ -272,7 +272,8 @@ view : Model -> Vocabulary.Scene
 view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: pip_id, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw), pose: pip_pose(model) }
-	door = { ..Draw.default, id: door_id, mesh: model.cube, pos: door_at(model), scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
+	door = { ..Draw.default, id: door_id, mesh: model.cube, scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
+	door_group = Group({ id: door_group_id, pos: { ..door_pos, y: door_pos.y + model.door_lift }, rot: Quat.identity }, [Draw(door)].concat(door_speakers(model)))
 	pickups = model.pickups.map(|p| Draw(pickup(model.sphere, p)))
 	# The camera is the Listener, so it follows Pip to let you hear the door come closer.
 	camera = Cam.follow({ ..model.pos, z: model.pos.z + 0.3 }, camera_offset)
@@ -282,7 +283,7 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders).concat(speakers(model))
+	nodes = [Light(sky_light), Light(sunlight), Speaker(music(model)), Draw(ground), Draw(pip), door_group].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 ```

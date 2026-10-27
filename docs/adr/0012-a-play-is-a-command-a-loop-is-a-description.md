@@ -1,6 +1,8 @@
 # 0012: A Play is a Command, a Loop is a Description
 
-Status: accepted, 2026-10-22.
+Status: accepted, 2026-10-22. Partly replaced by ADR 0017 on 2026-10-27: a
+sound the game controls is a Speaker Node, and the Loop and `Scene.loops`
+are gone. The Play decision stands.
 
 ## Context
 

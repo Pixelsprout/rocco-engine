@@ -30,7 +30,7 @@ Phase : [Playing, Won]
 
 # region: model
 # A Sound id of 0 plays nothing.
-Sounds : { blip : U32, hum : U32, music : U32 }
+Sounds : { blip : U32, creak : U32, hum : U32, music : U32 }
 
 # pip is 0, the fallback mesh, and each Sound id is 0 until loaded gives the ids.
 # yaw turns Pip about +y. At 0, Pip faces +z.
@@ -50,6 +50,10 @@ pip_id = 2
 door_id : U64
 door_id = 3
 
+# Group ids are apart from draw ids.
+door_group_id : U64
+door_group_id = 1
+
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Pip" } }
 
@@ -65,13 +69,13 @@ start_pickups = [
 # region: load
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| {
-	model = { cube: Mesh.primitive(Cube), sphere: Mesh.primitive(Sphere), pip: 0, sounds: { blip: 0, hum: 0, music: 0 }, pos: V.zero, yaw: 0.0, pickups: start_pickups, door_lift: 0.0, phase: Playing }
-	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/hum", "sound/music"] })] }
+	model = { cube: Mesh.primitive(Cube), sphere: Mesh.primitive(Sphere), pip: 0, sounds: { blip: 0, creak: 0, hum: 0, music: 0 }, pos: V.zero, yaw: 0.0, pickups: start_pickups, door_lift: 0.0, phase: Playing }
+	{ model, commands: [Load({ pack: "pip", assets: ["pip", "sound/blip", "sound/creak", "sound/hum", "sound/music"] })] }
 }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
-	sounds = { blip: Sound.resolve(manifest, "sound/blip"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
+	sounds = { blip: Sound.resolve(manifest, "sound/blip"), creak: Sound.resolve(manifest, "sound/creak"), hum: Sound.resolve(manifest, "sound/hum"), music: Sound.resolve(manifest, "sound/music") }
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), sounds }
 }
 
@@ -202,27 +206,38 @@ door_half = { x: 0.8, y: 0.5 * door_height, z: 0.1 }
 door_pos : Vec3
 door_pos = { x: 0.0, y: door_half.y, z: -2.9 }
 
-# region: speakers
-# The door's centre, as it rises.
-door_at : Model -> Vec3
-door_at = |model| { ..door_pos, y: door_pos.y + model.door_lift }
-
+# region: music
 music_speaker_id : U64
 music_speaker_id = 1
 
+music : Model -> Vocabulary.Speaker
+music = |model| { ..Speaker.default, id: music_speaker_id, sound: model.sounds.music, gain: 0.5 }
+
+# endregion
+
+# region: door
 hum_speaker_id : U64
 hum_speaker_id = 2
 
-# Past this distance from the camera, the hum is silent.
-hum_range : F32
-hum_range = 10.0
+creak_speaker_id : U64
+creak_speaker_id = 3
 
-# The hum fades as the door rises, and stops when the door is open.
-speakers : Model -> List(Vocabulary.Node)
-speakers = |model| {
-	music = { ..Speaker.default, id: music_speaker_id, sound: model.sounds.music, gain: 0.5 }
-	hum = { ..Speaker.default, id: hum_speaker_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at: At({ pos: door_at(model), range: hum_range }) }
-	if is_open(model) [Speaker(music)] else [Speaker(music), Speaker(hum)]
+# Past this distance from the camera, the door's Speakers are silent.
+door_range : F32
+door_range = 10.0
+
+# The door's Speakers sit at the centre of its Group, so they rise with it.
+door_speakers : Model -> List(Vocabulary.Node)
+door_speakers = |model| {
+	at = At({ pos: V.zero, range: door_range })
+	hum = { ..Speaker.default, id: hum_speaker_id, sound: model.sounds.hum, gain: 1.0 - model.door_lift / door_height, at }
+	creak = { ..Speaker.default, id: creak_speaker_id, sound: model.sounds.creak, at, repeat: Once }
+	match model.phase {
+		Playing if is_open(model) => [Speaker(creak)]
+		Playing if model.door_lift > 0.0 => [Speaker(hum), Speaker(creak)]
+		Playing => [Speaker(hum)]
+		Won => []
+	}
 }
 
 # endregion
@@ -235,7 +250,8 @@ view : Model -> Vocabulary.Scene
 view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: pip_id, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw) }
-	door = { ..Draw.default, id: door_id, mesh: model.cube, pos: door_at(model), scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
+	door = { ..Draw.default, id: door_id, mesh: model.cube, scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
+	door_group = Group({ id: door_group_id, pos: { ..door_pos, y: door_pos.y + model.door_lift }, rot: Quat.identity }, [Draw(door)].concat(door_speakers(model)))
 	pickups = model.pickups.map(|p| Draw(pickup(model.sphere, p)))
 	# The camera is the Listener, so it follows Pip to let you hear the door come closer.
 	camera = Cam.follow({ ..model.pos, z: model.pos.z + 0.3 }, camera_offset)
@@ -245,7 +261,7 @@ view = |model| {
 	door_box = Collider.box(door_id, door_pos, Quat.identity, door_half)
 	colliders = [Collider(pip_box), Collider(door_box)].concat(model.pickups.map(|p| Collider(Collider.sphere(p.id, p.pos, pickup_radius))))
 	queries = [Query.contacts_of(pip_id)]
-	nodes = [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip), Draw(door)].concat(pickups).concat(colliders).concat(speakers(model))
+	nodes = [Light(sky_light), Light(sunlight), Speaker(music(model)), Draw(ground), Draw(pip), door_group].concat(pickups).concat(colliders)
 	{ ..Scene.empty, camera, nodes, queries, ui: hud(model) }
 }
 
@@ -408,8 +424,27 @@ speakers_of = |scene| List.keep_oks(
 	},
 )
 
+# The door's Group, and the Speakers in it.
+door_of : Vocabulary.Scene -> { pos : Vec3, speakers : List(Vocabulary.Speaker) }
+door_of = |scene| {
+	groups = List.keep_oks(
+		scene.nodes,
+		|node| match node {
+			Group(g, children) if g.id == door_group_id => Ok({ pos: g.pos, speakers: speakers_of({ ..scene, nodes: children }) })
+			_ => Err(NotDoor)
+		},
+	)
+	match List.first(groups) {
+		Ok(door) => door
+		Err(_) => { pos: V.zero, speakers: [] }
+	}
+}
+
 with_sounds : Model
-with_sounds = { ..start, sounds: { blip: 7, hum: 8, music: 9 } }
+with_sounds = { ..start, sounds: { blip: 7, creak: 6, hum: 8, music: 9 } }
+
+rising : Model
+rising = { ..with_sounds, pickups: [], door_lift: 0.5 * door_height }
 
 # Pip collects a pickup, and the step plays the blip once.
 expect step(with_sounds, Input.empty, contact_with(12), 0.1).commands == [Sound.play(7)]
@@ -417,22 +452,36 @@ expect step(with_sounds, Input.empty, contact_with(12), 0.1).commands == [Sound.
 # With no pickup collected, nothing plays.
 expect step(with_sounds, Input.empty, QueryResults.empty, 0.1).commands == []
 
-# The music plays Here, and the hum plays at the door while it is shut.
+# The music plays Here, outside the door's Group.
 expect {
-	scene = view(with_sounds)
-	ids = speakers_of(scene).map(|s| s.id)
-	sounds = speakers_of(scene).map(|s| s.sound)
-	places = speakers_of(scene).map(|s| s.at)
-	ids == [music_speaker_id, hum_speaker_id] and sounds == [9, 8] and places == [Here, At({ pos: door_pos, range: hum_range })]
+	root = speakers_of(view(with_sounds))
+	root.map(|s| s.id) == [music_speaker_id] and root.map(|s| s.sound) == [9] and root.map(|s| s.at) == [Here]
 }
 
-# Halfway up, the hum plays at half gain.
+# While the door is shut, its Group holds the hum at its centre, and no creak.
 expect {
-	half = view({ ..with_sounds, pickups: [], door_lift: 0.5 * door_height })
-	speakers_of(half).map(|s| s.gain) == [0.5, 0.5]
+	door = door_of(view(with_sounds))
+	ids = door.speakers.map(|s| s.id)
+	places = door.speakers.map(|s| s.at)
+	door.pos == door_pos and ids == [hum_speaker_id] and places == [At({ pos: V.zero, range: door_range })]
 }
 
-# Once the door is open, only the music plays.
-expect speakers_of(view({ ..with_sounds, pickups: [], door_lift: door_height })).map(|s| s.id) == [music_speaker_id]
+# Halfway up, the Group has risen, the hum plays at half gain and the creak plays once.
+expect {
+	door = door_of(view(rising))
+	ids = door.speakers.map(|s| s.id)
+	gains = door.speakers.map(|s| s.gain)
+	repeats = door.speakers.map(|s| s.repeat)
+	door.pos == { ..door_pos, y: door_pos.y + 0.5 * door_height } and ids == [hum_speaker_id, creak_speaker_id] and gains == [0.5, 1.0] and repeats == [Loop, Once]
+}
+
+# Once the door is open, the hum has gone and the creak plays on.
+expect door_of(view({ ..rising, door_lift: door_height })).speakers.map(|s| s.id) == [creak_speaker_id]
+
+# When Pip walks through, the creak leaves the Scene, so it stops.
+expect {
+	door = door_of(view({ ..rising, door_lift: door_height, phase: Won }))
+	door.pos == { ..door_pos, y: door_pos.y + door_height } and door.speakers == []
+}
 
 # endregion

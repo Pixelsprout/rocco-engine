@@ -15,9 +15,9 @@
 # pong expects 6 allocs and 1 realloc: the box shell, the nodes list, the ui
 # list, the scoreboard's children and its two cells' children. The realloc
 # is the concat that joins the scoreboard, the banner and the hints.
-# tutorial/10-animation expects 14 allocs and 6 reallocs: its view builds the
-# Nodes, the pickup Draws and Colliders, the HUD with its count text and the
-# Speakers, and each concat grows a list.
+# tutorial/10-animation expects 15 allocs and 7 reallocs: its view builds the
+# Nodes, the pickup Draws and Colliders, the HUD with its count text, the door
+# Group's children and the door's Speakers, and each concat grows a list.
 # The script rebuilds the host library with the host tracking allocator, and
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must
@@ -40,7 +40,7 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1 tutorial/10-animation:14:14:6; do
+for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1 tutorial/10-animation:15:15:7; do
 	game=${entry%%:*}
 	rest=${entry#*:}
 	want_dev=${rest%%:*}

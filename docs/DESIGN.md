@@ -19,7 +19,7 @@ evidence are marked as decisions.
 | input, and turning it into levels and edges | the rules, as `step` |
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
-| the audio device, the mixer and their thread | what should be heard, as a Play Command or a Loop in `Scene.loops` |
+| the audio device, the mixer and their thread | what should be heard, as a Play Command or a Speaker Node in the Scene |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
@@ -152,7 +152,7 @@ Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capaci
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
-Manifest : List({ name : Str, id : U32, clips : List({ name : Str, id : U32, duration : F32 }) })
+Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -166,7 +166,7 @@ OverlapHit : { owner : U64, slot : U32, id : U64 }
 QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
 Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
-Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider)]
+Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
@@ -174,9 +174,9 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Box(BoxConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query), loops : List(Loop) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
-Loop     : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place }
+Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
 ```
 
@@ -184,10 +184,10 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
-| `Manifest` | each name one `Load` asked for, with its id or 0 | a name the `Load` did not ask for |
+| `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights and the Colliders that can touch; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries; the Loops by a stable Loop id | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -655,7 +655,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Loop, Pose, Query, QueryResults, Scene, Sound, Vocabulary]
+    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
@@ -818,9 +818,11 @@ in the roadmap removes the system heap from that path.
   command. The cursor is a state, so it is a field in `Scene`.
 - **No hosted function until a pure value cannot express the need.** A sound
   with a duration has host-side lifetime, and it arrived as a Description: a
-  Loop in `Scene.loops`, paired by id, with a `Play` Command for a sound
-  that plays once. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
-  records why it is not `Spawn` and `Destroy`. A physics body with a
+  Speaker Node in the Scene, paired by id, with a `Play` Command for a sound
+  that the game fires and forgets. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
+  records why it is not `Spawn` and `Destroy`, and
+  `docs/adr/0017-sounds-the-game-controls-are-speaker-nodes.md` why a sound
+  the game controls is a Node. A physics body with a
   warm-start cache is the next case. Descriptions first. Commands only when
   a description cannot say it.
 
@@ -859,8 +861,8 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
 - One allocation per step for each non-empty `Scene` list: the root Nodes,
-  each Group's children, the root Elements, each Box's children, the queries
-  and the loops. It is the extract; it would exist anyway. A long Text
+  each Group's children, the root Elements, each Box's children and the
+  queries. It is the extract; it would exist anyway. A long Text
   string built at run time adds one allocation. A short one fits inside the
   `Str` and adds none.
 - One allocation and one free per step for each non-empty `QueryResults`

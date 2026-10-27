@@ -2,9 +2,9 @@
 # that loads them. Python standard library only. Run it from anywhere:
 #   python3 examples/tutorial/source/make_sounds.py
 #
-# A Loop jumps from the last sample back to the first with no crossfade. So
-# each looping Sound holds a whole number of periods of every tone in it, and
-# its notes fade to zero before the end.
+# A Loop Speaker jumps from the last sample back to the first with no
+# crossfade. So each looping Sound holds a whole number of periods of every
+# tone in it, and its notes fade to zero before the end.
 
 import math
 import os
@@ -23,6 +23,11 @@ TAU = 2.0 * math.pi
 NOTE_SECONDS = 0.5
 MELODY = [261.63, 329.63, 392.0, 440.0, 392.0, 329.63, 293.66, 392.0]
 MUSIC_SECONDS = NOTE_SECONDS * len(MELODY)
+
+# The door of chapter 8 opens in 4/3 of a second, and Pip may need 2 seconds
+# to walk to it from the last pickup. The creak must still play then, so that
+# Pip cuts it short.
+CREAK_SECONDS = 4.0
 
 
 def write(path, samples):
@@ -71,6 +76,22 @@ def hum():
     return samples
 
 
+# A rough saw tone that bends slowly up and down, broken into grains like
+# wood that sticks and slips. It plays once, so it needs no whole periods.
+def creak():
+    samples = []
+    phase = 0.0
+    for i in range(int(CREAK_SECONDS * RATE)):
+        t = i / RATE
+        freq = 110.0 + 40.0 * t / CREAK_SECONDS + 18.0 * math.sin(TAU * 0.7 * t)
+        phase += TAU * freq / RATE
+        grain = 0.55 + 0.45 * math.sin(TAU * 23.0 * t + 3.0 * math.sin(TAU * 1.9 * t))
+        tone = sum(math.sin(k * phase) / k for k in range(1, 7))
+        attack = min(t / 0.03, 1.0)
+        samples.append(0.3 * attack * grain * tail(t, CREAK_SECONDS, 0.6) * tone)
+    return samples
+
+
 # A plucked note that fades to zero by the end of its half second.
 def pluck(freq, t):
     attack = min(t / 0.005, 1.0)
@@ -93,7 +114,7 @@ def music():
     return samples
 
 
-sounds = {"blip.wav": blip(), "hum.wav": hum(), "music.wav": music()}
+sounds = {"blip.wav": blip(), "creak.wav": creak(), "hum.wav": hum(), "music.wav": music()}
 for chapter in CHAPTERS:
     folder = os.path.join(TUTORIAL, chapter, "assets", "sound")
     os.makedirs(folder, exist_ok=True)

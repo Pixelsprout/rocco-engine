@@ -181,5 +181,5 @@ Collect the five pickups and watch the count go up. When the door opens,
 walk Pip through it. The HUD says that you have won. Press Escape to quit.
 
 The game plays from start to end, but it is silent. Next, read
-[8. Sound](08-sound.md). It plays a blip on each pickup, and adds music and
-a hum at the door.
+[8. Sound](08-sound.md). It plays a blip on each pickup, and adds music, a
+hum at the door and a creak as the door opens.
