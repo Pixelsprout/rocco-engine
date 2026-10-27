@@ -73,12 +73,14 @@ host to do one thing once.
 ## The tree of Nodes
 
 `Scene.nodes` holds the 3D part of the Scene as a tree. A [Node] is one of
-four tags, and your game writes the tags directly:
+five tags, and your game writes the tags directly:
 
 - `Draw(draw)`: a [Draw], a mesh to draw. See [Pairing by id](#pairing-by-id).
 - `Light(light)`: a [Light]. See [Lights](#lights).
 - `Collider(collider)`: a [Collider], a shape that Queries can test. See
   [Collisions and Queries](collisions.md).
+- `Speaker(speaker)`: a [Speaker], a Sound that plays while the Scene holds
+  it. See [Sound](sound.md#speakers).
 - `Group({ id, pos, rot }, children)`: a Group id, a Pose and a list of
   child Nodes. See [Groups](#groups).
 
@@ -259,6 +261,7 @@ with a record update, and set only the fields that you need.
 [Light]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Light
 [Node]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Node
 [Collider]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Collider
+[Speaker]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Speaker
 [Query]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Query
 [Cursor]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Cursor
 [Element]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Element
