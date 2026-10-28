@@ -79,8 +79,8 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.5.0 is the latest release, and v0.6.0-rc.1 is a
-  pre-release. A tag with a hyphen stays a pre-release.
+  bundles. v0.6.0 is the latest release. A tag with a hyphen stays a
+  pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
@@ -1184,6 +1184,14 @@ Speaker in a moving Group. The Bridge `scene` reply shows a `Speaker`
 Node. A person hears chapter 8 on macOS, Linux and Windows.
 
 ## Milestone 27: the announcement release
+
+Progress, 2026-10-28: v0.6.0 is published from 2e8525c, with the same engine
+source as rc.1. The user chose to tag it before the Kula work, so each
+engine feature that Kula pulls goes into v0.6.x or v0.7.0. Before the tag,
+a person played Kula with an Xbox pad on macOS and Windows on rc.1. Chapter 8
+on Linux and Windows and the docs check did not run before the tag. The
+release body holds the announcement text. The platform bundle has a new hash,
+so Kula needs the v0.6.0 URLs, not the rc.1 URLs.
 
 Done when v0.6.0 is published, the docs show it, Kula plays the first three
 levels of the original from the v0.6.0 URLs, and the announcement links the
