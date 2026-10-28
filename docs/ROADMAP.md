@@ -1244,7 +1244,8 @@ own grilling when it starts.
 
 **Bigger worlds.** The Zelda-style demo (dex task yzm5w6ji) pulls this arc.
 
-- Instancing, and frustum culling from the mesh boxes.
+- Instancing, and frustum culling from the mesh boxes (dex task
+  cqz1zbne).
 - Scenery as a Pack: Blender as the level editor, with static colliders and
   triangle mesh colliders (dex task 99iz77jj).
 - Particles: `Scene.emitters` and `Burst`, on the instanced pipeline.
