@@ -77,6 +77,7 @@ class LibraryTest(unittest.TestCase):
                 '{"ok":true,"steps":30,"commands":[],"alloc":{}}',
                 '{"ok":true,"steps":30,"scene":{"nodes":[]},"results":{}}',
                 '{"ok":true,"path":"x","physical":[1920,1080],"logical":[960,540]}',
+                '{"ok":true,"queued":1}',
                 '{"ok":true}',
             ]
         )
@@ -85,6 +86,7 @@ class LibraryTest(unittest.TestCase):
             self.assertEqual(b.step(30, held=["W"], tap=["Space"], mouse=[4, -2])["steps"], 30)
             self.assertEqual(b.scene()["scene"], {"nodes": []})
             self.assertEqual(b.screenshot("out.png")["logical"], [960, 540])
+            self.assertEqual(b.tell("town", "hi")["queued"], 1)
             self.assertEqual(b.quit(), {"ok": True})
         host.close()
         self.assertEqual(
@@ -94,6 +96,7 @@ class LibraryTest(unittest.TestCase):
                 {"op": "step", "n": 30, "held": ["W"], "tap": ["Space"], "mouse": [4, -2]},
                 {"op": "scene"},
                 {"op": "screenshot", "path": os.path.abspath("out.png")},
+                {"op": "tell", "port": "town", "msg": "hi"},
                 {"op": "quit"},
             ],
         )
@@ -112,6 +115,13 @@ class LibraryTest(unittest.TestCase):
             b.step(gamepads=pads)
         host.close()
         self.assertEqual(host.requests, [{"op": "step", "n": 1, "gamepads": pads}])
+
+    def test_tell_sends_the_port_and_the_message(self):
+        host = FakeHost(['{"ok":true,"queued":1}'])
+        with bridge.Bridge.connect(host.port) as b:
+            self.assertEqual(b.tell("town", "a\tb\n"), {"ok": True, "queued": 1})
+        host.close()
+        self.assertEqual(host.requests, [{"op": "tell", "port": "town", "msg": "a\tb\n"}])
 
     def test_an_error_reply_raises(self):
         host = FakeHost(['{"ok":false,"error":"unknown Key \\"Jump\\" in \\"held\\""}'])
@@ -195,6 +205,33 @@ class CliTest(unittest.TestCase):
         host.close()
         self.assertEqual(code, 0)
         self.assertEqual(host.requests, [{"op": "step", "n": 1, "held": ["W"]}])
+
+    def test_tell_from_the_cli_sends_the_message(self):
+        reply = '{"ok":true,"queued":1}'
+        host = FakeHost([reply])
+        code, out, _ = run_cli(["--port", str(host.port), "tell", "town", "hi"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(out, reply + "\n")
+        self.assertEqual(host.requests, [{"op": "tell", "port": "town", "msg": "hi"}])
+
+    def test_tell_from_the_cli_reads_the_message_from_a_file(self):
+        host = FakeHost(['{"ok":true,"queued":1}'])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "msg.txt")
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write("x\ny")
+            code, _, _ = run_cli(["--port", str(host.port), "tell", "town", "--file", path])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(host.requests, [{"op": "tell", "port": "town", "msg": "x\ny"}])
+
+    def test_tell_from_the_cli_needs_a_message_or_a_file(self):
+        port = str(bridge.free_port())
+        for argv in (["tell", "town"], ["tell", "town", "hi", "--file", "msg.txt"]):
+            with self.subTest(argv=argv), self.assertRaises(SystemExit) as caught:
+                run_cli(["--port", port] + argv)
+            self.assertEqual(caught.exception.code, 2)
 
     def test_port_from_the_environment(self):
         host = FakeHost(['{"ok":true}'])
