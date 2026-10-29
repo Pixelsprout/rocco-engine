@@ -3,9 +3,13 @@
 
     python3 scripts/bridge_check.py [out.png]
 
-It runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and checks
-that Pip's Draw moved by the expected distance. Then it saves a screenshot,
-by default into a temporary folder, and checks its size.
+First it runs bridge-echo, tells two messages on the port echo and checks that
+the step reply holds them as Tell Commands, then checks that a tell on a port
+that nobody Listens to is dropped.
+
+Then it runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and
+checks that Pip's Draw moved by the expected distance. Then it saves a
+screenshot, by default into a temporary folder, and checks its size.
 
 Then it runs tutorial chapter 8 and checks the music and the hum in the door's
 Group. It holds W until Pip takes a pickup. The step reply must hold the Play
@@ -107,6 +111,27 @@ def check(condition, message):
     if not condition:
         raise AssertionError(message)
     print(f"PASS: {message}")
+
+
+def drive_echo(b, _out):
+    hello = b.hello()
+    check(hello["protocol"] == 2, f"hello: {hello}")
+
+    tricky = 'a "q"\n\tü'
+    b.tell("echo", "")
+    b.tell("echo", tricky)
+    commands = b.step(1)["commands"]
+    want = [{"Tell": {"port": "echo", "msg": ""}}, {"Tell": {"port": "echo", "msg": tricky}}]
+    check(commands == want, f"bridge-echo Tells both messages back in order: {commands}")
+
+    b.tell("nobody", "lost")
+    commands = b.step(1)["commands"]
+    check(commands == [], f"a tell on a port that nobody Listens to is dropped: {commands}")
+
+    commands = b.step(1)["commands"]
+    check(commands == [], f"with nothing queued, nothing comes back: {commands}")
+
+    b.quit()
 
 
 def drive_moving(b, out):
@@ -279,7 +304,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui)]
 
 
 def run_game(game, drive, out, tmp, suffix):
