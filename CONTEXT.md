@@ -624,3 +624,18 @@ The outside process at the other end of the Bridge: a script, a CI test or
 an agent. One Driver at a time. While a Driver controls the run, the host
 ignores the real keyboard and mouse.
 _Avoid_: client, controller, bot, harness
+
+**Port**:
+A named channel between the game and a Driver or an extension. The game
+names it with a `Str`. The socket port in `ROCCO_BRIDGE` is not a Port.
+_Avoid_: channel, topic, event, subscription
+
+**Tell**:
+A Command that sends a message to a Port. The host does not act on it; a
+Driver reads it in the `step` reply.
+_Avoid_: publish, emit, send event
+
+**Listen**:
+A Query that asks for the messages sent to a Port since the last step. The
+game puts it in `Scene.queries` every step for each Port it reads.
+_Avoid_: subscription, subscribe, topic

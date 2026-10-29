@@ -20,7 +20,8 @@ give the same Scenes.
 
 The game does not know that the Bridge exists. It gets the same calls with
 the same kind of values, and nothing in the Vocabulary names the Bridge.
-You do not change a game to drive it.
+You do not change a game to drive it. To talk with the Driver, a game uses
+a port, as the [tell](#tell) section shows.
 
 ## A first session
 
@@ -38,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":2,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -95,7 +96,8 @@ trying to connect for 30 seconds while the game starts.
 
 `scripts/bridge_check.py` is the same session with checks. It starts the
 game itself on a free port, and CI runs it on Linux, macOS and Windows.
-It also walks Pip into a pickup in chapter 8 and checks that the `step`
+It first sends messages to `examples/bridge-echo` and checks that each
+one comes back. It also walks Pip into a pickup in chapter 8 and checks that the `step`
 reply holds the `Play` of the blip. In chapter 9, it walks Pip with the
 stick of a pad and quits with Start.
 
@@ -138,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":1,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":2,"step_hz":120,"steps":0,"headless":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -250,7 +252,7 @@ host sends it on one line, and it is split into lines here:
    {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
    {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
   "cursor":"Free","sky":0,"ui":[],"queries":[]},
- "results":{"contacts":[],"rays":[],"overlaps":[]}}
+ "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[]}}
 ```
 
 The fields and the tags have the names you use in the game, from the
@@ -285,7 +287,7 @@ trimmed to the `queries` and the `results`:
 {"op":"step","n":27,"held":["W"]}
 {"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":6,"live":5,"step_us":5.1,"view_us":4.0}}
 {"op":"scene"}
-{"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[]}}
+{"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[],"ports":[]}}
 ```
 
 The game sees this Contact in its next step, and the pickup's Draw is then
@@ -308,6 +310,64 @@ lines:
 
 To find a string in the HUD, walk `children` down from each root, as a Roc
 test matches the tree with a pattern.
+
+## tell
+
+`tell` sends the game a message on a port. A port is a named channel
+between the game and a Driver, and the game names it with a `Str`. The host
+queues the message and replies with `queued`, the count of messages that
+wait on that port:
+
+```
+{"op":"tell","port":"echo","msg":"hi"}
+{"ok":true,"queued":1}
+```
+
+The game reads a port only while it Listens on it. To Listen, put
+`Port.listen("echo")` in `Scene.queries` in each `view`. In `step`,
+`Port.messages(results, "echo")` gives the messages of the port, in the
+order the host got them. To send a message back, return
+`Port.tell("echo", msg)` as a Command. The host does not act on a `Tell`.
+It writes it in `commands` in the `step` reply, as it writes every Command.
+
+The host moves the queued messages into the QueryResults of the next step
+that runs. It checks them against the Queries of the Scene that the window
+shows, the one that `scene` returns. If no Query there Listens on a
+port, the host drops the messages of that port. It prints one line for
+each port the first time:
+
+```
+the port "nobody" has no Listen, so its messages are dropped
+```
+
+So a `tell` that arrives between two `step` requests reaches the first
+step of the second request. A queued message stays in the host when the
+Driver disconnects, and the next Driver's `step` delivers it. The queue is
+not in `scene`: the `ports` of its `results` stay empty, because the host
+fills them only when the step runs.
+
+The queue holds at most 4 MiB of port names and messages. A `tell` past
+that gets the error `the port queue is full` and queues nothing. A `step`
+empties the queue, so the next `tell` works again. One request is at most
+1 MiB, so it takes several `tell` requests to fill the queue.
+
+`examples/bridge-echo` is the smallest game that uses a port. It Listens on
+`echo` in each `view`, reads the messages in `step` and Tells each one back
+on `echo`. Two `tell` requests and one `step` give this exchange in a
+Headless run:
+
+```
+{"op":"tell","port":"echo","msg":"hi"}
+{"ok":true,"queued":1}
+{"op":"tell","port":"echo","msg":"again"}
+{"ok":true,"queued":2}
+{"op":"step"}
+{"ok":true,"steps":1,"commands":[{"Tell":{"port":"echo","msg":"hi"}},{"Tell":{"port":"echo","msg":"again"}}],"alloc":{"step":1,"allocs":7,"deallocs":4,"reallocs":0,"live":6,"step_us":8.5,"view_us":16.1}}
+```
+
+A message is any string, and the empty string is a message too. It comes
+back byte for byte, with its newlines, quotes, tabs and non-ASCII
+characters.
 
 ## screenshot
 
@@ -457,8 +517,9 @@ A Headless run takes one frame for each step, and draws nothing.
 
 - The host listens on `127.0.0.1` only. A Driver on another machine cannot
   connect.
-- The Driver controls the host, not the game. It cannot send the game a
-  message, and the game cannot send one to the Driver.
+- The Driver sends the game a message only with `tell`, on a port that
+  the game Listens on. The game sends one back only as a `Tell` Command,
+  which the Driver reads in the `step` reply.
 - `step` runs at least one step. To read the Scene without a step, send
   `scene`.
 - A request longer than 1 MiB gets the error
@@ -471,8 +532,9 @@ A Headless run takes one frame for each step, and draws nothing.
   then ends the run. Leave it unset when a Driver ends the run.
 - A Scene whose `cursor` is `Locked` still locks the real mouse in the
   window.
-- The ops `tell`, `ask` and `listen` are kept for a later version. Today
-  they reply `{"ok":false,"error":"not yet"}`.
+- The ops `ask` and `listen` are kept for a later version. Today they
+  reply `{"ok":false,"error":"not yet"}`. A game's `Tell` arrives in the
+  `step` reply, so no `listen` op is needed.
 
 ## Reference
 
@@ -484,13 +546,14 @@ A Headless run takes one frame for each step, and draws nothing.
 | `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, each optional | `steps`, `commands`, `alloc` |
 | `scene` | none | `steps`, `scene`, `results` |
 | `screenshot` | `path` | `path`, `physical`, `logical` |
+| `tell` | `port`, `msg` | `queued` |
 | `quit` | none | none |
 
 ### Fields
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 1. |
+| `protocol` | The version of the requests and replies. Today it is 2. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
@@ -507,10 +570,13 @@ A Headless run takes one frame for each step, and draws nothing.
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
 | `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. |
-| `results` | The QueryResults that the next step gets: `contacts`, `rays` and `overlaps`. |
+| `results` | The QueryResults that the next step gets: `contacts`, `rays`, `overlaps` and `ports`. `ports` is empty here, because the host fills it when the step runs. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |
 | `logical` | `[width, height]` in the window's units. |
+| `port` | The name of a port, a string that is not empty. |
+| `msg` | The message, any string. The empty string is a message too. |
+| `queued` | The count of messages that wait on the port, this one included. |
 
 ### Values
 
@@ -530,7 +596,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | Error | When |
 |---|---|
 | `unknown op "<name>"` | The `op` is not one of the ops. |
-| `not yet` | The op is `tell`, `ask` or `listen`. |
+| `not yet` | The op is `ask` or `listen`. |
 | `the request is not JSON: <reason>` | The line is not JSON. |
 | `the request is not a JSON object` | The line is JSON, but not an object. |
 | `the request has no "op" string` | The object has no `op`, or it is not a string. |
@@ -549,6 +615,9 @@ A Headless run takes one frame for each step, and draws nothing.
 | `"path" must be a file path` | `path` is missing, empty or not a string. |
 | `a Headless run draws no image to screenshot` | A `screenshot` in Headless. |
 | `the host cannot write "<path>": <reason>` | The host cannot write the PNG. |
+| `"port" must be a non-empty string` | A `tell` has no `port`, or it is empty or not a string. |
+| `"msg" must be a string` | A `tell` has no `msg`, or it is not a string. |
+| `the port queue is full` | The queued messages and this one would be over 4 MiB. |
 
 ### bridge.py
 
@@ -560,6 +629,8 @@ A Headless run takes one frame for each step, and draws nothing.
 | `bridge.py step [N] --gamepads JSON` | `step` with the whole `gamepads` list, such as `'[{"slot":1,"held":["Start"]}]'`. |
 | `bridge.py scene` | `scene` |
 | `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |
+| `bridge.py tell PORT MSG` | `tell` with `MSG`. |
+| `bridge.py tell PORT --file PATH` | `tell` with the whole file, read as UTF-8 text. |
 | `bridge.py quit` | `quit` |
 | `bridge.py free-port` | Nothing. It prints a free localhost port for `ROCCO_BRIDGE`. |
 

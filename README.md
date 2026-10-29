@@ -257,7 +257,9 @@ free port for `ROCCO_BRIDGE` unless you set one.
 
 `scripts/bridge.py` is the Driver behind it. Use it as a CLI to drive a
 game by hand, or import its `Bridge` class in a Python script.
-`python3 scripts/bridge_check.py` is the Bridge check that CI runs: it
+`python3 scripts/bridge_check.py` is the Bridge check that CI runs. It
+first sends `tell` messages to bridge-echo and checks that each one comes
+back as a `Tell` in the `step` reply. Then it
 drives tutorial chapter 3 and checks that Pip moves and that the screenshot
 has the right size. Then it drives chapter 8 to a pickup and checks that the
 `step` reply holds the `Play` of the blip. Then it walks Pip in chapter 9

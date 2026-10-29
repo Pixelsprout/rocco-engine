@@ -21,6 +21,7 @@ evidence are marked as decisions.
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio device, the mixer and their thread | what should be heard, as a Play Command or a Speaker Node in the Scene |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
+| messages from a Driver or an extension, as a port queue | which ports it Listens on, as Queries; what it Tells, as Commands |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
 
@@ -70,6 +71,12 @@ device can mix a voice as soon as it starts. Decision.
 The host answers the Queries in the previous `Scene` against that `Scene`.
 The next `step` gets the QueryResults. The first step gets
 empty QueryResults. ADR 0005 records the decision.
+
+A message for a port waits in the host's port queue until the next step
+runs. That step gets the messages of each port that a `Listen` Query in the
+previous `Scene` names, and the host drops the rest. A `Tell` is a Command
+the host does not act on: the Bridge writes it in the `step` reply, and
+ADR 0018 records both rules.
 
 With no `ContactsOf` Query, the host does no contact search. With one or
 more, it searches the grid cells under each asking owner. It gives each
@@ -163,8 +170,8 @@ Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), 
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 OverlapHit : { owner : U64, slot : U32, id : U64 }
-QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
-Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
+QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }) }
+Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
 Cursor   : [Free, Locked]
@@ -177,7 +184,7 @@ Element  := [Box(BoxConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
-Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
+Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
 ```
 
 | Type | Carries | Does not carry |
@@ -186,9 +193,9 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
-| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order | what the Contact means; a time of impact; a Contact that no Query asked for |
+| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
-| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play` | anything that should exist every step |
+| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.
