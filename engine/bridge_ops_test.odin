@@ -64,7 +64,7 @@ test_bridge_quit_replies_ok_and_stops_the_poll :: proc(t: ^testing.T) {
 test_bridge_reserved_ops_reply_not_yet :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	s: State
-	for op in ([]string{"tell", "ask", "listen"}) {
+	for op in ([]string{"ask", "listen"}) {
 		reply, next := driver_answer(t, &s, strings.concatenate({`{"op":"`, op, `"}`}, context.temp_allocator))
 		expect_error(t, reply, "not yet")
 		testing.expect_value(t, next, Bridge_Next.Read)
@@ -182,4 +182,58 @@ test_bridge_screenshot_bad_requests_reply_an_error :: proc(t: ^testing.T) {
 		expect_error(t, reply, c.error)
 		testing.expect_value(t, next, Bridge_Next.Read)
 	}
+}
+
+@(test)
+test_bridge_tell_queues_the_message_and_replies_the_count_on_the_port :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	defer bridge_ports_destroy(&s.bridge.ports)
+
+	reply, next := driver_answer(t, &s, `{"op":"tell","port":"town","msg":"hi"}`)
+	expect_field(t, reply, "ok", true)
+	expect_field(t, reply, "queued", i64(1))
+	testing.expect_value(t, next, Bridge_Next.Read)
+
+	reply, _ = driver_answer(t, &s, `{"op":"tell","port":"town","msg":"hi"}`)
+	expect_field(t, reply, "queued", i64(2))
+	testing.expect_value(t, len(s.bridge.ports.queue), 2)
+}
+
+@(test)
+test_bridge_tell_bad_requests_reply_an_error_and_queue_nothing :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	defer bridge_ports_destroy(&s.bridge.ports)
+
+	cases := []struct {
+		request, error: string,
+	} {
+		{`{"op":"tell","msg":"hi"}`, `"port" must be a non-empty string`},
+		{`{"op":"tell","port":"","msg":"hi"}`, `"port" must be a non-empty string`},
+		{`{"op":"tell","port":7,"msg":"hi"}`, `"port" must be a non-empty string`},
+		{`{"op":"tell","port":"town"}`, `"msg" must be a string`},
+		{`{"op":"tell","port":"town","msg":7}`, `"msg" must be a string`},
+	}
+	for c in cases {
+		reply, next := driver_answer(t, &s, c.request)
+		expect_error(t, reply, c.error)
+		testing.expect_value(t, next, Bridge_Next.Read)
+	}
+	testing.expect_value(t, len(s.bridge.ports.queue), 0)
+}
+
+@(test)
+test_bridge_tell_on_a_full_queue_replies_an_error :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	defer bridge_ports_destroy(&s.bridge.ports)
+	big := strings.repeat("x", BRIDGE_PORTS_MAX_BYTES - len("town"), context.temp_allocator)
+	_, push_error := bridge_ports_push(&s.bridge.ports, "town", big)
+	testing.expect_value(t, push_error, "")
+
+	reply, _ := driver_answer(t, &s, `{"op":"tell","port":"town","msg":"hi"}`)
+
+	expect_error(t, reply, "the port queue is full")
+	testing.expect_value(t, len(s.bridge.ports.queue), 1)
 }

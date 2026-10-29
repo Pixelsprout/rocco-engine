@@ -100,6 +100,31 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	testing.expect_value(t, len(overlaps), 1)
 	testing.expect_value(t, overlaps[0].(json.Object)["id"].(json.Float), 1)
 	testing.expect_value(t, overlaps[0].(json.Object)["slot"].(json.Float), 3)
+	testing.expect_value(t, len(results["ports"].(json.Array)), 0)
+}
+
+// Delivery moves the queued messages into the step that takes them, so the
+// results that scene shows after it hold none.
+@(test)
+test_bridge_scene_after_a_step_that_delivered_shows_no_ports :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	s: State
+	fake_frame_state_init(&s, mode = .Lockstep, queries = {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer fake_frame_state_destroy(&s)
+	err := bridge_open(&s.bridge, 0, context.allocator)
+	testing.expect_value(t, err, nil)
+	defer bridge_close(&s.bridge)
+	bridge_ports_push(&s.bridge.ports, "town", "hello")
+	step_request := strings.builder_make(context.temp_allocator)
+	testing.expect_value(t, bridge_handle(&s, `{"op":"step"}`, &step_request), Bridge_Next.Hold)
+
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+
+	testing.expect_value(t, g_fake.ports_len, 1)
+	reply := scene_reply(t, &s)
+	testing.expect_value(t, len(reply["results"].(json.Object)["ports"].(json.Array)), 0)
 }
 
 // Lockstep's Alpha is 0. Without the pause rule the window would draw the

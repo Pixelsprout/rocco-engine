@@ -6,10 +6,11 @@ import "core:fmt"
 import "core:strings"
 
 // A Driver reads this from hello. Raise it when a reply changes shape.
-BRIDGE_PROTOCOL :: 1
+// 2: results gained ports, for the tell op.
+BRIDGE_PROTOCOL :: 2
 BRIDGE_NOT_YET :: "not yet"
 
-// tell, ask and listen are kept for Ports (ADR 0009).
+// ask and listen are kept for Ports (ADR 0009).
 @(rodata)
 BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"hello", bridge_op_hello},
@@ -17,7 +18,7 @@ BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"step", bridge_op_step},
 	{"scene", bridge_op_scene},
 	{"screenshot", bridge_op_screenshot},
-	{"tell", bridge_op_not_yet},
+	{"tell", bridge_op_tell},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
 }
@@ -163,6 +164,26 @@ bridge_op_screenshot :: proc(s: ^State, request: json.Object, reply: ^strings.Bu
 	bridge_reply_field(reply, "path", path)
 	bridge_reply_field(reply, "physical", size)
 	bridge_reply_field(reply, "logical", screenshot_logical_size(size, sapp.dpi_scale()))
+	return .Read, ""
+}
+
+// Queues msg for the next step whose Scene Listens on port. queued is the
+// count on that port.
+bridge_op_tell :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	port, has_port := request["port"].(json.String)
+	if !has_port || port == "" {
+		return .Read, `"port" must be a non-empty string`
+	}
+	msg, has_msg := request["msg"].(json.String)
+	if !has_msg {
+		return .Read, `"msg" must be a string`
+	}
+	queued: int
+	queued, error = bridge_ports_push(&s.bridge.ports, port, msg)
+	if error != "" {
+		return .Read, error
+	}
+	bridge_reply_field(reply, "queued", queued)
 	return .Read, ""
 }
 

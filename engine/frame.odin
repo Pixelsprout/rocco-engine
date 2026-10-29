@@ -36,6 +36,9 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		step_input: Step_Input
 		commands_json: ^strings.Builder
 		if s.bridge.on {
+			// curr is the Scene the window shows, whose QueryResults this
+			// step gets, so a tell followed by a step is delivered in it.
+			seam_set_ports(&s.seam, bridge_ports_deliver(&s.bridge.ports, s.seam.curr.queries.elements[:s.seam.curr.queries.length]))
 			step_input = bridge_input_take(&s.bridge, &s.input_buffers)
 			commands_json = &s.bridge.commands
 		} else {

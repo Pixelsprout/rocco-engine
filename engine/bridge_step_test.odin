@@ -18,8 +18,8 @@ Step_Run :: struct {
 }
 
 @(private = "file")
-step_run_open :: proc(t: ^testing.T, r: ^Step_Run) {
-	fake_frame_state_init(&r.s, mode = .Lockstep)
+step_run_open :: proc(t: ^testing.T, r: ^Step_Run, queries: []Query = nil) {
+	fake_frame_state_init(&r.s, mode = .Lockstep, queries = queries)
 	err := bridge_open(&r.s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	r.driver = driver_dial(t, bridge_transport_port(&r.s.bridge.transport))
@@ -361,4 +361,63 @@ test_bridge_step_with_a_bad_gamepad_fails_before_any_step :: proc(t: ^testing.T)
 	}
 	testing.expect_value(t, g_fake.steps, 0)
 	testing.expect_value(t, r.s.bridge.owed_steps, 0)
+}
+
+@(test)
+test_bridge_delivers_queued_messages_to_the_next_step_that_listens :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r, {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer step_run_close(&r)
+
+	bridge_ports_push(&r.s.bridge.ports, "town", "hello")
+	step_run_request(t, &r, `{"op":"step"}`)
+	testing.expect_value(t, g_fake.ports_len, 1)
+	testing.expect_value(t, g_fake.ports[0], Fake_Port{"town", "hello"})
+
+	step_run_request(t, &r, `{"op":"step"}`)
+	testing.expect_value(t, g_fake.ports_len, 0)
+}
+
+@(test)
+test_bridge_messages_queued_between_drivers_reach_the_next_driver_s_step :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r, {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer step_run_close(&r)
+
+	// The transport accepts a Driver only when it polls, and its backlog holds
+	// one connection, so the first Driver must be accepted before the second dials.
+	step_run_send(t, &r, `{"op":"hello"}`)
+	driver_read_reply(t, r.driver)
+	bridge_ports_push(&r.s.bridge.ports, "town", "kept")
+	net.close(r.driver)
+	r.driver = driver_dial(t, bridge_transport_port(&r.s.bridge.transport))
+	step_run_request(t, &r, `{"op":"step"}`)
+
+	testing.expect_value(t, g_fake.ports_len, 1)
+	testing.expect_value(t, g_fake.ports[0].msg, "kept")
+}
+
+@(test)
+test_bridge_a_tell_after_a_step_batch_is_delivered_at_the_next_batch :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r, {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","n":2}`)
+	testing.expect_value(t, g_fake.ports_len, 0)
+	reply := step_run_request(t, &r, `{"op":"tell","port":"town","msg":"late"}`)
+	testing.expect_value(t, reply["queued"].(json.Integer), 1)
+	step_run_request(t, &r, `{"op":"step","n":1}`)
+
+	testing.expect_value(t, g_fake.ports_len, 1)
+	testing.expect_value(t, g_fake.ports[0].msg, "late")
 }
