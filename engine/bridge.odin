@@ -40,6 +40,8 @@ Bridge :: struct {
 	commands:     strings.Builder,
 	// The alloc line fields of the last step, for the step op's reply.
 	alloc:        Alloc_Report,
+	// The tell op's messages for the next step.
+	ports:        Bridge_Ports,
 }
 
 // One pad of a step op. A slot that the request does not name has no pad.
@@ -77,6 +79,7 @@ bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
 bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> net.Network_Error {
 	bridge_transport_open(&b.transport, port, allocator) or_return
 	b.commands = strings.builder_make(allocator)
+	bridge_ports_init(&b.ports, allocator)
 	b.on = true
 	return nil
 }
@@ -95,6 +98,7 @@ bridge_close :: proc(b: ^Bridge) {
 	}
 	bridge_transport_close(&b.transport)
 	strings.builder_destroy(&b.commands)
+	bridge_ports_destroy(&b.ports)
 	b.on = false
 }
 

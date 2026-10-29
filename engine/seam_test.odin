@@ -13,6 +13,7 @@ FAKE_CONTACTS_MAX :: 4
 FAKE_RAYS_MAX :: 4
 FAKE_OVERLAPS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
+FAKE_PORTS_MAX :: 8
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
@@ -32,6 +33,12 @@ Fake_Gamepad :: struct {
 	pressed:     [len(Gamepad_Button)]u8,
 	pressed_len: int,
 	axes:        Gamepad_Axes,
+}
+
+// One row of the last step's QueryResults.ports, copied out of Roc.
+Fake_Port :: struct {
+	port: string,
+	msg:  string,
 }
 
 // When the fake runner ran a command, counted in steps and views.
@@ -80,6 +87,8 @@ Fake_Game :: struct {
 	rays_len:         int,
 	overlaps:         [FAKE_OVERLAPS_MAX]Overlap_Hit,
 	overlaps_len:     int,
+	ports:            [FAKE_PORTS_MAX]Fake_Port,
+	ports_len:        int,
 	views:            int,
 	// The voices in use when view ran.
 	view_voices:      int,
@@ -228,6 +237,13 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
 	g_fake.overlaps_len = copy(g_fake.overlaps[:], results.overlaps.elements[:results.overlaps.length])
+	g_fake.ports_len = min(int(results.ports.length), FAKE_PORTS_MAX)
+	for &row, i in results.ports.elements[:g_fake.ports_len] {
+		g_fake.ports[i] = {
+			port = strings.clone(roc_str_string(&row.port), context.temp_allocator),
+			msg  = strings.clone(roc_str_string(&row.msg), context.temp_allocator),
+		}
+	}
 	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()

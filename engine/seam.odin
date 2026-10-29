@@ -133,6 +133,14 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 	return s.prev if s.has_prev else s.curr, s.curr
 }
 
+// The next step takes ports with the other QueryResults.
+seam_set_ports :: proc(s: ^Seam, ports: Roc_List(Port_Message)) {
+	if s.results.ports.length > 0 {
+		roc_list_decref(s.results.ports)
+	}
+	s.results.ports = ports
+}
+
 // The answers and the world-space Colliders live in the Frame allocator
 // until the copy into Roc.
 @(private = "file")
