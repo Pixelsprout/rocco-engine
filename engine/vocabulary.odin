@@ -21,6 +21,7 @@ Step_Result :: Roc_Step
 Command :: Roc_Init_Commands
 Load_Command :: Roc_Init_Commands_Load
 Play_Command :: Roc_Init_Commands_Play
+Tell_Command :: Roc_Init_Commands_Tell
 Place :: Roc_Init_Commands_Play_At
 Place_Tag :: Roc_Init_Commands_Play_At_Tag
 Place_At :: Roc_Init_Commands_Play_At_At
@@ -30,6 +31,7 @@ Query_Results :: Roc_Step_Arg2
 Contact :: Roc_Step_Arg2_Contacts
 Ray_Hit :: Roc_Step_Arg2_Rays
 Overlap_Hit :: Roc_Step_Arg2_Overlaps
+Port_Message :: Roc_Step_Arg2_Ports
 Scene :: Roc_View
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag

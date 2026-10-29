@@ -162,6 +162,8 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool,
 			s.run_command(command)
 		case .Play:
 			append(&pending, command.payload.play)
+		case .Tell:
+			// A Tell is for the Driver, which reads it from the step reply.
 		}
 	}
 	roc_list_decref(commands)

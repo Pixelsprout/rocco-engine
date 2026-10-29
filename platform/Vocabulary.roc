@@ -208,7 +208,11 @@ Vocabulary := [].{
 	## What the host gives `step` for the Queries of the previous Scene. Each
 	## kind of Query has one flat list. A miss has no row. The first step gets
 	## `QueryResults.empty`. Read it with the functions in `QueryResults`.
-	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit) }
+	##
+	## `ports` holds the messages a Driver or an extension sent to each port that
+	## the previous Scene Listened on, in arrival order. Read them with
+	## `Port.messages`.
+	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }) }
 
 	## A value in `Scene.queries` that asks the engine about the Colliders. The
 	## host runs it against that Scene and gives the QueryResults to the next
@@ -217,7 +221,11 @@ Vocabulary := [].{
 	## The host skips the owner's own Collider. Two Queries of one kind with the
 	## same owner and slot: the host keeps the first. An `Overlap` box carries
 	## its half extents and does not turn.
-	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) })]
+	##
+	## `Listen` asks for the messages sent to a port since the last step. A game
+	## that wants a port's messages sends it every step. Build one with
+	## `Port.listen`.
+	Query : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
 
 	## One light in the Scene. Build one with the functions in `Light`.
 	##
@@ -377,5 +385,7 @@ Vocabulary := [].{
 	##   the Listener of that Scene. `sound`, `gain`, `pitch` and `at` follow
 	##   the rules of a Speaker, but `at` is in the world. Build one with
 	##   `Sound.play`.
-	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place })]
+	## - `Tell`: send a message to a port. The host does nothing with it, and a
+	##   Driver reads it in the `step` reply. Build one with `Port.tell`.
+	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
 }

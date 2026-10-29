@@ -50,6 +50,14 @@ json_write_command :: proc(b: ^strings.Builder, command: ^Command) {
 		json_key(b, "at")
 		json_write_place(b, &play.at)
 		strings.write_string(b, "}}")
+	case .Tell:
+		tell := &command.payload.tell
+		json_key(b, "Tell", first = true)
+		json_key(b, "port", first = true)
+		json_write_roc_str(b, &tell.port)
+		json_key(b, "msg")
+		json_write_roc_str(b, &tell.msg)
+		strings.write_string(b, "}}")
 	}
 }
 
@@ -87,6 +95,8 @@ json_write_query_results :: proc(b: ^strings.Builder, results: ^Query_Results) {
 	json_write_list(b, results.rays, json_write_ray_hit)
 	json_key(b, "overlaps")
 	json_write_list(b, results.overlaps, json_write_overlap_hit)
+	json_key(b, "ports")
+	json_write_list(b, results.ports, json_write_port_message)
 	strings.write_byte(b, '}')
 }
 
@@ -230,11 +240,22 @@ json_write_overlap_hit :: proc(b: ^strings.Builder, hit: ^Overlap_Hit) {
 	strings.write_byte(b, '}')
 }
 
+json_write_port_message :: proc(b: ^strings.Builder, m: ^Port_Message) {
+	json_key(b, "port", first = true)
+	json_write_roc_str(b, &m.port)
+	json_key(b, "msg")
+	json_write_roc_str(b, &m.msg)
+	strings.write_byte(b, '}')
+}
+
 json_write_query :: proc(b: ^strings.Builder, query: ^Query) {
 	switch query.tag {
 	case .ContactsOf:
 		json_key(b, "ContactsOf", first = true)
 		strings.write_u64(b, query.payload.contacts_of)
+	case .Listen:
+		json_key(b, "Listen", first = true)
+		json_write_roc_str(b, &query.payload.listen)
 	case .Raycast:
 		ray := &query.payload.raycast
 		json_key(b, "Raycast", first = true)

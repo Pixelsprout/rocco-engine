@@ -202,12 +202,14 @@ Roc_Init_Commands_Tag :: enum u8 {
 	Load = 0,
 	Play = 1,
 	Quit = 2,
-	Unload = 3,
+	Tell = 3,
+	Unload = 4,
 }
 
 Roc_Init_Commands_Payload :: struct #raw_union {
 	load: Roc_Init_Commands_Load,
 	play: Roc_Init_Commands_Play,
+	tell: Roc_Init_Commands_Tell,
 	unload: Roc_Str,
 }
 
@@ -294,6 +296,18 @@ Roc_Init_Commands_Play_At_At_Pos :: struct {
 #assert(size_of(type_of(Roc_Init_Commands_Play_At_At_Pos{}.y)) == 4)
 #assert(offset_of(Roc_Init_Commands_Play_At_At_Pos, z) == 8)
 #assert(size_of(type_of(Roc_Init_Commands_Play_At_At_Pos{}.z)) == 4)
+
+Roc_Init_Commands_Tell :: struct {
+	msg: Roc_Str,
+	port: Roc_Str,
+}
+
+#assert(size_of(Roc_Init_Commands_Tell) == 48)
+#assert(align_of(Roc_Init_Commands_Tell) == 8)
+#assert(offset_of(Roc_Init_Commands_Tell, msg) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Tell{}.msg)) == 24)
+#assert(offset_of(Roc_Init_Commands_Tell, port) == 24)
+#assert(size_of(type_of(Roc_Init_Commands_Tell{}.port)) == 24)
 
 Roc_Launch_Arg0 :: Roc_Init_Arg0
 Roc_Launch :: struct {
@@ -484,16 +498,19 @@ Roc_Step_Arg1_Mouse :: struct {
 Roc_Step_Arg2 :: struct {
 	contacts: Roc_List(Roc_Step_Arg2_Contacts),
 	overlaps: Roc_List(Roc_Step_Arg2_Overlaps),
+	ports: Roc_List(Roc_Init_Commands_Tell),
 	rays: Roc_List(Roc_Step_Arg2_Rays),
 }
 
-#assert(size_of(Roc_Step_Arg2) == 72)
+#assert(size_of(Roc_Step_Arg2) == 96)
 #assert(align_of(Roc_Step_Arg2) == 8)
 #assert(offset_of(Roc_Step_Arg2, contacts) == 0)
 #assert(size_of(type_of(Roc_Step_Arg2{}.contacts)) == 24)
 #assert(offset_of(Roc_Step_Arg2, overlaps) == 24)
 #assert(size_of(type_of(Roc_Step_Arg2{}.overlaps)) == 24)
-#assert(offset_of(Roc_Step_Arg2, rays) == 48)
+#assert(offset_of(Roc_Step_Arg2, ports) == 48)
+#assert(size_of(type_of(Roc_Step_Arg2{}.ports)) == 24)
+#assert(offset_of(Roc_Step_Arg2, rays) == 72)
 #assert(size_of(type_of(Roc_Step_Arg2{}.rays)) == 24)
 
 Roc_Step_Arg2_Contacts :: struct {
@@ -530,6 +547,7 @@ Roc_Step_Arg2_Overlaps :: struct {
 #assert(offset_of(Roc_Step_Arg2_Overlaps, slot) == 16)
 #assert(size_of(type_of(Roc_Step_Arg2_Overlaps{}.slot)) == 4)
 
+Roc_Step_Arg2_Ports :: Roc_Init_Commands_Tell
 Roc_Step_Arg2_Rays :: struct {
 	id: u64,
 	owner: u64,
@@ -563,6 +581,7 @@ Roc_Step_Commands_Play :: Roc_Init_Commands_Play
 Roc_Step_Commands_Play_At :: Roc_Init_Commands_Play_At
 Roc_Step_Commands_Play_At_At :: Roc_Init_Commands_Play_At_At
 Roc_Step_Commands_Play_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
+Roc_Step_Commands_Tell :: Roc_Init_Commands_Tell
 Roc_View :: struct {
 	nodes: Roc_List(Roc_VocabularyNode),
 	queries: Roc_List(Roc_View_Queries),
@@ -875,12 +894,14 @@ Roc_VocabularyNode_Speaker_Repeat :: enum u8 {
 
 Roc_View_Queries_Tag :: enum u8 {
 	ContactsOf = 0,
-	Overlap = 1,
-	Raycast = 2,
+	Listen = 1,
+	Overlap = 2,
+	Raycast = 3,
 }
 
 Roc_View_Queries_Payload :: struct #raw_union {
 	contacts_of: u64,
+	listen: Roc_Str,
 	overlap: Roc_View_Queries_Overlap,
 	raycast: Roc_View_Queries_Raycast,
 }
@@ -1247,6 +1268,8 @@ roc_init_commands_decref :: proc(value: Roc_Init_Commands) {
 	#partial switch value.tag {
 	case .Load:
 		roc_init_commands_load_decref(value.payload.load)
+	case .Tell:
+		roc_init_commands_tell_decref(value.payload.tell)
 	case .Unload:
 		roc_str_decref(value.payload.unload)
 	}
@@ -1255,6 +1278,11 @@ roc_init_commands_decref :: proc(value: Roc_Init_Commands) {
 roc_init_commands_load_decref :: proc(value: Roc_Init_Commands_Load) {
 	roc_list_decref_roc_str(value.assets)
 	roc_str_decref(value.pack)
+}
+
+roc_init_commands_tell_decref :: proc(value: Roc_Init_Commands_Tell) {
+	roc_str_decref(value.msg)
+	roc_str_decref(value.port)
 }
 
 roc_launch_decref :: proc(value: Roc_Launch) {
@@ -1288,6 +1316,7 @@ roc_step_arg1_gamepads_decref :: proc(value: Roc_Step_Arg1_Gamepads) {
 roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
 	roc_list_decref_roc_step_arg2_contacts(value.contacts)
 	roc_list_decref_roc_step_arg2_overlaps(value.overlaps)
+	roc_list_decref_roc_init_commands_tell(value.ports)
 	roc_list_decref_roc_step_arg2_rays(value.rays)
 }
 
@@ -1306,6 +1335,8 @@ roc_vocabularynode_decref :: proc(value: Roc_VocabularyNode) {
 
 roc_view_queries_decref :: proc(value: Roc_View_Queries) {
 	#partial switch value.tag {
+	case .Listen:
+		roc_str_decref(value.payload.listen)
 	case .Overlap:
 		roc_view_queries_overlap_decref(value.payload.overlap)
 	case .Raycast:
@@ -1406,6 +1437,14 @@ roc_list_from_slice_roc_step_arg2_overlaps :: proc(elems: []Roc_Step_Arg2_Overla
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_init_commands_tell :: proc(list: Roc_List(Roc_Init_Commands_Tell)) {
+	roc_list_decref_elements(list, roc_init_commands_tell_decref)
+}
+
+roc_list_from_slice_roc_init_commands_tell :: proc(elems: []Roc_Init_Commands_Tell) -> Roc_List(Roc_Init_Commands_Tell) {
+	return roc_list_from_slice_with(elems, true)
+}
+
 roc_list_decref_roc_step_arg2_rays :: proc(list: Roc_List(Roc_Step_Arg2_Rays)) {
 	roc_list_decref_flat(list)
 }
@@ -1452,6 +1491,7 @@ roc_decref :: proc {
 	roc_init_decref,
 	roc_init_commands_decref,
 	roc_init_commands_load_decref,
+	roc_init_commands_tell_decref,
 	roc_launch_decref,
 	roc_launch_window_decref,
 	roc_loaded_arg2_decref,
@@ -1478,6 +1518,7 @@ roc_list_decref :: proc {
 	roc_list_decref_u16,
 	roc_list_decref_roc_step_arg2_contacts,
 	roc_list_decref_roc_step_arg2_overlaps,
+	roc_list_decref_roc_init_commands_tell,
 	roc_list_decref_roc_step_arg2_rays,
 	roc_list_decref_roc_vocabularynode,
 	roc_list_decref_roc_view_queries,
@@ -1495,6 +1536,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_u16,
 	roc_list_from_slice_roc_step_arg2_contacts,
 	roc_list_from_slice_roc_step_arg2_overlaps,
+	roc_list_from_slice_roc_init_commands_tell,
 	roc_list_from_slice_roc_step_arg2_rays,
 	roc_list_from_slice_roc_vocabularynode,
 	roc_list_from_slice_roc_view_queries,

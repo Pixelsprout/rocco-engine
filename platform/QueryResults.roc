@@ -3,9 +3,10 @@ import Vocabulary exposing [RayHit]
 ## Reads the QueryResults that `step` gets, and builds them for tests.
 QueryResults := [].{
 
-	## No Contacts, no RayHits and no OverlapHits. The first step gets it.
+	## No Contacts, no RayHits, no OverlapHits and no port messages. The first
+	## step gets it.
 	empty : Vocabulary.QueryResults
-	empty = { contacts: [], rays: [], overlaps: [] }
+	empty = { contacts: [], rays: [], overlaps: [], ports: [] }
 
 	## The hit of the owner's Raycast in slot 0, or `Miss`.
 	ray : Vocabulary.QueryResults, U64 -> Try(RayHit, [Miss])
