@@ -402,3 +402,22 @@ test_bridge_messages_queued_between_drivers_reach_the_next_driver_s_step :: proc
 	testing.expect_value(t, g_fake.ports_len, 1)
 	testing.expect_value(t, g_fake.ports[0].msg, "kept")
 }
+
+@(test)
+test_bridge_a_tell_after_a_step_batch_is_delivered_at_the_next_batch :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r, {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","n":2}`)
+	testing.expect_value(t, g_fake.ports_len, 0)
+	reply := step_run_request(t, &r, `{"op":"tell","port":"town","msg":"late"}`)
+	testing.expect_value(t, reply["queued"].(json.Integer), 1)
+	step_run_request(t, &r, `{"op":"step","n":1}`)
+
+	testing.expect_value(t, g_fake.ports_len, 1)
+	testing.expect_value(t, g_fake.ports[0].msg, "late")
+}
