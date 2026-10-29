@@ -938,8 +938,8 @@ agents and for CI. Grilled 2026-10-22. The dex milestone task holds the
 decisions and the tasks.
 
 1. The Bridge drives the host, not the game, and makes no Vocabulary change.
-   Ports wait for the extension arc. `docs/adr/0009-the-bridge-drives-the-host.md`
-   records the decision.
+   Ports came later, in Milestone 29 (ADR 0018).
+   `docs/adr/0009-the-bridge-drives-the-host.md` records the decision.
 2. `ROCCO_BRIDGE=<port>` listens on 127.0.0.1 for one Driver at a time. The
    protocol is JSON Lines with the ops `hello`, `step`, `scene`, `screenshot`
    and `quit`. Lockstep pauses while the Driver asks for no steps.
@@ -1237,6 +1237,28 @@ colour. One Vocabulary change, released as v0.7.0. Closes dex tasks yjtqgdd4
 and s1zhf2hf. It was Milestone 25 until 2026-10-27, when it moved after the
 announcement release.
 
+## Milestone 29: Ports over the Bridge
+
+Done when the Bridge check drives `examples/bridge-echo` on macOS, Linux
+and Windows: a Driver sends a message with `tell`, the game reads it from
+a Listen, and its `Tell` comes back in the `step` reply. This is phase 1 of
+the Agent Town design. The dex task 6sj8sqo5 holds the tasks.
+`docs/adr/0018-ports-begin-as-tell-and-listen-over-the-bridge.md` records
+the decisions.
+
+1. One Vocabulary change: a `Tell({ port, msg })` Command, a `Listen(Str)`
+   Query and `QueryResults.ports`. The `Port` module builds and reads them.
+2. The host keeps a port queue of at most 4 MiB in the Bridge. The next
+   step gets the messages of each port that the shown Scene Listens on.
+   The host drops the rest and logs once per port.
+3. The Bridge gains the `tell` op, and the protocol is 2. `bridge.py` gains
+   `tell PORT MSG` and `tell PORT --file PATH`.
+4. `examples/bridge-echo` Listens on `echo` and Tells each message back.
+
+Check: Odin tests cover the op, the queue, the drop rule, the size limit
+and the glue types. `scripts/test_bridge.py` covers the Driver. The Bridge
+check drives bridge-echo first on all three OSes in CI.
+
 ## Later arcs
 
 These arcs are a direction, not a plan. Each gets milestone numbers and its
@@ -1260,8 +1282,8 @@ repo, pulls this arc.
   and elqpa9x2). Milestone 21 makes the UI a tree (ADR 0013), so a Box
   can carry an event tag. Pointer input still reopens the layout part of
   ADR 0004.
-- Ports and saves. A Port can reach a Driver through the Bridge of
-  Milestone 19 (ADR 0009).
+- Saves, and Ports for extensions. Milestone 29 added Ports over the
+  Bridge (ADR 0018), and an extension feeds the same port queue.
 - The extension ABI, with FMOD as its first proof.
 - Materials on the Draw and shading modes, then post-processing, then game
   shaders as Pack assets (dex task bdathrx5).
