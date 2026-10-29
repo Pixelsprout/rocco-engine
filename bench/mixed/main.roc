@@ -285,12 +285,13 @@ ui_element_count = |ui| match ui {
 	_ => 0
 }
 
-query_kinds : List(Vocabulary.Query) -> List([Ray, Overlap, Contacts])
+query_kinds : List(Vocabulary.Query) -> List([Ray, Overlap, Contacts, Listen])
 query_kinds = |qs| qs.map(
 	|q| match q {
 		Raycast(_) => Ray
 		Overlap(_) => Overlap
 		ContactsOf(_) => Contacts
+		Listen(_) => Listen
 	},
 )
 
