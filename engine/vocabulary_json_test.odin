@@ -60,6 +60,23 @@ test_json_write_commands_joins_a_second_list :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_json_writes_a_tell_command :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	command := Command {
+		tag = .Tell,
+		payload = {tell = {port = roc_str_from_slice("town"), msg = roc_str_from_slice("a \"q\"\n")}},
+	}
+	defer roc_decref(command)
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_command(&b, &command)
+
+	expect_json_text(t, &b, `{"Tell":{"port":"town","msg":"a \"q\"\n"}}`)
+}
+
+@(test)
 test_json_write_f32_writes_the_shortest_round_trip_and_null_for_nan_and_inf :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	b := strings.builder_make(context.temp_allocator)
@@ -129,6 +146,20 @@ test_json_write_query_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		`{"Overlap":{"owner":1,"slot":3,"shape":{"Box":{"x":1,"y":1,"z":1}},"pos":{"x":0,"y":0,"z":0},"exclude":[]}},` +
 		`{"Overlap":{"owner":1,"slot":4,"shape":{"Sphere":2},"pos":{"x":0,"y":1,"z":0},"exclude":[5]}}]`,
 	)
+}
+
+@(test)
+test_json_writes_a_listen_query :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	query := Query{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}
+	defer roc_decref(query)
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_query(&b, &query)
+
+	expect_json_text(t, &b, `{"Listen":"town"}`)
 }
 
 @(test)
@@ -229,8 +260,33 @@ test_json_write_query_results_writes_every_row_with_the_vocabulary_names :: proc
 		&b,
 		`{"contacts":[{"a":1,"b":2,"normal":{"x":1,"y":0,"z":0},"depth":0.5}],` +
 		`"rays":[{"owner":1,"slot":2,"id":3,"point":{"x":1,"y":2,"z":3},"normal":{"x":0,"y":1,"z":0},"distance":4}],` +
-		`"overlaps":[{"owner":1,"slot":3,"id":2}]}`,
+		`"overlaps":[{"owner":1,"slot":3,"id":2}],"ports":[]}`,
 	)
+}
+
+@(test)
+test_json_writes_the_ports_of_query_results :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	ports := []Port_Message {
+		{port = roc_str_from_slice("town"), msg = roc_str_from_slice("1")},
+		{port = roc_str_from_slice("town"), msg = roc_str_from_slice("")},
+	}
+	defer for row in ports {
+		roc_decref(row)
+	}
+	results := Query_Results {
+		ports = json_test_list(ports),
+	}
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_query_results(&b, &results)
+
+	got := strings.to_string(b)
+	testing.expectf(t, strings.has_suffix(got, `,"ports":[{"port":"town","msg":"1"},{"port":"town","msg":""}]}`), "got %s", got)
+	_, err := json.parse_string(strings.concatenate({"[", got, "]"}, context.temp_allocator), allocator = context.temp_allocator)
+	testing.expect_value(t, err, nil)
 }
 
 // The writers only read, so the list can borrow the slice.
