@@ -20,6 +20,8 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
     python3 scripts/bridge.py step --gamepads '[{"slot":1,"held":["Start"]}]'
     python3 scripts/bridge.py scene
     python3 scripts/bridge.py screenshot out.png
+    python3 scripts/bridge.py tell town 'hello'
+    python3 scripts/bridge.py tell town --file msg.txt
     python3 scripts/bridge.py quit
     python3 scripts/bridge.py free-port
 
@@ -113,6 +115,9 @@ class Bridge:
 
     def scene(self):
         return self.request({"op": "scene"})
+
+    def tell(self, port, msg):
+        return self.request({"op": "tell", "port": port, "msg": msg})
 
     # The host writes the file from the game's folder, so the path is made
     # absolute here, against the Driver's working directory.
@@ -274,6 +279,14 @@ def step_gamepads(args):
     return [pad] if pad else []
 
 
+# newline="" keeps the file's line endings, so the game gets its exact text.
+def tell_message(args):
+    if args.file is None:
+        return args.msg
+    with open(args.file, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Send one Bridge request and print the reply.")
     parser.add_argument("--port", type=int, help=f"the host's port (default: ${PORT_ENV})")
@@ -295,11 +308,19 @@ def parse_args(argv):
     pad.add_argument("--right-trigger", type=number, metavar="V", help="the right trigger for every step, 0 to 1")
     step.add_argument("--gamepads", type=gamepads_arg, metavar="JSON", help="the whole gamepads list as JSON, in place of the pad flags")
     ops.add_parser("scene")
+    tell = ops.add_parser("tell", help="queue a message for the game's Listen Queries on a port")
+    # dest tell_port, as port is the host's --port.
+    tell.add_argument("tell_port", metavar="PORT", help="the port the game Listens on")
+    tell.add_argument("msg", nargs="?", metavar="MSG", help="the message text")
+    tell.add_argument("--file", metavar="PATH", help="send the whole file, read as UTF-8 text, in place of MSG")
     shot = ops.add_parser("screenshot")
     shot.add_argument("path")
     ops.add_parser("quit")
     ops.add_parser("free-port", help="print a free localhost port for ROCCO_BRIDGE")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.op == "tell" and (args.msg is None) == (args.file is None):
+        tell.error("give either MSG or --file PATH")
+    return args
 
 
 def main(argv=None):
@@ -325,6 +346,8 @@ def main(argv=None):
                     b.scene()
                 elif args.op == "screenshot":
                     b.screenshot(args.path)
+                elif args.op == "tell":
+                    b.tell(args.tell_port, tell_message(args))
                 elif args.op == "quit":
                     b.quit()
             except BridgeError:
