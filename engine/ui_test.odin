@@ -30,6 +30,9 @@ frame_fixture_destroy_ui :: proc(f: ^Frame_Fixture) {
 	delete(f.ui.quads)
 	delete(f.ui.hits)
 	delete(f.ui.over)
+	delete(f.ui.scroll_boxes)
+	delete(f.ui.scrolls)
+	delete(f.ui.clips)
 	free(f.ui)
 	sync.mutex_unlock(&g_clay_lock)
 }
@@ -331,7 +334,7 @@ test_ui_frame_allocates_nothing :: proc(t: ^testing.T) {
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_tagged(1, 100, 100)
+	box := ui_scroll(ui_tagged(1, 100, 100), {0, -4})
 	box.floating = ui_floating(.CenterCenter)
 	elements := []Element{ui_box_of(box, ui_text("Keys 3 of 5", 24))}
 	track: mem.Tracking_Allocator
@@ -509,4 +512,153 @@ test_ui_repeated_id_hit_tests_the_first_box_and_logs_once :: proc(t: ^testing.T)
 	expect_over(t, ui_test_over(&f, roots, {150, 50}), {})
 	testing.expect(t, .Duplicate_Id in f.ui.repairs_logged)
 	testing.expect(t, .DuplicateId not_in f.ui.errors_logged)
+}
+
+ui_clip :: proc(box: Box_Config) -> Box_Config {
+	box := box
+	box.overflow = {tag = .Clip}
+	return box
+}
+
+ui_scroll :: proc(box: Box_Config, offset: [2]f32) -> Box_Config {
+	box := box
+	box.overflow = {tag = .Scroll, payload = {scroll = {x = offset.x, y = offset.y}}}
+	return box
+}
+
+// A Col of rows Fixed width by 20, in a Scroll Box Fixed width by height.
+ui_scroll_rows :: proc(id: u64, width, height: f32, rows: int) -> Element {
+	box := ui_scroll(ui_tagged(id, width, height), {0, 0})
+	box.direction = .Col
+	children := make([]Element, rows, context.temp_allocator)
+	for &row in children {
+		row = ui_box_of(ui_rect(width, 20))
+	}
+	return ui_box_of(box, ..children)
+}
+
+@(test)
+test_ui_clip_cuts_the_children_at_the_box_edges :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_clip(ui_rect(100, 50)), ui_box_of(ui_rect(200, 200)))}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if !testing.expect_value(t, len(quads), 2) {
+		return
+	}
+	// Clay opens the scissor before the Box's own rect, which the clip leaves whole.
+	testing.expect_value(t, quads[0].rect, [4]f32{0, 0, 100, 50})
+	testing.expect(t, quads[1].clipped)
+	testing.expect_value(t, quads[1].clip, [4]f32{0, 0, 100, 50})
+}
+
+@(test)
+test_ui_scroll_moves_the_children_by_the_offset_in_physical_pixels :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.window = {size = {1920, 1080}, dpi = 2}
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_scroll(ui_tagged(9, 100, 100), {0, -20}), ui_box_of(ui_rect(100, 300)))}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if !testing.expect_value(t, len(quads), 2) {
+		return
+	}
+	testing.expect_value(t, quads[1].rect.y, -40)
+	testing.expect_value(t, quads[1].clip, [4]f32{0, 0, 200, 200})
+}
+
+@(test)
+test_ui_nested_clips_intersect :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	inner := ui_box_of(ui_clip(ui_rect(200, 40)), ui_box_of(ui_rect(300, 300)))
+	roots := []Element{ui_box_of(ui_clip(ui_rect(100, 100)), inner)}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if !testing.expect_value(t, len(quads), 3) {
+		return
+	}
+	testing.expect(t, quads[2].clipped)
+	testing.expect_value(t, quads[2].clip, [4]f32{0, 0, 100, 40})
+}
+
+@(test)
+test_ui_clip_run_end_splits_on_a_clip_change :: proc(t: ^testing.T) {
+	small := Ui_Quad{clipped = true, clip = {0, 0, 10, 10}}
+	big := Ui_Quad{clipped = true, clip = {0, 0, 20, 20}}
+	quads := []Ui_Quad{{}, {}, small, small, small, big}
+
+	testing.expect_value(t, ui_clip_run_end(quads, 0), 2)
+	testing.expect_value(t, ui_clip_run_end(quads, 2), 5)
+	testing.expect_value(t, ui_clip_run_end(quads, 5), 6)
+}
+
+@(test)
+test_ui_scroll_sizes_list_each_tagged_scroll_box_in_logical_pixels :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.window = {size = {1920, 1080}, dpi = 2}
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	untagged := ui_box_of(ui_scroll(ui_rect(50, 50), {0, 0}), ui_box_of(ui_rect(50, 80)))
+	roots := []Element{ui_box_of(ui_box(), ui_scroll_rows(9, 200, 100, 10), ui_box_of(ui_clip(ui_tagged(5, 50, 50))), untagged)}
+
+	ui_frame(f.ui, roots, f.window)
+
+	if testing.expect_value(t, len(f.ui.scrolls), 1) {
+		testing.expect_value(t, f.ui.scrolls[0], Scroll_Size{id = 9, view = {width = 200, height = 100}, content = {width = 200, height = 200}})
+	}
+	testing.expect(t, .Scroll_Without_Id in f.ui.repairs_logged)
+}
+
+// Clay holds at most 100 clip records, and only its scroll update removes
+// the records of Boxes that are gone.
+@(test)
+test_ui_scroll_sizes_stay_right_past_100_scroll_ids :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+
+	for i in 0 ..< 150 {
+		id := u64(i + 1)
+		roots := []Element{ui_box_of(ui_scroll(ui_tagged(id, 100, 50), {0, 0}), ui_box_of(ui_rect(100, 80)))}
+		ui_frame(f.ui, roots, f.window)
+		if !testing.expectf(t, len(f.ui.scrolls) == 1, "layout %v has %v scroll rows", i, len(f.ui.scrolls)) {
+			return
+		}
+		want := Scroll_Size{id = id, view = {width = 100, height = 50}, content = {width = 100, height = 80}}
+		if !testing.expect_value(t, f.ui.scrolls[0], want) {
+			return
+		}
+	}
+	testing.expect(t, .InternalError not_in f.ui.errors_logged)
+}
+
+@(test)
+test_ui_hit_skips_a_child_clipped_out_of_its_box :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_clip(ui_tagged(1, 100, 100)), ui_box_of(ui_tagged(2, 100, 300)))}
+
+	expect_over(t, ui_test_over(&f, roots, {50, 50}), {2, 1})
+	expect_over(t, ui_test_over(&f, roots, {50, 150}), {})
 }

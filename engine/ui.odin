@@ -17,6 +17,8 @@ UI_TEXT_WORD_CAPACITY :: 2 * UI_ELEMENT_CAPACITY
 UI_QUAD_INDICES :: [6]u16{0, 1, 2, 0, 2, 3}
 // A Scene with more tagged Boxes than this grows the map once.
 UI_HIT_CAPACITY :: 256
+// A Scene with more nested clips or Scroll Boxes than this grows the lists once.
+UI_CLIP_CAPACITY :: 16
 
 // The vocabulary and Clay name the nine points alike, but the glue orders the tags by name.
 @(rodata)
@@ -47,19 +49,23 @@ UI_ALIGN_Y := [Align]clay.LayoutAlignmentY {
 }
 
 // rect is x, y, width, height in window pixels. uv is the atlas rect of a
-// glyph as u0, v0, u1, v1. A rect quad rounds its corners by radius.
+// glyph as u0, v0, u1, v1. A rect quad rounds its corners by radius. A
+// clipped quad draws only inside clip, in window pixels.
 Ui_Quad :: struct {
-	rect:   [4]f32,
-	uv:     [4]f32,
-	color:  [4]f32,
-	radius: f32,
-	glyph:  bool,
+	rect:    [4]f32,
+	uv:      [4]f32,
+	color:   [4]f32,
+	clip:    [4]f32,
+	radius:  f32,
+	glyph:   bool,
+	clipped: bool,
 }
 
 Ui_Repair :: enum {
 	Bad_Char,
 	Quad_Cap,
 	Duplicate_Id,
+	Scroll_Without_Id,
 }
 
 // shape is the half size and corner radius of a rect, and w is 1 for a glyph.
@@ -90,6 +96,11 @@ Ui_Hit_Box :: struct {
 	layer: u32,
 }
 
+Ui_Scroll_Box :: struct {
+	id:      u64,
+	clay_id: clay.ElementId,
+}
+
 Ui :: struct {
 	memory:         []u8,
 	ctx:            ^clay.Context,
@@ -102,6 +113,11 @@ Ui :: struct {
 	layers:         u32,
 	// The game ids under the pointer, innermost first. ui_hit_test fills it.
 	over:           [dynamic]u64,
+	// The tagged Scroll Boxes of the last layout, and their sizes after it.
+	scroll_boxes:   [dynamic]Ui_Scroll_Box,
+	scrolls:        [dynamic]Scroll_Size,
+	// The scissor stack while ui_frame reads the commands.
+	clips:          [dynamic][4]f32,
 }
 
 // The window size that the game gets in Input, in logical pixels.
@@ -120,6 +136,9 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 	ui.quads = make([]Ui_Quad, quad_capacity, allocator) or_return
 	ui.hits = make(map[u32]Ui_Hit_Box, UI_HIT_CAPACITY, allocator) or_return
 	ui.over = make([dynamic]u64, 0, UI_HIT_CAPACITY, allocator) or_return
+	ui.scroll_boxes = make([dynamic]Ui_Scroll_Box, 0, UI_CLIP_CAPACITY, allocator) or_return
+	ui.scrolls = make([dynamic]Scroll_Size, 0, UI_CLIP_CAPACITY, allocator) or_return
+	ui.clips = make([dynamic][4]f32, 0, UI_CLIP_CAPACITY, allocator) or_return
 	arena := clay.CreateArenaWithCapacityAndMemory(uint(capacity), raw_data(ui.memory))
 	ui.ctx = clay.Initialize(arena, {size.x, size.y}, {handler = ui_error_cb, userData = ui})
 	clay.SetMeasureTextFunction(ui_measure_cb, nil)
@@ -130,6 +149,7 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []Ui_Quad {
 	commands := ui_layout(ui, roots, window)
 	ui.quad_count = 0
+	clear(&ui.clips)
 	for &command in commands {
 		box := command.boundingBox
 		rect := [4]f32{box.x, box.y, box.width, box.height}
@@ -139,9 +159,35 @@ ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []Ui_Quad {
 			ui_push(ui, {rect = rect, color = r.backgroundColor, radius = r.cornerRadius.topLeft})
 		case .Text:
 			ui_push_text(ui, rect, command.renderData.text)
+		case .ScissorStart:
+			outer := [4]f32{0, 0, window.size.x, window.size.y}
+			if len(ui.clips) > 0 {
+				outer = ui.clips[len(ui.clips) - 1]
+			}
+			append(&ui.clips, ui_rect_intersect(rect, outer))
+		case .ScissorEnd:
+			if len(ui.clips) > 0 {
+				pop(&ui.clips)
+			}
 		}
 	}
 	return ui.quads[:ui.quad_count]
+}
+
+// Never negative in size, so an empty overlap is a valid scissor rect.
+ui_rect_intersect :: proc(a, b: [4]f32) -> [4]f32 {
+	x0, y0 := max(a.x, b.x), max(a.y, b.y)
+	x1, y1 := min(a.x + a.z, b.x + b.z), min(a.y + a.w, b.y + b.w)
+	return {x0, y0, max(x1 - x0, 0), max(y1 - y0, 0)}
+}
+
+// The end of the run of quads that share clipped and clip with quads[start].
+ui_clip_run_end :: proc(quads: []Ui_Quad, start: int) -> (end: int) {
+	end = start + 1
+	for end < len(quads) && quads[end].clipped == quads[start].clipped && quads[end].clip == quads[start].clip {
+		end += 1
+	}
+	return end
 }
 
 // The commands point into Clay's arena and into the roots, so they last until the next layout.
@@ -149,12 +195,28 @@ ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.Render
 	clay.SetCurrentContext(ui.ctx)
 	clay.SetLayoutDimensions({window.size.x, window.size.y})
 	clear(&ui.hits)
+	clear(&ui.scroll_boxes)
+	clear(&ui.scrolls)
 	ui.layers = 0
 	clay.BeginLayout()
 	for &e in roots {
 		ui_layout_element(ui, &e, window.dpi, 0)
 	}
 	commands := clay.EndLayout(0)
+	for box in ui.scroll_boxes {
+		data := clay.GetScrollContainerData(box.clay_id)
+		if data.found {
+			view, content := data.scrollContainerDimensions, data.contentDimensions
+			append(&ui.scrolls, Scroll_Size{id = box.id, view = {width = view.width / window.dpi, height = view.height / window.dpi}, content = {width = content.width / window.dpi, height = content.height / window.dpi}})
+		}
+	}
+	// Clay holds at most 100 clip records, and only its scroll update removes
+	// them. The first call removes the records of Boxes that are gone and
+	// marks the rest, and the second removes the rest. A record kept into the
+	// next layout points at a reused element and takes a new Box's sizes.
+	// Drag is off and the delta is zero, so neither call moves anything.
+	clay.UpdateScrollContainers(false, {0, 0}, 0)
+	clay.UpdateScrollContainers(false, {0, 0}, 0)
 	return commands.internalArray[:commands.length]
 }
 
@@ -167,7 +229,14 @@ ui_layout_element :: proc(ui: ^Ui, e: ^Element, dpi: f32, layer: u32) {
 			ui.layers += 1
 			layer = ui.layers
 		}
-		ui_open_box(ui, config.id, layer)
+		clay_id, tagged := ui_open_box(ui, config.id, layer)
+		if config.overflow.tag == .Scroll {
+			if config.id == 0 {
+				ui_repair(ui, .Scroll_Without_Id)
+			} else if tagged {
+				append(&ui.scroll_boxes, Ui_Scroll_Box{id = config.id, clay_id = clay_id})
+			}
+		}
 		d := ui_declaration(config, dpi)
 		if config.floating.tag == .Float {
 			// Clay reads the mode when the Box opens, before its children.
@@ -186,12 +255,12 @@ ui_layout_element :: proc(ui: ^Ui, e: ^Element, dpi: f32, layer: u32) {
 
 // A repeated id opens with Clay's automatic id, so Clay never sees it twice.
 @(private = "file")
-ui_open_box :: proc(ui: ^Ui, id: u64, layer: u32) {
+ui_open_box :: proc(ui: ^Ui, id: u64, layer: u32) -> (clay_id: clay.ElementId, tagged: bool) {
 	if id == 0 {
 		clay._OpenElement()
 		return
 	}
-	clay_id := ui_clay_id(id)
+	clay_id = ui_clay_id(id)
 	if clay_id.id in ui.hits {
 		ui_repair(ui, .Duplicate_Id)
 		clay._OpenElement()
@@ -199,6 +268,7 @@ ui_open_box :: proc(ui: ^Ui, id: u64, layer: u32) {
 	}
 	ui.hits[clay_id.id] = {id = id, layer = layer}
 	clay._OpenElementWithId(clay_id)
+	return clay_id, true
 }
 
 // The splitmix64 finalizer folded to 32 bits. Two ids that fold to one Clay id
@@ -267,6 +337,14 @@ ui_declaration :: proc(box: Box_Config, dpi: f32) -> clay.ElementDeclaration {
 		},
 		backgroundColor = ui_color(box.background),
 		cornerRadius = clay.CornerRadiusAll(box.radius * dpi),
+	}
+	switch box.overflow.tag {
+	case .Visible:
+	case .Clip:
+		d.clip = {horizontal = true, vertical = true}
+	case .Scroll:
+		offset := box.overflow.payload.scroll
+		d.clip = {horizontal = true, vertical = true, childOffset = {offset.x * dpi, offset.y * dpi}}
 	}
 	if box.floating.tag == .Float {
 		f := box.floating.payload.float
@@ -360,6 +438,8 @@ ui_repair :: proc(ui: ^Ui, repair: Ui_Repair) {
 		fmt.eprintfln("a Scene's ui needs more than %v quads; the host drops the rest", len(ui.quads))
 	case .Duplicate_Id:
 		fmt.eprintln("two Boxes in a Scene's ui share an id; the host hit tests only the first")
+	case .Scroll_Without_Id:
+		fmt.eprintln("a Scroll Box has id 0; the host scrolls it but lists no sizes for it")
 	}
 }
 
@@ -373,6 +453,11 @@ ui_push :: proc(ui: ^Ui, quad: Ui_Quad) {
 	if ui.quad_count == len(ui.quads) {
 		ui_repair(ui, .Quad_Cap)
 		return
+	}
+	quad := quad
+	if len(ui.clips) > 0 {
+		quad.clip = ui.clips[len(ui.clips) - 1]
+		quad.clipped = true
 	}
 	ui.quads[ui.quad_count] = quad
 	ui.quad_count += 1
