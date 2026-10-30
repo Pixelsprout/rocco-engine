@@ -75,6 +75,7 @@ seam_step :: proc(s: ^Seam, step_input: Step_Input, dt: f32, spans: ^Span_Sink =
 		pressed  = roc_list_from_slice(step_input.pressed),
 		mouse    = {dx = step_input.mouse.x, dy = step_input.mouse.y},
 		gamepads = seam_gamepads(step_input.gamepads),
+		window   = {width = step_input.window.x, height = step_input.window.y},
 	}
 	span = span_close(spans, .Input, span)
 	// step frees the old box and consumes the results. Never touch either again.

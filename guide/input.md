@@ -1,6 +1,6 @@
 ---
 title: Input
-summary: Held keys for things that last and pressed keys for things that happen once, the mouse movement, the mouse lock, and how to test input.
+summary: Held keys for things that last and pressed keys for things that happen once, the mouse movement, the mouse lock, the window size, and how to test input.
 order: 6
 ---
 
@@ -12,9 +12,9 @@ down?" makes the player jump once. If you answer the second question with
 the first, the player jumps at every step while Space is down.
 
 So the host gives `step` an [Input] at each fixed step with both answers:
-the keys that are held, the keys that were pressed, the mouse movement and
-the gamepads. The host never decides what a key means, and it removes no
-key from the Input. What each key does is up to your game.
+the keys that are held, the keys that were pressed, the mouse movement, the
+gamepads and the window size. The host never decides what a key means, and
+it removes no key from the Input. What each key does is up to your game.
 
 This page covers the keyboard and the mouse. [Gamepads](gamepad.md) covers
 the pads.
@@ -97,6 +97,13 @@ with presses, the first step of a frame gets the movement, and the later
 steps of that frame get zero.
 
 The Input has no mouse buttons yet.
+
+## The window size
+
+`Input.window` holds the `width` and `height` of the window in logical
+pixels, the unit of the UI. The host reads it once per frame, so it
+follows a resize. A Headless run gets the Launch width and height. Pass it
+to `Camera.project` to put a label over a point in the world.
 
 ## The mouse lock
 

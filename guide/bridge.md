@@ -443,6 +443,8 @@ The host builds the Input of each step from the `step` request:
   the request, in slot order. Each pad's buttons follow the rules of Held
   and Pressed above, by slot. The sticks and the triggers are the same in
   every step.
+- **Window**: not in the request. A Headless run gets the Launch width and
+  height. A windowed run gets the size of its window in logical pixels.
 
 A Bridge pad differs from a real pad in three ways:
 

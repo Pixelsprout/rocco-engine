@@ -44,6 +44,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		} else {
 			step_input = input_take(&s.input, &s.input_buffers)
 		}
+		step_input.window = ui_window_logical(platform.window)
 		step_time, view_time, quit := seam_step(&s.seam, step_input, dt, &s.spans, commands_json)
 		audio_advance(&s.audio, dt)
 		steps += 1
