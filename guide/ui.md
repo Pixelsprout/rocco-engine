@@ -8,8 +8,7 @@ order: 9
 
 A score, a pause banner or a list of controls needs layout: text that
 centres, panels that stick to a corner, sizes that follow the window. Your
-game can't do that layout itself, because it never learns the size of the
-window or how wide a string is.
+game can't do that layout itself, because it cannot measure a string.
 
 So the host does the layout. Your game describes the UI in the `ui` field
 of the [Scene], and the host lays it out and draws it flat over the 3D
@@ -190,8 +189,8 @@ are Clay's.
 - A Text with `wrap` set to `Words` breaks its lines between words, inside
   the width of its parent.
 
-Your game never gets the size of the window, and no layout result comes
-back to it. Use `Grow` and `Percent` to fit the UI to the window.
+No layout result comes back to your game. Use `Grow` and `Percent` to fit
+the UI to the window.
 
 ## Text
 
