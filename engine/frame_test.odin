@@ -51,6 +51,8 @@ fake_frame_state_destroy :: proc(s: ^State) {
 	clay.SetCurrentContext(nil)
 	delete(s.ui.memory)
 	delete(s.ui.quads)
+	delete(s.ui.hits)
+	delete(s.ui.over)
 	sync.mutex_unlock(&g_clay_lock)
 	frame_render_destroy(&s.frame_render)
 	mesh_table_destroy(&s.renderer.meshes)

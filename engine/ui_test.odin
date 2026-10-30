@@ -28,6 +28,8 @@ frame_fixture_destroy_ui :: proc(f: ^Frame_Fixture) {
 	clay.SetCurrentContext(nil)
 	delete(f.ui.memory)
 	delete(f.ui.quads)
+	delete(f.ui.hits)
+	delete(f.ui.over)
 	free(f.ui)
 	sync.mutex_unlock(&g_clay_lock)
 }
@@ -329,7 +331,7 @@ test_ui_frame_allocates_nothing :: proc(t: ^testing.T) {
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_rect(100, 100)
+	box := ui_tagged(1, 100, 100)
 	box.floating = ui_floating(.CenterCenter)
 	elements := []Element{ui_box_of(box, ui_text("Keys 3 of 5", 24))}
 	track: mem.Tracking_Allocator
@@ -364,4 +366,147 @@ test_ui_glyph_quad_vertices_carry_the_atlas_uv :: proc(t: ^testing.T) {
 	testing.expect_value(t, v[2].uv, [2]f32{0.3, 0.4})
 	testing.expect_value(t, v[3].uv, [2]f32{0.1, 0.4})
 	testing.expect_value(t, v[0].shape, [4]f32{0, 0, 0, 1})
+}
+
+ui_tagged :: proc(id: u64, width, height: f32) -> Box_Config {
+	box := ui_rect(width, height)
+	box.id = id
+	return box
+}
+
+ui_float_box :: proc(id: u64, to: Float_To, attach, on: Attach_Point, offset: [2]f32, width, height: f32) -> Box_Config {
+	box := ui_tagged(id, width, height)
+	box.floating = {tag = .Float, payload = {float = {to = to, attach = attach, on = on, offset = {x = offset.x, y = offset.y}}}}
+	return box
+}
+
+// Lays out the roots, then hit tests the pointer, in logical pixels.
+ui_test_over :: proc(f: ^Frame_Fixture, roots: []Element, pos: [2]f32, inside := true) -> []u64 {
+	ui_frame(f.ui, roots, f.window)
+	ui_hit_test(f.ui, {pos = pos, inside = inside}, f.window)
+	return f.ui.over[:]
+}
+
+expect_over :: proc(t: ^testing.T, got: []u64, want: []u64, loc := #caller_location) {
+	testing.expectf(t, slice.equal(got, want), "over %v, want %v", got, want, loc = loc)
+}
+
+@(test)
+test_ui_clay_id_is_stable_distinct_and_never_zero :: proc(t: ^testing.T) {
+	testing.expect_value(t, ui_clay_id(7), ui_clay_id(7))
+	testing.expect(t, ui_clay_id(7).id != ui_clay_id(8).id)
+	testing.expect(t, ui_clay_id(0).id != 0)
+	testing.expect(t, ui_clay_id(1).id != 0)
+	testing.expect(t, ui_clay_id(max(u64)).id != 0)
+}
+
+@(test)
+test_ui_hit_lists_the_tagged_boxes_under_the_pointer_innermost_first :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_tagged(1, 200, 200), ui_box_of(ui_tagged(2, 100, 100), ui_box_of(ui_rect(50, 50))))}
+
+	expect_over(t, ui_test_over(&f, roots, {10, 10}), {2, 1})
+	expect_over(t, ui_test_over(&f, roots, {150, 150}), {1})
+	expect_over(t, ui_test_over(&f, roots, {300, 300}), {})
+}
+
+@(test)
+test_ui_hit_a_tagged_floating_box_blocks_the_boxes_under_it :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element {
+		ui_box_of(ui_tagged(1, 200, 200)),
+		ui_box_of(ui_float_box(3, .Window, .LeftTop, .LeftTop, {50, 50}, 100, 100), ui_box_of(ui_tagged(4, 20, 20))),
+		ui_box_of(ui_float_box(5, .Window, .LeftTop, .LeftTop, {60, 60}, 100, 100)),
+	}
+
+	expect_over(t, ui_test_over(&f, roots, {65, 65}), {5})
+	expect_over(t, ui_test_over(&f, roots, {55, 55}), {4, 3})
+	expect_over(t, ui_test_over(&f, roots, {180, 180}), {1})
+}
+
+@(test)
+test_ui_hit_an_open_dropdown_gives_only_the_menu_ids :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	col := ui_box()
+	col.direction = .Col
+	menu := ui_box_of(ui_float_box(0, .Parent, .LeftTop, .LeftBottom, {0, 0}, 120, 60), ui_box_of(ui_tagged(11, 120, 20)))
+	roots := []Element{ui_box_of(col, ui_box_of(ui_tagged(1, 120, 40), menu), ui_box_of(ui_tagged(2, 120, 40)))}
+
+	expect_over(t, ui_test_over(&f, roots, {10, 50}), {11})
+}
+
+@(test)
+test_ui_hit_an_untagged_floating_label_lets_the_pointer_through :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	label := ui_box_of(ui_float_box(0, .Window, .LeftTop, .LeftTop, {20, 20}, 100, 30), ui_text("Hi", 16))
+	roots := []Element{ui_box_of(ui_tagged(1, 200, 200)), label}
+
+	expect_over(t, ui_test_over(&f, roots, {30, 30}), {1})
+}
+
+@(test)
+test_ui_has_hit_id_finds_a_tagged_box_at_any_depth :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	deep := ui_box_of(ui_box(), ui_box_of(ui_box(), ui_box_of(ui_tagged(9, 10, 10))))
+	text := ui_box_of(ui_box(), ui_text("Hi", 16))
+
+	testing.expect(t, ui_has_hit_id(&deep))
+	testing.expect(t, !ui_has_hit_id(&text))
+}
+
+@(test)
+test_ui_hit_with_the_pointer_outside_lists_nothing :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_tagged(1, 100, 100))}
+
+	expect_over(t, ui_test_over(&f, roots, {10, 10}, inside = false), {})
+}
+
+@(test)
+test_ui_hit_uses_physical_pixels_at_dpi_2 :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.window = {size = {1920, 1080}, dpi = 2}
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_tagged(1, 100, 100))}
+
+	expect_over(t, ui_test_over(&f, roots, {90, 90}), {1})
+	expect_over(t, ui_test_over(&f, roots, {110, 110}), {})
+}
+
+@(test)
+test_ui_repeated_id_hit_tests_the_first_box_and_logs_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_box(), ui_box_of(ui_tagged(7, 100, 100)), ui_box_of(ui_tagged(7, 100, 100)))}
+
+	expect_over(t, ui_test_over(&f, roots, {50, 50}), {7})
+	expect_over(t, ui_test_over(&f, roots, {150, 50}), {})
+	testing.expect(t, .Duplicate_Id in f.ui.repairs_logged)
+	testing.expect(t, .DuplicateId not_in f.ui.errors_logged)
 }
