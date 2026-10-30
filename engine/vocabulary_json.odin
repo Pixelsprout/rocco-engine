@@ -189,6 +189,8 @@ json_write_draw :: proc(b: ^strings.Builder, draw: ^Draw) {
 	json_write_quat(b, draw.scale_rot)
 	json_key(b, "tint")
 	json_write_rgb(b, draw.tint)
+	json_key(b, "glow")
+	json_write_rgb(b, draw.glow)
 	json_key(b, "pose")
 	json_key(b, "clip", first = true)
 	strings.write_u64(b, u64(draw.pose.clip))

@@ -8,8 +8,8 @@ Vocabulary := [].{
 	## A rotation as a unit quaternion.
 	Quat : { x : F32, y : F32, z : F32, w : F32 }
 
-	## A colour with linear channels. A Light colour carries its intensity and
-	## can exceed 1. A Draw tint stays from 0 to 1.
+	## A colour with linear channels. A Light colour and a Draw glow carry
+	## intensity and can exceed 1. A Draw tint stays from 0 to 1.
 	Rgb : { r : F32, g : F32, b : F32 }
 
 	## A UI colour with linear channels from 0 to 1. Alpha is not premultiplied.
@@ -171,9 +171,14 @@ Vocabulary := [].{
 	##   A Group's rot turns it after that. A Group has no scale.
 	## - `rot`, `scale_rot`: unit quaternions.
 	## - `tint`: the host multiplies the mesh colour by it.
+	## - `glow`: the light that the surface gives off. The host adds it to the
+	##   mesh's glTF emissive, after the lights and before the tone map, so it
+	##   shows in the dark. A channel can exceed 1, and a negative channel
+	##   counts as 0. A glow lights no other surface: add a Point Light for
+	##   that, as `Glow.orb` does. The fallback mesh ignores it.
 	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
 	##   ignores it.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
 
 	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
 	## value. The host samples both Clips and mixes them by `fade`. Start from
