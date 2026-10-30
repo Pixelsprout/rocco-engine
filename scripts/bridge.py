@@ -18,6 +18,7 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
     python3 scripts/bridge.py step 30 --held W --tap Space --mouse 4,0
     python3 scripts/bridge.py step 30 --held-button South --left-stick 0,1
     python3 scripts/bridge.py step --gamepads '[{"slot":1,"held":["Start"]}]'
+    python3 scripts/bridge.py step --pointer 884,36 --tap-mouse Left
     python3 scripts/bridge.py scene
     python3 scripts/bridge.py screenshot out.png
     python3 scripts/bridge.py tell town 'hello'
@@ -100,8 +101,9 @@ class Bridge:
         return self.request({"op": "hello"})
 
     # gamepads is a list of pad dicts, as guide/bridge.md gives them. With
-    # none, no pad is connected.
-    def step(self, n=1, held=(), tap=(), mouse=None, gamepads=()):
+    # none, no pad is connected. pointer is one dict, sent as it is. With
+    # none, the pointer is outside the window.
+    def step(self, n=1, held=(), tap=(), mouse=None, gamepads=(), pointer=None):
         req = {"op": "step", "n": n}
         if held:
             req["held"] = list(held)
@@ -111,6 +113,8 @@ class Bridge:
             req["mouse"] = list(mouse)
         if gamepads:
             req["gamepads"] = list(gamepads)
+        if pointer is not None:
+            req["pointer"] = dict(pointer)
         return self.request(req)
 
     def scene(self):
@@ -236,6 +240,16 @@ def mouse_arg(text):
         raise argparse.ArgumentTypeError("the mouse movement is dx,dy, such as 4,-2") from None
 
 
+def point_arg(text):
+    parts = text.split(",")
+    try:
+        if len(parts) == 2:
+            return [float(p) for p in parts]
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError("a point is x,y, such as 884,36")
+
+
 def stick_arg(text):
     parts = text.split(",")
     try:
@@ -279,6 +293,23 @@ def step_gamepads(args):
     return [pad] if pad else []
 
 
+# The pointer flags build one pointer. None when no flag is given.
+def step_pointer(args):
+    if args.pointer is None:
+        return None
+    x, y = args.pointer
+    pointer = {"x": x, "y": y}
+    if args.outside:
+        pointer["inside"] = False
+    if args.held_mouse:
+        pointer["held"] = args.held_mouse
+    if args.tap_mouse:
+        pointer["tap"] = args.tap_mouse
+    if args.wheel is not None:
+        pointer["wheel"] = args.wheel
+    return pointer
+
+
 # newline="" keeps the file's line endings, so the game gets its exact text.
 def tell_message(args):
     if args.file is None:
@@ -307,6 +338,12 @@ def parse_args(argv):
     pad.add_argument("--left-trigger", type=number, metavar="V", help="the left trigger for every step, 0 to 1")
     pad.add_argument("--right-trigger", type=number, metavar="V", help="the right trigger for every step, 0 to 1")
     step.add_argument("--gamepads", type=gamepads_arg, metavar="JSON", help="the whole gamepads list as JSON, in place of the pad flags")
+    ptr = step.add_argument_group("the pointer", "the pointer for the steps, in logical window pixels; without --pointer it is outside the window")
+    ptr.add_argument("--pointer", type=point_arg, metavar="X,Y", help="the pointer position for every step")
+    ptr.add_argument("--held-mouse", action="append", default=[], metavar="BUTTON", help="a mouse button held for every step; repeat for more buttons")
+    ptr.add_argument("--tap-mouse", action="append", default=[], metavar="BUTTON", help="a mouse button clicked in the first step; repeat for more buttons")
+    ptr.add_argument("--wheel", type=point_arg, metavar="DX,DY", help="the wheel scroll in the first step")
+    ptr.add_argument("--outside", action="store_true", help="the pointer is outside the window")
     ops.add_parser("scene")
     tell = ops.add_parser("tell", help="queue a message for the game's Listen Queries on a port")
     # dest tell_port, as port is the host's --port.
@@ -320,6 +357,8 @@ def parse_args(argv):
     args = parser.parse_args(argv)
     if args.op == "tell" and (args.msg is None) == (args.file is None):
         tell.error("give either MSG or --file PATH")
+    if args.op == "step" and args.pointer is None and (args.held_mouse or args.tap_mouse or args.wheel is not None or args.outside):
+        step.error("--held-mouse, --tap-mouse, --wheel and --outside need --pointer X,Y")
     return args
 
 
@@ -341,7 +380,7 @@ def main(argv=None):
                 if args.op == "hello":
                     b.hello()
                 elif args.op == "step":
-                    b.step(args.n, held=args.held, tap=args.tap, mouse=args.mouse, gamepads=step_gamepads(args))
+                    b.step(args.n, held=args.held, tap=args.tap, mouse=args.mouse, gamepads=step_gamepads(args), pointer=step_pointer(args))
                 elif args.op == "scene":
                     b.scene()
                 elif args.op == "screenshot":
