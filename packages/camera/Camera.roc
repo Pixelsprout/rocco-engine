@@ -38,7 +38,9 @@ Camera := [].{
 	## uses the host's lens, so `+y` is up and the aspect is `width / height`.
 	## If `up` is zero or along the view, it uses `+y` like the host. A point
 	## no more than 0.1 in front of the eye, the near plane, is `Behind`. A
-	## point outside the window still projects, so clip it yourself.
+	## point outside the window still projects, so clip it yourself. A view
+	## with no right direction, such as straight down with no other `up`, sees
+	## nothing, so every point is `Behind`.
 	project : View, { width : F32, height : F32 }, Vec3 -> Try({ x : F32, y : F32 }, [Behind])
 	project = |view, size, point| {
 		view_dir = sub(view.target, view.eye)
@@ -48,7 +50,7 @@ Camera := [].{
 		true_up = cross(right, forward)
 		offset = sub(point, view.eye)
 		depth = dot(forward, offset)
-		if depth <= near {
+		if depth <= near or dot(right, right) == 0.0 {
 			Err(Behind)
 		} else {
 			half = view.fov_y / 2.0
@@ -159,5 +161,29 @@ expect {
 # An eye on its target sees nothing.
 expect {
 	view = { ..test_view, target: test_view.eye }
+	Camera.project(view, test_size, { x: 0.0, y: 0.0, z: 0.0 }) == Err(Behind)
+}
+
+# A 60 degree lens, off axis with a tilted up. The want comes from
+# mat4_perspective_reversed_infinite times mat4_look_at in engine/math.odin.
+expect {
+	view = {
+		eye: { x: 3.0, y: 5.0, z: 8.0 },
+		target: { x: -1.0, y: 0.5, z: 0.0 },
+		up: { x: 0.2, y: 1.0, z: 0.1 },
+		fov_y: 1.047,
+	}
+	match Camera.project(view, test_size, { x: 1.0, y: 2.0, z: -1.0 }) {
+		Ok(p) => (p.x - 787.527).abs() < 0.05 and (p.y - 274.871).abs() < 0.05
+		Err(_) => Bool.False
+	}
+}
+
+# A point in front of the eye but nearer than the near plane is Behind.
+expect Camera.project(test_view, test_size, { x: 0.0, y: 0.0, z: 9.95 }) == Err(Behind)
+
+# Straight down with +y up has no right direction, so it sees nothing.
+expect {
+	view = Camera.look_at({ x: 0.0, y: 10.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 0.0 })
 	Camera.project(view, test_size, { x: 0.0, y: 0.0, z: 0.0 }) == Err(Behind)
 }
