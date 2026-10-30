@@ -130,6 +130,58 @@ Ui := [].{
 				}
 		}
 	}
+
+	## The lines that the host draws for a `Words` Text of `text` at `size` in
+	## a Box whose room for the text is `width`: the Box width minus its
+	## padding. The host breaks lines at spaces and newlines with Clay's rule.
+	## A word wider than `width` takes a line of its own, and the other lines
+	## then wrap at that word's width. A line can end with a space, as Clay
+	## draws it.
+	wrap : Str, { size : F32, width : F32 } -> List(Str)
+	wrap = |text, { size, width }| {
+		bytes = Str.to_utf8(text)
+		{ pieces, min_width, preferred } = split_pieces(bytes, size / Font.bake_size)
+		# Clay shrinks a Text in a narrow parent, but not below its widest word,
+		# and not at all when the overflow is within its epsilon of 0.01.
+		overflow = width - preferred
+		box = if (overflow < -0.01) F32.max(min_width, preferred + overflow) else preferred
+		if preferred <= box and !Str.contains(text, "\n") {
+			return [text]
+		}
+		var $lines = []
+		var $line_width = 0.0
+		var $line_len = 0
+		var $line_start = 0
+		for piece in pieces {
+			match piece {
+				Break({ start }) => {
+					$lines = $lines.append(line_text(bytes, { start: $line_start, len: $line_len }, Trimmed))
+					$line_width = 0.0
+					$line_len = 0
+					$line_start = start
+				}
+				Word(word) => {
+					if $line_len > 0 and $line_width + word.width > box {
+						$lines = $lines.append(line_text(bytes, { start: $line_start, len: $line_len }, Trimmed))
+						$line_width = 0.0
+						$line_len = 0
+						$line_start = word.start
+					}
+					if $line_len == 0 and word.width > box {
+						$lines = $lines.append(line_text(bytes, { start: word.start, len: word.len }, Whole))
+						$line_start = word.start + word.len
+					} else {
+						$line_width = $line_width + word.width
+						$line_len = $line_len + word.len
+					}
+				}
+			}
+		}
+		if $line_len > 0 {
+			$lines = $lines.append(line_text(bytes, { start: $line_start, len: $line_len }, Whole))
+		}
+		$lines
+	}
 }
 
 # The pen walks a line the way font_pen_next does in engine/font.odin. x is in
@@ -153,6 +205,66 @@ pen_byte = |pen, byte|
 		}
 		{ x: kerned + advance(char), prev: After(char) }
 	}
+
+# A Word holds its trailing space, if it has one. A Break is a newline, and
+# start is the byte after it.
+Piece : [Word({ start : U64, len : U64, width : F32 }), Break({ start : U64 })]
+
+# Splits the text into Clay's measured words (clay.h, Clay__MeasureTextCached).
+# Each word is measured alone, then the space is added, in Clay's float order.
+split_pieces : List(U8), F32 -> { pieces : List(Piece), min_width : F32, preferred : F32 }
+split_pieces = |bytes, scale| {
+	space = pen_width([' ']) * scale
+	var $pieces = []
+	var $start = 0
+	var $index = 0
+	var $line = 0.0
+	var $preferred = 0.0
+	var $min_width = 0.0
+	for byte in bytes {
+		if byte == ' ' or byte == '\n' {
+			len = $index - $start
+			width = if (len > 0) pen_width(bytes.sublist({ start: $start, len })) * scale else 0.0
+			$min_width = F32.max(width, $min_width)
+			if byte == ' ' {
+				$pieces = $pieces.append(Word({ start: $start, len: len + 1, width: width + space }))
+				$line = $line + (width + space)
+			} else {
+				if len > 0 {
+					$pieces = $pieces.append(Word({ start: $start, len, width }))
+				}
+				$pieces = $pieces.append(Break({ start: $index + 1 }))
+				$line = $line + width
+				$preferred = F32.max($line, $preferred)
+				$line = 0.0
+			}
+			$start = $index + 1
+		}
+		$index = $index + 1
+	}
+	len = $index - $start
+	if len > 0 {
+		width = pen_width(bytes.sublist({ start: $start, len })) * scale
+		$pieces = $pieces.append(Word({ start: $start, len, width }))
+		$line = $line + width
+		$min_width = F32.max(width, $min_width)
+	}
+	{ pieces: $pieces, min_width: $min_width, preferred: F32.max($line, $preferred) }
+}
+
+# Trimmed drops one last space, as Clay does when a line ends at a wrap or a
+# newline. An empty line stays empty where Clay would give a length of -1.
+line_text : List(U8), { start : U64, len : U64 }, [Trimmed, Whole] -> Str
+line_text = |bytes, { start, len }, trim| {
+	kept = match trim {
+		Trimmed if len > 0 and bytes.get(start + len - 1) == Ok(' ') => len - 1
+		_ => len
+	}
+	match Str.from_utf8(bytes.sublist({ start, len: kept })) {
+		Ok(line) => line
+		Err(_) => crash "Ui.wrap: a cut at a space or a newline is valid UTF-8"
+	}
+}
 
 pen_width : List(U8) -> F32
 pen_width = |bytes| bytes.fold(pen_start, pen_byte).x
@@ -234,4 +346,31 @@ expect {
 	summary = "04:41 owner.report owner-P2 if the reviewer finds a problem in the diff, fix it on branch phase3-hud-cut in a new commit"
 	cut = Ui.fit(summary, { size: 18.0, width: 420.0 })
 	Str.ends_with(cut, "...") and Ui.measure(cut, 18.0).width <= 420.0
+}
+
+## An empty string is one empty line.
+expect Ui.wrap("", { size: 20.0, width: 100.0 }) == [""]
+
+## A string that fits is one line, trailing space included.
+expect Ui.wrap("one two ", { size: 20.0, width: 1000.0 }) == ["one two "]
+
+## A newline breaks the line, two newlines give an empty line, and a last newline adds none.
+expect [Ui.wrap("a\n\nb", { size: 20.0, width: 1000.0 }), Ui.wrap("ab\n", { size: 20.0, width: 1000.0 })] == [["a", "", "b"], ["ab"]]
+
+## A word wider than the box takes a line of its own, with its space, and the box widens to it.
+expect Ui.wrap("aaa aaa", { size: 20.0, width: 1.0 }) == ["aaa ", "aaa"]
+
+## A word in the middle of a line needs room for its trailing space.
+expect Ui.wrap("aa aa aa", { size: 20.0, width: Ui.measure("aa aa", 20.0).width + 1.0 }) == ["aa", "aa aa"]
+
+## A wide word before a newline gives an empty line where Clay gives length -1.
+expect Ui.wrap("Wide \nx", { size: 20.0, width: 1.0 }) == ["Wide ", "", "x"]
+
+## A second space between two words becomes a line that is empty after its space drops.
+expect Ui.wrap("aa  aa", { size: 20.0, width: Ui.measure("aa", 20.0).width + 1.0 }) == ["aa ", "", "aa"]
+
+## A text wider than the box by less than Clay's epsilon of 0.01 stays on one line.
+expect {
+	width = Ui.measure("one two", 20.0).width
+	Ui.wrap("one two", { size: 20.0, width: width - 0.005 }) == ["one two"] and Ui.wrap("one two", { size: 20.0, width: width - 0.02 }) == ["one", "two"]
 }
