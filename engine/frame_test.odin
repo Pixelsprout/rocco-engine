@@ -4,6 +4,7 @@ package engine
 import clay "../clay/bindings/odin/clay-odin"
 import sapp "../sokol-odin/sokol/app"
 import sg "../sokol-odin/sokol/gfx"
+import "core:slice"
 import "core:sync"
 import "core:testing"
 import "core:time"
@@ -516,4 +517,97 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	} else {
 		testing.expect_value(t, len(span_rows(&s.spans)), 0)
 	}
+}
+
+// A tagged Box at the top left, 100 by 100, with the pointer at (50, 50).
+fake_frame_state_init_pointing :: proc(s: ^State, mode := Run_Mode.Real_Clock) {
+	// g_fake keeps the roots past this call.
+	roots := slice.clone([]Element{ui_box_of(ui_tagged(7, 100, 100))}, context.temp_allocator)
+	fake_frame_state_init(s, mode = mode, ui = roots)
+	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
+	input_on_event(&s.input, &move)
+}
+
+@(test)
+test_frame_gives_the_next_step_the_boxes_under_the_pointer :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init_pointing(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+
+	frame_run(&s, platform)
+	testing.expect_value(t, g_fake.over_len, 0)
+
+	frame_run(&s, platform)
+	if testing.expect_value(t, g_fake.over_len, 1) {
+		testing.expect_value(t, g_fake.over[0], 7)
+	}
+}
+
+@(test)
+test_frame_gives_every_step_of_a_frame_the_same_ui :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init_pointing(&s)
+	defer fake_frame_state_destroy(&s)
+
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
+
+	testing.expect_value(t, g_fake.steps, 4)
+	testing.expectf(t, slice.equal(g_fake.step_over_lens[1:4], []int{1, 1, 1}), "over lengths %v", g_fake.step_over_lens[:4])
+	testing.expect_value(t, g_fake.over[0], 7)
+}
+
+@(test)
+test_frame_lists_the_scroll_sizes_in_headless :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 2, mode = .Headless, ui = {ui_scroll_rows(9, 200, 100, 10)})
+	defer fake_frame_state_destroy(&s)
+
+	headless_run(&s)
+
+	if testing.expect_value(t, g_fake.scroll_len, 1) {
+		testing.expect_value(t, g_fake.scroll[0], Scroll_Size{id = 9, view = {width = 200, height = 100}, content = {width = 200, height = 200}})
+	}
+}
+
+@(test)
+test_frame_with_the_mouse_locked_gives_an_empty_over :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init_pointing(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+	platform.mouse_locked = true
+
+	frame_run(&s, platform)
+	frame_run(&s, platform)
+
+	testing.expect_value(t, g_fake.over_len, 0)
+}
+
+@(test)
+test_frame_ui_lists_leak_nothing :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s, ui = {ui_box_of(ui_scroll(ui_tagged(7, 100, 100), {0, 0}), ui_box_of(ui_rect(100, 200)))})
+	defer fake_frame_state_destroy(&s)
+	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
+	input_on_event(&s.input, &move)
+	platform := fake_platform(s.clock.fixed_dt)
+
+	for _ in 0 ..< 5 {
+		frame_run(&s, platform)
+	}
+
+	testing.expect_value(t, g_fake.over_len, 1)
+	testing.expect_value(t, g_fake.scroll_len, 1)
 }

@@ -144,6 +144,16 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 }
 
 // The next step takes ports with the other QueryResults.
+seam_set_ui :: proc(s: ^Seam, ui: Ui_Results) {
+	if s.results.ui.over.length > 0 {
+		roc_list_decref(s.results.ui.over)
+	}
+	if s.results.ui.scroll.length > 0 {
+		roc_list_decref(s.results.ui.scroll)
+	}
+	s.results.ui = ui
+}
+
 seam_set_ports :: proc(s: ^Seam, ports: Roc_List(Port_Message)) {
 	if s.results.ports.length > 0 {
 		roc_list_decref(s.results.ports)

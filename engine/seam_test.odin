@@ -14,6 +14,9 @@ FAKE_RAYS_MAX :: 4
 FAKE_OVERLAPS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
 FAKE_PORTS_MAX :: 8
+FAKE_OVER_MAX :: 8
+FAKE_SCROLL_MAX :: 4
+FAKE_STEPS_MAX :: 8
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
@@ -103,6 +106,12 @@ Fake_Game :: struct {
 	overlaps_len:     int,
 	ports:            [FAKE_PORTS_MAX]Fake_Port,
 	ports_len:        int,
+	over:             [FAKE_OVER_MAX]u64,
+	over_len:         int,
+	// over_len for each of the first steps.
+	step_over_lens:   [FAKE_STEPS_MAX]int,
+	scroll:           [FAKE_SCROLL_MAX]Scroll_Size,
+	scroll_len:       int,
 	views:            int,
 	// The voices in use when view ran.
 	view_voices:      int,
@@ -267,6 +276,11 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 			msg  = strings.clone(roc_str_string(&row.msg), context.temp_allocator),
 		}
 	}
+	g_fake.over_len = copy(g_fake.over[:], results.ui.over.elements[:results.ui.over.length])
+	if g_fake.steps <= FAKE_STEPS_MAX {
+		g_fake.step_over_lens[g_fake.steps - 1] = g_fake.over_len
+	}
+	g_fake.scroll_len = copy(g_fake.scroll[:], results.ui.scroll.elements[:results.ui.scroll.length])
 	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()

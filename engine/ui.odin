@@ -326,6 +326,11 @@ ui_hit_test :: proc(ui: ^Ui, pointer: Ui_Pointer, window: Ui_Window) {
 	slice.reverse(ui.over[run_start:])
 }
 
+// Empty lists allocate nothing.
+ui_results :: proc(ui: ^Ui) -> Ui_Results {
+	return {over = roc_list_from_slice(ui.over[:]), scroll = roc_list_from_slice(ui.scrolls[:])}
+}
+
 ui_declaration :: proc(box: Box_Config, dpi: f32) -> clay.ElementDeclaration {
 	d := clay.ElementDeclaration {
 		layout = {
