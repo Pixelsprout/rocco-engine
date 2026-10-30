@@ -32,8 +32,8 @@ The host lights at most 8 Lights per Scene.
   no tone map.
 - Emissive lights no other surface, as in Godot and Bevy without global
   illumination.
-- `Glow.orb` in `pf.Glow` pairs a glowing sphere with a Point Light of the
-  same colour, so a game that wants a glow to light the Scene says so.
+- No helper: a game that wants a glow to light the Scene writes the Draw
+  with its glow and a Point Light side by side.
 - The fallback mesh ignores the glow, as it ignores the tint.
 - `BRIDGE_PROTOCOL` rises to 6, because each Draw in the `scene` reply
   gains `glow`.
@@ -48,10 +48,8 @@ The host lights at most 8 Lights per Scene.
   colour, so it shows only where a Light reaches.
 - Bloom. Rejected for now: it is a post-process pass, and no such pass
   exists yet.
-- `Glow.orb` in a package. Rejected: a package cannot use `Draw.default`,
-  so it repeats every Draw field and breaks each time `Draw` changes.
-- `Glow.orb` as `Light.orb`. Rejected: the helper returns a Draw and a
-  Light, not a Light.
+- A `pf.Glow` helper module. Rejected: glow is a Draw property, and a
+  helper that pairs it with a Light names a game's object.
 
 ## Consequences
 
@@ -62,4 +60,5 @@ The host lights at most 8 Lights per Scene.
   grow by one for each mesh slot.
 - The ACES fit rolls a large glow off towards white.
 - With no bloom, a glow does not spill past its surface.
-- Each `Glow.orb` spends one of the 8 Lights of the Scene.
+- A glowing thing that lights its surroundings spends one of the 8 Lights
+  of the Scene on its Point Light.

@@ -6,9 +6,8 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
-import pf.Vocabulary exposing [Command, Manifest]
+import pf.Vocabulary exposing [Command, Manifest, Rgb, Vec3]
 import pf.Draw
-import pf.Glow
 import pf.Launch
 import pf.Light
 import pf.Scene
@@ -44,17 +43,20 @@ window = { ..Draw.default, id: 3, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 
 # endregion
 
 # region: orb
-orb_left : List(Vocabulary.Node)
-orb_left = Glow.orb({ id: 10, pos: { x: -1.6, y: 0.5, z: 0.4 }, radius: 0.25, color: { r: 1.0, g: 0.55, b: 0.05 }, strength: 3.0, range: 4.0 })
+orb : U64, Vec3, Rgb -> List(Vocabulary.Node)
+orb = |id, pos, color| {
+	lit = { r: color.r * 3.0, g: color.g * 3.0, b: color.b * 3.0 }
+	sphere = { ..Draw.default, id, mesh: Mesh.primitive(Sphere), pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, tint: color, glow: lit }
+	[Draw(sphere), Light(Light.point(pos, lit, 4.0))]
+}
 
 # endregion
-
-orb_right : List(Vocabulary.Node)
-orb_right = Glow.orb({ id: 11, pos: { x: 1.6, y: 0.5, z: 0.4 }, radius: 0.25, color: { r: 0.15, g: 0.35, b: 1.0 }, strength: 3.0, range: 4.0 })
 
 view : Model -> Vocabulary.Scene
 view = |_model| {
 	camera = Cam.look_at({ x: 0.0, y: 2.4, z: 5.0 }, { x: 0.0, y: 0.8, z: 0.0 })
+	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
+	orb_right = orb(11, { x: 1.6, y: 0.5, z: 0.4 }, { r: 0.15, g: 0.35, b: 1.0 })
 	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window)], orb_left, orb_right])
 	{ ..Scene.empty, camera, nodes }
 }
@@ -64,13 +66,6 @@ is_light = |node| match node {
 	Light(_) => Bool.True
 	_ => Bool.False
 }
-
-## Glow.orb draws the Sphere Primitive of the mesh package.
-expect
-	match Glow.orb({ id: 1, pos: { x: 0.0, y: 0.0, z: 0.0 }, radius: 1.0, color: { r: 1.0, g: 1.0, b: 1.0 }, strength: 1.0, range: 1.0 }).first() {
-		Ok(Draw(d)) => d.mesh == Mesh.primitive(Sphere)
-		_ => Bool.False
-	}
 
 ## The window's tint stays from 0 to 1. Its glow carries the brightness.
 expect {

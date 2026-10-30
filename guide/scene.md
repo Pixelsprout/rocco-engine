@@ -247,18 +247,23 @@ window = { ..Draw.default, id: 3, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 
 <!-- endregion -->
 
 A glow lights nothing else. The floor under a glowing window stays dark.
-To light the Scene around a glowing thing, add a Point Light next to it.
-[`Glow.orb`][Glow.orb] does both: it gives a glowing sphere and a Point
-Light at its centre in the same colour.
+So a thing that should light its surroundings also needs a Light. Put a
+Draw with a glow and a Point Light side by side. The glow example's orbs
+each pair a glowing sphere with a Point Light at its centre, in the same
+colour:
 
 <!-- region: examples/glow/main.roc#orb -->
 ```roc
-orb_left : List(Vocabulary.Node)
-orb_left = Glow.orb({ id: 10, pos: { x: -1.6, y: 0.5, z: 0.4 }, radius: 0.25, color: { r: 1.0, g: 0.55, b: 0.05 }, strength: 3.0, range: 4.0 })
+orb : U64, Vec3, Rgb -> List(Vocabulary.Node)
+orb = |id, pos, color| {
+	lit = { r: color.r * 3.0, g: color.g * 3.0, b: color.b * 3.0 }
+	sphere = { ..Draw.default, id, mesh: Mesh.primitive(Sphere), pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, tint: color, glow: lit }
+	[Draw(sphere), Light(Light.point(pos, lit, 4.0))]
+}
 ```
 <!-- endregion -->
 
-The orb's Light counts toward the 8 Lights of the Scene. A glTF mesh can
+Each such Light counts toward the 8 Lights of the Scene. A glTF mesh can
 also glow through its material's emissive, and its Draw's glow adds to
 that. See [Assets and Packs](assets.md).
 
@@ -313,7 +318,6 @@ with a record update, and set only the fields that you need.
 [Input.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Input/#Input.empty
 [QueryResults.empty]: https://pixelsprout.dev/projects/rocco/api/platform/QueryResults/#QueryResults.empty
 [Light.sun]: https://pixelsprout.dev/projects/rocco/api/platform/Light/#Light.sun
-[Glow.orb]: https://pixelsprout.dev/projects/rocco/api/platform/Glow/#Glow.orb
 [Pose.compose]: https://pixelsprout.dev/projects/rocco/api/linalg/Pose/#Pose.compose
 [Pose.relative]: https://pixelsprout.dev/projects/rocco/api/linalg/Pose/#Pose.relative
 [Camera package]: https://pixelsprout.dev/projects/rocco/api/camera/

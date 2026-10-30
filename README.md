@@ -455,7 +455,6 @@ does not call it again. After a change to `launch`, restart the game.
 | `platform/QueryResults.roc` | Gives `QueryResults.empty`, which is what the first step gets. Tests use it. |
 | `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
 | `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from and puts in `Scene.nodes` as `Draw(...)`. |
-| `platform/Glow.roc` | Builds Nodes that glow: `Glow.orb` gives a glowing sphere and a Point Light. |
 | `platform/Sound.roc` | Builds the Play Command, for example `Sound.play(id)`, and reads a Sound's length with `Sound.duration(manifest, name)`. |
 | `platform/Pose.roc` | Builds the Pose of a Draw with `Pose.still(clip, time)`, and wraps a Clip's time with `Pose.loop(time, duration)`. |
 | `platform/Speaker.roc` | Gives `Speaker.default`, the Speaker a game starts a record update from and puts in `Scene.nodes` as `Speaker(...)`. |
@@ -470,7 +469,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
 | `examples/bridge-echo/` | A game for the Bridge check: it Listens on the port `echo` and Tells each message back. |
-| `examples/glow/` | A dark Scene with a glowing window and two `Glow.orb` orbs that light the floor. |
+| `examples/glow/` | A dark Scene with a glowing window and two orbs. Each orb is a glowing sphere with a Point Light that lights the floor. |
 | `examples/tutorial/<nn>-<name>/` | One app for each tutorial chapter in `guide/tutorial/`. Each chapter starts from the one before it, so `git diff --no-index` of two `main.roc` files shows the change. |
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character with a 12-Joint Skin and the Clips Idle and Walk, into each chapter in its `CHAPTERS` list. It also writes `engine/testdata/skinned.glb`, the small skinned fixture for the loader tests. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |

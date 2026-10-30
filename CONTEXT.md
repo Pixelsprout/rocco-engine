@@ -218,7 +218,7 @@ _Avoid_: colour (for the field), albedo, Vec3 colour
 The light that a Draw's surface gives off, in `Draw.glow`, as a linear
 `Rgb` that can exceed 1. The host adds it to the mesh's Emissive after the
 lights and before the tone map, so it shows in the dark. It lights no other
-surface. `pf.Glow.orb` pairs a glowing sphere with a Point Light.
+surface; a Point Light beside the Draw does that.
 _Avoid_: emission (for the field), bloom, self-illumination, a tint above 1
 
 **Emissive**:

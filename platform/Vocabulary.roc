@@ -174,8 +174,8 @@ Vocabulary := [].{
 	## - `glow`: the light that the surface gives off. The host adds it to the
 	##   mesh's glTF emissive, after the lights and before the tone map, so it
 	##   shows in the dark. A channel can exceed 1, and a negative channel
-	##   counts as 0. A glow lights no other surface: add a Point Light for
-	##   that, as `Glow.orb` does. The fallback mesh ignores it.
+	##   counts as 0. A glow lights no other surface: put a Point Light
+	##   beside the Draw for that. The fallback mesh ignores it.
 	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
 	##   ignores it.
 	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
