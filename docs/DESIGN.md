@@ -271,10 +271,11 @@ The game decides the camera. `Scene.camera` says where the eye is, what it
 looks at, which way is up and the vertical field of view. The host
 interpolates `eye`, `target` and `up` like a draw. If `up` is zero or lies
 along the view, the host uses +y and logs once. See
-`docs/adr/0001-orientation-crosses-the-seam.md`. Pure helpers such as `look_at`
-and `follow` live in the camera package in `packages/camera/`. The package
-does not depend on the platform: Roc records are structural, so its `View`
-record fits `Scene.camera`. Decision.
+`docs/adr/0001-orientation-crosses-the-seam.md`. Pure helpers such as `look_at`,
+`follow` and `project` live in the camera package in `packages/camera/`.
+`project` gives the window pixel of a world point, so a game can place UI over
+it. The package does not depend on the platform: Roc records are structural,
+so its `View` record fits `Scene.camera`. Decision.
 
 `ROCCO_DEBUG_CAMERA=1` gives the host a fly camera for debugging. The host
 then ignores `Scene.camera`, and the game still gets all input.
