@@ -7,12 +7,13 @@ order: 9
 # The UI
 
 A score, a pause banner or a list of controls needs layout: text that
-centres, panels that stick to a corner, sizes that follow the window. Your
-game can't do that layout itself, because it cannot measure a string.
+centres, panels that stick to a corner, sizes that follow the window.
 
-So the host does the layout. Your game describes the UI in the `ui` field
+The host does that layout. Your game describes the UI in the `ui` field
 of the [Scene], and the host lays it out and draws it flat over the 3D
-view. Like the rest of the Scene, the UI is a Description: your game builds
+view. When your game needs to choose what to show, such as how much of a
+long line fits in a box, it can measure a string first with
+[`Ui.measure`][Ui.measure]. Like the rest of the Scene, the UI is a Description: your game builds
 it again at each step from the Model. A game with no UI keeps the empty
 list of `Scene.empty`, which costs nothing.
 
@@ -164,6 +165,9 @@ starting values and a few small helpers:
 - [`Ui.panel(attach, offset)`][Ui.panel] is a `float_at` Box for a HUD,
   with padding, a see-through black background and round corners.
 - [`Ui.pad_all(n)`][Ui.pad_all] gives the same padding on all four sides.
+- [`Ui.measure`][Ui.measure], [`Ui.fit`][Ui.fit] and [`Ui.wrap`][Ui.wrap]
+  measure, cut and wrap text with the host's numbers. See "Measure, fit
+  and wrap" below.
 
 ## The layout rules
 
@@ -187,7 +191,7 @@ are Clay's.
   then moves by `offset`. +x is to the right and +y is down, so a Box at a
   right or a bottom point needs a negative offset to move into the window.
 - A Text with `wrap` set to `Words` breaks its lines between words, inside
-  the width of its parent.
+  the width of its parent. [`Ui.wrap`][Ui.wrap] gives the same lines.
 
 No layout result comes back to your game. Use `Grow` and `Percent` to fit
 the UI to the window.
@@ -198,6 +202,35 @@ The host draws all Text in one font, Atkinson Hyperlegible. The font has
 the ASCII characters 32 to 126, and the host draws `?` for any other
 character. The host rounds the size of a Text to a whole number of pixels,
 after the DPI scale.
+
+### Measure, fit and wrap
+
+The ui package carries a copy of the host's font table, so your game can
+measure text in pure Roc and get the host's numbers.
+
+[`Ui.measure(text, size)`][Ui.measure] gives the width and the height of
+one line of text, in logical pixels. A newline measures as `?`, so use
+`Ui.wrap` for more than one line.
+
+[`Ui.fit(text, { size, width })`][Ui.fit] cuts a line to a width and ends
+it with `...`. A string that fits comes back unchanged. A HUD feed in a 420
+pixel box keeps each line on one row like this:
+
+```roc
+Text({ ..Ui.label(Ui.fit(line, { size: 18.0, width: 416.0 })), size: 18.0, wrap: None })
+```
+
+In Agent Town this replaces the feed's cut at 48 characters.
+
+[`Ui.wrap(text, { size, width })`][Ui.wrap] gives the lines that the host
+draws for a `Words` Text, where `width` is the room for the text: the Box
+width minus its padding. A word wider than `width` takes a line of its
+own, and the other lines then wrap at that word's width.
+
+The numbers match the host for whole-pixel sizes at a whole DPI scale. At
+a fractional DPI scale the host rounds the size, so the drawn text can
+drift from `Ui.measure` by a fraction of a pixel. Use whole-pixel sizes,
+and leave a few pixels of margin in a `fit` width.
 
 ## Draw order and time
 
@@ -234,3 +267,6 @@ The UI has no pointer input, no clipping and no scrolling yet.
 [Ui.float_at]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.float_at
 [Ui.panel]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.panel
 [Ui.pad_all]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.pad_all
+[Ui.measure]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.measure
+[Ui.fit]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.fit
+[Ui.wrap]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.wrap

@@ -60,9 +60,9 @@ import pf.Scene
 
 ## The HUD
 
-Your game can't lay out the UI itself, because it cannot measure a string.
-So the host does the layout. Your game describes the UI as a tree of Boxes
-and Text, and the host places them.
+The host does the UI layout: it measures the strings, wraps the lines and
+places the boxes. Your game describes the UI as a tree of Boxes and Text,
+and the host places them.
 
 <!-- region: examples/tutorial/07-hud/main.roc#hud -->
 ```roc

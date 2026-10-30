@@ -3,7 +3,9 @@
 Status: accepted, 2026-10-15. Partly superseded by ADR 0013 on
 2026-10-22: the UI crosses the seam as a tree of Elements, not as a flat
 stream. The layout decision stands. ADR 0019 on 2026-10-30 gives the
-game the window size in Input; the host still lays out.
+game the window size in Input; the host still lays out. On 2026-10-31,
+`Ui.measure`, `Ui.fit` and `Ui.wrap` let the game measure text with a
+copy of the host's font table; the host still lays out.
 
 ## Context
 
