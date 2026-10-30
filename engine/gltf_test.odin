@@ -371,6 +371,7 @@ test_glb_without_a_material_is_matte_and_not_metal :: proc(t: ^testing.T) {
 	data, _, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect_value(t, data.material, Material{roughness = 1, metallic = 0})
+	testing.expect(t, data.emissive == nil)
 }
 
 // glTF gives both factors 1 when a material leaves them out.
@@ -395,6 +396,89 @@ test_glb_reads_the_unlit_extension :: proc(t: ^testing.T) {
 	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect(t, data.material.unlit)
+}
+
+@(test)
+test_glb_material_without_emissive_emits_nothing :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = `"materials":[{}],`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material.emissive, [3]f32{0, 0, 0})
+	testing.expect(t, data.emissive == nil)
+}
+
+@(test)
+test_glb_reads_the_emissive_factor :: proc(t: ^testing.T) {
+	materials := `"materials":[{"emissiveFactor":[1,0.5,0.25]}],`
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material.emissive, [3]f32{1, 0.5, 0.25})
+}
+
+@(test)
+test_glb_scales_the_emissive_factor_by_the_emissive_strength :: proc(t: ^testing.T) {
+	materials := `"materials":[{"emissiveFactor":[1,0.5,0],
+		"extensions":{"KHR_materials_emissive_strength":{"emissiveStrength":4}}}],`
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material.emissive, [3]f32{4, 2, 0})
+}
+
+@(test)
+test_glb_clamps_the_emissive_factor_and_the_strength :: proc(t: ^testing.T) {
+	negative := `"materials":[{"emissiveFactor":[2,-1,0.5],
+		"extensions":{"KHR_materials_emissive_strength":{"emissiveStrength":-3}}}],`
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = negative), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material.emissive, [3]f32{0, 0, 0})
+
+	data, _, err = glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = `"materials":[{"emissiveFactor":[2,-1,0.5]}],`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.material.emissive, [3]f32{1, 0, 0.5})
+}
+
+@(test)
+test_glb_reads_an_emissive_texture_as_srgb :: proc(t: ^testing.T) {
+	material := `{"emissiveTexture":{"index":0},"emissiveFactor":[1,1,1]}`
+	glb := textured_glb(png_make(1, 1, PNG_RGB, {200, 100, 50}), material = material)
+	data, notes, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect(t, data.texture == nil)
+	testing.expect(t, data.metallic_roughness == nil)
+	tex, ok := data.emissive.?
+	testing.expect(t, ok)
+	testing.expect(t, tex.srgb)
+	want := [4]byte{200, 100, 50, 255}
+	for b, i in tex.levels[0].pixels {
+		testing.expect_value(t, b, want[i])
+	}
+	testing.expect_value(t, data.material.emissive, [3]f32{1, 1, 1})
+}
+
+// glTF's emissiveFactor defaults to black, so a texture alone emits nothing.
+@(test)
+test_glb_emissive_texture_without_a_factor_emits_nothing :: proc(t: ^testing.T) {
+	material := `{"emissiveTexture":{"index":0}}`
+	data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect(t, data.emissive != nil)
+	testing.expect_value(t, data.material.emissive, [3]f32{0, 0, 0})
+}
+
+@(test)
+test_glb_rejects_an_emissive_texture_index_out_of_range :: proc(t: ^testing.T) {
+	material := `{"emissiveTexture":{"index":3}}`
+	_, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.Bad_Texture)
+}
+
+@(test)
+test_glb_notes_primitives_with_different_emissives :: proc(t: ^testing.T) {
+	materials := `"materials":[{"emissiveFactor":[1,0,0]}, {"emissiveFactor":[0,0,1]}],`
+	data, notes, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Mixed_Materials})
+	testing.expect_value(t, data.material.emissive, [3]f32{1, 0, 0})
 }
 
 @(test)

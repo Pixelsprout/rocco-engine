@@ -108,11 +108,13 @@ Vertex :: struct {
 	uv:     [2]f32,
 }
 
-// unlit draws the base colour as it is, with no lights and no tone map.
+// unlit draws the base colour plus the emissive, with no lights and no tone
+// map. emissive is linear and can exceed 1.
 Material :: struct {
 	roughness: f32,
 	metallic:  f32,
 	unlit:     bool,
+	emissive:  [3]f32,
 }
 
 // A zero id means the mesh has no texture and binds the white image.
@@ -168,6 +170,7 @@ Mesh_Data :: struct {
 	indices:            []u16,
 	texture:            Maybe(Texture),
 	metallic_roughness: Maybe(Texture),
+	emissive:           Maybe(Texture),
 	material:           Material,
 	skin:               Skin,
 }
@@ -315,6 +318,9 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 		texture_delete(tex, t.allocator)
 	}
 	if tex, ok := data.metallic_roughness.?; ok {
+		texture_delete(tex, t.allocator)
+	}
+	if tex, ok := data.emissive.?; ok {
 		texture_delete(tex, t.allocator)
 	}
 }

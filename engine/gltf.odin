@@ -60,7 +60,7 @@ GLB_NOTE_REASONS := [Glb_Note]string {
 	.Bad_Png           = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
 	.Unsupported_Image = "a texture is not an embedded PNG, so it draws without that texture",
 	.Mixed_Textures    = "its primitives do not share one base colour texture, so they all draw the first",
-	.Mixed_Materials   = "its primitives do not share one roughness, metallic, unlit flag and metallic-roughness texture, so they all draw the first",
+	.Mixed_Materials   = "its primitives do not share one roughness, metallic, unlit flag, emissive, metallic-roughness texture and emissive texture, so they all draw the first",
 	.Channel_Skipped   = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
 }
 
@@ -120,8 +120,13 @@ Gltf :: struct {
 			roughness_factor:           Maybe(f32) `json:"roughnessFactor"`,
 			metallic_roughness_texture: Maybe(Gltf_Texture_Ref) `json:"metallicRoughnessTexture"`,
 		} `json:"pbrMetallicRoughness"`,
-		extensions: struct {
-			unlit: Maybe(struct {}) `json:"KHR_materials_unlit"`,
+		emissive_factor:  Maybe([3]f32) `json:"emissiveFactor"`,
+		emissive_texture: Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
+		extensions:       struct {
+			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
+			emissive_strength: Maybe(struct {
+					strength: Maybe(f32) `json:"emissiveStrength"`,
+				}) `json:"KHR_materials_emissive_strength"`,
 		},
 	},
 	textures:     []struct {
@@ -223,6 +228,7 @@ Glb_Loader :: struct {
 Glb_Material :: struct {
 	values:             Material,
 	metallic_roughness: Maybe(int),
+	emissive:           Maybe(int),
 }
 
 // joints index the glTF skin's joints, which the Skin puts in another order.
@@ -282,6 +288,10 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	if index, ok := material.metallic_roughness.?; ok {
 		metallic_roughness = glb_texture(&l, index, srgb = false, allocator = allocator) or_return
 	}
+	emissive: Maybe(Texture)
+	if index, ok := material.emissive.?; ok {
+		emissive = glb_texture(&l, index, srgb = true, allocator = allocator) or_return
+	}
 	data = {
 		vertices           = slice.clone(l.vertices[:], allocator),
 		influences         = slice.clone(influences, allocator),
@@ -289,6 +299,7 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 		texture            = texture,
 		material           = material.values,
 		metallic_roughness = metallic_roughness,
+		emissive           = emissive,
 		skin               = skin_clone(skin, allocator),
 	}
 	return data, l.notes, .None
@@ -469,6 +480,18 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		}
 		if ref, textured := pbr.metallic_roughness_texture.?; textured {
 			material.metallic_roughness = ref.index
+		}
+		factor := gltf_material.emissive_factor.? or_else {}
+		strength: f32 = 1
+		if ext, has_strength := gltf_material.extensions.emissive_strength.?; has_strength {
+			strength = ext.strength.? or_else 1
+		}
+		for &c in factor {
+			c = clamp(c, 0, 1) * max(strength, 0)
+		}
+		material.values.emissive = factor
+		if ref, textured := gltf_material.emissive_texture.?; textured {
+			material.emissive = ref.index
 		}
 	}
 	if first, seen := l.first.?; !seen {
