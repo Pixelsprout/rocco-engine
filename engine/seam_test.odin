@@ -26,6 +26,18 @@ FAKE_GAME :: Game_Calls {
 }
 
 // One pad of the last step's Input.
+Fake_Pointer :: struct {
+	pos:          [2]f32,
+	inside:       bool,
+	held:         [3]u8,
+	pressed:      [3]u8,
+	released:     [3]u8,
+	held_len:     int,
+	pressed_len:  int,
+	released_len: int,
+	wheel:        [2]f32,
+}
+
 Fake_Gamepad :: struct {
 	slot:        u8,
 	held:        [len(Gamepad_Button)]u8,
@@ -82,6 +94,7 @@ Fake_Game :: struct {
 	window:           [2]f32,
 	gamepads:         [GAMEPAD_SLOTS]Fake_Gamepad,
 	gamepads_len:     int,
+	pointer:          Fake_Pointer,
 	contacts:         [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:     int,
 	rays:             [FAKE_RAYS_MAX]Ray_Hit,
@@ -235,6 +248,14 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 			right_trigger = pad.right_trigger,
 		}
 	}
+	ptr := input.pointer
+	fake_ptr := &g_fake.pointer
+	fake_ptr.pos = {ptr.x, ptr.y}
+	fake_ptr.inside = ptr.inside
+	fake_ptr.held_len = copy(fake_ptr.held[:], ptr.held.elements[:ptr.held.length])
+	fake_ptr.pressed_len = copy(fake_ptr.pressed[:], ptr.pressed.elements[:ptr.pressed.length])
+	fake_ptr.released_len = copy(fake_ptr.released[:], ptr.released.elements[:ptr.released.length])
+	fake_ptr.wheel = {ptr.wheel.dx, ptr.wheel.dy}
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])

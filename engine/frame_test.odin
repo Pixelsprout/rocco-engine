@@ -243,6 +243,65 @@ test_frame_run_gives_step_the_window_in_logical_pixels :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_frame_gives_step_the_pointer_in_logical_pixels :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+	platform.window = {size = {1920, 1080}, dpi = 2}
+	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 200, mouse_y = 100}
+	input_on_event(&s.input, &move)
+	down := sapp.Event{type = .MOUSE_DOWN, mouse_button = .LEFT}
+	input_on_event(&s.input, &down)
+
+	frame_run(&s, platform)
+
+	testing.expect_value(t, g_fake.pointer.pos, [2]f32{100, 50})
+	testing.expect(t, g_fake.pointer.inside)
+	testing.expect_value(t, g_fake.pointer.held_len, 1)
+	testing.expect_value(t, g_fake.pointer.held[0], 0)
+	testing.expect_value(t, g_fake.pointer.pressed_len, 1)
+	testing.expect_value(t, g_fake.pointer.pressed[0], 0)
+}
+
+@(test)
+test_frame_pointer_past_the_window_edge_is_not_inside :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+	platform.window = {size = {1920, 1080}, dpi = 2}
+	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 2000, mouse_y = 100}
+	input_on_event(&s.input, &move)
+
+	frame_run(&s, platform)
+
+	testing.expect(t, !g_fake.pointer.inside)
+	testing.expect_value(t, g_fake.pointer.pos, [2]f32{1000, 50})
+}
+
+@(test)
+test_frame_pointer_with_the_mouse_locked_is_not_inside :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+	platform.mouse_locked = true
+	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 200, mouse_y = 100}
+	input_on_event(&s.input, &move)
+
+	frame_run(&s, platform)
+
+	testing.expect(t, !g_fake.pointer.inside)
+}
+
+@(test)
 test_headless_run_gives_step_the_launch_window :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()

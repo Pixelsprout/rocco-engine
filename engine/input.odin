@@ -13,25 +13,29 @@ Input_Latch :: struct {
 	// The debug camera reads the mouse per frame, not per step.
 	frame_mouse: [2]f32,
 	gamepads:    Gamepad_Latch,
+	pointer:     Pointer_Latch,
 }
 
 Input_Buffers :: struct {
 	held:     [len(sapp.Keycode)]u16,
 	pressed:  [len(sapp.Keycode)]u16,
 	gamepads: Gamepad_Buffers,
+	pointer:  Pointer_Buffers,
 }
 
 // The Input for one fixed step. The slices point into the Input_Buffers
-// passed to input_take. frame_run sets window, in logical pixels.
+// passed to input_take. frame_run sets window and pointer, in logical pixels.
 Step_Input :: struct {
 	held:     []u16,
 	pressed:  []u16,
 	mouse:    [2]f32,
 	gamepads: []Step_Gamepad,
 	window:   [2]f32,
+	pointer:  Step_Pointer,
 }
 
 input_on_event :: proc(latch: ^Input_Latch, e: ^sapp.Event) {
+	pointer_on_event(&latch.pointer, e)
 	#partial switch e.type {
 	case .KEY_DOWN:
 		if e.key_code == .INVALID {
@@ -77,12 +81,13 @@ input_take :: proc(latch: ^Input_Latch, buf: ^Input_Buffers) -> Step_Input {
 	return step_input
 }
 
-// Drops the pressed keys and buttons and the mouse delta. The held keys and
-// buttons stay.
+// Drops the pressed keys and buttons, the mouse delta and the wheel. The held
+// keys and buttons stay.
 input_drop :: proc(latch: ^Input_Latch) {
 	latch.pressed = {}
 	latch.mouse = {}
 	gamepad_latch_drop(&latch.gamepads)
+	pointer_drop(&latch.pointer)
 }
 
 input_end_frame :: proc(latch: ^Input_Latch) {
