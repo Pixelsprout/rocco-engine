@@ -21,6 +21,7 @@ evidence are marked as decisions.
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio device, the mixer and their thread | what should be heard, as a Play Command or a Speaker Node in the Scene |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
+| the hit test and the scroll sizes, after the layout | which Boxes it tags, and what a hover, a click or a scroll means |
 | messages from a Driver or an extension, as a port queue | which ports it Listens on, as Queries; what it Tells, as Commands |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
@@ -160,7 +161,7 @@ Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
-Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 } }
+Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
@@ -170,7 +171,7 @@ Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), 
 Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
 RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
 OverlapHit : { owner : U64, slot : U32, id : U64 }
-QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }) }
+QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
 Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
@@ -178,7 +179,7 @@ Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
 AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
-BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
+BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Box(BoxConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
@@ -367,6 +368,7 @@ take the name. The tag names are short forms of Clay's, such as `Row` for
 
 | Field | Values | Default |
 |---|---|---|
+| `id` | the Hit id; 0 is not tagged | 0 |
 | `width`, `height` | `Fit({ min, max })`, `Grow({ min, max })`, `Fixed(F32)`, `Percent(F32)` from 0 to 1 | `Fit` with no limit |
 | `pad` | `{ left, right, top, bottom }` | 0 on each side |
 | `gap` | the space between children | 0 |
@@ -374,14 +376,22 @@ take the name. The tag names are short forms of Clay's, such as `Row` for
 | `child_align` | `{ x, y }`, each `Start`, `Center` or `End` | `Start`, `Start` |
 | `background` | an `Rgba` | alpha 0, so nothing draws |
 | `radius` | one corner radius for all four corners | 0 |
-| `floating` | `NoFloat`, or `Float({ attach, offset })` | `NoFloat` |
+| `overflow` | `Visible`, `Clip`, or `Scroll({ x, y })` | `Visible` |
+| `floating` | `NoFloat`, or `Float({ to, attach, on, offset })` | `NoFloat` |
 
-An empty config means the same in Roc and in Clay. A floating Box attaches
-to one of the nine `AttachPoint`s of the window, such as `RightBottom`,
-then moves by `offset`. The host attaches it to Clay's root and sets the
-same point on the Box and on the window. So a `RightBottom` Box puts its
-own bottom-right corner on the window's. It ignores its parent's layout. A
-Box floats to the window only, never to another Element.
+An empty config means the same in Roc and in Clay, except that the glue
+orders tags by name, so an Odin literal must set `overflow` and `to`. A
+floating Box puts its `attach` point, one of the nine `AttachPoint`s, on
+the `on` point of the window (`to: Window`, Clay's root) or of its parent
+Box (`to: Parent`), then moves by `offset`. So a `RightBottom` Box on
+`RightBottom` of the window puts its own bottom-right corner on the
+window's. It ignores its parent's layout. A root Box with `to: Parent`
+floats on the window.
+
+`Clip` and `Scroll` set Clay's clip config. `Scroll` also gives the offset
+from the Scene as Clay's child offset. The game owns the offset; the host
+never feeds Clay a wheel or a drag. The UI pass applies Clay's scissor
+commands as one clip rect per run of quads.
 
 A Text carries the string, a size, an `Rgba` colour and a wrap mode,
 `Words` or `None`. `Words` is Clay's default. Clay takes a whole font size,
@@ -391,8 +401,13 @@ baked font, so the Text names no font.
 `Rgba` is a colour with alpha. Each channel is linear, from 0 to 1, and
 alpha is not premultiplied. A Tint stays `Rgb`. Decision.
 
-Sizes are logical pixels. No layout result flows back to the game. The
-host multiplies each size by `sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on
+Sizes are logical pixels. Two layout results flow back to the game, in
+`QueryResults.ui`: the tagged Boxes under the Pointer, innermost first, and
+the view and content sizes of the tagged Scroll Boxes. The host hit tests
+the pointer of the last step after the Frame's layout, so `over` lags by one
+step. A floating Box blocks the pointer when it, or any Box inside it, has
+a Hit id. `docs/adr/0020-the-pointer-and-the-ui-hit-test.md` records the
+decision. The host multiplies each size by `sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on
 a Retina Mac with `high_dpi` on. It is 1 with `high_dpi` off. Headless lays
 out at dpi 1. Decision.
 

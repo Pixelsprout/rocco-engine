@@ -185,16 +185,66 @@ are Clay's.
 - A `Fit` size fits the children. A `Grow` size fills the free space in the
   parent. A `Fixed` size is the number that you give. A `Percent` size is a
   fraction of the parent, from 0 to 1.
-- A Box with a `Float` attaches to the window, never to another Element,
-  and ignores the layout of its parent.
-- A floating Box puts its `attach` point on the same point of the window,
-  then moves by `offset`. +x is to the right and +y is down, so a Box at a
-  right or a bottom point needs a negative offset to move into the window.
+- A Box with a `Float` ignores the layout of its parent. With `to: Window`
+  it floats on the window, and with `to: Parent` it floats on its parent
+  Box. A root Box with `to: Parent` floats on the window.
+- A floating Box puts its `attach` point on the `on` point of the window or
+  of its parent, then moves by `offset`. +x is to the right and +y is down,
+  so a Box at a right or a bottom point needs a negative offset to move
+  into the window. `Ui.float_at` uses the same point for both.
 - A Text with `wrap` set to `Words` breaks its lines between words, inside
   the width of its parent. [`Ui.wrap`][Ui.wrap] gives the same lines.
 
-No layout result comes back to your game. Use `Grow` and `Percent` to fit
-the UI to the window.
+Use `Grow` and `Percent` to fit the UI to the window. The only layout
+results that come back to your game are the Boxes under the pointer and
+the sizes of the Scroll Boxes. See below.
+
+## The pointer and tagged Boxes
+
+Give a Box a non-zero `id` to tag it. After each layout, the host finds the
+tagged Boxes under the pointer and gives them to the next step in
+`results.ui.over`, innermost first. A button is a tagged Box, and a click
+on it is a `MouseButton.released` while its id is in `over`:
+
+```roc
+clicks : Vocabulary.Input, Vocabulary.QueryResults -> List(Command)
+clicks = |input, results| if MouseButton.released(input, Left) and List.contains(results.ui.over, button_id) {
+	[Port.tell("click", button_id.to_str())]
+} else {
+	[]
+}
+```
+
+Give each tagged Box its own id. If two Boxes share an id, the host logs
+once and only the first Box is ever in `over`.
+
+A floating Box hides the Boxes under it when it, or any Box inside it, has
+an id. So an open menu over a button gives only the menu's ids, and a click
+on a menu item does not also reach the button. A floating Box with no
+tagged Box inside it, such as a label, lets the pointer through to the
+Boxes under it.
+
+A menu that drops down under its button floats on its parent:
+`floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } })`
+puts the menu's top left corner 4 pixels under the button's bottom left
+corner.
+
+## Clip and scroll
+
+`overflow` says what a Box does with children that reach past its edges:
+
+- `Visible`, the default, draws them.
+- `Clip` cuts them at the edges of the Box.
+- `Scroll({ x, y })` cuts them and moves them by the offset. A negative `y`
+  moves them up, so later content shows.
+
+Your game owns the scroll offset. Keep it in the Model, change it on
+`input.pointer.wheel` while the Box is in `over`, and keep it in range with
+the sizes in `results.ui.scroll`. Each row there has the `id` of a tagged
+Scroll Box, its `view` size and its `content` size, in logical pixels. The
+furthest that `y` goes is `view.height - content.height`. A Scroll Box
+needs an `id`. Without one, the host logs once, still scrolls the Box, but
+lists no sizes for it.
 
 ## Text
 
@@ -248,13 +298,11 @@ errors once, and keeps drawing:
 - a character that the font does not have: the host draws `?`.
 - more quads than `capacity.ui_quads` of the [Launch]: the host drops the
   rest.
+- two Boxes with the same `id`: the host hit tests only the first.
+- a Scroll Box with id 0: the host lists no sizes for it.
 
 The host also logs each kind of Clay error once, such as a `Percent` above
 1, and draws what fits.
-
-## Limits
-
-The UI has no pointer input, no clipping and no scrolling yet.
 
 [Scene]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Scene
 [Launch]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Launch

@@ -125,8 +125,8 @@ _Avoid_: random seed, RNG, salt
 **Input**:
 What the host gives `step` each fixed step: the keys held, the keys pressed
 since the previous step, the mouse delta, one Gamepad for each connected
-pad and the window size in logical pixels. Key codes are sokol's; which key
-means what is the game's decision.
+pad, the window size in logical pixels and the Pointer. Key codes are
+sokol's; which key means what is the game's decision.
 Tests start from `pf.Input.empty`.
 _Avoid_: events, controls, actions, commands
 
@@ -248,14 +248,25 @@ state, not a Command. The host locks or frees the mouse only when it changes.
 The debug camera forces `Locked`.
 _Avoid_: mouse mode, cursor command, grab
 
+**Pointer**:
+The position, the buttons and the wheel of the mouse in Input, as
+`Input.pointer`. The position is in logical window pixels, with the origin
+at the top left. It is not inside while the pointer is outside the window
+or the Cursor is `Locked`. `pf.MouseButton` names the button codes. The
+mouse delta in Input is for mouse look; the Pointer is for pointing at the
+UI.
+_Avoid_: cursor (the lock), mouse (the delta), touch
+
 **UI**:
 The field of a Scene that lists the root Elements drawn flat over the 3D
 view. It is a Description: rebuilt every step, drawn from the current Scene
 only, never interpolated. The UI is a tree, but it is still a Description and
 not a retained scene graph: the host keeps no Element from one step to the
 next. Sizes are in logical pixels. The layout fits the Elements to the
-window; the game reads the window size from Input. "HUD" is a game's word
-for what its UI shows.
+window; the game reads the window size from Input. After the layout, the
+host sends back only the tagged Boxes under the Pointer and the sizes of
+the Scroll Boxes, in QueryResults. "HUD" is a game's word for what its UI
+shows.
 _Avoid_: HUD (in the engine), overlay, GUI, canvas, widget tree
 
 **Element**:
@@ -267,11 +278,23 @@ _Avoid_: widget, Node (the 3D tree), control, view (the call), parent index
 
 **Box**:
 An Element that is a rectangle and holds a list of child Elements. Its
-config carries its sizing, padding, gap, direction, child alignment,
-background and corner radius, and its type is `BoxConfig`. A floating Box
-attaches to a point of the window, such as a corner, and ignores its
-parent's layout.
+config carries its Hit id, sizing, padding, gap, direction, child
+alignment, background, corner radius and Overflow, and its type is
+`BoxConfig`. A floating Box puts one of its points on a point of the
+window or of its parent Box, and ignores its parent's layout.
 _Avoid_: panel, div, container, frame
+
+**Hit id**:
+The `id` of a Box. A Box with a non-zero id is tagged: the host hit tests it
+and lists it in `QueryResults.ui`. 0 is not tagged. A floating Box that
+holds a tagged Box blocks the Pointer from the Boxes under it.
+_Avoid_: element id, key, name
+
+**Overflow**:
+What a Box does with children that reach past its edges: `Visible` draws
+them, `Clip` cuts them at the edges, and `Scroll` cuts them and moves them
+by an offset from the Scene. The game owns the offset.
+_Avoid_: scroll view, viewport, mask
 
 **Text**:
 An Element that draws one string in the engine's font, at a size and colour.
@@ -451,8 +474,10 @@ _Avoid_: index, channel, query id
 
 **QueryResults**:
 What the host gives `step` each fixed step: the record `{ contacts, rays,
-overlaps }`, with one flat list for each kind of Query. A miss has no row.
-The first step gets empty QueryResults.
+overlaps, ports, ui }`, with one flat list for each kind of Query. A miss
+has no row. `ui` needs no Query: it holds the tagged Boxes under the Pointer
+and the sizes of the tagged Scroll Boxes, from the layout the window last
+showed. The first step gets empty QueryResults.
 _Avoid_: Answer, Answers, Result, Response, Event
 
 **RayHit**:
