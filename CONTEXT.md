@@ -124,8 +124,8 @@ _Avoid_: random seed, RNG, salt
 
 **Input**:
 What the host gives `step` each fixed step: the keys held, the keys pressed
-since the previous step, the mouse delta and one Gamepad for each connected
-pad. Key codes are sokol's; which key means what is the game's decision.
+since the previous step, the mouse delta, one Gamepad for each connected
+pad and the window size in logical pixels. Key codes are sokol's; which key means what is the game's decision.
 Tests start from `pf.Input.empty`.
 _Avoid_: events, controls, actions, commands
 
@@ -252,8 +252,8 @@ The field of a Scene that lists the root Elements drawn flat over the 3D
 view. It is a Description: rebuilt every step, drawn from the current Scene
 only, never interpolated. The UI is a tree, but it is still a Description and
 not a retained scene graph: the host keeps no Element from one step to the
-next. Sizes are in logical pixels. The game does not learn the window size;
-the layout fits the Elements to it. "HUD" is a game's word for what its UI
+next. Sizes are in logical pixels. The layout fits the Elements to the
+window; the game reads the window size from Input. "HUD" is a game's word for what its UI
 shows.
 _Avoid_: HUD (in the engine), overlay, GUI, canvas, widget tree
 

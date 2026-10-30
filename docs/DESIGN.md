@@ -160,7 +160,7 @@ Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
 Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
-Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
+Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
 Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
@@ -192,7 +192,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
-| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
+| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
@@ -391,10 +391,16 @@ baked font, so the Text names no font.
 `Rgba` is a colour with alpha. Each channel is linear, from 0 to 1, and
 alpha is not premultiplied. A Tint stays `Rgb`. Decision.
 
-Sizes are logical pixels. The game does not learn the window size, and no
-layout result flows back to the game. The host multiplies each size by
-`sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on a Retina Mac with `high_dpi`
-on. It is 1 with `high_dpi` off. Headless lays out at dpi 1. Decision.
+Sizes are logical pixels. No layout result flows back to the game. The
+host multiplies each size by `sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on
+a Retina Mac with `high_dpi` on. It is 1 with `high_dpi` off. Headless lays
+out at dpi 1. Decision.
+
+The game learns the window size from `Input.window`, in logical pixels:
+`sapp.width()` and `sapp.height()` over `sapp.dpi_scale()`, read once per
+frame. Every step of a frame gets the same size. Headless gives the Launch
+width and height. A game that projects a world point into the window, such
+as a label over a character, uses it. See ADR 0019. Decision.
 
 The host runs C Clay through its Odin bindings. Clay is a git submodule
 pinned to a commit. The `inputs` step copies its prebuilt lib per target,
