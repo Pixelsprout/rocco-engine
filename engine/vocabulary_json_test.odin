@@ -166,6 +166,7 @@ test_json_writes_a_listen_query :: proc(t: ^testing.T) {
 test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 	column := Box_Config {
+		id          = 3,
 		width       = {tag = .Fit, payload = {fit = {min = 1, max = 2}}},
 		height      = {tag = .Grow},
 		pad         = {left = 1, right = 2, top = 3, bottom = 4},
@@ -174,12 +175,13 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		child_align = {.Center, .End},
 		background  = {r = 1, a = 0.5},
 		radius      = 6,
+		overflow    = {tag = .Scroll, payload = {scroll = {x = 0, y = -20}}},
 		floating    = {tag = .NoFloat},
 	}
 	corner := ui_box()
 	corner.width = ui_fixed(100)
 	corner.height = {tag = .Percent, payload = {percent = 0.5}}
-	corner.floating = {tag = .Float, payload = {float = {attach = .RightBottom, offset = {2, -3}}}}
+	corner.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightTop, offset = {2, -3}}}}
 	// A short string is stored inline, so it needs no Roc heap.
 	text := Element {
 		tag = .Text,
@@ -193,16 +195,17 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	expect_json_text(
 		t,
 		&b,
-		`[{"Box":{"config":{"width":{"Fit":{"min":1,"max":2}},"height":{"Grow":{"min":0,"max":0}},` +
+		`[{"Box":{"config":{"id":3,"width":{"Fit":{"min":1,"max":2}},"height":{"Grow":{"min":0,"max":0}},` +
 		`"pad":{"left":1,"right":2,"top":3,"bottom":4},"gap":5,"direction":"Col","child_align":{"x":"Center","y":"End"},` +
-		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"floating":"NoFloat"},"children":[` +
-		`{"Box":{"config":{"width":{"Fixed":100},"height":{"Percent":0.5},` +
+		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"overflow":{"Scroll":{"x":0,"y":-20}},"floating":"NoFloat"},"children":[` +
+		`{"Box":{"config":{"id":0,"width":{"Fixed":100},"height":{"Percent":0.5},` +
 		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
-		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"floating":{"Float":{"attach":"RightBottom","offset":{"x":2,"y":-3}}}},"children":[` +
+		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"overflow":"Visible",` +
+		`"floating":{"Float":{"to":"Window","attach":"RightBottom","on":"RightTop","offset":{"x":2,"y":-3}}}},"children":[` +
 		`{"Text":{"str":"say \"hi\"","size":16,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"Words"}}]}}]}},` +
-		`{"Box":{"config":{"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},` +
+		`{"Box":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},` +
 		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
-		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"floating":"NoFloat"},"children":[]}}]`,
+		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"overflow":"Visible","floating":"NoFloat"},"children":[]}}]`,
 	)
 }
 
@@ -260,7 +263,7 @@ test_json_write_query_results_writes_every_row_with_the_vocabulary_names :: proc
 		&b,
 		`{"contacts":[{"a":1,"b":2,"normal":{"x":1,"y":0,"z":0},"depth":0.5}],` +
 		`"rays":[{"owner":1,"slot":2,"id":3,"point":{"x":1,"y":2,"z":3},"normal":{"x":0,"y":1,"z":0},"distance":4}],` +
-		`"overlaps":[{"owner":1,"slot":3,"id":2}],"ports":[]}`,
+		`"overlaps":[{"owner":1,"slot":3,"id":2}],"ports":[],"ui":{"over":[],"scroll":[]}}`,
 	)
 }
 
@@ -284,9 +287,26 @@ test_json_writes_the_ports_of_query_results :: proc(t: ^testing.T) {
 	json_write_query_results(&b, &results)
 
 	got := strings.to_string(b)
-	testing.expectf(t, strings.has_suffix(got, `,"ports":[{"port":"town","msg":"1"},{"port":"town","msg":""}]}`), "got %s", got)
+	testing.expectf(t, strings.has_suffix(got, `,"ports":[{"port":"town","msg":"1"},{"port":"town","msg":""}],"ui":{"over":[],"scroll":[]}}`), "got %s", got)
 	_, err := json.parse_string(strings.concatenate({"[", got, "]"}, context.temp_allocator), allocator = context.temp_allocator)
 	testing.expect_value(t, err, nil)
+}
+
+@(test)
+test_json_writes_the_ui_of_query_results :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	over := []u64{7, 1}
+	scroll := []Scroll_Size{{id = 9, view = {width = 200, height = 100}, content = {width = 200, height = 200}}}
+	results := Query_Results {
+		ui = {over = json_test_list(over), scroll = json_test_list(scroll)},
+	}
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_query_results(&b, &results)
+
+	got := strings.to_string(b)
+	want := `,"ui":{"over":[7,1],"scroll":[{"id":9,"view":{"width":200,"height":100},"content":{"width":200,"height":200}}]}}`
+	testing.expectf(t, strings.has_suffix(got, want), "got %s", got)
 }
 
 // The writers only read, so the list can borrow the slice.

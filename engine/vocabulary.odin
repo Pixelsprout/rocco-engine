@@ -17,6 +17,7 @@ Capacity :: Roc_Launch_Capacity
 Init_Result :: Roc_Init
 Input :: Roc_Step_Arg1
 Gamepad :: Roc_Step_Arg1_Gamepads
+Input_Pointer :: Roc_Step_Arg1_Pointer
 Step_Result :: Roc_Step
 Command :: Roc_Init_Commands
 Load_Command :: Roc_Init_Commands_Load
@@ -32,6 +33,8 @@ Contact :: Roc_Step_Arg2_Contacts
 Ray_Hit :: Roc_Step_Arg2_Rays
 Overlap_Hit :: Roc_Step_Arg2_Overlaps
 Port_Message :: Roc_Step_Arg2_Ports
+Ui_Results :: Roc_Step_Arg2_Ui
+Scroll_Size :: Roc_Step_Arg2_Ui_Scroll
 Scene :: Roc_View
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag
@@ -68,5 +71,8 @@ Floating :: Roc_VocabularyElement_Box_0_Floating
 Floating_Tag :: Roc_VocabularyElement_Box_0_Floating_Tag
 Float_Config :: Roc_VocabularyElement_Box_0_Floating_Float
 Attach_Point :: Roc_VocabularyElement_Box_0_Floating_Float_Attach
+Float_To :: Roc_VocabularyElement_Box_0_Floating_Float_To
+Overflow :: Roc_VocabularyElement_Box_0_Overflow
+Overflow_Tag :: Roc_VocabularyElement_Box_0_Overflow_Tag
 Text :: Roc_VocabularyElement_Text
 Text_Wrap :: Roc_VocabularyElement_Text_Wrap

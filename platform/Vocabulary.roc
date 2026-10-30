@@ -123,9 +123,16 @@ Vocabulary := [].{
 	##   the list is empty.
 	## - `window`: the window size in logical pixels, read once per frame, so
 	##   it follows a resize. Headless gives the Launch width and height.
+	## - `pointer`: the pointer in logical window pixels, with the origin at the
+	##   top left. `inside` is false when the pointer is outside the window, or
+	##   while `Scene.cursor` is `Locked`. Then the position keeps its last
+	##   value. `held`, `pressed` and `released` hold button codes, with the
+	##   rules of the keys. Use `MouseButton` to name them. `wheel` is the
+	##   scroll since the previous step, in the units that the OS gives. Your
+	##   game scales it. `mouse` stays for mouse look.
 	##
 	## The key codes are sokol's. Use `Key` to name them.
-	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 } }
+	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 
 	## One connected gamepad at one step. Use `Button` to name the buttons.
 	##
@@ -214,7 +221,14 @@ Vocabulary := [].{
 	## `ports` holds the messages a Driver or an extension sent to each port that
 	## the previous Scene Listened on, in arrival order. Read them with
 	## `Port.messages`.
-	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }) }
+	##
+	## `ui.over` lists the tagged Boxes under the pointer, innermost first, from
+	## the layout that the window last showed. A floating Box that blocks the
+	## pointer hides the Boxes under it. `ui.scroll` lists each tagged `Scroll`
+	## Box with its `view` size and its `content` size in logical pixels. Both
+	## arrive every step, with no Query, one step after the Scene that drew
+	## them.
+	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
 
 	## A value in `Scene.queries` that asks the engine about the Colliders. The
 	## host runs it against that Scene and gives the QueryResults to the next
@@ -256,18 +270,28 @@ Vocabulary := [].{
 	## Where a Box puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## The point of a floating Box that the host puts on the same point of the
-	## window.
+	## A point of a Box, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
 	## The rectangle that a `Box` Element draws. The names and the defaults
 	## are Clay's. Sizes are in logical pixels.
 	##
+	## - `id`: tags the Box for the hit test and for `QueryResults.ui`. 0 is not
+	##   tagged. Give each tagged Box its own id. For a repeated id the host
+	##   logs once and uses the first Box.
 	## - `direction`: lays out the children in a `Row` or a `Col`.
 	## - `radius`: the corner radius.
-	## - `floating`: a `Float` Box attaches to a point of the window at `offset`
-	##   and ignores its parent's layout.
-	BoxConfig : { width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : { x : F32, y : F32 } })] }
+	## - `overflow`: `Visible` draws the children past the edges. `Clip` cuts
+	##   them at the Box edges. `Scroll` cuts them and moves them by the
+	##   offset, so a negative `y` shows later content. A `Scroll` Box needs a
+	##   non-zero `id`.
+	## - `floating`: a `Float` Box puts its `attach` point on the `on` point of
+	##   the window (`to: Window`) or of its parent Box (`to: Parent`), moves by
+	##   `offset`, and ignores its parent's layout. A root Box with
+	##   `to: Parent` floats on the window. A floating Box blocks the pointer
+	##   when it, or any Box inside it, has a non-zero `id`. A floating Box with
+	##   no tagged Box inside it lets the pointer through.
+	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 
 	## One string in the engine's font, at a size in logical pixels and a
 	## colour. The names and the defaults are Clay's. The layout measures it. With `wrap` set to `Words`, the layout

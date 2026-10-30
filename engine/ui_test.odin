@@ -38,7 +38,7 @@ scene_ui :: proc(elements: []Element) -> Scene {
 
 // The glue orders tags by name, so a zero Box_Config floats and is not the vocabulary's default.
 ui_box :: proc() -> Box_Config {
-	return {floating = {tag = .NoFloat}, direction = .Row, child_align = {.Start, .Start}}
+	return {overflow = {tag = .Visible}, floating = {tag = .NoFloat}, direction = .Row, child_align = {.Start, .Start}}
 }
 
 // The children list points into the temp allocator and has no refcount, so
@@ -54,7 +54,7 @@ ui_fixed :: proc(v: f32) -> Sizing {
 }
 
 ui_floating :: proc(attach: Attach_Point) -> Floating {
-	return {tag = .Float, payload = {float = {attach = attach}}}
+	return {tag = .Float, payload = {float = {to = .Window, attach = attach, on = attach}}}
 }
 
 ui_text :: proc(str: string, size: f32) -> Element {
@@ -160,7 +160,7 @@ test_ui_scales_sizes_offsets_and_radius_by_the_dpi :: proc(t: ^testing.T) {
 
 	box := ui_rect(100, 50)
 	box.radius = 8
-	box.floating = {tag = .Float, payload = {float = {attach = .RightBottom, offset = {x = -10, y = -20}}}}
+	box.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightBottom, offset = {x = -10, y = -20}}}}
 	elements := []Element{ui_box_of(box)}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)

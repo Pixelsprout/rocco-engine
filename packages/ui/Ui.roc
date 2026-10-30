@@ -26,22 +26,23 @@ Ui := [].{
 	## Where a Box puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## The point of a floating Box that the host puts on the same point of the
-	## window.
+	## A point of a Box, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
 	## The layout and look of a Box. Start from `default_box`. See
 	## `Vocabulary.BoxConfig`.
-	BoxConfig : { width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, floating : [NoFloat, Float({ attach : AttachPoint, offset : Offset })] }
+	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })] }
 
 	## One string at a size and a colour. Start from `default_text` or `label`.
 	## See `Vocabulary.Text`.
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 
-	## Clay's defaults: fits its children, no padding, no gap, a `Row`, children
-	## at the start, no background, square corners and not floating.
+	## Clay's defaults: not tagged, fits its children, no padding, no gap, a
+	## `Row`, children at the start, no background, square corners, children
+	## drawn past the edges and not floating.
 	default_box : BoxConfig
 	default_box = {
+		id: 0,
 		width: Fit({ min: 0.0, max: 0.0 }),
 		height: Fit({ min: 0.0, max: 0.0 }),
 		pad: { left: 0.0, right: 0.0, top: 0.0, bottom: 0.0 },
@@ -50,6 +51,7 @@ Ui := [].{
 		child_align: { x: Start, y: Start },
 		background: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
 		radius: 0.0,
+		overflow: Visible,
 		floating: NoFloat,
 	}
 
@@ -65,7 +67,7 @@ Ui := [].{
 	## A `default_box` that floats to the window. It puts its own `attach` point
 	## on the window's, then moves by `offset`. It ignores its parent's layout.
 	float_at : AttachPoint, Offset -> BoxConfig
-	float_at = |attach, offset| { ..default_box, floating: Float({ attach, offset }) }
+	float_at = |attach, offset| { ..default_box, floating: Float({ to: Window, attach, on: attach, offset }) }
 
 	## A `float_at` Box for a HUD: 8 pixels of padding, a black background at
 	## half alpha and corners with a radius of 8.
@@ -285,9 +287,12 @@ expect Ui.label("Keys") == { str: "Keys", size: 24.0, color: { r: 1.0, g: 1.0, b
 
 expect Ui.label("") == Ui.default_text
 
-expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_box, floating: Float({ attach: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
+expect Ui.default_box.id == 0 and Ui.default_box.overflow == Visible
+
+expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_box, floating: Float({ to: Window, attach: RightBottom, on: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
 
 expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
+	id: 0,
 	width: Fit({ min: 0.0, max: 0.0 }),
 	height: Fit({ min: 0.0, max: 0.0 }),
 	pad: { left: 8.0, right: 8.0, top: 8.0, bottom: 8.0 },
@@ -296,7 +301,8 @@ expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
 	child_align: { x: Start, y: Start },
 	background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 },
 	radius: 8.0,
-	floating: Float({ attach: LeftTop, offset: { x: 16.0, y: 16.0 } }),
+	overflow: Visible,
+	floating: Float({ to: Window, attach: LeftTop, on: LeftTop, offset: { x: 16.0, y: 16.0 } }),
 }
 
 expect Ui.pad_all(4.0) == { left: 4.0, right: 4.0, top: 4.0, bottom: 4.0 }

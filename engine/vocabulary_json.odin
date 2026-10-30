@@ -97,7 +97,34 @@ json_write_query_results :: proc(b: ^strings.Builder, results: ^Query_Results) {
 	json_write_list(b, results.overlaps, json_write_overlap_hit)
 	json_key(b, "ports")
 	json_write_list(b, results.ports, json_write_port_message)
+	json_key(b, "ui")
+	json_write_ui_results(b, &results.ui)
 	strings.write_byte(b, '}')
+}
+
+json_write_ui_results :: proc(b: ^strings.Builder, ui: ^Ui_Results) {
+	json_key(b, "over", first = true)
+	json_write_ids(b, ui.over)
+	json_key(b, "scroll")
+	json_write_list(b, ui.scroll, json_write_scroll_size)
+	strings.write_byte(b, '}')
+}
+
+json_write_scroll_size :: proc(b: ^strings.Builder, s: ^Scroll_Size) {
+	json_key(b, "id", first = true)
+	strings.write_u64(b, s.id)
+	json_key(b, "view")
+	json_key(b, "width", first = true)
+	json_write_f32(b, s.view.width)
+	json_key(b, "height")
+	json_write_f32(b, s.view.height)
+	strings.write_byte(b, '}')
+	json_key(b, "content")
+	json_key(b, "width", first = true)
+	json_write_f32(b, s.content.width)
+	json_key(b, "height")
+	json_write_f32(b, s.content.height)
+	strings.write_string(b, "}}")
 }
 
 json_write_camera :: proc(b: ^strings.Builder, camera: ^Scene_Camera) {
@@ -384,7 +411,9 @@ json_write_element :: proc(b: ^strings.Builder, element: ^Element) {
 }
 
 json_write_box_config :: proc(b: ^strings.Builder, box: ^Box_Config) {
-	json_key(b, "width", first = true)
+	json_key(b, "id", first = true)
+	strings.write_u64(b, box.id)
+	json_key(b, "width")
 	json_write_sizing(b, box.width)
 	json_key(b, "height")
 	json_write_sizing(b, box.height)
@@ -412,6 +441,18 @@ json_write_box_config :: proc(b: ^strings.Builder, box: ^Box_Config) {
 	json_write_rgba(b, box.background)
 	json_key(b, "radius")
 	json_write_f32(b, box.radius)
+	json_key(b, "overflow")
+	switch box.overflow.tag {
+	case .Visible, .Clip:
+		json_write_tag(b, box.overflow.tag)
+	case .Scroll:
+		json_key(b, "Scroll", first = true)
+		json_key(b, "x", first = true)
+		json_write_f32(b, box.overflow.payload.scroll.x)
+		json_key(b, "y")
+		json_write_f32(b, box.overflow.payload.scroll.y)
+		strings.write_string(b, "}}")
+	}
 	json_key(b, "floating")
 	switch box.floating.tag {
 	case .NoFloat:
@@ -419,8 +460,12 @@ json_write_box_config :: proc(b: ^strings.Builder, box: ^Box_Config) {
 	case .Float:
 		float := &box.floating.payload.float
 		json_key(b, "Float", first = true)
-		json_key(b, "attach", first = true)
+		json_key(b, "to", first = true)
+		json_write_tag(b, float.to)
+		json_key(b, "attach")
 		json_write_tag(b, float.attach)
+		json_key(b, "on")
+		json_write_tag(b, float.on)
 		json_key(b, "offset")
 		json_key(b, "x", first = true)
 		json_write_f32(b, float.offset.x)
