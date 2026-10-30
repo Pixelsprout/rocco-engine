@@ -1233,7 +1233,7 @@ open.
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
-colour. One Vocabulary change, released as v0.7.0. Closes dex tasks yjtqgdd4
+colour. One Vocabulary change, released as the next minor version. Closes dex tasks yjtqgdd4
 and s1zhf2hf. It was Milestone 25 until 2026-10-27, when it moved after the
 announcement release.
 
@@ -1259,6 +1259,61 @@ Check: Odin tests cover the op, the queue, the drop rule, the size limit
 and the glue types. `scripts/test_bridge.py` covers the Driver. The Bridge
 check drives bridge-echo first on all three OSes in CI.
 
+## Milestone 30: UI text
+
+Done when HUD text is sharp at dpi 1, a Scene sets its clear colour, and a
+game measures, cuts and wraps text in pure Roc with the same numbers as the
+host. Agent Town's HUD then cuts by pixels, not by characters.
+
+1. The SDF edge width follows the screen-space gradient, and each text line
+   starts on a whole pixel.
+2. `Scene.clear` sets the colour behind the 3D view. The Bridge protocol is 3.
+3. `scripts/build.roc` writes the font's advances and kern pairs into a Roc
+   module. `Ui.measure`, `Ui.fit` and `Ui.wrap` use it, with no Vocabulary
+   change.
+
+Check: a corpus test compares the Roc measure and wrap with the host's. A
+screenshot at dpi 1 shows sharp stems.
+
+## Milestone 31: Pointer and devices
+
+Done when a person's click in the window reaches the game while a Driver
+drives it, and the game sends the result out as a `Tell`. This is phase 4
+of the Agent Town design. Closes dex tasks 5rxq8tn7 and ihjsa50n.
+
+1. One Vocabulary change: `Input.pointer`, `BoxConfig.id`,
+   `BoxConfig.overflow` with Clip and Scroll, a floating Box on its parent,
+   and `QueryResults.ui`. The host hit tests with Clay, and the game owns
+   every scroll offset. ADR 0020 amends ADR 0004. The Bridge protocol is 4.
+2. A Driver opts in to real devices on `hello`. The host merges them with
+   the Driver's Input. ADR 0021 amends ADR 0009. The Bridge protocol is 5.
+
+Check: the Bridge check drives a click on a tagged Box in bridge-echo and
+reads the `Tell` from the `step` reply, on all three OSes.
+
+## Milestone 32: UI widgets
+
+Done when `packages/ui` gives a game buttons, dropdowns, accordions, focus
+and scrolling views as pure Roc helpers, with every state in the game's
+Model. A scrolling view can stick to the bottom, for a log.
+
+Check: an example game with every widget passes a Bridge check driven by
+pointer requests.
+
+## Milestone 33: Lighting
+
+Done when a surface glows without a tint above 1, a Scene holds any number
+of Lights, and sun shadows hold across a large world. Closes dex tasks
+87xcx7ms and 75ah1rr3.
+
+1. Emissive from glTF and `Draw.glow`. Emissive casts no light. ADR 0022.
+2. A light list of at most 8 per Draw replaces the 8 per Scene cap.
+   ADR 0023.
+3. Up to 4 sun cascades, set in Launch, with 1 as the default.
+
+Check: a Scene with 40 Point lights draws each one, and the bench records
+the cost.
+
 ## Later arcs
 
 These arcs are a direction, not a plan. Each gets milestone numbers and its
@@ -1271,17 +1326,14 @@ own grilling when it starts.
 - Scenery as a Pack: Blender as the level editor, with static colliders and
   triangle mesh colliders (dex task 99iz77jj).
 - Particles: `Scene.emitters` and `Burst`, on the instanced pipeline.
-- Cascaded shadow maps (dex task 75ah1rr3) and light selection (dex task
-  87xcx7ms).
+- Cascaded shadow maps and light selection moved to Milestone 33.
 - A third-person controller: capsule tests and shape casts.
 
 **Other people's games.** An outside author, or a second game in its own
 repo, pulls this arc.
 
-- Pointer input, `Scene.window` and world-space sprites (dex tasks 5rxq8tn7
-  and elqpa9x2). Milestone 21 makes the UI a tree (ADR 0013), so a Box
-  can carry an event tag. Pointer input still reopens the layout part of
-  ADR 0004.
+- World-space sprites with an orthographic camera (dex task elqpa9x2).
+  Pointer input moved to Milestone 31.
 - Saves, and Ports for extensions. Milestone 29 added Ports over the
   Bridge (ADR 0018), and an extension feeds the same port queue.
 - The extension ABI, with FMOD as its first proof.
