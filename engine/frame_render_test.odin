@@ -21,6 +21,8 @@ Submitted :: struct {
 	normal_model: Mat4,
 	tint:         [4]f32,
 	material:     [4]f32,
+	emissive:     [4]f32,
+	glow:         [4]f32,
 	skinned:      bool,
 	joints:       [2]Mat4,
 }
@@ -287,6 +289,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 			normal_model = vs_params.normal_model,
 			tint = fs_params.tint,
 			material = fs_params.material,
+			emissive = fs_params.emissive,
+			glow = fs_params.glow,
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 		},
@@ -743,6 +747,20 @@ test_frame_render_submits_the_material_of_each_mesh :: proc(t: ^testing.T) {
 	testing.expect_value(t, got[0].material, [4]f32{1, 0, 0, 0})
 	testing.expect_value(t, got[1].material, [4]f32{0.3, 0.7, 0, 0})
 	testing.expect_value(t, got[2].material, [4]f32{1, 0, 1, 0})
+}
+
+@(test)
+test_frame_render_submits_the_emissive_of_each_mesh :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lamp, _ := mesh_table_add(&f.meshes, strings.clone("lamp"), {material = {roughness = 1, emissive = {4, 2, 0}}})
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere)}, {id = 2, mesh = mesh_id(&f.meshes, lamp)}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 2)
+	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
+	testing.expect_value(t, got[1].emissive, [4]f32{4, 2, 0, 0})
 }
 
 @(test)

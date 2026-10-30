@@ -254,11 +254,16 @@ frame_render_draw :: proc(
 	for p in placed_next(&order) {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
 		material := p.mesh.material
+		e := material.emissive
 		fr.submit(
 			fr.submit_ctx,
 			p.mesh,
 			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
-			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
+			fs_params = {
+				tint = tint,
+				material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0},
+				emissive = {e.x, e.y, e.z, 0},
+			},
 			skin = p.skin,
 		)
 	}

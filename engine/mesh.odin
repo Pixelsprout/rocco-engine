@@ -138,6 +138,7 @@ Mesh :: struct {
 	index_count:        int,
 	texture:            Mesh_Texture,
 	metallic_roughness: Mesh_Texture,
+	emissive:           Mesh_Texture,
 	material:           Material,
 	box:                Box,
 	skin:               Skin,
@@ -280,6 +281,7 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 	}
 	mesh_texture_destroy(m.texture)
 	mesh_texture_destroy(m.metallic_roughness)
+	mesh_texture_destroy(m.emissive)
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
 	skin_delete(m.skin, t.allocator)
@@ -357,12 +359,16 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	if tex, ok := data.metallic_roughness.?; ok {
 		m.metallic_roughness = texture_upload(tex)
 	}
+	if tex, ok := data.emissive.?; ok {
+		m.emissive = texture_upload(tex)
+	}
 }
 
 // White leaves the base colour as it is and the material factors at their values.
-mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness: Mesh_Texture) {
+mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness, emissive: Mesh_Texture) {
 	base = m.texture if m.texture.image.id != 0 else white
 	metallic_roughness = m.metallic_roughness if m.metallic_roughness.image.id != 0 else white
+	emissive = m.emissive if m.emissive.image.id != 0 else white
 	return
 }
 

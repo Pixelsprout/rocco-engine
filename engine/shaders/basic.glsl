@@ -1,5 +1,6 @@
-// basic: a metallic-roughness BRDF under the Scene's lights, tone mapped. An
-// unlit mesh draws its base colour with no lights and no tone map.
+// basic: a metallic-roughness BRDF under the Scene's lights, plus the
+// emissive, tone mapped. An unlit mesh draws its base colour plus the
+// emissive, with no lights and no tone map.
 // skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, at its authored colour.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
@@ -74,10 +75,13 @@ void main() {
 
 @fs fs
 // vec4 so every member is 16 bytes and flattens cleanly for GL. material is
-// roughness, metallic, unlit (0 or 1) and a spare.
+// roughness, metallic, unlit (0 or 1) and a spare. emissive is the mesh
+// emissive, linear, with w spare. glow is the Draw glow, linear, with w spare.
 layout(binding = 1) uniform fs_params {
     vec4 tint;
     vec4 material;
+    vec4 emissive;
+    vec4 glow;
 };
 
 // The array size is MAX_LIGHTS in engine/frame_render.odin. An unused slot
@@ -97,8 +101,9 @@ layout(binding = 2) uniform fs_lights {
 };
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
-// linear data: G is roughness and B is metallic, as glTF puts them. A mesh
-// without a texture binds a white texel.
+// linear data: G is roughness and B is metallic, as glTF puts them.
+// emissive_tex is SRGB8A8, so a sample is linear. A mesh without a texture
+// binds a white texel.
 layout(binding = 0) uniform texture2D base_tex;
 layout(binding = 0) uniform sampler base_smp;
 layout(binding = 1) uniform texture2D metallic_roughness_tex;
@@ -106,6 +111,8 @@ layout(binding = 1) uniform sampler metallic_roughness_smp;
 // One layer per shadow view. Reversed-Z, so a greater depth is nearer the Sun.
 layout(binding = 2) uniform texture2DArray shadow_tex;
 layout(binding = 2) uniform sampler shadow_smp;
+layout(binding = 3) uniform texture2D emissive_tex;
+layout(binding = 3) uniform sampler emissive_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -205,8 +212,10 @@ float sun_visibility(vec3 n) {
 void main() {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
     vec3 albedo = base.rgb * tint.rgb;
+    // Sampled before the unlit branch, so D3D keeps uniform control flow.
+    vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        frag_color = vec4(linear_to_srgb(albedo), base.a);
+        frag_color = vec4(linear_to_srgb(albedo + emitted), base.a);
         return;
     }
 
@@ -249,7 +258,7 @@ void main() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    frag_color = vec4(linear_to_srgb(aces_fitted(color)), base.a);
+    frag_color = vec4(linear_to_srgb(aces_fitted(color + emitted)), base.a);
 }
 @end
 
