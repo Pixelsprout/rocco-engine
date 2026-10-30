@@ -81,6 +81,11 @@ Ui :: struct {
 	repairs_logged: bit_set[Ui_Repair],
 }
 
+// The window size that the game gets in Input, in logical pixels.
+ui_window_logical :: proc(window: Ui_Window) -> [2]f32 {
+	return window.size / window.dpi
+}
+
 // The arena lives as long as the allocator, so there is no ui_destroy.
 ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Allocator) -> mem.Allocator_Error {
 	// Clay sets these on the current context, or on its defaults when there is

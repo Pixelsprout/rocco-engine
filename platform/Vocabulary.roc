@@ -121,9 +121,11 @@ Vocabulary := [].{
 	## - `mouse`: the mouse movement since the previous step.
 	## - `gamepads`: one Gamepad for each connected pad, at most 4. With no pad
 	##   the list is empty.
+	## - `window`: the window size in logical pixels, read once per frame, so
+	##   it follows a resize. Headless gives the Launch width and height.
 	##
 	## The key codes are sokol's. Use `Key` to name them.
-	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad) }
+	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 } }
 
 	## One connected gamepad at one step. Use `Button` to name the buttons.
 	##

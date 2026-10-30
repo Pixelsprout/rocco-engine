@@ -93,6 +93,27 @@ test_bridge_step_holds_keys_for_every_step_and_taps_and_moves_the_mouse_in_the_f
 	testing.expect_value(t, g_fake.steps, 2)
 }
 
+// The Driver sends no window, so a step under the Bridge gets the window it draws in.
+@(test)
+test_bridge_step_gives_the_window_in_logical_pixels :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+	platform := fake_platform(r.s.clock.fixed_dt)
+	platform.window = {size = {2560, 1600}, dpi = 2}
+
+	step_run_send(t, &r, `{"op":"step","n":1}`)
+	frame_run(&r.s, platform)
+
+	testing.expect_value(t, g_fake.steps, 1)
+	testing.expect_value(t, g_fake.window, [2]f32{1280, 800})
+	reply := driver_read_reply(t, r.driver)
+	testing.expect_value(t, reply["ok"].(json.Boolean), true)
+}
+
 // A key held in the request before is not Pressed again. A request with no
 // held lets go of it, so the next one presses it again.
 @(test)

@@ -22,12 +22,13 @@ Input_Buffers :: struct {
 }
 
 // The Input for one fixed step. The slices point into the Input_Buffers
-// passed to input_take.
+// passed to input_take. frame_run sets window, in logical pixels.
 Step_Input :: struct {
 	held:     []u16,
 	pressed:  []u16,
 	mouse:    [2]f32,
 	gamepads: []Step_Gamepad,
+	window:   [2]f32,
 }
 
 input_on_event :: proc(latch: ^Input_Latch, e: ^sapp.Event) {

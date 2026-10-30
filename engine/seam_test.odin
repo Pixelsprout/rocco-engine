@@ -79,6 +79,7 @@ Fake_Game :: struct {
 	pressed:          [FAKE_KEYS_MAX]u16,
 	pressed_len:      int,
 	mouse:            [2]f32,
+	window:           [2]f32,
 	gamepads:         [GAMEPAD_SLOTS]Fake_Gamepad,
 	gamepads_len:     int,
 	contacts:         [FAKE_CONTACTS_MAX]Contact,
@@ -220,6 +221,7 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 	g_fake.held_len = copy(g_fake.held[:], input.held.elements[:input.held.length])
 	g_fake.pressed_len = copy(g_fake.pressed[:], input.pressed.elements[:input.pressed.length])
 	g_fake.mouse = {input.mouse.dx, input.mouse.dy}
+	g_fake.window = {input.window.width, input.window.height}
 	g_fake.gamepads_len = int(input.gamepads.length)
 	for pad, i in input.gamepads.elements[:input.gamepads.length] {
 		fake := &g_fake.gamepads[i]

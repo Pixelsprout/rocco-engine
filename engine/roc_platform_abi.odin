@@ -430,9 +430,10 @@ Roc_Step_Arg1 :: struct {
 	held: Roc_List(u16),
 	pressed: Roc_List(u16),
 	mouse: Roc_Step_Arg1_Mouse,
+	window: Roc_Step_Arg1_Window,
 }
 
-#assert(size_of(Roc_Step_Arg1) == 80)
+#assert(size_of(Roc_Step_Arg1) == 88)
 #assert(align_of(Roc_Step_Arg1) == 8)
 #assert(offset_of(Roc_Step_Arg1, gamepads) == 0)
 #assert(size_of(type_of(Roc_Step_Arg1{}.gamepads)) == 24)
@@ -442,6 +443,8 @@ Roc_Step_Arg1 :: struct {
 #assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == 24)
 #assert(offset_of(Roc_Step_Arg1, mouse) == 72)
 #assert(size_of(type_of(Roc_Step_Arg1{}.mouse)) == 8)
+#assert(offset_of(Roc_Step_Arg1, window) == 80)
+#assert(size_of(type_of(Roc_Step_Arg1{}.window)) == 8)
 
 Roc_Step_Arg1_Gamepads :: struct {
 	held: Roc_List(u8),
@@ -494,6 +497,18 @@ Roc_Step_Arg1_Mouse :: struct {
 #assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dx)) == 4)
 #assert(offset_of(Roc_Step_Arg1_Mouse, dy) == 4)
 #assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dy)) == 4)
+
+Roc_Step_Arg1_Window :: struct {
+	height: f32,
+	width: f32,
+}
+
+#assert(size_of(Roc_Step_Arg1_Window) == 8)
+#assert(align_of(Roc_Step_Arg1_Window) == 4)
+#assert(offset_of(Roc_Step_Arg1_Window, height) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Window{}.height)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Window, width) == 4)
+#assert(size_of(type_of(Roc_Step_Arg1_Window{}.width)) == 4)
 
 Roc_Step_Arg2 :: struct {
 	contacts: Roc_List(Roc_Step_Arg2_Contacts),

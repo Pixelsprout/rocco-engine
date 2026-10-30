@@ -228,6 +228,37 @@ test_headless_run_at_60_hz_steps_once_per_frame_at_the_launch_interval :: proc(t
 }
 
 @(test)
+test_frame_run_gives_step_the_window_in_logical_pixels :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_frame_state_init(&s)
+	defer fake_frame_state_destroy(&s)
+	platform := fake_platform(s.clock.fixed_dt)
+	platform.window = {size = {2560, 1600}, dpi = 2}
+
+	frame_run(&s, platform)
+
+	testing.expect_value(t, g_fake.window, [2]f32{1280, 800})
+}
+
+@(test)
+test_headless_run_gives_step_the_launch_window :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	launch := launch_default()
+	launch.window.width = 1280
+	launch.window.height = 800
+	s: State
+	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch)
+	defer fake_frame_state_destroy(&s)
+
+	headless_run(&s)
+
+	testing.expect_value(t, g_fake.window, [2]f32{1280, 800})
+}
+
+@(test)
 test_headless_run_never_calls_sokol :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
