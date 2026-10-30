@@ -87,6 +87,49 @@ Ui := [].{
 		scale = size / Font.bake_size
 		{ width: pen_width(Str.to_utf8(text)) * scale, height: Font.line_height * scale }
 	}
+
+	## Cuts one line of `text` to `width` at `size` and ends it with `...`. A
+	## string that fits comes back unchanged. The cut never leaves a space
+	## before the `...`. With no room for `...`, it gives `""`. Use a
+	## whole-pixel `size` and leave a few pixels of margin in `width`, because
+	## the host rounds `size` times the DPI scale.
+	##
+	## For example, a HUD line in a 420 pixel box:
+	## `Text({ ..Ui.label(Ui.fit(line, { size: 18.0, width: 416.0 })), size: 18.0, wrap: None })`
+	fit : Str, { size : F32, width : F32 } -> Str
+	fit = |text, { size, width }| {
+		scale = size / Font.bake_size
+		bytes = Str.to_utf8(text)
+		if pen_width(bytes) * scale <= width {
+			return text
+		}
+		# The pen before byte i has walked the whole prefix of i bytes, so three
+		# dots from it sum the same floats as measure("${prefix}...", size).
+		var $pen = pen_start
+		var $kept = NoRoom
+		var $index = 0
+		var $prefix_end = Empty
+		for byte in bytes {
+			is_char_start = byte.bitwise_and(0xC0) != 0x80
+			if is_char_start and $prefix_end != Space {
+				dotted = pen_byte(pen_byte(pen_byte($pen, '.'), '.'), '.')
+				if dotted.x * scale <= width {
+					$kept = Prefix($index)
+				}
+			}
+			$pen = pen_byte($pen, byte)
+			$index = $index + 1
+			$prefix_end = if (byte == ' ') Space else Other
+		}
+		match $kept {
+			NoRoom => ""
+			Prefix(len) =>
+				match Str.from_utf8(bytes.sublist({ start: 0, len })) {
+					Ok(prefix) => "${prefix}..."
+					Err(_) => crash "Ui.fit: a cut at a character start is valid UTF-8"
+				}
+		}
+	}
 }
 
 # The pen walks a line the way font_pen_next does in engine/font.odin. x is in
@@ -169,4 +212,26 @@ expect {
 	question = Ui.measure("?", 32.0)
 	[Ui.measure("é", 32.0), Ui.measure("\t", 32.0), Ui.measure("\u(7f)", 32.0)] == [question, question, question]
 		and Ui.measure("A€", 32.0) == Ui.measure("A?", 32.0)
+}
+
+## A string that fits comes back unchanged.
+expect Ui.fit("Hello", { size: 18.0, width: 1000.0 }) == "Hello"
+
+## A cut drops the space before the dots.
+expect Ui.fit("Hello world", { size: 18.0, width: Ui.measure("Hello ...", 18.0).width }) == "Hello..."
+
+## A width with room for the dots only gives the dots.
+expect Ui.fit("Hello", { size: 18.0, width: Ui.measure("...", 18.0).width }) == "..."
+
+## A width with no room for the dots gives an empty string.
+expect Ui.fit("Hello", { size: 18.0, width: 1.0 }) == ""
+
+## A cut keeps a character outside ASCII whole.
+expect Ui.fit("héllo wörld", { size: 18.0, width: Ui.measure("h?llo...", 18.0).width }) == "héllo..."
+
+## The Agent Town feed line fits the width it is cut to.
+expect {
+	summary = "04:41 owner.report owner-P2 if the reviewer finds a problem in the diff, fix it on branch phase3-hud-cut in a new commit"
+	cut = Ui.fit(summary, { size: 18.0, width: 420.0 })
+	Str.ends_with(cut, "...") and Ui.measure(cut, 18.0).width <= 420.0
 }
