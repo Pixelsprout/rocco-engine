@@ -164,7 +164,7 @@ Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : St
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, pose : Pose }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
 Pose     : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
@@ -261,6 +261,10 @@ through F0. The shader tone maps the result with a fixed ACES fit, so a
 bright channel rolls off towards 1 instead of clipping. Then it encodes the
 result to sRGB for the screen. The tone map has no knob. Decision.
 
+A glow is an `Rgb` that carries intensity, like a light colour. The shader
+adds the mesh emissive and the Draw glow after the lights and before the
+tone map. Emissive lights no other surface. Decision.
+
 The seed is the start value for any randomness in the game. Roc has no random
 effect, so a game keeps a generator state in its `Model` and advances it in
 `step`. The same seed and the same `(Input, dt)` log give the same run. The
@@ -330,8 +334,10 @@ with `F0 = mix(0.04, base, metallic)`, and Lambert diffuse
 `(1 - F) * (1 - metallic) * base / pi`. Roughness clamps to at least 0.045.
 The ambient light adds `ambient * ((1 - metallic) * base + EnvBRDFApprox)`,
 after Karis (2014), so metal keeps its colour in shade. There are no shadows
-and no environment map. A mesh with `KHR_materials_unlit` skips the lights
-and the tone map and draws its base colour.
+and no environment map. A mesh's glTF emissive, and the glow of each Draw,
+add after the lights and before the tone map. A mesh with
+`KHR_materials_unlit` skips the lights and the tone map and draws its base
+colour plus the emissive.
 
 The host takes the first ambient and the first 8 directional and point
 lights, in the depth-first, pre-order walk of the tree. It drops a second

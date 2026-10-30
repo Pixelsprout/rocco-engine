@@ -2,6 +2,7 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 
 # A dark Scene with a glowing window and two orbs. The window glows with no
 # Light of its own. Each orb lights the floor around it.
+# The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -36,11 +37,17 @@ wall : Vocabulary.Draw
 wall = { ..Draw.default, id: 2, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 1.2, z: -1.5 }, scale: { x: 4.0, y: 2.4, z: 0.3 }, tint: { r: 0.40, g: 0.11, b: 0.05 } }
 
 # Agent Town's Theme.window_dark tint and Theme.window_lit glow.
+# region: window
 window : Vocabulary.Draw
 window = { ..Draw.default, id: 3, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 1.4, z: -1.33 }, scale: { x: 1.4, y: 0.6, z: 0.06 }, tint: { r: 0.02, g: 0.018, b: 0.015 }, glow: { r: 3.2, g: 1.9, b: 0.6 } }
 
+# endregion
+
+# region: orb
 orb_left : List(Vocabulary.Node)
 orb_left = Glow.orb({ id: 10, pos: { x: -1.6, y: 0.5, z: 0.4 }, radius: 0.25, color: { r: 1.0, g: 0.55, b: 0.05 }, strength: 3.0, range: 4.0 })
+
+# endregion
 
 orb_right : List(Vocabulary.Node)
 orb_right = Glow.orb({ id: 11, pos: { x: 1.6, y: 0.5, z: 0.4 }, radius: 0.25, color: { r: 0.15, g: 0.35, b: 1.0 }, strength: 3.0, range: 4.0 })

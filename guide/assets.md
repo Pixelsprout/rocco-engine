@@ -160,8 +160,11 @@ mesh node in the glTF scene into one mesh.
 - The merged mesh draws with one material and one base colour texture:
   those of its first part.
 - The material is glTF metallic-roughness.
+- The material's emissive draws: `emissiveFactor`, `emissiveTexture` and
+  `KHR_materials_emissive_strength`. An emissive surface lights nothing
+  else.
 - A mesh with `KHR_materials_unlit` skips the lights and draws its base
-  colour.
+  colour plus its emissive.
 - A file with a Skin loads as one skinned mesh. See
   [Skinned meshes](#skinned-meshes).
 
