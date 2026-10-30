@@ -1,3 +1,5 @@
+import Font
+
 # These types copy pf.Vocabulary. Keep them identical, or a BoxConfig or a
 # Text from here stops unifying with the one in an Element.
 ## Defaults and small helpers for the UI tree in `Scene.ui`. A game writes the
@@ -73,6 +75,55 @@ Ui := [].{
 	## The same padding on all four sides.
 	pad_all : F32 -> Padding
 	pad_all = |n| { left: n, right: n, top: n, bottom: n }
+
+	## The size of one line of `text` at `size`, in logical pixels, as the host
+	## measures it. A newline measures as `?`, so use `wrap` for more than one
+	## line. The host rounds `size` times the DPI scale to whole pixels, so a
+	## fractional size, or a whole size at a fractional DPI scale, can drift
+	## from the drawn text by a fraction of a pixel per character. Use
+	## whole-pixel sizes.
+	measure : Str, F32 -> { width : F32, height : F32 }
+	measure = |text, size| {
+		scale = size / Font.bake_size
+		{ width: pen_width(Str.to_utf8(text)) * scale, height: Font.line_height * scale }
+	}
+}
+
+# The pen walks a line the way font_pen_next does in engine/font.odin. x is in
+# pixels at Font.bake_size.
+Pen : { x : F32, prev : [LineStart, After(U8)] }
+
+pen_start : Pen
+pen_start = { x: 0.0, prev: LineStart }
+
+# Takes one byte of UTF-8. A character outside the font stands in as '?', so a
+# continuation byte adds nothing. The kern goes before the advance, as in the host.
+pen_byte : Pen, U8 -> Pen
+pen_byte = |pen, byte|
+	if byte.bitwise_and(0xC0) == 0x80 {
+		pen
+	} else {
+		char = if (byte >= Font.first and byte <= Font.last) byte else '?'
+		kerned = match pen.prev {
+			LineStart => pen.x
+			After(prev) => pen.x + kern(prev, char)
+		}
+		{ x: kerned + advance(char), prev: After(char) }
+	}
+
+pen_width : List(U8) -> F32
+pen_width = |bytes| bytes.fold(pen_start, pen_byte).x
+
+advance : U8 -> F32
+advance = |char| match Font.advances.get((char - Font.first).to_u64()) {
+	Ok(found) => found
+	Err(_) => crash "Ui.advance: a font character is inside the table"
+}
+
+kern : U8, U8 -> F32
+kern = |first, second| match Font.kerns.get((first - Font.first).to_u64()) {
+	Ok(row) => row.find_first(|pair| pair.second == second).map_ok(|pair| pair.advance) ?? 0.0
+	Err(_) => crash "Ui.kern: a font character is inside the table"
 }
 
 expect Ui.label("Keys") == { str: "Keys", size: 24.0, color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }, wrap: Words }
@@ -94,3 +145,28 @@ expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
 }
 
 expect Ui.pad_all(4.0) == { left: 4.0, right: 4.0, top: 4.0, bottom: 4.0 }
+
+## One glyph at the bake size measures its advance and one line height.
+expect Ui.measure("A", 32.0) == { width: 16.154839, height: 32.0 }
+
+## The width and the height scale with the size.
+expect Ui.measure("A", 16.0) == { width: 16.154839 / 2.0, height: 16.0 }
+
+## A kern pair moves the next glyph. A pair with no kern adds nothing.
+expect {
+	a : F32
+	a = 16.154839
+	av_kern : F32
+	av_kern = -1.7290323
+	Ui.measure("AV", 32.0).width == a + av_kern + 15.2 and Ui.measure("AB", 32.0).width == a + 15.974194
+}
+
+## An empty string is zero wide and one line high.
+expect Ui.measure("", 32.0) == { width: 0.0, height: 32.0 }
+
+## A character outside the font measures as a question mark.
+expect {
+	question = Ui.measure("?", 32.0)
+	[Ui.measure("é", 32.0), Ui.measure("\t", 32.0), Ui.measure("\u(7f)", 32.0)] == [question, question, question]
+		and Ui.measure("A€", 32.0) == Ui.measure("A?", 32.0)
+}
