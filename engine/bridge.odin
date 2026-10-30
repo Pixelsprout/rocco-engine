@@ -35,6 +35,11 @@ Bridge :: struct {
 	gamepads:     [GAMEPAD_SLOTS]Bridge_Gamepad,
 	// The held buttons of the step before, by slot.
 	prev_buttons: [GAMEPAD_SLOTS]Gamepad_Buttons,
+	// The step op's pointer, with the same rules as the keys. It replaces the
+	// real pointer.
+	pointer:      Bridge_Pointer,
+	// The held mouse buttons of the step before.
+	prev_pointer_held: Mouse_Buttons,
 	// The step op's Commands so far, as JSON array elements. They must
 	// outlive the Frame arena, because the reply waits for the last step.
 	commands:     strings.Builder,
@@ -51,6 +56,18 @@ Bridge_Gamepad :: struct {
 	held:      Gamepad_Buttons,
 	tap:       Gamepad_Buttons,
 	axes:      Gamepad_Axes,
+}
+
+// The pointer of a step op, in logical pixels. A request with no pointer
+// gives one that is not inside, at (0, 0), with no button held. pos, inside
+// and held are for every step. tap and wheel are for the first step only.
+Bridge_Pointer :: struct {
+	given:  bool,
+	pos:    [2]f32,
+	inside: bool,
+	held:   Mouse_Buttons,
+	tap:    Mouse_Buttons,
+	wheel:  [2]f32,
 }
 
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
@@ -162,7 +179,21 @@ bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
 	b.prev_held = b.held
 	b.tap = {}
 	b.mouse = {}
-	return input_take(&latch, buf)
+	step_input := input_take(&latch, buf)
+
+	p := &b.pointer
+	step_input.pointer = {
+		pos      = p.pos,
+		inside   = p.given && p.inside,
+		held     = pointer_buttons(p.held, &buf.pointer.held),
+		pressed  = pointer_buttons((p.held - b.prev_pointer_held) + p.tap, &buf.pointer.pressed),
+		released = pointer_buttons((b.prev_pointer_held - p.held) + p.tap, &buf.pointer.released),
+		wheel    = p.wheel,
+	}
+	b.prev_pointer_held = p.held
+	p.tap = {}
+	p.wheel = {}
+	return step_input
 }
 
 // Called after each step under the Bridge. After the step op's last step, or

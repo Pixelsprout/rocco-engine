@@ -17,15 +17,13 @@ Step_Run :: struct {
 	driver: net.TCP_Socket,
 }
 
-@(private = "file")
-step_run_open :: proc(t: ^testing.T, r: ^Step_Run, queries: []Query = nil) {
-	fake_frame_state_init(&r.s, mode = .Lockstep, queries = queries)
+step_run_open :: proc(t: ^testing.T, r: ^Step_Run, queries: []Query = nil, ui: []Element = nil) {
+	fake_frame_state_init(&r.s, mode = .Lockstep, queries = queries, ui = ui)
 	err := bridge_open(&r.s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	r.driver = driver_dial(t, bridge_transport_port(&r.s.bridge.transport))
 }
 
-@(private = "file")
 step_run_close :: proc(r: ^Step_Run) {
 	net.close(r.driver)
 	bridge_close(&r.s.bridge)
@@ -33,27 +31,23 @@ step_run_close :: proc(r: ^Step_Run) {
 }
 
 // Sends one request and answers it, as frame_cb's poll does.
-@(private = "file")
 step_run_send :: proc(t: ^testing.T, r: ^Step_Run, line: string) {
 	driver_send(t, r.driver, line)
 	driver_send(t, r.driver, "\n")
 	bridge_poll(&r.s, wait = true)
 }
 
-@(private = "file")
 step_run_frame :: proc(r: ^Step_Run) {
 	frame_run(&r.s, fake_platform(r.s.clock.fixed_dt))
 }
 
 // Runs Frames until the held reply is sent.
-@(private = "file")
 step_run_until_reply :: proc(r: ^Step_Run) {
 	for r.s.bridge.transport.holding {
 		step_run_frame(r)
 	}
 }
 
-@(private = "file")
 step_run_request :: proc(t: ^testing.T, r: ^Step_Run, line: string) -> json.Object {
 	step_run_send(t, r, line)
 	step_run_until_reply(r)
@@ -441,4 +435,86 @@ test_bridge_a_tell_after_a_step_batch_is_delivered_at_the_next_batch :: proc(t: 
 
 	testing.expect_value(t, g_fake.ports_len, 1)
 	testing.expect_value(t, g_fake.ports[0].msg, "late")
+}
+
+@(private = "file")
+expect_mouse_buttons :: proc(t: ^testing.T, got: []u8, want: []u8, loc := #caller_location) {
+	testing.expectf(t, slice.equal(got, want), "got buttons %v, want %v", got, want, loc = loc)
+}
+
+@(test)
+test_bridge_step_pointer_holds_for_every_step_and_taps_in_the_first :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_send(t, &r, `{"op":"step","n":2,"pointer":{"x":40,"y":30,"held":["Right"],"tap":["Left"],"wheel":[0,-1]}}`)
+	step_run_frame(&r)
+	p := &g_fake.pointer
+	testing.expect_value(t, p.pos, [2]f32{40, 30})
+	testing.expect(t, p.inside)
+	expect_mouse_buttons(t, p.held[:p.held_len], {1})
+	expect_mouse_buttons(t, p.pressed[:p.pressed_len], {0, 1})
+	expect_mouse_buttons(t, p.released[:p.released_len], {0})
+	testing.expect_value(t, p.wheel, [2]f32{0, -1})
+
+	step_run_frame(&r)
+	testing.expect_value(t, p.pos, [2]f32{40, 30})
+	expect_mouse_buttons(t, p.held[:p.held_len], {1})
+	expect_mouse_buttons(t, p.pressed[:p.pressed_len], {})
+	expect_mouse_buttons(t, p.released[:p.released_len], {})
+	testing.expect_value(t, p.wheel, [2]f32{0, 0})
+	reply := driver_read_reply(t, r.driver)
+	testing.expect_value(t, reply["ok"].(json.Boolean), true)
+}
+
+@(test)
+test_bridge_step_without_a_pointer_releases_the_held_buttons :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","pointer":{"x":1,"y":1,"held":["Left"]}}`)
+	step_run_request(t, &r, `{"op":"step"}`)
+
+	p := &g_fake.pointer
+	testing.expect(t, !p.inside)
+	testing.expect_value(t, p.pos, [2]f32{0, 0})
+	expect_mouse_buttons(t, p.held[:p.held_len], {})
+	expect_mouse_buttons(t, p.released[:p.released_len], {0})
+}
+
+@(test)
+test_bridge_step_pointer_past_the_window_is_not_inside :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","pointer":{"x":960,"y":10}}`)
+
+	testing.expect(t, !g_fake.pointer.inside)
+	testing.expect_value(t, g_fake.pointer.pos, [2]f32{960, 10})
+}
+
+@(test)
+test_bridge_step_pointer_outside_is_not_inside :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","pointer":{"x":10,"y":10,"inside":false}}`)
+
+	testing.expect(t, !g_fake.pointer.inside)
 }

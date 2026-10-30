@@ -101,6 +101,29 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	testing.expect_value(t, overlaps[0].(json.Object)["id"].(json.Float), 1)
 	testing.expect_value(t, overlaps[0].(json.Object)["slot"].(json.Float), 3)
 	testing.expect_value(t, len(results["ports"].(json.Array)), 0)
+	ui_results := results["ui"].(json.Object)
+	testing.expect_value(t, len(ui_results["over"].(json.Array)), 0)
+	testing.expect_value(t, len(ui_results["scroll"].(json.Array)), 0)
+}
+
+@(test)
+test_bridge_scene_shows_the_boxes_under_the_step_pointer :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r, ui = {ui_box_of(ui_tagged(7, 100, 100))})
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"step","pointer":{"x":50,"y":50}}`)
+	over := scene_reply(t, &r.s)["results"].(json.Object)["ui"].(json.Object)["over"].(json.Array)
+	if testing.expect_value(t, len(over), 1) {
+		testing.expect_value(t, over[0].(json.Float), 7)
+	}
+
+	step_run_request(t, &r, `{"op":"step"}`)
+	over = scene_reply(t, &r.s)["results"].(json.Object)["ui"].(json.Object)["over"].(json.Array)
+	testing.expect_value(t, len(over), 0)
 }
 
 // Delivery moves the queued messages into the step that takes them, so the

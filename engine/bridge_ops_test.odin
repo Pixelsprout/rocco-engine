@@ -142,6 +142,13 @@ test_bridge_step_bad_fields_reply_an_error_and_owe_no_step :: proc(t: ^testing.T
 		{`{"op":"step","tap":["w"]}`, `unknown Key "w" in "tap"`},
 		{`{"op":"step","mouse":[1]}`, `"mouse" must be [dx, dy]`},
 		{`{"op":"step","mouse":[1,"2"]}`, `"mouse" must be [dx, dy]`},
+		{`{"op":"step","pointer":7}`, `"pointer" must be an object`},
+		{`{"op":"step","pointer":{"y":1}}`, `"pointer" needs "x" and "y" as numbers`},
+		{`{"op":"step","pointer":{"x":1,"y":1,"inside":1}}`, `"inside" must be true or false`},
+		{`{"op":"step","pointer":{"x":1,"y":1,"held":"Left"}}`, `"held" must be a list of MouseButton names`},
+		{`{"op":"step","pointer":{"x":1,"y":1,"held":["Back"]}}`, `unknown MouseButton "Back" in "held"`},
+		{`{"op":"step","pointer":{"x":1,"y":1,"tap":["Back"]}}`, `unknown MouseButton "Back" in "tap"`},
+		{`{"op":"step","pointer":{"x":1,"y":1,"wheel":[1]}}`, `"wheel" must be [dx, dy]`},
 	}
 	for c in cases {
 		reply, next := driver_answer(t, &s, c.line)
