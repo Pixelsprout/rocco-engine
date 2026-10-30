@@ -424,6 +424,10 @@ Clay calls back. The font id is always 0. The font is an SDF atlas of ASCII
 `scripts/build.roc` runs an Odin bake tool that uses `vendor:stb/truetype`.
 The tool writes `engine/font_baked.odin`, which is committed. If the tool
 cannot run, the committed file stays, as for `engine/shader_basic.odin`.
+The `font-table` step copies the advances and the kern pairs into
+`packages/ui/Font.roc`, so Roc measures with the same numbers. `Ui.wrap`
+copies Clay's `Words` rule. An Odin test and `packages/ui/TextCorpus.roc`
+check both sides against one corpus.
 
 The host draws Clay's render commands inside the Main pass, after the sky.
 The UI pipeline has no depth test and no depth write. It blends by alpha

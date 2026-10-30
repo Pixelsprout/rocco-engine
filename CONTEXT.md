@@ -275,7 +275,8 @@ _Avoid_: panel, div, container, frame
 
 **Text**:
 An Element that draws one string in the engine's font, at a size and colour.
-The layout measures it; the game never does.
+The layout measures it. A game that must choose what to show measures it
+first with `Ui.measure`, `Ui.fit` or `Ui.wrap`, which use the host's numbers.
 _Avoid_: label, string, glyph run
 
 **Model**:

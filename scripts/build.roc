@@ -9,6 +9,7 @@ import pf.Sleep
 import pf.Stderr
 import pf.Stdout
 import DocCheck
+import FontTable
 import Keys
 import Regions
 
@@ -30,7 +31,7 @@ BenchMode : [Headless, Windowed]
 # Check writes no guide page. It fails if a guide page differs from its regions.
 DocsMode : [Write, Check]
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, FontTable, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -44,7 +45,8 @@ parse = |args| match args {
 	["host", "--release", "--track-alloc"] => Ok([Host(Release, Tracked, NoSpans)])
 	["game", name] => Ok([Game(name)])
 	["shaders"] => Ok([Shaders])
-	["font"] => Ok([Font])
+	["font"] => Ok([Font, FontTable])
+	["font-table"] => Ok([FontTable])
 	["keys"] => Ok([Keys])
 	["target"] => Ok([Target])
 	["docs"] => Ok([Docs(Write)])
@@ -88,7 +90,7 @@ bench_steps = |bench| {
 }
 
 all_steps : Mode -> List(Step)
-all_steps = |mode| [Glue, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
+all_steps = |mode| [Glue, FontTable, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
 example_games : List(Str)
 example_games = ["cards", "entity-game", "pong", "bridge-echo", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
@@ -443,14 +445,16 @@ usage =
 	\\  game <name>     link examples/<name> against the platform, such as
 	\\                  cards or tutorial/01-window
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
-	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH
+	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH,
+	\\                  then font-table
+	\\  font-table      regenerate packages/ui/Font.roc from engine/font_baked.odin
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
 	\\  docs [--check]  write the API HTML for the platform, linalg, mesh, ui and camera
 	\\                  into build/docs/, fail if an item in it has no ## comment, then
 	\\                  copy each region into the guide/ pages. --check writes no
 	\\                  guide page and fails if a page differs from its source
-	\\  all             glue, host, inputs, then game for cards, entity-game, pong
+	\\  all             glue, font-table, host, inputs, then game for cards, entity-game, pong
 	\\                  bridge-echo and each tutorial chapter
 	\\  bench <game>[,<game>...] [n...] [--windowed]
 	\\                  build a release host with Spans, the release inputs and
@@ -540,6 +544,7 @@ run_step! = |step, target| match step {
 		} else {
 			Stdout.line!("== font: odin is not on PATH, keeping the committed engine/font_baked.odin")
 		}
+	FontTable => font_table!()
 	Keys => keys!()
 	Target => Stdout.line!(target_lines(target))
 	Docs(mode) => docs!(mode)
@@ -742,6 +747,24 @@ keys! = || {
 	Path.utf8(key_table_path).write_utf8!(Keys.key_table(keys))
 }
 
+font_table! : () => Try({}, _)
+font_table! = || {
+	Stdout.line!("== font-table: ${FontTable.baked_path} -> ${FontTable.module_path}")?
+	source = Path.utf8(FontTable.baked_path).read_utf8!()?
+	metrics = FontTable.parse_baked(source) ? |problem| Failed("${FontTable.baked_path}: ${font_table_problem(problem)}")
+	Path.utf8(FontTable.module_path).write_utf8!(FontTable.font_module(metrics))
+}
+
+font_table_problem : [MissingConstant(Str), BadConstantLine(Str), BadGlyphLine(Str), BadKernLine(Str), GlyphCount(U64), ExponentNumber(Str)] -> Str
+font_table_problem = |problem| match problem {
+	MissingConstant(name) => "${name} is missing."
+	BadConstantLine(line) => "a constant is not NAME :: number or NAME :: f32(number): ${line}"
+	BadGlyphLine(line) => "a FONT_GLYPHS line has no {advance = number,: ${line}"
+	BadKernLine(line) => "a FONT_KERNING line is not {pair = hex, advance = number}: ${line}"
+	GlyphCount(count) => "FONT_GLYPHS has ${count.to_str()} lines, not FONT_LAST - FONT_FIRST + 1."
+	ExponentNumber(text) => "${text} is in exponent form, which the generator does not copy."
+}
+
 copy! : Copy => Try({}, _)
 copy! = |file| Path.copy!(Path.utf8(file.from), Path.utf8(file.to))
 
@@ -779,8 +802,8 @@ expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, S
 expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
-expect parse(["all", "--release"]) == Ok([Glue, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
 expect game_binary("tutorial/01-window") == "01-window"
 expect parse(["glue", "--release"]) == Err(Usage)
@@ -900,7 +923,8 @@ expect {
 	copies.map_ok(|all| all.first()) == Ok(Ok({ from: "sokol-odin/sokol/app/sokol_app_windows_x64_d3d11_release.lib", to: "platform/targets/x64win/sokol_app.lib" }))
 }
 
-expect parse(["font"]) == Ok([Font])
+expect parse(["font"]) == Ok([Font, FontTable])
+expect parse(["font-table"]) == Ok([FontTable])
 expect font_run.args == ["run", "scripts/font_bake", "-out:build/font_bake", "--", "scripts/fonts/AtkinsonHyperlegible-Regular.ttf", "engine/font_baked.odin"]
 
 expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"]
