@@ -662,3 +662,55 @@ test_ui_hit_skips_a_child_clipped_out_of_its_box :: proc(t: ^testing.T) {
 	expect_over(t, ui_test_over(&f, roots, {50, 50}), {2, 1})
 	expect_over(t, ui_test_over(&f, roots, {50, 150}), {})
 }
+
+@(test)
+test_ui_parent_float_sits_on_the_on_point_of_its_parent :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	root := ui_box()
+	root.pad = {left = 100, top = 50}
+	menu := ui_box_of(ui_float_box(8, .Parent, .LeftTop, .LeftBottom, {0, 4}, 120, 30))
+	roots := []Element{ui_box_of(root, ui_box_of(ui_tagged(7, 120, 40), menu))}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if testing.expect_value(t, len(quads), 2) {
+		expect_rect_near(t, quads[1].rect, {100, 94, 120, 30})
+	}
+	expect_over(t, ui_test_over(&f, roots, {110, 100}), {8})
+}
+
+@(test)
+test_ui_window_float_with_another_on_point :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_float_box(0, .Window, .CenterCenter, .LeftTop, {0, 0}, 100, 100))}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if testing.expect_value(t, len(quads), 1) {
+		expect_rect_near(t, quads[0].rect, {-50, -50, 100, 100})
+	}
+}
+
+@(test)
+test_ui_root_float_to_parent_floats_on_the_window :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_box_of(ui_float_box(0, .Parent, .RightBottom, .RightBottom, {0, 0}, 100, 100))}
+
+	quads := ui_frame(f.ui, roots, f.window)
+
+	if testing.expect_value(t, len(quads), 1) {
+		expect_rect_near(t, quads[0].rect, {860, 440, 100, 100})
+	}
+}
