@@ -1341,6 +1341,25 @@ of Lights, and sun shadows hold across a large world. Closes dex tasks
 Check: a Scene with 40 Point lights draws each one, and the bench records
 the cost.
 
+## Milestone 34: UI images
+
+Done when a Panel shows a PNG from a Pack, tinted, cut from a sheet and
+clipped by its radius, and Kula and Agent Town show icons in their HUDs.
+Closes dex task sl2s3h8t.
+
+1. An Image is a Pack asset: `image/<name>` from `assets/images/`, PNG
+   only. Each Manifest entry carries a size. `Launch.capacity.images`
+   caps the slots. ADR 0024.
+2. One `Image` value (id, region, tint, filter) that sprites reuse later.
+   `PanelConfig.image` shows it, stretched or fitted.
+3. The UI batcher splits draws where the texture or the scissor changes.
+   A missing image draws a checker.
+4. Kula shows key and fruit icons. Agent Town shows status icons in its
+   ledger.
+
+Check: the widgets example shows an icon Button, a tinted icon, a fitted
+icon and a sheet region, and a click on the icon reaches the game.
+
 ## Later arcs
 
 These arcs are a direction, not a plan. Each gets milestone numbers and its
