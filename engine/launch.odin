@@ -13,6 +13,7 @@ LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
 LAUNCH_RULE_SLOTS :: "must be at most 65536, so each slot gets an id"
 LAUNCH_RULE_DRAWS :: "must be at most 2095099, so the uniform buffer size fits sokol's int"
 LAUNCH_RULE_GROUPS :: "must be at most 1048576"
+LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2095099 && GROUP_LIMIT == 1048576)
@@ -23,6 +24,7 @@ launch_default :: proc() -> Launch {
 		window = {width = 960, height = 540, title = roc_str_from_slice("rocco"), fullscreen = false, high_dpi = true, samples = .X4, vsync = true},
 		step_hz = 120,
 		shadow_map = 2048,
+		shadow_cascades = 1,
 		capacity = {meshes = 64, skies = 16, draws = 16384, groups = 1024, ui_quads = 16384, sounds = 64, voices = 64},
 	}
 }
@@ -49,6 +51,8 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "step_hz", LAUNCH_RULE_ZERO, false
 	case launch.shadow_map == 0:
 		return "shadow_map", LAUNCH_RULE_ZERO, false
+	case launch.shadow_cascades == 0:
+		return "shadow_cascades", LAUNCH_RULE_ZERO, false
 	case capacity.meshes == 0:
 		return "capacity.meshes", LAUNCH_RULE_ZERO, false
 	case capacity.skies == 0:
@@ -83,6 +87,8 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.draws", LAUNCH_RULE_DRAWS, false
 	case capacity.groups > GROUP_LIMIT:
 		return "capacity.groups", LAUNCH_RULE_GROUPS, false
+	case launch.shadow_cascades > 4:
+		return "shadow_cascades", LAUNCH_RULE_CASCADES, false
 	}
 	return "", "", true
 }
