@@ -38,6 +38,41 @@ The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
 power with other programs running. Its numbers were noise, so it is deleted.
 
+### The light list per Draw
+
+ADR 0023 moved the light list from the frame to each Draw. These runs
+measure its CPU cost. Apple M5 (Mac17,2), macOS 26.5.1, on AC power,
+2026-10-31, windowed Lockstep, 5 processes per N. Before: commit `8dcf0b1`.
+After: commit `1eee26a`. Both ran before a rebase that changed no renderer
+code. These runs compare before and after on one
+machine. They are not a reference run. The Mac was shared with other work,
+so the rows below N = 16,384 have process medians that differ by up to 1.9
+ms, and their changes in either direction are mostly noise.
+
+| Game | N | render_submit median before | after | Frame budget p99 before | after |
+|---|---|---|---|---|---|
+| draws | 1024 | 909 us | 1241 us | 2.81 ms | 2.87 ms |
+| draws | 4096 | 2309 us | 2372 us | 3.68 ms | 6.24 ms |
+| draws | 16384 | 4194 us | 4246 us | 6.22 ms | 6.41 ms |
+| lights | 8 | 1276 us | 930 us | 2.81 ms | 2.96 ms |
+| lights | 40 | 1557 us | 1387 us | 2.92 ms | 3.28 ms |
+| lights | 128 | 1367 us | 1607 us | 3.13 ms | 4.13 ms |
+| lights | 512 | 1813 us | 2404 us | 4.05 ms | 3.65 ms |
+| mixed | 1024 | 1017 us | 1399 us | 4.34 ms | 4.43 ms |
+| mixed | 4096 | 1224 us | 1844 us | 5.13 ms | 7.45 ms |
+| mixed | 16384 | 4779 us | 5063 us | 10.13 ms | 10.56 ms |
+
+- `draws` has one Sun and no Point light, so it shows the cost of the larger
+  fragment block alone. At N = 16,384, where the 5 process medians agree
+  within 41 us, `render_submit` rises by 52 us, about 1%. `mixed` at N =
+  16,384 rises by 284 us, about 6%: its 2 Point lights are tested against
+  every Draw.
+- `lights` at N = 512 tests 512 Point lights against each of 1,536 Draws.
+  Four of its five process medians rise from about 1,810 us to about
+  2,560 us. That is about 1 ns per Draw per Point light. The table's
+  median, 2,404 us, includes the fifth process at 1,534 us.
+- The selection runs in the `render_submit` Span.
+
 ## What the numbers do not claim
 
 - **No comparison with other engines.** A fair comparison needs the same
@@ -220,6 +255,10 @@ is repeatable. Each bench game changes one axis. The bench games live in
 | `draws` | N moving primitive cubes, one Draw each | windowed Lockstep | one Sun with shadows; the cubes stay in a fixed square |
 | `ui` | N Box and Text elements; one lit cell moves each step | windowed Lockstep | no Draws |
 | `mixed` | all axes, see "The headline figure" | windowed Lockstep | 4 Lights and the fixed Queries |
+| `lights` | N Point lights, each beside a glowing orb, drifting over a floor | windowed Lockstep | 1,024 floor tiles, one dim Sun with shadows, one Ambient |
+
+The reference run does not include `lights`. Run it with explicit N, such as
+`roc scripts/build.roc bench lights 8 40 128 512 --windowed`.
 
 The golden files keep each pair of games equal:
 

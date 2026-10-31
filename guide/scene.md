@@ -219,10 +219,13 @@ before the tone map.
 Use [`Light.sun`][Light.sun] for the one light that casts a shadow. The
 shadow map covers each Draw of the Scene.
 
-The host uses the first Ambient light, and the first 8 Directional and
-Point lights. "First" is the order of a depth-first walk of the tree: a
-Group's children come right after the Group, before the Nodes that follow
-it. The first Directional light that sets `shadow` is the Sun.
+The host uses the first Ambient light. A Scene may hold as many
+Directional and Point lights as it needs. Each Draw gets the Sun, the other
+Directional lights, then the nearest Point lights that reach it, up to 8 in
+all. A big mesh with many lights over it can drop the far ones, so split a
+large floor into tiles. "First" is the order of a depth-first walk of the
+tree: a Group's children come right after the Group, before the Nodes that
+follow it. The first Directional light that sets `shadow` is the Sun.
 
 A few rules to know:
 

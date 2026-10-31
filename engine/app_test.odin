@@ -61,11 +61,11 @@ test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: pr
 	testing.expect_value(t, desc.image_pool_size, 211 + TARGET_IMAGES)
 	testing.expect_value(t, desc.sampler_pool_size, 211 + TARGET_IMAGES)
 	testing.expect_value(t, desc.view_pool_size, 211 + MAX_CASCADES + TARGET_VIEWS)
-	testing.expect_value(t, desc.uniform_buffer_size, (3 * 16384 + 16) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, desc.uniform_buffer_size, (4 * 16384 + 16) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
 
 	small := app_gfx_desc({meshes = 4, skies = 2, draws = 10, ui_quads = 1})
 	testing.expect_value(t, small.image_pool_size, 3 * 4 + 1 + 2 + 1 + 1 + TARGET_IMAGES)
-	testing.expect_value(t, small.uniform_buffer_size, (3 * 10 + 16) * 256 + 2 * 10 * 4096)
+	testing.expect_value(t, small.uniform_buffer_size, (4 * 10 + 16) * 256 + 2 * 10 * 4096)
 
 	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1})
 	testing.expect(t, largest.uniform_buffer_size > 0)
