@@ -37,6 +37,13 @@ the scoreboard is a Box that holds two cell Boxes, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
 UI shows the Paused banner and that the ball stops.
 
+Then it runs widgets. It drags the log's thumb, scrolls with the wheel, clicks
+Add and checks that the log sticks to the bottom only until the person scrolls
+up. It moves the focus with Tab and Shift-Tab, opens the accordion with Enter,
+picks a dropdown item that floats over the header, closes the menu with a press
+outside it, and checks that a press on one button and a release on another
+click nothing.
+
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
 """
@@ -100,6 +107,23 @@ MIN_CHANGED_PIXELS = 1000
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Box that holds the score as one Text.
 SCOREBOARD_TEXTS = ["0", ":", "0"]
+
+# examples/widgets/main.roc: the ids, the accordion body and the points, in
+# logical pixels of the 960 by 540 window. A button is 32 pixels high. The log
+# is 108 high and shows six rows of 18. The thumb point is in the thumb while
+# the log is at the bottom of 12 rows.
+WIDGETS_FILTER_ID = 2
+WIDGETS_MENU_ID = 3
+WIDGETS_LOG_ID = 5
+BODY_TEXT = "Tab moves the focus. Enter clicks."
+ADD_POINT = (96, 32)
+FILTER_POINT = (264, 32)
+# The menu's second item, Ready, at y 80 to 112, floats over the header at y 56
+# to 88.
+ITEM_POINT = (264, 84)
+LOG_POINT = (200, 150)
+THUMB_POINT = (432, 177)
+EMPTY_POINT = (700, 300)
 
 
 def binary_suffix():
@@ -352,6 +376,126 @@ def drive_ui(b, _out):
     b.quit()
 
 
+# The Box Element with the id in a scene UI tree, or None.
+def find_element(elements, box_id):
+    for element in elements:
+        if "Box" not in element:
+            continue
+        if element["Box"]["config"]["id"] == box_id:
+            return element
+        found = find_element(element["Box"]["children"], box_id)
+        if found is not None:
+            return found
+    return None
+
+
+# The config of the Box with the id, or None.
+def find_box(elements, box_id):
+    element = find_element(elements, box_id)
+    return None if element is None else element["Box"]["config"]
+
+
+def widgets_ui(b):
+    return b.scene()["scene"]["ui"]
+
+
+def log_y(b):
+    return find_box(widgets_ui(b), WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"]
+
+
+def tells(reply):
+    return [c["Tell"]["msg"] for c in reply["commands"] if isinstance(c, dict) and "Tell" in c and c["Tell"]["port"] == "widgets"]
+
+
+def at(point, **rest):
+    return dict({"x": point[0], "y": point[1]}, **rest)
+
+
+# Each pointer action is a hover step, then an action step, because the game
+# sees the Boxes under the pointer one step after the pointer moves there.
+def tap_at(b, point):
+    b.step(1, pointer=at(point))
+    return b.step(1, pointer=at(point, tap=["Left"]))
+
+
+def drive_widgets(b, out):
+    b.hello()
+    for _ in range(3):
+        b.step(1)
+    reply = b.scene()
+    rows = [r for r in reply["results"]["ui"]["scroll"] if r["id"] == WIDGETS_LOG_ID]
+    check(len(rows) == 1 and rows[0]["view"]["height"] == 108 and rows[0]["content"]["height"] == 216, f"the log is 108 high and its 12 rows are 216: {rows}")
+    check(find_box(reply["scene"]["ui"], WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"] == -108, "the log starts stuck to the bottom")
+
+    b.step(1, pointer=at(THUMB_POINT))
+    b.step(1, pointer=at(THUMB_POINT, held=["Left"]))
+    b.step(1, pointer=at((THUMB_POINT[0], 150), held=["Left"]))
+    b.step(1, pointer=at((THUMB_POINT[0], 150)))
+    y = log_y(b)
+    check(y == -54, f"a drag of the thumb up by 27 pixels scrolls the log up by 54: {y}")
+
+    b.step(1, pointer=at(LOG_POINT))
+    b.step(1, pointer=at(LOG_POINT, wheel=[0, -3]))
+    y = log_y(b)
+    check(y == -108, f"the wheel down by 3 lines scrolls the log to the bottom: {y}")
+
+    said = tells(tap_at(b, ADD_POINT))
+    check(said == ["clicked 1"], f"a click on Add Tells it: {said}")
+    b.step(1)
+    y = log_y(b)
+    check(y == -126, f"the stuck log follows the new line one step later: {y}")
+
+    b.step(1, pointer=at(LOG_POINT))
+    b.step(1, pointer=at(LOG_POINT, wheel=[0, 1]))
+    y = log_y(b)
+    check(y == -108, f"the wheel up by one line scrolls the log up by 18: {y}")
+    said = tells(tap_at(b, ADD_POINT))
+    check(said == ["clicked 1"], f"a second click on Add Tells it: {said}")
+    b.step(1)
+    y = log_y(b)
+    check(y == -108, f"a log that the person scrolled up keeps its offset as a line arrives: {y}")
+
+    for _ in range(4):
+        b.step(1, tap=["Tab"])
+    b.step(1, tap=["End"])
+    y = log_y(b)
+    check(y == -144, f"four Tabs focus the log, and End scrolls it to the bottom of 14 rows: {y}")
+    b.step(1, held=["LeftShift"], tap=["Tab"])
+    said = tells(b.step(1, tap=["Enter"]))
+    check(said == ["clicked 4"], f"Shift-Tab focuses the header, and Enter clicks it: {said}")
+    check(BODY_TEXT in ui_strings(widgets_ui(b)), "the accordion body shows")
+
+    said = tells(tap_at(b, FILTER_POINT))
+    check(said == ["clicked 2"], f"a click on the filter Tells it: {said}")
+    check(find_box(widgets_ui(b), WIDGETS_MENU_ID) is not None, "the click opens the menu")
+    stem, ext = os.path.splitext(out)
+    b.screenshot(f"{stem}-widgets{ext}")
+    said = tells(tap_at(b, ITEM_POINT))
+    check(said == ["clicked 11", "selected 1"], f"a click on Ready, over the header, reaches the item only: {said}")
+    ui = widgets_ui(b)
+    check(find_box(ui, WIDGETS_MENU_ID) is None, "the pick closes the menu")
+    check(BODY_TEXT in ui_strings(ui), "the header got no click, so the body still shows")
+    label = ui_strings([find_element(ui, WIDGETS_FILTER_ID)])
+    check(label == ["Ready"], f"the filter shows the picked item: {label}")
+
+    said = tells(tap_at(b, FILTER_POINT))
+    check(said == ["clicked 2"], f"a click on the filter opens the menu again: {said}")
+    said = tells(tap_at(b, EMPTY_POINT))
+    check(said == [], f"a press outside the menu Tells nothing: {said}")
+    check(find_box(widgets_ui(b), WIDGETS_MENU_ID) is None, "a press outside the menu closes it")
+
+    replies = [
+        b.step(1, pointer=at(ADD_POINT)),
+        b.step(1, pointer=at(ADD_POINT, held=["Left"])),
+        b.step(1, pointer=at(FILTER_POINT, held=["Left"])),
+        b.step(1, pointer=at(FILTER_POINT)),
+    ]
+    said = [msg for reply in replies for msg in tells(reply)]
+    check(said == [], f"a press on Add and a release on the filter click nothing: {said}")
+
+    b.quit()
+
+
 def ui_strings(elements):
     strings = []
     for element in elements:
@@ -368,7 +512,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui), ("widgets", drive_widgets)]
 
 
 def run_game(game, drive, out, tmp, suffix):
