@@ -39,7 +39,7 @@ fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mod
 	sync.mutex_lock(&g_clay_lock)
 	ui_err := headless_init(s, context.allocator)
 	assert(ui_err == nil)
-	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {}
+	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
 	s.frame_render.end_pass = proc(ctx: rawptr) {}
 	s.frame_render.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
 	s.frame_render.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
@@ -505,7 +505,7 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	s: State
 	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Lockstep)
 	defer fake_frame_state_destroy(&s)
-	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int) {time.sleep(FAKE_PASS_WAIT)}
+	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {time.sleep(FAKE_PASS_WAIT)}
 
 	frame_run(&s, fake_platform(s.clock.fixed_dt))
 

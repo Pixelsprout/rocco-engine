@@ -33,7 +33,7 @@ Pass :: enum {
 // submit_sky runs at most once, after every submit, and submit_ui runs at
 // most once, last. In each pass, the skinned Draws follow the rigid ones, so
 // the renderer changes pipeline once. A nil skin is a rigid Draw.
-Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int)
+Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
@@ -246,7 +246,7 @@ frame_render_draw :: proc(
 		frame_render_shadow(fr, &lights, sun, &span)
 	}
 
-	frame_render_begin_pass(fr, .Main, 0, &span)
+	frame_render_begin_pass(fr, .Main, 0, curr.clear, &span)
 	fr.submit_lights(fr.submit_ctx, lights)
 	order := Placed_Order {
 		placed = fr.placed[:],
@@ -327,7 +327,7 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, spa
 	// The shader reads x as the view count, y as the Sun's slot and z as the normal offset.
 	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
-	frame_render_begin_pass(fr, .Shadow, 0, span)
+	frame_render_begin_pass(fr, .Shadow, 0, {}, span)
 	order := Placed_Order {
 		placed = fr.placed[:],
 	}
@@ -359,9 +359,9 @@ placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
 // and the Main pass waits for the swapchain drawable. These waits pace the
 // Frames, so the render Span leaves every begin_pass out.
 @(private = "file")
-frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, span: ^Span_Tick) {
+frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, clear_colour: Rgb, span: ^Span_Tick) {
 	waited := span_open()
-	fr.begin_pass(fr.submit_ctx, pass, view)
+	fr.begin_pass(fr.submit_ctx, pass, view, clear_colour)
 	span^ = span_skip(span^, waited)
 }
 

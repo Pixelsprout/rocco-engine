@@ -56,6 +56,7 @@ Recorder :: struct {
 	ui_screen:     [2]f32,
 	ui_calls:      int,
 	ui_after_sky:  int,
+	main_clear:    Rgb,
 }
 
 // The table is never uploaded, so the tests need no sokol setup. ui is nil
@@ -314,9 +315,12 @@ record_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 	r.ui_after_sky = r.sky_calls
 }
 
-record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
+record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
 	r := (^Recorder)(ctx)
 	append(&r.passes, Pass_Begun{pass, view})
+	if pass == .Main {
+		r.main_clear = clear_colour
+	}
 }
 
 record_end_pass :: proc(ctx: rawptr) {
@@ -756,6 +760,23 @@ test_frame_render_gives_the_lights_the_camera_eye :: proc(t: ^testing.T) {
 frame_fixture_sky :: proc(f: ^Frame_Fixture) -> u32 {
 	slot, _ := sky_table_add(&f.skies, strings.clone("sky/test"), 1, make([]byte, len(SKY_FACES) * 4))
 	return sky_id(&f.skies, slot)
+}
+
+@(test)
+test_frame_render_begins_the_main_pass_with_the_clear_of_the_current_scene :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := Scene {
+		clear = {r = 1},
+	}
+	curr := Scene {
+		clear = {r = 0.2, g = 0.4, b = 0.6},
+	}
+	frame_fixture_draw(&f, prev, curr, 0.5)
+
+	testing.expect_value(t, f.rec.main_clear, curr.clear)
 }
 
 @(test)
