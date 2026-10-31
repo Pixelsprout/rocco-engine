@@ -130,6 +130,21 @@ class LibraryTest(unittest.TestCase):
         host.close()
         self.assertNotIn("pointer", host.requests[0])
 
+    def test_hello_sends_devices_only_when_on(self):
+        host = FakeHost(['{"ok":true,"devices":false}', '{"ok":true,"devices":true}'])
+        with bridge.Bridge.connect(host.port) as b:
+            b.hello()
+            b.hello(devices=True)
+        host.close()
+        self.assertEqual(host.requests, [{"op": "hello"}, {"op": "hello", "devices": True}])
+
+    def test_inject_sends_the_events(self):
+        host = FakeHost(['{"ok":true,"events":1}'])
+        with bridge.Bridge.connect(host.port) as b:
+            b.inject([{"type": "mouse_down", "button": "Left"}])
+        host.close()
+        self.assertEqual(host.requests, [{"op": "inject", "events": [{"type": "mouse_down", "button": "Left"}]}])
+
     def test_tell_sends_the_port_and_the_message(self):
         host = FakeHost(['{"ok":true,"queued":1}'])
         with bridge.Bridge.connect(host.port) as b:
@@ -238,6 +253,24 @@ class CliTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as caught, contextlib.redirect_stderr(io.StringIO()):
             bridge.main(["--port", "1", "step", "--tap-mouse", "Left"])
         self.assertEqual(caught.exception.code, 2)
+
+    def test_devices_flag_says_hello_before_the_op(self):
+        reply = '{"ok":true,"steps":5,"commands":[],"alloc":{}}'
+        host = FakeHost(['{"ok":true,"devices":true}', reply])
+        code, out, _ = run_cli(["--port", str(host.port), "--devices", "step", "5"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(out, reply + "\n")
+        self.assertEqual(host.requests, [{"op": "hello", "devices": True}, {"op": "step", "n": 5}])
+
+    def test_devices_flag_on_hello_sends_one_hello(self):
+        reply = '{"ok":true,"devices":true}'
+        host = FakeHost([reply])
+        code, out, _ = run_cli(["--port", str(host.port), "--devices", "hello"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(out, reply + "\n")
+        self.assertEqual(host.requests, [{"op": "hello", "devices": True}])
 
     def test_tell_from_the_cli_sends_the_message(self):
         reply = '{"ok":true,"queued":1}'
