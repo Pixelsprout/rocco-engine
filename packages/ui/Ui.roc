@@ -3,15 +3,15 @@ import Font
 # These types copy pf.Vocabulary. Keep them identical, or a BoxConfig or a
 # Text from here stops unifying with the one in an Element.
 ## Defaults and small helpers for the UI tree in `Scene.ui`. A game writes the
-## Element tags itself, `Box(config, children)` and `Text(text)`, and takes the
+## Element tags itself, `Panel(config, children)` and `Text(text)`, and takes the
 ## config and the Text from here. The types have the same shapes as the UI
 ## types in `Vocabulary`. Sizes are in logical pixels.
 ##
-## For example, `Box(Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), [Text(Ui.label("Score"))])`
+## For example, `Panel(Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), [Text(Ui.label("Score"))])`
 ## puts one line of text in the top-left corner of the window.
 Ui := [].{
 
-	## The space between a Box's edges and its children.
+	## The space between a Panel's edges and its children.
 	Padding : { left : F32, right : F32, top : F32, bottom : F32 }
 
 	## A distance from an AttachPoint.
@@ -20,16 +20,16 @@ Ui := [].{
 	## A colour with linear channels from 0 to 1. Alpha is not premultiplied.
 	Rgba : { r : F32, g : F32, b : F32, a : F32 }
 
-	## How a Box sizes along one axis. See `Vocabulary.Sizing`.
+	## How a Panel sizes along one axis. See `Vocabulary.Sizing`.
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 
-	## Where a Box puts its children along one axis.
+	## Where a Panel puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## A point of a Box, of its parent or of the window.
+	## A point of a Panel, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
-	## The layout and look of a Box. Start from `default_box`. See
+	## The layout and look of a Panel. Start from `default_box`. See
 	## `Vocabulary.BoxConfig`.
 	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })] }
 
@@ -41,25 +41,25 @@ Ui := [].{
 	## Vocabulary's `Element`, which only the platform and the game can name.
 	## The widget modules return a Node. Turn it into an Element in your game
 	## with `build`, once, where the Node goes into `Scene.ui`.
-	Node := [Box(BoxConfig, List(Node)), Text(Text)].{
+	Node := [Panel(BoxConfig, List(Node)), Text(Text)].{
 
 		## Two Nodes are equal when their tags, configs, Texts and children are
 		## equal. A nominal type gets no `==` of its own.
 		is_eq : Node, Node -> Bool
 		is_eq = |a, b|
 			match (a, b) {
-				(Box(config_a, children_a), Box(config_b, children_b)) => config_a == config_b and children_a == children_b
+				(Panel(config_a, children_a), Panel(config_b, children_b)) => config_a == config_b and children_a == children_b
 				(Text(text_a), Text(text_b)) => text_a == text_b
 				_ => Bool.False
 			}
 
 		## Rebuilds the tree with your own constructors, children first. Give
 		## it the Element tags to get an Element:
-		## `node.build({ box: |config, children| Box(config, children), text: |text| Text(text) })`.
-		build : Node, { box : BoxConfig, List(el) -> el, text : Text -> el } -> el
-		build = |node, { box, text }|
+		## `node.build({ panel: |config, children| Panel(config, children), text: |text| Text(text) })`.
+		build : Node, { panel : BoxConfig, List(el) -> el, text : Text -> el } -> el
+		build = |node, { panel, text }|
 			match node {
-				Box(config, children) => box(config, children.map(|child| child.build({ box, text })))
+				Panel(config, children) => panel(config, children.map(|child| child.build({ panel, text })))
 				Text(str) => text(str)
 			}
 	}
@@ -96,7 +96,7 @@ Ui := [].{
 	float_at : AttachPoint, Offset -> BoxConfig
 	float_at = |attach, offset| { ..default_box, floating: Float({ to: Window, attach, on: attach, offset }) }
 
-	## A `float_at` Box for a HUD: 8 pixels of padding, a black background at
+	## A `float_at` Panel for a HUD: 8 pixels of padding, a black background at
 	## half alpha and corners with a radius of 8.
 	panel : AttachPoint, Offset -> BoxConfig
 	panel = |attach, offset| { ..float_at(attach, offset), pad: pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
@@ -161,7 +161,7 @@ Ui := [].{
 	}
 
 	## The lines that the host draws for a `Words` Text of `text` at `size` in
-	## a Box whose room for the text is `width`: the Box width minus its
+	## a Panel whose room for the text is `width`: the Panel width minus its
 	## padding. The host breaks lines at spaces and newlines with Clay's rule.
 	## A word wider than `width` takes a line of its own, and the other lines
 	## then wrap at that word's width. A line can end with a space, as Clay
@@ -381,11 +381,11 @@ expect {
 	Str.ends_with(cut, "...") and Ui.measure(cut, 18.0).width <= 420.0
 }
 
-## build rebuilds every Box and Text of the tree, in order.
+## build rebuilds every Panel and Text of the tree, in order.
 expect {
 	tree : Ui.Node
-	tree = Box(Ui.default_box, [Text(Ui.label("a")), Box({ ..Ui.default_box, id: 3 }, [Text(Ui.label("b"))])])
-	tree.build({ box: |config, children| "box ${config.id.to_str()} [${Str.join_with(children, ", ")}]", text: |text| text.str }) == "box 0 [a, box 3 [b]]"
+	tree = Panel(Ui.default_box, [Text(Ui.label("a")), Panel({ ..Ui.default_box, id: 3 }, [Text(Ui.label("b"))])])
+	tree.build({ panel: |config, children| "panel ${config.id.to_str()} [${Str.join_with(children, ", ")}]", text: |text| text.str }) == "panel 0 [a, panel 3 [b]]"
 }
 
 ## An empty string is one empty line.

@@ -6,7 +6,7 @@
 First it runs bridge-echo, tells two messages on the port echo and checks that
 the step reply holds them as Tell Commands, then checks that a tell on a port
 that nobody Listens to is dropped. It then points at bridge-echo's tagged
-Boxes: the button, the menu that floats under it and the scrolling log. It
+Panels: the button, the menu that floats under it and the scrolling log. It
 checks ui.over and ui.scroll in the scene reply, and that a click on the
 button comes back as a Tell. Then it turns devices on, injects a real pointer
 move and a click over the button, and checks the click Tell. With devices off,
@@ -33,7 +33,7 @@ holds D until Pip is mid-walk, checks the Pose, saves a "-walk" screenshot
 and checks that the two screenshots differ.
 
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
-the scoreboard is a Box that holds two cell Boxes, each with the score. Then
+the scoreboard is a Panel that holds two cell Panels, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
 UI shows the Paused banner and that the ball stops.
 
@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge
 
 # The protocol of engine/bridge_ops.odin.
-PROTOCOL = 7
+PROTOCOL = 8
 # examples/bridge-echo/main.roc
 ECHO_BUTTON_ID = 7
 ECHO_MENU_ID = 8
@@ -105,7 +105,7 @@ WALK_TOLERANCE = 1e-3
 MIN_CHANGED_PIXELS = 1000
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
-# a cell. Each cell is a Box that holds the score as one Text.
+# a cell. Each cell is a Panel that holds the score as one Text.
 SCOREBOARD_TEXTS = ["0", ":", "0"]
 
 # examples/widgets/main.roc: the ids, the accordion body and the points, in
@@ -351,11 +351,11 @@ def drive_ui(b, _out):
     b.hello()
 
     ui = b.scene()["scene"]["ui"]
-    check(len(ui) > 0 and "Box" in ui[0], f"the first of {len(ui)} UI roots is a Box")
-    children = ui[0]["Box"]["children"]
-    cells = [c["Box"] for c in children if "Box" in c]
-    check(len(cells) == 2, f"the scoreboard Box holds {len(cells)} nested Boxes, expected 2")
-    texts = [c["Text"]["str"] if "Text" in c else c["Box"]["children"][0]["Text"]["str"] for c in children]
+    check(len(ui) > 0 and "Panel" in ui[0], f"the first of {len(ui)} UI roots is a Panel")
+    children = ui[0]["Panel"]["children"]
+    cells = [c["Panel"] for c in children if "Panel" in c]
+    check(len(cells) == 2, f"the scoreboard Panel holds {len(cells)} nested Panels, expected 2")
+    texts = [c["Text"]["str"] if "Text" in c else c["Panel"]["children"][0]["Text"]["str"] for c in children]
     check(texts == SCOREBOARD_TEXTS, f"the scoreboard shows {texts}")
 
     south = [{"slot": 0, "held": ["South"]}]
@@ -376,23 +376,23 @@ def drive_ui(b, _out):
     b.quit()
 
 
-# The Box Element with the id in a scene UI tree, or None.
-def find_element(elements, box_id):
+# The Panel Element with the id in a scene UI tree, or None.
+def find_element(elements, panel_id):
     for element in elements:
-        if "Box" not in element:
+        if "Panel" not in element:
             continue
-        if element["Box"]["config"]["id"] == box_id:
+        if element["Panel"]["config"]["id"] == panel_id:
             return element
-        found = find_element(element["Box"]["children"], box_id)
+        found = find_element(element["Panel"]["children"], panel_id)
         if found is not None:
             return found
     return None
 
 
-# The config of the Box with the id, or None.
-def find_box(elements, box_id):
-    element = find_element(elements, box_id)
-    return None if element is None else element["Box"]["config"]
+# The config of the Panel with the id, or None.
+def find_panel(elements, panel_id):
+    element = find_element(elements, panel_id)
+    return None if element is None else element["Panel"]["config"]
 
 
 def widgets_ui(b):
@@ -400,7 +400,7 @@ def widgets_ui(b):
 
 
 def log_y(b):
-    return find_box(widgets_ui(b), WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"]
+    return find_panel(widgets_ui(b), WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"]
 
 
 def tells(reply):
@@ -412,7 +412,7 @@ def at(point, **rest):
 
 
 # Each pointer action is a hover step, then an action step, because the game
-# sees the Boxes under the pointer one step after the pointer moves there.
+# sees the Panels under the pointer one step after the pointer moves there.
 def tap_at(b, point):
     b.step(1, pointer=at(point))
     return b.step(1, pointer=at(point, tap=["Left"]))
@@ -425,7 +425,7 @@ def drive_widgets(b, out):
     reply = b.scene()
     rows = [r for r in reply["results"]["ui"]["scroll"] if r["id"] == WIDGETS_LOG_ID]
     check(len(rows) == 1 and rows[0]["view"]["height"] == 108 and rows[0]["content"]["height"] == 216, f"the log is 108 high and its 12 rows are 216: {rows}")
-    check(find_box(reply["scene"]["ui"], WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"] == -108, "the log starts stuck to the bottom")
+    check(find_panel(reply["scene"]["ui"], WIDGETS_LOG_ID)["overflow"]["Scroll"]["y"] == -108, "the log starts stuck to the bottom")
 
     b.step(1, pointer=at(THUMB_POINT))
     b.step(1, pointer=at(THUMB_POINT, held=["Left"]))
@@ -467,13 +467,13 @@ def drive_widgets(b, out):
 
     said = tells(tap_at(b, FILTER_POINT))
     check(said == ["clicked 2"], f"a click on the filter Tells it: {said}")
-    check(find_box(widgets_ui(b), WIDGETS_MENU_ID) is not None, "the click opens the menu")
+    check(find_panel(widgets_ui(b), WIDGETS_MENU_ID) is not None, "the click opens the menu")
     stem, ext = os.path.splitext(out)
     b.screenshot(f"{stem}-widgets{ext}")
     said = tells(tap_at(b, ITEM_POINT))
     check(said == ["clicked 11", "selected 1"], f"a click on Ready, over the header, reaches the item only: {said}")
     ui = widgets_ui(b)
-    check(find_box(ui, WIDGETS_MENU_ID) is None, "the pick closes the menu")
+    check(find_panel(ui, WIDGETS_MENU_ID) is None, "the pick closes the menu")
     check(BODY_TEXT in ui_strings(ui), "the header got no click, so the body still shows")
     label = ui_strings([find_element(ui, WIDGETS_FILTER_ID)])
     check(label == ["Ready"], f"the filter shows the picked item: {label}")
@@ -482,7 +482,7 @@ def drive_widgets(b, out):
     check(said == ["clicked 2"], f"a click on the filter opens the menu again: {said}")
     said = tells(tap_at(b, EMPTY_POINT))
     check(said == [], f"a press outside the menu Tells nothing: {said}")
-    check(find_box(widgets_ui(b), WIDGETS_MENU_ID) is None, "a press outside the menu closes it")
+    check(find_panel(widgets_ui(b), WIDGETS_MENU_ID) is None, "a press outside the menu closes it")
 
     replies = [
         b.step(1, pointer=at(ADD_POINT)),
@@ -502,7 +502,7 @@ def ui_strings(elements):
         if "Text" in element:
             strings.append(element["Text"]["str"])
         else:
-            strings += ui_strings(element["Box"]["children"])
+            strings += ui_strings(element["Panel"]["children"])
     return strings
 
 

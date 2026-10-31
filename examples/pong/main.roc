@@ -130,8 +130,8 @@ score_color = |state, own, other| {
 # Fixed cells keep the colon still when a score gains a digit.
 scoreboard : GameState, Score -> Element
 scoreboard = |state, score| {
-	cell = |own, other| Box({ ..centred, width: Fixed(48.0) }, [Text({ ..Ui.label(own.to_str()), color: score_color(state, own, other) })])
-	Box(
+	cell = |own, other| Panel({ ..centred, width: Fixed(48.0) }, [Text({ ..Ui.label(own.to_str()), color: score_color(state, own, other) })])
+	Panel(
 		{ ..Ui.panel(CenterTop, { x: 0.0, y: 16.0 }), gap: 8.0, child_align: { x: Center, y: Center } },
 		[cell(score.left, score.right), Text(Ui.label(":")), cell(score.right, score.left)],
 	)
@@ -151,19 +151,19 @@ banner = |state, score| match state {
 # the banner, so the text centres and the hint wraps inside it.
 banner_box : Str, Rgba, Str -> Element
 banner_box = |title, color, hint| {
-	row = |child| Box({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
-	Box(
+	row = |child| Panel({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
+	Panel(
 		{ ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
 		[row(Text({ ..Ui.label(title), size: 40.0, color })), row(Text(Ui.label(hint)))],
 	)
 }
 
-# The engine adds the offset at the same corner of the window and the box, so
+# The engine adds the offset at the same corner of the window and the Panel, so
 # a bottom or right corner needs a negative offset.
 hints : List(Element)
 hints = [
-	Box(Ui.panel(LeftBottom, { x: 16.0, y: -16.0 }), [Text(Ui.label("W / S"))]),
-	Box(Ui.panel(RightBottom, { x: -16.0, y: -16.0 }), [Text(Ui.label("Up / Down"))]),
+	Panel(Ui.panel(LeftBottom, { x: 16.0, y: -16.0 }), [Text(Ui.label("W / S"))]),
+	Panel(Ui.panel(RightBottom, { x: -16.0, y: -16.0 }), [Text(Ui.label("Up / Down"))]),
 ]
 
 hud : Model -> List(Element)
@@ -430,14 +430,14 @@ shows : List(Element), Str, Rgba -> Bool
 shows = |ui, str, color| ui.any(
 	|e| match e {
 		Text(t) => t.str == str and t.color == color
-		Box(_, children) => shows(children, str, color)
+		Panel(_, children) => shows(children, str, color)
 	},
 )
 
 floats_at : List(Element), Ui.AttachPoint -> Bool
 floats_at = |ui, point| ui.any(
 	|e| match e {
-		Box({ floating: Float({ attach, .. }), .. }, _) => attach == point
+		Panel({ floating: Float({ attach, .. }), .. }, _) => attach == point
 		_ => Bool.False
 	},
 )
@@ -447,7 +447,7 @@ floats_at = |ui, point| ui.any(
 # one Text.
 expect
 	match scoreboard(Running, { left: 3, right: 0 }) {
-		Box(_, [Box(_, [Text(left)]), Text(colon), Box(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
+		Panel(_, [Panel(_, [Text(left)]), Text(colon), Panel(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
 		_ => Bool.False
 	}
 

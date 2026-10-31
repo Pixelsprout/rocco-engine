@@ -15,9 +15,9 @@ UI_ELEMENT_CAPACITY :: 32768
 // Clay keeps the same ratio of measured words to elements by default.
 UI_TEXT_WORD_CAPACITY :: 2 * UI_ELEMENT_CAPACITY
 UI_QUAD_INDICES :: [6]u16{0, 1, 2, 0, 2, 3}
-// A Scene with more tagged Boxes than this grows the map once.
+// A Scene with more tagged Panels than this grows the map once.
 UI_HIT_CAPACITY :: 256
-// A Scene with more nested clips or Scroll Boxes than this grows the lists once.
+// A Scene with more nested clips or Scroll Panels than this grows the lists once.
 UI_CLIP_CAPACITY :: 16
 
 // The vocabulary and Clay name the nine points alike, but the glue orders the tags by name.
@@ -88,15 +88,15 @@ Ui_Pointer :: struct {
 	inside: bool,
 }
 
-// A tagged Box of the last layout. layer is 0 for the window root, and a new
-// number for each floating Box, in walk order. The Boxes inside a floating
-// Box share its layer.
-Ui_Hit_Box :: struct {
+// A tagged Panel of the last layout. layer is 0 for the window root, and a new
+// number for each floating Panel, in walk order. The Panels inside a floating
+// Panel share its layer.
+Ui_Hit_Panel :: struct {
 	id:    u64,
 	layer: u32,
 }
 
-Ui_Scroll_Box :: struct {
+Ui_Scroll_Panel :: struct {
 	id:      u64,
 	clay_id: clay.ElementId,
 }
@@ -109,12 +109,12 @@ Ui :: struct {
 	errors_logged:  bit_set[clay.ErrorType],
 	repairs_logged: bit_set[Ui_Repair],
 	// Keyed by Clay id. ui_layout refills it.
-	hits:           map[u32]Ui_Hit_Box,
+	hits:           map[u32]Ui_Hit_Panel,
 	layers:         u32,
 	// The game ids under the pointer, innermost first. ui_hit_test fills it.
 	over:           [dynamic]u64,
-	// The tagged Scroll Boxes of the last layout, and their sizes after it.
-	scroll_boxes:   [dynamic]Ui_Scroll_Box,
+	// The tagged Scroll Panels of the last layout, and their sizes after it.
+	scroll_panels:  [dynamic]Ui_Scroll_Panel,
 	scrolls:        [dynamic]Scroll_Size,
 	// The scissor stack while ui_frame reads the commands.
 	clips:          [dynamic][4]f32,
@@ -134,9 +134,9 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 	capacity := clay.MinMemorySize()
 	ui.memory = make([]u8, capacity, allocator) or_return
 	ui.quads = make([]Ui_Quad, quad_capacity, allocator) or_return
-	ui.hits = make(map[u32]Ui_Hit_Box, UI_HIT_CAPACITY, allocator) or_return
+	ui.hits = make(map[u32]Ui_Hit_Panel, UI_HIT_CAPACITY, allocator) or_return
 	ui.over = make([dynamic]u64, 0, UI_HIT_CAPACITY, allocator) or_return
-	ui.scroll_boxes = make([dynamic]Ui_Scroll_Box, 0, UI_CLIP_CAPACITY, allocator) or_return
+	ui.scroll_panels = make([dynamic]Ui_Scroll_Panel, 0, UI_CLIP_CAPACITY, allocator) or_return
 	ui.scrolls = make([dynamic]Scroll_Size, 0, UI_CLIP_CAPACITY, allocator) or_return
 	ui.clips = make([dynamic][4]f32, 0, UI_CLIP_CAPACITY, allocator) or_return
 	arena := clay.CreateArenaWithCapacityAndMemory(uint(capacity), raw_data(ui.memory))
@@ -195,7 +195,7 @@ ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.Render
 	clay.SetCurrentContext(ui.ctx)
 	clay.SetLayoutDimensions({window.size.x, window.size.y})
 	clear(&ui.hits)
-	clear(&ui.scroll_boxes)
+	clear(&ui.scroll_panels)
 	clear(&ui.scrolls)
 	ui.layers = 0
 	clay.BeginLayout()
@@ -203,17 +203,17 @@ ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.Render
 		ui_layout_element(ui, &e, window.dpi, 0)
 	}
 	commands := clay.EndLayout(0)
-	for box in ui.scroll_boxes {
-		data := clay.GetScrollContainerData(box.clay_id)
+	for panel in ui.scroll_panels {
+		data := clay.GetScrollContainerData(panel.clay_id)
 		if data.found {
 			view, content := data.scrollContainerDimensions, data.contentDimensions
-			append(&ui.scrolls, Scroll_Size{id = box.id, view = {width = view.width / window.dpi, height = view.height / window.dpi}, content = {width = content.width / window.dpi, height = content.height / window.dpi}})
+			append(&ui.scrolls, Scroll_Size{id = panel.id, view = {width = view.width / window.dpi, height = view.height / window.dpi}, content = {width = content.width / window.dpi, height = content.height / window.dpi}})
 		}
 	}
 	// Clay holds at most 100 clip records, and only its scroll update removes
-	// them. The first call removes the records of Boxes that are gone and
+	// them. The first call removes the records of Panels that are gone and
 	// marks the rest, and the second removes the rest. A record kept into the
-	// next layout points at a reused element and takes a new Box's sizes.
+	// next layout points at a reused element and takes a new Panel's sizes.
 	// Drag is off and the delta is zero, so neither call moves anything.
 	clay.UpdateScrollContainers(false, {0, 0}, 0)
 	clay.UpdateScrollContainers(false, {0, 0}, 0)
@@ -222,24 +222,24 @@ ui_layout :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []clay.Render
 
 ui_layout_element :: proc(ui: ^Ui, e: ^Element, dpi: f32, layer: u32) {
 	switch e.tag {
-	case .Box:
-		config, children := e.payload.box._0, e.payload.box._1
+	case .Panel:
+		config, children := e.payload.panel._0, e.payload.panel._1
 		layer := layer
 		if config.floating.tag == .Float {
 			ui.layers += 1
 			layer = ui.layers
 		}
-		clay_id, tagged := ui_open_box(ui, config.id, layer)
+		clay_id, tagged := ui_open_panel(ui, config.id, layer)
 		if config.overflow.tag == .Scroll {
 			if config.id == 0 {
 				ui_repair(ui, .Scroll_Without_Id)
 			} else if tagged {
-				append(&ui.scroll_boxes, Ui_Scroll_Box{id = config.id, clay_id = clay_id})
+				append(&ui.scroll_panels, Ui_Scroll_Panel{id = config.id, clay_id = clay_id})
 			}
 		}
 		d := ui_declaration(config, dpi)
 		if config.floating.tag == .Float {
-			// Clay reads the mode when the Box opens, before its children.
+			// Clay reads the mode when the Panel opens, before its children.
 			d.floating.pointerCaptureMode = .Capture if ui_has_hit_id(e) else .Passthrough
 		}
 		clay.ConfigureOpenElement(d)
@@ -255,7 +255,7 @@ ui_layout_element :: proc(ui: ^Ui, e: ^Element, dpi: f32, layer: u32) {
 
 // A repeated id opens with Clay's automatic id, so Clay never sees it twice.
 @(private = "file")
-ui_open_box :: proc(ui: ^Ui, id: u64, layer: u32) -> (clay_id: clay.ElementId, tagged: bool) {
+ui_open_panel :: proc(ui: ^Ui, id: u64, layer: u32) -> (clay_id: clay.ElementId, tagged: bool) {
 	if id == 0 {
 		clay._OpenElement()
 		return
@@ -283,13 +283,13 @@ ui_clay_id :: proc(id: u64) -> clay.ElementId {
 }
 
 ui_has_hit_id :: proc(e: ^Element) -> bool {
-	if e.tag != .Box {
+	if e.tag != .Panel {
 		return false
 	}
-	if e.payload.box._0.id != 0 {
+	if e.payload.panel._0.id != 0 {
 		return true
 	}
-	children := e.payload.box._1
+	children := e.payload.panel._1
 	for &child in children.elements[:children.length] {
 		if ui_has_hit_id(&child) {
 			return true
@@ -353,7 +353,7 @@ ui_declaration :: proc(box: Box_Config, dpi: f32) -> clay.ElementDeclaration {
 	}
 	if box.floating.tag == .Float {
 		f := box.floating.payload.float
-		// clipTo stays None, so a menu that floats out of a Scroll Box is not cut.
+		// clipTo stays None, so a menu that floats out of a Scroll Panel is not cut.
 		d.floating = {
 			offset = {f.offset.x * dpi, f.offset.y * dpi},
 			attachTo = .Root if f.to == .Window else .Parent,
@@ -444,9 +444,9 @@ ui_repair :: proc(ui: ^Ui, repair: Ui_Repair) {
 	case .Quad_Cap:
 		fmt.eprintfln("a Scene's ui needs more than %v quads; the host drops the rest", len(ui.quads))
 	case .Duplicate_Id:
-		fmt.eprintln("two Boxes in a Scene's ui share an id; the host hit tests only the first")
+		fmt.eprintln("two Panels in a Scene's ui share an id; the host hit tests only the first")
 	case .Scroll_Without_Id:
-		fmt.eprintln("a Scroll Box has id 0; the host scrolls it but lists no sizes for it")
+		fmt.eprintln("a Scroll Panel has id 0; the host scrolls it but lists no sizes for it")
 	}
 }
 

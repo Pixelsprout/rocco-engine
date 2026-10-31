@@ -95,8 +95,8 @@ text_corpus_module :: proc(f: ^Frame_Fixture) -> string {
 	return strings.to_string(b)
 }
 
-// Lays out the text in a Box of c.width and reads one line per row of the
-// Box. Clay sends no Text command for an empty line, so its row stays "".
+// Lays out the text in a Panel of c.width and reads one line per row of the
+// Panel. Clay sends no Text command for an empty line, so its row stays "".
 // The Roc_Str borrows c.text, because these tests set up no Roc heap.
 text_corpus_clay_lines :: proc(f: ^Frame_Fixture, c: Text_Case) -> []string {
 	box := ui_box()
@@ -104,7 +104,7 @@ text_corpus_clay_lines :: proc(f: ^Frame_Fixture, c: Text_Case) -> []string {
 	box.background = RED
 	str := Roc_Str{bytes = raw_data(c.text), length = uint(len(c.text))}
 	text := Element{tag = .Text, payload = {text = {str = str, size = c.size, color = RED, wrap = .Words}}}
-	roots := []Element{ui_box_of(box, text)}
+	roots := []Element{ui_panel_of(box, text)}
 	commands := ui_layout(f.ui, roots, f.window)
 	line_height := FONT_LINE_HEIGHT * c.size / FONT_BAKE_SIZE
 	lines: []string

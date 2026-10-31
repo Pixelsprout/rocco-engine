@@ -227,10 +227,10 @@ Vocabulary := [].{
 	## the previous Scene Listened on, in arrival order. Read them with
 	## `Port.messages`.
 	##
-	## `ui.over` lists the tagged Boxes under the pointer, innermost first, from
-	## the layout that the window last showed. A floating Box that blocks the
-	## pointer hides the Boxes under it. `ui.scroll` lists each tagged `Scroll`
-	## Box with its `view` size and its `content` size in logical pixels. Both
+	## `ui.over` lists the tagged Panels under the pointer, innermost first, from
+	## the layout that the window last showed. A floating Panel that blocks the
+	## pointer hides the Panels under it. `ui.scroll` lists each tagged `Scroll`
+	## Panel with its `view` size and its `content` size in logical pixels. Both
 	## arrive every step, with no Query, one step after the Scene that drew
 	## them.
 	QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
@@ -261,7 +261,7 @@ Vocabulary := [].{
 	## of `Scene.nodes`. A Scene with no Light draws black.
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 
-	## How a Box sizes along one axis, in logical pixels. The names and the
+	## How a Panel sizes along one axis, in logical pixels. The names and the
 	## defaults are Clay's.
 	##
 	## - `Fit`: fits its children, between `min` and `max`.
@@ -272,30 +272,30 @@ Vocabulary := [].{
 	## A `max` of 0 means no limit.
 	Sizing : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 
-	## Where a Box puts its children along one axis.
+	## Where a Panel puts its children along one axis.
 	Align : [Start, Center, End]
 
-	## A point of a Box, of its parent or of the window.
+	## A point of a Panel, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
-	## The rectangle that a `Box` Element draws. The names and the defaults
+	## The rectangle that a `Panel` Element draws. The names and the defaults
 	## are Clay's. Sizes are in logical pixels.
 	##
-	## - `id`: tags the Box for the hit test and for `QueryResults.ui`. 0 is not
-	##   tagged. Give each tagged Box its own id. For a repeated id the host
-	##   logs once and uses the first Box.
+	## - `id`: tags the Panel for the hit test and for `QueryResults.ui`. 0 is not
+	##   tagged. Give each tagged Panel its own id. For a repeated id the host
+	##   logs once and uses the first Panel.
 	## - `direction`: lays out the children in a `Row` or a `Col`.
 	## - `radius`: the corner radius.
 	## - `overflow`: `Visible` draws the children past the edges. `Clip` cuts
-	##   them at the Box edges. `Scroll` cuts them and moves them by the
-	##   offset, so a negative `y` shows later content. A `Scroll` Box needs a
+	##   them at the Panel edges. `Scroll` cuts them and moves them by the
+	##   offset, so a negative `y` shows later content. A `Scroll` Panel needs a
 	##   non-zero `id`.
-	## - `floating`: a `Float` Box puts its `attach` point on the `on` point of
-	##   the window (`to: Window`) or of its parent Box (`to: Parent`), moves by
-	##   `offset`, and ignores its parent's layout. A root Box with
-	##   `to: Parent` floats on the window. A floating Box blocks the pointer
-	##   when it, or any Box inside it, has a non-zero `id`. A floating Box with
-	##   no tagged Box inside it lets the pointer through.
+	## - `floating`: a `Float` Panel puts its `attach` point on the `on` point of
+	##   the window (`to: Window`) or of its parent Panel (`to: Parent`), moves by
+	##   `offset`, and ignores its parent's layout. A root Panel with
+	##   `to: Parent` floats on the window. A floating Panel blocks the pointer
+	##   when it, or any Panel inside it, has a non-zero `id`. A floating Panel with
+	##   no tagged Panel inside it lets the pointer through.
 	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 
 	## One string in the engine's font, at a size in logical pixels and a
@@ -305,19 +305,19 @@ Vocabulary := [].{
 
 	## One part of the UI tree. Write the tags directly.
 	##
-	## - `Box`: a rectangle and its children, laid out in list order inside it.
+	## - `Panel`: a rectangle and its children, laid out in list order inside it.
 	## - `Text`: one string, a leaf.
 	##
 	## An Element keeps its identity by its place in the tree. The type is
 	## nominal, because only a nominal recursive union crosses the seam.
-	Element := [Box(BoxConfig, List(Element)), Text(Text)].{
+	Element := [Panel(BoxConfig, List(Element)), Text(Text)].{
 
 		## Two Elements are equal when their tags, configs, Texts and children
 		## are equal. A nominal type gets no `==` of its own.
 		is_eq : Element, Element -> Bool
 		is_eq = |a, b|
 			match (a, b) {
-				(Box(config_a, children_a), Box(config_b, children_b)) => config_a == config_b and children_a == children_b
+				(Panel(config_a, children_a), Panel(config_b, children_b)) => config_a == config_b and children_a == children_b
 				(Text(text_a), Text(text_b)) => text_a == text_b
 				_ => Bool.False
 			}

@@ -3,15 +3,15 @@ import Seam
 import Ui
 import Widget
 
-## A Box that scrolls its rows up and down, with a scrollbar thumb. The wheel
-## scrolls the innermost Scroll Box under the pointer, by `line` pixels per
-## wheel step. Page Up, Page Down, Home and End act when the Box has the
+## A Panel that scrolls its rows up and down, with a scrollbar thumb. The wheel
+## scrolls the innermost Scroll Panel under the pointer, by `line` pixels per
+## wheel step. Page Up, Page Down, Home and End act when the Panel has the
 ## focus. With `StickToBottom`, the view stays at the bottom as content grows,
 ## until the person scrolls up. Keep one Scroll in your Model for each
-## scrolling Box.
+## scrolling Panel.
 Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content : F32, stick : [NoStick, Stuck, Loose], drag : [Idle, Dragging({ y : F32, offset : F32 })] }.{
 
-	## A Scroll at the top, with no sizes yet. `id` tags the Scroll Box and
+	## A Scroll at the top, with no sizes yet. `id` tags the Scroll Panel and
 	## `thumb` tags the scrollbar thumb. `line` is the pixels per wheel step:
 	## give the height of one row. With the engine's one font, a Text's line
 	## height is its size. `StickToBottom` starts at the bottom.
@@ -30,7 +30,7 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 		drag: Idle,
 	}
 
-	## Reads the sizes of the Scroll Box from `results.ui.scroll`, then the
+	## Reads the sizes of the Scroll Panel from `results.ui.scroll`, then the
 	## thumb drag, the wheel and, with the focus, the keys. The offset stays
 	## inside the content. The sizes come from the frame before, so the view
 	## follows new content one step after the content's size arrives.
@@ -97,7 +97,7 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 	is_stuck : Scroll -> Bool
 	is_stuck = |scroll| scroll.stick == Stuck
 
-	## A Row of `width` and `height`: the Scroll Box that holds `rows`, then a
+	## A Row of `width` and `height`: the Scroll Panel that holds `rows`, then a
 	## track 8 pixels wide that holds the thumb. The thumb is `look.down`
 	## while dragged, else `look.idle`, and never less than 16 pixels high.
 	view : Scroll, { rows : List(Ui.Node), width : Ui.Sizing, height : Ui.Sizing, look : Widget.Look } -> Ui.Node
@@ -108,10 +108,10 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 			Dragging(_) => look.down
 			Idle => look.idle
 		}
-		thumb = Box({ ..Ui.default_box, id: scroll.thumb, width: Fixed(8.0), height: Fixed(sizes.height), radius: 4.0, background: thumb_color }, [])
-		track = Box({ ..Ui.default_box, width: Fixed(8.0), height: grow, direction: Col, pad: { left: 0.0, right: 0.0, top: sizes.top, bottom: 0.0 }, background: look.panel }, [thumb])
-		box = Box({ ..Ui.default_box, id: scroll.id, width: grow, height: grow, direction: Col, background: look.panel, overflow: Scroll({ x: 0.0, y: -scroll.offset }) }, rows)
-		Box({ ..Ui.default_box, width, height }, [box, track])
+		thumb = Panel({ ..Ui.default_box, id: scroll.thumb, width: Fixed(8.0), height: Fixed(sizes.height), radius: 4.0, background: thumb_color }, [])
+		track = Panel({ ..Ui.default_box, width: Fixed(8.0), height: grow, direction: Col, pad: { left: 0.0, right: 0.0, top: sizes.top, bottom: 0.0 }, background: look.panel }, [thumb])
+		box = Panel({ ..Ui.default_box, id: scroll.id, width: grow, height: grow, direction: Col, background: look.panel, overflow: Scroll({ x: 0.0, y: -scroll.offset }) }, rows)
+		Panel({ ..Ui.default_box, width, height }, [box, track])
 	}
 
 	## Two Scrolls are equal when their states are equal.
@@ -142,7 +142,7 @@ look = {
 thumb_height : Scroll -> Ui.Sizing
 thumb_height = |scroll|
 	match scroll.view({ rows: [], width: Fixed(420.0), height: Fixed(108.0), look }) {
-		Box(_, [_, Box(_, [Box(thumb, [])])]) => thumb.height
+		Panel(_, [_, Panel(_, [Panel(thumb, [])])]) => thumb.height
 		_ => crash "thumb_height: the view has no thumb"
 	}
 
@@ -180,7 +180,7 @@ expect {
 	(settle(up, Seam.input, sized(252.0, [])).offset(), settle(up, wheel(-1.0), sized(216.0, [5])).is_stuck()) == (90.0, Bool.True)
 }
 
-## The wheel goes to the innermost Scroll Box under the pointer only.
+## The wheel goes to the innermost Scroll Panel under the pointer only.
 expect {
 	outer = Scroll.new({ id: 7, thumb: 8, line: 18.0, stick: NoStick })
 	rows = [{ id: 5, view: { width: 412.0, height: 108.0 }, content: { width: 412.0, height: 216.0 } }, { id: 7, view: { width: 500.0, height: 300.0 }, content: { width: 500.0, height: 900.0 } }]
@@ -224,7 +224,7 @@ expect settle(bottom, Seam.input, Seam.results).offset() == 108.0
 expect {
 	half = settle(bottom, wheel(3.0), sized(216.0, [5]))
 	match half.view({ rows: [], width: Fixed(420.0), height: Fixed(108.0), look }) {
-		Box(_, [Box(box, []), Box(track, [Box(thumb, [])])]) => (box.id, box.overflow, track.pad.top, thumb.id) == (5, Scroll({ x: 0.0, y: -54.0 }), 27.0, 6)
+		Panel(_, [Panel(box, []), Panel(track, [Panel(thumb, [])])]) => (box.id, box.overflow, track.pad.top, thumb.id) == (5, Scroll({ x: 0.0, y: -54.0 }), 27.0, 6)
 		_ => Bool.False
 	}
 }

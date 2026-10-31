@@ -54,7 +54,7 @@ fake_frame_state_destroy :: proc(s: ^State) {
 	delete(s.ui.quads)
 	delete(s.ui.hits)
 	delete(s.ui.over)
-	delete(s.ui.scroll_boxes)
+	delete(s.ui.scroll_panels)
 	delete(s.ui.scrolls)
 	delete(s.ui.clips)
 	sync.mutex_unlock(&g_clay_lock)
@@ -356,7 +356,7 @@ test_headless_run_stops_after_a_quit :: proc(t: ^testing.T) {
 	testing.expect_value(t, s.frame_count, 1)
 }
 
-// Headless has no window, so a 100 by 50 Box floating at the right bottom
+// Headless has no window, so a 100 by 50 Panel floating at the right bottom
 // shows the window it laid out against and the dpi.
 @(test)
 test_headless_lays_out_the_ui_against_the_launch_window_at_dpi_1 :: proc(t: ^testing.T) {
@@ -369,7 +369,7 @@ test_headless_lays_out_the_ui_against_the_launch_window_at_dpi_1 :: proc(t: ^tes
 	box := ui_rect(100, 50)
 	box.floating = ui_floating(.RightBottom)
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_box_of(box)})
+	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_panel_of(box)})
 	defer fake_frame_state_destroy(&s)
 
 	headless_run(&s)
@@ -519,17 +519,17 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	}
 }
 
-// A tagged Box at the top left, 100 by 100, with the pointer at (50, 50).
+// A tagged Panel at the top left, 100 by 100, with the pointer at (50, 50).
 fake_frame_state_init_pointing :: proc(s: ^State, mode := Run_Mode.Real_Clock) {
 	// g_fake keeps the roots past this call.
-	roots := slice.clone([]Element{ui_box_of(ui_tagged(7, 100, 100))}, context.temp_allocator)
+	roots := slice.clone([]Element{ui_panel_of(ui_tagged(7, 100, 100))}, context.temp_allocator)
 	fake_frame_state_init(s, mode = mode, ui = roots)
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
 	input_on_event(&s.input, &move)
 }
 
 @(test)
-test_frame_gives_the_next_step_the_boxes_under_the_pointer :: proc(t: ^testing.T) {
+test_frame_gives_the_next_step_the_panels_under_the_pointer :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
@@ -598,7 +598,7 @@ test_frame_ui_lists_leak_nothing :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, ui = {ui_box_of(ui_scroll(ui_tagged(7, 100, 100), {0, 0}), ui_box_of(ui_rect(100, 200)))})
+	fake_frame_state_init(&s, ui = {ui_panel_of(ui_scroll(ui_tagged(7, 100, 100), {0, 0}), ui_panel_of(ui_rect(100, 200)))})
 	defer fake_frame_state_destroy(&s)
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
 	input_on_event(&s.input, &move)

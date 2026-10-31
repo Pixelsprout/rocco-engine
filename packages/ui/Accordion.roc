@@ -9,7 +9,7 @@ import Widget
 ## `Focus.update`.
 Accordion :: { header : U64, shown : [Open, Closed] }.{
 
-	## An Accordion whose header Box is tagged `header`.
+	## An Accordion whose header Panel is tagged `header`.
 	new : { header : U64, shown : [Open, Closed] } -> Accordion
 	new = |{ header, shown }| { header, shown }
 
@@ -29,16 +29,16 @@ Accordion :: { header : U64, shown : [Open, Closed] }.{
 	is_open : Accordion -> Bool
 	is_open = |accordion| accordion.shown == Open
 
-	## A column of the header button and, while open, a padded `panel` Box
-	## of `width` that holds `body`.
+	## A column of the header button and, while open, a padded Panel of
+	## `width` in the `panel` colour that holds `body`.
 	view : Accordion, { buttons : Button, focus : Focus, label : Str, width : Ui.Sizing, look : Widget.Look, body : List(Ui.Node) } -> Ui.Node
 	view = |accordion, { buttons, focus, label, width, look, body }| {
 		header = buttons.view({ id: accordion.header, label, width, look, focus })
 		children = match accordion.shown {
-			Open => [header, Box({ ..Ui.default_box, width, pad: { left: look.pad, right: look.pad, top: look.pad, bottom: look.pad }, background: look.panel }, body)]
+			Open => [header, Panel({ ..Ui.default_box, width, pad: { left: look.pad, right: look.pad, top: look.pad, bottom: look.pad }, background: look.panel }, body)]
 			Closed => [header]
 		}
-		Box({ ..Ui.default_box, direction: Col }, children)
+		Panel({ ..Ui.default_box, direction: Col }, children)
 	}
 
 	## Two Accordions are equal when their states are equal.
@@ -76,7 +76,7 @@ expect {
 expect {
 	props = { buttons: Button.idle, focus: Focus.none, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, "Body")] }
 	children = |element| match element {
-		Box(_, list) => list.len()
+		Panel(_, list) => list.len()
 		Text(_) => 0
 	}
 	(children(details.view(props)), children(details.update([Clicked(4)]).view(props))) == (1, 2)

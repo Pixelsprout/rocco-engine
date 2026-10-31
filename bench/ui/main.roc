@@ -7,9 +7,9 @@ import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, 
 import pf.QueryResults
 import pf.Launch
 
-# The UI bench game. Its Scene has no Draws, and its UI holds exactly N Box and
-# Text elements inside one root Box: N / 2 cells of one Box and one Text, plus
-# one empty Box when N is odd. One cell is lit, and it moves on each step, so
+# The UI bench game. Its Scene has no Draws, and its UI holds exactly N Panel and
+# Text elements inside one root Panel: N / 2 cells of one Panel and one Text, plus
+# one empty Panel when N is odd. One cell is lit, and it moves on each step, so
 # the UI changes every step but its size does not.
 Model : { labels : List(Str), lit : U64 }
 
@@ -76,25 +76,25 @@ view = |m| {
 elements : Model -> List(Element)
 elements = |m| {
 	cells = m.labels.map_with_index(|text, i| cell(text, i == m.lit))
-	[Box(root_box, cells)]
+	[Panel(root_box, cells)]
 }
 
-# The empty label marks the lone Box of an odd N.
+# The empty label marks the lone Panel of an odd N.
 cell : Str, Bool -> Element
 cell = |text, lit| {
 	config = if lit { ..cell_box, background: lit_background } else cell_box
 	children = if text == "" [] else [Text(label(text))]
-	Box(config, children)
+	Panel(config, children)
 }
 
 ui_of : U64 -> List(Element)
 ui_of = |n| view(init(Bench.with_n(n)).model).ui
 
-boxes : List(Element) -> U64
-boxes = |ui| ui.fold(
+panels : List(Element) -> U64
+panels = |ui| ui.fold(
 	0,
 	|n, e| match e {
-		Box(_, children) => n + 1 + boxes(children)
+		Panel(_, children) => n + 1 + panels(children)
 		Text(_) => n
 	},
 )
@@ -103,22 +103,22 @@ texts : List(Element) -> U64
 texts = |ui| ui.fold(
 	0,
 	|n, e| match e {
-		Box(_, children) => n + texts(children)
+		Panel(_, children) => n + texts(children)
 		Text(_) => n + 1
 	},
 )
 
 cells_of : List(Element) -> List(Element)
 cells_of = |ui| match ui {
-	[Box(_, cells)] => cells
+	[Panel(_, cells)] => cells
 	_ => []
 }
 
-# The root Box is not one of the N elements, so the counts start at its children.
+# The root Panel is not one of the N elements, so the counts start at its children.
 box_and_text_count : List(Element) -> U64
 box_and_text_count = |ui| {
 	cells = cells_of(ui)
-	boxes(cells) + texts(cells)
+	panels(cells) + texts(cells)
 }
 
 expect launch(Bench.no_args).window.high_dpi == False
@@ -146,7 +146,7 @@ expect {
 lit_count : List(Element) -> U64
 lit_count = |ui| cells_of(ui).count_if(
 	|e| match e {
-		Box(config, _) => config == { ..cell_box, background: lit_background }
+		Panel(config, _) => config == { ..cell_box, background: lit_background }
 		Text(_) => Bool.False
 	},
 )

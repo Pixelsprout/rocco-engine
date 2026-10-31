@@ -75,25 +75,25 @@ grey = { r: 0.3, g: 0.3, b: 0.3, a: 0.9 }
 # x 824 to 944 and y 16 to 56. The menu under it is x 824 to 944 and y 60 to 90.
 button : Vocabulary.Element
 button = {
-	menu = Box({ ..Ui.default_box, id: menu_id, width: Fixed(120.0), height: Fixed(30.0), background: grey, floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } }) }, [])
-	Box({ ..Ui.float_at(RightTop, { x: -16.0, y: 16.0 }), id: button_id, width: Fixed(120.0), height: Fixed(40.0), background: grey }, [menu])
+	menu = Panel({ ..Ui.default_box, id: menu_id, width: Fixed(120.0), height: Fixed(30.0), background: grey, floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } }) }, [])
+	Panel({ ..Ui.float_at(RightTop, { x: -16.0, y: 16.0 }), id: button_id, width: Fixed(120.0), height: Fixed(40.0), background: grey }, [menu])
 }
 
 # x 16 to 216 and y 424 to 524. The offset hides the first of its 10 rows.
 log : Vocabulary.Element
 log = {
 	rows = [log_row(1), log_row(2), log_row(3), log_row(4), log_row(5), log_row(6), log_row(7), log_row(8), log_row(9), log_row(10)]
-	Box({ ..Ui.float_at(LeftBottom, { x: 16.0, y: -16.0 }), id: log_id, width: Fixed(200.0), height: Fixed(100.0), direction: Col, background: grey, overflow: Scroll({ x: 0.0, y: -20.0 }) }, rows)
+	Panel({ ..Ui.float_at(LeftBottom, { x: 16.0, y: -16.0 }), id: log_id, width: Fixed(200.0), height: Fixed(100.0), direction: Col, background: grey, overflow: Scroll({ x: 0.0, y: -20.0 }) }, rows)
 }
 
 log_row : U64 -> Vocabulary.Element
-log_row = |n| Box({ ..Ui.default_box, width: Fixed(200.0), height: Fixed(20.0) }, [Text({ ..Ui.label("Line ${n.to_str()}"), size: 14.0, wrap: None })])
+log_row = |n| Panel({ ..Ui.default_box, width: Fixed(200.0), height: Fixed(20.0) }, [Text({ ..Ui.label("Line ${n.to_str()}"), size: 14.0, wrap: None })])
 
 view : Model -> Vocabulary.Scene
 view = |model| {
 	cube = { ..Draw.default, id: 1, mesh: Mesh.primitive(Cube), tint: { r: 0.9, g: 0.22, b: 0.03 } }
 	camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
-	hud = Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text({ ..Ui.label(hud_text(model)), wrap: None })])
+	hud = Panel(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text({ ..Ui.label(hud_text(model)), wrap: None })])
 	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(cube)], queries: [Port.listen("echo")], ui: [hud, button, log] }
 }
 

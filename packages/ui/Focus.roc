@@ -2,16 +2,16 @@ import Seam
 import Ui
 import Widget
 
-## Which tagged Box the keys act on. The engine has no focus, and this is not
+## Which tagged Panel the keys act on. The engine has no focus, and this is not
 ## the window's focus. Keep one Focus in your Model, and give `update` the ids
 ## that take the focus, in Tab order.
 Focus :: [Focused(U64), Unfocused].{
 
-	## No Box has the focus.
+	## No Panel has the focus.
 	none : Focus
 	none = Unfocused
 
-	## The Box with `id` has the focus.
+	## The Panel with `id` has the focus.
 	on : U64 -> Focus
 	on = |id| Focused(id)
 
@@ -44,14 +44,14 @@ Focus :: [Focused(U64), Unfocused].{
 		{ focus: next, events }
 	}
 
-	## True when the Box with `id` has the focus.
+	## True when the Panel with `id` has the focus.
 	is_on : Focus, U64 -> Bool
 	is_on = |focus, id| match focus {
 		Focused(focused) => focused == id
 		Unfocused => Bool.False
 	}
 
-	## Two Focus values are equal when they name the same Box.
+	## Two Focus values are equal when they name the same Panel.
 	is_eq : _
 }
 
