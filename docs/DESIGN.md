@@ -366,8 +366,13 @@ the seam as it is, with no flattening. An Element has no id. Its place in
 the tree is its identity. Games write the tags directly, for example
 `Box(config, [Text(text)])`. The UI package in `packages/ui/` gives the
 defaults, `default_box` and `default_text`, and small helpers, such as
-`float_at`, `panel` and `label`. A game with no UI returns `ui: []`, which
-allocates nothing. Decision.
+`float_at`, `panel` and `label`. Its widget modules, `Button`, `Focus`,
+`Dropdown`, `Accordion` and `Scroll`, keep widget state in the Model, read
+the pointer and `QueryResults.ui` through open records, and return a
+`Ui.Node`. A package cannot name the nominal Element, so the game turns a
+Node into an Element with `Node.build`. The widgets are not Vocabulary, and
+the engine has no widget and no focus. A game with no UI returns `ui: []`,
+which allocates nothing. Decision.
 `docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the tree.
 `docs/adr/0004-ui-layout-runs-in-the-host.md` records the layout options.
 
