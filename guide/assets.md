@@ -14,7 +14,7 @@ loaded files one by one, it would have to track which ones are still in
 use.
 
 rocco solves this with Packs. A Pack is a named set of assets, such as
-meshes, skies and Sounds, that load and unload together. Your game lists the
+meshes, skies, Sounds and Images, that load and unload together. Your game lists the
 assets of each Pack in Roc, and sends a `Load` or `Unload` [Command]. The
 host takes care of the files, the GPU data and the ids.
 
@@ -81,12 +81,13 @@ Each kind of asset has its own folder:
 | Mesh | a `.glb` file in `assets/meshes/` | the file stem, such as `sprout` for `sprout.glb` |
 | Sky | a folder in `assets/sky/` with six PNG files | `sky/` and the folder name, such as `sky/meadow` |
 | Sound | a `.wav` or `.ogg` file in `assets/sound/` | `sound/` and the file stem, such as `sound/blip` for `blip.wav` |
+| Image | a `.png` file in `assets/images/` | `image/` and the file stem, such as `image/coin` for `coin.png` |
 
 The six faces of a sky are `px.png`, `nx.png`, `py.png`, `ny.png`,
 `pz.png` and `nz.png`. Names are case-sensitive.
 
 At startup, the host lists the mesh names, then the sky names, then the
-Sound names, each in sorted order, and puts the list in `Config.assets`. It doesn't load any of
+Sound names, then the Image names, each in sorted order, and puts the list in `Config.assets`. It doesn't load any of
 the files yet. Your game can read the list in `init`. For example, the
 cards game in [Install and first run](install.md) asks for its card mesh
 only when the file is on disk. See [Config].
@@ -209,10 +210,26 @@ The host pads the box of a skinned mesh by a quarter of its largest side.
 The shadow map fits the boxes, so an arm or a leg that a Clip swings out
 still casts its shadow.
 
+### Images
+
+An Image is a PNG file. The host decodes it to 8-bit RGBA and uploads it
+with no mipmaps. Its Manifest entry carries its width and height in pixels.
+In `loaded`, `Image.resolve(manifest, "image/coin")` gives the id and
+`Image.size(manifest, "image/coin")` gives the size. Keep both in your Model.
+
+Before the upload, the host gives each fully transparent pixel the colour
+of the nearest visible pixels. Alpha stays 0, so nothing new shows, but a
+scaled Image gets no dark fringe at its edges.
+
+An `Image` value names an Image, the part of it to show, a tint and a
+filter. Start from `Image.default` and set its `id`. A `Px` region counts
+in the pixels that `Image.size` reports, from the top-left corner, so one
+sprite sheet can hold many pictures.
+
 ### Capacities
 
 The [Launch] sets the size of each asset table: `capacity.meshes`,
-`capacity.skies` and `capacity.sounds`. When a table is full, a `Load` gives the new name id 0,
+`capacity.skies`, `capacity.sounds` and `capacity.images`. When a table is full, a `Load` gives the new name id 0,
 and the host logs once. See [Launch](launch.md) for the capacities.
 
 [Command]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Command

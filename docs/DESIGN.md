@@ -159,8 +159,9 @@ Config   : { seed : U64, assets : List(Str), args : List(Str) }
 Launch   : { window : Window, step_hz : U32, shadow_map : U32, shadow_cascades : U32, capacity : Capacity }
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
-Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
-Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
+Capacity : { meshes : U32, skies : U32, images : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
+Manifest : List({ name : Str, id : U32, duration : F32, size : { w : U32, h : U32 }, clips : List({ name : Str, id : U32, duration : F32 }) })
+Image    : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 })], tint : Rgba, filter : [Linear, Nearest] }
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
@@ -192,7 +193,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the shadow cascade count; the table capacities | anything that changes after the window opens |
-| `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
+| `Manifest` | each name one `Load` asked for, with its id or 0, a Sound's length in seconds and an Image's size in pixels | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels; the Pointer: position, inside, buttons, wheel | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order. `ui` holds the tagged Panels under the Pointer and the Scroll sizes, with no Query | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
@@ -593,13 +594,19 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   `sound/<stem>`. The host decodes it fully at load. If two files share a
   stem, the first in sorted order loads and the host logs once. Sound 0
   plays nothing. Decision, Milestone 20.
+- An Image is a `.png` file in `assets/images/`. Its name is
+  `image/<stem>`. The host decodes it to RGBA8, bleeds the edge colours into
+  each fully transparent pixel, and uploads it as sRGB with no mipmaps. Its
+  Manifest entry carries its size in pixels. Image 0 is no Image. ADR 0024
+  records the decision, Milestone 34.
 
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The
 sky table has 16 slots, and sky 0 means no sky. Decision, built in
 Milestone 12. The Sound table has 64 slots, and Sound 0 means no Sound. It
 holds each Sound as f32 samples at the rate the engine mixes at, with the
-channels of its file. Built in Milestone 20.
+channels of its file. Built in Milestone 20. The Image table has 256
+slots, and Image 0 means no Image. Built in Milestone 34.
 
 ### Meshes are ids
 

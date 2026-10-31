@@ -62,7 +62,7 @@ windowed run yet.
 A capacity sets the size of a table. If a table fills up during the run,
 the host does not stop. It logs once and carries on:
 
-- `meshes`, `skies` or `sounds`: a `Load` gives the new name id 0.
+- `meshes`, `skies`, `sounds` or `images`: a `Load` gives the new name id 0.
 - `draws`: the host draws the first Draws of the Scene, in the order of a
   depth-first walk of `Scene.nodes`, and drops the rest. It also draws at
   most 256 Draws of skinned meshes, or `draws` if that is lower, in the
@@ -93,6 +93,7 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `shadow_cascades` | 1 | No |
 | `capacity.meshes` | 64 | No |
 | `capacity.skies` | 16 | No |
+| `capacity.images` | 256 | No |
 | `capacity.draws` | 16384 | No |
 | `capacity.groups` | 1024 | No |
 | `capacity.ui_quads` | 16384 | No |

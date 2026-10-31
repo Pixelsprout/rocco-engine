@@ -456,6 +456,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `platform/Scene.roc` | Gives `Scene.empty`, the Scene a game starts a record update from in `view`. |
 | `platform/Draw.roc` | Gives `Draw.default`, the Draw a game starts a record update from and puts in `Scene.nodes` as `Draw(...)`. |
 | `platform/Sound.roc` | Builds the Play Command, for example `Sound.play(id)`, and reads a Sound's length with `Sound.duration(manifest, name)`. |
+| `platform/Image.roc` | Gives `Image.default`, the Image a game starts a record update from, and reads an Image's id and size with `Image.resolve(manifest, name)` and `Image.size(manifest, name)`. |
 | `platform/Pose.roc` | Builds the Pose of a Draw with `Pose.still(clip, time)`, and wraps a Clip's time with `Pose.loop(time, duration)`. |
 | `platform/Speaker.roc` | Gives `Speaker.default`, the Speaker a game starts a record update from and puts in `Scene.nodes` as `Speaker(...)`. |
 | `platform/Launch.roc` | Gives `Launch.default`, the Launch a game returns from `launch` or starts a record update from. |

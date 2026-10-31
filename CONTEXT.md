@@ -385,7 +385,8 @@ _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 **Manifest**:
 The name-to-id list the host hands `loaded` for one Pack. It holds every name
 the Load asked for. A name that did not load has id 0. A skinned mesh's
-entry also lists its Clips. The game keeps the ids it needs in its Model.
+entry also lists its Clips, and an Image's entry carries its size in pixels.
+The game keeps the ids it needs in its Model.
 _Avoid_: mesh table, catalogue, registry, asset list
 
 **Pack**:
@@ -421,6 +422,19 @@ A tag of `Primitive : [Cube, Sphere, Plane]` in the mesh package
 cube 1, sphere 2, plane 3. It needs no Config and no Pack. It belongs to the package, not the vocabulary: Draws still carry
 a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
+
+**Image**:
+An asset that holds a picture, loaded and unloaded by a Pack. It is a PNG
+in `assets/images/`, named with an `image/` prefix, such as `image/coin`.
+The game shows it through an `Image` value: an Image id, a region, a tint
+and a filter. UI Panels show it, and 2D sprites will take the same value.
+`docs/adr/0024-an-image-is-a-pack-asset.md` records the decision.
+_Avoid_: texture (the engine's GPU word), sprite, icon, picture
+
+**Image id**:
+A number the engine assigns to each Image it loaded, published in a
+Manifest with the Image's size in pixels. Id 0 is no Image.
+_Avoid_: texture id, image handle
 
 ## Time
 
