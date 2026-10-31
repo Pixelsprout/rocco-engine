@@ -310,9 +310,9 @@ def drive_ui(b, _out):
 
     try:
         b.step(1, gamepads=[{"held": ["Jump"]}])
-        check(False, "an unknown Button fails the step")
+        check(False, "an unknown GamepadButton fails the step")
     except bridge.BridgeError as err:
-        check(str(err) == 'unknown Button "Jump" in "held"', f"an unknown Button fails the step: {err}")
+        check(str(err) == 'unknown GamepadButton "Jump" in "held"', f"an unknown GamepadButton fails the step: {err}")
     check(b.scene()["steps"] == held["steps"], "the failed step ran no step")
 
     b.quit()

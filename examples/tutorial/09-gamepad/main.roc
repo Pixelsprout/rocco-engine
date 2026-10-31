@@ -9,10 +9,10 @@ import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
-import pf.Button
 import pf.Collider
 import pf.Config
 import pf.Draw
+import pf.GamepadButton
 import pf.Input
 import pf.Key
 import pf.Launch
@@ -98,7 +98,7 @@ blip = |before, after|
 # region: quit
 # Escape on the keyboard or Start on any pad quits.
 quit : Vocabulary.Input -> List(Command)
-quit = |input| if Key.pressed(input, Escape) or Button.pressed_any(input, Start) [Quit] else []
+quit = |input| if Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start) [Quit] else []
 
 # endregion
 
@@ -518,13 +518,13 @@ expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).mod
 
 # Start pressed on any pad quits, here on the pad in slot 2.
 expect {
-	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [Button.code(Start)] }
+	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [GamepadButton.code(Start)] }
 	step(start, with_pads([Input.idle_gamepad, start_pressed]), QueryResults.empty, 0.1).commands == [Quit]
 }
 
 # Start held from an earlier step does not quit again.
 expect {
-	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
+	start_held = { ..Input.idle_gamepad, held: [GamepadButton.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
 

@@ -134,7 +134,7 @@ Vocabulary := [].{
 	## The key codes are sokol's. Use `Key` to name them.
 	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 
-	## One connected gamepad at one step. Use `Button` to name the buttons.
+	## One connected gamepad at one step. Use `GamepadButton` to name the buttons.
 	##
 	## - `slot`: from 0 to 3. A pad keeps its slot while it stays connected. A
 	##   new pad takes the lowest free slot.

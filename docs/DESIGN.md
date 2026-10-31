@@ -193,7 +193,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
-| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
+| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
@@ -243,9 +243,9 @@ window loses focus, the host releases every held key, because their key-up
 events go to the other window. Decision.
 
 The host polls the gamepads once per frame, before the steps of that frame,
-through one Gamepad reader per OS (ADR 0015). Button presses latch as key
-presses do. A button that is down when its pad connects is held, not
-pressed. The sticks and the triggers carry the last polled value, after the
+through one Gamepad reader per OS (ADR 0015). Gamepad button presses latch
+as key presses do. A button that is down when its pad connects is held,
+not pressed. The sticks and the triggers carry the last polled value, after the
 dead zones. When the window loses focus, the host releases every held
 button and sets the axes to zero. While the Bridge is on, the Bridge pads
 replace the real pads. Decision.
@@ -699,7 +699,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Button, Collider, Config, Draw, Input, Key, Launch, Light, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
+    exposes [Collider, Config, Draw, GamepadButton, Input, Key, Launch, Light, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest

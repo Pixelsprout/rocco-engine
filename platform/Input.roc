@@ -11,7 +11,7 @@ Input := [].{
 
 	## A Gamepad in slot 0 with no button down and the sticks and triggers at
 	## rest. Change the fields that a test needs:
-	## `{ ..Input.idle_gamepad, held: [Button.code(South)] }`.
+	## `{ ..Input.idle_gamepad, held: [GamepadButton.code(South)] }`.
 	idle_gamepad : Vocabulary.Gamepad
 	idle_gamepad = { slot: 0, held: [], pressed: [], left_stick: { x: 0.0, y: 0.0 }, right_stick: { x: 0.0, y: 0.0 }, left_trigger: 0.0, right_trigger: 0.0 }
 }

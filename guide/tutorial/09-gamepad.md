@@ -1,6 +1,6 @@
 ---
 title: "9. A gamepad"
-summary: Walk Pip with the left stick of a gamepad, at a speed that follows how far the stick is pushed, and quit with Start. Learn what a slot is and when to use Button.pressed_any.
+summary: Walk Pip with the left stick of a gamepad, at a speed that follows how far the stick is pushed, and quit with Start. Learn what a slot is and when to use GamepadButton.pressed_any.
 order: 9
 ---
 
@@ -33,7 +33,7 @@ pads each OS reads.
 
 ## The imports
 
-Import `pf.Button`:
+Import `pf.GamepadButton`:
 
 <!-- region: examples/tutorial/09-gamepad/main.roc#imports -->
 ```roc
@@ -43,10 +43,10 @@ import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
-import pf.Button
 import pf.Collider
 import pf.Config
 import pf.Draw
+import pf.GamepadButton
 import pf.Input
 import pf.Key
 import pf.Launch
@@ -59,7 +59,7 @@ import pf.Speaker
 ```
 <!-- endregion -->
 
-`Button` names the buttons of a pad, as `Key` names the keys.
+`GamepadButton` names the buttons of a pad, as `Key` names the keys.
 
 ## Walk with the stick
 
@@ -132,15 +132,15 @@ Escape quits from the keyboard. Make Start quit from a pad:
 ```roc
 # Escape on the keyboard or Start on any pad quits.
 quit : Vocabulary.Input -> List(Command)
-quit = |input| if Key.pressed(input, Escape) or Button.pressed_any(input, Start) [Quit] else []
+quit = |input| if Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start) [Quit] else []
 ```
 <!-- endregion -->
 
 In `step`, call `quit(input)` in place of `quit_on_escape(input)`. The win
 message in `status_text` now says "Press Escape or Start to quit."
 
-A pad button is held or pressed, as a key is. `Button.pressed_any` is true
-in the first step after Start went down, so one press quits once.
+A pad button is held or pressed, as a key is. `GamepadButton.pressed_any`
+is true in the first step after Start went down, so one press quits once.
 
 ## Slots and pressed_any
 
@@ -150,13 +150,14 @@ connected, and a new pad takes the lowest free slot. The slot tells two
 players apart: in a game for two, the pad in slot 0 is player one and the
 pad in slot 1 is player two.
 
-The functions of `Button` come in two kinds:
+The functions of `GamepadButton` come in two kinds:
 
-- `Button.held(gamepad, b)` and `Button.pressed(gamepad, b)` ask one pad.
-  Use them when it matters who pressed the button, such as in a game for
-  two players.
-- `Button.held_any(input, b)` and `Button.pressed_any(input, b)` ask every
-  pad. Use them in a game for one player.
+- `GamepadButton.held(gamepad, b)` and `GamepadButton.pressed(gamepad, b)`
+  ask one pad. Use them when it matters who pressed the button, such as in
+  a game for two players.
+- `GamepadButton.held_any(input, b)` and
+  `GamepadButton.pressed_any(input, b)` ask every pad. Use them in a game
+  for one player.
 
 Pip's game has one player, so it asks any pad, and `walk` adds up the
 sticks of all the pads. The player can pick up any pad, and the game does
@@ -199,13 +200,13 @@ expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).mod
 
 # Start pressed on any pad quits, here on the pad in slot 2.
 expect {
-	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [Button.code(Start)] }
+	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [GamepadButton.code(Start)] }
 	step(start, with_pads([Input.idle_gamepad, start_pressed]), QueryResults.empty, 0.1).commands == [Quit]
 }
 
 # Start held from an earlier step does not quit again.
 expect {
-	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
+	start_held = { ..Input.idle_gamepad, held: [GamepadButton.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
 ```
@@ -214,8 +215,8 @@ expect {
 `Input.idle_gamepad` is a pad in slot 0 with no button down and the sticks
 at rest. Each test copies it and changes only the fields it needs. A
 Gamepad holds button codes, as the Input holds key codes, so the tests
-make them with `Button.code`. Also change the test of the win message to
-"You win! Press Escape or Start to quit."
+make them with `GamepadButton.code`. Also change the test of the win
+message to "You win! Press Escape or Start to quit."
 
 Run the tests:
 

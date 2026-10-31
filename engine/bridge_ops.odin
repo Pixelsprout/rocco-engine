@@ -376,16 +376,16 @@ bridge_read_buttons :: proc(fields: json.Object, field: string) -> (buttons: Gam
 	}
 	names, is_array := value.(json.Array)
 	if !is_array {
-		return buttons, fmt.tprintf("%q must be a list of Button names", field)
+		return buttons, fmt.tprintf("%q must be a list of GamepadButton names", field)
 	}
 	for item in names {
 		name, is_string := item.(json.String)
 		if !is_string {
-			return buttons, fmt.tprintf("%q must be a list of Button names", field)
+			return buttons, fmt.tprintf("%q must be a list of GamepadButton names", field)
 		}
 		button, known := button_from_tag(name)
 		if !known {
-			return buttons, fmt.tprintf("unknown Button %q in %q", name, field)
+			return buttons, fmt.tprintf("unknown GamepadButton %q in %q", name, field)
 		}
 		buttons += {button}
 	}
