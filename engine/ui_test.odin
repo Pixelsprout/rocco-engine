@@ -195,7 +195,7 @@ test_ui_text_draws_one_glyph_quad_per_visible_character_from_the_baseline :: pro
 		return
 	}
 	a, b := f.rec.ui_quads[0], f.rec.ui_quads[1]
-	baseline := 20 + f32(24.516129)
+	baseline := f32(45)
 	testing.expect(t, a.glyph)
 	expect_rect_near(t, a.rect, {10 - 5, baseline - 23, 26, 28})
 	expect_rect_near(t, a.uv, {230.0 / 256, 64.0 / 287, 1, 92.0 / 287})
@@ -220,7 +220,30 @@ test_ui_text_size_scales_by_the_dpi :: proc(t: ^testing.T) {
 	if !testing.expect_value(t, len(f.rec.ui_quads), 1) {
 		return
 	}
-	expect_rect_near(t, f.rec.ui_quads[0].rect, {-5, 24.516129 - 23, 26, 28})
+	expect_rect_near(t, f.rec.ui_quads[0].rect, {-5, 25 - 23, 26, 28})
+}
+
+// The expected metrics are the A, B and space entries of engine/font_baked.odin at the bake size.
+@(test)
+test_ui_text_rounds_the_line_origin_to_whole_pixels_and_keeps_fractional_advances :: proc(t: ^testing.T) {
+	ui := Ui {
+		quads = make([]Ui_Quad, 4, context.temp_allocator),
+	}
+	defer free_all(context.temp_allocator)
+	str := "A B"
+	data := clay.TextRenderData {
+		stringContents = {length = i32(len(str)), chars = raw_data(str), baseChars = raw_data(str)},
+		textColor = {1, 0, 0, 1},
+		fontSize = 32,
+	}
+
+	ui_push_text(&ui, {10.4, 20.3, 100, 32}, data)
+
+	if !testing.expect_value(t, ui.quad_count, 2) {
+		return
+	}
+	expect_rect_near(t, ui.quads[0].rect, {10 - 5, 45 - 23, 26, 28})
+	expect_rect_near(t, ui.quads[1].rect, {10 + 16.154839 + 7.225806 - 4, 45 - 23, 24, 28})
 }
 
 @(test)
