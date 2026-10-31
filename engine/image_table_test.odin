@@ -80,3 +80,27 @@ test_image_load_file_keeps_the_size_and_bleeds_the_pixels :: proc(t: ^testing.T)
 	testing.expect_value(t, image.height, 1)
 	testing.expect(t, slice.equal(image.pixels, []byte{90, 60, 30, 0, 90, 60, 30, 255}))
 }
+
+@(test)
+test_image_resolve_logs_id_0_a_stale_id_and_an_unknown_id_once_each :: proc(t: ^testing.T) {
+	table: Image_Table
+	image_table_init(&table, SMALL_IMAGES, context.allocator, context.allocator)
+	defer image_table_destroy(&table)
+	slot, _ := image_table_add(&table, strings.clone("image/a"), 1, 1, nil)
+	live := image_id(&table, slot)
+	stale := live
+	image_table_remove(&table, slot)
+	slot, _ = image_table_add(&table, strings.clone("image/b"), 2, 3, nil)
+	live = image_id(&table, slot)
+
+	image, ok := image_resolve(&table, live)
+	testing.expect(t, ok)
+	testing.expect_value(t, image.width, 2)
+	for _ in 0 ..< 2 {
+		for id in ([]u32{0, stale, 1 << MESH_SLOT_BITS | 2}) {
+			_, found := image_resolve(&table, id)
+			testing.expect(t, !found)
+		}
+	}
+	testing.expect_value(t, len(table.logged), 3)
+}

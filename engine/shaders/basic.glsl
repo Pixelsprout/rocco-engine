@@ -420,10 +420,12 @@ layout(binding = 0) uniform ui_vs_params {
 
 in vec2 pos;
 in vec2 uv;
+in vec2 local;
 in vec4 color;
 in vec4 shape;
 
 out vec2 v_uv;
+out vec2 v_local;
 out vec4 v_color;
 out vec4 v_shape;
 
@@ -432,6 +434,7 @@ void main() {
     vec2 ndc = pos / screen.xy * 2.0 - 1.0;
     gl_Position = vec4(ndc.x, -ndc.y, 0.5, 1.0);
     v_uv = uv;
+    v_local = local;
     v_color = color;
     v_shape = shape;
 }
@@ -440,8 +443,11 @@ void main() {
 @fs ui_fs
 layout(binding = 0) uniform texture2D font_tex;
 layout(binding = 0) uniform sampler font_smp;
+layout(binding = 1) uniform texture2D image_tex;
+layout(binding = 1) uniform sampler image_smp;
 
 in vec2 v_uv;
+in vec2 v_local;
 in vec4 v_color;
 in vec4 v_shape;
 
@@ -452,21 +458,31 @@ out vec4 frag_color;
 // FONT_SDF_ON_EDGE / 255 in engine/font_baked.odin.
 const float SDF_ON_EDGE = 180.0 / 255.0;
 
+// v_local is the offset from the centre, so d is the distance outside the rounded rect.
+float rounded_rect_coverage() {
+    vec2 half_size = v_shape.xy;
+    float r = min(v_shape.z, min(half_size.x, half_size.y));
+    vec2 q = abs(v_local) - half_size + r;
+    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+    return 1.0 - smoothstep(-0.5, 0.5, d);
+}
+
+// shape.w is the Ui_Quad_Kind: 0 a rect, 1 a glyph, 2 an Image. The Image
+// is sRGB, so the sample is linear, like the tint.
 void main() {
+    vec4 color = v_color;
     float coverage;
-    if (v_shape.w > 0.5) {
+    if (v_shape.w > 1.5) {
+        color *= texture(sampler2D(image_tex, image_smp), v_uv);
+        coverage = rounded_rect_coverage();
+    } else if (v_shape.w > 0.5) {
         float d = texture(sampler2D(font_tex, font_smp), v_uv).r;
         float w = max(0.7071 * length(vec2(dFdx(d), dFdy(d))), 1e-4);
         coverage = smoothstep(SDF_ON_EDGE - w, SDF_ON_EDGE + w, d);
     } else {
-        // v_uv is the offset from the centre, so d is the distance outside the rounded rect.
-        vec2 half_size = v_shape.xy;
-        float r = min(v_shape.z, min(half_size.x, half_size.y));
-        vec2 q = abs(v_uv) - half_size + r;
-        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-        coverage = 1.0 - smoothstep(-0.5, 0.5, d);
+        coverage = rounded_rect_coverage();
     }
-    frag_color = vec4(linear_to_srgb(v_color.rgb), v_color.a * coverage);
+    frag_color = vec4(linear_to_srgb(color.rgb), color.a * coverage);
 }
 @end
 

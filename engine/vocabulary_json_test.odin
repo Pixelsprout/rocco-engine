@@ -177,11 +177,13 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		radius      = 6,
 		overflow    = {tag = .Scroll, payload = {scroll = {x = 0, y = -20}}},
 		floating    = {tag = .NoFloat},
+		image       = {tag = .Show, payload = {show = {_0 = {id = 7, region = {tag = .Whole}, tint = {r = 1, g = 1, b = 1, a = 1}}, _1 = .Stretch}}},
 	}
 	corner := ui_default_panel()
 	corner.width = ui_fixed(100)
 	corner.height = {tag = .Percent, payload = {percent = 0.5}}
 	corner.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightTop, offset = {2, -3}}}}
+	corner.image = {tag = .Show, payload = {show = {_0 = {id = 65537, region = {tag = .Px, payload = {px = {x = 1, y = 2, w = 3, h = 4}}}, tint = {g = 1, a = 0.5}, filter = .Nearest}, _1 = .Fit}}}
 	// A short string is stored inline, so it needs no Roc heap.
 	text := Element {
 		tag = .Text,
@@ -197,15 +199,17 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		&b,
 		`[{"Panel":{"config":{"id":3,"width":{"Fit":{"min":1,"max":2}},"height":{"Grow":{"min":0,"max":0}},` +
 		`"pad":{"left":1,"right":2,"top":3,"bottom":4},"gap":5,"direction":"Col","child_align":{"x":"Center","y":"End"},` +
-		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"overflow":{"Scroll":{"x":0,"y":-20}},"floating":"NoFloat"},"children":[` +
+		`"background":{"r":1,"g":0,"b":0,"a":0.5},"radius":6,"overflow":{"Scroll":{"x":0,"y":-20}},"floating":"NoFloat",` +
+		`"image":{"Show":{"image":{"id":7,"region":"Whole","tint":{"r":1,"g":1,"b":1,"a":1},"filter":"Linear"},"fit":"Stretch"}}},"children":[` +
 		`{"Panel":{"config":{"id":0,"width":{"Fixed":100},"height":{"Percent":0.5},` +
 		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
 		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"overflow":"Visible",` +
-		`"floating":{"Float":{"to":"Window","attach":"RightBottom","on":"RightTop","offset":{"x":2,"y":-3}}}},"children":[` +
+		`"floating":{"Float":{"to":"Window","attach":"RightBottom","on":"RightTop","offset":{"x":2,"y":-3}}},` +
+		`"image":{"Show":{"image":{"id":65537,"region":{"Px":{"x":1,"y":2,"w":3,"h":4}},"tint":{"r":0,"g":1,"b":0,"a":0.5},"filter":"Nearest"},"fit":"Fit"}}},"children":[` +
 		`{"Text":{"str":"say \"hi\"","size":16,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"Words"}}]}}]}},` +
 		`{"Panel":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},` +
 		`"pad":{"left":0,"right":0,"top":0,"bottom":0},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},` +
-		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"overflow":"Visible","floating":"NoFloat"},"children":[]}}]`,
+		`"background":{"r":0,"g":0,"b":0,"a":0},"radius":0,"overflow":"Visible","floating":"NoFloat","image":"NoImage"},"children":[]}}]`,
 	)
 }
 

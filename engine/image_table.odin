@@ -37,6 +37,7 @@ Image_Table :: struct {
 	uploaded:   bool,
 	linear:     sg.Sampler,
 	nearest:    sg.Sampler,
+	logged:     map[u32]struct {},
 	allocator:  mem.Allocator,
 	perm:       mem.Allocator,
 }
@@ -49,6 +50,7 @@ image_table_init :: proc(t: ^Image_Table, capacity: int, perm, allocator: mem.Al
 	t.perm = perm
 	t.images = make([]Image, capacity, perm)
 	t.free = make([]int, capacity, perm)
+	t.logged = make(map[u32]struct {}, allocator)
 	t.count = 1
 }
 
@@ -62,6 +64,7 @@ image_table_destroy :: proc(t: ^Image_Table) {
 	}
 	delete(t.images, t.perm)
 	delete(t.free, t.perm)
+	delete(t.logged)
 }
 
 // An Image id packs the slot and generation as a mesh id does.
@@ -145,6 +148,28 @@ image_lookup :: proc(t: ^Image_Table, id: u32) -> (image: ^Image, ok: bool) {
 	slot := image_slot(id)
 	if id != 0 && slot < t.count && t.images[slot].live && image_id(t, slot) == id {
 		return &t.images[slot], true
+	}
+	return nil, false
+}
+
+// Id 0, an id past the table and a stale id find no Image and draw the
+// checker. Each such id is logged once per run.
+image_resolve :: proc(t: ^Image_Table, id: u32) -> (image: ^Image, ok: bool) {
+	if found, found_ok := image_lookup(t, id); found_ok {
+		return found, true
+	}
+	if id in t.logged {
+		return nil, false
+	}
+	t.logged[id] = {}
+	slot := image_slot(id)
+	stale := slot >= 1 && slot < len(t.images) && id >> MESH_SLOT_BITS != u32(t.images[slot].generation)
+	if id == 0 {
+		fmt.eprintln("Image id 0 names no Image; drawing the checker")
+	} else if stale {
+		fmt.eprintfln("Image id %v is from an unloaded pack; drawing the checker", id)
+	} else {
+		fmt.eprintfln("Image id %v is not in the table; drawing the checker", id)
 	}
 	return nil, false
 }
