@@ -23,6 +23,7 @@ BRIDGE_OPS := [?]Bridge_Op_Entry {
 	{"scene", bridge_op_scene},
 	{"screenshot", bridge_op_screenshot},
 	{"tell", bridge_op_tell},
+	{"inject", bridge_op_inject},
 	{"ask", bridge_op_not_yet},
 	{"listen", bridge_op_not_yet},
 }
@@ -208,8 +209,79 @@ bridge_op_tell :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	return .Read, ""
 }
 
+// Feeds events to the real devices, as the window does. Tests use it, so a
+// check needs no OS input. A bad event fails the request before any is fed.
+bridge_op_inject :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	if !bridge_devices_on(&s.bridge) {
+		return .Read, "inject needs devices on in hello"
+	}
+	list, is_array := request["events"].(json.Array)
+	if !is_array {
+		return .Read, `"events" must be a list of objects`
+	}
+	events := make([]sapp.Event, len(list), context.temp_allocator)
+	for item, i in list {
+		events[i], error = bridge_read_event(item, s.window.dpi)
+		if error != "" {
+			return .Read, error
+		}
+	}
+	for &e in events {
+		input_on_event(&s.input, &e)
+	}
+	bridge_reply_field(reply, "events", len(events))
+	return .Read, ""
+}
+
 bridge_op_not_yet :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
 	return .Read, BRIDGE_NOT_YET
+}
+
+// x and y are in logical pixels, and the window gives physical ones. A move
+// adds no mouse delta.
+@(private = "file")
+bridge_read_event :: proc(value: json.Value, dpi: f32) -> (e: sapp.Event, error: string) {
+	fields, is_object := value.(json.Object)
+	if !is_object {
+		return e, `"events" must be a list of objects`
+	}
+	type, _ := fields["type"].(json.String)
+	switch type {
+	case "key_down", "key_up":
+		name, is_string := fields["key"].(json.String)
+		if !is_string {
+			return e, `"key" must be a Key name`
+		}
+		key, known := key_from_tag(name)
+		if !known {
+			return e, fmt.tprintf(`unknown Key %q in "key"`, name)
+		}
+		e.type = .KEY_DOWN if type == "key_down" else .KEY_UP
+		e.key_code = key
+	case "mouse_move":
+		x, has_x := bridge_number(fields["x"])
+		y, has_y := bridge_number(fields["y"])
+		if !has_x || !has_y {
+			return e, `"x" and "y" must be numbers`
+		}
+		e.type = .MOUSE_MOVE
+		e.mouse_x, e.mouse_y = x * dpi, y * dpi
+	case "mouse_down", "mouse_up":
+		name, is_string := fields["button"].(json.String)
+		if !is_string {
+			return e, `"button" must be a MouseButton name`
+		}
+		button, known := mouse_button_from_tag(name)
+		if !known {
+			return e, fmt.tprintf(`unknown MouseButton %q in "button"`, name)
+		}
+		e.type = .MOUSE_DOWN if type == "mouse_down" else .MOUSE_UP
+		// Mouse_Button takes sokol's codes.
+		e.mouse_button = sapp.Mousebutton(button)
+	case:
+		return e, fmt.tprintf("unknown event type %q", type)
+	}
+	return
 }
 
 // An absent field means no key.

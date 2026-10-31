@@ -18,6 +18,7 @@ Frame_Platform :: struct {
 // Runs one Frame: the fixed steps through the Seam's Game calls, their
 // Commands and Queries, then the render.
 frame_run :: proc(s: ^State, platform: Frame_Platform) {
+	s.window = platform.window
 	// The win32 loop runs one more frame after request_quit, before it reads
 	// WM_CLOSE. Skip it, so Frame Count matches the limit on every OS.
 	if exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
@@ -133,7 +134,8 @@ headless_platform :: proc(s: ^State) -> Frame_Platform {
 
 // Lays out the UI with no window. frame_run never submits in Headless.
 headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	return ui_init(&s.ui, headless_window(s.launch).size, int(s.launch.capacity.ui_quads), allocator)
+	s.window = headless_window(s.launch)
+	return ui_init(&s.ui, s.window.size, int(s.launch.capacity.ui_quads), allocator)
 }
 
 // Runs Frames until the Frame limit or a Quit, then returns.

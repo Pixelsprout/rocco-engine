@@ -5,6 +5,7 @@ import sapp "../sokol-odin/sokol/app"
 import "core:encoding/json"
 import "core:net"
 import "core:slice"
+import "core:strings"
 import "core:testing"
 
 @(test)
@@ -430,4 +431,110 @@ test_bridge_devices_an_unfocused_window_releases_the_real_pointer_buttons :: pro
 	real_pointer(&r, .UNFOCUSED)
 	step_run_request(t, &r, `{"op":"step"}`)
 	expect_pointer_buttons(t, held = {}, pressed = {}, released = {0})
+}
+
+@(test)
+test_bridge_inject_feeds_the_real_latch_as_the_window_does :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	devices_run_open(t, &r)
+	defer step_run_close(&r)
+
+	reply := step_run_request(t, &r, `{"op":"inject","events":[{"type":"key_down","key":"W"},{"type":"mouse_move","x":884,"y":36},{"type":"mouse_down","button":"Left"}]}`)
+
+	testing.expect_value(t, reply["ok"].(json.Boolean), true)
+	testing.expect_value(t, reply["events"].(json.Integer), 3)
+	testing.expect(t, r.s.input.held[.W])
+	testing.expect_value(t, r.s.input.pointer.pos, [2]f32{884, 36})
+	testing.expect(t, .Left in r.s.input.pointer.held)
+	testing.expect_value(t, r.s.input.mouse, [2]f32{0, 0})
+}
+
+@(test)
+test_bridge_inject_scales_the_position_by_the_window_dpi :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	devices_run_open(t, &r)
+	defer step_run_close(&r)
+	platform := fake_platform(r.s.clock.fixed_dt)
+	platform.window = {size = {1920, 1080}, dpi = 2}
+	frame_run(&r.s, platform)
+
+	step_run_request(t, &r, `{"op":"inject","events":[{"type":"mouse_move","x":100,"y":50}]}`)
+
+	testing.expect_value(t, r.s.input.pointer.pos, [2]f32{200, 100})
+}
+
+@(test)
+test_bridge_inject_needs_devices_on :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	step_run_open(t, &r)
+	defer step_run_close(&r)
+	inject := `{"op":"inject","events":[{"type":"key_down","key":"W"}]}`
+
+	reply := step_run_request(t, &r, inject)
+	testing.expect_value(t, reply["error"].(json.String), "inject needs devices on in hello")
+	step_run_request(t, &r, `{"op":"hello"}`)
+	reply = step_run_request(t, &r, inject)
+	testing.expect_value(t, reply["error"].(json.String), "inject needs devices on in hello")
+	testing.expect(t, !r.s.input.held[.W])
+}
+
+@(test)
+test_bridge_inject_with_a_bad_event_feeds_none :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	devices_run_open(t, &r)
+	defer step_run_close(&r)
+
+	cases := []struct {
+		events, error: string,
+	} {
+		{`7`, `"events" must be a list of objects`},
+		{`[7]`, `"events" must be a list of objects`},
+		{`[{"type":"key_down","key":"W"},{"type":"wave"}]`, `unknown event type "wave"`},
+		{`[{"type":"key_down","key":"W"},{"key":"W"}]`, `unknown event type ""`},
+		{`[{"type":"key_down","key":"W"},{"type":"key_down","key":"Nope"}]`, `unknown Key "Nope" in "key"`},
+		{`[{"type":"key_down","key":"W"},{"type":"key_up","key":3}]`, `"key" must be a Key name`},
+		{`[{"type":"key_down","key":"W"},{"type":"mouse_move","x":1}]`, `"x" and "y" must be numbers`},
+		{`[{"type":"key_down","key":"W"},{"type":"mouse_down","button":"Back"}]`, `unknown MouseButton "Back" in "button"`},
+		{`[{"type":"key_down","key":"W"},{"type":"mouse_up"}]`, `"button" must be a MouseButton name`},
+	}
+	for c in cases {
+		line := strings.concatenate({`{"op":"inject","events":`, c.events, "}"}, context.temp_allocator)
+		reply := step_run_request(t, &r, line)
+		testing.expect_value(t, reply["ok"].(json.Boolean), false)
+		testing.expect_value(t, reply["error"].(json.String), c.error)
+		testing.expect(t, !r.s.input.held[.W])
+	}
+}
+
+@(test)
+test_bridge_inject_a_click_reaches_the_game_through_the_merge :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	defer free_all(context.temp_allocator)
+	r: Step_Run
+	devices_run_open_pointing(t, &r)
+	defer step_run_close(&r)
+
+	step_run_request(t, &r, `{"op":"inject","events":[{"type":"mouse_move","x":50,"y":50}]}`)
+	step_run_request(t, &r, `{"op":"step"}`)
+	testing.expect(t, g_fake.pointer.inside)
+
+	step_run_request(t, &r, `{"op":"inject","events":[{"type":"mouse_down","button":"Left"},{"type":"mouse_up","button":"Left"}]}`)
+	step_run_request(t, &r, `{"op":"step"}`)
+	expect_pointer_buttons(t, held = {}, pressed = {0}, released = {0})
+	if testing.expect_value(t, g_fake.over_len, 1) {
+		testing.expect_value(t, g_fake.over[0], 7)
+	}
 }
