@@ -1,6 +1,7 @@
 # 0009: The Bridge drives the host, not the game
 
-Status: accepted, 2026-10-22.
+Status: accepted, 2026-10-22. ADR 0021 on 2026-10-31 lets a Driver opt in
+to the real devices. The rejection of the merge stands for a test run.
 
 ## Context
 

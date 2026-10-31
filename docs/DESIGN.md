@@ -242,13 +242,17 @@ runs gets them. `held` is the key state when the step runs. When the
 window loses focus, the host releases every held key, because their key-up
 events go to the other window. Decision.
 
+Under the Bridge, the real devices reach the step only when the Driver
+turns devices on in hello. Then the host merges them with the request.
+ADR 0021.
+
 The host polls the gamepads once per frame, before the steps of that frame,
 through one Gamepad reader per OS (ADR 0015). Gamepad button presses latch
 as key presses do. A button that is down when its pad connects is held,
 not pressed. The sticks and the triggers carry the last polled value, after the
 dead zones. When the window loses focus, the host releases every held
-button and sets the axes to zero. While the Bridge is on, the Bridge pads
-replace the real pads. Decision.
+button and sets the axes to zero. While the Bridge is on, a Bridge pad
+replaces the real pad in its slot. Decision.
 
 A tint and a light colour are each an `Rgb`, not a `Vec3`. Roc records are
 structural, so the two names keep a position from passing as a colour. Each

@@ -8,7 +8,10 @@ the step reply holds them as Tell Commands, then checks that a tell on a port
 that nobody Listens to is dropped. It then points at bridge-echo's tagged
 Boxes: the button, the menu that floats under it and the scrolling log. It
 checks ui.over and ui.scroll in the scene reply, and that a click on the
-button comes back as a Tell.
+button comes back as a Tell. Then it turns devices on, injects a real pointer
+move and a click over the button, and checks the click Tell. With devices off,
+the same click does not reach the game. Keep your mouse off the window during
+a local run, because the real pointer moves it.
 
 Then it runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and
 checks that Pip's Draw moved by the expected distance. Then it saves a
@@ -49,7 +52,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge
 
 # The protocol of engine/bridge_ops.odin.
-PROTOCOL = 6
+PROTOCOL = 7
 # examples/bridge-echo/main.roc
 ECHO_BUTTON_ID = 7
 ECHO_MENU_ID = 8
@@ -161,7 +164,38 @@ def drive_echo(b, _out):
     over = b.scene()["results"]["ui"]["over"]
     check(over == [], f"with no pointer, nothing is under it: {over}")
 
+    drive_echo_devices(b)
     b.quit()
+
+
+# inject feeds the real devices, as the window does, so the click goes through
+# the merge with no OS input.
+def drive_echo_devices(b):
+    hello = b.hello(devices=True)
+    check(hello["protocol"] == PROTOCOL and hello["devices"] is True, f"hello with devices: {hello}")
+
+    b.inject([{"type": "mouse_move", "x": 884, "y": 36}])
+    b.step(1)
+    over = b.scene()["results"]["ui"]["over"]
+    check(over == [ECHO_BUTTON_ID], f"the real pointer passes through to the button: {over}")
+
+    click = [{"type": "mouse_down", "button": "Left"}, {"type": "mouse_up", "button": "Left"}]
+    b.inject(click)
+    commands = b.step(1)["commands"]
+    check(commands == [{"Tell": {"port": "click", "msg": str(ECHO_BUTTON_ID)}}], f"a real click on the button Tells click: {commands}")
+
+    b.inject(click)
+    hello = b.hello()
+    check(hello["devices"] is False, f"hello without devices turns them off: {hello}")
+    commands = b.step(1)["commands"]
+    check(commands == [], f"with devices off, the real click does not reach the game: {commands}")
+
+    try:
+        b.inject(click[:1])
+    except bridge.BridgeError as err:
+        check(str(err) == "inject needs devices on in hello", f"inject with devices off: {err}")
+    else:
+        check(False, "inject with devices off must fail")
 
 
 def drive_moving(b, out):

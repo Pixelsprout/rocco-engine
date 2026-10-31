@@ -43,6 +43,8 @@ Bridge_Transport :: struct {
 	listener:          net.TCP_Socket,
 	driver:            net.TCP_Socket,
 	connected:         bool,
+	// The count of Drivers accepted, so a setting can belong to one Driver.
+	drivers:           u64,
 	holding:           bool,
 	listener_blocking: bool,
 	driver_blocking:   bool,
@@ -197,6 +199,7 @@ bridge_transport_accept :: proc(t: ^Bridge_Transport, block: bool) -> bool {
 	}
 	t.driver = driver
 	t.connected = true
+	t.drivers += 1
 	// Linux does not pass the listener's mode to the accepted socket, and
 	// macOS does, so set it.
 	t.driver_blocking = !block

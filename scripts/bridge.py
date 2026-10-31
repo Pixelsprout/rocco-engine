@@ -19,6 +19,7 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
     python3 scripts/bridge.py step 30 --held-button South --left-stick 0,1
     python3 scripts/bridge.py step --gamepads '[{"slot":1,"held":["Start"]}]'
     python3 scripts/bridge.py step --pointer 884,36 --tap-mouse Left
+    python3 scripts/bridge.py --devices step 600   # the real devices reach the game during these steps
     python3 scripts/bridge.py scene
     python3 scripts/bridge.py screenshot out.png
     python3 scripts/bridge.py tell town 'hello'
@@ -97,8 +98,13 @@ class Bridge:
             raise BridgeError(reply)
         return reply
 
-    def hello(self):
-        return self.request({"op": "hello"})
+    # With devices, the person's real keyboard, mouse, pointer and pads reach
+    # the game with each step's Input, while this connection lasts.
+    def hello(self, devices=False):
+        req = {"op": "hello"}
+        if devices:
+            req["devices"] = True
+        return self.request(req)
 
     # gamepads is a list of pad dicts, as guide/bridge.md gives them. With
     # none, no pad is connected. pointer is one dict, sent as it is. With
@@ -130,6 +136,11 @@ class Bridge:
 
     def quit(self):
         return self.request({"op": "quit"})
+
+    # A test op: it feeds events to the real devices, as the window does. It
+    # needs devices on in hello. See guide/bridge.md.
+    def inject(self, events):
+        return self.request({"op": "inject", "events": list(events)})
 
 
 # Another process can take the port before the game opens it. That is rare
@@ -322,6 +333,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Send one Bridge request and print the reply.")
     parser.add_argument("--port", type=int, help=f"the host's port (default: ${PORT_ENV})")
     parser.add_argument("--wait", type=float, default=0.0, help="seconds to keep trying to connect (default: 0)")
+    parser.add_argument("--devices", action="store_true", help="say hello with devices on first, so the real devices reach the game during the op")
     ops = parser.add_subparsers(dest="op", required=True)
     ops.add_parser("hello")
     step = ops.add_parser("step")
@@ -377,9 +389,11 @@ def main(argv=None):
     try:
         with Bridge.connect(port, wait=args.wait) as b:
             try:
-                if args.op == "hello":
-                    b.hello()
-                elif args.op == "step":
+                # With --devices, the hello goes first on the same connection,
+                # since devices last only while the Driver stays connected.
+                if args.devices or args.op == "hello":
+                    b.hello(devices=args.devices)
+                if args.op == "step":
                     b.step(args.n, held=args.held, tap=args.tap, mouse=args.mouse, gamepads=step_gamepads(args), pointer=step_pointer(args))
                 elif args.op == "scene":
                     b.scene()

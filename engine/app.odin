@@ -41,6 +41,8 @@ State :: struct {
 	audio:             Audio,
 	// The pointer of the last step taken, for the hit test after the layout.
 	pointer:           Ui_Pointer,
+	// The window of the last Frame. The inject op reads its dpi.
+	window:            Ui_Window,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.

@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":6,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,13 +140,27 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":6,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
 reply changes shape, so a Driver can check it first. `step_hz` is the step
 rate from the game's [Launch](launch.md), and `steps` is the count of fixed
 steps the run has taken. `headless` is `true` in a Headless run.
+
+`hello` also takes `devices`, `true` or `false`. With `devices` on, the
+person's real keyboard, mouse, pointer and gamepads reach the game together
+with your Input, as [Real devices](#real-devices) explains. The reply
+echoes the setting. This exchange is from a run of bridge-echo:
+
+```
+{"op":"hello","devices":true}
+{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":true}
+```
+
+A `hello` without `devices` turns it off. The setting lasts while this
+Driver stays connected, so a Driver that connects again starts with it
+off. Leave it off in a test, so the run does not depend on the person.
 
 ## step
 
@@ -261,7 +275,8 @@ after the pointer moves there, in `results.ui.over`. The [scene](#scene)
 reply shows them.
 
 A request with no `pointer` puts the pointer outside the window with no
-button held, so a button held in the request before is released. A bad
+button held, so a button held in the request before is released. With
+`devices` on, the real pointer takes its place. A bad
 pointer fails the request, and no step runs:
 
 ```
@@ -464,11 +479,51 @@ A Headless run draws nothing, so it replies with an error there:
 The host sends the reply, then exits with code 0. It does not answer the
 requests that come after `quit`.
 
+## inject
+
+`inject` is a test op. It feeds events to the real devices, as the window
+does when a person types or clicks, so a check can click a button with no
+OS input. It needs `devices` on in `hello`. The Agent Town relay does not
+use it.
+
+In bridge-echo, a move over the button, a step, then a click and a step
+give the click Tell, through the same merge as a person's real click:
+
+```
+{"op":"inject","events":[{"type":"mouse_move","x":884,"y":36}]}
+{"ok":true,"events":1}
+{"op":"step"}
+{"ok":true,"steps":1,"commands":[],"alloc":{"step":1,"allocs":3,"deallocs":2,"reallocs":0,"live":5,"step_us":3.7,"view_us":3.5}}
+{"op":"inject","events":[{"type":"mouse_down","button":"Left"},{"type":"mouse_up","button":"Left"}]}
+{"ok":true,"events":2}
+{"op":"step"}
+{"ok":true,"steps":2,"commands":[{"Tell":{"port":"click","msg":"7"}}],"alloc":{"step":2,"allocs":6,"deallocs":8,"reallocs":0,"live":5,"step_us":5.2,"view_us":8.3}}
+```
+
+`events` is a list of objects, each with a `type`:
+
+- `{"type":"key_down","key":"W"}` and `{"type":"key_up","key":"W"}`, with
+  a name from `pf.Key`.
+- `{"type":"mouse_move","x":884,"y":36}`, in logical window pixels. The
+  host multiplies them by the dpi of the last frame, as the window gives
+  physical pixels. A move adds no mouse movement.
+- `{"type":"mouse_down","button":"Left"}` and
+  `{"type":"mouse_up","button":"Left"}`, with a name from `pf.MouseButton`.
+
+The host reads every event first. If one is bad, it feeds none. The reply
+gives the count of events. With `devices` off, `inject` fails:
+
+```
+{"op":"inject","events":[{"type":"key_down","key":"W"}]}
+{"ok":false,"error":"inject needs devices on in hello"}
+```
+
 ## The Input rules
 
 While the Bridge is on, `step` gets its Input from the Driver only. The
-real keyboard, mouse and gamepads do not reach the game, so a run does not
-depend on where the mouse is or which pads are plugged in. The debug camera
+real keyboard, mouse and gamepads do not reach the game unless the Driver
+turns devices on, so a run does not depend on where the mouse is or which
+pads are plugged in. The debug camera
 still reads the keyboard and the mouse, so you can fly it with
 `ROCCO_DEBUG_CAMERA=1` while a Driver plays.
 
@@ -491,7 +546,7 @@ The host builds the Input of each step from the `step` request:
   first step, and is not Held. The `wheel` is in the first step only. A
   position outside the window gives `inside: false`. A request with no
   `pointer` gives a pointer that is not inside, at (0, 0), with no button
-  held.
+  held, unless devices are on.
 - **Window**: not in the request. A Headless run gets the Launch width and
   height. A windowed run gets the size of its window in logical pixels.
 
@@ -530,6 +585,41 @@ run had taken 31 steps before it:
 {"op":"step","n":10,"gamepads":[{"slot":2,"held":["Start"]}]}
 {"ok":true,"steps":32,"commands":["Quit"],"alloc":{"step":32,"allocs":18,"deallocs":18,"reallocs":6,"live":12,"step_us":19.5,"view_us":22.5}}
 ```
+
+## Real devices
+
+A Driver that sends `{"op":"hello","devices":true}` lets the person at the
+window play along. The host then merges the real devices with the `step`
+request, step by step:
+
+- **Keys**: a key is Held when the request holds it or the real keyboard
+  does. Pressed follows from that union, so a key held by both is Pressed
+  once, and it stays Held until both let go.
+- **A real tap**: a real key that goes down and up between two steps is
+  Pressed in the next step, if it was not Held in the step before.
+- **Mouse**: the real mouse movement adds to the request's `mouse`.
+- **Gamepads**: a pad in the request replaces the real pad in its slot. A
+  real pad in another slot reaches the game as it would with no Bridge,
+  with its own rules.
+- **Pointer**: a request `pointer` replaces the real position, `inside` and
+  wheel for that step. Without one, the real pointer passes through. The
+  buttons merge like keys: Held is the union, and Pressed and Released
+  follow from it. A real click between two steps is Pressed and Released
+  in the next step.
+
+While the run pauses, the real devices keep what happens. The next step
+takes the real taps and clicks, and the whole mouse movement of the pause.
+When the window loses focus, the real keys, pad buttons and mouse buttons
+let go, and the request's Input still arrives.
+
+To let a person play while a Driver steps the run, say hello with devices
+on and step on the same connection:
+
+```sh
+python3 scripts/bridge.py --devices step 600
+```
+
+The real devices reach the game during those 600 steps.
 
 ## The lifecycle
 
@@ -582,7 +672,13 @@ A Headless run takes one frame for each step, and draws nothing.
   run out during a `step`, the host sends the reply with the steps it ran,
   then ends the run. Leave it unset when a Driver ends the run.
 - A Scene whose `cursor` is `Locked` still locks the real mouse in the
-  window.
+  window. With devices on, the locked real pointer is not `inside`.
+- On macOS, with devices on, hover reaches only the focused window, and the
+  first click on a window that is not focused only focuses it. Click again
+  to reach the game. sokol's view works this way, and ADR 0021 accepts it.
+- A Driver that leaves during a `step` with devices on keeps the real
+  devices for the rest of that request's steps. The host sees that it left
+  only at its next read.
 - The ops `ask` and `listen` are kept for a later version. Today they
   reply `{"ok":false,"error":"not yet"}`. A game's `Tell` arrives in the
   `step` reply, so no `listen` op is needed.
@@ -593,21 +689,23 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Op | Fields | Reply fields |
 |---|---|---|
-| `hello` | none | `protocol`, `step_hz`, `steps`, `headless` |
+| `hello` | `devices`, optional | `protocol`, `step_hz`, `steps`, `headless`, `devices` |
 | `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, `pointer`, each optional | `steps`, `commands`, `alloc` |
 | `scene` | none | `steps`, `scene`, `results` |
 | `screenshot` | `path` | `path`, `physical`, `logical` |
 | `tell` | `port`, `msg` | `queued` |
+| `inject` | `events` | `events` |
 | `quit` | none | none |
 
 ### Fields
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 6. |
+| `protocol` | The version of the requests and replies. Today it is 7. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
+| `devices` | `true` lets the real devices reach the game with the Driver's Input, while this Driver stays connected. The default is `false`. |
 | `n` | How many steps to run, a whole number of 1 or more. The default is 1. |
 | `held` | A list of Key names, held for every step. |
 | `tap` | A list of Key names, Pressed but not Held, in the first step only. |
@@ -634,6 +732,11 @@ A Headless run takes one frame for each step, and draws nothing.
 | `port` | The name of a port, a string that is not empty. |
 | `msg` | The message, any string. The empty string is a message too. |
 | `queued` | The count of messages that wait on the port, this one included. |
+| `events` | In `inject`: a list of event objects. In the reply: the count of events fed. |
+| `type` | In an event: `key_down`, `key_up`, `mouse_move`, `mouse_down` or `mouse_up`. |
+| `key` | In a key event: a Key name. |
+| `x`, `y` (event) | In a `mouse_move`: the position in logical window pixels. |
+| `button` | In a mouse button event: a MouseButton name. |
 
 ### Values
 
@@ -681,6 +784,15 @@ A Headless run takes one frame for each step, and draws nothing.
 | `"port" must be a non-empty string` | A `tell` has no `port`, or it is empty or not a string. |
 | `"msg" must be a string` | A `tell` has no `msg`, or it is not a string. |
 | `the port queue is full` | The queued messages and this one would be over 4 MiB. |
+| `"devices" must be true or false` | A `hello` has a `devices` that is not a boolean. |
+| `inject needs devices on in hello` | An `inject` while devices are off. |
+| `"events" must be a list of objects` | `events` is not a list, or an event is not an object. |
+| `unknown event type "<type>"` | An event's `type` is missing or not one of the types. |
+| `"key" must be a Key name` | A key event's `key` is missing or not a string. |
+| `unknown Key "<name>" in "key"` | A key event's `key` is not in `pf.Key`. |
+| `"x" and "y" must be numbers` | A `mouse_move` has no `x` or `y`, or one is not a number. |
+| `"button" must be a MouseButton name` | A mouse button event's `button` is missing or not a string. |
+| `unknown MouseButton "<name>" in "button"` | A mouse button event's `button` is not in `pf.MouseButton`. |
 
 ### bridge.py
 
@@ -699,7 +811,11 @@ A Headless run takes one frame for each step, and draws nothing.
 | `bridge.py free-port` | Nothing. It prints a free localhost port for `ROCCO_BRIDGE`. |
 
 `bridge.py` reads the port from `--port P` or from `ROCCO_BRIDGE`.
-`--wait S` keeps trying to connect for S seconds. It prints the reply as
+`--wait S` keeps trying to connect for S seconds. `--devices` sends
+`hello` with devices on before the command, on the same connection, so the
+real devices reach the game during it. With `--devices hello`, it sends
+that one `hello`. The CLI has no `inject` command; use `Bridge.inject` from
+Python. It prints the reply as
 the host sent it. It exits with 0 on `"ok": true`, with 1 on
 `"ok": false`, and with 2 when it cannot talk to the host. So a shell
 script with `set -e` stops at the first failed request. It needs Python 3

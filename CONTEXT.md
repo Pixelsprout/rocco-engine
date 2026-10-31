@@ -669,7 +669,8 @@ _Avoid_: debug server, remote, Seam, port, debugger
 **Driver**:
 The outside process at the other end of the Bridge: a script, a CI test or
 an agent. One Driver at a time. While a Driver controls the run, the host
-ignores the real keyboard and mouse.
+ignores the real keyboard, mouse and gamepads, unless the Driver turns
+devices on in hello.
 _Avoid_: client, controller, bot, harness
 
 **Port**:

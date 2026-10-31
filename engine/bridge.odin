@@ -23,22 +23,27 @@ Bridge :: struct {
 	// Set by the quit op, a Quit from the game or the Frame limit. The host
 	// ends the run after the Frame.
 	quit:         bool,
+	// Set by hello. The real devices reach the step only while the Driver
+	// that set it is still connected. See bridge_devices_on.
+	devices:      bool,
+	devices_driver: u64,
 	// The step op's Input. held is for every step. tap and mouse are for the
 	// first step only.
 	held:         #sparse[sapp.Keycode]bool,
 	tap:          #sparse[sapp.Keycode]bool,
 	mouse:        [2]f32,
-	// The held keys of the step before. Pressed is held minus these.
+	// The held keys that the step before gave, from either source. Pressed is
+	// held minus these.
 	prev_held:    #sparse[sapp.Keycode]bool,
-	// The step op's pads by slot, with the same rules as the keys. They
-	// replace the real pads.
+	// The step op's pads by slot, with the same rules as the keys. A pad
+	// replaces the real pad in its slot.
 	gamepads:     [GAMEPAD_SLOTS]Bridge_Gamepad,
-	// The held buttons of the step before, by slot.
+	// The held buttons that the step before gave, by slot, from either source.
 	prev_buttons: [GAMEPAD_SLOTS]Gamepad_Buttons,
 	// The step op's pointer, with the same rules as the keys. It replaces the
-	// real pointer.
+	// real pointer, and its buttons merge with the real ones.
 	pointer:      Bridge_Pointer,
-	// The held mouse buttons of the step before.
+	// The held mouse buttons that the step before gave, from either source.
 	prev_pointer_held: Mouse_Buttons,
 	// The step op's Commands so far, as JSON array elements. They must
 	// outlive the Frame arena, because the reply waits for the last step.
@@ -59,7 +64,8 @@ Bridge_Gamepad :: struct {
 }
 
 // The pointer of a step op, in logical pixels. A request with no pointer
-// gives one that is not inside, at (0, 0), with no button held. pos, inside
+// gives one that is not inside, at (0, 0), with no button held, or the real
+// pointer with devices on. pos, inside
 // and held are for every step. tap and wheel are for the first step only.
 Bridge_Pointer :: struct {
 	given:  bool,
@@ -153,46 +159,72 @@ bridge_paused :: proc(b: ^Bridge) -> bool {
 	return b.on && b.owed_steps == 0
 }
 
-// The Input for one step under the Bridge, in place of the real devices. It
-// derives Pressed from the held keys of the step before, as the real latch
-// does from key-down events.
-bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
+// The Input for one step under the Bridge. It derives Pressed from the held
+// keys of the step before, as the real latch does from key-down events. With
+// devices on, it merges the real devices in and takes their edges.
+bridge_input_take :: proc(b: ^Bridge, real: ^Input_Latch, buf: ^Input_Buffers, window: Ui_Window) -> Step_Input {
+	on := bridge_devices_on(b)
 	latch := Input_Latch {
-		held  = b.held,
 		mouse = b.mouse,
 	}
 	for k in sapp.Keycode {
-		latch.pressed[k] = (b.held[k] && !b.prev_held[k]) || b.tap[k]
+		latch.held[k] = b.held[k] || (on && real.held[k])
+		// A real tap between two steps has no held key left to show it.
+		latch.pressed[k] = (latch.held[k] && !b.prev_held[k]) || b.tap[k] || (on && real.pressed[k] && !b.prev_held[k])
+	}
+	if on {
+		latch.mouse += real.mouse
 	}
 	for &pad, i in b.gamepads {
+		slot := &latch.gamepads.slots[i]
+		real_slot := &real.gamepads.slots[i]
 		if pad.connected {
-			latch.gamepads.slots[i] = {
+			slot^ = {
 				connected = true,
 				held      = pad.held,
 				pressed   = (pad.held - b.prev_buttons[i]) + pad.tap,
 				axes      = pad.axes,
 			}
+		} else if on && real_slot.connected {
+			slot^ = {
+				connected = true,
+				held      = real_slot.held,
+				pressed   = real_slot.pressed,
+				axes      = real_slot.axes,
+			}
 		}
-		b.prev_buttons[i] = pad.held
+		b.prev_buttons[i] = slot.held
 		pad.tap = {}
 	}
-	b.prev_held = b.held
+	b.prev_held = latch.held
 	b.tap = {}
 	b.mouse = {}
 	step_input := input_take(&latch, buf)
 
 	p := &b.pointer
-	step_input.pointer = {
-		pos      = p.pos,
-		inside   = p.given && p.inside,
-		held     = pointer_buttons(p.held, &buf.pointer.held),
-		pressed  = pointer_buttons((p.held - b.prev_pointer_held) + p.tap, &buf.pointer.pressed),
-		released = pointer_buttons((b.prev_pointer_held - p.held) + p.tap, &buf.pointer.released),
-		wheel    = p.wheel,
+	// A request pointer replaces the real one, but not its buttons.
+	pointer: Step_Pointer
+	if p.given {
+		pointer.pos, pointer.inside, pointer.wheel = p.pos, p.inside, p.wheel
+	} else if on {
+		pointer.pos, pointer.inside = pointer_logical(&real.pointer, window)
+		pointer.wheel = real.pointer.wheel
 	}
-	b.prev_pointer_held = p.held
+	real_buttons: Pointer_Latch
+	if on {
+		real_buttons = real.pointer
+	}
+	held, pressed, released := bridge_merge_buttons(p.held, p.tap, real_buttons.held, real_buttons.pressed, real_buttons.released, b.prev_pointer_held)
+	pointer.held = pointer_buttons(held, &buf.pointer.held)
+	pointer.pressed = pointer_buttons(pressed, &buf.pointer.pressed)
+	pointer.released = pointer_buttons(released, &buf.pointer.released)
+	step_input.pointer = pointer
+	b.prev_pointer_held = held
 	p.tap = {}
 	p.wheel = {}
+	if on {
+		input_drop(real)
+	}
 	return step_input
 }
 

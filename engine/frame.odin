@@ -18,6 +18,7 @@ Frame_Platform :: struct {
 // Runs one Frame: the fixed steps through the Seam's Game calls, their
 // Commands and Queries, then the render.
 frame_run :: proc(s: ^State, platform: Frame_Platform) {
+	s.window = platform.window
 	// The win32 loop runs one more frame after request_quit, before it reads
 	// WM_CLOSE. Skip it, so Frame Count matches the limit on every OS.
 	if exit_after_frames_reached(s.exit_after_frames, s.frame_count) {
@@ -37,15 +38,15 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 			seam_set_ui(&s.seam, ui_results(&s.ui))
 		}
 		before := roc_heap_counters()
-		// Under the Bridge, only the Driver gives step its Input. The real
-		// devices still reach the latch, which the debug camera reads.
+		// Under the Bridge, the real devices reach step only after the Driver
+		// turns devices on in hello. The debug camera always reads the latch.
 		step_input: Step_Input
 		commands_json: ^strings.Builder
 		if s.bridge.on {
 			// curr is the Scene the window shows, whose QueryResults this
 			// step gets, so a tell followed by a step is delivered in it.
 			seam_set_ports(&s.seam, bridge_ports_deliver(&s.bridge.ports, s.seam.curr.queries.elements[:s.seam.curr.queries.length]))
-			step_input = bridge_input_take(&s.bridge, &s.input_buffers)
+			step_input = bridge_input_take(&s.bridge, &s.input, &s.input_buffers, platform.window)
 			commands_json = &s.bridge.commands
 		} else {
 			// input_take drops the pointer's presses, so the pointer goes first.
@@ -112,9 +113,10 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	}
 
 	frame_end(&s.mem)
-	// Under the Bridge no step takes the real latch, so it drops what a step
-	// would take.
-	if s.bridge.on {
+	// Under the Bridge with devices off, no step takes the real latch, so it
+	// drops what a step would take. With devices on, the latch keeps its edges
+	// for the next step, so a tap while the run pauses still reaches it.
+	if s.bridge.on && !bridge_devices_on(&s.bridge) {
 		input_drop(&s.input)
 	}
 	input_end_frame(&s.input)
@@ -132,7 +134,8 @@ headless_platform :: proc(s: ^State) -> Frame_Platform {
 
 // Lays out the UI with no window. frame_run never submits in Headless.
 headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	return ui_init(&s.ui, headless_window(s.launch).size, int(s.launch.capacity.ui_quads), allocator)
+	s.window = headless_window(s.launch)
+	return ui_init(&s.ui, s.window.size, int(s.launch.capacity.ui_quads), allocator)
 }
 
 // Runs Frames until the Frame limit or a Quit, then returns.
