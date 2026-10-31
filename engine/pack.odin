@@ -15,6 +15,7 @@ Asset_Kind :: enum {
 	Mesh,
 	Sky,
 	Sound,
+	Image,
 }
 
 Held_Asset :: struct {
@@ -24,21 +25,25 @@ Held_Asset :: struct {
 
 // An asset unloads when the refs of its slot reach 0. Each logged set keeps a
 // nonsense Command or a bad asset to one log line per run.
-// on_disk lists the meshes, then the skies, then the Sounds; it is also
-// Config.assets. sound_files maps each Sound name to its file in sound_dir.
+// on_disk lists the meshes, then the skies, then the Sounds, then the
+// Images; it is also Config.assets. sound_files maps each Sound name to its
+// file in sound_dir.
 Packs :: struct {
 	meshes:         ^Mesh_Table,
 	skies:          ^Sky_Table,
+	images:         ^Image_Table,
 	audio:          ^Audio,
 	mesh_dir:       string,
 	sky_dir:        string,
 	sound_dir:      string,
+	image_dir:      string,
 	on_disk:        []string,
 	sound_files:    map[string]string,
 	loaded:         map[string][]Held_Asset,
 	mesh_refs:      []int,
 	sky_refs:       []int,
 	sound_refs:     []int,
+	image_refs:     []int,
 	logged_packs:   map[string]struct {},
 	logged_unloads: map[string]struct {},
 	logged_assets:  map[string]struct {},
@@ -48,13 +53,14 @@ Packs :: struct {
 	perm:           mem.Allocator,
 }
 
-// Names the meshes, skies and Sounds under assets_dir and loads none of them.
+// Names the meshes, skies, Sounds and Images under assets_dir and loads none of them.
 // A Load needs packs_attach first. The allocator must free, because packs
 // unload in any order.
 packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 	mesh_dir := fmt.aprintf("%v/meshes", assets_dir, allocator = allocator)
 	sky_dir := fmt.aprintf("%v/sky", assets_dir, allocator = allocator)
 	sound_dir := fmt.aprintf("%v/sound", assets_dir, allocator = allocator)
+	image_dir := fmt.aprintf("%v/images", assets_dir, allocator = allocator)
 	mesh_names := mesh_names_on_disk(mesh_dir, allocator)
 	defer delete(mesh_names, allocator)
 	sky_names := sky_names_on_disk(sky_dir, allocator)
@@ -63,11 +69,14 @@ packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 	logged_stems := make(map[string]struct {}, allocator)
 	sound_names := sound_names_on_disk(sound_dir, &sound_files, &logged_stems, allocator)
 	defer delete(sound_names, allocator)
+	image_names := image_names_on_disk(image_dir, allocator)
+	defer delete(image_names, allocator)
 	p^ = {
 		mesh_dir       = mesh_dir,
 		sky_dir        = sky_dir,
 		sound_dir      = sound_dir,
-		on_disk        = slice.concatenate([][]string{mesh_names, sky_names, sound_names}, allocator),
+		image_dir      = image_dir,
+		on_disk        = slice.concatenate([][]string{mesh_names, sky_names, sound_names, image_names}, allocator),
 		sound_files    = sound_files,
 		loaded         = make(map[string][]Held_Asset, allocator),
 		logged_packs   = make(map[string]struct {}, allocator),
@@ -81,13 +90,15 @@ packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 
 // Runs after launch, because the tables take their size from the Launch.
 // The refs take one slot per table slot from perm.
-packs_attach :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, audio: ^Audio, perm: mem.Allocator) {
+packs_attach :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, images: ^Image_Table, audio: ^Audio, perm: mem.Allocator) {
 	p.meshes = meshes
 	p.skies = skies
+	p.images = images
 	p.audio = audio
 	p.mesh_refs = make([]int, len(meshes.meshes), perm)
 	p.sky_refs = make([]int, len(skies.skies), perm)
 	p.sound_refs = make([]int, len(audio.sounds.sounds), perm)
+	p.image_refs = make([]int, len(images.images), perm)
 	p.perm = perm
 }
 
@@ -116,9 +127,11 @@ packs_destroy :: proc(p: ^Packs) {
 	delete(p.mesh_dir, p.allocator)
 	delete(p.sky_dir, p.allocator)
 	delete(p.sound_dir, p.allocator)
+	delete(p.image_dir, p.allocator)
 	delete(p.mesh_refs, p.perm)
 	delete(p.sky_refs, p.perm)
 	delete(p.sound_refs, p.perm)
+	delete(p.image_refs, p.perm)
 }
 
 // Loads each named asset that is not loaded yet. The Manifest has one line
@@ -155,13 +168,26 @@ pack_line_mesh :: proc(p: ^Packs, line: Manifest_Line) -> (mesh: ^Mesh, ok: bool
 	return mesh_lookup(p.meshes, line.id)
 }
 
-// A Sound's length in seconds at pitch 1. A mesh, a sky or a name that did
-// not load has 0.
+// A Sound's length in seconds at pitch 1. Every other kind, and a name that
+// did not load, has 0.
 pack_line_duration :: proc(p: ^Packs, line: Manifest_Line) -> f32 {
 	if pack_kind(line.name) != .Sound {
 		return 0
 	}
 	return sound_duration(&p.audio.sounds, line.id)
+}
+
+// An Image's width and height in pixels. Every other kind, and a name that
+// did not load, has 0 by 0.
+pack_line_size :: proc(p: ^Packs, line: Manifest_Line) -> (width, height: u32) {
+	if pack_kind(line.name) != .Image {
+		return 0, 0
+	}
+	image, ok := image_lookup(p.images, line.id)
+	if !ok {
+		return 0, 0
+	}
+	return u32(image.width), u32(image.height)
 }
 
 // Unloads each asset no other loaded pack holds. An unknown pack gives
@@ -188,6 +214,8 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 			sky_table_remove(p.skies, sky_slot(asset.id))
 		case .Sound:
 			audio_sound_remove(p.audio, sound_slot(asset.id))
+		case .Image:
+			image_table_remove(p.images, image_slot(asset.id))
 		}
 	}
 	delete(name, p.allocator)
@@ -204,14 +232,14 @@ pack_take :: proc(p: ^Packs, pack: string) -> (name: string, held: []Held_Asset,
 	return name, held, true
 }
 
-// Id 0 is the fallback mesh, no sky or no Sound, and a primitive never
-// unloads.
+// Id 0 is the fallback mesh, no sky, no Sound or no Image, and a primitive
+// never unloads.
 @(private = "file")
 pack_refcounted :: proc(asset: Held_Asset) -> bool {
 	switch asset.kind {
 	case .Mesh:
 		return mesh_slot(asset.id) >= len(Primitive)
-	case .Sky, .Sound:
+	case .Sky, .Sound, .Image:
 		return asset.id != 0
 	}
 	unreachable()
@@ -226,6 +254,8 @@ pack_refs :: proc(p: ^Packs, asset: Held_Asset) -> ^int {
 		return &p.sky_refs[sky_slot(asset.id)]
 	case .Sound:
 		return &p.sound_refs[sound_slot(asset.id)]
+	case .Image:
+		return &p.image_refs[image_slot(asset.id)]
 	}
 	unreachable()
 }
@@ -251,6 +281,9 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 	case .Sound:
 		found_id, found = sound_table_find(&p.audio.sounds, name)
 		dir, full = p.sound_dir, sound_table_full(&p.audio.sounds)
+	case .Image:
+		found_id, found = image_table_find(p.images, name)
+		dir, full = p.image_dir, image_table_full(p.images)
 	}
 	if found {
 		return {kind, found_id}
@@ -272,6 +305,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 				full_reason = sky_table_full_reason(p.skies)
 			case .Sound:
 				full_reason = sound_table_full_reason(&p.audio.sounds)
+			case .Image:
+				full_reason = image_table_full_reason(p.images)
 			}
 			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, full_reason)
 		}
@@ -287,6 +322,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 		id, reason, ok = sky_load_dir(p.skies, p.sky_dir, name)
 	case .Sound:
 		id, reason, ok = sound_load_file(&p.audio.sounds, p.sound_dir, name, p.sound_files[name])
+	case .Image:
+		id, reason, ok = image_load_file(p.images, p.image_dir, name)
 	}
 	if !ok {
 		pack_log_asset(p, name, fmt.tprintf("pack %q names %q, which did not load: %v", pack, name, reason))
@@ -303,6 +340,8 @@ pack_kind :: proc(name: string) -> Asset_Kind {
 		return .Sky
 	case strings.has_prefix(name, SOUND_PREFIX):
 		return .Sound
+	case strings.has_prefix(name, IMAGE_PREFIX):
+		return .Image
 	}
 	return .Mesh
 }

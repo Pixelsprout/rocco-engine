@@ -130,7 +130,7 @@ Config for tests. Then add these tests at the bottom of the file:
 expect init(Config.empty).commands == [Load({ pack: "pip", assets: ["pip"] })]
 
 expect {
-	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4, duration: 0.0, clips: [] }])
+	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }])
 	model.pip == 4
 }
 ```

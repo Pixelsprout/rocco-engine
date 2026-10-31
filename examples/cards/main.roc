@@ -96,5 +96,5 @@ expect {
 }
 expect init(Config.empty).commands == [Load({ pack: "cards", assets: [] })]
 expect init({ ..Config.empty, assets: ["card"] }).commands == [Load({ pack: "cards", assets: ["card"] })]
-expect loaded(init({ ..Config.empty, assets: ["card"] }).model, "cards", [{ name: "card", id: 4, duration: 0.0, clips: [] }]).card_mesh == 4
+expect loaded(init({ ..Config.empty, assets: ["card"] }).model, "cards", [{ name: "card", id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }]).card_mesh == 4
 expect loaded(init(Config.empty).model, "cards", []).card_mesh == Mesh.primitive(Plane)

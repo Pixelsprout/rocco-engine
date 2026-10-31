@@ -146,10 +146,12 @@ Fake_Game :: struct {
 	loaded_pack:      string,
 	loaded_manifest:  []Manifest_Line,
 	loaded_durations: []f32,
+	loaded_sizes:     []Manifest_Size,
 	loaded_clips:     []Fake_Clip,
 	loaded_out:       rawptr,
 	meshes:           Mesh_Table,
 	skies:            Sky_Table,
+	images:           Image_Table,
 	audio:            Audio,
 	packs:            Packs,
 }
@@ -303,11 +305,13 @@ fake_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_En
 	roc_decref(pack)
 	g_fake.loaded_manifest = make([]Manifest_Line, manifest.length, context.temp_allocator)
 	g_fake.loaded_durations = make([]f32, manifest.length, context.temp_allocator)
+	g_fake.loaded_sizes = make([]Manifest_Size, manifest.length, context.temp_allocator)
 	clips := make([dynamic]Fake_Clip, context.temp_allocator)
 	for &entry, i in manifest.elements[:manifest.length] {
 		mesh := strings.clone(roc_str_string(&entry.name), context.temp_allocator)
 		g_fake.loaded_manifest[i] = {mesh, entry.id}
 		g_fake.loaded_durations[i] = entry.duration
+		g_fake.loaded_sizes[i] = entry.size
 		for &clip in entry.clips.elements[:entry.clips.length] {
 			name := strings.clone(roc_str_string(&clip.name), context.temp_allocator)
 			append(&clips, Fake_Clip{mesh, name, clip.id, clip.duration})
@@ -412,9 +416,10 @@ fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, que
 	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
 	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
 	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
+	image_table_init(&g_fake.images, SMALL_IMAGES, context.allocator, context.allocator)
 	audio_init(&g_fake.audio, device = false)
 	audio_tables_init(&g_fake.audio, SMALL_SOUNDS, SMALL_VOICES, context.allocator, context.allocator)
-	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.audio, context.allocator)
+	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.images, &g_fake.audio, context.allocator)
 	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs, &g_fake.audio)
 }
 
@@ -424,11 +429,13 @@ fake_seam_shutdown :: proc(s: ^Seam) {
 	packs_destroy(&g_fake.packs)
 	mesh_table_destroy(&g_fake.meshes)
 	sky_table_destroy(&g_fake.skies)
+	image_table_destroy(&g_fake.images)
 	audio_shutdown(&g_fake.audio)
 }
 
 // Meshes a and b load; broken is on disk but fails. Sky clear loads; torn
-// has no nz face. Sound blip loads and sound broken fails.
+// has no nz face. Sound blip loads and sound broken fails. Image coin is 3
+// by 2 and loads; image broken fails.
 fake_assets_dir :: proc(t: ^testing.T) -> string {
 	files := make(map[string][]byte, context.temp_allocator)
 	files["meshes/a.glb"] = triangle_glb(TRIANGLE_PRIMITIVES)
@@ -443,6 +450,8 @@ fake_assets_dir :: proc(t: ^testing.T) -> string {
 	}
 	files["sound/blip.wav"] = wav_make(1, {0, 8192, 16384})
 	files["sound/broken.wav"] = transmute([]byte)string("not a wav")
+	files["images/coin.png"] = png_make(3, 2, PNG_RGBA, make([]byte, 3 * 2 * 4, context.temp_allocator))
+	files["images/broken.png"] = transmute([]byte)string("not a png")
 	return temp_assets_dir(t, files)
 }
 
@@ -467,6 +476,12 @@ fake_mesh_name :: proc(id: u32) -> string {
 fake_sky_name :: proc(id: u32) -> string {
 	sky, ok := sky_resolve(&g_fake.skies, id)
 	return sky.name if ok else ""
+}
+
+// "" when the id finds no Image.
+fake_image_name :: proc(id: u32) -> string {
+	image, ok := image_lookup(&g_fake.images, id)
+	return image.name if ok else ""
 }
 
 // "" when the id plays nothing.
@@ -876,10 +891,11 @@ test_init_gets_the_asset_names_on_disk_and_only_the_primitives_are_loaded :: pro
 	defer fake_seam_shutdown(&s)
 
 	testing.expect_value(t, g_fake.seed, 42)
-	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken", "sky/clear", "sky/torn", "sound/blip", "sound/broken"}))
+	testing.expect(t, slice.equal(g_fake.assets, []string{"a", "b", "broken", "sky/clear", "sky/torn", "sound/blip", "sound/broken", "image/broken", "image/coin"}))
 	testing.expect_value(t, g_fake.meshes.count, len(Primitive))
 	testing.expect_value(t, g_fake.skies.count, 1)
 	testing.expect_value(t, g_fake.audio.sounds.count, 1)
+	testing.expect_value(t, g_fake.images.count, 1)
 	testing.expect_value(t, g_fake.loadeds, 0)
 }
 
@@ -1275,6 +1291,82 @@ test_a_sky_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing
 
 	testing.expect_value(t, fake_step_with(&s, fake_load("A", "sky/clear"))[0].id, 0)
 	testing.expect_value(t, fake_step_with(&s, fake_load("B", "sky/clear"))[0].id, 0)
+	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
+}
+
+@(test)
+test_an_image_name_in_a_load_gets_an_image_id_and_its_size :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "image/coin", "a", "sky/clear")})
+	defer fake_seam_shutdown(&s)
+
+	id := g_fake.loaded_manifest[0].id
+	testing.expect(t, id != 0)
+	testing.expect_value(t, fake_image_name(id), "image/coin")
+	testing.expect_value(t, g_fake.loaded_sizes[0], Manifest_Size{w = 3, h = 2})
+	testing.expect_value(t, g_fake.loaded_sizes[1], Manifest_Size{})
+	testing.expect_value(t, g_fake.loaded_sizes[2], Manifest_Size{})
+}
+
+@(test)
+test_an_unload_frees_the_image_slot_and_a_stale_id_finds_no_image :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "image/coin")})
+	defer fake_seam_shutdown(&s)
+	old := g_fake.loaded_manifest[0].id
+
+	fake_step_with(&s, fake_unload("A"))
+	testing.expect_value(t, g_fake.images.free_count, 1)
+	testing.expect_value(t, fake_image_name(old), "")
+
+	fresh := fake_step_with(&s, fake_load("B", "image/coin"))[0].id
+	testing.expect_value(t, image_slot(fresh), image_slot(old))
+	testing.expect(t, fresh != old)
+	testing.expect_value(t, fake_image_name(fresh), "image/coin")
+	testing.expect_value(t, g_fake.loaded_sizes[0], Manifest_Size{w = 3, h = 2})
+}
+
+@(test)
+test_an_image_that_does_not_load_logs_and_gets_id_0_and_size_0 :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir, init_commands = {fake_load("A", "image/broken", "image/nope")})
+	defer fake_seam_shutdown(&s)
+
+	testing.expect(t, slice.equal(g_fake.loaded_manifest, []Manifest_Line{{"image/broken", 0}, {"image/nope", 0}}))
+	testing.expect(t, slice.equal(g_fake.loaded_sizes, []Manifest_Size{{}, {}}))
+	testing.expect_value(t, len(g_fake.packs.logged_assets), 2)
+	testing.expect_value(t, g_fake.images.count, 1)
+}
+
+@(test)
+test_an_image_that_found_the_table_full_gets_id_0_and_logs_once :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+
+	s: Seam
+	fake_seam_init(&s, assets_dir = dir)
+	defer fake_seam_shutdown(&s)
+	g_fake.images.count = SMALL_IMAGES
+
+	testing.expect_value(t, fake_step_with(&s, fake_load("A", "image/coin"))[0].id, 0)
+	testing.expect_value(t, fake_step_with(&s, fake_load("B", "image/coin"))[0].id, 0)
 	testing.expect_value(t, len(g_fake.packs.logged_full), 1)
 }
 

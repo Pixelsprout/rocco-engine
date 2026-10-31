@@ -82,6 +82,8 @@ Vocabulary := [].{
 	##   Primitives, and at most 65536.
 	## - `skies`: sky slots. At least 2, for the reserved slot and one sky, and
 	##   at most 65536.
+	## - `images`: Image slots. At least 2, for the reserved slot and one Image,
+	##   and at most 65536.
 	## - `draws`: Draws per Frame. Above zero and at most 1195444. The uniform
 	##   buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
@@ -97,6 +99,7 @@ Vocabulary := [].{
 	Capacity : {
 		meshes : U32,
 		skies : U32,
+		images : U32,
 		draws : U32,
 		groups : U32,
 		ui_quads : U32,
@@ -109,15 +112,29 @@ Vocabulary := [].{
 	## you need in your Model.
 	##
 	## - `name`: an asset name from the Load.
-	## - `id`: the mesh, sky or Sound id of the name, or 0.
-	## - `duration`: the length of a Sound in seconds at pitch 1. A mesh, a sky
-	##   or a name that did not load has 0. `Sound.duration` reads it.
+	## - `id`: the mesh, sky, Sound or Image id of the name, or 0.
+	## - `duration`: the length of a Sound in seconds at pitch 1. Every other
+	##   entry has 0. `Sound.duration` reads it.
+	## - `size`: the width and height of an Image in pixels. Every other entry
+	##   has 0 by 0. `Image.size` reads it.
 	## - `clips`: the Clips of a skinned mesh, in file order. Every other entry
 	##   has an empty list. Each Clip has its `name` in the file, its Clip
 	##   `id`, and its `duration`, the time of its last key in seconds. Clip
 	##   ids start at 1 and are unique across a Pack. `Mesh.clip` and
 	##   `Mesh.clip_duration` in the mesh package read them.
-	Manifest : List({ name : Str, id : U32, duration : F32, clips : List({ name : Str, id : U32, duration : F32 }) })
+	Manifest : List({ name : Str, id : U32, duration : F32, size : { w : U32, h : U32 }, clips : List({ name : Str, id : U32, duration : F32 }) })
+
+	## An Image from a Pack and the part of it to show. UI Panels show it, and
+	## 2D sprites will take the same value. Start from `Image.default`.
+	##
+	## - `id`: an Image id from a Manifest, such as the id of `image/coin`.
+	## - `region`: `Whole` shows the whole Image. `Px` shows a rectangle of it
+	##   in source pixels, from its top-left corner. A sprite sheet gives each
+	##   frame its own `Px`, and a flipbook changes the `Px` over time.
+	## - `tint`: multiplies each pixel. White shows the Image unchanged.
+	## - `filter`: `Linear` blends nearby pixels when the Image scales.
+	##   `Nearest` keeps hard pixel edges, for pixel art.
+	Image : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 })], tint : Rgba, filter : [Linear, Nearest] }
 
 	## What the host gives `step` each fixed step. Tests start from `Input.empty`.
 	##

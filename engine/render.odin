@@ -45,6 +45,7 @@ Renderer :: struct {
 	lights:             Fs_Lights,
 	meshes:             Mesh_Table,
 	skies:              Sky_Table,
+	images:             Image_Table,
 	white:              Mesh_Texture,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
@@ -66,10 +67,11 @@ Shadow_Map :: struct {
 
 // Each loaded mesh can own a base colour, a metallic-roughness and an
 // emissive texture, each with its own image, view and sampler. The white
-// image, each sky, the shadow map and the font atlas need one more. The
-// render target adds its images.
+// image, each sky, each Image, the shadow map and the font atlas need one
+// more. The Images add their Linear and Nearest samplers. The render target
+// adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(3 * capacity.meshes + 1 + capacity.skies + 1 + 1 + TARGET_IMAGES)
+	return i32(3 * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -99,6 +101,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	render_target_init(&r.target, sample_count)
 	mesh_table_upload(&r.meshes)
 	sky_table_upload(&r.skies)
+	image_table_upload(&r.images)
 	r.white = texture_upload(
 		{
 			levels = {{width = 1, height = 1, pixels = WHITE_TEXEL[:]}},
@@ -369,4 +372,5 @@ renderer_shutdown :: proc(r: ^Renderer) {
 	// sg.shutdown destroys every pooled resource, later we would add a per mesh teardown.
 	mesh_table_destroy(&r.meshes)
 	sky_table_destroy(&r.skies)
+	image_table_destroy(&r.images)
 }
