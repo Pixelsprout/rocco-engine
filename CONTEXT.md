@@ -169,7 +169,7 @@ _Avoid_: player index, port, controller id, XInput index
 
 **Scene**:
 What `view` returns each fixed step: a Camera, a list of root Nodes, a
-Cursor, a sky id, the UI and a list of Queries. It
+Cursor, a sky id, a clear colour, the UI and a list of Queries. It
 describes what should be on screen now and what can touch. Derived from the
 Model, rebuilt every step, stored by the host and never by the game. Its
 Nodes form a tree, but the host keeps no Node from one Scene to build the
@@ -256,6 +256,13 @@ or the Cursor is `Locked`. `pf.MouseButton` names the button codes. The
 mouse delta in Input is for mouse look; the Pointer is for pointing at the
 UI.
 _Avoid_: cursor (the lock), mouse (the delta), touch
+
+**Clear colour**:
+The field of a Scene, `clear`, that sets the colour behind the 3D view. It is
+a linear `Rgb`. The host clears to it every frame, before any mesh, and
+encodes it to sRGB without the tone map. A sky draws over it. `pf.Scene.empty`
+has black.
+_Avoid_: background, clear color, sky colour
 
 **UI**:
 The field of a Scene that lists the root Elements drawn flat over the 3D

@@ -66,6 +66,7 @@ host to do one thing once.
 | `camera` | the [Camera] | this page |
 | `nodes` | the root [Node]s of the 3D tree: Groups, Draws, Lights, Colliders and Speakers | this page |
 | `sky` | a sky id | [Assets and Packs](assets.md) |
+| `clear` | the colour behind the 3D view, black by default | this page |
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
 | `ui` | the root [Element]s of the UI tree over the 3D view | [The UI](ui.md) |
@@ -236,6 +237,9 @@ A few rules to know:
 Every colour is linear, not sRGB. The host multiplies the colour of the
 mesh by the `tint` of the Draw. The fallback mesh ignores the tint. Then the
 host tone maps the lit colour and encodes it to sRGB for the screen.
+
+`Scene.clear` is linear too. The host encodes it to sRGB, with no tone map,
+like the sky.
 
 ## Defaults to start from
 
