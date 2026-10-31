@@ -23,6 +23,10 @@ Bridge :: struct {
 	// Set by the quit op, a Quit from the game or the Frame limit. The host
 	// ends the run after the Frame.
 	quit:         bool,
+	// Set by hello. The real devices reach the step only while the Driver
+	// that set it is still connected. See bridge_devices_on.
+	devices:      bool,
+	devices_driver: u64,
 	// The step op's Input. held is for every step. tap and mouse are for the
 	// first step only.
 	held:         #sparse[sapp.Keycode]bool,

@@ -10,7 +10,8 @@ import "core:strings"
 // 4: step takes a pointer, results gained ui, and Box configs gained id and overflow.
 // 5: the scene reply gained clear.
 // 6: each Draw in scene gained glow.
-BRIDGE_PROTOCOL :: 6
+// 7: hello takes and echoes devices, and the inject op feeds the real devices.
+BRIDGE_PROTOCOL :: 7
 BRIDGE_NOT_YET :: "not yet"
 
 // ask and listen are kept for Ports (ADR 0009).
@@ -75,11 +76,23 @@ bridge_reply_op :: proc(s: ^State, request: json.Object, reply: ^strings.Builder
 	return next
 }
 
+// devices is for the Driver that sends it. An absent devices turns it off.
 bridge_op_hello :: proc(s: ^State, request: json.Object, reply: ^strings.Builder) -> (next: Bridge_Next, error: string) {
+	devices := false
+	if value, has_devices := request["devices"]; has_devices {
+		on, is_bool := value.(json.Boolean)
+		if !is_bool {
+			return .Read, `"devices" must be true or false`
+		}
+		devices = on
+	}
+	s.bridge.devices = devices
+	s.bridge.devices_driver = s.bridge.transport.drivers
 	bridge_reply_field(reply, "protocol", BRIDGE_PROTOCOL)
 	bridge_reply_field(reply, "step_hz", s.launch.step_hz)
 	bridge_reply_field(reply, "steps", s.steps)
 	bridge_reply_field(reply, "headless", s.mode == .Headless)
+	bridge_reply_field(reply, "devices", devices)
 	return .Read, ""
 }
 

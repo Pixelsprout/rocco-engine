@@ -34,7 +34,36 @@ test_bridge_hello_reports_the_protocol_the_step_rate_the_steps_and_the_mode :: p
 	expect_field(t, reply, "step_hz", i64(60))
 	expect_field(t, reply, "steps", i64(7))
 	expect_field(t, reply, "headless", true)
+	expect_field(t, reply, "devices", false)
 	testing.expect(t, !("error" in reply))
+}
+
+@(test)
+test_bridge_hello_echoes_devices :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+
+	reply, _ := driver_answer(t, &s, `{"op":"hello","devices":true}`)
+	expect_field(t, reply, "devices", true)
+	testing.expect(t, s.bridge.devices)
+
+	reply, _ = driver_answer(t, &s, `{"op":"hello"}`)
+	expect_field(t, reply, "devices", false)
+	testing.expect(t, !s.bridge.devices)
+}
+
+@(test)
+test_bridge_hello_with_a_bad_devices_replies_an_error :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	s: State
+	s.bridge.devices = true
+
+	for value in ([]string{"1", `"yes"`, "null"}) {
+		line := strings.concatenate({`{"op":"hello","devices":`, value, "}"}, context.temp_allocator)
+		reply, _ := driver_answer(t, &s, line)
+		expect_error(t, reply, `"devices" must be true or false`)
+		testing.expect(t, s.bridge.devices)
+	}
 }
 
 @(test)

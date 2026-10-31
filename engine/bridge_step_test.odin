@@ -54,7 +54,6 @@ step_run_request :: proc(t: ^testing.T, r: ^Step_Run, line: string) -> json.Obje
 	return driver_read_reply(t, r.driver)
 }
 
-@(private = "file")
 expect_keys :: proc(t: ^testing.T, got: []u16, want: []u16, loc := #caller_location) {
 	testing.expectf(t, slice.equal(got, want), "got keys %v, want %v", got, want, loc = loc)
 }
@@ -275,7 +274,6 @@ test_bridge_step_ignores_the_real_keyboard_and_mouse :: proc(t: ^testing.T) {
 	testing.expect(t, r.s.input.held[.W])
 }
 
-@(private = "file")
 expect_pad_buttons :: proc(t: ^testing.T, pad: ^Fake_Gamepad, held: []Gamepad_Button, pressed: []Gamepad_Button, loc := #caller_location) {
 	expect_buttons(t, pad.held[:pad.held_len], held, loc)
 	expect_buttons(t, pad.pressed[:pad.pressed_len], pressed, loc)
@@ -437,7 +435,6 @@ test_bridge_a_tell_after_a_step_batch_is_delivered_at_the_next_batch :: proc(t: 
 	testing.expect_value(t, g_fake.ports[0].msg, "late")
 }
 
-@(private = "file")
 expect_mouse_buttons :: proc(t: ^testing.T, got: []u8, want: []u8, loc := #caller_location) {
 	testing.expectf(t, slice.equal(got, want), "got buttons %v, want %v", got, want, loc = loc)
 }
