@@ -222,6 +222,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		nodes  = json_test_list(nodes),
 		cursor = .Locked,
 		sky    = 2,
+		clear  = {r = 0.25, g = 0.5, b = 1},
 	}
 	b := strings.builder_make(context.temp_allocator)
 
@@ -239,7 +240,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		`{"Speaker":{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}},"repeat":"Loop"}}]}},` +
 		`{"Collider":{"id":2,"pos":{"x":1,"y":0,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Sphere":0.5}}},` +
 		`{"Speaker":{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here","repeat":"Once"}}],` +
-		`"cursor":"Locked","sky":2,"ui":[],"queries":[]}`,
+		`"cursor":"Locked","sky":2,"clear":{"r":0.25,"g":0.5,"b":1},"ui":[],"queries":[]}`,
 	)
 }
 
