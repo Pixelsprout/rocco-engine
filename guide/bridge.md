@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -155,7 +155,7 @@ echoes the setting. This exchange is from a run of bridge-echo:
 
 ```
 {"op":"hello","devices":true}
-{"ok":true,"protocol":7,"step_hz":120,"steps":0,"headless":false,"devices":true}
+{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":true}
 ```
 
 A `hello` without `devices` turns it off. The setting lasts while this
@@ -270,7 +270,7 @@ step that taps Left there, gives the Tell:
 {"ok":true,"steps":2,"commands":[{"Tell":{"port":"click","msg":"7"}}],"alloc":{"step":2,"allocs":6,"deallocs":8,"reallocs":0,"live":5,"step_us":6.1,"view_us":9.8}}
 ```
 
-The first step is needed: a game sees the Boxes under the pointer one step
+The first step is needed: a game sees the Panels under the pointer one step
 after the pointer moves there, in `results.ui.over`. The [scene](#scene)
 reply shows them.
 
@@ -341,26 +341,26 @@ trimmed to the `queries` and the `results`:
 The game sees this Contact in its next step, and the pickup's Draw is then
 gone from `nodes`.
 
-The `ui` field mirrors the UI tree that the game wrote. A `Box` is an
-object with its `config` and its `children`, and each child is a `Box` or a
+The `ui` field mirrors the UI tree that the game wrote. A `Panel` is an
+object with its `config` and its `children`, and each child is a `Panel` or a
 `Text` in the same form. In chapter 7, after one step, the HUD is two root
-Boxes with one Text each. This reply is trimmed to the `ui`, and split into
+Panels with one Text each. This reply is trimmed to the `ui`, and split into
 lines:
 
 ```
 {"op":"scene"}
 {"ok":true,"steps":1,"scene":{...,"ui":[
-  {"Box":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}}},
+  {"Panel":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}}},
           "children":[{"Text":{"str":"Pickups: 0 / 5","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}},
-  {"Box":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}}},
+  {"Panel":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}}},
           "children":[{"Text":{"str":"Collect every pickup.","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}}],...},...}
 ```
 
 To find a string in the HUD, walk `children` down from each root, as a Roc
 test matches the tree with a pattern.
 
-`results.ui` holds the tagged Boxes under the pointer of the last step, in
-`over`, and the sizes of the tagged Scroll Boxes, in `scroll`. After the
+`results.ui` holds the tagged Panels under the pointer of the last step, in
+`over`, and the sizes of the tagged Scroll Panels, in `scroll`. After the
 first step of the [pointer](#pointer) example, bridge-echo's results are:
 
 ```
@@ -701,7 +701,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 7. |
+| `protocol` | The version of the requests and replies. Today it is 8. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
@@ -749,7 +749,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | An id, a mesh id | A whole number. |
 | A tag with a payload | An object with one key: `{"Sphere":0.25}`, `{"ContactsOf":2}`. |
 | A tag with no payload | A string: `"Quit"`, `"Free"`, `"Locked"`. |
-| `Element` | `{"Box":{"config":{...},"children":[...]}}` or `{"Text":{...}}`. A Box's two payloads get the names `config` and `children`. |
+| `Element` | `{"Panel":{"config":{...},"children":[...]}}` or `{"Text":{...}}`. A Panel's two payloads get the names `config` and `children`. |
 
 ### Errors
 

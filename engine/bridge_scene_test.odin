@@ -15,7 +15,7 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	corner := ui_box()
 	corner.width = ui_fixed(40)
 	corner.floating = ui_floating(.LeftTop)
-	ui := []Element{ui_box_of(corner, ui_box_of(ui_box()))}
+	ui := []Element{ui_panel_of(corner, ui_panel_of(ui_box()))}
 	s: State
 	fake_frame_state_init(&s, mode = .Lockstep, colliders = colliders, queries = queries, ui = ui)
 	defer fake_frame_state_destroy(&s)
@@ -75,18 +75,18 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	expect_tags(t, children, {"Draw"})
 	testing.expect_value(t, expect_tag(t, children[0], "Draw").(json.Object)["pos"].(json.Object)["z"].(json.Float), 1)
 	expect_tags(t, scene["queries"].(json.Array), {"ContactsOf", "Raycast", "Overlap"})
-	// fake_view puts the ui_texts Box before the Elements of g_fake.ui.
+	// fake_view puts the ui_texts Panel before the Elements of g_fake.ui.
 	elements := scene["ui"].(json.Array)
-	expect_tags(t, elements, {"Box", "Box"})
-	pip := expect_tag(t, elements[0], "Box").(json.Object)["children"].(json.Array)
+	expect_tags(t, elements, {"Panel", "Panel"})
+	pip := expect_tag(t, elements[0], "Panel").(json.Object)["children"].(json.Array)
 	expect_tags(t, pip, {"Text"})
 	testing.expect_value(t, expect_tag(t, pip[0], "Text").(json.Object)["str"].(json.String), "Pip")
-	corner_json := expect_tag(t, elements[1], "Box").(json.Object)
+	corner_json := expect_tag(t, elements[1], "Panel").(json.Object)
 	float := expect_tag(t, corner_json["config"].(json.Object)["floating"], "Float").(json.Object)
 	testing.expect_value(t, float["attach"].(json.String), "LeftTop")
 	nested := corner_json["children"].(json.Array)
-	expect_tags(t, nested, {"Box"})
-	testing.expect_value(t, len(expect_tag(t, nested[0], "Box").(json.Object)["children"].(json.Array)), 0)
+	expect_tags(t, nested, {"Panel"})
+	testing.expect_value(t, len(expect_tag(t, nested[0], "Panel").(json.Object)["children"].(json.Array)), 0)
 
 	results := reply["results"].(json.Object)
 	contacts := results["contacts"].(json.Array)
@@ -107,12 +107,12 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 }
 
 @(test)
-test_bridge_scene_shows_the_boxes_under_the_step_pointer :: proc(t: ^testing.T) {
+test_bridge_scene_shows_the_panels_under_the_step_pointer :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
 	r: Step_Run
-	step_run_open(t, &r, ui = {ui_box_of(ui_tagged(7, 100, 100))})
+	step_run_open(t, &r, ui = {ui_panel_of(ui_tagged(7, 100, 100))})
 	defer step_run_close(&r)
 
 	step_run_request(t, &r, `{"op":"step","pointer":{"x":50,"y":50}}`)

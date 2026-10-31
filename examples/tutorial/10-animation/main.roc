@@ -363,8 +363,8 @@ status_text = |model| match model.phase {
 # A bottom point of the window needs a negative y offset to move up into it.
 hud : Model -> List(Element)
 hud = |model| {
-	count = Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
-	status = Box(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
+	count = Panel(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
+	status = Panel(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
 	[count, status]
 }
 

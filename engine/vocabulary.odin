@@ -4,9 +4,9 @@ package engine
 // by the path that reaches it from a provided function. A record shared by
 // several paths takes the name of the first, so Vec3 is the pos of a Play's
 // Place, Quat is a Collider's rot, Rgb is a Draw's glow, a step result is a
-// Roc_Init and Rgba is a Box background. A nominal type keeps its own name,
+// Roc_Init and Rgba is a Panel background. A nominal type keeps its own name,
 // so Element is Roc_VocabularyElement and Node is Roc_VocabularyNode. The
-// glue names the fields of a Box and a Group _0 (the config, or the Group's
+// glue names the fields of a Panel and a Group _0 (the config, or the Group's
 // id and Pose) and _1 (the children). A Draw's pose is a Draw_Pose, because the host's
 // Pose is a position and a rot.
 Config :: Roc_Init_Arg0
@@ -56,23 +56,23 @@ Quat :: Roc_VocabularyNode_Collider_Rot
 Rgb :: Roc_VocabularyNode_Draw_Glow
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor
-Rgba :: Roc_VocabularyElement_Box_0_Background
+Rgba :: Roc_VocabularyElement_Panel_0_Background
 Element :: Roc_VocabularyElement
 Element_Tag :: Roc_VocabularyElement_Tag
-Box_Config :: Roc_VocabularyElement_Box_0
-Sizing :: Roc_VocabularyElement_Box_0_Height
-Sizing_Tag :: Roc_VocabularyElement_Box_0_Height_Tag
-Sizing_Range :: Roc_VocabularyElement_Box_0_Height_Fit
-Pad :: Roc_VocabularyElement_Box_0_Pad
-Direction :: Roc_VocabularyElement_Box_0_Direction
-Child_Align :: Roc_VocabularyElement_Box_0_ChildAlign
-Align :: Roc_VocabularyElement_Box_0_ChildAlign_X
-Floating :: Roc_VocabularyElement_Box_0_Floating
-Floating_Tag :: Roc_VocabularyElement_Box_0_Floating_Tag
-Float_Config :: Roc_VocabularyElement_Box_0_Floating_Float
-Attach_Point :: Roc_VocabularyElement_Box_0_Floating_Float_Attach
-Float_To :: Roc_VocabularyElement_Box_0_Floating_Float_To
-Overflow :: Roc_VocabularyElement_Box_0_Overflow
-Overflow_Tag :: Roc_VocabularyElement_Box_0_Overflow_Tag
+Box_Config :: Roc_VocabularyElement_Panel_0
+Sizing :: Roc_VocabularyElement_Panel_0_Height
+Sizing_Tag :: Roc_VocabularyElement_Panel_0_Height_Tag
+Sizing_Range :: Roc_VocabularyElement_Panel_0_Height_Fit
+Pad :: Roc_VocabularyElement_Panel_0_Pad
+Direction :: Roc_VocabularyElement_Panel_0_Direction
+Child_Align :: Roc_VocabularyElement_Panel_0_ChildAlign
+Align :: Roc_VocabularyElement_Panel_0_ChildAlign_X
+Floating :: Roc_VocabularyElement_Panel_0_Floating
+Floating_Tag :: Roc_VocabularyElement_Panel_0_Floating_Tag
+Float_Config :: Roc_VocabularyElement_Panel_0_Floating_Float
+Attach_Point :: Roc_VocabularyElement_Panel_0_Floating_Float_Attach
+Float_To :: Roc_VocabularyElement_Panel_0_Floating_Float_To
+Overflow :: Roc_VocabularyElement_Panel_0_Overflow
+Overflow_Tag :: Roc_VocabularyElement_Panel_0_Overflow_Tag
 Text :: Roc_VocabularyElement_Text
 Text_Wrap :: Roc_VocabularyElement_Text_Wrap

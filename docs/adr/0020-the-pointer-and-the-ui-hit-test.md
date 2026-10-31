@@ -2,7 +2,8 @@
 
 Status: accepted, 2026-10-31. It amends ADR 0004 and closes its consequence
 "Pointer input for the UI reopens this decision". The host still lays out
-the UI.
+the UI. Later on 2026-10-31 the `Box` tag became `Panel`. A tagged Box
+below is a tagged Panel now.
 
 ## Context
 

@@ -3,7 +3,7 @@ import Vocabulary exposing [RayHit]
 ## Reads the QueryResults that `step` gets, and builds them for tests.
 QueryResults := [].{
 
-	## No Contacts, no RayHits, no OverlapHits, no port messages, no Boxes under
+	## No Contacts, no RayHits, no OverlapHits, no port messages, no Panels under
 	## the pointer and no scroll sizes. The first step gets it.
 	empty : Vocabulary.QueryResults
 	empty = { contacts: [], rays: [], overlaps: [], ports: [], ui: { over: [], scroll: [] } }

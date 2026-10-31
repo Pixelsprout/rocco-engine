@@ -49,11 +49,11 @@ devices_run_open :: proc(t: ^testing.T, r: ^Step_Run, ui: []Element = nil) {
 	step_run_request(t, r, `{"op":"hello","devices":true}`)
 }
 
-// A tagged Box at the top left, 100 by 100. g_fake keeps the roots past the
+// A tagged Panel at the top left, 100 by 100. g_fake keeps the roots past the
 // call, so they live in the temp allocator.
 @(private = "file")
 devices_run_open_pointing :: proc(t: ^testing.T, r: ^Step_Run) {
-	devices_run_open(t, r, slice.clone([]Element{ui_box_of(ui_tagged(7, 100, 100))}, context.temp_allocator))
+	devices_run_open(t, r, slice.clone([]Element{ui_panel_of(ui_tagged(7, 100, 100))}, context.temp_allocator))
 }
 
 // The fake platform window is 960 by 540 at dpi 1.

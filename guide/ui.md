@@ -1,6 +1,6 @@
 ---
 title: The UI
-summary: Why the host lays out the UI, how a game writes it as a tree of Boxes and Text, the ui package's defaults and helpers, and the layout rules.
+summary: Why the host lays out the UI, how a game writes it as a tree of Panels and Text, the ui package's defaults and helpers, and the layout rules.
 order: 9
 ---
 
@@ -12,7 +12,7 @@ centres, panels that stick to a corner, sizes that follow the window.
 The host does that layout. Your game describes the UI in the `ui` field
 of the [Scene], and the host lays it out and draws it flat over the 3D
 view. When your game needs to choose what to show, such as how much of a
-long line fits in a box, it can measure a string first with
+long line fits in a Panel, it can measure a string first with
 [`Ui.measure`][Ui.measure]. Like the rest of the Scene, the UI is a Description: your game builds
 it again at each step from the Model. A game with no UI keeps the empty
 list of `Scene.empty`, which costs nothing.
@@ -21,15 +21,15 @@ A UI is nested by nature. A scoreboard is a panel; inside the panel sits a
 row of cells; inside each cell sits a number. So your game writes the UI as
 a tree, and the host gets that same tree.
 
-## Boxes and Text
+## Panels and Text
 
 The tree is made of two kinds of [Element]:
 
 ```roc
-Element := [Box(BoxConfig, List(Element)), Text(Text)]
+Element := [Panel(BoxConfig, List(Element)), Text(Text)]
 ```
 
-- A `Box` is a rectangle. Its [BoxConfig] says how it sizes and looks, and
+- A `Panel` is a rectangle. Its [BoxConfig] says how it sizes and looks, and
   its list holds its children, laid out in order inside it.
 - A `Text` draws one string. It has no children.
 
@@ -37,12 +37,11 @@ Element := [Box(BoxConfig, List(Element)), Text(Text)]
 just as you would write any other value:
 
 ```roc
-ui: [Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(Ui.label("Score: 3"))])]
+ui: [Panel(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(Ui.label("Score: 3"))])]
 ```
 
-That is one Box in the top-left corner of the window, holding one line of
-text. The config type is called `BoxConfig` because the `Box` tag, and
-Roc's builtin `Box`, already have the name.
+That is one Panel in the top-left corner of the window, holding one line of
+text.
 
 An Element has no id. Its place in the tree is its identity, and the host
 keeps nothing from one step to the next. The 3D part of the Scene is a
@@ -80,8 +79,8 @@ score_color = |state, own, other| {
 # Fixed cells keep the colon still when a score gains a digit.
 scoreboard : GameState, Score -> Element
 scoreboard = |state, score| {
-	cell = |own, other| Box({ ..centred, width: Fixed(48.0) }, [Text({ ..Ui.label(own.to_str()), color: score_color(state, own, other) })])
-	Box(
+	cell = |own, other| Panel({ ..centred, width: Fixed(48.0) }, [Text({ ..Ui.label(own.to_str()), color: score_color(state, own, other) })])
+	Panel(
 		{ ..Ui.panel(CenterTop, { x: 0.0, y: 16.0 }), gap: 8.0, child_align: { x: Center, y: Center } },
 		[cell(score.left, score.right), Text(Ui.label(":")), cell(score.right, score.left)],
 	)
@@ -101,19 +100,19 @@ banner = |state, score| match state {
 # the banner, so the text centres and the hint wraps inside it.
 banner_box : Str, Rgba, Str -> Element
 banner_box = |title, color, hint| {
-	row = |child| Box({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
-	Box(
+	row = |child| Panel({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
+	Panel(
 		{ ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
 		[row(Text({ ..Ui.label(title), size: 40.0, color })), row(Text(Ui.label(hint)))],
 	)
 }
 
-# The engine adds the offset at the same corner of the window and the box, so
+# The engine adds the offset at the same corner of the window and the Panel, so
 # a bottom or right corner needs a negative offset.
 hints : List(Element)
 hints = [
-	Box(Ui.panel(LeftBottom, { x: 16.0, y: -16.0 }), [Text(Ui.label("W / S"))]),
-	Box(Ui.panel(RightBottom, { x: -16.0, y: -16.0 }), [Text(Ui.label("Up / Down"))]),
+	Panel(Ui.panel(LeftBottom, { x: 16.0, y: -16.0 }), [Text(Ui.label("W / S"))]),
+	Panel(Ui.panel(RightBottom, { x: -16.0, y: -16.0 }), [Text(Ui.label("Up / Down"))]),
 ]
 
 hud : Model -> List(Element)
@@ -122,9 +121,9 @@ hud = |m| [scoreboard(m.state, m.score)].concat(banner(m.state, m.score)).concat
 <!-- endregion -->
 
 Each function returns a value with the shape that it draws. `scoreboard`
-gives one Box, a panel that holds a cell, a colon and a cell. `banner`
+gives one Panel that holds a cell, a colon and a cell. `banner`
 gives a list, empty while the game runs, so `hud` can join the roots with
-`concat`. Each Box's list of children is built once, and nothing
+`concat`. Each Panel's list of children is built once, and nothing
 flattens the tree.
 
 ## Testing a UI
@@ -138,7 +137,7 @@ pattern. This test from pong reads the scoreboard without the host:
 # one Text.
 expect
 	match scoreboard(Running, { left: 3, right: 0 }) {
-		Box(_, [Box(_, [Text(left)]), Text(colon), Box(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
+		Panel(_, [Panel(_, [Text(left)]), Text(colon), Panel(_, [Text(right)])]) => left.str == "3" and colon.str == ":" and right.str == "0"
 		_ => Bool.False
 	}
 ```
@@ -162,7 +161,7 @@ starting values and a few small helpers:
   `Text({ ..Ui.label("Paused"), size: 40.0 })`.
 - [`Ui.float_at(attach, offset)`][Ui.float_at] gives a BoxConfig that
   floats over the window at one of its points.
-- [`Ui.panel(attach, offset)`][Ui.panel] is a `float_at` Box for a HUD,
+- [`Ui.panel(attach, offset)`][Ui.panel] is a `float_at` Panel for a HUD,
   with padding, a see-through black background and round corners.
 - [`Ui.pad_all(n)`][Ui.pad_all] gives the same padding on all four sides.
 - [`Ui.measure`][Ui.measure], [`Ui.fit`][Ui.fit] and [`Ui.wrap`][Ui.wrap]
@@ -184,11 +183,11 @@ modules are plain Roc, and you give every id.
 `Button` keeps the hover and the press of the left button for every button
 of one UI, so keep one in your Model. Its `update` reads the pointer and
 `results.ui.over`, and gives `Pressed` and `Clicked` events. A button
-clicks when the left button goes up over the Box it went down on.
+clicks when the left button goes up over the Panel it went down on.
 `Button.view` draws one button with the idle, hover, down or focus colour
 of the `Widget.Look`. It is a UI button, not the button of a gamepad.
 
-`Focus` is the Box that the keys act on. Give its `update` the ids that
+`Focus` is the Panel that the keys act on. Give its `update` the ids that
 take the focus, in Tab order. Tab and Shift-Tab move it, and Enter or
 Space gives a `Clicked` event for the focused id, the same event as a
 click.
@@ -198,7 +197,7 @@ the button. A click on an item selects it and closes the menu, and a press
 outside the menu closes it. `Accordion` is a header button that shows or
 hides a body. Both read only the events of `Button` and `Focus`.
 
-`Scroll` is a Box that scrolls its rows, with a scrollbar thumb that the
+`Scroll` is a Panel that scrolls its rows, with a scrollbar thumb that the
 person can drag. The wheel scrolls it by `line` pixels per step, and Page
 Up, Page Down, Home and End move it while it has the focus. It reads its
 sizes from `results.ui.scroll`.
@@ -240,7 +239,7 @@ into an Element once, where it goes into `Scene.ui`, with
 <!-- region: examples/widgets/main.roc#widgets-element -->
 ```roc
 element : Ui.Node -> Element
-element = |node| node.build({ box: |config, children| Box(config, children), text: |text| Text(text) })
+element = |node| node.build({ panel: |config, children| Panel(config, children), text: |text| Text(text) })
 ```
 <!-- endregion -->
 
@@ -256,15 +255,15 @@ view = |model| {
 	details = model.details.view({ buttons, focus, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, body_text)] })
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
-	panel = Box({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Box({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
+	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
 	{ ..Scene.empty, ui: [element(panel)] }
 }
 ```
 <!-- endregion -->
 
 One click reaches one widget. A press and a click belong to the innermost
-tagged Box under the pointer, and each widget acts only on the events
-that name its own ids. An open menu floats, so it hides the Boxes under
+tagged Panel under the pointer, and each widget acts only on the events
+that name its own ids. An open menu floats, so it hides the Panels under
 it, and a click on an item does not also reach the header under it.
 
 Agent Town's log is a `Scroll` with `StickToBottom` and a `line` of 18,
@@ -282,34 +281,34 @@ are Clay's.
 
 - All sizes are logical pixels. The host multiplies each size by the DPI
   scale of the display.
-- A Box lays out its children in a `Row`, from left to right, or in a
+- A Panel lays out its children in a `Row`, from left to right, or in a
   `Col`, from top to bottom.
-- `pad` is the space between the edges of a Box and its children. `gap` is
+- `pad` is the space between the edges of a Panel and its children. `gap` is
   the space between two children.
 - `child_align` puts the children at the `Start`, the `Center` or the `End`
-  of the Box, on each axis.
+  of the Panel, on each axis.
 - A `Fit` size fits the children. A `Grow` size fills the free space in the
   parent. A `Fixed` size is the number that you give. A `Percent` size is a
   fraction of the parent, from 0 to 1.
-- A Box with a `Float` ignores the layout of its parent. With `to: Window`
+- A Panel with a `Float` ignores the layout of its parent. With `to: Window`
   it floats on the window, and with `to: Parent` it floats on its parent
-  Box. A root Box with `to: Parent` floats on the window.
-- A floating Box puts its `attach` point on the `on` point of the window or
+  Panel. A root Panel with `to: Parent` floats on the window.
+- A floating Panel puts its `attach` point on the `on` point of the window or
   of its parent, then moves by `offset`. +x is to the right and +y is down,
-  so a Box at a right or a bottom point needs a negative offset to move
+  so a Panel at a right or a bottom point needs a negative offset to move
   into the window. `Ui.float_at` uses the same point for both.
 - A Text with `wrap` set to `Words` breaks its lines between words, inside
   the width of its parent. [`Ui.wrap`][Ui.wrap] gives the same lines.
 
 Use `Grow` and `Percent` to fit the UI to the window. The only layout
-results that come back to your game are the Boxes under the pointer and
-the sizes of the Scroll Boxes. See below.
+results that come back to your game are the Panels under the pointer and
+the sizes of the Scroll Panels. See below.
 
-## The pointer and tagged Boxes
+## The pointer and tagged Panels
 
-Give a Box a non-zero `id` to tag it. After each layout, the host finds the
-tagged Boxes under the pointer and gives them to the next step in
-`results.ui.over`, innermost first. A button is a tagged Box, and a click
+Give a Panel a non-zero `id` to tag it. After each layout, the host finds the
+tagged Panels under the pointer and gives them to the next step in
+`results.ui.over`, innermost first. A button is a tagged Panel, and a click
 on it is a `MouseButton.released` while its id is in `over`:
 
 ```roc
@@ -321,14 +320,14 @@ clicks = |input, results| if MouseButton.released(input, Left) and List.contains
 }
 ```
 
-Give each tagged Box its own id. If two Boxes share an id, the host logs
-once and only the first Box is ever in `over`.
+Give each tagged Panel its own id. If two Panels share an id, the host logs
+once and only the first Panel is ever in `over`.
 
-A floating Box hides the Boxes under it when it, or any Box inside it, has
+A floating Panel hides the Panels under it when it, or any Panel inside it, has
 an id. So an open menu over a button gives only the menu's ids, and a click
-on a menu item does not also reach the button. A floating Box with no
-tagged Box inside it, such as a label, lets the pointer through to the
-Boxes under it.
+on a menu item does not also reach the button. A floating Panel with no
+tagged Panel inside it, such as a label, lets the pointer through to the
+Panels under it.
 
 A menu that drops down under its button floats on its parent:
 `floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } })`
@@ -337,19 +336,19 @@ corner.
 
 ## Clip and scroll
 
-`overflow` says what a Box does with children that reach past its edges:
+`overflow` says what a Panel does with children that reach past its edges:
 
 - `Visible`, the default, draws them.
-- `Clip` cuts them at the edges of the Box.
+- `Clip` cuts them at the edges of the Panel.
 - `Scroll({ x, y })` cuts them and moves them by the offset. A negative `y`
   moves them up, so later content shows.
 
 Your game owns the scroll offset. Keep it in the Model, change it on
-`input.pointer.wheel` while the Box is in `over`, and keep it in range with
+`input.pointer.wheel` while the Panel is in `over`, and keep it in range with
 the sizes in `results.ui.scroll`. Each row there has the `id` of a tagged
-Scroll Box, its `view` size and its `content` size, in logical pixels. The
-furthest that `y` goes is `view.height - content.height`. A Scroll Box
-needs an `id`. Without one, the host logs once, still scrolls the Box, but
+Scroll Panel, its `view` size and its `content` size, in logical pixels. The
+furthest that `y` goes is `view.height - content.height`. A Scroll Panel
+needs an `id`. Without one, the host logs once, still scrolls the Panel, but
 lists no sizes for it.
 
 ## Text
@@ -370,7 +369,7 @@ one line of text, in logical pixels. A newline measures as `?`, so use
 
 [`Ui.fit(text, { size, width })`][Ui.fit] cuts a line to a width and ends
 it with `...`. A string that fits comes back unchanged. A HUD feed in a 420
-pixel box keeps each line on one row like this:
+pixel Panel keeps each line on one row like this:
 
 ```roc
 Text({ ..Ui.label(Ui.fit(line, { size: 18.0, width: 416.0 })), size: 18.0, wrap: None })
@@ -379,7 +378,7 @@ Text({ ..Ui.label(Ui.fit(line, { size: 18.0, width: 416.0 })), size: 18.0, wrap:
 In Agent Town this replaces the feed's cut at 48 characters.
 
 [`Ui.wrap(text, { size, width })`][Ui.wrap] gives the lines that the host
-draws for a `Words` Text, where `width` is the room for the text: the Box
+draws for a `Words` Text, where `width` is the room for the text: the Panel
 width minus its padding. A word wider than `width` takes a line of its
 own, and the other lines then wrap at that word's width.
 
@@ -404,8 +403,8 @@ errors once, and keeps drawing:
 - a character that the font does not have: the host draws `?`.
 - more quads than `capacity.ui_quads` of the [Launch]: the host drops the
   rest.
-- two Boxes with the same `id`: the host hit tests only the first.
-- a Scroll Box with id 0: the host lists no sizes for it.
+- two Panels with the same `id`: the host hit tests only the first.
+- a Scroll Panel with id 0: the host lists no sizes for it.
 
 The host also logs each kind of Clay error once, such as a `Percent` above
 1, and draws what fits.

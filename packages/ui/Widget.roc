@@ -15,22 +15,22 @@ Widget := [].{
 	## `update` the QueryResults that `step` gets.
 	Results(results, ui) : { ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }), ..ui }, ..results }
 
-	## What a press lands on: the tagged Box with that id, or no tagged Box.
+	## What a press lands on: the tagged Panel with that id, or no tagged Panel.
 	Target : [Over(U64), Nowhere]
 
 	## What the buttons and the keys did in one step. `Pressed` comes on the
 	## step that the left button went down, with the hit. `Clicked` comes when
-	## the left button goes up over the Box it went down on, or when Enter or
+	## the left button goes up over the Panel it went down on, or when Enter or
 	## Space acts on the focused id.
 	Event : [Pressed(Target), Clicked(U64)]
 
 	## The colours and sizes of every widget. `idle`, `hover`, `down` and
 	## `focus` colour a button and the scrollbar thumb. `panel` colours a menu,
-	## an accordion body, a Scroll Box and its track. `text`, `size` and `pad`
+	## an accordion body, a Scroll Panel and its track. `text`, `size` and `pad`
 	## set every label: its colour, its height in pixels and the space around it.
 	Look : { idle : Ui.Rgba, hover : Ui.Rgba, down : Ui.Rgba, focus : Ui.Rgba, panel : Ui.Rgba, text : Ui.Rgba, size : F32, pad : F32 }
 
-	## The innermost tagged Box under the pointer, the first id of
+	## The innermost tagged Panel under the pointer, the first id of
 	## `ui.over`, or `Nowhere`.
 	hit : Widget.Results(_, _) -> Target
 	hit = |results| match results.ui.over {
@@ -55,10 +55,10 @@ look = {
 	pad: 7.0,
 }
 
-## The hit is the innermost tagged Box under the pointer, the first id of over.
+## The hit is the innermost tagged Panel under the pointer, the first id of over.
 expect Widget.hit({ ..Seam.results, ui: { over: [11, 3], scroll: [] } }) == Over(11)
 
-## No tagged Box under the pointer is no hit.
+## No tagged Panel under the pointer is no hit.
 expect Widget.hit(Seam.results) == Nowhere
 
 ## A label is one line of text in the look's size and colour.

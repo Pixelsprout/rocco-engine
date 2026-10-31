@@ -4,12 +4,12 @@ import Ui
 import Widget
 
 ## A button that opens a menu of items. The menu floats under the button, so
-## the Boxes under it get no click. A press outside the menu closes it. Keep
+## the Panels under it get no click. A press outside the menu closes it. Keep
 ## one Dropdown in your Model, and give `update` the events of
 ## `Button.update` and `Focus.update`.
 Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }), selected : U64, shown : [Open, Closed] }.{
 
-	## A closed Dropdown. `button` tags the button, `menu` tags the menu Box
+	## A closed Dropdown. `button` tags the button, `menu` tags the menu Panel
 	## and each item's `id` tags its row. `selected` is the index of the item
 	## that the button shows. It crashes when `selected` is past the last item.
 	new : { button : U64, menu : U64, items : List({ id : U64, label : Str }), selected : U64 } -> Dropdown
@@ -53,7 +53,7 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 			Ok(item) => Widget.label(look, item.label)
 			Err(_) => crash "Dropdown.view: selected is past the last item"
 		}
-		menu = Box(
+		menu = Panel(
 			{
 				..Ui.default_box,
 				id: dropdown.menu,
@@ -68,7 +68,7 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 			Open => [label, menu]
 			Closed => [label]
 		}
-		Box(buttons.box({ id: dropdown.button, width, look, focus }), children)
+		Panel(buttons.box({ id: dropdown.button, width, look, focus }), children)
 	}
 
 	## Two Dropdowns are equal when their states are equal.
@@ -138,13 +138,13 @@ expect (closed.focus_order(), opened.focus_order()) == ([2], [2, 10, 11, 12, 13]
 ## The closed view shows the selected label and no menu.
 expect
 	match closed.view({ buttons: Button.idle, focus: Focus.none, width: Fixed(160.0), look }) {
-		Box(config, [Text(text)]) => (config.id, text.str) == (2, "All jobs")
+		Panel(config, [Text(text)]) => (config.id, text.str) == (2, "All jobs")
 		_ => Bool.False
 	}
 
 ## The open view floats a tagged menu of tagged items under the button.
 expect
 	match opened.view({ buttons: Button.idle, focus: Focus.none, width: Fixed(160.0), look }) {
-		Box(_, [Text(_), Box(menu, rows)]) => (menu.id, menu.floating, rows.len()) == (3, Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 0.0 } }), 4)
+		Panel(_, [Text(_), Panel(menu, rows)]) => (menu.id, menu.floating, rows.len()) == (3, Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 0.0 } }), 4)
 		_ => Bool.False
 	}

@@ -120,7 +120,7 @@ While the Cursor is `Locked`, `inside` is false and the position keeps its
 last value. The buttons and the wheel still arrive, so a game with mouse
 look can still shoot on a click.
 
-To know which Box of the UI is under the pointer, tag the Box with an `id`
+To know which Panel of the UI is under the pointer, tag the Panel with an `id`
 and read `results.ui.over`. See [The UI](ui.md).
 
 ## The window size

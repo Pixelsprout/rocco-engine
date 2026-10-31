@@ -1,6 +1,6 @@
 ---
 title: "7. A HUD"
-summary: Show the pickup count and a message over the game with a tree of Boxes and Text in Scene.ui, and finish the game.
+summary: Show the pickup count and a message over the game with a tree of Panels and Text in Scene.ui, and finish the game.
 order: 7
 ---
 
@@ -11,8 +11,8 @@ pickups are left, that the door is open, or that you have won. In this
 chapter, you add a HUD: text that sits over the game. You use:
 
 - the `ui` field of the Scene, which the host draws over the 3D view,
-- the `Box` and `Text` Elements, which build the UI as a tree,
-- the `ui` package, which gives the starting values for a Box and a Text.
+- the `Panel` and `Text` Elements, which build the UI as a tree,
+- the `ui` package, which gives the starting values for a Panel and a Text.
 
 ![Pip on the ground, with "Pickups: 0 / 5" at the top left and "Collect every pickup." at the bottom](../images/tutorial-07-hud.png)
 
@@ -61,7 +61,7 @@ import pf.Scene
 ## The HUD
 
 The host does the UI layout: it measures the strings, wraps the lines and
-places the boxes. Your game describes the UI as a tree of Boxes and Text,
+places the Panels. Your game describes the UI as a tree of Panels and Text,
 and the host places them.
 
 <!-- region: examples/tutorial/07-hud/main.roc#hud -->
@@ -88,8 +88,8 @@ status_text = |model| match model.phase {
 # A bottom point of the window needs a negative y offset to move up into it.
 hud : Model -> List(Element)
 hud = |model| {
-	count = Box(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
-	status = Box(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
+	count = Panel(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text(label(count_text(model)))])
+	status = Panel(Ui.panel(CenterBottom, { x: 0.0, y: -16.0 }), [Text(label(status_text(model)))])
 	[count, status]
 }
 ```
@@ -102,15 +102,15 @@ hud = |model| {
 - `Text(...)` is an Element that draws one string. `label` starts from
   `Ui.label`, which gives white text 24 pixels high, and turns wrapping
   off, so a line of the HUD never breaks.
-- `Box(config, children)` is an Element that holds other Elements.
-  `Ui.panel` gives the config of a Box that floats over the window at one
+- `Panel(config, children)` is an Element that holds other Elements.
+  `Ui.panel` gives the config of a Panel that floats over the window at one
   of its points, with padding, a see-through black background and round
-  corners. Each Box here holds one Text.
+  corners. Each Panel here holds one Text.
 - The count sits at the top left. The status sits at the bottom centre, so
   it moves up by 16 pixels with a negative `y`.
 
-`hud` returns the two Boxes as a list. They are the roots of the UI tree.
-[The UI](../ui.md) explains Boxes, Text and the layout rules.
+`hud` returns the two Panels as a list. They are the roots of the UI tree.
+[The UI](../ui.md) explains Panels, Text and the layout rules.
 
 ## view
 

@@ -111,9 +111,9 @@ spawn_help = |m, n| {
 	}
 }
 
-# The UI holds count Box and Text elements, counted as the UI bench game counts
-# them: count / 2 cells of one Box and one Text, and one empty Box when count is
-# odd. An empty label marks that Box.
+# The UI holds count Panel and Text elements, counted as the UI bench game counts
+# them: count / 2 cells of one Panel and one Text, and one empty Panel when count is
+# odd. An empty label marks that Panel.
 ui_labels : U64 -> List(Str)
 ui_labels = |count| {
 	labels = add_labels(List.with_capacity(count // 2 + 1), count // 2)
@@ -223,7 +223,7 @@ elements = |m| {
 	if m.labels.is_empty() {
 		[]
 	} else {
-		[Box(root_box, m.labels.map_with_index(|text, i| cell(text, i == m.lit)))]
+		[Panel(root_box, m.labels.map_with_index(|text, i| cell(text, i == m.lit)))]
 	}
 }
 
@@ -231,7 +231,7 @@ cell : Str, Bool -> Element
 cell = |text, lit| {
 	config = if lit { ..cell_box, background: lit_background } else cell_box
 	children = if text == "" [] else [Text(label(text))]
-	Box(config, children)
+	Panel(config, children)
 }
 
 scene_of : U64 -> Scene
@@ -261,11 +261,11 @@ lights_of = |scene| scene.nodes.keep_oks(
 	},
 )
 
-boxes : List(Element) -> U64
-boxes = |ui| ui.fold(
+panels : List(Element) -> U64
+panels = |ui| ui.fold(
 	0,
 	|n, e| match e {
-		Box(_, children) => n + 1 + boxes(children)
+		Panel(_, children) => n + 1 + panels(children)
 		Text(_) => n
 	},
 )
@@ -274,15 +274,15 @@ texts : List(Element) -> U64
 texts = |ui| ui.fold(
 	0,
 	|n, e| match e {
-		Box(_, children) => n + texts(children)
+		Panel(_, children) => n + texts(children)
 		Text(_) => n + 1
 	},
 )
 
-# The root Box is not one of the UI elements.
+# The root Panel is not one of the UI elements.
 ui_element_count : List(Element) -> U64
 ui_element_count = |ui| match ui {
-	[Box(_, cells)] => boxes(cells) + texts(cells)
+	[Panel(_, cells)] => panels(cells) + texts(cells)
 	_ => 0
 }
 

@@ -1,7 +1,9 @@
 # 0013: The Scene crosses the seam as a tree
 
 Status: accepted, 2026-10-22. It replaces the transport part of ADR 0004.
-The layout part of ADR 0004 stands.
+The layout part of ADR 0004 stands. On 2026-10-31 the `Box` tag became
+`Panel`, so `Element := [Panel(BoxConfig, List(Element)), Text(Text)]`.
+The decision stands.
 
 ## Context
 

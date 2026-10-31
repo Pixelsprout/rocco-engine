@@ -287,34 +287,34 @@ only, never interpolated. The UI is a tree, but it is still a Description and
 not a retained scene graph: the host keeps no Element from one step to the
 next. Sizes are in logical pixels. The layout fits the Elements to the
 window; the game reads the window size from Input. After the layout, the
-host sends back only the tagged Boxes under the Pointer and the sizes of
-the Scroll Boxes, in QueryResults. "HUD" is a game's word for what its UI
+host sends back only the tagged Panels under the Pointer and the sizes of
+the Scroll Panels, in QueryResults. "HUD" is a game's word for what its UI
 shows.
 _Avoid_: HUD (in the engine), overlay, GUI, canvas, widget tree
 
 **Element**:
-One part of the UI tree: a Box, which holds its children, or a Text. The
-game writes the tags itself, `Box(config, [...])` and `Text(...)`. An
+One part of the UI tree: a Panel, which holds its children, or a Text. The
+game writes the tags itself, `Panel(config, [...])` and `Text(...)`. An
 Element's identity is its place in the tree. The tree crosses the seam as
 it is; it is not flattened into a list.
 _Avoid_: widget, Node (the 3D tree), Ui.Node (the package tree), control, view (the call), parent index
 
-**Box**:
+**Panel**:
 An Element that is a rectangle and holds a list of child Elements. Its
 config carries its Hit id, sizing, padding, gap, direction, child
 alignment, background, corner radius and Overflow, and its type is
-`BoxConfig`. A floating Box puts one of its points on a point of the
-window or of its parent Box, and ignores its parent's layout.
-_Avoid_: panel, div, container, frame
+`BoxConfig`. A floating Panel puts one of its points on a point of the
+window or of its parent Panel, and ignores its parent's layout.
+_Avoid_: Box (a collider shape), div, container, frame
 
 **Hit id**:
-The `id` of a Box. A Box with a non-zero id is tagged: the host hit tests it
-and lists it in `QueryResults.ui`. 0 is not tagged. A floating Box that
-holds a tagged Box blocks the Pointer from the Boxes under it.
+The `id` of a Panel. A Panel with a non-zero id is tagged: the host hit tests it
+and lists it in `QueryResults.ui`. 0 is not tagged. A floating Panel that
+holds a tagged Panel blocks the Pointer from the Panels under it.
 _Avoid_: element id, key, name
 
 **Overflow**:
-What a Box does with children that reach past its edges: `Visible` draws
+What a Panel does with children that reach past its edges: `Visible` draws
 them, `Clip` cuts them at the edges, and `Scroll` cuts them and moves them
 by an offset from the Scene. The game owns the offset.
 _Avoid_: scroll view, viewport, mask
@@ -333,13 +333,13 @@ _Avoid_: Element (for the package tree), widget tree
 
 **Widget**:
 A pure Roc helper module of `packages/ui` for a button, a dropdown, an
-accordion, focus or a scrolling Box. Its state lives in the Model, and its
+accordion, focus or a scrolling Panel. Its state lives in the Model, and its
 `view` returns a Ui.Node. The engine has no widget, and it is not
 Vocabulary.
 _Avoid_: control, component
 
 **Focus**:
-Which tagged Box the keys act on, kept in the Model by `Focus` of
+Which tagged Panel the keys act on, kept in the Model by `Focus` of
 `packages/ui`. The engine has none, and it is not the window's focus.
 _Avoid_: selection, active element
 
@@ -516,8 +516,8 @@ _Avoid_: index, channel, query id
 **QueryResults**:
 What the host gives `step` each fixed step: the record `{ contacts, rays,
 overlaps, ports, ui }`, with one flat list for each kind of Query. A miss
-has no row. `ui` needs no Query: it holds the tagged Boxes under the Pointer
-and the sizes of the tagged Scroll Boxes, from the layout the window last
+has no row. `ui` needs no Query: it holds the tagged Panels under the Pointer
+and the sizes of the tagged Scroll Panels, from the layout the window last
 showed. The first step gets empty QueryResults.
 _Avoid_: Answer, Answers, Result, Response, Event
 

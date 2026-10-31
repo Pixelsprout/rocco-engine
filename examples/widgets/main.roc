@@ -121,7 +121,7 @@ tells = |events, selection| {
 
 # region: widgets-element
 element : Ui.Node -> Element
-element = |node| node.build({ box: |config, children| Box(config, children), text: |text| Text(text) })
+element = |node| node.build({ panel: |config, children| Panel(config, children), text: |text| Text(text) })
 
 # endregion
 
@@ -134,7 +134,7 @@ view = |model| {
 	details = model.details.view({ buttons, focus, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, body_text)] })
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
-	panel = Box({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Box({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
+	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
 	{ ..Scene.empty, ui: [element(panel)] }
 }
 
@@ -173,6 +173,6 @@ expect (focus_order(start), focus_order(step(start, click, over([filter_id]), 0.
 ## The view tags the two buttons of the first row.
 expect
 	match view(start).ui {
-		[Box(_, [Box(_, [Box(add, _), Box(filter, _)]), _, _])] => (add.id, filter.id) == (add_id, filter_id)
+		[Panel(_, [Panel(_, [Panel(add, _), Panel(filter, _)]), _, _])] => (add.id, filter.id) == (add_id, filter_id)
 		_ => Bool.False
 	}

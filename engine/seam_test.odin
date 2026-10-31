@@ -332,7 +332,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 			tag = .Text,
 			payload = {text = {str = roc_str_from_slice(str)}},
 		}
-		append(&ui, Element{tag = .Box, payload = {box = {_1 = roc_list_from_slice([]Element{text})}}})
+		append(&ui, Element{tag = .Panel, payload = {panel = {_1 = roc_list_from_slice([]Element{text})}}})
 	}
 	for e in g_fake.ui {
 		append(&ui, fake_element_refcounted(e))
@@ -366,17 +366,17 @@ fake_view :: proc(model: rawptr) -> Scene {
 
 // The host frees each Scene, so every children list it gets must be a Roc allocation.
 fake_element_refcounted :: proc(e: Element) -> Element {
-	if e.tag != .Box {
+	if e.tag != .Panel {
 		return e
 	}
-	box := e.payload.box
-	old_children := box._1
+	panel := e.payload.panel
+	old_children := panel._1
 	children := make([]Element, old_children.length, context.temp_allocator)
 	for child, i in old_children.elements[:old_children.length] {
 		children[i] = fake_element_refcounted(child)
 	}
-	box._1 = roc_list_from_slice(children)
-	return {tag = .Box, payload = {box = box}}
+	panel._1 = roc_list_from_slice(children)
+	return {tag = .Panel, payload = {panel = panel}}
 }
 
 // The host frees each Scene, so every Group's children list it gets must be a Roc allocation.
@@ -576,7 +576,7 @@ test_seam_step_frees_the_text_strings_of_the_last_scene :: proc(t: ^testing.T) {
 
 	_, curr := seam_scenes(&s)
 	testing.expect_value(t, curr.ui.length, 2)
-	children := curr.ui.elements[0].payload.box._1
+	children := curr.ui.elements[0].payload.panel._1
 	testing.expect_value(t, children.length, 1)
 	testing.expect_value(t, children.elements[0].tag, Element_Tag.Text)
 	testing.expect_value(t, roc_str_string(&children.elements[0].payload.text.str), "a string longer than twenty-three bytes")

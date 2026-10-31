@@ -5,18 +5,18 @@ import Widget
 
 ## The hover and the press of the left button, for every button of one UI.
 ## Keep one Button in your Model and call `update` once per step. A button
-## clicks when the left button goes up over the Box it went down on. This is
+## clicks when the left button goes up over the Panel it went down on. This is
 ## a UI button, not a button of a gamepad.
 Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 
-	## No Box under the pointer and the left button up.
+	## No Panel under the pointer and the left button up.
 	idle : Button
 	idle = { hover: Nowhere, press: Up }
 
 	## Reads the left button and the hit, and gives at most one `Pressed` and
-	## one `Clicked`. The events name the innermost tagged Box only, so one
+	## one `Clicked`. The events name the innermost tagged Panel only, so one
 	## click reaches one widget. A press over nothing, or a release over
-	## another Box, clicks nothing.
+	## another Panel, clicks nothing.
 	update : Button, { input : Widget.Input(_, _), results : Widget.Results(_, _) } -> { buttons : Button, events : List(Widget.Event) }
 	update = |buttons, { input, results }| {
 		hit = Widget.hit(results)
@@ -34,7 +34,7 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 		}
 	}
 
-	## The Box of the button `id`, padded by `look.pad` with its child centred
+	## The Panel of the button `id`, padded by `look.pad` with its child centred
 	## on the y axis. The height fits the label. The background is `look.down`
 	## while the left button is held over it, `look.hover` while the pointer
 	## is over it, `look.focus` while it has the focus, and `look.idle` else.
@@ -62,9 +62,9 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 		}
 	}
 
-	## A button Box that holds one label.
+	## A button Panel that holds one label.
 	view : Button, { id : U64, label : Str, width : Ui.Sizing, look : Widget.Look, focus : Focus } -> Ui.Node
-	view = |buttons, { id, label, width, look, focus }| Box(buttons.box({ id, width, look, focus }), [Widget.label(look, label)])
+	view = |buttons, { id, label, width, look, focus }| Panel(buttons.box({ id, width, look, focus }), [Widget.label(look, label)])
 
 	## Two Buttons are equal when their states are equal.
 	is_eq : _
@@ -94,26 +94,26 @@ release = left({ held: [], pressed: [], released: [Left] })
 
 tap = left({ held: [], pressed: [Left], released: [Left] })
 
-## A tap in one step over a Box presses and clicks it.
+## A tap in one step over a Panel presses and clicks it.
 expect Button.idle.update({ input: tap, results: over([7]) }).events == [Pressed(Over(7)), Clicked(7)]
 
-## A press and a release over the same Box click on the release.
+## A press and a release over the same Panel click on the release.
 expect {
 	down = Button.idle.update({ input: press, results: over([7]) })
 	up = down.buttons.update({ input: release, results: over([7]) })
 	(down.events, up.events) == ([Pressed(Over(7))], [Clicked(7)])
 }
 
-## A release over another Box clicks nothing.
+## A release over another Panel clicks nothing.
 expect Button.idle.update({ input: press, results: over([7]) }).buttons.update({ input: release, results: over([8]) }).events == []
 
-## A press over nothing and a release over a Box click nothing.
+## A press over nothing and a release over a Panel click nothing.
 expect {
 	down = Button.idle.update({ input: press, results: over([]) })
 	(down.events, down.buttons.update({ input: release, results: over([7]) }).events) == ([Pressed(Nowhere)], [])
 }
 
-## Only the innermost tagged Box gets the click.
+## Only the innermost tagged Panel gets the click.
 expect Button.idle.update({ input: tap, results: over([11, 3]) }).events == [Pressed(Over(11)), Clicked(11)]
 
 ## The right button does nothing.
@@ -132,9 +132,9 @@ expect {
 	backgrounds == [look.down, look.hover, look.focus, look.idle]
 }
 
-## The view is a tagged Box that holds one label.
+## The view is a tagged Panel that holds one label.
 expect
 	match Button.idle.view({ id: 7, label: "Add line", width: Fixed(160.0), look, focus: Focus.none }) {
-		Box(config, [Text(text)]) => (config.id, config.width, text.str) == (7, Fixed(160.0), "Add line")
+		Panel(config, [Text(text)]) => (config.id, config.width, text.str) == (7, Fixed(160.0), "Add line")
 		_ => Bool.False
 	}

@@ -390,9 +390,9 @@ json_write_place :: proc(b: ^strings.Builder, place: ^Place) {
 
 json_write_element :: proc(b: ^strings.Builder, element: ^Element) {
 	switch element.tag {
-	case .Box:
-		config, children := &element.payload.box._0, element.payload.box._1
-		json_key(b, "Box", first = true)
+	case .Panel:
+		config, children := &element.payload.panel._0, element.payload.panel._1
+		json_key(b, "Panel", first = true)
 		json_key(b, "config", first = true)
 		json_write_box_config(b, config)
 		json_key(b, "children")

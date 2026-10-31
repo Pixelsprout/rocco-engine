@@ -253,7 +253,7 @@ is repeatable. Each bench game changes one axis. The bench games live in
 | `colliders` | N moving Colliders | Headless | 8 raycasts, 8 overlaps, one ContactsOf; 4 square units per Collider |
 | `colliders-twin` | the Odin twin of `colliders` | Headless | as `colliders` |
 | `draws` | N moving primitive cubes, one Draw each | windowed Lockstep | one Sun with shadows; the cubes stay in a fixed square |
-| `ui` | N Box and Text elements; one lit cell moves each step | windowed Lockstep | no Draws |
+| `ui` | N Panel and Text elements; one lit cell moves each step | windowed Lockstep | no Draws |
 | `mixed` | all axes, see "The headline figure" | windowed Lockstep | 4 Lights and the fixed Queries |
 | `lights` | N Point lights, each beside a glowing orb, drifting over a floor | windowed Lockstep | 1,024 floor tiles, one dim Sun with shadows, one Ambient |
 
@@ -329,7 +329,7 @@ The mixed bench game, `bench/mixed/`, scales every axis with one N:
 
 - Each entity has one Draw and one Collider.
 - Every 10 entities add one UI element, counted as the UI bench game counts
-  its Box and Text elements.
+  its Panel and Text elements.
 - The Queries stay at 8 raycasts, 8 overlaps and one ContactsOf.
 - There are 4 Lights: one Ambient, one Sun with shadows and two Points.
 - The arena grows with N, so each entity keeps 4 square units.
