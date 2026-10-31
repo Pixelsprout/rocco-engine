@@ -179,9 +179,9 @@ Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
 AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
-BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
+PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
-Element  := [Panel(BoxConfig, List(Element)), Text(Text)]
+Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
@@ -391,13 +391,13 @@ its Group jumps once per fixed step.
 
 The game decides the UI in its Scene. `Scene.ui` is a list of root
 Elements, and each Element is a tree:
-`Element := [Panel(BoxConfig, List(Element)), Text(Text)]`. A `Panel` holds its
+`Element := [Panel(PanelConfig, List(Element)), Text(Text)]`. A `Panel` holds its
 children in its own list. A `Text` is a leaf. `Element` is nominal, because
 only a nominal recursive union crosses the host boundary. The tree crosses
 the seam as it is, with no flattening. An Element has no id. Its place in
 the tree is its identity. Games write the tags directly, for example
 `Panel(config, [Text(text)])`. The UI package in `packages/ui/` gives the
-defaults, `default_box` and `default_text`, and small helpers, such as
+defaults, `default_panel` and `default_text`, and small helpers, such as
 `float_at`, `panel` and `label`. Its widget modules, `Button`, `Focus`,
 `Dropdown`, `Accordion` and `Scroll`, keep widget state in the Model, read
 the pointer and `QueryResults.ui` through open records, and return a
@@ -409,7 +409,7 @@ which allocates nothing. Decision.
 `docs/adr/0004-ui-layout-runs-in-the-host.md` records the layout options.
 
 A Panel carries Clay's layout fields and Clay's defaults in its config. The
-config's type is `BoxConfig`. The tag names are short forms of Clay's,
+config's type is `PanelConfig`. The tag names are short forms of Clay's,
 such as `Row` for `LEFT_TO_RIGHT`:
 
 | Field | Values | Default |

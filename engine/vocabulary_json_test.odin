@@ -165,7 +165,7 @@ test_json_writes_a_listen_query :: proc(t: ^testing.T) {
 @(test)
 test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	column := Box_Config {
+	column := Panel_Config {
 		id          = 3,
 		width       = {tag = .Fit, payload = {fit = {min = 1, max = 2}}},
 		height      = {tag = .Grow},
@@ -178,7 +178,7 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		overflow    = {tag = .Scroll, payload = {scroll = {x = 0, y = -20}}},
 		floating    = {tag = .NoFloat},
 	}
-	corner := ui_box()
+	corner := ui_default_panel()
 	corner.width = ui_fixed(100)
 	corner.height = {tag = .Percent, payload = {percent = 0.5}}
 	corner.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightTop, offset = {2, -3}}}}
@@ -187,7 +187,7 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 		tag = .Text,
 		payload = {text = {str = roc_str_from_slice(`say "hi"`), size = 16, color = {r = 1, g = 1, b = 1, a = 1}, wrap = .Words}},
 	}
-	elements := []Element{ui_panel_of(column, ui_panel_of(corner, text)), ui_panel_of(ui_box())}
+	elements := []Element{ui_panel_of(column, ui_panel_of(corner, text)), ui_panel_of(ui_default_panel())}
 	b := strings.builder_make(context.temp_allocator)
 
 	json_write_list(&b, json_test_list(elements), json_write_element)

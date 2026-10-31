@@ -38,8 +38,8 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 	## on the y axis. The height fits the label. The background is `look.down`
 	## while the left button is held over it, `look.hover` while the pointer
 	## is over it, `look.focus` while it has the focus, and `look.idle` else.
-	box : Button, { id : U64, width : Ui.Sizing, look : Widget.Look, focus : Focus } -> Ui.BoxConfig
-	box = |buttons, { id, width, look, focus }| {
+	panel : Button, { id : U64, width : Ui.Sizing, look : Widget.Look, focus : Focus } -> Ui.PanelConfig
+	panel = |buttons, { id, width, look, focus }| {
 		is_hovered = buttons.hover == Over(id)
 		background =
 			if (is_hovered and buttons.press == Down(Over(id))) {
@@ -52,7 +52,7 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 				look.idle
 			}
 		{
-			..Ui.default_box,
+			..Ui.default_panel,
 			id,
 			width,
 			pad: { left: look.pad, right: look.pad, top: look.pad, bottom: look.pad },
@@ -64,7 +64,7 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 
 	## A button Panel that holds one label.
 	view : Button, { id : U64, label : Str, width : Ui.Sizing, look : Widget.Look, focus : Focus } -> Ui.Node
-	view = |buttons, { id, label, width, look, focus }| Panel(buttons.box({ id, width, look, focus }), [Widget.label(look, label)])
+	view = |buttons, { id, label, width, look, focus }| Panel(buttons.panel({ id, width, look, focus }), [Widget.label(look, label)])
 
 	## Two Buttons are equal when their states are equal.
 	is_eq : _
@@ -124,10 +124,10 @@ expect {
 	held = Button.idle.update({ input: press, results: over([7]) }).buttons
 	hovered = Button.idle.update({ input: Seam.input, results: over([7]) }).buttons
 	backgrounds = [
-		held.box({ id: 7, width: Fixed(160.0), look, focus: Focus.none }),
-		hovered.box({ id: 7, width: Fixed(160.0), look, focus: Focus.on(7) }),
-		Button.idle.box({ id: 7, width: Fixed(160.0), look, focus: Focus.on(7) }),
-		Button.idle.box({ id: 7, width: Fixed(160.0), look, focus: Focus.none }),
+		held.panel({ id: 7, width: Fixed(160.0), look, focus: Focus.none }),
+		hovered.panel({ id: 7, width: Fixed(160.0), look, focus: Focus.on(7) }),
+		Button.idle.panel({ id: 7, width: Fixed(160.0), look, focus: Focus.on(7) }),
+		Button.idle.panel({ id: 7, width: Fixed(160.0), look, focus: Focus.none }),
 	].map(|config| config.background)
 	backgrounds == [look.down, look.hover, look.focus, look.idle]
 }

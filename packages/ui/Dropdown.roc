@@ -55,7 +55,7 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 		}
 		menu = Panel(
 			{
-				..Ui.default_box,
+				..Ui.default_panel,
 				id: dropdown.menu,
 				width,
 				direction: Col,
@@ -68,7 +68,7 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 			Open => [label, menu]
 			Closed => [label]
 		}
-		Panel(buttons.box({ id: dropdown.button, width, look, focus }), children)
+		Panel(buttons.panel({ id: dropdown.button, width, look, focus }), children)
 	}
 
 	## Two Dropdowns are equal when their states are equal.

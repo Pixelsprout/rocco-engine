@@ -111,8 +111,8 @@ red_text : Rgba
 red_text = { r: 0.787, g: 0.033, b: 0.033, a: 1.0 }
 
 # region: ui
-centred : Ui.BoxConfig
-centred = { ..Ui.default_box, child_align: { x: Center, y: Center } }
+centred : Ui.PanelConfig
+centred = { ..Ui.default_panel, child_align: { x: Center, y: Center } }
 
 score_color : GameState, U64, U64 -> Rgba
 score_color = |state, own, other| {
@@ -140,17 +140,17 @@ scoreboard = |state, score| {
 banner : GameState, Score -> List(Element)
 banner = |state, score| match state {
 	Running => []
-	Paused => [banner_box("Paused", white_text, "Space to resume")]
+	Paused => [banner_panel("Paused", white_text, "Space to resume")]
 	EndGame => {
 		winner = if score.left > score.right "Left" else "Right"
-		[banner_box("${winner} wins", green_text, "Space to play again")]
+		[banner_panel("${winner} wins", green_text, "Space to play again")]
 	}
 }
 
 # Percent sizes the banner against the window. Grow stretches each row across
 # the banner, so the text centres and the hint wraps inside it.
-banner_box : Str, Rgba, Str -> Element
-banner_box = |title, color, hint| {
+banner_panel : Str, Rgba, Str -> Element
+banner_panel = |title, color, hint| {
 	row = |child| Panel({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
 	Panel(
 		{ ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },

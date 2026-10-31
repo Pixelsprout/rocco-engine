@@ -75,7 +75,7 @@ grey = { r: 0.3, g: 0.3, b: 0.3, a: 0.9 }
 # x 824 to 944 and y 16 to 56. The menu under it is x 824 to 944 and y 60 to 90.
 button : Vocabulary.Element
 button = {
-	menu = Panel({ ..Ui.default_box, id: menu_id, width: Fixed(120.0), height: Fixed(30.0), background: grey, floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } }) }, [])
+	menu = Panel({ ..Ui.default_panel, id: menu_id, width: Fixed(120.0), height: Fixed(30.0), background: grey, floating: Float({ to: Parent, attach: LeftTop, on: LeftBottom, offset: { x: 0.0, y: 4.0 } }) }, [])
 	Panel({ ..Ui.float_at(RightTop, { x: -16.0, y: 16.0 }), id: button_id, width: Fixed(120.0), height: Fixed(40.0), background: grey }, [menu])
 }
 
@@ -87,7 +87,7 @@ log = {
 }
 
 log_row : U64 -> Vocabulary.Element
-log_row = |n| Panel({ ..Ui.default_box, width: Fixed(200.0), height: Fixed(20.0) }, [Text({ ..Ui.label("Line ${n.to_str()}"), size: 14.0, wrap: None })])
+log_row = |n| Panel({ ..Ui.default_panel, width: Fixed(200.0), height: Fixed(20.0) }, [Text({ ..Ui.label("Line ${n.to_str()}"), size: 14.0, wrap: None })])
 
 view : Model -> Vocabulary.Scene
 view = |model| {

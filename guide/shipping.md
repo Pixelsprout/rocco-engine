@@ -31,7 +31,7 @@ Name only the packages that your game imports:
 |---|---|---|
 | `pf` | `{{platform_url}}` | the [platform][Platform]: the vocabulary, `Key`, `Light`, `Query` and the defaults |
 | `mesh` | `{{mesh_url}}` | the [mesh package][Mesh]: `Mesh.primitive` and `Mesh.resolve` |
-| `ui` | `{{ui_url}}` | the [ui package][Ui]: `Ui.default_box`, `Ui.label` and `Ui.panel` |
+| `ui` | `{{ui_url}}` | the [ui package][Ui]: `Ui.default_panel`, `Ui.label` and `Ui.panel` |
 | `linalg` | `{{linalg_url}}` | the [linalg package][Linalg]: `Vec3`, `Quat` and `Pose` |
 | `cam` | `{{camera_url}}` | the [camera package][Camera]: `Cam.look_at` and `Cam.follow` |
 

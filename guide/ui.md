@@ -26,10 +26,10 @@ a tree, and the host gets that same tree.
 The tree is made of two kinds of [Element]:
 
 ```roc
-Element := [Panel(BoxConfig, List(Element)), Text(Text)]
+Element := [Panel(PanelConfig, List(Element)), Text(Text)]
 ```
 
-- A `Panel` is a rectangle. Its [BoxConfig] says how it sizes and looks, and
+- A `Panel` is a rectangle. Its [PanelConfig] says how it sizes and looks, and
   its list holds its children, laid out in order inside it.
 - A `Text` draws one string. It has no children.
 
@@ -60,8 +60,8 @@ its keys in the bottom corners:
 
 <!-- region: examples/pong/main.roc#ui -->
 ```roc
-centred : Ui.BoxConfig
-centred = { ..Ui.default_box, child_align: { x: Center, y: Center } }
+centred : Ui.PanelConfig
+centred = { ..Ui.default_panel, child_align: { x: Center, y: Center } }
 
 score_color : GameState, U64, U64 -> Rgba
 score_color = |state, own, other| {
@@ -89,17 +89,17 @@ scoreboard = |state, score| {
 banner : GameState, Score -> List(Element)
 banner = |state, score| match state {
 	Running => []
-	Paused => [banner_box("Paused", white_text, "Space to resume")]
+	Paused => [banner_panel("Paused", white_text, "Space to resume")]
 	EndGame => {
 		winner = if score.left > score.right "Left" else "Right"
-		[banner_box("${winner} wins", green_text, "Space to play again")]
+		[banner_panel("${winner} wins", green_text, "Space to play again")]
 	}
 }
 
 # Percent sizes the banner against the window. Grow stretches each row across
 # the banner, so the text centres and the hint wraps inside it.
-banner_box : Str, Rgba, Str -> Element
-banner_box = |title, color, hint| {
+banner_panel : Str, Rgba, Str -> Element
+banner_panel = |title, color, hint| {
 	row = |child| Panel({ ..centred, width: Grow({ min: 0.0, max: 0.0 }) }, [child])
 	Panel(
 		{ ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), width: Percent(0.3), direction: Col, gap: 8.0, pad: Ui.pad_all(16.0) },
@@ -151,7 +151,7 @@ other than one Text, the pattern stops matching and the test fails.
 You write the tags yourself, so the [ui package][Ui] gives only the
 starting values and a few small helpers:
 
-- [`Ui.default_box`][Ui.default_box] is the BoxConfig to start from. It
+- [`Ui.default_panel`][Ui.default_panel] is the PanelConfig to start from. It
   holds Clay's defaults: it fits its children, with no padding, no gap and
   no background, and lays them out in a `Row`.
 - [`Ui.default_text`][Ui.default_text] is the Text to start from: an
@@ -159,7 +159,7 @@ starting values and a few small helpers:
 - [`Ui.label(str)`][Ui.label] is a `default_text` that shows `str`. Change
   the rest with a record update, such as
   `Text({ ..Ui.label("Paused"), size: 40.0 })`.
-- [`Ui.float_at(attach, offset)`][Ui.float_at] gives a BoxConfig that
+- [`Ui.float_at(attach, offset)`][Ui.float_at] gives a PanelConfig that
   floats over the window at one of its points.
 - [`Ui.panel(attach, offset)`][Ui.panel] is a `float_at` Panel for a HUD,
   with padding, a see-through black background and round corners.
@@ -255,7 +255,7 @@ view = |model| {
 	details = model.details.view({ buttons, focus, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, body_text)] })
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
-	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
+	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_panel, gap: 8.0 }, [add, filter]), details, log])
 	{ ..Scene.empty, ui: [element(panel)] }
 }
 ```
@@ -412,9 +412,9 @@ The host also logs each kind of Clay error once, such as a `Percent` above
 [Scene]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Scene
 [Launch]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Launch
 [Element]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Element
-[BoxConfig]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.BoxConfig
+[PanelConfig]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.PanelConfig
 [Ui]: https://pixelsprout.dev/projects/rocco/api/ui/
-[Ui.default_box]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_box
+[Ui.default_panel]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_panel
 [Ui.default_text]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_text
 [Ui.label]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.label
 [Ui.float_at]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.float_at

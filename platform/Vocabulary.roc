@@ -302,7 +302,7 @@ Vocabulary := [].{
 	##   `to: Parent` floats on the window. A floating Panel blocks the pointer
 	##   when it, or any Panel inside it, has a non-zero `id`. A floating Panel with
 	##   no tagged Panel inside it lets the pointer through.
-	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
+	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 
 	## One string in the engine's font, at a size in logical pixels and a
 	## colour. The names and the defaults are Clay's. The layout measures it. With `wrap` set to `Words`, the layout
@@ -316,7 +316,7 @@ Vocabulary := [].{
 	##
 	## An Element keeps its identity by its place in the tree. The type is
 	## nominal, because only a nominal recursive union crosses the seam.
-	Element := [Panel(BoxConfig, List(Element)), Text(Text)].{
+	Element := [Panel(PanelConfig, List(Element)), Text(Text)].{
 
 		## Two Elements are equal when their tags, configs, Texts and children
 		## are equal. A nominal type gets no `==` of its own.

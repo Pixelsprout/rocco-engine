@@ -310,7 +310,7 @@ _Avoid_: widget, Node (the 3D tree), Ui.Node (the package tree), control, view (
 An Element that is a rectangle and holds a list of child Elements. Its
 config carries its Hit id, sizing, padding, gap, direction, child
 alignment, background, corner radius and Overflow, and its type is
-`BoxConfig`. A floating Panel puts one of its points on a point of the
+`PanelConfig`. A floating Panel puts one of its points on a point of the
 window or of its parent Panel, and ignores its parent's layout.
 _Avoid_: Box (a collider shape), div, container, frame
 

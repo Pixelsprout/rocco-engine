@@ -134,7 +134,7 @@ view = |model| {
 	details = model.details.view({ buttons, focus, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, body_text)] })
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
-	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
+	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_panel, gap: 8.0 }, [add, filter]), details, log])
 	{ ..Scene.empty, ui: [element(panel)] }
 }
 
