@@ -70,6 +70,57 @@ png_decode :: proc(bytes: []byte) -> (width, height: int, rgba: []byte, ok: bool
 	return img.width, img.height, rgba, true
 }
 
+// Gives each fully transparent pixel the average colour of the nearest
+// pixels that have one, in waves out from the visible pixels. Alpha stays 0.
+// Linear filtering then blends a visible edge with its own colour, not with
+// the black of the transparent pixels. With no visible pixel, nothing changes.
+image_bleed :: proc(width, height: int, rgba: []byte) {
+	Reach :: enum u8 {
+		None,
+		Queued,
+		Coloured,
+	}
+	reach := make([]Reach, width * height, context.temp_allocator)
+	wave := make([dynamic]int, context.temp_allocator)
+	next := make([dynamic]int, context.temp_allocator)
+	for i in 0 ..< width * height {
+		if rgba[i * 4 + 3] > 0 {
+			reach[i] = .Coloured
+			append(&next, i)
+		}
+	}
+	for len(next) > 0 {
+		clear(&wave)
+		for i in next {
+			for j in image_neighbours(width, height, i) {
+				if j >= 0 && reach[j] == .None {
+					reach[j] = .Queued
+					append(&wave, j)
+				}
+			}
+		}
+		// A pixel takes its colour only from earlier waves, so the order in a
+		// wave does not change the result.
+		for i in wave {
+			sum: [3]int
+			n := 0
+			for j in image_neighbours(width, height, i) {
+				if j >= 0 && reach[j] == .Coloured {
+					sum += {int(rgba[j * 4]), int(rgba[j * 4 + 1]), int(rgba[j * 4 + 2])}
+					n += 1
+				}
+			}
+			for k in 0 ..< 3 {
+				rgba[i * 4 + k] = byte((sum[k] + n / 2) / n)
+			}
+		}
+		for i in wave {
+			reach[i] = .Coloured
+		}
+		wave, next = next, wave
+	}
+}
+
 // An sRGB texture uploads as SRGB8A8, so the GPU decodes it to linear before filtering.
 texture_upload :: proc(tex: Texture) -> Mesh_Texture {
 	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
@@ -166,6 +217,24 @@ png_channel :: proc(px: []byte, k, stride: int) -> byte {
 		return byte(n >> 8)
 	}
 	return px[k]
+}
+
+// The 8 pixels around pixel i. A neighbour past the edge is -1.
+@(private = "file")
+image_neighbours :: proc(width, height, i: int) -> (out: [8]int) {
+	x, y := i % width, i / width
+	n := 0
+	for dy in -1 ..= 1 {
+		for dx in -1 ..= 1 {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			nx, ny := x + dx, y + dy
+			out[n] = ny * width + nx if nx >= 0 && nx < width && ny >= 0 && ny < height else -1
+			n += 1
+		}
+	}
+	return out
 }
 
 texture_delete :: proc(tex: Texture, allocator: mem.Allocator) {

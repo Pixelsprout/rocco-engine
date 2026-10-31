@@ -103,8 +103,8 @@ those defaults in one place. Each one links to the page that explains it.
 - **The run mode can override the Launch.** Lockstep and Headless turn
   vsync off. Headless opens no window. See
   [Running and debugging](running.md#lockstep-and-headless).
-- **The default capacities** are 64 meshes, 16 skies, 16384 Draws, 16384
-  UI quads, 64 Sounds and 64 voices, with a 2048 shadow map and one cascade. Past a capacity, the host logs once and
+- **The default capacities** are 64 meshes, 16 skies, 256 Images, 16384
+  Draws, 16384 UI quads, 64 Sounds and 64 voices, with a 2048 shadow map and one cascade. Past a capacity, the host logs once and
   keeps running, but it drops what does not fit. See
   [Launch](launch.md#past-a-capacity).
 - **The seed is 0** unless you set `ROCCO_SEED`. So each run gets the same

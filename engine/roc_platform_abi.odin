@@ -318,17 +318,17 @@ Roc_Launch :: struct {
 	step_hz: u32,
 }
 
-#assert(size_of(Roc_Launch) == 80)
+#assert(size_of(Roc_Launch) == 88)
 #assert(align_of(Roc_Launch) == 8)
 #assert(offset_of(Roc_Launch, window) == 0)
 #assert(size_of(type_of(Roc_Launch{}.window)) == 40)
 #assert(offset_of(Roc_Launch, capacity) == 40)
-#assert(size_of(type_of(Roc_Launch{}.capacity)) == 28)
-#assert(offset_of(Roc_Launch, shadow_cascades) == 68)
+#assert(size_of(type_of(Roc_Launch{}.capacity)) == 32)
+#assert(offset_of(Roc_Launch, shadow_cascades) == 72)
 #assert(size_of(type_of(Roc_Launch{}.shadow_cascades)) == 4)
-#assert(offset_of(Roc_Launch, shadow_map) == 72)
+#assert(offset_of(Roc_Launch, shadow_map) == 76)
 #assert(size_of(type_of(Roc_Launch{}.shadow_map)) == 4)
-#assert(offset_of(Roc_Launch, step_hz) == 76)
+#assert(offset_of(Roc_Launch, step_hz) == 80)
 #assert(size_of(type_of(Roc_Launch{}.step_hz)) == 4)
 
 Roc_Launch_Window :: struct {
@@ -371,6 +371,7 @@ Roc_Launch_Window_Samples :: enum u8 {
 Roc_Launch_Capacity :: struct {
 	draws: u32,
 	groups: u32,
+	images: u32,
 	meshes: u32,
 	skies: u32,
 	sounds: u32,
@@ -378,21 +379,23 @@ Roc_Launch_Capacity :: struct {
 	voices: u32,
 }
 
-#assert(size_of(Roc_Launch_Capacity) == 28)
+#assert(size_of(Roc_Launch_Capacity) == 32)
 #assert(align_of(Roc_Launch_Capacity) == 4)
 #assert(offset_of(Roc_Launch_Capacity, draws) == 0)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.draws)) == 4)
 #assert(offset_of(Roc_Launch_Capacity, groups) == 4)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.groups)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, meshes) == 8)
+#assert(offset_of(Roc_Launch_Capacity, images) == 8)
+#assert(size_of(type_of(Roc_Launch_Capacity{}.images)) == 4)
+#assert(offset_of(Roc_Launch_Capacity, meshes) == 12)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.meshes)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, skies) == 12)
+#assert(offset_of(Roc_Launch_Capacity, skies) == 16)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.skies)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, sounds) == 16)
+#assert(offset_of(Roc_Launch_Capacity, sounds) == 20)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.sounds)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, ui_quads) == 20)
+#assert(offset_of(Roc_Launch_Capacity, ui_quads) == 24)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.ui_quads)) == 4)
-#assert(offset_of(Roc_Launch_Capacity, voices) == 24)
+#assert(offset_of(Roc_Launch_Capacity, voices) == 28)
 #assert(size_of(type_of(Roc_Launch_Capacity{}.voices)) == 4)
 
 Roc_Loaded_Arg2 :: struct {
@@ -400,9 +403,10 @@ Roc_Loaded_Arg2 :: struct {
 	name: Roc_Str,
 	duration: f32,
 	id: u32,
+	size: Roc_Loaded_Arg2_Size,
 }
 
-#assert(size_of(Roc_Loaded_Arg2) == 56)
+#assert(size_of(Roc_Loaded_Arg2) == 64)
 #assert(align_of(Roc_Loaded_Arg2) == 8)
 #assert(offset_of(Roc_Loaded_Arg2, clips) == 0)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.clips)) == 24)
@@ -412,6 +416,8 @@ Roc_Loaded_Arg2 :: struct {
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.duration)) == 4)
 #assert(offset_of(Roc_Loaded_Arg2, id) == 52)
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
+#assert(offset_of(Roc_Loaded_Arg2, size) == 56)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.size)) == 8)
 
 Roc_Loaded_Arg2_Clips :: struct {
 	name: Roc_Str,
@@ -427,6 +433,18 @@ Roc_Loaded_Arg2_Clips :: struct {
 #assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.duration)) == 4)
 #assert(offset_of(Roc_Loaded_Arg2_Clips, id) == 28)
 #assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.id)) == 4)
+
+Roc_Loaded_Arg2_Size :: struct {
+	h: u32,
+	w: u32,
+}
+
+#assert(size_of(Roc_Loaded_Arg2_Size) == 8)
+#assert(align_of(Roc_Loaded_Arg2_Size) == 4)
+#assert(offset_of(Roc_Loaded_Arg2_Size, h) == 0)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Size{}.h)) == 4)
+#assert(offset_of(Roc_Loaded_Arg2_Size, w) == 4)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Size{}.w)) == 4)
 
 Roc_Step_Arg1 :: struct {
 	gamepads: Roc_List(Roc_Step_Arg1_Gamepads),

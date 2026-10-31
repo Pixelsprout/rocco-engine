@@ -6,7 +6,7 @@ platform ""
 		step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) },
 		view : Model -> Vocabulary.Scene
 	}
-	exposes [Collider, Config, Draw, GamepadButton, Input, Key, Launch, Light, MouseButton, Port, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
+	exposes [Collider, Config, Draw, GamepadButton, Image, Input, Key, Launch, Light, MouseButton, Port, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
 	packages { roc: "nightly-2026-10-11-7d256b9" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
@@ -34,6 +34,7 @@ import Query
 import QueryResults
 import Config
 import Draw
+import Image
 import Input
 import Launch
 import MouseButton

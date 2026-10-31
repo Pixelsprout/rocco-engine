@@ -28,6 +28,7 @@ Place_Tag :: Roc_Init_Commands_Play_At_Tag
 Place_At :: Roc_Init_Commands_Play_At_At
 Manifest_Entry :: Roc_Loaded_Arg2
 Manifest_Clip :: Roc_Loaded_Arg2_Clips
+Manifest_Size :: Roc_Loaded_Arg2_Size
 Query_Results :: Roc_Step_Arg2
 Contact :: Roc_Step_Arg2_Contacts
 Ray_Hit :: Roc_Step_Arg2_Rays

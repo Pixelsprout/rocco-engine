@@ -49,6 +49,59 @@ test_png_decode_rejects_bytes_that_are_not_a_png :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_image_bleed_gives_each_transparent_pixel_the_colour_of_its_nearest_visible_pixel :: proc(t: ^testing.T) {
+	// One row: opaque red, two transparent black, opaque blue.
+	rgba := []byte{255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255}
+	image_bleed(4, 1, rgba)
+	want := []byte{255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 255, 0, 0, 0, 255, 255}
+	for b, i in rgba {
+		testing.expectf(t, b == want[i], "byte %v is %v, want %v", i, b, want[i])
+	}
+}
+
+@(test)
+test_image_bleed_averages_the_visible_pixels_at_equal_distance :: proc(t: ^testing.T) {
+	rgba := []byte{255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 255, 255}
+	image_bleed(3, 1, rgba)
+	want := []byte{255, 0, 0, 255, 128, 0, 128, 0, 0, 0, 255, 255}
+	for b, i in rgba {
+		testing.expectf(t, b == want[i], "byte %v is %v, want %v", i, b, want[i])
+	}
+}
+
+@(test)
+test_image_bleed_reaches_corners_and_far_pixels_wave_by_wave :: proc(t: ^testing.T) {
+	// 4 x 3, transparent except one opaque green pixel at (1, 1). The far
+	// column x = 3 is two waves out.
+	rgba := make([]byte, 4 * 3 * 4, context.temp_allocator)
+	rgba[(1 * 4 + 1) * 4 + 1] = 200
+	rgba[(1 * 4 + 1) * 4 + 3] = 255
+	image_bleed(4, 3, rgba)
+	for i in 0 ..< 4 * 3 {
+		testing.expectf(t, rgba[i * 4 + 1] == 200, "pixel %v green is %v", i, rgba[i * 4 + 1])
+		alpha: byte = 255 if i == 1 * 4 + 1 else 0
+		testing.expectf(t, rgba[i * 4 + 3] == alpha, "pixel %v alpha is %v", i, rgba[i * 4 + 3])
+	}
+}
+
+@(test)
+test_image_bleed_keeps_partly_transparent_pixels_and_an_image_with_no_visible_pixel :: proc(t: ^testing.T) {
+	faint := []byte{10, 20, 30, 1, 40, 50, 60, 255}
+	image_bleed(2, 1, faint)
+	want := []byte{10, 20, 30, 1, 40, 50, 60, 255}
+	for b, i in faint {
+		testing.expect_value(t, b, want[i])
+	}
+
+	hidden := []byte{10, 20, 30, 0, 40, 50, 60, 0}
+	image_bleed(2, 1, hidden)
+	want_hidden := []byte{10, 20, 30, 0, 40, 50, 60, 0}
+	for b, i in hidden {
+		testing.expect_value(t, b, want_hidden[i])
+	}
+}
+
+@(test)
 test_texture_build_without_mipmaps_keeps_one_level :: proc(t: ^testing.T) {
 	rgba := make([]byte, 4 * 4 * 4, context.temp_allocator)
 	tex := texture_build(4, 4, rgba, {mipmaps = false}, srgb = true, allocator = context.temp_allocator)

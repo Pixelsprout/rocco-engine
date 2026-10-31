@@ -224,7 +224,8 @@ seam_load :: proc(s: ^Seam, load: ^Load_Command) {
 
 	entries := make([]Manifest_Entry, len(lines), context.temp_allocator)
 	for line, i in lines {
-		entries[i] = {name = roc_str_from_slice(line.name), id = line.id, duration = pack_line_duration(s.packs, line)}
+		w, h := pack_line_size(s.packs, line)
+		entries[i] = {name = roc_str_from_slice(line.name), id = line.id, duration = pack_line_duration(s.packs, line), size = {w = w, h = h}}
 		mesh := pack_line_mesh(s.packs, line) or_continue
 		clips := make([]Manifest_Clip, len(mesh.skin.clips), context.temp_allocator)
 		for clip, c in mesh.skin.clips {

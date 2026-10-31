@@ -10,12 +10,13 @@ LAUNCH_RULE_UI_QUADS :: "must be at most 16384, so a u16 index reaches every UI 
 LAUNCH_RULE_MESHES :: "must be at least 4, for the Fallback mesh and the three Primitives"
 LAUNCH_RULE_SKIES :: "must be at least 2, for the reserved slot and one sky"
 LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
+LAUNCH_RULE_IMAGES :: "must be at least 2, for the reserved slot and one Image"
 LAUNCH_RULE_SLOTS :: "must be at most 65536, so each slot gets an id"
 LAUNCH_RULE_DRAWS :: "must be at most 1195444, so the uniform buffer size fits sokol's int"
 LAUNCH_RULE_GROUPS :: "must be at most 1048576"
 LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
-#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2)
+#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 1195444 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
@@ -25,7 +26,7 @@ launch_default :: proc() -> Launch {
 		step_hz = 120,
 		shadow_map = 2048,
 		shadow_cascades = 1,
-		capacity = {meshes = 64, skies = 16, draws = 16384, groups = 1024, ui_quads = 16384, sounds = 64, voices = 64},
+		capacity = {meshes = 64, skies = 16, images = 256, draws = 16384, groups = 1024, ui_quads = 16384, sounds = 64, voices = 64},
 	}
 }
 
@@ -57,6 +58,8 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.meshes", LAUNCH_RULE_ZERO, false
 	case capacity.skies == 0:
 		return "capacity.skies", LAUNCH_RULE_ZERO, false
+	case capacity.images == 0:
+		return "capacity.images", LAUNCH_RULE_ZERO, false
 	case capacity.draws == 0:
 		return "capacity.draws", LAUNCH_RULE_ZERO, false
 	case capacity.groups == 0:
@@ -73,12 +76,16 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.meshes", LAUNCH_RULE_MESHES, false
 	case capacity.skies < SKY_CAPACITY_MIN:
 		return "capacity.skies", LAUNCH_RULE_SKIES, false
+	case capacity.images < IMAGE_CAPACITY_MIN:
+		return "capacity.images", LAUNCH_RULE_IMAGES, false
 	case capacity.sounds < SOUND_CAPACITY_MIN:
 		return "capacity.sounds", LAUNCH_RULE_SOUNDS, false
 	case capacity.meshes > SLOT_LIMIT:
 		return "capacity.meshes", LAUNCH_RULE_SLOTS, false
 	case capacity.skies > SLOT_LIMIT:
 		return "capacity.skies", LAUNCH_RULE_SLOTS, false
+	case capacity.images > SLOT_LIMIT:
+		return "capacity.images", LAUNCH_RULE_SLOTS, false
 	case capacity.sounds > SLOT_LIMIT:
 		return "capacity.sounds", LAUNCH_RULE_SLOTS, false
 	case capacity.voices > SLOT_LIMIT:
