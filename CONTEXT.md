@@ -106,7 +106,7 @@ _Avoid_: settings, options, init args, environment
 
 **Launch**:
 What the game decides once before the window opens: its window, its step
-rate, its shadow map size and its capacities. The host reads it before
+rate, its shadow map size and cascade count, and its capacities. The host reads it before
 `init` and never again. A game starts from `pf.Launch.default`.
 _Avoid_: settings, options, project file, conf, window config
 
@@ -249,8 +249,15 @@ _Avoid_: lamp, light source, colour (for intensity)
 The first Directional Light, in Node order, that sets `shadow`. It is the only Light that
 casts a shadow. `pf.Light.sun` sets `shadow` and `pf.Light.directional` does
 not. If a second Directional sets it, the host logs once. With no Sun,
-nothing casts a shadow. Every Draw gets the Sun first.
+nothing casts a shadow. Every Draw gets the Sun first. The Sun casts 1 to 4
+Cascades, set by `Launch.shadow_cascades`.
 _Avoid_: main light, key light, shadow light
+
+**Cascade**:
+One shadow map of the Sun. One Cascade covers every Draw. Two to four
+Cascades each cover a band of the camera's view, up to 150 metres, so near
+shadows are sharp.
+_Avoid_: split, level, slice
 
 **Camera**:
 The field of a Scene that says where the eye is, what it looks at, which way

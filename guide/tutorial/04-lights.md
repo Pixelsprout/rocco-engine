@@ -75,7 +75,8 @@ ground, and the edges of the shadow get softer.
 
 `Launch.default` makes a shadow map 2048 pixels wide. To change it, set
 `shadow_map` in `launch`. A larger map gives sharper shadows and uses more
-memory. [Launch](../launch.md) lists the field.
+memory. A large world can set `shadow_cascades` to 4 instead, so shadows
+near the camera stay sharp. [Launch](../launch.md) lists both fields.
 
 ## Run the game
 
