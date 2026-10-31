@@ -7,7 +7,8 @@ import "core:strings"
 
 // A Driver reads this from hello. Raise it when a reply changes shape.
 // 2: results gained ports, for the tell op.
-BRIDGE_PROTOCOL :: 2
+// 4: step takes a pointer, results gained ui, and Box configs gained id and overflow.
+BRIDGE_PROTOCOL :: 4
 BRIDGE_NOT_YET :: "not yet"
 
 // ask and listen are kept for Ports (ADR 0009).
@@ -101,6 +102,7 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	held, tap: #sparse[sapp.Keycode]bool
 	mouse: [2]f32
 	gamepads: [GAMEPAD_SLOTS]Bridge_Gamepad
+	pointer: Bridge_Pointer
 	held, error = bridge_read_keys(request, "held")
 	if error == "" {
 		tap, error = bridge_read_keys(request, "tap")
@@ -111,6 +113,9 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	if error == "" {
 		gamepads, error = bridge_read_gamepads(request)
 	}
+	if error == "" {
+		pointer, error = bridge_read_pointer(request)
+	}
 	if error != "" {
 		return .Read, error
 	}
@@ -119,6 +124,7 @@ bridge_op_step :: proc(s: ^State, request: json.Object, reply: ^strings.Builder)
 	s.bridge.tap = tap
 	s.bridge.mouse = mouse
 	s.bridge.gamepads = gamepads
+	s.bridge.pointer = pointer
 	s.bridge.owed_steps = int(n)
 	return .Hold, ""
 }
@@ -223,16 +229,81 @@ bridge_read_mouse :: proc(request: json.Object) -> (mouse: [2]f32, error: string
 	if !has_mouse {
 		return
 	}
-	pair, is_array := value.(json.Array)
-	if !is_array || len(pair) != 2 {
-		return mouse, `"mouse" must be [dx, dy]`
+	return bridge_read_pair(value, `"mouse" must be [dx, dy]`)
+}
+
+// x and y are required. inside defaults to true.
+@(private = "file")
+bridge_read_pointer :: proc(request: json.Object) -> (pointer: Bridge_Pointer, error: string) {
+	value, has_pointer := request["pointer"]
+	if !has_pointer {
+		return
 	}
-	for item, i in pair {
+	fields, is_object := value.(json.Object)
+	if !is_object {
+		return pointer, `"pointer" must be an object`
+	}
+	x, has_x := bridge_number(fields["x"])
+	y, has_y := bridge_number(fields["y"])
+	if !has_x || !has_y {
+		return pointer, `"pointer" needs "x" and "y" as numbers`
+	}
+	pointer = {given = true, pos = {x, y}, inside = true}
+	if inside_value, has_inside := fields["inside"]; has_inside {
+		inside, is_bool := inside_value.(json.Boolean)
+		if !is_bool {
+			return pointer, `"inside" must be true or false`
+		}
+		pointer.inside = inside
+	}
+	pointer.held, error = bridge_read_mouse_buttons(fields, "held")
+	if error == "" {
+		pointer.tap, error = bridge_read_mouse_buttons(fields, "tap")
+	}
+	if error == "" {
+		if wheel_value, has_wheel := fields["wheel"]; has_wheel {
+			pointer.wheel, error = bridge_read_pair(wheel_value, `"wheel" must be [dx, dy]`)
+		}
+	}
+	return
+}
+
+@(private = "file")
+bridge_read_mouse_buttons :: proc(fields: json.Object, field: string) -> (buttons: Mouse_Buttons, error: string) {
+	value, has_field := fields[field]
+	if !has_field {
+		return
+	}
+	names, is_array := value.(json.Array)
+	if !is_array {
+		return buttons, fmt.tprintf("%q must be a list of MouseButton names", field)
+	}
+	for item in names {
+		name, is_string := item.(json.String)
+		if !is_string {
+			return buttons, fmt.tprintf("%q must be a list of MouseButton names", field)
+		}
+		button, known := mouse_button_from_tag(name)
+		if !known {
+			return buttons, fmt.tprintf("unknown MouseButton %q in %q", name, field)
+		}
+		buttons += {button}
+	}
+	return
+}
+
+@(private = "file")
+bridge_read_pair :: proc(value: json.Value, message: string) -> (pair: [2]f32, error: string) {
+	items, is_array := value.(json.Array)
+	if !is_array || len(items) != 2 {
+		return pair, message
+	}
+	for item, i in items {
 		number, is_number := bridge_number(item)
 		if !is_number {
-			return mouse, `"mouse" must be [dx, dy]`
+			return {}, message
 		}
-		mouse[i] = number
+		pair[i] = number
 	}
 	return
 }

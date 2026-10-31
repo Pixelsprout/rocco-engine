@@ -96,7 +96,32 @@ and with the mouse lock, so tune your game's mouse speed on each OS. As
 with presses, the first step of a frame gets the movement, and the later
 steps of that frame get zero.
 
-The Input has no mouse buttons yet.
+`Input.mouse` is for mouse look. To point at things, read `Input.pointer`.
+
+## The pointer
+
+`Input.pointer` holds where the pointer is, its buttons and its wheel.
+
+- `x` and `y` are the position in logical window pixels, the unit of the UI
+  and of `Input.window`, with the origin at the top left.
+- `inside` is false when the pointer is outside the window. A drag past the
+  edge of the window can give a position that is negative or past the
+  window size, with `inside` false.
+- `held`, `pressed` and `released` hold button codes, with the rules of the
+  keys. A button clicked between two steps is pressed and released in the
+  same step, but not held. When the window loses focus, the host releases
+  each held button. Name the buttons with [MouseButton]:
+  `MouseButton.released(input, Left)` is true in the step after a left
+  click ends.
+- `wheel` holds `dx` and `dy`, the scroll since the last step, in the units
+  that the OS gives. Scale it in your game.
+
+While the Cursor is `Locked`, `inside` is false and the position keeps its
+last value. The buttons and the wheel still arrive, so a game with mouse
+look can still shoot on a click.
+
+To know which Box of the UI is under the pointer, tag the Box with an `id`
+and read `results.ui.over`. See [The UI](ui.md).
 
 ## The window size
 
@@ -147,3 +172,4 @@ expect {
 [Key.pressed]: https://pixelsprout.dev/projects/rocco/api/platform/Key/#Key.pressed
 [Key.axis]: https://pixelsprout.dev/projects/rocco/api/platform/Key/#Key.axis
 [Key.code]: https://pixelsprout.dev/projects/rocco/api/platform/Key/#Key.code
+[MouseButton]: https://pixelsprout.dev/projects/rocco/api/platform/MouseButton/

@@ -428,22 +428,25 @@ Roc_Loaded_Arg2_Clips :: struct {
 Roc_Step_Arg1 :: struct {
 	gamepads: Roc_List(Roc_Step_Arg1_Gamepads),
 	held: Roc_List(u16),
+	pointer: Roc_Step_Arg1_Pointer,
 	pressed: Roc_List(u16),
-	mouse: Roc_Step_Arg1_Mouse,
+	mouse: Roc_Step_Arg1_Pointer_Wheel,
 	window: Roc_Step_Arg1_Window,
 }
 
-#assert(size_of(Roc_Step_Arg1) == 88)
+#assert(size_of(Roc_Step_Arg1) == 184)
 #assert(align_of(Roc_Step_Arg1) == 8)
 #assert(offset_of(Roc_Step_Arg1, gamepads) == 0)
 #assert(size_of(type_of(Roc_Step_Arg1{}.gamepads)) == 24)
 #assert(offset_of(Roc_Step_Arg1, held) == 24)
 #assert(size_of(type_of(Roc_Step_Arg1{}.held)) == 24)
-#assert(offset_of(Roc_Step_Arg1, pressed) == 48)
+#assert(offset_of(Roc_Step_Arg1, pointer) == 48)
+#assert(size_of(type_of(Roc_Step_Arg1{}.pointer)) == 96)
+#assert(offset_of(Roc_Step_Arg1, pressed) == 144)
 #assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == 24)
-#assert(offset_of(Roc_Step_Arg1, mouse) == 72)
+#assert(offset_of(Roc_Step_Arg1, mouse) == 168)
 #assert(size_of(type_of(Roc_Step_Arg1{}.mouse)) == 8)
-#assert(offset_of(Roc_Step_Arg1, window) == 80)
+#assert(offset_of(Roc_Step_Arg1, window) == 176)
 #assert(size_of(type_of(Roc_Step_Arg1{}.window)) == 8)
 
 Roc_Step_Arg1_Gamepads :: struct {
@@ -486,18 +489,46 @@ Roc_Step_Arg1_Gamepads_LeftStick :: struct {
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads_LeftStick{}.y)) == 4)
 
 Roc_Step_Arg1_Gamepads_RightStick :: Roc_Step_Arg1_Gamepads_LeftStick
-Roc_Step_Arg1_Mouse :: struct {
+Roc_Step_Arg1_Pointer :: struct {
+	held: Roc_List(u8),
+	pressed: Roc_List(u8),
+	released: Roc_List(u8),
+	wheel: Roc_Step_Arg1_Pointer_Wheel,
+	x: f32,
+	y: f32,
+	inside: bool,
+}
+
+#assert(size_of(Roc_Step_Arg1_Pointer) == 96)
+#assert(align_of(Roc_Step_Arg1_Pointer) == 8)
+#assert(offset_of(Roc_Step_Arg1_Pointer, held) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.held)) == 24)
+#assert(offset_of(Roc_Step_Arg1_Pointer, pressed) == 24)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.pressed)) == 24)
+#assert(offset_of(Roc_Step_Arg1_Pointer, released) == 48)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.released)) == 24)
+#assert(offset_of(Roc_Step_Arg1_Pointer, wheel) == 72)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.wheel)) == 8)
+#assert(offset_of(Roc_Step_Arg1_Pointer, x) == 80)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.x)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Pointer, y) == 84)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.y)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Pointer, inside) == 88)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.inside)) == 1)
+
+Roc_Step_Arg1_Pointer_Wheel :: struct {
 	dx: f32,
 	dy: f32,
 }
 
-#assert(size_of(Roc_Step_Arg1_Mouse) == 8)
-#assert(align_of(Roc_Step_Arg1_Mouse) == 4)
-#assert(offset_of(Roc_Step_Arg1_Mouse, dx) == 0)
-#assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dx)) == 4)
-#assert(offset_of(Roc_Step_Arg1_Mouse, dy) == 4)
-#assert(size_of(type_of(Roc_Step_Arg1_Mouse{}.dy)) == 4)
+#assert(size_of(Roc_Step_Arg1_Pointer_Wheel) == 8)
+#assert(align_of(Roc_Step_Arg1_Pointer_Wheel) == 4)
+#assert(offset_of(Roc_Step_Arg1_Pointer_Wheel, dx) == 0)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer_Wheel{}.dx)) == 4)
+#assert(offset_of(Roc_Step_Arg1_Pointer_Wheel, dy) == 4)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer_Wheel{}.dy)) == 4)
 
+Roc_Step_Arg1_Mouse :: Roc_Step_Arg1_Pointer_Wheel
 Roc_Step_Arg1_Window :: struct {
 	height: f32,
 	width: f32,
@@ -515,9 +546,10 @@ Roc_Step_Arg2 :: struct {
 	overlaps: Roc_List(Roc_Step_Arg2_Overlaps),
 	ports: Roc_List(Roc_Init_Commands_Tell),
 	rays: Roc_List(Roc_Step_Arg2_Rays),
+	ui: Roc_Step_Arg2_Ui,
 }
 
-#assert(size_of(Roc_Step_Arg2) == 96)
+#assert(size_of(Roc_Step_Arg2) == 144)
 #assert(align_of(Roc_Step_Arg2) == 8)
 #assert(offset_of(Roc_Step_Arg2, contacts) == 0)
 #assert(size_of(type_of(Roc_Step_Arg2{}.contacts)) == 24)
@@ -527,6 +559,8 @@ Roc_Step_Arg2 :: struct {
 #assert(size_of(type_of(Roc_Step_Arg2{}.ports)) == 24)
 #assert(offset_of(Roc_Step_Arg2, rays) == 72)
 #assert(size_of(type_of(Roc_Step_Arg2{}.rays)) == 24)
+#assert(offset_of(Roc_Step_Arg2, ui) == 96)
+#assert(size_of(type_of(Roc_Step_Arg2{}.ui)) == 48)
 
 Roc_Step_Arg2_Contacts :: struct {
 	a: u64,
@@ -589,6 +623,35 @@ Roc_Step_Arg2_Rays :: struct {
 
 Roc_Step_Arg2_Rays_Normal :: Roc_Init_Commands_Play_At_At_Pos
 Roc_Step_Arg2_Rays_Point :: Roc_Init_Commands_Play_At_At_Pos
+Roc_Step_Arg2_Ui :: struct {
+	over: Roc_List(u64),
+	scroll: Roc_List(Roc_Step_Arg2_Ui_Scroll),
+}
+
+#assert(size_of(Roc_Step_Arg2_Ui) == 48)
+#assert(align_of(Roc_Step_Arg2_Ui) == 8)
+#assert(offset_of(Roc_Step_Arg2_Ui, over) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.over)) == 24)
+#assert(offset_of(Roc_Step_Arg2_Ui, scroll) == 24)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.scroll)) == 24)
+
+Roc_Step_Arg2_Ui_Scroll :: struct {
+	id: u64,
+	content: Roc_Step_Arg1_Window,
+	view: Roc_Step_Arg1_Window,
+}
+
+#assert(size_of(Roc_Step_Arg2_Ui_Scroll) == 24)
+#assert(align_of(Roc_Step_Arg2_Ui_Scroll) == 8)
+#assert(offset_of(Roc_Step_Arg2_Ui_Scroll, id) == 0)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui_Scroll{}.id)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Ui_Scroll, content) == 8)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui_Scroll{}.content)) == 8)
+#assert(offset_of(Roc_Step_Arg2_Ui_Scroll, view) == 16)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui_Scroll{}.view)) == 8)
+
+Roc_Step_Arg2_Ui_Scroll_Content :: Roc_Step_Arg1_Window
+Roc_Step_Arg2_Ui_Scroll_View :: Roc_Step_Arg1_Window
 Roc_Step :: Roc_Init
 Roc_Step_Commands :: Roc_Init_Commands
 Roc_Step_Commands_Load :: Roc_Init_Commands_Load
@@ -999,16 +1062,16 @@ Roc_View_Queries_Raycast :: struct {
 Roc_View_Queries_Raycast_Dir :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Queries_Raycast_Origin :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyElement_Box :: struct {
-	_1: Roc_List(Roc_VocabularyElement),
 	_0: Roc_VocabularyElement_Box_0,
+	_1: Roc_List(Roc_VocabularyElement),
 }
 
-#assert(size_of(Roc_VocabularyElement_Box) == 112)
+#assert(size_of(Roc_VocabularyElement_Box) == 128)
 #assert(align_of(Roc_VocabularyElement_Box) == 8)
-#assert(offset_of(Roc_VocabularyElement_Box, _1) == 0)
+#assert(offset_of(Roc_VocabularyElement_Box, _0) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box{}._0)) == 104)
+#assert(offset_of(Roc_VocabularyElement_Box, _1) == 104)
 #assert(size_of(type_of(Roc_VocabularyElement_Box{}._1)) == 24)
-#assert(offset_of(Roc_VocabularyElement_Box, _0) == 24)
-#assert(size_of(type_of(Roc_VocabularyElement_Box{}._0)) == 84)
 
 Roc_VocabularyElement_Tag :: enum u8 {
 	Box = 0,
@@ -1025,15 +1088,17 @@ Roc_VocabularyElement :: struct {
 	tag: Roc_VocabularyElement_Tag,
 }
 
-#assert(size_of(Roc_VocabularyElement) == 120)
+#assert(size_of(Roc_VocabularyElement) == 136)
 #assert(align_of(Roc_VocabularyElement) == 8)
-#assert(offset_of(Roc_VocabularyElement, tag) == 112)
+#assert(offset_of(Roc_VocabularyElement, tag) == 128)
 
 Roc_VocabularyElement_Box_0 :: struct {
+	id: u64,
 	background: Roc_VocabularyElement_Box_0_Background,
 	floating: Roc_VocabularyElement_Box_0_Floating,
 	gap: f32,
 	height: Roc_VocabularyElement_Box_0_Height,
+	overflow: Roc_VocabularyElement_Box_0_Overflow,
 	pad: Roc_VocabularyElement_Box_0_Pad,
 	radius: f32,
 	width: Roc_VocabularyElement_Box_0_Height,
@@ -1041,25 +1106,29 @@ Roc_VocabularyElement_Box_0 :: struct {
 	direction: Roc_VocabularyElement_Box_0_Direction,
 }
 
-#assert(size_of(Roc_VocabularyElement_Box_0) == 84)
-#assert(align_of(Roc_VocabularyElement_Box_0) == 4)
-#assert(offset_of(Roc_VocabularyElement_Box_0, background) == 0)
+#assert(size_of(Roc_VocabularyElement_Box_0) == 104)
+#assert(align_of(Roc_VocabularyElement_Box_0) == 8)
+#assert(offset_of(Roc_VocabularyElement_Box_0, id) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.id)) == 8)
+#assert(offset_of(Roc_VocabularyElement_Box_0, background) == 8)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.background)) == 16)
-#assert(offset_of(Roc_VocabularyElement_Box_0, floating) == 16)
+#assert(offset_of(Roc_VocabularyElement_Box_0, floating) == 24)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.floating)) == 16)
-#assert(offset_of(Roc_VocabularyElement_Box_0, gap) == 32)
+#assert(offset_of(Roc_VocabularyElement_Box_0, gap) == 40)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.gap)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Box_0, height) == 36)
+#assert(offset_of(Roc_VocabularyElement_Box_0, height) == 44)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.height)) == 12)
-#assert(offset_of(Roc_VocabularyElement_Box_0, pad) == 48)
+#assert(offset_of(Roc_VocabularyElement_Box_0, overflow) == 56)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.overflow)) == 12)
+#assert(offset_of(Roc_VocabularyElement_Box_0, pad) == 68)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.pad)) == 16)
-#assert(offset_of(Roc_VocabularyElement_Box_0, radius) == 64)
+#assert(offset_of(Roc_VocabularyElement_Box_0, radius) == 84)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.radius)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Box_0, width) == 68)
+#assert(offset_of(Roc_VocabularyElement_Box_0, width) == 88)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.width)) == 12)
-#assert(offset_of(Roc_VocabularyElement_Box_0, child_align) == 80)
+#assert(offset_of(Roc_VocabularyElement_Box_0, child_align) == 100)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.child_align)) == 2)
-#assert(offset_of(Roc_VocabularyElement_Box_0, direction) == 82)
+#assert(offset_of(Roc_VocabularyElement_Box_0, direction) == 102)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0{}.direction)) == 1)
 
 Roc_VocabularyElement_Box_0_Background :: struct {
@@ -1101,6 +1170,8 @@ Roc_VocabularyElement_Box_0_Floating :: struct {
 Roc_VocabularyElement_Box_0_Floating_Float :: struct {
 	offset: Roc_Step_Arg1_Gamepads_LeftStick,
 	attach: Roc_VocabularyElement_Box_0_Floating_Float_Attach,
+	on: Roc_VocabularyElement_Box_0_Floating_Float_Attach,
+	to: Roc_VocabularyElement_Box_0_Floating_Float_To,
 }
 
 #assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float) == 12)
@@ -1109,6 +1180,10 @@ Roc_VocabularyElement_Box_0_Floating_Float :: struct {
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.offset)) == 8)
 #assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, attach) == 8)
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.attach)) == 1)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, on) == 9)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.on)) == 1)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Floating_Float, to) == 10)
+#assert(size_of(type_of(Roc_VocabularyElement_Box_0_Floating_Float{}.to)) == 1)
 
 Roc_VocabularyElement_Box_0_Floating_Float_Offset :: Roc_Step_Arg1_Gamepads_LeftStick
 Roc_VocabularyElement_Box_0_Floating_Float_Attach :: enum u8 {
@@ -1125,6 +1200,15 @@ Roc_VocabularyElement_Box_0_Floating_Float_Attach :: enum u8 {
 
 #assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float_Attach) == 1)
 #assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float_Attach) == 1)
+
+Roc_VocabularyElement_Box_0_Floating_Float_On :: Roc_VocabularyElement_Box_0_Floating_Float_Attach
+Roc_VocabularyElement_Box_0_Floating_Float_To :: enum u8 {
+	Parent = 0,
+	Window = 1,
+}
+
+#assert(size_of(Roc_VocabularyElement_Box_0_Floating_Float_To) == 1)
+#assert(align_of(Roc_VocabularyElement_Box_0_Floating_Float_To) == 1)
 
 Roc_VocabularyElement_Box_0_Height_Tag :: enum u8 {
 	Fit = 0,
@@ -1162,6 +1246,26 @@ Roc_VocabularyElement_Box_0_Height_Fit :: struct {
 #assert(size_of(type_of(Roc_VocabularyElement_Box_0_Height_Fit{}.min)) == 4)
 
 Roc_VocabularyElement_Box_0_Height_Grow :: Roc_VocabularyElement_Box_0_Height_Fit
+Roc_VocabularyElement_Box_0_Overflow_Tag :: enum u8 {
+	Clip = 0,
+	Scroll = 1,
+	Visible = 2,
+}
+
+Roc_VocabularyElement_Box_0_Overflow_Payload :: struct #raw_union {
+	scroll: Roc_Step_Arg1_Gamepads_LeftStick,
+}
+
+Roc_VocabularyElement_Box_0_Overflow :: struct {
+	payload: Roc_VocabularyElement_Box_0_Overflow_Payload,
+	tag: Roc_VocabularyElement_Box_0_Overflow_Tag,
+}
+
+#assert(size_of(Roc_VocabularyElement_Box_0_Overflow) == 12)
+#assert(align_of(Roc_VocabularyElement_Box_0_Overflow) == 4)
+#assert(offset_of(Roc_VocabularyElement_Box_0_Overflow, tag) == 8)
+
+Roc_VocabularyElement_Box_0_Overflow_Scroll :: Roc_Step_Arg1_Gamepads_LeftStick
 Roc_VocabularyElement_Box_0_Pad :: struct {
 	bottom: f32,
 	left: f32,
@@ -1320,6 +1424,7 @@ roc_loaded_arg2_clips_decref :: proc(value: Roc_Loaded_Arg2_Clips) {
 roc_step_arg1_decref :: proc(value: Roc_Step_Arg1) {
 	roc_list_decref_roc_step_arg1_gamepads(value.gamepads)
 	roc_list_decref_u16(value.held)
+	roc_step_arg1_pointer_decref(value.pointer)
 	roc_list_decref_u16(value.pressed)
 }
 
@@ -1328,11 +1433,23 @@ roc_step_arg1_gamepads_decref :: proc(value: Roc_Step_Arg1_Gamepads) {
 	roc_list_decref_u8(value.pressed)
 }
 
+roc_step_arg1_pointer_decref :: proc(value: Roc_Step_Arg1_Pointer) {
+	roc_list_decref_u8(value.held)
+	roc_list_decref_u8(value.pressed)
+	roc_list_decref_u8(value.released)
+}
+
 roc_step_arg2_decref :: proc(value: Roc_Step_Arg2) {
 	roc_list_decref_roc_step_arg2_contacts(value.contacts)
 	roc_list_decref_roc_step_arg2_overlaps(value.overlaps)
 	roc_list_decref_roc_init_commands_tell(value.ports)
 	roc_list_decref_roc_step_arg2_rays(value.rays)
+	roc_step_arg2_ui_decref(value.ui)
+}
+
+roc_step_arg2_ui_decref :: proc(value: Roc_Step_Arg2_Ui) {
+	roc_list_decref_u64(value.over)
+	roc_list_decref_roc_step_arg2_ui_scroll(value.scroll)
 }
 
 roc_view_decref :: proc(value: Roc_View) {
@@ -1468,6 +1585,22 @@ roc_list_from_slice_roc_step_arg2_rays :: proc(elems: []Roc_Step_Arg2_Rays) -> R
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_u64 :: proc(list: Roc_List(u64)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_u64 :: proc(elems: []u64) -> Roc_List(u64) {
+	return roc_list_from_slice_with(elems, false)
+}
+
+roc_list_decref_roc_step_arg2_ui_scroll :: proc(list: Roc_List(Roc_Step_Arg2_Ui_Scroll)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_step_arg2_ui_scroll :: proc(elems: []Roc_Step_Arg2_Ui_Scroll) -> Roc_List(Roc_Step_Arg2_Ui_Scroll) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_list_decref_roc_vocabularynode :: proc(list: Roc_List(Roc_VocabularyNode)) {
 	roc_list_decref_elements(list, roc_vocabularynode_decref)
 }
@@ -1482,14 +1615,6 @@ roc_list_decref_roc_view_queries :: proc(list: Roc_List(Roc_View_Queries)) {
 
 roc_list_from_slice_roc_view_queries :: proc(elems: []Roc_View_Queries) -> Roc_List(Roc_View_Queries) {
 	return roc_list_from_slice_with(elems, true)
-}
-
-roc_list_decref_u64 :: proc(list: Roc_List(u64)) {
-	roc_list_decref_flat(list)
-}
-
-roc_list_from_slice_u64 :: proc(elems: []u64) -> Roc_List(u64) {
-	return roc_list_from_slice_with(elems, false)
 }
 
 roc_list_decref_roc_vocabularyelement :: proc(list: Roc_List(Roc_VocabularyElement)) {
@@ -1513,7 +1638,9 @@ roc_decref :: proc {
 	roc_loaded_arg2_clips_decref,
 	roc_step_arg1_decref,
 	roc_step_arg1_gamepads_decref,
+	roc_step_arg1_pointer_decref,
 	roc_step_arg2_decref,
+	roc_step_arg2_ui_decref,
 	roc_view_decref,
 	roc_vocabularynode_decref,
 	roc_view_queries_decref,
@@ -1535,9 +1662,10 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_step_arg2_overlaps,
 	roc_list_decref_roc_init_commands_tell,
 	roc_list_decref_roc_step_arg2_rays,
+	roc_list_decref_u64,
+	roc_list_decref_roc_step_arg2_ui_scroll,
 	roc_list_decref_roc_vocabularynode,
 	roc_list_decref_roc_view_queries,
-	roc_list_decref_u64,
 	roc_list_decref_roc_vocabularyelement,
 }
 
@@ -1553,9 +1681,10 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_step_arg2_overlaps,
 	roc_list_from_slice_roc_init_commands_tell,
 	roc_list_from_slice_roc_step_arg2_rays,
+	roc_list_from_slice_u64,
+	roc_list_from_slice_roc_step_arg2_ui_scroll,
 	roc_list_from_slice_roc_vocabularynode,
 	roc_list_from_slice_roc_view_queries,
-	roc_list_from_slice_u64,
 	roc_list_from_slice_roc_vocabularyelement,
 }
 

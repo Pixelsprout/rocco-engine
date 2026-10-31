@@ -89,5 +89,13 @@ renderer_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 	sg.apply_bindings({vertex_buffers = {0 = g.vertices}, index_buffer = g.indices, views = {VIEW_font_tex = g.atlas.view}, samplers = {SMP_font_smp = g.atlas.sampler}})
 	vs := Ui_Vs_Params{screen = {screen.x, screen.y, 0, 0}}
 	sg.apply_uniforms(UB_ui_vs_params, {ptr = &vs, size = size_of(Ui_Vs_Params)})
-	sg.draw(0, i32(len(quads) * len(UI_QUAD_INDICES)), 1)
+	full := [4]f32{0, 0, screen.x, screen.y}
+	for start := 0; start < len(quads); {
+		end := ui_clip_run_end(quads, start)
+		clip := quads[start].clip if quads[start].clipped else full
+		sg.apply_scissor_rectf(clip.x, clip.y, clip.z, clip.w, true)
+		sg.draw(i32(start * len(UI_QUAD_INDICES)), i32((end - start) * len(UI_QUAD_INDICES)), 1)
+		start = end
+	}
+	sg.apply_scissor_rectf(0, 0, screen.x, screen.y, true)
 }

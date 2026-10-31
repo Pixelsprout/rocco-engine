@@ -14,6 +14,9 @@ FAKE_RAYS_MAX :: 4
 FAKE_OVERLAPS_MAX :: 4
 FAKE_COMMANDS_MAX :: 4
 FAKE_PORTS_MAX :: 8
+FAKE_OVER_MAX :: 8
+FAKE_SCROLL_MAX :: 4
+FAKE_STEPS_MAX :: 8
 NO_ASSETS_DIR :: "no/such/rocco/dir"
 
 FAKE_GAME :: Game_Calls {
@@ -26,6 +29,18 @@ FAKE_GAME :: Game_Calls {
 }
 
 // One pad of the last step's Input.
+Fake_Pointer :: struct {
+	pos:          [2]f32,
+	inside:       bool,
+	held:         [3]u8,
+	pressed:      [3]u8,
+	released:     [3]u8,
+	held_len:     int,
+	pressed_len:  int,
+	released_len: int,
+	wheel:        [2]f32,
+}
+
 Fake_Gamepad :: struct {
 	slot:        u8,
 	held:        [len(Gamepad_Button)]u8,
@@ -82,6 +97,7 @@ Fake_Game :: struct {
 	window:           [2]f32,
 	gamepads:         [GAMEPAD_SLOTS]Fake_Gamepad,
 	gamepads_len:     int,
+	pointer:          Fake_Pointer,
 	contacts:         [FAKE_CONTACTS_MAX]Contact,
 	contacts_len:     int,
 	rays:             [FAKE_RAYS_MAX]Ray_Hit,
@@ -90,6 +106,12 @@ Fake_Game :: struct {
 	overlaps_len:     int,
 	ports:            [FAKE_PORTS_MAX]Fake_Port,
 	ports_len:        int,
+	over:             [FAKE_OVER_MAX]u64,
+	over_len:         int,
+	// over_len for each of the first steps.
+	step_over_lens:   [FAKE_STEPS_MAX]int,
+	scroll:           [FAKE_SCROLL_MAX]Scroll_Size,
+	scroll_len:       int,
 	views:            int,
 	// The voices in use when view ran.
 	view_voices:      int,
@@ -235,6 +257,14 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 			right_trigger = pad.right_trigger,
 		}
 	}
+	ptr := input.pointer
+	fake_ptr := &g_fake.pointer
+	fake_ptr.pos = {ptr.x, ptr.y}
+	fake_ptr.inside = ptr.inside
+	fake_ptr.held_len = copy(fake_ptr.held[:], ptr.held.elements[:ptr.held.length])
+	fake_ptr.pressed_len = copy(fake_ptr.pressed[:], ptr.pressed.elements[:ptr.pressed.length])
+	fake_ptr.released_len = copy(fake_ptr.released[:], ptr.released.elements[:ptr.released.length])
+	fake_ptr.wheel = {ptr.wheel.dx, ptr.wheel.dy}
 	roc_decref(input)
 	g_fake.contacts_len = copy(g_fake.contacts[:], results.contacts.elements[:results.contacts.length])
 	g_fake.rays_len = copy(g_fake.rays[:], results.rays.elements[:results.rays.length])
@@ -246,6 +276,11 @@ fake_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) 
 			msg  = strings.clone(roc_str_string(&row.msg), context.temp_allocator),
 		}
 	}
+	g_fake.over_len = copy(g_fake.over[:], results.ui.over.elements[:results.ui.over.length])
+	if g_fake.steps <= FAKE_STEPS_MAX {
+		g_fake.step_over_lens[g_fake.steps - 1] = g_fake.over_len
+	}
+	g_fake.scroll_len = copy(g_fake.scroll[:], results.ui.scroll.elements[:results.ui.scroll.length])
 	roc_decref(results)
 
 	g_fake.step_out = fake_box_new()

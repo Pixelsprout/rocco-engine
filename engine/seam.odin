@@ -76,6 +76,15 @@ seam_step :: proc(s: ^Seam, step_input: Step_Input, dt: f32, spans: ^Span_Sink =
 		mouse    = {dx = step_input.mouse.x, dy = step_input.mouse.y},
 		gamepads = seam_gamepads(step_input.gamepads),
 		window   = {width = step_input.window.x, height = step_input.window.y},
+		pointer  = {
+			x = step_input.pointer.pos.x,
+			y = step_input.pointer.pos.y,
+			inside = step_input.pointer.inside,
+			held = roc_list_from_slice(step_input.pointer.held),
+			pressed = roc_list_from_slice(step_input.pointer.pressed),
+			released = roc_list_from_slice(step_input.pointer.released),
+			wheel = {dx = step_input.pointer.wheel.x, dy = step_input.pointer.wheel.y},
+		},
 	}
 	span = span_close(spans, .Input, span)
 	// step frees the old box and consumes the results. Never touch either again.
@@ -135,6 +144,16 @@ seam_scenes :: proc(s: ^Seam) -> (prev, curr: Scene) {
 }
 
 // The next step takes ports with the other QueryResults.
+seam_set_ui :: proc(s: ^Seam, ui: Ui_Results) {
+	if s.results.ui.over.length > 0 {
+		roc_list_decref(s.results.ui.over)
+	}
+	if s.results.ui.scroll.length > 0 {
+		roc_list_decref(s.results.ui.scroll)
+	}
+	s.results.ui = ui
+}
+
 seam_set_ports :: proc(s: ^Seam, ports: Roc_List(Port_Message)) {
 	if s.results.ports.length > 0 {
 		roc_list_decref(s.results.ports)

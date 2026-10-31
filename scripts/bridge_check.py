@@ -5,7 +5,10 @@
 
 First it runs bridge-echo, tells two messages on the port echo and checks that
 the step reply holds them as Tell Commands, then checks that a tell on a port
-that nobody Listens to is dropped.
+that nobody Listens to is dropped. It then points at bridge-echo's tagged
+Boxes: the button, the menu that floats under it and the scrolling log. It
+checks ui.over and ui.scroll in the scene reply, and that a click on the
+button comes back as a Tell.
 
 Then it runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and
 checks that Pip's Draw moved by the expected distance. Then it saves a
@@ -45,6 +48,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bridge
 
+# The protocol of engine/bridge_ops.odin.
+PROTOCOL = 4
+# examples/bridge-echo/main.roc
+ECHO_BUTTON_ID = 7
+ECHO_MENU_ID = 8
+ECHO_LOG_ID = 9
 PIP_ID = 2
 STEPS = 30
 # examples/tutorial/03-moving/main.roc: speed 2.5 units a second, 120 steps a
@@ -115,7 +124,7 @@ def check(condition, message):
 
 def drive_echo(b, _out):
     hello = b.hello()
-    check(hello["protocol"] == 2, f"hello: {hello}")
+    check(hello["protocol"] == PROTOCOL, f"hello: {hello}")
 
     tricky = 'a "q"\n\tü'
     b.tell("echo", "")
@@ -130,6 +139,27 @@ def drive_echo(b, _out):
 
     commands = b.step(1)["commands"]
     check(commands == [], f"with nothing queued, nothing comes back: {commands}")
+
+    b.step(1, pointer={"x": 884, "y": 36})
+    ui = b.scene()["results"]["ui"]
+    check(ui["over"] == [ECHO_BUTTON_ID], f"the pointer is over the button: {ui}")
+    want_scroll = [{"id": ECHO_LOG_ID, "view": {"width": 200, "height": 100}, "content": {"width": 200, "height": 200}}]
+    check(ui["scroll"] == want_scroll, f"the log lists its view and content sizes: {ui}")
+
+    commands = b.step(1, pointer={"x": 884, "y": 36, "tap": ["Left"]})["commands"]
+    check(commands == [{"Tell": {"port": "click", "msg": str(ECHO_BUTTON_ID)}}], f"a click on the button Tells click: {commands}")
+
+    b.step(1, pointer={"x": 884, "y": 75})
+    over = b.scene()["results"]["ui"]["over"]
+    check(over == [ECHO_MENU_ID], f"the menu floats under the button: {over}")
+
+    b.step(1, pointer={"x": 100, "y": 500})
+    over = b.scene()["results"]["ui"]["over"]
+    check(over == [ECHO_LOG_ID], f"the pointer is over the log: {over}")
+
+    b.step(1)
+    over = b.scene()["results"]["ui"]["over"]
+    check(over == [], f"with no pointer, nothing is under it: {over}")
 
     b.quit()
 

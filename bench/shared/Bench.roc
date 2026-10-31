@@ -2,7 +2,7 @@
 # pf.Vocabulary. Keep them identical, or init and step stop unifying.
 Bench := [].{
 	Config : { seed : U64, assets : List(Str), args : List(Str) }
-	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 } }
+	Input : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 	Gamepad : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 
 	# N is the first Arg. A missing or bad N must stop the run, so a typo cannot
@@ -44,7 +44,7 @@ Bench := [].{
 	with_n = |n| { ..no_args, args: [n.to_str()] }
 
 	idle : Input
-	idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 }, gamepads: [], window: { width: 960.0, height: 540.0 } }
+	idle = { held: [], pressed: [], mouse: { dx: 0.0, dy: 0.0 }, gamepads: [], window: { width: 960.0, height: 540.0 }, pointer: { x: 0.0, y: 0.0, inside: Bool.False, held: [], pressed: [], released: [], wheel: { dx: 0.0, dy: 0.0 } } }
 
 	counts_up : List(U64) -> Bool
 	counts_up = |ids| ids.map_with_index(|id, i| id == i).all(|ok| ok)

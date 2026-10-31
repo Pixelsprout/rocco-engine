@@ -116,6 +116,20 @@ class LibraryTest(unittest.TestCase):
         host.close()
         self.assertEqual(host.requests, [{"op": "step", "n": 1, "gamepads": pads}])
 
+    def test_step_sends_the_pointer(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        with bridge.Bridge.connect(host.port) as b:
+            b.step(1, pointer={"x": 5, "y": 6, "tap": ["Left"]})
+        host.close()
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "pointer": {"x": 5, "y": 6, "tap": ["Left"]}}])
+
+    def test_step_leaves_out_an_absent_pointer(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        with bridge.Bridge.connect(host.port) as b:
+            b.step(1)
+        host.close()
+        self.assertNotIn("pointer", host.requests[0])
+
     def test_tell_sends_the_port_and_the_message(self):
         host = FakeHost(['{"ok":true,"queued":1}'])
         with bridge.Bridge.connect(host.port) as b:
@@ -205,6 +219,25 @@ class CliTest(unittest.TestCase):
         host.close()
         self.assertEqual(code, 0)
         self.assertEqual(host.requests, [{"op": "step", "n": 1, "held": ["W"]}])
+
+    def test_step_from_the_cli_sends_the_pointer_flags(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        code, _, _ = run_cli(["--port", str(host.port), "step", "--pointer", "884,36", "--tap-mouse", "Left", "--wheel", "0,-1"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "pointer": {"x": 884.0, "y": 36.0, "tap": ["Left"], "wheel": [0.0, -1.0]}}])
+
+    def test_step_from_the_cli_outside_sends_inside_false(self):
+        host = FakeHost(['{"ok":true,"steps":1,"commands":[],"alloc":{}}'])
+        code, _, _ = run_cli(["--port", str(host.port), "step", "--pointer", "1,2", "--outside", "--held-mouse", "Right"])
+        host.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(host.requests, [{"op": "step", "n": 1, "pointer": {"x": 1.0, "y": 2.0, "inside": False, "held": ["Right"]}}])
+
+    def test_step_from_the_cli_needs_a_pointer_for_the_buttons(self):
+        with self.assertRaises(SystemExit) as caught, contextlib.redirect_stderr(io.StringIO()):
+            bridge.main(["--port", "1", "step", "--tap-mouse", "Left"])
+        self.assertEqual(caught.exception.code, 2)
 
     def test_tell_from_the_cli_sends_the_message(self):
         reply = '{"ok":true,"queued":1}'

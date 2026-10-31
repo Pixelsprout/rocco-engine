@@ -26,10 +26,16 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	// One fixed interval leaves the accumulator at zero after the step, so
 	// Lockstep runs exactly one fixed step per Frame.
+	s.input.pointer.locked = platform.mouse_locked
 	frame_time := platform.frame_duration if s.mode == .Real_Clock else s.clock.fixed_dt
 	clock_add_frame(&s.clock, bridge_clock_time(&s.bridge, frame_time))
 	steps := 0
 	for dt in clock_next_step(&s.clock) {
+		// seam_step consumes the results. Every step of a Frame gets the ui
+		// of the last hit test.
+		if steps > 0 {
+			seam_set_ui(&s.seam, ui_results(&s.ui))
+		}
 		before := roc_heap_counters()
 		// Under the Bridge, only the Driver gives step its Input. The real
 		// devices still reach the latch, which the debug camera reads.
@@ -42,9 +48,14 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 			step_input = bridge_input_take(&s.bridge, &s.input_buffers)
 			commands_json = &s.bridge.commands
 		} else {
+			// input_take drops the pointer's presses, so the pointer goes first.
+			pointer := pointer_take(&s.input.pointer, &s.input_buffers.pointer, platform.window)
 			step_input = input_take(&s.input, &s.input_buffers)
+			step_input.pointer = pointer
 		}
 		step_input.window = ui_window_logical(platform.window)
+		step_input.pointer.inside &&= pointer_in_window(step_input.pointer.pos, step_input.window)
+		s.pointer = {pos = step_input.pointer.pos, inside = step_input.pointer.inside}
 		step_time, view_time, quit := seam_step(&s.seam, step_input, dt, &s.spans, commands_json)
 		audio_advance(&s.audio, dt)
 		steps += 1
@@ -83,6 +94,10 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	// Headless submits nothing, so its render Spans stay at zero.
 	renders := s.mode != .Headless
 	frame_render_draw(&s.frame_render, prev, curr, alpha, view_proj, eye, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window, &s.spans, renders)
+	// The scene op replies the results that the next step gets, so they take
+	// the hit test of the layout that the window shows.
+	ui_hit_test(&s.ui, s.pointer, platform.window)
+	seam_set_ui(&s.seam, ui_results(&s.ui))
 	if renders {
 		span := span_open()
 		platform.commit()

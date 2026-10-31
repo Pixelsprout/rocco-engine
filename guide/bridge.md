@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":2,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":4,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":2,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":4,"step_hz":120,"steps":0,"headless":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -162,6 +162,7 @@ the last one:
 that are down for every step. `tap` lists keys pressed and let go before
 the first step. `mouse` is the mouse movement `[dx, dy]` of the first step.
 `gamepads` connects pads, as the [gamepads](#gamepads) section shows.
+`pointer` sets the pointer, as the [pointer](#pointer) section shows.
 [The Input rules](#the-input-rules) say how the host turns these fields
 into the Input that `step` gets.
 
@@ -236,6 +237,38 @@ and no step runs:
 The `step` reply does not repeat the pads or the keys back.
 [Gamepads](gamepad.md) explains how a game reads a Gamepad.
 
+### pointer
+
+`pointer` is an object much like `Input.pointer`, with `x`, `y`, `inside`,
+`held`, `tap` and `wheel`. `x` and `y` are in logical window pixels, the
+unit of the UI, and you must give both. `inside` is `true` when you leave
+it out. `held` and `tap` take the names from `pf.MouseButton`: `"Left"`,
+`"Right"` and `"Middle"`. `wheel` is `[dx, dy]`, in the first step only.
+
+bridge-echo has a button with id 7 at its top right, and Tells `click` when
+a left click on it ends. A step with the pointer over the button, then a
+step that taps Left there, gives the Tell:
+
+```
+{"op":"step","pointer":{"x":884,"y":36}}
+{"ok":true,"steps":1,"commands":[],"alloc":{"step":1,"allocs":3,"deallocs":2,"reallocs":0,"live":5,"step_us":3.5,"view_us":3.2}}
+{"op":"step","pointer":{"x":884,"y":36,"tap":["Left"]}}
+{"ok":true,"steps":2,"commands":[{"Tell":{"port":"click","msg":"7"}}],"alloc":{"step":2,"allocs":6,"deallocs":8,"reallocs":0,"live":5,"step_us":6.1,"view_us":9.8}}
+```
+
+The first step is needed: a game sees the Boxes under the pointer one step
+after the pointer moves there, in `results.ui.over`. The [scene](#scene)
+reply shows them.
+
+A request with no `pointer` puts the pointer outside the window with no
+button held, so a button held in the request before is released. A bad
+pointer fails the request, and no step runs:
+
+```
+{"op":"step","pointer":{"x":1,"y":2,"held":["Back"]}}
+{"ok":false,"error":"unknown MouseButton \"Back\" in \"held\""}
+```
+
 ## scene
 
 `scene` replies with the Scene of the last step, the one the window shows,
@@ -252,7 +285,7 @@ host sends it on one line, and it is split into lines here:
    {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
    {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
   "cursor":"Free","sky":0,"ui":[],"queries":[]},
- "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[]}}
+ "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[],"scroll":[]}}}
 ```
 
 The fields and the tags have the names you use in the game, from the
@@ -287,7 +320,7 @@ trimmed to the `queries` and the `results`:
 {"op":"step","n":27,"held":["W"]}
 {"ok":true,"steps":27,"commands":[],"alloc":{"step":27,"allocs":12,"deallocs":11,"reallocs":6,"live":5,"step_us":5.1,"view_us":4.0}}
 {"op":"scene"}
-{"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[],"ports":[]}}
+{"ok":true,"steps":27,"scene":{...,"queries":[{"ContactsOf":2}]},"results":{"contacts":[{"a":2,"b":12,"normal":{"x":0.82404196,"y":0,"z":-0.5665287},"depth":0.00729388}],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[],"scroll":[]}}}
 ```
 
 The game sees this Contact in its next step, and the pickup's Draw is then
@@ -302,14 +335,23 @@ lines:
 ```
 {"op":"scene"}
 {"ok":true,"steps":1,"scene":{...,"ui":[
-  {"Box":{"config":{"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"floating":{"Float":{"attach":"LeftTop","offset":{"x":16,"y":16}}}},
+  {"Box":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}}},
           "children":[{"Text":{"str":"Pickups: 0 / 5","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}},
-  {"Box":{"config":{...,"floating":{"Float":{"attach":"CenterBottom","offset":{"x":0,"y":-16}}}},
+  {"Box":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}}},
           "children":[{"Text":{"str":"Collect every pickup.","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}}],...},...}
 ```
 
 To find a string in the HUD, walk `children` down from each root, as a Roc
 test matches the tree with a pattern.
+
+`results.ui` holds the tagged Boxes under the pointer of the last step, in
+`over`, and the sizes of the tagged Scroll Boxes, in `scroll`. After the
+first step of the [pointer](#pointer) example, bridge-echo's results are:
+
+```
+{"op":"scene"}
+{"ok":true,"steps":1,"scene":{...},"results":{"contacts":[],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[7],"scroll":[{"id":9,"view":{"width":200,"height":100},"content":{"width":200,"height":200}}]}}}
+```
 
 ## tell
 
@@ -443,6 +485,13 @@ The host builds the Input of each step from the `step` request:
   the request, in slot order. Each pad's buttons follow the rules of Held
   and Pressed above, by slot. The sticks and the triggers are the same in
   every step.
+- **Pointer**: the `pointer` position, `inside` and `held` buttons, in
+  every step of the request. Pressed and Released follow `held` across
+  steps, as the keys do. A button in `tap` is Pressed and Released in the
+  first step, and is not Held. The `wheel` is in the first step only. A
+  position outside the window gives `inside: false`. A request with no
+  `pointer` gives a pointer that is not inside, at (0, 0), with no button
+  held.
 - **Window**: not in the request. A Headless run gets the Launch width and
   height. A windowed run gets the size of its window in logical pixels.
 
@@ -545,7 +594,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | Op | Fields | Reply fields |
 |---|---|---|
 | `hello` | none | `protocol`, `step_hz`, `steps`, `headless` |
-| `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, each optional | `steps`, `commands`, `alloc` |
+| `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, `pointer`, each optional | `steps`, `commands`, `alloc` |
 | `scene` | none | `steps`, `scene`, `results` |
 | `screenshot` | `path` | `path`, `physical`, `logical` |
 | `tell` | `port`, `msg` | `queued` |
@@ -555,7 +604,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 2. |
+| `protocol` | The version of the requests and replies. Today it is 4. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
@@ -569,10 +618,16 @@ A Headless run takes one frame for each step, and draws nothing.
 | `tap` (pad) | In a pad: a list of Button names, Pressed but not Held, in the first step only. |
 | `left_stick`, `right_stick` | In a pad: `[x, y]` inside the unit disc, `+y` up, for every step. |
 | `left_trigger`, `right_trigger` | In a pad: a number from 0 to 1, for every step. |
+| `pointer` | An object: the pointer for every step. With no `pointer`, the pointer is outside the window. |
+| `x`, `y` | In the pointer: the position in logical window pixels. Both are required. |
+| `inside` | In the pointer: `false` puts the pointer outside the window. The default is `true`. |
+| `held` (pointer) | In the pointer: a list of MouseButton names, held for every step. |
+| `tap` (pointer) | In the pointer: a list of MouseButton names, Pressed and Released in the first step only. |
+| `wheel` | In the pointer: `[dx, dy]`, the wheel scroll in the first step only. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
 | `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. |
-| `results` | The QueryResults that the next step gets: `contacts`, `rays`, `overlaps` and `ports`. `ports` is empty here, because the host fills it when the step runs. |
+| `results` | The QueryResults that the next step gets: `contacts`, `rays`, `overlaps`, `ports` and `ui`. `ports` is empty here, because the host fills it when the step runs. `ui` holds `over` and `scroll`. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |
 | `logical` | `[width, height]` in the window's units. |
@@ -614,6 +669,12 @@ A Headless run takes one frame for each step, and draws nothing.
 | `unknown Button "<name>" in "held"` | A name is not in `pf.Button`. The error names the field. |
 | `"left_stick" must be [x, y] inside the unit disc` | A stick is not a list of two numbers, or it is outside the unit disc. The error names the stick. |
 | `"right_trigger" must be a number from 0 to 1` | A trigger is not a number from 0 to 1. The error names the trigger. |
+| `"pointer" must be an object` | `pointer` is not an object. |
+| `"pointer" needs "x" and "y" as numbers` | The pointer has no `x` or `y`, or one is not a number. |
+| `"inside" must be true or false` | The pointer's `inside` is not a boolean. |
+| `"held" must be a list of MouseButton names` | The pointer's `held` or `tap` is not a list of strings. The error names the field. |
+| `unknown MouseButton "<name>" in "held"` | A name is not in `pf.MouseButton`. The error names the field. |
+| `"wheel" must be [dx, dy]` | The pointer's `wheel` is not a list of two numbers. |
 | `"path" must be a file path` | `path` is missing, empty or not a string. |
 | `a Headless run draws no image to screenshot` | A `screenshot` in Headless. |
 | `the host cannot write "<path>": <reason>` | The host cannot write the PNG. |
@@ -628,6 +689,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `bridge.py hello` | `hello` |
 | `bridge.py step [N] [--held KEY]... [--tap KEY]... [--mouse DX,DY]` | `step`. Give `--held` and `--tap` once for each key. |
 | `bridge.py step [N] [--slot S] [--held-button B]... [--tap-button B]... [--left-stick X,Y] [--right-stick X,Y] [--left-trigger V] [--right-trigger V]` | `step` with one pad. Any of these flags connects it. Give `--button` and `--tap-button` once for each button. |
+| `bridge.py step [N] --pointer X,Y [--held-mouse B]... [--tap-mouse B]... [--wheel DX,DY] [--outside]` | `step` with a `pointer`. The other pointer flags need `--pointer`. |
 | `bridge.py step [N] --gamepads JSON` | `step` with the whole `gamepads` list, such as `'[{"slot":1,"held":["Start"]}]'`. |
 | `bridge.py scene` | `scene` |
 | `bridge.py screenshot PATH` | `screenshot`, with `PATH` made absolute from the folder you run it in. |

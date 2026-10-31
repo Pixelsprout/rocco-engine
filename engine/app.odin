@@ -39,6 +39,8 @@ State :: struct {
 	spans:             Span_Sink,
 	bridge:            Bridge,
 	audio:             Audio,
+	// The pointer of the last step taken, for the hit test after the layout.
+	pointer:           Ui_Pointer,
 }
 
 // State is global because the sokol callbacks are "c" procs with no user data.
