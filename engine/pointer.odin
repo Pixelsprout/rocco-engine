@@ -83,9 +83,10 @@ pointer_on_event :: proc(p: ^Pointer_Latch, e: ^sapp.Event) {
 }
 
 pointer_take :: proc(p: ^Pointer_Latch, buf: ^Pointer_Buffers, window: Ui_Window) -> Step_Pointer {
+	pos, inside := pointer_logical(p, window)
 	step := Step_Pointer {
-		pos      = p.pos / window.dpi,
-		inside   = p.entered && !p.locked,
+		pos      = pos,
+		inside   = inside,
 		held     = pointer_buttons(p.held, &buf.held),
 		pressed  = pointer_buttons(p.pressed, &buf.pressed),
 		released = pointer_buttons(p.released, &buf.released),
@@ -93,6 +94,10 @@ pointer_take :: proc(p: ^Pointer_Latch, buf: ^Pointer_Buffers, window: Ui_Window
 	}
 	pointer_drop(p)
 	return step
+}
+
+pointer_logical :: proc(p: ^Pointer_Latch, window: Ui_Window) -> (pos: [2]f32, inside: bool) {
+	return p.pos / window.dpi, p.entered && !p.locked
 }
 
 pointer_buttons :: proc(set: Mouse_Buttons, out: ^[len(Mouse_Button)]u8) -> []u8 {

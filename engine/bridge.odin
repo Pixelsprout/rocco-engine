@@ -41,9 +41,9 @@ Bridge :: struct {
 	// The held buttons that the step before gave, by slot, from either source.
 	prev_buttons: [GAMEPAD_SLOTS]Gamepad_Buttons,
 	// The step op's pointer, with the same rules as the keys. It replaces the
-	// real pointer.
+	// real pointer, and its buttons merge with the real ones.
 	pointer:      Bridge_Pointer,
-	// The held mouse buttons of the step before.
+	// The held mouse buttons that the step before gave, from either source.
 	prev_pointer_held: Mouse_Buttons,
 	// The step op's Commands so far, as JSON array elements. They must
 	// outlive the Frame arena, because the reply waits for the last step.
@@ -64,7 +64,8 @@ Bridge_Gamepad :: struct {
 }
 
 // The pointer of a step op, in logical pixels. A request with no pointer
-// gives one that is not inside, at (0, 0), with no button held. pos, inside
+// gives one that is not inside, at (0, 0), with no button held, or the real
+// pointer with devices on. pos, inside
 // and held are for every step. tap and wheel are for the first step only.
 Bridge_Pointer :: struct {
 	given:  bool,
@@ -201,15 +202,24 @@ bridge_input_take :: proc(b: ^Bridge, real: ^Input_Latch, buf: ^Input_Buffers, w
 	step_input := input_take(&latch, buf)
 
 	p := &b.pointer
-	step_input.pointer = {
-		pos      = p.pos,
-		inside   = p.given && p.inside,
-		held     = pointer_buttons(p.held, &buf.pointer.held),
-		pressed  = pointer_buttons((p.held - b.prev_pointer_held) + p.tap, &buf.pointer.pressed),
-		released = pointer_buttons((b.prev_pointer_held - p.held) + p.tap, &buf.pointer.released),
-		wheel    = p.wheel,
+	// A request pointer replaces the real one, but not its buttons.
+	pointer: Step_Pointer
+	if p.given {
+		pointer.pos, pointer.inside, pointer.wheel = p.pos, p.inside, p.wheel
+	} else if on {
+		pointer.pos, pointer.inside = pointer_logical(&real.pointer, window)
+		pointer.wheel = real.pointer.wheel
 	}
-	b.prev_pointer_held = p.held
+	real_buttons: Pointer_Latch
+	if on {
+		real_buttons = real.pointer
+	}
+	held, pressed, released := bridge_merge_buttons(p.held, p.tap, real_buttons.held, real_buttons.pressed, real_buttons.released, b.prev_pointer_held)
+	pointer.held = pointer_buttons(held, &buf.pointer.held)
+	pointer.pressed = pointer_buttons(pressed, &buf.pointer.pressed)
+	pointer.released = pointer_buttons(released, &buf.pointer.released)
+	step_input.pointer = pointer
+	b.prev_pointer_held = held
 	p.tap = {}
 	p.wheel = {}
 	if on {
