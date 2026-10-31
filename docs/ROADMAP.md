@@ -1275,7 +1275,13 @@ host. Agent Town's HUD then cuts by pixels, not by characters.
 Check: a corpus test compares the Roc measure and wrap with the host's. A
 screenshot at dpi 1 shows sharp stems.
 
-## Milestone 31: Pointer and devices
+## Milestone 31: Pointer and devices (done)
+
+Results, 2026-10-31: T4 gave the game `Input.pointer`, tagged Boxes,
+overflow and `QueryResults.ui` (ADR 0020). T6 lets a Driver opt in to the
+real devices on `hello`, and adds the `inject` test op (ADR 0021). The
+Bridge protocol is 7. The Bridge check clicks bridge-echo's button through
+the real devices merge and reads the `Tell`.
 
 Done when a person's click in the window reaches the game while a Driver
 drives it, and the game sends the result out as a `Tell`. This is phase 4
@@ -1286,7 +1292,7 @@ of the Agent Town design. Closes dex tasks 5rxq8tn7 and ihjsa50n.
    and `QueryResults.ui`. The host hit tests with Clay, and the game owns
    every scroll offset. ADR 0020 amends ADR 0004. The Bridge protocol is 4.
 2. A Driver opts in to real devices on `hello`. The host merges them with
-   the Driver's Input. ADR 0021 amends ADR 0009. The Bridge protocol is 5.
+   the Driver's Input. ADR 0021 amends ADR 0009. The Bridge protocol is 7.
 
 Check: the Bridge check drives a click on a tagged Box in bridge-echo and
 reads the `Tell` from the `step` reply, on all three OSes.
