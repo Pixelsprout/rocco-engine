@@ -168,6 +168,112 @@ starting values and a few small helpers:
 - [`Ui.measure`][Ui.measure], [`Ui.fit`][Ui.fit] and [`Ui.wrap`][Ui.wrap]
   measure, cut and wrap text with the host's numbers. See "Measure, fit
   and wrap" below.
+- [`Ui.Node`][Ui.Node] is a UI tree that the widget modules build. See
+  "Widgets" below.
+
+## Widgets
+
+The ui package also gives five widget modules: [`Button`][Button],
+[`Focus`][Focus], [`Dropdown`][Dropdown], [`Accordion`][Accordion] and
+[`Scroll`][Scroll]. [`Widget`][Widget] holds the types they share. Import
+them as `import ui.Button` and so on. Each widget is a state that you keep
+in your Model, an `update` that you call in `step`, and a `view` that
+builds its part of the UI. The engine has no widget and no focus: the
+modules are plain Roc, and you give every id.
+
+`Button` keeps the hover and the press of the left button for every button
+of one UI, so keep one in your Model. Its `update` reads the pointer and
+`results.ui.over`, and gives `Pressed` and `Clicked` events. A button
+clicks when the left button goes up over the Box it went down on.
+`Button.view` draws one button with the idle, hover, down or focus colour
+of the `Widget.Look`. It is a UI button, not the button of a gamepad.
+
+`Focus` is the Box that the keys act on. Give its `update` the ids that
+take the focus, in Tab order. Tab and Shift-Tab move it, and Enter or
+Space gives a `Clicked` event for the focused id, the same event as a
+click.
+
+`Dropdown` is a button that opens a menu of items. The menu floats under
+the button. A click on an item selects it and closes the menu, and a press
+outside the menu closes it. `Accordion` is a header button that shows or
+hides a body. Both read only the events of `Button` and `Focus`.
+
+`Scroll` is a Box that scrolls its rows, with a scrollbar thumb that the
+person can drag. The wheel scrolls it by `line` pixels per step, and Page
+Up, Page Down, Home and End move it while it has the focus. It reads its
+sizes from `results.ui.scroll`.
+
+Give each `update` the Input and the QueryResults that `step` gets. The
+widgets read only the fields they need, so the package does not copy
+those types.
+
+The widgets example runs every widget. Its `step` passes the events of the
+buttons and the keys to each widget:
+
+<!-- region: examples/widgets/main.roc#widgets-step -->
+```roc
+step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
+step = |model, input, results, _dt| {
+	pointer = model.buttons.update({ input, results })
+	keys = model.focus.update({ input, order: focus_order(model) })
+	events = List.join([pointer.events, keys.events])
+	picked = model.filter.update(events)
+	next = {
+		..model,
+		buttons: pointer.buttons,
+		focus: keys.focus,
+		filter: picked.dropdown,
+		details: model.details.update(events),
+		log: model.log.update({ input, results, focus: keys.focus }),
+		lines: if (events.contains(Clicked(add_id))) model.lines.append("Line ${(model.lines.len() + 1).to_str()}") else model.lines,
+	}
+	{ model: next, commands: tells(events, picked.selection) }
+}
+```
+<!-- endregion -->
+
+A package cannot name the platform's `Element`, so each `view` returns a
+[`Ui.Node`][Ui.Node], a tree of the same shape. Your game turns a Node
+into an Element once, where it goes into `Scene.ui`, with
+[`Node.build`][Ui.Node] and the Element tags:
+
+<!-- region: examples/widgets/main.roc#widgets-element -->
+```roc
+element : Ui.Node -> Element
+element = |node| node.build({ box: |config, children| Box(config, children), text: |text| Text(text) })
+```
+<!-- endregion -->
+
+Build the whole widget panel as a Node, then call `element` on it:
+
+<!-- region: examples/widgets/main.roc#widgets-view -->
+```roc
+view : Model -> Vocabulary.Scene
+view = |model| {
+	{ buttons, focus, .. } = model
+	add = buttons.view({ id: add_id, label: "Add line", width: Fixed(160.0), look, focus })
+	filter = model.filter.view({ buttons, focus, width: Fixed(160.0), look })
+	details = model.details.view({ buttons, focus, label: "Details", width: Fixed(420.0), look, body: [Widget.label(look, body_text)] })
+	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
+	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
+	panel = Box({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Box({ ..Ui.default_box, gap: 8.0 }, [add, filter]), details, log])
+	{ ..Scene.empty, ui: [element(panel)] }
+}
+```
+<!-- endregion -->
+
+One click reaches one widget. A press and a click belong to the innermost
+tagged Box under the pointer, and each widget acts only on the events
+that name its own ids. An open menu floats, so it hides the Boxes under
+it, and a click on an item does not also reach the header under it.
+
+Agent Town's log is a `Scroll` with `StickToBottom` and a `line` of 18,
+for text of size 18. With the engine's one font, a Text's line height is
+its size. The log stays at the bottom as lines arrive, one step after
+their size arrives. When the person scrolls up, it keeps its place, and it
+sticks again when they scroll back to the bottom.
+
+The widgets have no text input and no kinetic scrolling.
 
 ## The layout rules
 
@@ -318,3 +424,10 @@ The host also logs each kind of Clay error once, such as a `Percent` above
 [Ui.measure]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.measure
 [Ui.fit]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.fit
 [Ui.wrap]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.wrap
+[Ui.Node]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.Node
+[Widget]: https://pixelsprout.dev/projects/rocco/api/ui/Widget/
+[Button]: https://pixelsprout.dev/projects/rocco/api/ui/Button/
+[Focus]: https://pixelsprout.dev/projects/rocco/api/ui/Focus/
+[Dropdown]: https://pixelsprout.dev/projects/rocco/api/ui/Dropdown/
+[Accordion]: https://pixelsprout.dev/projects/rocco/api/ui/Accordion/
+[Scroll]: https://pixelsprout.dev/projects/rocco/api/ui/Scroll/

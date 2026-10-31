@@ -159,7 +159,7 @@ A button of a Gamepad, named by its place on the pad, from
 `pf.GamepadButton`, such as `South` for the bottom face button. Not its
 label: `South` is A on Xbox, Cross on PlayStation and B on Switch. A
 Gamepad carries the code. The triggers are not Gamepad buttons.
-_Avoid_: key, face button label (A, Cross), action
+_Avoid_: key, face button label (A, Cross), action, ui.Button (the UI widget)
 
 **Gamepad slot**:
 A Gamepad's number, from 0 to 3. A pad keeps its slot while it stays
@@ -294,7 +294,7 @@ One part of the UI tree: a Box, which holds its children, or a Text. The
 game writes the tags itself, `Box(config, [...])` and `Text(...)`. An
 Element's identity is its place in the tree. The tree crosses the seam as
 it is; it is not flattened into a list.
-_Avoid_: widget, Node (the 3D tree), control, view (the call), parent index
+_Avoid_: widget, Node (the 3D tree), Ui.Node (the package tree), control, view (the call), parent index
 
 **Box**:
 An Element that is a rectangle and holds a list of child Elements. Its
@@ -321,6 +321,24 @@ An Element that draws one string in the engine's font, at a size and colour.
 The layout measures it. A game that must choose what to show measures it
 first with `Ui.measure`, `Ui.fit` or `Ui.wrap`, which use the host's numbers.
 _Avoid_: label, string, glyph run
+
+**Ui.Node**:
+The UI tree of `packages/ui`, with the shape of an Element. A package
+cannot name the platform's Element, so the widgets return a Node, and the
+game turns it into an Element with `Node.build`.
+_Avoid_: Element (for the package tree), widget tree
+
+**Widget**:
+A pure Roc helper module of `packages/ui` for a button, a dropdown, an
+accordion, focus or a scrolling Box. Its state lives in the Model, and its
+`view` returns a Ui.Node. The engine has no widget, and it is not
+Vocabulary.
+_Avoid_: control, component
+
+**Focus**:
+Which tagged Box the keys act on, kept in the Model by `Focus` of
+`packages/ui`. The engine has none, and it is not the window's focus.
+_Avoid_: selection, active element
 
 **Model**:
 The one value that is the game. The game declares its type; the host holds

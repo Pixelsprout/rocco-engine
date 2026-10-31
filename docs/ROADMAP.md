@@ -1301,7 +1301,9 @@ reads the `Tell` from the `step` reply, on all three OSes.
 
 Done when `packages/ui` gives a game buttons, dropdowns, accordions, focus
 and scrolling views as pure Roc helpers, with every state in the game's
-Model. A scrolling view can stick to the bottom, for a log.
+Model. A scrolling view can stick to the bottom, for a log. The widgets
+return a `Ui.Node`, which the game turns into an Element with `Node.build`,
+so the platform does not change.
 
 Check: an example game with every widget passes a Bridge check driven by
 pointer requests.

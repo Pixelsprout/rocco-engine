@@ -25,7 +25,7 @@ roc scripts/build.roc docs --check
 
 # The timeout turns a hang into a failure instead of a stuck container.
 RUN="timeout 600 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"
-RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridge-echo glow tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridge-echo glow widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
 RUN_PREFIX="$RUN" python3 scripts/bridge_check.py
 

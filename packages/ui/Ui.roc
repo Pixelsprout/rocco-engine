@@ -37,6 +37,33 @@ Ui := [].{
 	## See `Vocabulary.Text`.
 	Text : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 
+	## A UI tree that a package can build. It has the shape of the
+	## Vocabulary's `Element`, which only the platform and the game can name.
+	## The widget modules return a Node. Turn it into an Element in your game
+	## with `build`, once, where the Node goes into `Scene.ui`.
+	Node := [Box(BoxConfig, List(Node)), Text(Text)].{
+
+		## Two Nodes are equal when their tags, configs, Texts and children are
+		## equal. A nominal type gets no `==` of its own.
+		is_eq : Node, Node -> Bool
+		is_eq = |a, b|
+			match (a, b) {
+				(Box(config_a, children_a), Box(config_b, children_b)) => config_a == config_b and children_a == children_b
+				(Text(text_a), Text(text_b)) => text_a == text_b
+				_ => Bool.False
+			}
+
+		## Rebuilds the tree with your own constructors, children first. Give
+		## it the Element tags to get an Element:
+		## `node.build({ box: |config, children| Box(config, children), text: |text| Text(text) })`.
+		build : Node, { box : BoxConfig, List(el) -> el, text : Text -> el } -> el
+		build = |node, { box, text }|
+			match node {
+				Box(config, children) => box(config, children.map(|child| child.build({ box, text })))
+				Text(str) => text(str)
+			}
+	}
+
 	## Clay's defaults: not tagged, fits its children, no padding, no gap, a
 	## `Row`, children at the start, no background, square corners, children
 	## drawn past the edges and not floating.
@@ -352,6 +379,13 @@ expect {
 	summary = "04:41 owner.report owner-P2 if the reviewer finds a problem in the diff, fix it on branch phase3-hud-cut in a new commit"
 	cut = Ui.fit(summary, { size: 18.0, width: 420.0 })
 	Str.ends_with(cut, "...") and Ui.measure(cut, 18.0).width <= 420.0
+}
+
+## build rebuilds every Box and Text of the tree, in order.
+expect {
+	tree : Ui.Node
+	tree = Box(Ui.default_box, [Text(Ui.label("a")), Box({ ..Ui.default_box, id: 3 }, [Text(Ui.label("b"))])])
+	tree.build({ box: |config, children| "box ${config.id.to_str()} [${Str.join_with(children, ", ")}]", text: |text| text.str }) == "box 0 [a, box 3 [b]]"
 }
 
 ## An empty string is one empty line.
