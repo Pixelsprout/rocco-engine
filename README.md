@@ -85,7 +85,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh`, `packages/ui` and `packages/camera`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
-| `all` | From a fresh checkout. | `glue`, `font-table`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game bridge-echo`, then `game` for each tutorial chapter, such as `game tutorial/01-window`. With `--release`, it passes `--release` to `host` and `inputs`. |
+| `all` | From a fresh checkout. | `glue`, `font-table`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game bridge-echo`, `game glow`, then `game` for each tutorial chapter, such as `game tutorial/01-window`. With `--release`, it passes `--release` to `host` and `inputs`. |
 
 Use debug for local work. Use `--release` for CI and the bundle, so CI tests
 the files that ship. `platform/main.roc` names the sokol archives with no
@@ -122,7 +122,7 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong, bridge-echo and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-all.sh`. It regenerates the macOS
+pong, bridge-echo, glow and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-all.sh`. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
@@ -469,6 +469,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/entity-game/` | A game with entities: WASD moves the player, the camera follows, pickups open a door. Its meshes are in `assets/meshes/` and its sky in `assets/sky/meadow/`. |
 | `examples/pong/` | Two-player pong: W and S move the left paddle, UP and DOWN the right, SPACE pauses. Its `Scene.ui` shows the score, a banner when paused or won, and the keys. It is the UI test for CI. |
 | `examples/bridge-echo/` | A game for the Bridge check: it Listens on the port `echo` and Tells each message back. |
+| `examples/glow/` | A dark Scene with a glowing window and two orbs. Each orb is a glowing sphere with a Point Light that lights the floor. |
 | `examples/tutorial/<nn>-<name>/` | One app for each tutorial chapter in `guide/tutorial/`. Each chapter starts from the one before it, so `git diff --no-index` of two `main.roc` files shows the change. |
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character with a 12-Joint Skin and the Clips Idle and Walk, into each chapter in its `CHAPTERS` list. It also writes `engine/testdata/skinned.glb`, the small skinned fixture for the loader tests. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |

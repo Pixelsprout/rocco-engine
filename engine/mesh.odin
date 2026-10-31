@@ -108,11 +108,13 @@ Vertex :: struct {
 	uv:     [2]f32,
 }
 
-// unlit draws the base colour as it is, with no lights and no tone map.
+// unlit draws the base colour plus the emissive, with no lights and no tone
+// map. emissive is linear and can exceed 1.
 Material :: struct {
 	roughness: f32,
 	metallic:  f32,
 	unlit:     bool,
+	emissive:  [3]f32,
 }
 
 // A zero id means the mesh has no texture and binds the white image.
@@ -136,6 +138,7 @@ Mesh :: struct {
 	index_count:        int,
 	texture:            Mesh_Texture,
 	metallic_roughness: Mesh_Texture,
+	emissive:           Mesh_Texture,
 	material:           Material,
 	box:                Box,
 	skin:               Skin,
@@ -168,6 +171,7 @@ Mesh_Data :: struct {
 	indices:            []u16,
 	texture:            Maybe(Texture),
 	metallic_roughness: Maybe(Texture),
+	emissive:           Maybe(Texture),
 	material:           Material,
 	skin:               Skin,
 }
@@ -277,6 +281,7 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 	}
 	mesh_texture_destroy(m.texture)
 	mesh_texture_destroy(m.metallic_roughness)
+	mesh_texture_destroy(m.emissive)
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
 	skin_delete(m.skin, t.allocator)
@@ -317,6 +322,9 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	if tex, ok := data.metallic_roughness.?; ok {
 		texture_delete(tex, t.allocator)
 	}
+	if tex, ok := data.emissive.?; ok {
+		texture_delete(tex, t.allocator)
+	}
 }
 
 @(private = "file")
@@ -351,12 +359,16 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	if tex, ok := data.metallic_roughness.?; ok {
 		m.metallic_roughness = texture_upload(tex)
 	}
+	if tex, ok := data.emissive.?; ok {
+		m.emissive = texture_upload(tex)
+	}
 }
 
 // White leaves the base colour as it is and the material factors at their values.
-mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness: Mesh_Texture) {
+mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness, emissive: Mesh_Texture) {
 	base = m.texture if m.texture.image.id != 0 else white
 	metallic_roughness = m.metallic_roughness if m.metallic_roughness.image.id != 0 else white
+	emissive = m.emissive if m.emissive.image.id != 0 else white
 	return
 }
 

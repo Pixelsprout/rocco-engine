@@ -21,6 +21,8 @@ Submitted :: struct {
 	normal_model: Mat4,
 	tint:         [4]f32,
 	material:     [4]f32,
+	emissive:     [4]f32,
+	glow:         [4]f32,
 	skinned:      bool,
 	joints:       [2]Mat4,
 }
@@ -287,6 +289,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 			normal_model = vs_params.normal_model,
 			tint = fs_params.tint,
 			material = fs_params.material,
+			emissive = fs_params.emissive,
+			glow = fs_params.glow,
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 		},
@@ -563,6 +567,56 @@ test_frame_render_submits_a_known_mesh_with_its_tint :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_frame_render_submits_the_glow_of_each_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere), glow = {r = 3.2, g = 1.9, b = 0.6}}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 1)
+	testing.expect_value(t, got[0].glow, [4]f32{3.2, 1.9, 0.6, 0})
+	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
+}
+
+@(test)
+test_frame_render_counts_a_negative_glow_channel_as_zero :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere), glow = {r = -1, g = 2, b = 0}}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 1)
+	testing.expect_value(t, got[0].glow, [4]f32{0, 2, 0, 0})
+}
+
+@(test)
+test_frame_render_submits_the_fallback_with_no_glow :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	draws := []Draw{{id = 1, mesh = 0, glow = {r = 5}}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 1)
+	testing.expect_value(t, got[0].glow, [4]f32{0, 0, 0, 0})
+}
+
+@(test)
+test_frame_render_takes_the_glow_of_the_current_scene :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := []Draw{{id = 1, mesh = u32(Primitive.Sphere), glow = {r = 1}}}
+	curr := []Draw{{id = 1, mesh = u32(Primitive.Sphere), glow = {g = 1}}}
+	got := frame_fixture_draw(&f, scene_of(prev), scene_of(curr), 0.5)
+	testing.expect_value(t, len(got), 1)
+	testing.expect_value(t, got[0].glow, [4]f32{0, 1, 0, 0})
+}
+
+@(test)
 test_frame_render_pairs_a_shared_id_with_the_first_draw :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
@@ -743,6 +797,20 @@ test_frame_render_submits_the_material_of_each_mesh :: proc(t: ^testing.T) {
 	testing.expect_value(t, got[0].material, [4]f32{1, 0, 0, 0})
 	testing.expect_value(t, got[1].material, [4]f32{0.3, 0.7, 0, 0})
 	testing.expect_value(t, got[2].material, [4]f32{1, 0, 1, 0})
+}
+
+@(test)
+test_frame_render_submits_the_emissive_of_each_mesh :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lamp, _ := mesh_table_add(&f.meshes, strings.clone("lamp"), {material = {roughness = 1, emissive = {4, 2, 0}}})
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere)}, {id = 2, mesh = mesh_id(&f.meshes, lamp)}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 2)
+	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
+	testing.expect_value(t, got[1].emissive, [4]f32{4, 2, 0, 0})
 }
 
 @(test)

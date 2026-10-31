@@ -665,7 +665,7 @@ Roc_View :: struct {
 	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_VocabularyElement),
 	camera: Roc_View_Camera,
-	clear: Roc_VocabularyNode_Draw_Tint,
+	clear: Roc_VocabularyNode_Draw_Glow,
 	sky: u32,
 	cursor: Roc_View_Cursor,
 }
@@ -720,9 +720,9 @@ Roc_VocabularyNode :: struct {
 	tag: Roc_VocabularyNode_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode) == 112)
+#assert(size_of(Roc_VocabularyNode) == 120)
 #assert(align_of(Roc_VocabularyNode) == 8)
-#assert(offset_of(Roc_VocabularyNode, tag) == 104)
+#assert(offset_of(Roc_VocabularyNode, tag) == 112)
 
 Roc_VocabularyNode_Collider :: struct {
 	id: u64,
@@ -797,33 +797,51 @@ Roc_VocabularyNode_Collider_Shape_Capsule :: struct {
 
 Roc_VocabularyNode_Draw :: struct {
 	id: u64,
+	glow: Roc_VocabularyNode_Draw_Glow,
 	mesh: u32,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
 	pose: Roc_VocabularyNode_Draw_Pose,
 	rot: Roc_VocabularyNode_Collider_Rot,
 	scale: Roc_Init_Commands_Play_At_At_Pos,
 	scale_rot: Roc_VocabularyNode_Collider_Rot,
-	tint: Roc_VocabularyNode_Draw_Tint,
+	tint: Roc_VocabularyNode_Draw_Glow,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw) == 104)
+#assert(size_of(Roc_VocabularyNode_Draw) == 112)
 #assert(align_of(Roc_VocabularyNode_Draw) == 8)
 #assert(offset_of(Roc_VocabularyNode_Draw, id) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.id)) == 8)
-#assert(offset_of(Roc_VocabularyNode_Draw, mesh) == 8)
+#assert(offset_of(Roc_VocabularyNode_Draw, glow) == 8)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.glow)) == 12)
+#assert(offset_of(Roc_VocabularyNode_Draw, mesh) == 20)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.mesh)) == 4)
-#assert(offset_of(Roc_VocabularyNode_Draw, pos) == 12)
+#assert(offset_of(Roc_VocabularyNode_Draw, pos) == 24)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pos)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, pose) == 24)
+#assert(offset_of(Roc_VocabularyNode_Draw, pose) == 36)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pose)) == 20)
-#assert(offset_of(Roc_VocabularyNode_Draw, rot) == 44)
+#assert(offset_of(Roc_VocabularyNode_Draw, rot) == 56)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale) == 60)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale) == 72)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == 72)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == 84)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale_rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, tint) == 88)
+#assert(offset_of(Roc_VocabularyNode_Draw, tint) == 100)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.tint)) == 12)
+
+Roc_VocabularyNode_Draw_Glow :: struct {
+	b: f32,
+	g: f32,
+	r: f32,
+}
+
+#assert(size_of(Roc_VocabularyNode_Draw_Glow) == 12)
+#assert(align_of(Roc_VocabularyNode_Draw_Glow) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Glow, b) == 0)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Glow{}.b)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Glow, g) == 4)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Glow{}.g)) == 4)
+#assert(offset_of(Roc_VocabularyNode_Draw_Glow, r) == 8)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Glow{}.r)) == 4)
 
 Roc_VocabularyNode_Draw_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Draw_Pose :: struct {
@@ -850,21 +868,7 @@ Roc_VocabularyNode_Draw_Pose :: struct {
 Roc_VocabularyNode_Draw_Rot :: Roc_VocabularyNode_Collider_Rot
 Roc_VocabularyNode_Draw_Scale :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Draw_ScaleRot :: Roc_VocabularyNode_Collider_Rot
-Roc_VocabularyNode_Draw_Tint :: struct {
-	b: f32,
-	g: f32,
-	r: f32,
-}
-
-#assert(size_of(Roc_VocabularyNode_Draw_Tint) == 12)
-#assert(align_of(Roc_VocabularyNode_Draw_Tint) == 4)
-#assert(offset_of(Roc_VocabularyNode_Draw_Tint, b) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Tint{}.b)) == 4)
-#assert(offset_of(Roc_VocabularyNode_Draw_Tint, g) == 4)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Tint{}.g)) == 4)
-#assert(offset_of(Roc_VocabularyNode_Draw_Tint, r) == 8)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Tint{}.r)) == 4)
-
+Roc_VocabularyNode_Draw_Tint :: Roc_VocabularyNode_Draw_Glow
 Roc_VocabularyNode_Group_0 :: struct {
 	id: u64,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
@@ -889,7 +893,7 @@ Roc_VocabularyNode_Light_Tag :: enum u8 {
 }
 
 Roc_VocabularyNode_Light_Payload :: struct #raw_union {
-	ambient: Roc_VocabularyNode_Draw_Tint,
+	ambient: Roc_VocabularyNode_Draw_Glow,
 	directional: Roc_VocabularyNode_Light_Directional,
 	point: Roc_VocabularyNode_Light_Point,
 }
@@ -903,9 +907,9 @@ Roc_VocabularyNode_Light :: struct {
 #assert(align_of(Roc_VocabularyNode_Light) == 4)
 #assert(offset_of(Roc_VocabularyNode_Light, tag) == 28)
 
-Roc_VocabularyNode_Light_Ambient :: Roc_VocabularyNode_Draw_Tint
+Roc_VocabularyNode_Light_Ambient :: Roc_VocabularyNode_Draw_Glow
 Roc_VocabularyNode_Light_Directional :: struct {
-	color: Roc_VocabularyNode_Draw_Tint,
+	color: Roc_VocabularyNode_Draw_Glow,
 	dir: Roc_Init_Commands_Play_At_At_Pos,
 	shadow: bool,
 }
@@ -919,10 +923,10 @@ Roc_VocabularyNode_Light_Directional :: struct {
 #assert(offset_of(Roc_VocabularyNode_Light_Directional, shadow) == 24)
 #assert(size_of(type_of(Roc_VocabularyNode_Light_Directional{}.shadow)) == 1)
 
-Roc_VocabularyNode_Light_Directional_Color :: Roc_VocabularyNode_Draw_Tint
+Roc_VocabularyNode_Light_Directional_Color :: Roc_VocabularyNode_Draw_Glow
 Roc_VocabularyNode_Light_Directional_Dir :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Light_Point :: struct {
-	color: Roc_VocabularyNode_Draw_Tint,
+	color: Roc_VocabularyNode_Draw_Glow,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
 	range: f32,
 }
@@ -936,7 +940,7 @@ Roc_VocabularyNode_Light_Point :: struct {
 #assert(offset_of(Roc_VocabularyNode_Light_Point, range) == 24)
 #assert(size_of(type_of(Roc_VocabularyNode_Light_Point{}.range)) == 4)
 
-Roc_VocabularyNode_Light_Point_Color :: Roc_VocabularyNode_Draw_Tint
+Roc_VocabularyNode_Light_Point_Color :: Roc_VocabularyNode_Draw_Glow
 Roc_VocabularyNode_Light_Point_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Speaker :: struct {
 	id: u64,
@@ -1368,7 +1372,7 @@ Roc_View_Camera :: struct {
 Roc_View_Camera_Eye :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Camera_Target :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Camera_Up :: Roc_Init_Commands_Play_At_At_Pos
-Roc_View_Clear :: Roc_VocabularyNode_Draw_Tint
+Roc_View_Clear :: Roc_VocabularyNode_Draw_Glow
 Roc_View_Cursor :: enum u8 {
 	Free = 0,
 	Locked = 1,

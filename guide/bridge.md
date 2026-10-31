@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":5,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":6,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":5,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":6,"step_hz":120,"steps":0,"headless":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -282,8 +282,8 @@ host sends it on one line, and it is split into lines here:
  "scene":{"camera":{"eye":{"x":0,"y":3.6,"z":4.8},"target":{"x":0,"y":0,"z":0.3},"up":{"x":0,"y":1,"z":0},"fov_y":1.047},
   "nodes":[{"Light":{"Ambient":{"r":0.3,"g":0.3,"b":0.3}}},
    {"Light":{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}},
-   {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
-   {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
+   {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"glow":{"r":0,"g":0,"b":0},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
+   {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"glow":{"r":0,"g":0,"b":0},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
   "cursor":"Free","sky":0,"clear":{"r":0,"g":0,"b":0},"ui":[],"queries":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[],"scroll":[]}}}
 ```
@@ -604,7 +604,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 5. |
+| `protocol` | The version of the requests and replies. Today it is 6. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |

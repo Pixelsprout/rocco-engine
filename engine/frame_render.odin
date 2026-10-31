@@ -87,6 +87,7 @@ Placed :: struct {
 	mesh:      ^Mesh,
 	fallback:  bool,
 	tint:      Rgb,
+	glow:      Rgb,
 	transform: Draw_Transform,
 	model:     Mat4,
 	skin:      ^Skin_Params,
@@ -177,11 +178,11 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 	return scene_view_proj(pose, aspect), pose.eye
 }
 
-// The fallback ignores the tint, so an unknown mesh id shows magenta whatever
-// the game asked for. The sky draws last, so the depth test hides it behind
-// every mesh. The UI draws over everything. A nil ui draws none. With submit
-// false, the Frame still places the Draws and lays out the UI, but submits
-// nothing.
+// The fallback ignores the tint and the glow, so an unknown mesh id shows
+// magenta whatever the game asked for. The sky draws last, so the depth test
+// hides it behind every mesh. The UI draws over everything. A nil ui draws
+// none. With submit false, the Frame still places the Draws and lays out the
+// UI, but submits nothing.
 frame_render_draw :: proc(
 	fr: ^Frame_Render,
 	prev, curr: Scene,
@@ -253,12 +254,19 @@ frame_render_draw :: proc(
 	}
 	for p in placed_next(&order) {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
+		glow := [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
 		material := p.mesh.material
+		e := material.emissive
 		fr.submit(
 			fr.submit_ctx,
 			p.mesh,
 			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
-			fs_params = {tint = tint, material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}},
+			fs_params = {
+				tint = tint,
+				material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0},
+				emissive = {e.x, e.y, e.z, 0},
+				glow = glow,
+			},
 			skin = p.skin,
 		)
 	}
@@ -308,7 +316,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, x: Draw_Transform) 
 		}
 		skin = &fw.fr.skins[fw.skinned_seen - 1]
 	}
-	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, transform = x, model = draw_model_matrix(x), skin = skin})
+	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, glow = d.glow, transform = x, model = draw_model_matrix(x), skin = skin})
 }
 
 // A mesh with fewer than MAX_JOINTS Joints leaves the rest of its skin as it

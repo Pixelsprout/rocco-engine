@@ -107,7 +107,7 @@ view = |m| {
 }
 
 cube_draw : U32, Entity -> Draw
-cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, pose: Pose.still(0, 0.0) }
+cube_draw = |mesh, e| { id: e.id, mesh, pos: e.pos, scale: { x: cube_half, y: cube_half, z: cube_half }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0) }
 
 sun : Vocabulary.Node
 sun = Light(Light.sun({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.03, g: 5.03, b: 5.03 }))

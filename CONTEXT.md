@@ -201,8 +201,8 @@ host uses.
 _Avoid_: frame, transform, matrix, placement
 
 **Draw**:
-A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot, tint
-and Pose, local to its Group or to the world at the root.
+A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot, tint,
+glow and Pose, local to its Group or to the world at the root.
 The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
 interpolates it between two Scenes. A game starts from `pf.Draw.default`.
@@ -210,9 +210,22 @@ _Avoid_: sprite, renderable, instance, draw call (the GPU term), object
 
 **Tint**:
 The colour of a Draw, as an `Rgb` record with linear channels from 0 to 1.
-The host multiplies the mesh colour by it. A Light colour can exceed 1; a
-tint cannot.
+The host multiplies the mesh colour by it. A Light colour or a Glow can
+exceed 1; a tint cannot.
 _Avoid_: colour (for the field), albedo, Vec3 colour
+
+**Glow**:
+The light that a Draw's surface gives off, in `Draw.glow`, as a linear
+`Rgb` that can exceed 1. The host adds it to the mesh's Emissive after the
+lights and before the tone map, so it shows in the dark. It lights no other
+surface; a Point Light beside the Draw does that.
+_Avoid_: emission (for the field), bloom, self-illumination, a tint above 1
+
+**Emissive**:
+The light that a glTF material gives off: `emissiveFactor`, times
+`emissiveTexture`, times `KHR_materials_emissive_strength`. A mesh has one,
+from its first part. A Draw's Glow adds to it. It lights no other surface.
+_Avoid_: glow (for the material), emission map
 
 **Rgba**:
 A colour with alpha, as linear channels from 0 to 1. Alpha is not

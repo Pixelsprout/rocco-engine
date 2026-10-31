@@ -54,12 +54,12 @@ Shadow_Map :: struct {
 	sampler: sg.Sampler,
 }
 
-// Each loaded mesh can own a base colour and a metallic-roughness texture,
-// each with its own image, view and sampler. The white image, each sky, the
-// shadow map and the font atlas need one more. The render target adds its
-// images.
+// Each loaded mesh can own a base colour, a metallic-roughness and an
+// emissive texture, each with its own image, view and sampler. The white
+// image, each sky, the shadow map and the font atlas need one more. The
+// render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(2 * capacity.meshes + 1 + capacity.skies + 1 + 1 + TARGET_IMAGES)
+	return i32(3 * capacity.meshes + 1 + capacity.skies + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -308,13 +308,23 @@ renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Sk
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pip, r.skinned_pip, skin)
-	base, metallic_roughness := mesh_textures(mesh, r.white)
+	base, metallic_roughness, emissive := mesh_textures(mesh, r.white)
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = mesh.vertices},
 			index_buffer = mesh.indices,
-			views = {VIEW_base_tex = base.view, VIEW_metallic_roughness_tex = metallic_roughness.view, VIEW_shadow_tex = r.shadow.texture},
-			samplers = {SMP_base_smp = base.sampler, SMP_metallic_roughness_smp = metallic_roughness.sampler, SMP_shadow_smp = r.shadow.sampler},
+			views = {
+				VIEW_base_tex = base.view,
+				VIEW_metallic_roughness_tex = metallic_roughness.view,
+				VIEW_shadow_tex = r.shadow.texture,
+				VIEW_emissive_tex = emissive.view,
+			},
+			samplers = {
+				SMP_base_smp = base.sampler,
+				SMP_metallic_roughness_smp = metallic_roughness.sampler,
+				SMP_shadow_smp = r.shadow.sampler,
+				SMP_emissive_smp = emissive.sampler,
+			},
 		},
 	)
 

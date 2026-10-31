@@ -232,11 +232,50 @@ A few rules to know:
   moves inside its Group jumps once each fixed step. A light moves smoothly
   when its Group does.
 
+## Glow
+
+A Draw's `glow` is the light that its surface gives off. The host adds it
+after the lights, so a glowing surface shows in a Scene with no Light at
+all. Like a light colour, a glow is linear and can go above 1. The glow
+example's window keeps a dark tint and puts its brightness in the glow:
+
+<!-- region: examples/glow/main.roc#window -->
+```roc
+window : Vocabulary.Draw
+window = { ..Draw.default, id: 3, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 1.4, z: -1.33 }, scale: { x: 1.4, y: 0.6, z: 0.06 }, tint: { r: 0.02, g: 0.018, b: 0.015 }, glow: { r: 3.2, g: 1.9, b: 0.6 } }
+```
+<!-- endregion -->
+
+A glow lights nothing else. The floor under a glowing window stays dark.
+So a thing that should light its surroundings also needs a Light. Put a
+Draw with a glow and a Point Light side by side. The glow example's orbs
+each pair a glowing sphere with a Point Light at its centre, in the same
+colour:
+
+<!-- region: examples/glow/main.roc#orb -->
+```roc
+orb : U64, Vec3, Rgb -> List(Vocabulary.Node)
+orb = |id, pos, color| {
+	lit = { r: color.r * 3.0, g: color.g * 3.0, b: color.b * 3.0 }
+	sphere = { ..Draw.default, id, mesh: Mesh.primitive(Sphere), pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, tint: color, glow: lit }
+	[Draw(sphere), Light(Light.point(pos, lit, 4.0))]
+}
+```
+<!-- endregion -->
+
+Each such Light counts toward the 8 Lights of the Scene. A glTF mesh can
+also glow through its material's emissive, and its Draw's glow adds to
+that. See [Assets and Packs](assets.md).
+
+A tint above 1 is no longer the way to make a surface glow. A tint
+multiplies the lit colour, so it shows only where a Light reaches.
+
 ## Colours
 
 Every colour is linear, not sRGB. The host multiplies the colour of the
-mesh by the `tint` of the Draw. The fallback mesh ignores the tint. Then the
-host tone maps the lit colour and encodes it to sRGB for the screen.
+mesh by the `tint` of the Draw. The fallback mesh ignores the tint and the
+glow. The host adds the glow after the lights and before the tone map. Then
+it tone maps the lit colour and encodes it to sRGB for the screen.
 
 `Scene.clear` is linear too. The host encodes it to sRGB, with no tone map,
 like the sky.

@@ -9,7 +9,8 @@ import "core:strings"
 // 2: results gained ports, for the tell op.
 // 4: step takes a pointer, results gained ui, and Box configs gained id and overflow.
 // 5: the scene reply gained clear.
-BRIDGE_PROTOCOL :: 5
+// 6: each Draw in scene gained glow.
+BRIDGE_PROTOCOL :: 6
 BRIDGE_NOT_YET :: "not yet"
 
 // ask and listen are kept for Ports (ADR 0009).

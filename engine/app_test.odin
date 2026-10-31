@@ -53,18 +53,18 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 	}
 }
 
-// 147 is the image pool of the default Capacity without the render target. A
+// 211 is the image pool of the default Capacity without the render target. A
 // skinned Draw adds a 4096-byte skin block in each pass.
 @(test)
 test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
 	desc := app_gfx_desc(launch_default().capacity)
-	testing.expect_value(t, desc.image_pool_size, 147 + TARGET_IMAGES)
-	testing.expect_value(t, desc.sampler_pool_size, 147 + TARGET_IMAGES)
-	testing.expect_value(t, desc.view_pool_size, 147 + MAX_CASCADES + TARGET_VIEWS)
+	testing.expect_value(t, desc.image_pool_size, 211 + TARGET_IMAGES)
+	testing.expect_value(t, desc.sampler_pool_size, 211 + TARGET_IMAGES)
+	testing.expect_value(t, desc.view_pool_size, 211 + MAX_CASCADES + TARGET_VIEWS)
 	testing.expect_value(t, desc.uniform_buffer_size, (3 * 16384 + 16) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
 
 	small := app_gfx_desc({meshes = 4, skies = 2, draws = 10, ui_quads = 1})
-	testing.expect_value(t, small.image_pool_size, 2 * 4 + 1 + 2 + 1 + 1 + TARGET_IMAGES)
+	testing.expect_value(t, small.image_pool_size, 3 * 4 + 1 + 2 + 1 + 1 + TARGET_IMAGES)
 	testing.expect_value(t, small.uniform_buffer_size, (3 * 10 + 16) * 256 + 2 * 10 * 4096)
 
 	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1})

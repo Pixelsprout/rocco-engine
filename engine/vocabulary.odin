@@ -3,11 +3,11 @@ package engine
 // Host names for the generated vocabulary types. The glue names each record
 // by the path that reaches it from a provided function. A record shared by
 // several paths takes the name of the first, so Vec3 is the pos of a Play's
-// Place, Quat is a Collider's rot, a step result is a Roc_Init and Rgba is a
-// Box background. A nominal type keeps its own name, so Element is
-// Roc_VocabularyElement and Node is Roc_VocabularyNode. The glue names the
-// fields of a Box and a Group _0 (the config, or the Group's id and Pose)
-// and _1 (the children). A Draw's pose is a Draw_Pose, because the host's
+// Place, Quat is a Collider's rot, Rgb is a Draw's glow, a step result is a
+// Roc_Init and Rgba is a Box background. A nominal type keeps its own name,
+// so Element is Roc_VocabularyElement and Node is Roc_VocabularyNode. The
+// glue names the fields of a Box and a Group _0 (the config, or the Group's
+// id and Pose) and _1 (the children). A Draw's pose is a Draw_Pose, because the host's
 // Pose is a position and a rot.
 Config :: Roc_Init_Arg0
 Launch :: Roc_Launch
@@ -53,7 +53,7 @@ Collider_Shape :: Roc_VocabularyNode_Collider_Shape
 Collider_Shape_Tag :: Roc_VocabularyNode_Collider_Shape_Tag
 Vec3 :: Roc_Init_Commands_Play_At_At_Pos
 Quat :: Roc_VocabularyNode_Collider_Rot
-Rgb :: Roc_VocabularyNode_Draw_Tint
+Rgb :: Roc_VocabularyNode_Draw_Glow
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor
 Rgba :: Roc_VocabularyElement_Box_0_Background
