@@ -81,6 +81,8 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_write_tag(b, scene.cursor)
 	json_key(b, "sky")
 	strings.write_u64(b, u64(scene.sky))
+	json_key(b, "clear")
+	json_write_rgb(b, scene.clear)
 	json_key(b, "ui")
 	json_write_list(b, scene.ui, json_write_element)
 	json_key(b, "queries")

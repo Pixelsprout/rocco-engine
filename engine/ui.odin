@@ -392,7 +392,9 @@ ui_color :: proc(c: Rgba) -> clay.Color {
 ui_push_text :: proc(ui: ^Ui, rect: [4]f32, text: clay.TextRenderData) {
 	str := string(text.stringContents.chars[:text.stringContents.length])
 	scale := f32(text.fontSize) / FONT_BAKE_SIZE
-	baseline := rect.y + FONT_ASCENT * scale
+	// A whole-pixel origin puts a glyph at the bake size on the atlas texel grid.
+	origin_x := math.round(rect.x)
+	baseline := math.round(rect.y + FONT_ASCENT * scale)
 	pen := Font_Pen{text = str}
 	for g, pen_x, replaced in font_pen_next(&pen) {
 		if replaced {
@@ -401,7 +403,7 @@ ui_push_text :: proc(ui: ^Ui, rect: [4]f32, text: clay.TextRenderData) {
 		if g.rect.z > 0 {
 			x, y, w, h := f32(g.rect.x), f32(g.rect.y), f32(g.rect.z), f32(g.rect.w)
 			ui_push(ui, {
-				rect = {rect.x + (pen_x + f32(g.bearing.x)) * scale, baseline + f32(g.bearing.y) * scale, w * scale, h * scale},
+				rect = {origin_x + (pen_x + f32(g.bearing.x)) * scale, baseline + f32(g.bearing.y) * scale, w * scale, h * scale},
 				uv = {x / FONT_ATLAS_WIDTH, y / FONT_ATLAS_HEIGHT, (x + w) / FONT_ATLAS_WIDTH, (y + h) / FONT_ATLAS_HEIGHT},
 				color = text.textColor,
 				glyph = true,

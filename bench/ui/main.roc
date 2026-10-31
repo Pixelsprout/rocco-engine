@@ -68,6 +68,7 @@ view = |m| {
 	nodes: [],
 	cursor: Free,
 	sky: 0,
+	clear: { r: 0.0, g: 0.0, b: 0.0 },
 	ui: elements(m),
 	queries: [],
 }

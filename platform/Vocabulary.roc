@@ -353,11 +353,14 @@ Vocabulary := [].{
 	##   world.
 	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
 	##   know, draws no sky.
+	## - `clear`: the linear colour behind the 3D view. The host clears to it
+	##   each frame, before any mesh. A sky draws over it. `Scene.empty` has
+	##   black.
 	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
+	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
 
 	## Where a Play or a Speaker sounds. The Listener is the Camera of the
 	## current Scene.

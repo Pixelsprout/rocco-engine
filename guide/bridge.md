@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":4,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":5,"step_hz":120,"steps":0,"headless":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":4,"step_hz":120,"steps":0,"headless":false}
+{"ok":true,"protocol":5,"step_hz":120,"steps":0,"headless":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -284,7 +284,7 @@ host sends it on one line, and it is split into lines here:
    {"Light":{"Directional":{"dir":{"x":-0.4,"y":-0.8,"z":-0.45},"color":{"r":4,"g":4,"b":4},"shadow":false}}},
    {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
    {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
-  "cursor":"Free","sky":0,"ui":[],"queries":[]},
+  "cursor":"Free","sky":0,"clear":{"r":0,"g":0,"b":0},"ui":[],"queries":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[],"scroll":[]}}}
 ```
 
@@ -604,7 +604,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 4. |
+| `protocol` | The version of the requests and replies. Today it is 5. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
@@ -626,7 +626,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `wheel` | In the pointer: `[dx, dy]`, the wheel scroll in the first step only. |
 | `commands` | The Commands the game returned in the steps, in order. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
-| `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. |
+| `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `sky`, `clear`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. |
 | `results` | The QueryResults that the next step gets: `contacts`, `rays`, `overlaps`, `ports` and `ui`. `ports` is empty here, because the host fills it when the step runs. `ui` holds `over` and `scroll`. |
 | `path` | The PNG file. The host writes it, from the game's folder. |
 | `physical` | `[width, height]` of the PNG, in pixels. |

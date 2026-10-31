@@ -38,7 +38,6 @@ Renderer :: struct {
 	white:              Mesh_Texture,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
-	pass_action:        sg.Pass_Action,
 	target:             Render_Target,
 	// Taken when the Main pass begins, where the wait for the drawable is
 	// outside the render Span. The copy pass after it reuses it.
@@ -97,10 +96,6 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	)
 
-	r.pass_action = {
-		colors = {0 = {load_action = .CLEAR, clear_value = {r = 0.0, g = 0.0, b = 0.0, a = 1.0}}},
-		depth = {load_action = .CLEAR, clear_value = 0.0},
-	}
 	r.shadow = shadow_map_make(launch.shadow_map)
 
 	shader := sg.make_shader(basic_shader_desc(sg.query_backend()))
@@ -224,7 +219,7 @@ shadow_map_make :: proc(size: u32) -> Shadow_Map {
 	return m
 }
 
-renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
+renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
 	r := (^Renderer)(ctx)
 	r.pass = pass
 	switch pass {
@@ -236,7 +231,25 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int) {
 		r.applied = {}
 		r.swapchain = sglue.swapchain()
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height})
-		sg.begin_pass({action = r.pass_action, attachments = r.target.attachments, label = "main"})
+		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.attachments, label = "main"})
+	}
+}
+
+// A pass clear skips the shader, so the clear colour is encoded to sRGB here.
+main_pass_action :: proc(clear_colour: Rgb) -> sg.Pass_Action {
+	return {
+		colors = {
+			0 = {
+				load_action = .CLEAR,
+				clear_value = {
+					r = linear_to_srgb(clamp(clear_colour.r, 0, 1)),
+					g = linear_to_srgb(clamp(clear_colour.g, 0, 1)),
+					b = linear_to_srgb(clamp(clear_colour.b, 0, 1)),
+					a = 1,
+				},
+			},
+		},
+		depth = {load_action = .CLEAR, clear_value = 0},
 	}
 }
 

@@ -8,7 +8,8 @@ import "core:strings"
 // A Driver reads this from hello. Raise it when a reply changes shape.
 // 2: results gained ports, for the tell op.
 // 4: step takes a pointer, results gained ui, and Box configs gained id and overflow.
-BRIDGE_PROTOCOL :: 4
+// 5: the scene reply gained clear.
+BRIDGE_PROTOCOL :: 5
 BRIDGE_NOT_YET :: "not yet"
 
 // ask and listen are kept for Ports (ADR 0009).

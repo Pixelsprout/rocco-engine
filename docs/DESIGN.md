@@ -182,7 +182,7 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Box(BoxConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, ui : List(Element), queries : List(Query) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
@@ -195,7 +195,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the Button codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
-| `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
+| `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
@@ -452,7 +452,11 @@ glyphs share one program and the atlas is the only texture, so the UI is
 one draw call. Clay emits scissor commands only for clip elements, which
 the vocabulary does not have yet. A clip element adds one draw per scissor
 change. A `ui` program in `engine/shaders/basic.glsl` draws rounded
-rectangles and SDF glyphs with `smoothstep`. UI colours skip the tone map and go through the sRGB encode,
+rectangles and SDF glyphs with `smoothstep`. The glyph edge is `0.7071`
+times the length of the screen-space gradient of the distance, so it covers
+about one pixel. `ui_push_text` rounds each line origin to whole physical
+pixels and keeps the advances fractional, so a glyph at the bake size meets
+the atlas texel grid. UI colours skip the tone map and go through the sRGB encode,
 like the sky, so the UI draws at its authored colour. The Frame render owns
 the UI draw. It submits the quads through a submit procedure, like the
 meshes, so a test can record them without sokol.
@@ -538,7 +542,8 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   holds the directions nearest +x, with its top row towards +y and its left
   column towards +z; `engine/sky.odin` states the layout. The host draws
   `Scene.sky` as a cube around the camera at the far plane, after every
-  mesh, with no lights and no tone map.
+  mesh, with no lights and no tone map. Where no mesh and no sky draws, the
+  window shows `Scene.clear`.
 - A Sound is a `.wav` or `.ogg` file in `assets/sound/`. Its name is
   `sound/<stem>`. The host decodes it fully at load. If two files share a
   stem, the first in sorted order loads and the host logs once. Sound 0

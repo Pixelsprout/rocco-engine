@@ -101,6 +101,7 @@ view = |m| {
 	nodes: List.fold(m.entities, List.with_capacity(m.entities.len() + 1).append(sun), |nodes, e| nodes.append(Draw(cube_draw(m.cube, e)))),
 	cursor: Free,
 	sky: 0,
+	clear: { r: 0.0, g: 0.0, b: 0.0 },
 	ui: [],
 	queries: [],
 }

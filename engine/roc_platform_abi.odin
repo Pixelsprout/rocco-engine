@@ -665,11 +665,12 @@ Roc_View :: struct {
 	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_VocabularyElement),
 	camera: Roc_View_Camera,
+	clear: Roc_VocabularyNode_Draw_Tint,
 	sky: u32,
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 120)
+#assert(size_of(Roc_View) == 136)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, nodes) == 0)
 #assert(size_of(type_of(Roc_View{}.nodes)) == 24)
@@ -679,9 +680,11 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.ui)) == 24)
 #assert(offset_of(Roc_View, camera) == 72)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, sky) == 112)
+#assert(offset_of(Roc_View, clear) == 112)
+#assert(size_of(type_of(Roc_View{}.clear)) == 12)
+#assert(offset_of(Roc_View, sky) == 124)
 #assert(size_of(type_of(Roc_View{}.sky)) == 4)
-#assert(offset_of(Roc_View, cursor) == 116)
+#assert(offset_of(Roc_View, cursor) == 128)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_VocabularyNode_Group :: struct {
@@ -1365,6 +1368,7 @@ Roc_View_Camera :: struct {
 Roc_View_Camera_Eye :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Camera_Target :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Camera_Up :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Clear :: Roc_VocabularyNode_Draw_Tint
 Roc_View_Cursor :: enum u8 {
 	Free = 0,
 	Locked = 1,
