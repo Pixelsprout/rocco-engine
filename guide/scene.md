@@ -296,7 +296,7 @@ with a record update, and set only the fields that you need.
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
-| BoxConfig | [`Ui.default_box`][Ui.default_box] | the config of each Panel in the UI |
+| PanelConfig | [`Ui.default_panel`][Ui.default_panel] | the config of each Panel in the UI |
 | Text | [`Ui.default_text`][Ui.default_text] | the start of each Text in the UI. `Ui.label(str)` sets the string. |
 | Config | [`Config.empty`][Config.empty] | the Config in a test |
 | Input | [`Input.empty`][Input.empty] | the Input in a test |
@@ -317,7 +317,7 @@ with a record update, and set only the fields that you need.
 [Draw.default]: https://pixelsprout.dev/projects/rocco/api/platform/Draw/#Draw.default
 [Speaker.default]: https://pixelsprout.dev/projects/rocco/api/platform/Speaker/#Speaker.default
 [Launch.default]: https://pixelsprout.dev/projects/rocco/api/platform/Launch/#Launch.default
-[Ui.default_box]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_box
+[Ui.default_panel]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_panel
 [Ui.default_text]: https://pixelsprout.dev/projects/rocco/api/ui/#Ui.default_text
 [Config.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Config/#Config.empty
 [Input.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Input/#Input.empty
