@@ -32,12 +32,13 @@ Bridge :: struct {
 	held:         #sparse[sapp.Keycode]bool,
 	tap:          #sparse[sapp.Keycode]bool,
 	mouse:        [2]f32,
-	// The held keys of the step before. Pressed is held minus these.
+	// The held keys that the step before gave, from either source. Pressed is
+	// held minus these.
 	prev_held:    #sparse[sapp.Keycode]bool,
-	// The step op's pads by slot, with the same rules as the keys. They
-	// replace the real pads.
+	// The step op's pads by slot, with the same rules as the keys. A pad
+	// replaces the real pad in its slot.
 	gamepads:     [GAMEPAD_SLOTS]Bridge_Gamepad,
-	// The held buttons of the step before, by slot.
+	// The held buttons that the step before gave, by slot, from either source.
 	prev_buttons: [GAMEPAD_SLOTS]Gamepad_Buttons,
 	// The step op's pointer, with the same rules as the keys. It replaces the
 	// real pointer.
@@ -157,30 +158,44 @@ bridge_paused :: proc(b: ^Bridge) -> bool {
 	return b.on && b.owed_steps == 0
 }
 
-// The Input for one step under the Bridge, in place of the real devices. It
-// derives Pressed from the held keys of the step before, as the real latch
-// does from key-down events.
-bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
+// The Input for one step under the Bridge. It derives Pressed from the held
+// keys of the step before, as the real latch does from key-down events. With
+// devices on, it merges the real devices in and takes their edges.
+bridge_input_take :: proc(b: ^Bridge, real: ^Input_Latch, buf: ^Input_Buffers, window: Ui_Window) -> Step_Input {
+	on := bridge_devices_on(b)
 	latch := Input_Latch {
-		held  = b.held,
 		mouse = b.mouse,
 	}
 	for k in sapp.Keycode {
-		latch.pressed[k] = (b.held[k] && !b.prev_held[k]) || b.tap[k]
+		latch.held[k] = b.held[k] || (on && real.held[k])
+		// A real tap between two steps has no held key left to show it.
+		latch.pressed[k] = (latch.held[k] && !b.prev_held[k]) || b.tap[k] || (on && real.pressed[k] && !b.prev_held[k])
+	}
+	if on {
+		latch.mouse += real.mouse
 	}
 	for &pad, i in b.gamepads {
+		slot := &latch.gamepads.slots[i]
+		real_slot := &real.gamepads.slots[i]
 		if pad.connected {
-			latch.gamepads.slots[i] = {
+			slot^ = {
 				connected = true,
 				held      = pad.held,
 				pressed   = (pad.held - b.prev_buttons[i]) + pad.tap,
 				axes      = pad.axes,
 			}
+		} else if on && real_slot.connected {
+			slot^ = {
+				connected = true,
+				held      = real_slot.held,
+				pressed   = real_slot.pressed,
+				axes      = real_slot.axes,
+			}
 		}
-		b.prev_buttons[i] = pad.held
+		b.prev_buttons[i] = slot.held
 		pad.tap = {}
 	}
-	b.prev_held = b.held
+	b.prev_held = latch.held
 	b.tap = {}
 	b.mouse = {}
 	step_input := input_take(&latch, buf)
@@ -197,6 +212,9 @@ bridge_input_take :: proc(b: ^Bridge, buf: ^Input_Buffers) -> Step_Input {
 	b.prev_pointer_held = p.held
 	p.tap = {}
 	p.wheel = {}
+	if on {
+		input_drop(real)
+	}
 	return step_input
 }
 
