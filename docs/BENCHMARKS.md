@@ -220,6 +220,10 @@ is repeatable. Each bench game changes one axis. The bench games live in
 | `draws` | N moving primitive cubes, one Draw each | windowed Lockstep | one Sun with shadows; the cubes stay in a fixed square |
 | `ui` | N Box and Text elements; one lit cell moves each step | windowed Lockstep | no Draws |
 | `mixed` | all axes, see "The headline figure" | windowed Lockstep | 4 Lights and the fixed Queries |
+| `lights` | N Point lights, each beside a glowing orb, drifting over a floor | windowed Lockstep | 1,024 floor tiles, one dim Sun with shadows, one Ambient |
+
+The reference run does not include `lights`. Run it with explicit N, such as
+`roc scripts/build.roc bench lights 8 40 128 512 --windowed`.
 
 The golden files keep each pair of games equal:
 

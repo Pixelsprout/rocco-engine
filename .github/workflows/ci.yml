@@ -76,7 +76,7 @@ jobs:
       # release host with Spans, so it runs last.
       - name: Run the bench games once Headless
         run: |
-          for game in model-size model-size-tuned empty-step model-size-twin colliders colliders-twin draws mixed ui; do
+          for game in model-size model-size-tuned empty-step model-size-twin colliders colliders-twin draws mixed ui lights; do
             roc scripts/build.roc bench "$game" 64
           done
 
