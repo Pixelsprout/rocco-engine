@@ -388,7 +388,7 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	f.rec.sky_calls = 0
 	clear(&f.rec.ui_quads)
 	f.rec.ui_calls = 0
-	frame_render_draw(&f.fr, prev, curr, alpha, frame_fixture_view(eye), &f.meshes, &f.skies, f.ui, f.window)
+	frame_render_draw(&f.fr, prev, curr, alpha, frame_fixture_view(eye), &f.meshes, &f.skies, nil, f.ui, f.window)
 	return f.rec.submits[:]
 }
 
@@ -862,7 +862,7 @@ test_frame_render_headless_selects_no_lights :: proc(t: ^testing.T) {
 	}
 	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
 	scene := scene_lit(draws, lights[:])
-	frame_render_draw(&f.fr, scene, scene, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, f.window, submit = false)
+	frame_render_draw(&f.fr, scene, scene, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
 	testing.expect_value(t, len(f.rec.submits), 0)
 	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
 }
@@ -1112,7 +1112,7 @@ test_frame_render_places_its_draw_capacity_without_allocating :: proc(t: ^testin
 		d = {id = u64(i), mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}
 	}
 	after_init := track.total_allocation_count
-	frame_render_draw(&fr, scene_of(draws), scene_of(draws), 0.5, frame_fixture_view({}), &meshes, &skies, nil, {size = {960, 540}, dpi = 1}, submit = false)
+	frame_render_draw(&fr, scene_of(draws), scene_of(draws), 0.5, frame_fixture_view({}), &meshes, &skies, nil, nil, {size = {960, 540}, dpi = 1}, submit = false)
 
 	testing.expect_value(t, track.total_allocation_count, after_init)
 	testing.expect_value(t, len(fr.placed), SMALL_DRAWS)
@@ -1310,7 +1310,7 @@ test_frame_render_cascades_allocate_nothing :: proc(t: ^testing.T) {
 	scene := scene_lit(draws, lights)
 	after_init := track.total_allocation_count
 	for _ in 0 ..< 2 {
-		frame_render_draw(&fr, scene, scene, 0.5, frame_fixture_view({}), &meshes, &skies, nil, {size = {960, 540}, dpi = 1})
+		frame_render_draw(&fr, scene, scene, 0.5, frame_fixture_view({}), &meshes, &skies, nil, nil, {size = {960, 540}, dpi = 1})
 	}
 
 	testing.expect_value(t, track.total_allocation_count, after_init)
@@ -1457,7 +1457,7 @@ test_frame_render_skips_the_skin_with_submit_off :: proc(t: ^testing.T) {
 	chain := frame_fixture_skinned(&f)
 
 	draws := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LEAN}}}
-	frame_render_draw(&f.fr, scene_of(draws), scene_of(draws), 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, f.window, submit = false)
+	frame_render_draw(&f.fr, scene_of(draws), scene_of(draws), 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
 
 	testing.expect_value(t, len(f.fr.placed), 1)
 	testing.expect(t, f.fr.placed[0].skin != nil)

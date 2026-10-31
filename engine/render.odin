@@ -67,11 +67,11 @@ Shadow_Map :: struct {
 
 // Each loaded mesh can own a base colour, a metallic-roughness and an
 // emissive texture, each with its own image, view and sampler. The white
-// image, each sky, each Image, the shadow map and the font atlas need one
-// more. The Images add their Linear and Nearest samplers. The render target
-// adds its images.
+// image, each sky, each Image, the shadow map, the font atlas and the UI's
+// checker need one more. The Images add their Linear and Nearest samplers.
+// The render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(3 * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + TARGET_IMAGES)
+	return i32(3 * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and

@@ -1,8 +1,9 @@
 app [init, launch, loaded, step, view] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
 # A game for the Bridge check: a button, a dropdown, an accordion, focus and a
-# scrolling log, all from the widget modules of packages/ui. It Tells each click
-# on the port widgets.
+# scrolling log, all from the widget modules of packages/ui, and Image Panels
+# from a sprite sheet. It Tells each click on the port widgets. draw_sheet.py
+# draws assets/images/sheet.png.
 
 import ui.Ui
 import ui.Accordion
@@ -13,6 +14,7 @@ import ui.Scroll
 import ui.Widget
 import pf.Vocabulary exposing [Command, Element, Manifest]
 import pf.Config
+import pf.Image
 import pf.Input
 import pf.Key
 import pf.Launch
@@ -21,7 +23,7 @@ import pf.Port
 import pf.QueryResults
 import pf.Scene
 
-Model : { buttons : Button, focus : Focus, filter : Dropdown, details : Accordion, log : Scroll, lines : List(Str) }
+Model : { buttons : Button, focus : Focus, filter : Dropdown, details : Accordion, log : Scroll, lines : List(Str), sheet : U32 }
 
 # The Bridge check points at these ids, at the 960 by 540 window of
 # Launch.default.
@@ -42,6 +44,13 @@ log_id = 5
 
 thumb_id : U64
 thumb_id = 6
+
+icon_id : U64
+icon_id = 7
+
+# The sheet is four 16 by 16 frames in a row: a plus, a heart, a star and a gem.
+frame : U32 -> [Whole, Px({ x : U32, y : U32, w : U32, h : U32 })]
+frame = |index| Px({ x: index * 16, y: 0, w: 16, h: 16 })
 
 jobs : List({ id : U64, label : Str })
 jobs = [{ id: 10, label: "All jobs" }, { id: 11, label: "Ready" }, { id: 12, label: "Claimed" }, { id: 13, label: "Merged" }]
@@ -73,15 +82,16 @@ init = |_config| {
 		details: Accordion.new({ header: details_id, shown: Closed }),
 		log: Scroll.new({ id: log_id, thumb: thumb_id, line: 18.0, stick: StickToBottom }),
 		lines: ["Line 1", "Line 2", "Line 3", "Line 4", "Line 5", "Line 6", "Line 7", "Line 8", "Line 9", "Line 10", "Line 11", "Line 12"],
+		sheet: 0,
 	}
-	{ model, commands: [] }
+	{ model, commands: [Load({ pack: "widgets", assets: ["image/sheet"] })] }
 }
 
 loaded : Model, Str, Manifest -> Model
-loaded = |model, _pack, _manifest| model
+loaded = |model, _pack, manifest| { ..model, sheet: Image.resolve(manifest, "image/sheet") }
 
 focus_order : Model -> List(U64)
-focus_order = |model| List.join([[add_id], model.filter.focus_order(), [details_id, log_id]])
+focus_order = |model| List.join([[add_id], model.filter.focus_order(), [details_id, log_id, icon_id]])
 
 # region: widgets-step
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
@@ -135,7 +145,25 @@ view = |model| {
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
 	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_panel, gap: 8.0 }, [add, filter]), details, log])
-	{ ..Scene.empty, ui: [element(panel)] }
+	ui = if (model.sheet == 0) [element(panel)] else [element(panel), images(model)]
+	{ ..Scene.empty, ui }
+}
+
+# endregion
+
+# region: widgets-images
+# An icon Button, a tinted icon, the whole sheet fit into a square, and one
+# frame of the sheet.
+images : Model -> Element
+images = |model| {
+	sheet = { ..Image.default, id: model.sheet, filter: Nearest }
+	square = { ..Ui.default_panel, width: Fixed(48.0), height: Fixed(48.0), radius: 6.0 }
+	icon_button = { ..model.buttons.panel({ id: icon_id, width: Fixed(48.0), look, focus: model.focus }), height: Fixed(48.0), image: Show({ ..sheet, region: frame(0) }, Fit) }
+	heart = { ..square, image: Show({ ..sheet, region: frame(1), tint: { r: 0.9, g: 0.2, b: 0.3, a: 1.0 } }, Stretch) }
+	whole = { ..square, background: look.idle, image: Show(sheet, Fit) }
+	star = { ..square, image: Show({ ..sheet, region: frame(2) }, Stretch) }
+	row = { ..Ui.panel(RightTop, { x: -16.0, y: 16.0 }), gap: 8.0, background: look.panel }
+	Panel(row, [Panel(icon_button, []), Panel(heart, []), Panel(whole, []), Panel(star, [])])
 }
 
 # endregion
@@ -168,7 +196,22 @@ expect {
 }
 
 ## The focus order holds the items only while the menu is open.
-expect (focus_order(start), focus_order(step(start, click, over([filter_id]), 0.0).model)) == ([1, 2, 4, 5], [1, 2, 10, 11, 12, 13, 4, 5])
+expect (focus_order(start), focus_order(step(start, click, over([filter_id]), 0.0).model)) == ([1, 2, 4, 5, 7], [1, 2, 10, 11, 12, 13, 4, 5, 7])
+
+## A click on the icon Button Tells it.
+expect step(start, click, over([icon_id]), 0.0).commands == [Port.tell("widgets", "clicked 7")]
+
+## The Images show once the sheet has loaded.
+expect {
+	sheet = Image.resolve([{ name: "image/sheet", id: 65537, duration: 0.0, size: { w: 64, h: 16 }, clips: [] }], "image/sheet")
+	match view(loaded(start, "widgets", [{ name: "image/sheet", id: sheet, duration: 0.0, size: { w: 64, h: 16 }, clips: [] }])).ui {
+		[_, Panel(_, [Panel(icon, []), _, _, _])] => icon.id == icon_id and icon.image == Show({ ..Image.default, id: 65537, region: Px({ x: 0, y: 0, w: 16, h: 16 }), filter: Nearest }, Fit)
+		_ => Bool.False
+	}
+}
+
+## No Image shows before the sheet loads.
+expect view(start).ui.len() == 1
 
 ## The view tags the two buttons of the first row.
 expect

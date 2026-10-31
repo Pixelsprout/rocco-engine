@@ -127,10 +127,13 @@ Vocabulary := [].{
 	## An Image from a Pack and the part of it to show. UI Panels show it, and
 	## 2D sprites will take the same value. Start from `Image.default`.
 	##
-	## - `id`: an Image id from a Manifest, such as the id of `image/coin`.
+	## - `id`: an Image id from a Manifest, such as the id of `image/coin`. An
+	##   id of 0, or an id whose Image is not loaded, draws a magenta and black
+	##   checker, and the host logs each such id once.
 	## - `region`: `Whole` shows the whole Image. `Px` shows a rectangle of it
 	##   in source pixels, from its top-left corner. A sprite sheet gives each
-	##   frame its own `Px`, and a flipbook changes the `Px` over time.
+	##   frame its own `Px`, and a flipbook changes the `Px` over time. The host
+	##   cuts a `Px` to the Image's edges, and draws nothing for an empty one.
 	## - `tint`: multiplies each pixel. White shows the Image unchanged.
 	## - `filter`: `Linear` blends nearby pixels when the Image scales.
 	##   `Nearest` keeps hard pixel edges, for pixel art.
@@ -319,7 +322,11 @@ Vocabulary := [].{
 	##   `to: Parent` floats on the window. A floating Panel blocks the pointer
 	##   when it, or any Panel inside it, has a non-zero `id`. A floating Panel with
 	##   no tagged Panel inside it lets the pointer through.
-	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
+	## - `image`: `Show` draws an Image over the background and under the
+	##   children, cut by `radius`. `Stretch` fills the Panel. `Fit` keeps the
+	##   region's shape and centres it in the Panel. The Image does not size
+	##   the Panel. `NoImage` draws none.
+	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })], image : [NoImage, Show(Image, [Stretch, Fit])] }
 
 	## One string in the engine's font, at a size in logical pixels and a
 	## colour. The names and the defaults are Clay's. The layout measures it. With `wrap` set to `Words`, the layout

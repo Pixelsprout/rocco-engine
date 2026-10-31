@@ -477,6 +477,46 @@ json_write_panel_config :: proc(b: ^strings.Builder, config: ^Panel_Config) {
 		json_write_f32(b, float.offset.y)
 		strings.write_string(b, "}}}")
 	}
+	json_key(b, "image")
+	switch config.image.tag {
+	case .NoImage:
+		json_write_tag(b, config.image.tag)
+	case .Show:
+		show := &config.image.payload.show
+		json_key(b, "Show", first = true)
+		json_key(b, "image", first = true)
+		json_write_image(b, &show._0)
+		json_key(b, "fit")
+		json_write_tag(b, show._1)
+		strings.write_string(b, "}}")
+	}
+	strings.write_byte(b, '}')
+}
+
+json_write_image :: proc(b: ^strings.Builder, image: ^Image_Ref) {
+	json_key(b, "id", first = true)
+	strings.write_uint(b, uint(image.id))
+	json_key(b, "region")
+	switch image.region.tag {
+	case .Whole:
+		json_write_tag(b, image.region.tag)
+	case .Px:
+		px := image.region.payload.px
+		json_key(b, "Px", first = true)
+		json_key(b, "x", first = true)
+		strings.write_uint(b, uint(px.x))
+		json_key(b, "y")
+		strings.write_uint(b, uint(px.y))
+		json_key(b, "w")
+		strings.write_uint(b, uint(px.w))
+		json_key(b, "h")
+		strings.write_uint(b, uint(px.h))
+		strings.write_string(b, "}}")
+	}
+	json_key(b, "tint")
+	json_write_rgba(b, image.tint)
+	json_key(b, "filter")
+	json_write_tag(b, image.filter)
 	strings.write_byte(b, '}')
 }
 
