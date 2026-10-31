@@ -8,10 +8,15 @@ UNIFORM_ALIGN :: 256
 // The uniform buffer holds skin blocks for at most this many skinned Draws
 // per Frame. The host drops the rest.
 SKINNED_DRAW_LIMIT :: 256
+// sokol on Metal starts each block on a UNIFORM_ALIGN boundary, so a block takes whole slots.
+DRAW_UNIFORM_SLOTS ::
+	(size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN +
+	(size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN +
+	(size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must fit one.
-DRAW_LIMIT :: ((1 << 31 - 1) / UNIFORM_ALIGN - 16 - 2 * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) / 3
+DRAW_LIMIT :: ((1 << 31 - 1) / UNIFORM_ALIGN - 16 - 2 * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) / DRAW_UNIFORM_SLOTS
 
-#assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN)
+#assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 
@@ -69,12 +74,12 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 }
 
 // A Draw applies three blocks: shadow, vertex and fragment. A skinned Draw
-// also applies a skin block in each pass. The spare blocks cover the lights,
+// also applies a skin block in each pass. The spare slots cover the lights,
 // the lights again after the switch to the skinned pipeline, the sky and the
 // UI.
 uniform_buffer_size :: proc(capacity: Capacity) -> i32 {
 	skins := 2 * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
-	return i32((3 * int(capacity.draws) + 16) * UNIFORM_ALIGN + skins)
+	return i32((DRAW_UNIFORM_SLOTS * int(capacity.draws) + 16) * UNIFORM_ALIGN + skins)
 }
 
 skinned_draw_capacity :: proc(draws: int) -> int {
