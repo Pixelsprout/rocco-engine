@@ -77,25 +77,27 @@ void main() {
 // vec4 so every member is 16 bytes and flattens cleanly for GL. material is
 // roughness, metallic, unlit (0 or 1) and a spare. emissive is the mesh
 // emissive, linear, with w spare. glow is the Draw glow, linear, with w spare.
+// The host picks this Draw's lights: the Sun in slot 0, the other
+// Directionals, then the nearest Point lights in range. The array size is
+// MAX_LIGHTS in engine/frame_render.odin. An unused slot has a zero colour.
+// For a directional light, xyz of light_pos is the unit vector towards the
+// light and w is 0. For a point light, xyz is the position, w is 1 and w of
+// light_color is the range. Light colours are physical: the BRDF carries the
+// 1/pi.
 layout(binding = 1) uniform fs_params {
     vec4 tint;
     vec4 material;
     vec4 emissive;
     vec4 glow;
+    vec4 light_pos[8];
+    vec4 light_color[8];
 };
 
-// The array size is MAX_LIGHTS in engine/frame_render.odin. An unused slot
-// has a zero colour. For a directional light, xyz of light_pos is the unit
-// vector towards the light and w is 0. For a point light, xyz is the position,
-// w is 1 and w of light_color is the range. Light colours are physical: the
-// BRDF carries the 1/pi. shadow is the count of shadow views, the Sun's
-// slot, the normal offset and a spare. A count of 0 means no Sun. The view
-// array size is MAX_CASCADES.
+// shadow is the count of shadow views, the Sun's slot, the normal offset and
+// a spare. A count of 0 means no Sun. The view array size is MAX_CASCADES.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
-    vec4 light_pos[8];
-    vec4 light_color[8];
     vec4 shadow;
     mat4 light_view_proj[1];
 };

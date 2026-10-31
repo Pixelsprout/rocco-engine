@@ -6,7 +6,8 @@ import "core:math"
 import "core:math/linalg"
 import "core:mem"
 
-// The light arrays in engine/shaders/basic.glsl have this size.
+// The light arrays of fs_params in engine/shaders/basic.glsl have this size.
+// It is the limit per Draw.
 MAX_LIGHTS :: 8
 SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
@@ -19,7 +20,7 @@ MAX_CASCADES :: 1
 SHADOW_GRID :: f32(1)
 SHADOW_NORMAL_OFFSET :: f32(0.05)
 
-#assert(len(Fs_Lights{}.light_pos) == MAX_LIGHTS)
+#assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 
 Pass :: enum {
@@ -44,9 +45,9 @@ Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
 Light_Drop :: enum {
 	Second_Ambient,
 	Second_Sun,
-	Over_Limit,
 	Zero_Dir,
 	Bad_Range,
+	Draw_Over_Limit,
 }
 
 // The renderer sizes its uniform buffer for draw_capacity Draws per Frame,
@@ -136,13 +137,12 @@ Frame_Walk :: struct {
 	skinned_seen: int,
 }
 
-// The Lights so far in walk order. used is the count of filled slots. sun is
-// the Sun's slot, or -1 with no Sun.
+// Every Directional and Point Light of the Scene, in walk order, except the
+// Sun, which goes first in directionals. The lists live in the frame arena.
 Light_Gather :: struct {
-	out:         Fs_Lights,
-	sun:         int,
-	used:        int,
-	has_ambient: bool,
+	frame:                Fs_Lights,
+	directionals, points: [dynamic]Packed_Light,
+	has_sun, has_ambient: bool,
 }
 
 // The camera the host draws a frame with.
@@ -202,7 +202,10 @@ frame_render_draw :: proc(
 	frame_walk := Frame_Walk {
 		fr = fr,
 		meshes = meshes,
-		lights = {sun = -1},
+		lights = {
+			directionals = make([dynamic]Packed_Light, 0, 16, context.temp_allocator),
+			points = make([dynamic]Packed_Light, 0, 16, context.temp_allocator),
+		},
 	}
 	walk := Tree_Walk {
 		visit   = frame_render_visit,
@@ -227,7 +230,8 @@ frame_render_draw :: proc(
 		fr.skinned_logged = true
 		fmt.eprintfln("a Scene has %v skinned draws; the host draws the first %v", frame_walk.skinned_seen, len(fr.skins))
 	}
-	lights, sun := frame_walk.lights.out, frame_walk.lights.sun
+	gathered := &frame_walk.lights
+	lights := gathered.frame
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	if submit {
 		frame_render_pose(fr, meshes)
@@ -243,8 +247,8 @@ frame_render_draw :: proc(
 		return
 	}
 
-	if sun >= 0 && len(fr.placed) > 0 {
-		frame_render_shadow(fr, &lights, sun, &span)
+	if gathered.has_sun && len(fr.placed) > 0 {
+		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, &span)
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, curr.clear, &span)
@@ -257,16 +261,24 @@ frame_render_draw :: proc(
 		glow := [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
 		material := p.mesh.material
 		e := material.emissive
+		params := Fs_Params {
+			tint = tint,
+			material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0},
+			emissive = {e.x, e.y, e.z, 0},
+			glow = glow,
+		}
+		if !material.unlit {
+			// Only the Point lights need the world box.
+			bounds := box_transform(p.mesh.box, p.model) if len(gathered.points) > 0 else Box{}
+			if light_select(gathered.directionals[:], gathered.points[:], bounds, &params.light_pos, &params.light_color) {
+				light_drop(fr, .Draw_Over_Limit)
+			}
+		}
 		fr.submit(
 			fr.submit_ctx,
 			p.mesh,
 			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
-			fs_params = {
-				tint = tint,
-				material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0},
-				emissive = {e.x, e.y, e.z, 0},
-				glow = glow,
-			},
+			fs_params = params,
 			skin = p.skin,
 		)
 	}
@@ -330,10 +342,11 @@ frame_render_pose :: proc(fr: ^Frame_Render, meshes: ^Mesh_Table) {
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
-frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, sun: int, span: ^Span_Tick) {
-	light_view_proj := shadow_view_proj(lights.light_pos[sun].xyz, fr.placed[:])
-	// The shader reads x as the view count, y as the Sun's slot and z as the normal offset.
-	lights.shadow = {1, f32(sun), SHADOW_NORMAL_OFFSET, 0}
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]f32, span: ^Span_Tick) {
+	light_view_proj := shadow_view_proj(to_light, fr.placed[:])
+	// The shader reads x as the view count, y as the Sun's slot, which is
+	// always 0, and z as the normal offset.
+	lights.shadow = {1, 0, SHADOW_NORMAL_OFFSET, 0}
 	lights.light_view_proj[0] = light_view_proj
 	frame_render_begin_pass(fr, .Shadow, 0, {}, span)
 	order := Placed_Order {
@@ -399,11 +412,8 @@ shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
 	return mat4_ortho_reversed(lo.x, hi.x, lo.y, hi.y, -hi.z, -lo.z) * light_view
 }
 
-// A dropped light does not take a slot. An unused slot keeps a zero colour, so it adds no light.
+// A dropped light does not go in a list.
 light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
-	pos: [4]f32
-	color: Rgb
-	range: f32
 	switch l.tag {
 	case .Ambient:
 		if g.has_ambient {
@@ -412,8 +422,7 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 		}
 		g.has_ambient = true
 		c := l.payload.ambient
-		g.out.ambient = {c.r, c.g, c.b, 1}
-		return
+		g.frame.ambient = {c.r, c.g, c.b, 1}
 	case .Directional:
 		d := l.payload.directional
 		to_light := -v3_normalize_or_zero(vec3_array(d.dir))
@@ -421,13 +430,15 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 			light_drop(fr, .Zero_Dir)
 			return
 		}
-		if d.shadow && g.sun >= 0 {
+		packed := Packed_Light{{to_light.x, to_light.y, to_light.z, 0}, {d.color.r, d.color.g, d.color.b, 0}}
+		if d.shadow && g.has_sun {
 			light_drop(fr, .Second_Sun)
-		} else if d.shadow && g.used < MAX_LIGHTS {
-			g.sun = g.used
+		} else if d.shadow {
+			g.has_sun = true
+			inject_at(&g.directionals, 0, packed)
+			return
 		}
-		pos = {to_light.x, to_light.y, to_light.z, 0}
-		color = d.color
+		append(&g.directionals, packed)
 	case .Point:
 		p := l.payload.point
 		// Written this way round so a NaN range drops too.
@@ -435,17 +446,8 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 			light_drop(fr, .Bad_Range)
 			return
 		}
-		pos = {p.pos.x, p.pos.y, p.pos.z, 1}
-		color = p.color
-		range = p.range
+		append(&g.points, Packed_Light{{p.pos.x, p.pos.y, p.pos.z, 1}, {p.color.r, p.color.g, p.color.b, p.range}})
 	}
-	if g.used == MAX_LIGHTS {
-		light_drop(fr, .Over_Limit)
-		return
-	}
-	g.out.light_pos[g.used] = pos
-	g.out.light_color[g.used] = {color.r, color.g, color.b, range}
-	g.used += 1
 }
 
 light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
@@ -458,12 +460,12 @@ light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
 		fmt.eprintln("a Scene has a second ambient light; the host uses the first")
 	case .Second_Sun:
 		fmt.eprintln("a second directional light sets shadow; it lights but casts no shadow")
-	case .Over_Limit:
-		fmt.eprintfln("a Scene has more than %v directional and point lights; the host drops the rest", MAX_LIGHTS)
 	case .Zero_Dir:
 		fmt.eprintln("a directional light has a zero dir; the host drops it")
 	case .Bad_Range:
 		fmt.eprintln("a point light has a range <= 0; the host drops it")
+	case .Draw_Over_Limit:
+		fmt.eprintfln("a Draw has more than %v directional and point lights in reach; the host keeps the directionals, then the nearest point lights", MAX_LIGHTS)
 	}
 }
 

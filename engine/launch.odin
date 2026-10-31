@@ -11,11 +11,11 @@ LAUNCH_RULE_MESHES :: "must be at least 4, for the Fallback mesh and the three P
 LAUNCH_RULE_SKIES :: "must be at least 2, for the reserved slot and one sky"
 LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
 LAUNCH_RULE_SLOTS :: "must be at most 65536, so each slot gets an id"
-LAUNCH_RULE_DRAWS :: "must be at most 2793466, so the uniform buffer size fits sokol's int"
+LAUNCH_RULE_DRAWS :: "must be at most 2095099, so the uniform buffer size fits sokol's int"
 LAUNCH_RULE_GROUPS :: "must be at most 1048576"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2)
-#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2793466 && GROUP_LIMIT == 1048576)
+#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2095099 && GROUP_LIMIT == 1048576)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
 launch_default :: proc() -> Launch {

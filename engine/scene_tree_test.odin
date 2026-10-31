@@ -129,11 +129,12 @@ test_a_group_moves_a_point_turns_a_directional_and_leaves_an_ambient :: proc(t: 
 	defer frame_fixture_destroy(&f)
 
 	lights := light_nodes({light_ambient({r = 0.5}), light_directional({z = -1}, {g = 1}), light_point({z = 1}, {b = 1}, 4)})
-	scene := scene_nodes({node_group(1, {y = 5}, quat_yaw(math.PI / 2), lights)})
-	frame_fixture_draw(&f, scene, scene, 0)
+	near := node_draw({id = 1, mesh = 1, pos = {1, 5, 0}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY})
+	scene := scene_nodes({node_group(1, {y = 5}, quat_yaw(math.PI / 2), lights), near})
+	got := frame_fixture_draw(&f, scene, scene, 0)
 
-	lit := f.rec.lights
-	testing.expect_value(t, lit.ambient, [4]f32{0.5, 0, 0, 1})
+	testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.5, 0, 0, 1})
+	lit := got[0]
 	// The light travels along -x, so the direction to it is +x.
 	expect_v3_near(t, lit.light_pos[0].xyz, {1, 0, 0})
 	testing.expect_value(t, lit.light_pos[0].w, 0)
@@ -148,16 +149,17 @@ test_a_light_takes_the_interpolated_pose_of_its_group :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	prev := []Node{node_group(1, {}, IDENTITY, light_nodes({light_point({z = 9}, {r = 1}, 4)}))}
-	curr := []Node{node_group(1, {}, quat_yaw(math.PI / 2), light_nodes({light_point({z = 2}, {r = 1}, 4)}))}
-	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+	centre := node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY})
+	prev := []Node{node_group(1, {}, IDENTITY, light_nodes({light_point({z = 9}, {r = 1}, 4)})), centre}
+	curr := []Node{node_group(1, {}, quat_yaw(math.PI / 2), light_nodes({light_point({z = 2}, {r = 1}, 4)})), centre}
+	got := frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
 
 	// The Light's own pos comes from the current Scene.
-	expect_v3_near(t, f.rec.lights.light_pos[0].xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
+	expect_v3_near(t, got[0].light_pos[0].xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
 }
 
 @(test)
-test_the_sun_and_the_light_cap_follow_a_depth_first_walk :: proc(t: ^testing.T) {
+test_the_sun_follows_a_depth_first_walk_and_takes_slot_0 :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
@@ -168,17 +170,15 @@ test_the_sun_and_the_light_cap_follow_a_depth_first_walk :: proc(t: ^testing.T) 
 	append(&nodes, node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}))
 	append(&nodes, node_group(1, {}, IDENTITY, grouped))
 	append(&nodes, ..light_nodes({light_sun({x = -1}, {b = 1})}))
-	for i in 0 ..< MAX_LIGHTS - 2 {
-		append(&nodes, node_light(light_point({x = f32(i)}, {r = 1}, 1)))
-	}
 	scene := scene_nodes(nodes[:])
-	frame_fixture_draw(&f, scene, scene, 0)
+	got := frame_fixture_draw(&f, scene, scene, 0)
 
-	lit := f.rec.lights
-	testing.expect_value(t, lit.shadow.y, 1)
-	testing.expect_value(t, lit.light_color[2], [4]f32{0, 0, 1, 0})
-	testing.expect_value(t, lit.light_pos[MAX_LIGHTS - 1], [4]f32{f32(MAX_LIGHTS - 4), 0, 0, 1})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Sun, .Over_Limit})
+	testing.expect_value(t, f.rec.lights.shadow.y, 0)
+	// The first Sun in walk order is inside the Group. The second lights as a plain Directional.
+	testing.expect_value(t, got[0].light_color[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, got[0].light_color[1], [4]f32{0, 0, 1, 0})
+	testing.expect_value(t, got[0].light_pos[2], [4]f32{0, 0, 0, 1})
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Sun})
 }
 
 @(test)
