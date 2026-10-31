@@ -16,7 +16,7 @@ LAUNCH_RULE_GROUPS :: "must be at most 1048576"
 LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2)
-#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2095099 && GROUP_LIMIT == 1048576)
+#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 2095099 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
 launch_default :: proc() -> Launch {
@@ -87,7 +87,7 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.draws", LAUNCH_RULE_DRAWS, false
 	case capacity.groups > GROUP_LIMIT:
 		return "capacity.groups", LAUNCH_RULE_GROUPS, false
-	case launch.shadow_cascades > 4:
+	case launch.shadow_cascades > MAX_CASCADES:
 		return "shadow_cascades", LAUNCH_RULE_CASCADES, false
 	}
 	return "", "", true

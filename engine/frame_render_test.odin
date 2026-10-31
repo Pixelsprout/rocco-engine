@@ -1174,6 +1174,25 @@ test_frame_render_fits_the_sun_view_to_the_draws_snapped_to_whole_units :: proc(
 	testing.expectf(t, top.z > bottom.z, "the side nearer the Sun is nearer in reversed-Z: %v, %v", top.z, bottom.z)
 }
 
+@(test)
+test_frame_render_one_cascade_leaves_the_other_views_zero :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, f.rec.lights.shadow.x, 1)
+	for i in 1 ..< MAX_CASCADES {
+		testing.expect_value(t, f.rec.lights.light_view_proj[i], Mat4{})
+	}
+	testing.expect_value(t, f.rec.lights.cascade_far, [4]f32{})
+	testing.expect_value(t, len(f.rec.passes), 2)
+	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
+}
+
 draw_pose_near :: proc(a, b: Draw_Pose) -> bool {
 	return a.clip == b.clip && a.fade_clip == b.fade_clip && abs(a.time - b.time) < EPS && abs(a.fade_time - b.fade_time) < EPS && abs(a.fade - b.fade) < EPS
 }

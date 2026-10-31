@@ -13,8 +13,8 @@ SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 UP_EPSILON :: f32(1e-6)
 
-// The light_view_proj array in engine/shaders/basic.glsl has this size.
-MAX_CASCADES :: 1
+// The light_view_proj and cascade_far arrays in engine/shaders/basic.glsl have this size.
+MAX_CASCADES :: 4
 // The shadow box snaps outward to this grid, so the map changes size in steps
 // and its edges do not crawl as a Draw moves.
 SHADOW_GRID :: f32(1)
@@ -22,6 +22,7 @@ SHADOW_NORMAL_OFFSET :: f32(0.05)
 
 #assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
+#assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
 Pass :: enum {
 	Shadow,
