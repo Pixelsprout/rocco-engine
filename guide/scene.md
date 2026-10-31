@@ -216,8 +216,10 @@ above 1. The surface divides the diffuse light by pi. So a Directional
 colour of 3.14 lights a white matte surface that faces it to about 1,
 before the tone map.
 
-Use [`Light.sun`][Light.sun] for the one light that casts a shadow. The
-shadow map covers each Draw of the Scene.
+Use [`Light.sun`][Light.sun] for the one light that casts a shadow. With
+one cascade, the shadow map covers each Draw of the Scene. With more
+cascades, set by `Launch.shadow_cascades`, the maps cover the first 150
+metres of the view.
 
 The host uses the first Ambient light. A Scene may hold as many
 Directional and Point lights as it needs. Each Draw gets the Sun, the other

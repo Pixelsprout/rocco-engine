@@ -15,7 +15,7 @@ evidence are marked as decisions.
 | Odin manages | Roc manages |
 |---|---|
 | the window, the clock, the accumulator | the `Model`: the one value that is the game |
-| opening the window, sizing the GPU resources and the tables | the window, the step rate, the shadow map size and the capacities, once, as `launch` |
+| opening the window, sizing the GPU resources and the tables | the window, the step rate, the shadow map size and cascade count and the capacities, once, as `launch` |
 | input, and turning it into levels and edges | the rules, as `step` |
 | GPU resources, meshes, shaders | the picture, as `view` |
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
@@ -46,7 +46,7 @@ view : Model -> Scene
 ```
 
 `launch` returns the Launch: the window, the fixed step rate, the shadow map
-size and the table capacities. The host calls it once, with the same Config
+size, the shadow cascade count and the table capacities. The host calls it once, with the same Config
 that `init` gets. The host checks the Launch and sizes its tables from it.
 Then the host calls `init`. If a numeric field is zero, or a capacity is
 outside its bounds, the host prints the field's name and exits with code 1.
@@ -156,7 +156,7 @@ Vec3     : { x : F32, y : F32, z : F32 }
 Rgb      : { r : F32, g : F32, b : F32 }
 Rgba     : { r : F32, g : F32, b : F32, a : F32 }
 Config   : { seed : U64, assets : List(Str), args : List(Str) }
-Launch   : { window : Window, step_hz : U32, shadow_map : U32, capacity : Capacity }
+Launch   : { window : Window, step_hz : U32, shadow_map : U32, shadow_cascades : U32, capacity : Capacity }
 Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
 Msaa     : [Off, X2, X4, X8]
 Capacity : { meshes : U32, skies : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
@@ -191,7 +191,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | Type | Carries | Does not carry |
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
-| `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the table capacities | anything that changes after the window opens |
+| `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the shadow cascade count; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
@@ -314,22 +314,46 @@ order, that sets `shadow`, which `pf.Light.sun` does. A second Directional
 that sets `shadow` still lights but casts no shadow, and the host logs it
 once. Decision.
 
-The host draws one shadow map from the Sun before the main pass. Its
-orthographic view covers the box of every Draw at its interpolated pose. The
-host snaps that box outward to whole units, so the map changes size in steps.
-A skinned mesh's box is padded at load by 25% of its largest side, so the
-view also covers its posed limbs.
+The host draws the Sun's shadow maps before the main pass, one per cascade.
+`Launch.shadow_cascades` sets the count, from 1 to 4, and the default is 1.
+
+With one cascade, the host draws one map over the box of every Draw at its
+interpolated pose. The host snaps that box outward to whole units, so the
+map changes size in steps. A skinned mesh's box is padded at load by 25% of
+its largest side, so the view also covers its posed limbs.
+
+With two to four cascades, the host splits the camera's view from the near
+plane to `SHADOW_DISTANCE`, 150 metres, with the practical split scheme: a
+mix of the log and the linear split with a weight of 0.5. The camera has no
+far plane, and a far end fitted to the Draws would move the splits as the
+camera moves, so the distance is a host constant. Decision.
+
+The host fits each cascade to a sphere around its slice of the view. The
+radius depends only on the depths, the field of view and the aspect, so the
+texel size stays fixed while the camera turns or moves. The centre snaps to
+whole texels in the Sun's view, so the shadow does not shimmer. The map is
+two texels wider than the sphere on each side, so the snap and the filter
+stay inside it. The depth range reaches every caster over the cascade's
+square, so a caster toward the Sun still casts. A Draw outside the square
+gets no submit in that cascade.
+
+Each cascade is one layer of the shadow texture array, at the Launch
+`shadow_map` size, and adds one shadow uniform block per Draw. The Draw
+limit assumes 4 cascades for every game.
+
+The shader picks a cascade by the depth along the view. It blends into the
+next cascade over the last 10% of each cascade, and the last cascade fades
+to no shadow. It samples both cascades every time, because D3D needs uniform
+control flow around the comparison sample. Past `SHADOW_DISTANCE`, nothing
+casts a shadow.
+
 The shadow darkens only the Sun's own light. Unlit meshes cast a shadow but
 do not receive one, and the sky does neither.
 
 The shader moves each sample point `SHADOW_NORMAL_OFFSET` along its normal, and the shadow
 pipeline adds a slope-scaled depth bias. A 3 x 3 PCF filter softens each edge
-through the hardware comparison sampler. The shadow map is 2048 x 2048, and
-host constants set its size and bias.
-
-The code passes N shadow views with N = 1: `MAX_CASCADES`, the
-`light_view_proj` array and a texture array with one layer. Cascades for
-large worlds raise that count, and no game changes.
+through the hardware comparison sampler. The Launch sets the map size, 2048
+by default, and host constants set the bias.
 
 Each mesh has a glTF metallic-roughness material. The BRDF is the glTF 2.0
 Appendix B model with Filament's terms: GGX distribution with

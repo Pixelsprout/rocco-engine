@@ -93,13 +93,19 @@ layout(binding = 1) uniform fs_params {
     vec4 light_color[8];
 };
 
-// shadow is the count of shadow views, the Sun's slot, the normal offset and
-// a spare. A count of 0 means no Sun. The view array size is MAX_CASCADES.
+// shadow is the cascade count, the Sun's slot, the normal offset and the
+// share of each cascade that blends into the next. A count of 0 means no Sun.
+// cascade_far[i] is the far depth of cascade i along view_dir, the camera's
+// unit view direction; its near depth is cascade_far[i - 1], or 0 for
+// cascade 0. With one cascade, cascade_far and view_dir are zero. The array
+// sizes are MAX_CASCADES in engine/frame_render.odin.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
     vec4 shadow;
-    mat4 light_view_proj[1];
+    vec4 cascade_far;
+    vec4 view_dir;
+    mat4 light_view_proj[4];
 };
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
@@ -188,11 +194,11 @@ vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
     return f0 * ab.x + ab.y;
 }
 
-// The share of the Sun's light that reaches this point, from 0 to 1. Each of
-// the 3 x 3 taps compares 2 x 2 texels in hardware.
-float sun_visibility(vec3 n) {
+// The share of the Sun's light that reaches this point in one cascade, from
+// 0 to 1. Each of the 3 x 3 taps compares 2 x 2 texels in hardware.
+float sun_visibility_in(int cascade, vec3 n) {
     vec3 world = v_world + n * shadow.z;
-    vec4 clip = light_view_proj[0] * vec4(world, 1.0);
+    vec4 clip = light_view_proj[cascade] * vec4(world, 1.0);
     vec3 ndc = clip.xyz / clip.w;
     vec2 uv = ndc.xy * 0.5 + 0.5;
     // A GL texture starts at the bottom row. Metal and D3D start at the top.
@@ -205,10 +211,40 @@ float sun_visibility(vec3 n) {
     float sum = 0.0;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
-            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, 0.0, ndc.z));
+            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z));
         }
     }
     return inside ? sum / 9.0 : 1.0;
+}
+
+// 1 in the lane of the cascade, or all zero for -1.
+vec4 cascade_mask(int cascade) {
+    return vec4(equal(ivec4(cascade), ivec4(0, 1, 2, 3)));
+}
+
+// The share of the Sun's light that reaches this point, from 0 to 1. With
+// 2 to 4 cascades, the point blends into the next cascade over the last
+// shadow.w of its cascade, and the last cascade fades to no shadow. Both
+// samples run every time, because D3D needs uniform control flow around
+// SampleCmp.
+float sun_visibility(vec3 n) {
+    int count = int(shadow.x);
+    if (count <= 1) {
+        return sun_visibility_in(0, n);
+    }
+    float depth = dot(v_world - camera_pos.xyz, view_dir.xyz);
+    // GL flattens the block to vec4s, which takes no dynamic index into a
+    // vec4. So the cascade and its edges come from masks.
+    vec4 past = vec4(greaterThan(vec4(depth), cascade_far));
+    vec4 before_last = vec4(lessThan(vec4(0.0, 1.0, 2.0, 3.0), vec4(float(count - 1))));
+    int cascade = int(dot(past, before_last));
+    float far_edge = dot(cascade_far, cascade_mask(cascade));
+    float near_edge = dot(cascade_far, cascade_mask(cascade - 1));
+    float blend = smoothstep(far_edge - shadow.w * (far_edge - near_edge), far_edge, depth);
+    int next = min(cascade + 1, count - 1);
+    float here = sun_visibility_in(cascade, n);
+    float there = sun_visibility_in(next, n);
+    return mix(here, next == cascade ? 1.0 : there, blend);
 }
 
 void main() {

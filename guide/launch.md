@@ -7,8 +7,8 @@ order: 11
 # Launch
 
 Some choices have to be made before the window opens, and can't change
-once it is open: the window size, the step rate, the size of the shadow map
-and of each table. Your game makes these choices in `launch`, which returns
+once it is open: the window size, the step rate, the size of the shadow map,
+the number of shadow cascades and the size of each table. Your game makes these choices in `launch`, which returns
 a [Launch].
 
 The host calls `launch` once, before `init`, and never again. Hot reload
@@ -43,7 +43,8 @@ game can open fullscreen when its Args hold `--fullscreen`.
 ## The checks at startup
 
 The host checks the Launch before it opens the window. No number field can
-be zero, and each capacity must be inside its limits. For example,
+be zero, `shadow_cascades` must be at most 4, and each capacity must be
+inside its limits. For example,
 `capacity.groups` must be above zero and at most 1048576. If a field fails, the
 host prints the name of the field and the rule, then exits with code 1. For
 example:
@@ -89,6 +90,7 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `window.vsync` | `True` | Lockstep and Headless turn vsync off. |
 | `step_hz` | 120 | No |
 | `shadow_map` | 2048 | No |
+| `shadow_cascades` | 1 | No |
 | `capacity.meshes` | 64 | No |
 | `capacity.skies` | 16 | No |
 | `capacity.draws` | 16384 | No |
@@ -96,6 +98,11 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `capacity.ui_quads` | 16384 | No |
 | `capacity.sounds` | 64 | No |
 | `capacity.voices` | 64 | No |
+
+`shadow_cascades` goes from 1 to 4. One cascade fits one shadow map around
+every Draw. More cascades split the first 150 metres of the view, so shadows
+near the camera are sharper, and each one costs another shadow map and
+another shadow pass.
 
 [Running and debugging](running.md) explains the run modes. A field changes
 only when the game starts again. No [Scene] field changes a field of the

@@ -313,6 +313,7 @@ Roc_Launch_Arg0 :: Roc_Init_Arg0
 Roc_Launch :: struct {
 	window: Roc_Launch_Window,
 	capacity: Roc_Launch_Capacity,
+	shadow_cascades: u32,
 	shadow_map: u32,
 	step_hz: u32,
 }
@@ -323,9 +324,11 @@ Roc_Launch :: struct {
 #assert(size_of(type_of(Roc_Launch{}.window)) == 40)
 #assert(offset_of(Roc_Launch, capacity) == 40)
 #assert(size_of(type_of(Roc_Launch{}.capacity)) == 28)
-#assert(offset_of(Roc_Launch, shadow_map) == 68)
+#assert(offset_of(Roc_Launch, shadow_cascades) == 68)
+#assert(size_of(type_of(Roc_Launch{}.shadow_cascades)) == 4)
+#assert(offset_of(Roc_Launch, shadow_map) == 72)
 #assert(size_of(type_of(Roc_Launch{}.shadow_map)) == 4)
-#assert(offset_of(Roc_Launch, step_hz) == 72)
+#assert(offset_of(Roc_Launch, step_hz) == 76)
 #assert(size_of(type_of(Roc_Launch{}.step_hz)) == 4)
 
 Roc_Launch_Window :: struct {

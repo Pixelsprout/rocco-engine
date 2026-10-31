@@ -13,8 +13,8 @@ SCENE_NEAR :: f32(0.1)
 UP :: [3]f32{0, 1, 0}
 UP_EPSILON :: f32(1e-6)
 
-// The light_view_proj array in engine/shaders/basic.glsl has this size.
-MAX_CASCADES :: 1
+// The light_view_proj and cascade_far arrays in engine/shaders/basic.glsl have this size.
+MAX_CASCADES :: 4
 // The shadow box snaps outward to this grid, so the map changes size in steps
 // and its edges do not crawl as a Draw moves.
 SHADOW_GRID :: f32(1)
@@ -22,6 +22,7 @@ SHADOW_NORMAL_OFFSET :: f32(0.05)
 
 #assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
+#assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
 Pass :: enum {
 	Shadow,
@@ -70,6 +71,8 @@ Frame_Render :: struct {
 	lights_logged:      bit_set[Light_Drop],
 	draws_logged:       bool,
 	skinned_logged:     bool,
+	shadow_map:         u32,
+	cascades:           int,
 	allocator:          mem.Allocator,
 }
 
@@ -83,7 +86,8 @@ Draw_Transform :: struct {
 
 // A Draw at its interpolated pose, kept so both passes use one transform.
 // skin is a slot of Frame_Render.skins for a skinned mesh, and nil for a
-// rigid one.
+// rigid one. light_box is the mesh box in the Sun's view space; only the
+// shadow pass of 2 to 4 cascades fills it.
 Placed :: struct {
 	mesh:      ^Mesh,
 	fallback:  bool,
@@ -92,6 +96,7 @@ Placed :: struct {
 	transform: Draw_Transform,
 	model:     Mat4,
 	skin:      ^Skin_Params,
+	light_box: Box,
 }
 
 // Maps each draw id of the previous Scene to its index in prev_draws, and
@@ -151,8 +156,17 @@ Camera_Pose :: struct {
 	fov_y:           f32,
 }
 
-frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, perm: mem.Allocator) {
+// The camera a Frame draws from. The cascades split its view.
+Frame_View :: struct {
+	view_proj: Mat4,
+	camera:    Camera_Pose,
+	aspect:    f32,
+}
+
+frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, shadow_map: u32, cascades: int, perm: mem.Allocator) {
 	fr.draw_capacity = draws
+	fr.shadow_map = shadow_map
+	fr.cascades = cascades
 	fr.allocator = perm
 	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
@@ -166,7 +180,7 @@ frame_render_destroy :: proc(fr: ^Frame_Render) {
 }
 
 // An up along the view, or a zero up, has no right vector.
-frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> (view_proj: Mat4, eye: [3]f32) {
+frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> Frame_View {
 	pose := camera_lerp(prev.camera, curr.camera, alpha)
 	if v3_length(v3_cross(pose.target - pose.eye, pose.up)) < UP_EPSILON {
 		if !fr.up_fallback_logged {
@@ -175,7 +189,7 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 		}
 		pose.up = UP
 	}
-	return scene_view_proj(pose, aspect), pose.eye
+	return {view_proj = scene_view_proj(pose, aspect), camera = pose, aspect = aspect}
 }
 
 // The fallback ignores the tint and the glow, so an unknown mesh id shows
@@ -187,8 +201,7 @@ frame_render_draw :: proc(
 	fr: ^Frame_Render,
 	prev, curr: Scene,
 	alpha: f32,
-	view_proj: Mat4,
-	eye: [3]f32,
+	view: Frame_View,
 	meshes: ^Mesh_Table,
 	skies: ^Sky_Table,
 	ui: ^Ui,
@@ -232,6 +245,7 @@ frame_render_draw :: proc(
 	}
 	gathered := &frame_walk.lights
 	lights := gathered.frame
+	eye := view.camera.eye
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
 	if submit {
 		frame_render_pose(fr, meshes)
@@ -248,7 +262,7 @@ frame_render_draw :: proc(
 	}
 
 	if gathered.has_sun && len(fr.placed) > 0 {
-		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, &span)
+		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span)
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, curr.clear, &span)
@@ -277,13 +291,13 @@ frame_render_draw :: proc(
 		fr.submit(
 			fr.submit_ctx,
 			p.mesh,
-			vs_params = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
+			vs_params = {mvp = view.view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
 			fs_params = params,
 			skin = p.skin,
 		)
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
-		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view_proj})
+		fr.submit_sky(fr.submit_ctx, sky, {view_proj = view.view_proj})
 	}
 	if len(quads) > 0 {
 		fr.submit_ui(fr.submit_ctx, quads, window.size)
@@ -342,20 +356,50 @@ frame_render_pose :: proc(fr: ^Frame_Render, meshes: ^Mesh_Table) {
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
-frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]f32, span: ^Span_Tick) {
-	light_view_proj := shadow_view_proj(to_light, fr.placed[:])
-	// The shader reads x as the view count, y as the Sun's slot, which is
-	// always 0, and z as the normal offset.
-	lights.shadow = {1, 0, SHADOW_NORMAL_OFFSET, 0}
-	lights.light_view_proj[0] = light_view_proj
-	frame_render_begin_pass(fr, .Shadow, 0, {}, span)
-	order := Placed_Order {
-		placed = fr.placed[:],
+// One cascade draws one map over every Draw. 2 to 4 cascades split the view
+// up to SHADOW_DISTANCE, and each one draws only the Draws over its square.
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]f32, view: Frame_View, span: ^Span_Tick) {
+	if fr.cascades <= 1 {
+		light_view_proj := shadow_view_proj(to_light, fr.placed[:])
+		// The shader reads x as the cascade count, y as the Sun's slot, which
+		// is always 0, and z as the normal offset.
+		lights.shadow = {1, 0, SHADOW_NORMAL_OFFSET, 0}
+		lights.light_view_proj[0] = light_view_proj
+		frame_render_begin_pass(fr, .Shadow, 0, {}, span)
+		order := Placed_Order {
+			placed = fr.placed[:],
+		}
+		for p in placed_next(&order) {
+			fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
+		}
+		fr.end_pass(fr.submit_ctx)
+		return
 	}
-	for p in placed_next(&order) {
-		fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
+
+	light_view := light_view_of(to_light)
+	for &p in fr.placed {
+		p.light_box = light_box(light_view, p.model, p.mesh.box)
 	}
-	fr.end_pass(fr.submit_ctx)
+	splits := cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, fr.cascades, CASCADE_SPLIT_WEIGHT)
+	for i in 0 ..< fr.cascades {
+		sphere := cascade_sphere(view.camera, view.aspect, cascade_slice_near(splits, SCENE_NEAR, i), splits[i])
+		cascade := cascade_view(light_view, sphere, fr.shadow_map, fr.placed[:])
+		lights.light_view_proj[i] = cascade.view_proj
+		frame_render_begin_pass(fr, .Shadow, i, {}, span)
+		order := Placed_Order {
+			placed = fr.placed[:],
+		}
+		for p in placed_next(&order) {
+			if cascade_covers(cascade, p.light_box) {
+				fr.submit_shadow(fr.submit_ctx, p.mesh, {light_mvp = cascade.view_proj * p.model}, p.skin)
+			}
+		}
+		fr.end_pass(fr.submit_ctx)
+	}
+	forward := v3_normalize(view.camera.target - view.camera.eye)
+	lights.shadow = {f32(fr.cascades), 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND}
+	lights.cascade_far = splits
+	lights.view_dir = {forward.x, forward.y, forward.z, 0}
 }
 
 placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
@@ -389,22 +433,13 @@ frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, clear_
 // An orthographic view from the Sun over the box of every placed Draw. A
 // skinned mesh's box is padded at load, so it holds the posed mesh.
 shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
-	up := UP if abs(to_light.y) < 0.99 else [3]f32{0, 0, 1}
-	light_view := mat4_look_at({}, -to_light, up)
+	light_view := light_view_of(to_light)
 	lo := [3]f32{max(f32), max(f32), max(f32)}
 	hi := -lo
 	for p in placed {
-		to_view := light_view * p.model
-		for corner in 0 ..< 8 {
-			c := [3]f32 {
-				p.mesh.box.max.x if corner & 1 != 0 else p.mesh.box.min.x,
-				p.mesh.box.max.y if corner & 2 != 0 else p.mesh.box.min.y,
-				p.mesh.box.max.z if corner & 4 != 0 else p.mesh.box.min.z,
-			}
-			v := (to_view * [4]f32{c.x, c.y, c.z, 1}).xyz
-			lo = linalg.min(lo, v)
-			hi = linalg.max(hi, v)
-		}
+		box := light_box(light_view, p.model, p.mesh.box)
+		lo = linalg.min(lo, box.min)
+		hi = linalg.max(hi, box.max)
 	}
 	lo = linalg.floor(lo / SHADOW_GRID) * SHADOW_GRID
 	// A flat box would give a zero extent and divide by zero.

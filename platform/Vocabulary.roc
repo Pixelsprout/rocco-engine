@@ -36,11 +36,16 @@ Vocabulary := [].{
 	## - `step_hz`: the fixed step rate in Hz. Above zero. `step` gets a `dt` of
 	##   one over it.
 	## - `shadow_map`: the width and height of the shadow map in texels. Above zero.
+	## - `shadow_cascades`: how many shadow maps the Sun casts along the camera's
+	##   view, from 1 to 4. 1 casts one map over every Draw. 2 to 4 split the
+	##   first 150 metres of the view, so near shadows are sharp and far ones
+	##   are coarse. Each cascade is one more `shadow_map` by `shadow_map` map.
 	## - `capacity`: the table sizes. No Scene field replaces them.
 	Launch : {
 		window : Window,
 		step_hz : U32,
 		shadow_map : U32,
+		shadow_cascades : U32,
 		capacity : Capacity,
 	}
 
@@ -77,7 +82,7 @@ Vocabulary := [].{
 	##   Primitives, and at most 65536.
 	## - `skies`: sky slots. At least 2, for the reserved slot and one sky, and
 	##   at most 65536.
-	## - `draws`: Draws per Frame. Above zero and at most 2095099. The uniform
+	## - `draws`: Draws per Frame. Above zero and at most 1195444. The uniform
 	##   buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first

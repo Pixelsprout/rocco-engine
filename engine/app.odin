@@ -80,7 +80,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	sky_table_init(&g_state.renderer.skies, int(capacity.skies), perm, context.allocator)
 	audio_tables_init(&g_state.audio, int(capacity.sounds), int(capacity.voices), perm, context.allocator)
 	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.audio, perm)
-	frame_render_init(&g_state.frame_render, int(capacity.draws), int(capacity.groups), perm)
+	frame_render_init(&g_state.frame_render, int(capacity.draws), int(capacity.groups), g_state.launch.shadow_map, int(g_state.launch.shadow_cascades), perm)
 	clock_init(&g_state.clock, g_state.launch.step_hz)
 	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs, &g_state.audio)
 
@@ -129,21 +129,21 @@ app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sa
 
 // The sokol sizes the capacities need. The caller sets the environment,
 // because only a running sokol app has one.
-app_gfx_desc :: proc(capacity: Capacity) -> sg.Desc {
+app_gfx_desc :: proc(capacity: Capacity, cascades: int) -> sg.Desc {
 	textures := texture_pool_size(capacity)
 	return {
 		logger = {func = slog.func},
 		image_pool_size = textures,
 		sampler_pool_size = textures,
 		view_pool_size = view_pool_size(capacity),
-		uniform_buffer_size = uniform_buffer_size(capacity),
+		uniform_buffer_size = uniform_buffer_size(capacity, cascades),
 	}
 }
 
 init_cb :: proc "c" () {
 	context = g_state.ctx
 
-	gfx := app_gfx_desc(g_state.launch.capacity)
+	gfx := app_gfx_desc(g_state.launch.capacity, int(g_state.launch.shadow_cascades))
 	gfx.environment = sglue.environment()
 	sg.setup(gfx)
 
