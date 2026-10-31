@@ -409,7 +409,7 @@ void main() {
     float coverage;
     if (v_shape.w > 0.5) {
         float d = texture(sampler2D(font_tex, font_smp), v_uv).r;
-        float w = max(fwidth(d), 1e-4);
+        float w = max(0.7071 * length(vec2(dFdx(d), dFdy(d))), 1e-4);
         coverage = smoothstep(SDF_ON_EDGE - w, SDF_ON_EDGE + w, d);
     } else {
         // v_uv is the offset from the centre, so d is the distance outside the rounded rect.
