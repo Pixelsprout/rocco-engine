@@ -82,7 +82,7 @@ Vocabulary := [].{
 	##   Primitives, and at most 65536.
 	## - `skies`: sky slots. At least 2, for the reserved slot and one sky, and
 	##   at most 65536.
-	## - `draws`: Draws per Frame. Above zero and at most 2095099. The uniform
+	## - `draws`: Draws per Frame. Above zero and at most 1195444. The uniform
 	##   buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first

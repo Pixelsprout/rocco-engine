@@ -9,14 +9,19 @@ UNIFORM_ALIGN :: 256
 // per Frame. The host drops the rest.
 SKINNED_DRAW_LIMIT :: 256
 // sokol on Metal starts each block on a UNIFORM_ALIGN boundary, so a block takes whole slots.
-DRAW_UNIFORM_SLOTS ::
-	(size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN +
-	(size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN +
-	(size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
-// sokol takes the uniform buffer size as a C int, so uniform_buffer_size must fit one.
-DRAW_LIMIT :: ((1 << 31 - 1) / UNIFORM_ALIGN - 16 - 2 * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) / DRAW_UNIFORM_SLOTS
+SHADOW_UNIFORM_SLOTS :: (size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
+MAIN_UNIFORM_SLOTS :: (size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN + (size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
+// The slots outside the Draws: the lights, the lights again after the switch
+// to the skinned pipeline, the sky and the UI.
+UNIFORM_SPARE_SLOTS :: 16
+// sokol takes the uniform buffer size as a C int, so uniform_buffer_size must
+// fit one. The limit takes MAX_CASCADES for every game.
+DRAW_LIMIT ::
+	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (1 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
+	(MAIN_UNIFORM_SLOTS + MAX_CASCADES * SHADOW_UNIFORM_SLOTS)
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
+#assert(2 * ((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 2 <= UNIFORM_SPARE_SLOTS)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 
@@ -50,7 +55,7 @@ Renderer :: struct {
 	pass:               Pass,
 }
 
-// One layer per shadow view. With no Sun the main pass still binds it, and
+// One layer per cascade. With no Sun the main pass still binds it, and
 // the shader does not read it.
 Shadow_Map :: struct {
 	image:   sg.Image,
@@ -73,13 +78,13 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
 }
 
-// A Draw applies three blocks: shadow, vertex and fragment. A skinned Draw
-// also applies a skin block in each pass. The spare slots cover the lights,
-// the lights again after the switch to the skinned pipeline, the sky and the
-// UI.
-uniform_buffer_size :: proc(capacity: Capacity) -> i32 {
-	skins := 2 * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
-	return i32((DRAW_UNIFORM_SLOTS * int(capacity.draws) + 16) * UNIFORM_ALIGN + skins)
+// A Draw applies a vertex and a fragment block in the Main pass and a shadow
+// block in each cascade. A skinned Draw also applies a skin block in each
+// pass.
+uniform_buffer_size :: proc(capacity: Capacity, cascades: int) -> i32 {
+	skins := (1 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
+	slots := MAIN_UNIFORM_SLOTS + cascades * SHADOW_UNIFORM_SLOTS
+	return i32((slots * int(capacity.draws) + UNIFORM_SPARE_SLOTS) * UNIFORM_ALIGN + skins)
 }
 
 skinned_draw_capacity :: proc(draws: int) -> int {
@@ -101,7 +106,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	)
 
-	r.shadow = shadow_map_make(launch.shadow_map)
+	r.shadow = shadow_map_make(launch.shadow_map, int(launch.shadow_cascades))
 
 	shader := sg.make_shader(basic_shader_desc(sg.query_backend()))
 
@@ -193,7 +198,8 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 
 // The sampler compares in hardware, and a fragment is lit where its depth is
 // at least the stored depth. LINEAR filters each compare across 2 x 2 texels.
-shadow_map_make :: proc(size: u32) -> Shadow_Map {
+// The layers past cascades stay zero.
+shadow_map_make :: proc(size: u32, cascades: int) -> Shadow_Map {
 	m: Shadow_Map
 	m.image = sg.make_image(
 		{
@@ -201,14 +207,14 @@ shadow_map_make :: proc(size: u32) -> Shadow_Map {
 			usage = {depth_stencil_attachment = true},
 			width = i32(size),
 			height = i32(size),
-			num_slices = MAX_CASCADES,
+			num_slices = i32(cascades),
 			pixel_format = .DEPTH,
 			sample_count = 1,
 			label = "shadow-map",
 		},
 	)
 	m.texture = sg.make_view({texture = {image = m.image}})
-	for &layer, i in m.layers {
+	for &layer, i in m.layers[:cascades] {
 		layer = sg.make_view({depth_stencil_attachment = {image = m.image, slice = i32(i)}})
 	}
 	m.sampler = sg.make_sampler(
