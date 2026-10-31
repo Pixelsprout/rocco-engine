@@ -40,9 +40,9 @@ those defaults in one place. Each one links to the page that explains it.
 - **Lights and the UI do not interpolate.** They change once per fixed step,
   so a light that moves jumps a little each step. A Light inside a Group
   moves smoothly with its Group.
-- **The first Sun wins.** The host takes the Sun and the first 8
-  Directional and Point lights in the order of a depth-first walk of
-  `Scene.nodes`.
+- **The first Sun wins.** The first Directional light that sets `shadow`
+  is the Sun. Each Draw gets at most 8 Directional and Point lights,
+  nearest first.
 - **The default camera** in `Scene.empty` is at (0, 5, 10), looks at the
   origin, and has a vertical field of view of about 60 degrees.
 

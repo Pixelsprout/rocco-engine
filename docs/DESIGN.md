@@ -343,13 +343,21 @@ add after the lights and before the tone map. A mesh with
 `KHR_materials_unlit` skips the lights and the tone map and draws its base
 colour plus the emissive.
 
-The host takes the first ambient and the first 8 directional and point
-lights, in the depth-first, pre-order walk of the tree. It drops a second
-ambient, a light past the 8th, a Directional with a zero `dir` and a Point
-with a range <= 0. It logs each reason once per run. The cap of 8 is the
-size of the light arrays in the shader.
+The host takes the first ambient, in the depth-first, pre-order walk of the
+tree. A Scene may hold any number of directional and point lights. Each Draw
+gets at most 8 of them: the Sun in slot 0, the other directionals in walk
+order, then the point lights whose range reaches the Draw's world box,
+nearest to the box first. A tie goes to the light nearer the box centre,
+then to walk order. An unlit Draw gets none. The list goes in the per-draw
+fragment block, and the limit of 8 is the size of its light arrays. A large
+Draw with more than 8 lights in reach keeps the nearest, so lights can pop
+on a large mesh. The host drops a second ambient, a Directional with a zero
+`dir` and a Point with a range <= 0. It logs each reason once per run, and
+it logs once per run when a Draw loses a light in reach. ADR 0023 records
+the decision.
 
-The host uses the current `Scene`'s lights for the whole frame. Lights have
+The host gathers the current `Scene`'s lights once per frame and picks each
+Draw's list from them. Lights have
 no id, and a Light's own Pose does not interpolate. A Light in a Group
 follows the Group's interpolated Pose: the Group moves a Point and turns a
 Directional `dir`, and does not change an Ambient. A Light that moves inside

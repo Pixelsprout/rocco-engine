@@ -239,14 +239,17 @@ Directional `dir` is the way the light travels. A Point light falls off to
 zero at its `range`. `pf.Light` builds each one. Lights have no id. A Light
 follows its Group's interpolated Pose but does not interpolate its own.
 A Group turns a Directional `dir` and moves a Point; an Ambient ignores it.
-A Scene with no Light draws black.
+A Scene with no Light draws black. A Scene may hold any number of Lights.
+Each Draw gets at most 8 Directional and Point Lights: the Sun, the other
+Directionals, then the Point lights whose range reaches the Draw, nearest
+first.
 _Avoid_: lamp, light source, colour (for intensity)
 
 **Sun**:
 The first Directional Light, in Node order, that sets `shadow`. It is the only Light that
 casts a shadow. `pf.Light.sun` sets `shadow` and `pf.Light.directional` does
 not. If a second Directional sets it, the host logs once. With no Sun,
-nothing casts a shadow.
+nothing casts a shadow. Every Draw gets the Sun first.
 _Avoid_: main light, key light, shadow light
 
 **Camera**:

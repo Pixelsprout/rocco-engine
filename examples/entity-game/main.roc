@@ -629,7 +629,6 @@ view : Model -> Vocabulary.Scene
 view = |curr| {
 	floor = { ..Draw.default, id: floor_id, mesh: curr.meshes.plane, scale: { x: 20.0, y: 1.0, z: 20.0 }, tint: { r: 0.051, g: 0.051, b: 0.064 } }
 
-	# The engine keeps the first 8 directional and point lights, so the Sun goes before the Points.
 	scenery = [
 		Draw(floor),
 		Light(ambient),
@@ -1666,7 +1665,7 @@ expect {
 }
 
 expect {
-	# The engine keeps 8 directional and point lights, so it drops the last one: the Point on the block.
+	# Nine Directional and Point lights. Each Draw gets its own 8, so the last one, the Point on the block, still lights the block.
 	lights = lights_of(view(new_game(test_meshes, round_pickups, 0)))
 	List.len(lights) == 10 and List.take_first(lights, 2) == [ambient, sun] and List.last(lights) == Ok(pickup_light(pickup_spot(arc_pickups)))
 }
