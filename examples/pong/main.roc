@@ -12,7 +12,7 @@ import pf.Input
 import pf.Launch
 import pf.Scene
 import pf.Key
-import pf.Button
+import pf.GamepadButton
 import pf.Light
 import pf.QueryResults
 
@@ -204,7 +204,7 @@ view = |m| {
 # South on any pad does what Space does, so the Bridge check can press it.
 game_state : Model, Vocabulary.Input -> Model
 game_state = |m, input| {
-	if Key.pressed(input, Space) or Button.pressed_any(input, South) {
+	if Key.pressed(input, Space) or GamepadButton.pressed_any(input, South) {
 		match m.state {
 			Paused => { ..m, state: Running }
 			EndGame => reset(m)
@@ -404,7 +404,7 @@ expect {
 # South on a pad pauses as Space does. Holding it does not resume.
 expect {
 	m = init(Config.empty).model
-	pad = { ..Input.idle_gamepad, held: [Button.code(South)], pressed: [Button.code(South)] }
+	pad = { ..Input.idle_gamepad, held: [GamepadButton.code(South)], pressed: [GamepadButton.code(South)] }
 	paused = game_state(m, { ..Input.empty, gamepads: [pad] })
 	still = game_state(paused, { ..Input.empty, gamepads: [{ ..pad, pressed: [] }] })
 	paused.state == Paused and still.state == Paused

@@ -44,10 +44,10 @@ import linalg.Quat
 import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
-import pf.Button
 import pf.Collider
 import pf.Config
 import pf.Draw
+import pf.GamepadButton
 import pf.Input
 import pf.Key
 import pf.Launch

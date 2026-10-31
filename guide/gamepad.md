@@ -31,15 +31,16 @@ and quits with Start.
 
 ## Read the buttons
 
-Use the [Button] module to read the buttons. It has the same two answers as
-`Key`: held, while a button is down, and pressed, in the first step after
-it went down.
+Use the [GamepadButton] module to read the buttons. It has the same two
+answers as `Key`: held, while a button is down, and pressed, in the first
+step after it went down.
 
-- [`Button.held_any`][Button.held_any] and
-  [`Button.pressed_any`][Button.pressed_any] ask every connected pad. Use
-  them in a game for one player.
-- [`Button.held`][Button.held] and [`Button.pressed`][Button.pressed] ask
-  one Gamepad. Use them when it matters which pad it was.
+- [`GamepadButton.held_any`][GamepadButton.held_any] and
+  [`GamepadButton.pressed_any`][GamepadButton.pressed_any] ask every
+  connected pad. Use them in a game for one player.
+- [`GamepadButton.held`][GamepadButton.held] and
+  [`GamepadButton.pressed`][GamepadButton.pressed] ask one Gamepad. Use
+  them when it matters which pad it was.
 
 Tutorial chapter 9 quits on Escape or on Start from any pad:
 
@@ -47,7 +48,7 @@ Tutorial chapter 9 quits on Escape or on Start from any pad:
 ```roc
 # Escape on the keyboard or Start on any pad quits.
 quit : Vocabulary.Input -> List(Command)
-quit = |input| if Key.pressed(input, Escape) or Button.pressed_any(input, Start) [Quit] else []
+quit = |input| if Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start) [Quit] else []
 ```
 <!-- endregion -->
 
@@ -153,7 +154,7 @@ pad_in : Vocabulary.Input, U8 -> Try(Vocabulary.Gamepad, [NotFound])
 pad_in = |input, slot| List.find_first(input.gamepads, |pad| pad.slot == slot)
 ```
 
-`Button.held(pad, South)` then asks that player's pad only.
+`GamepadButton.held(pad, South)` then asks that player's pad only.
 
 A slot is not the same on every run. It depends on the order in which the
 pads connected, so a game for two can show the player which pad is theirs.
@@ -163,8 +164,9 @@ pads connected, so a game for two can show the player which pad is theirs.
 A Gamepad is a record, so you test it without a pad. Start from
 `Input.empty` and put your Gamepads in `gamepads`. Make each Gamepad from
 `Input.idle_gamepad`, a pad in slot 0 with no button down and the sticks at
-rest, and change only the fields the test needs. Make the button codes with
-[`Button.code`][Button.code]. These are the tests of tutorial chapter 9:
+rest, and change only the fields the test needs. Make the button codes
+with [`GamepadButton.code`][GamepadButton.code]. These are the tests of
+tutorial chapter 9:
 
 <!-- region: examples/tutorial/09-gamepad/main.roc#tests -->
 ```roc
@@ -198,13 +200,13 @@ expect step(start, with_pads([Input.idle_gamepad]), QueryResults.empty, 0.1).mod
 
 # Start pressed on any pad quits, here on the pad in slot 2.
 expect {
-	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [Button.code(Start)] }
+	start_pressed = { ..Input.idle_gamepad, slot: 2, pressed: [GamepadButton.code(Start)] }
 	step(start, with_pads([Input.idle_gamepad, start_pressed]), QueryResults.empty, 0.1).commands == [Quit]
 }
 
 # Start held from an earlier step does not quit again.
 expect {
-	start_held = { ..Input.idle_gamepad, held: [Button.code(Start)] }
+	start_held = { ..Input.idle_gamepad, held: [GamepadButton.code(Start)] }
 	step(start, with_pads([start_held]), QueryResults.empty, 0.1).commands == []
 }
 ```
@@ -225,10 +227,10 @@ and the ways a Bridge pad differs from a real pad.
 
 ### The buttons
 
-Each Button is named by its place on the pad. The code is the number that a
-Gamepad holds in `held` and `pressed`.
+Each GamepadButton is named by its place on the pad. The code is the
+number that a Gamepad holds in `held` and `pressed`.
 
-| Button | Code | Xbox | PlayStation | Nintendo Switch |
+| GamepadButton | Code | Xbox | PlayStation | Nintendo Switch |
 |---|---|---|---|---|
 | `South` | 0 | A | Cross | B |
 | `East` | 1 | B | Circle | A |
@@ -320,9 +322,9 @@ Afterglow, by itself.
 
 [Input]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Input
 [Gamepad]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Gamepad
-[Button]: https://pixelsprout.dev/projects/rocco/api/platform/Button/
-[Button.held]: https://pixelsprout.dev/projects/rocco/api/platform/Button/#Button.held
-[Button.pressed]: https://pixelsprout.dev/projects/rocco/api/platform/Button/#Button.pressed
-[Button.held_any]: https://pixelsprout.dev/projects/rocco/api/platform/Button/#Button.held_any
-[Button.pressed_any]: https://pixelsprout.dev/projects/rocco/api/platform/Button/#Button.pressed_any
-[Button.code]: https://pixelsprout.dev/projects/rocco/api/platform/Button/#Button.code
+[GamepadButton]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/
+[GamepadButton.held]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/#GamepadButton.held
+[GamepadButton.pressed]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/#GamepadButton.pressed
+[GamepadButton.held_any]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/#GamepadButton.held_any
+[GamepadButton.pressed_any]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/#GamepadButton.pressed_any
+[GamepadButton.code]: https://pixelsprout.dev/projects/rocco/api/platform/GamepadButton/#GamepadButton.code

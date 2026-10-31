@@ -359,8 +359,8 @@ test_bridge_step_with_a_bad_gamepad_fails_before_any_step :: proc(t: ^testing.T)
 	cases := []struct {
 		request, error: string,
 	} {
-		{`{"op":"step","gamepads":[{"held":["South","Jump"]}]}`, `unknown Button "Jump" in "held"`},
-		{`{"op":"step","gamepads":[{"tap":["A"]}]}`, `unknown Button "A" in "tap"`},
+		{`{"op":"step","gamepads":[{"held":["South","Jump"]}]}`, `unknown GamepadButton "Jump" in "held"`},
+		{`{"op":"step","gamepads":[{"tap":["A"]}]}`, `unknown GamepadButton "A" in "tap"`},
 		{`{"op":"step","gamepads":[{"slot":4}]}`, `"slot" must be a whole number from 0 to 3`},
 		{`{"op":"step","gamepads":[{"slot":1},{"slot":1}]}`, `two gamepads have slot 1`},
 		{`{"op":"step","gamepads":[{"left_stick":[1,1]}]}`, `"left_stick" must be [x, y] inside the unit disc`},

@@ -9,7 +9,7 @@ import "core:slice"
 import "core:strings"
 import "core:testing"
 
-BUTTON_ROC :: #load("../platform/Button.roc", string)
+GAMEPAD_BUTTON_ROC :: #load("../platform/GamepadButton.roc", string)
 
 pad_raw :: proc(id: u64, buttons: Gamepad_Buttons = {}, axes: Gamepad_Axes = {}) -> Gamepad_Raw {
 	return {id = id, buttons = buttons, axes = axes}
@@ -229,14 +229,14 @@ test_button_from_tag_finds_the_buttons_and_rejects_an_unknown_name :: proc(t: ^t
 	}
 }
 
-// Button.code in platform/Button.roc must give each tag the host's code.
+// GamepadButton.code in platform/GamepadButton.roc must give each tag the host's code.
 @(test)
-test_button_tags_match_the_codes_in_button_roc :: proc(t: ^testing.T) {
+test_button_tags_match_the_codes_in_gamepad_button_roc :: proc(t: ^testing.T) {
 	for button in Gamepad_Button {
 		line := fmt.tprintf("\t\t%v => %v\n", BUTTON_TAGS[button], u8(button))
-		testing.expectf(t, strings.contains(BUTTON_ROC, line), "platform/Button.roc has no line %q", line)
+		testing.expectf(t, strings.contains(GAMEPAD_BUTTON_ROC, line), "platform/GamepadButton.roc has no line %q", line)
 	}
-	testing.expect_value(t, strings.count(BUTTON_ROC, " => "), len(Gamepad_Button))
+	testing.expect_value(t, strings.count(GAMEPAD_BUTTON_ROC, " => "), len(Gamepad_Button))
 }
 
 // The OS calls get a smoke test only. A CI runner has no pad, so it must

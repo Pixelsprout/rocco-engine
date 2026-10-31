@@ -12,7 +12,7 @@ GAMEPAD_RAW_MAX :: 8
 GAMEPAD_STICK_DEAD_ZONE :: 0.2
 GAMEPAD_TRIGGER_DEAD_ZONE :: 0.05
 
-// The Bridge reads the Button names of a request from this table.
+// The Bridge reads the GamepadButton names of a request from this table.
 @(rodata)
 BUTTON_TAGS := [Gamepad_Button]string {
 	.South          = "South",
@@ -31,7 +31,7 @@ BUTTON_TAGS := [Gamepad_Button]string {
 	.Dpad_Right     = "DpadRight",
 }
 
-// The value of each button is its code in platform/Button.roc.
+// The value of each button is its code in platform/GamepadButton.roc.
 Gamepad_Button :: enum u8 {
 	South,
 	East,

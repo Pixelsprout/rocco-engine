@@ -149,16 +149,16 @@ _Avoid_: held, down, just pressed, triggered, edge
 
 **Gamepad**:
 One connected pad in `Input.gamepads`, at one step: its Gamepad slot, the
-Buttons held and pressed, two sticks inside the unit disc with +y up, and
-two triggers from 0 to 1. The host applies the dead zones; the Bridge
-applies none. At most 4.
+Gamepad buttons held and pressed, two sticks inside the unit disc with +y
+up, and two triggers from 0 to 1. The host applies the dead zones; the
+Bridge applies none. At most 4.
 _Avoid_: Pad (it can mean padding), controller, joystick
 
-**Button**:
-A gamepad button named by its place on the pad, from `pf.Button`, such as
-`South` for the bottom face button. Not its label: `South` is A on Xbox,
-Cross on PlayStation and B on Switch. A Gamepad carries the code. The
-triggers are not Buttons.
+**Gamepad button**:
+A button of a Gamepad, named by its place on the pad, from
+`pf.GamepadButton`, such as `South` for the bottom face button. Not its
+label: `South` is A on Xbox, Cross on PlayStation and B on Switch. A
+Gamepad carries the code. The triggers are not Gamepad buttons.
 _Avoid_: key, face button label (A, Cross), action
 
 **Gamepad slot**:

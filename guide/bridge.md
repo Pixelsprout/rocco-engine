@@ -217,8 +217,8 @@ stick halfway up:
 After it, `scene` has Pip at z `-0.31249997`, half of the `-0.625` that W
 gives in 30 steps.
 
-- `held` and `tap` take the names from `pf.Button`, such as `"South"`,
-  `"Start"` and `"DpadUp"`. They work as the `held` and `tap` of the keys.
+- `held` and `tap` take the names from `pf.GamepadButton`, such as
+  `"South"`, `"Start"` and `"DpadUp"`. They work as the `held` and `tap` of the keys.
 - `left_stick` and `right_stick` are `[x, y]`, with `+y` up, for every
   step. Each must be inside the unit disc.
 - `left_trigger` and `right_trigger` are numbers from 0 to 1, for every
@@ -614,8 +614,8 @@ A Headless run takes one frame for each step, and draws nothing.
 | `mouse` | `[dx, dy]`, the mouse movement in the first step only. |
 | `gamepads` | A list of pad objects, connected for every step. With no `gamepads`, no pad is connected. |
 | `slot` | In a pad: its slot, a whole number from 0 to 3. The default is 0. |
-| `held` (pad) | In a pad: a list of Button names, held for every step. |
-| `tap` (pad) | In a pad: a list of Button names, Pressed but not Held, in the first step only. |
+| `held` (pad) | In a pad: a list of GamepadButton names, held for every step. |
+| `tap` (pad) | In a pad: a list of GamepadButton names, Pressed but not Held, in the first step only. |
 | `left_stick`, `right_stick` | In a pad: `[x, y]` inside the unit disc, `+y` up, for every step. |
 | `left_trigger`, `right_trigger` | In a pad: a number from 0 to 1, for every step. |
 | `pointer` | An object: the pointer for every step. With no `pointer`, the pointer is outside the window. |
@@ -665,8 +665,8 @@ A Headless run takes one frame for each step, and draws nothing.
 | `"gamepads" must be a list of objects` | `gamepads` is not a list, or an entry is not an object. |
 | `"slot" must be a whole number from 0 to 3` | A pad's `slot` is out of range or not a whole number. |
 | `two gamepads have slot <n>` | Two pads have the same `slot`. |
-| `"held" must be a list of Button names` | A pad's `held` or `tap` is not a list of strings. The error names the field. |
-| `unknown Button "<name>" in "held"` | A name is not in `pf.Button`. The error names the field. |
+| `"held" must be a list of GamepadButton names` | A pad's `held` or `tap` is not a list of strings. The error names the field. |
+| `unknown GamepadButton "<name>" in "held"` | A name is not in `pf.GamepadButton`. The error names the field. |
 | `"left_stick" must be [x, y] inside the unit disc` | A stick is not a list of two numbers, or it is outside the unit disc. The error names the stick. |
 | `"right_trigger" must be a number from 0 to 1` | A trigger is not a number from 0 to 1. The error names the trigger. |
 | `"pointer" must be an object` | `pointer` is not an object. |
