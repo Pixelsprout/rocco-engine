@@ -84,7 +84,8 @@ Draw_Transform :: struct {
 
 // A Draw at its interpolated pose, kept so both passes use one transform.
 // skin is a slot of Frame_Render.skins for a skinned mesh, and nil for a
-// rigid one.
+// rigid one. light_box is the mesh box in the Sun's view space; only the
+// shadow pass of 2 to 4 cascades fills it.
 Placed :: struct {
 	mesh:      ^Mesh,
 	fallback:  bool,
@@ -93,6 +94,7 @@ Placed :: struct {
 	transform: Draw_Transform,
 	model:     Mat4,
 	skin:      ^Skin_Params,
+	light_box: Box,
 }
 
 // Maps each draw id of the previous Scene to its index in prev_draws, and
@@ -390,22 +392,13 @@ frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, clear_
 // An orthographic view from the Sun over the box of every placed Draw. A
 // skinned mesh's box is padded at load, so it holds the posed mesh.
 shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
-	up := UP if abs(to_light.y) < 0.99 else [3]f32{0, 0, 1}
-	light_view := mat4_look_at({}, -to_light, up)
+	light_view := light_view_of(to_light)
 	lo := [3]f32{max(f32), max(f32), max(f32)}
 	hi := -lo
 	for p in placed {
-		to_view := light_view * p.model
-		for corner in 0 ..< 8 {
-			c := [3]f32 {
-				p.mesh.box.max.x if corner & 1 != 0 else p.mesh.box.min.x,
-				p.mesh.box.max.y if corner & 2 != 0 else p.mesh.box.min.y,
-				p.mesh.box.max.z if corner & 4 != 0 else p.mesh.box.min.z,
-			}
-			v := (to_view * [4]f32{c.x, c.y, c.z, 1}).xyz
-			lo = linalg.min(lo, v)
-			hi = linalg.max(hi, v)
-		}
+		box := light_box(light_view, p.model, p.mesh.box)
+		lo = linalg.min(lo, box.min)
+		hi = linalg.max(hi, box.max)
 	}
 	lo = linalg.floor(lo / SHADOW_GRID) * SHADOW_GRID
 	// A flat box would give a zero extent and divide by zero.
