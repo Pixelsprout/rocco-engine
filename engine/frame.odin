@@ -77,15 +77,18 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		prev = curr
 	}
 	aspect := platform.window.size.x / platform.window.size.y
-	view_proj: Mat4
-	eye: [3]f32
+	view: Frame_View
 	if s.use_debug_camera {
 		camera_look(&s.debug_camera, &s.input)
 		camera_fly(&s.debug_camera, &s.input, f32(min(frame_time, MAX_FRAME_TIME)))
-		view_proj = camera_proj(&s.debug_camera, aspect) * camera_view(&s.debug_camera)
-		eye = s.debug_camera.eye
+		c := &s.debug_camera
+		view = {
+			view_proj = camera_proj(c, aspect) * camera_view(c),
+			camera = {eye = c.eye, target = camera_target(c), up = c.up, fov_y = c.fovy},
+			aspect = aspect,
+		}
 	} else {
-		view_proj, eye = frame_render_camera(&s.frame_render, prev, curr, alpha, aspect)
+		view = frame_render_camera(&s.frame_render, prev, curr, alpha, aspect)
 	}
 	cursor := Cursor.Locked if s.use_debug_camera else curr.cursor
 	if (cursor == .Locked) != platform.mouse_locked {
@@ -94,7 +97,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	// Headless submits nothing, so its render Spans stay at zero.
 	renders := s.mode != .Headless
-	frame_render_draw(&s.frame_render, prev, curr, alpha, view_proj, eye, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window, &s.spans, renders)
+	frame_render_draw(&s.frame_render, prev, curr, alpha, view, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window, &s.spans, renders)
 	// The scene op replies the results that the next step gets, so they take
 	// the hit test of the layout that the window shows.
 	ui_hit_test(&s.ui, s.pointer, platform.window)

@@ -351,8 +351,8 @@ record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, ski
 	)
 }
 
-frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS) {
-	frame_render_init(&f.fr, draws, SMALL_GROUPS, context.allocator)
+frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 1) {
+	frame_render_init(&f.fr, draws, SMALL_GROUPS, 2048, cascades, context.allocator)
 	mesh_table_init(&f.meshes, SMALL_MESHES, context.allocator, context.allocator)
 	sky_table_init(&f.skies, SMALL_SKIES, context.allocator, context.allocator)
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
@@ -388,8 +388,13 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	f.rec.sky_calls = 0
 	clear(&f.rec.ui_quads)
 	f.rec.ui_calls = 0
-	frame_render_draw(&f.fr, prev, curr, alpha, 1, eye, &f.meshes, &f.skies, f.ui, f.window)
+	frame_render_draw(&f.fr, prev, curr, alpha, frame_fixture_view(eye), &f.meshes, &f.skies, f.ui, f.window)
 	return f.rec.submits[:]
+}
+
+// An identity view_proj, with a camera at eye that looks down -z.
+frame_fixture_view :: proc(eye: [3]f32) -> Frame_View {
+	return {view_proj = 1, camera = {eye = eye, target = eye + {0, 0, -1}, up = UP, fov_y = 1.047}, aspect = 16.0 / 9}
 }
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
@@ -640,10 +645,12 @@ test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t:
 	fr: Frame_Render
 	prev := Scene{camera = {eye = {0, 8, 8}, target = {0, 0, 0}, up = {0, 1, 0}, fov_y = 1}}
 	curr := Scene{camera = {eye = {2, 8, 8}, target = {2, 0, 0}, up = {0, 1, 0}, fov_y = 2}}
-	got, eye := frame_render_camera(&fr, prev, curr, 0.5, 16.0 / 9.0)
+	got := frame_render_camera(&fr, prev, curr, 0.5, 16.0 / 9.0)
 	want := scene_view_proj({eye = {1, 8, 8}, target = {1, 0, 0}, up = {0, 1, 0}, fov_y = 2}, 16.0 / 9.0)
-	expect_mat4_near(t, got, want)
-	testing.expect_value(t, eye, [3]f32{1, 8, 8})
+	expect_mat4_near(t, got.view_proj, want)
+	testing.expect_value(t, got.camera.eye, [3]f32{1, 8, 8})
+	testing.expect_value(t, got.camera.target, [3]f32{1, 0, 0})
+	testing.expect_value(t, got.aspect, 16.0 / 9.0)
 	testing.expect(t, !fr.up_fallback_logged)
 }
 
@@ -651,9 +658,9 @@ test_frame_render_camera_builds_the_matrix_from_the_interpolated_pose :: proc(t:
 test_frame_render_camera_uses_the_scene_up :: proc(t: ^testing.T) {
 	fr: Frame_Render
 	s := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {1, 0, 0}, fov_y = 1}}
-	got, _ := frame_render_camera(&fr, s, s, 0, 1)
+	got := frame_render_camera(&fr, s, s, 0, 1)
 	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, {1, 0, 0})
-	expect_mat4_near(t, got, want)
+	expect_mat4_near(t, got.view_proj, want)
 }
 
 @(test)
@@ -662,11 +669,11 @@ test_frame_render_camera_falls_back_to_world_up_and_logs_once :: proc(t: ^testin
 	along := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, up = {0, 0, 1}, fov_y = 1}}
 	zero := Scene{camera = {eye = {0, 0, 5}, target = {0, 0, 0}, fov_y = 1}}
 	want := mat4_perspective_reversed_infinite(1, 1, SCENE_NEAR) * mat4_look_at({0, 0, 5}, {0, 0, 0}, UP)
-	got_along, _ := frame_render_camera(&fr, along, along, 0, 1)
-	expect_mat4_near(t, got_along, want)
+	got_along := frame_render_camera(&fr, along, along, 0, 1)
+	expect_mat4_near(t, got_along.view_proj, want)
 	testing.expect(t, fr.up_fallback_logged)
-	got_zero, _ := frame_render_camera(&fr, zero, zero, 0, 1)
-	expect_mat4_near(t, got_zero, want)
+	got_zero := frame_render_camera(&fr, zero, zero, 0, 1)
+	expect_mat4_near(t, got_zero.view_proj, want)
 }
 
 @(test)
@@ -855,7 +862,7 @@ test_frame_render_headless_selects_no_lights :: proc(t: ^testing.T) {
 	}
 	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
 	scene := scene_lit(draws, lights[:])
-	frame_render_draw(&f.fr, scene, scene, 0, 1, {}, &f.meshes, &f.skies, nil, f.window, submit = false)
+	frame_render_draw(&f.fr, scene, scene, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, f.window, submit = false)
 	testing.expect_value(t, len(f.rec.submits), 0)
 	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
 }
@@ -1090,7 +1097,7 @@ test_frame_render_places_its_draw_capacity_without_allocating :: proc(t: ^testin
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
 	fr: Frame_Render
-	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, mem.tracking_allocator(&track))
+	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, 2048, 1, mem.tracking_allocator(&track))
 	defer frame_render_destroy(&fr)
 	meshes: Mesh_Table
 	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
@@ -1105,7 +1112,7 @@ test_frame_render_places_its_draw_capacity_without_allocating :: proc(t: ^testin
 		d = {id = u64(i), mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}
 	}
 	after_init := track.total_allocation_count
-	frame_render_draw(&fr, scene_of(draws), scene_of(draws), 0.5, 1, {}, &meshes, &skies, nil, {size = {960, 540}, dpi = 1}, submit = false)
+	frame_render_draw(&fr, scene_of(draws), scene_of(draws), 0.5, frame_fixture_view({}), &meshes, &skies, nil, {size = {960, 540}, dpi = 1}, submit = false)
 
 	testing.expect_value(t, track.total_allocation_count, after_init)
 	testing.expect_value(t, len(fr.placed), SMALL_DRAWS)
@@ -1191,6 +1198,132 @@ test_frame_render_one_cascade_leaves_the_other_views_zero :: proc(t: ^testing.T)
 	testing.expect_value(t, f.rec.lights.cascade_far, [4]f32{})
 	testing.expect_value(t, len(f.rec.passes), 2)
 	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
+}
+
+@(test)
+test_frame_render_draws_one_shadow_pass_per_cascade :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, len(f.rec.passes), 5)
+	for i in 0 ..< 4 {
+		testing.expect_value(t, f.rec.passes[i], Pass_Begun{.Shadow, i})
+	}
+	testing.expect_value(t, f.rec.passes[4], Pass_Begun{.Main, 0})
+	testing.expect_value(t, f.rec.pass_ends, 5)
+	testing.expect_value(t, f.rec.lights.shadow, [4]f32{4, 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND})
+	testing.expect_value(t, f.rec.lights.cascade_far, cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 4, CASCADE_SPLIT_WEIGHT))
+	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, 0})
+}
+
+@(test)
+test_frame_render_submits_a_draw_only_to_the_cascades_that_cover_it :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	near := [3]f32{0, 0, -5}
+	far := [3]f32{0, 0, -120}
+	aside := [3]f32{500, 0, 0}
+	draws := []Draw {
+		{id = 1, mesh = 1, pos = to_vec3(near), scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = 1, pos = to_vec3(far), scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = 1, pos = to_vec3(aside), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect(t, shadow_submitted(&f.rec, 0, near))
+	testing.expect(t, !shadow_submitted(&f.rec, 0, far))
+	testing.expect(t, shadow_submitted(&f.rec, 3, far))
+	for view in 0 ..< 4 {
+		testing.expect(t, !shadow_submitted(&f.rec, view, aside))
+	}
+}
+
+@(test)
+test_frame_render_cascades_use_each_view_matrix :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0.3, y = -1, z = 0.2}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, len(f.rec.shadows), 4)
+	for s in f.rec.shadows {
+		expect_mat4_near(t, s.light_mvp, f.rec.lights.light_view_proj[s.view] * mat4_translate({0, 0, -5}))
+	}
+}
+
+@(test)
+test_frame_render_with_two_cascades_draws_two_passes :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 2)
+	defer frame_fixture_destroy(&f)
+
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = 1, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, len(f.rec.passes), 3)
+	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
+	testing.expect_value(t, f.rec.passes[1], Pass_Begun{.Shadow, 1})
+	testing.expect_value(t, f.rec.passes[2], Pass_Begun{.Main, 0})
+	testing.expect_value(t, f.rec.lights.shadow.x, 2)
+	testing.expect_value(t, f.rec.lights.cascade_far[0], cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 2, CASCADE_SPLIT_WEIGHT)[0])
+	testing.expect_value(t, f.rec.lights.light_view_proj[2], Mat4{})
+}
+
+@(test)
+test_frame_render_cascades_allocate_nothing :: proc(t: ^testing.T) {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+	fr: Frame_Render
+	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, 2048, 4, mem.tracking_allocator(&track))
+	defer frame_render_destroy(&fr)
+	fr.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
+	fr.end_pass = proc(ctx: rawptr) {}
+	fr.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
+	fr.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
+	fr.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {}
+	meshes: Mesh_Table
+	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
+	defer mesh_table_destroy(&meshes)
+	skies: Sky_Table
+	sky_table_init(&skies, SMALL_SKIES, context.allocator, context.allocator)
+	defer sky_table_destroy(&skies)
+
+	draws := make([]Draw, SMALL_DRAWS)
+	defer delete(draws)
+	for &d, i in draws {
+		d = {id = u64(i), mesh = 1, pos = {f32(i) * 20, 0, -f32(i) * 20}, scale = {1, 1, 1}, rot = IDENTITY}
+	}
+	lights := []Light{light_sun({x = 0.3, y = -1, z = 0.2}, {r = 1})}
+	scene := scene_lit(draws, lights)
+	after_init := track.total_allocation_count
+	for _ in 0 ..< 2 {
+		frame_render_draw(&fr, scene, scene, 0.5, frame_fixture_view({}), &meshes, &skies, nil, {size = {960, 540}, dpi = 1})
+	}
+
+	testing.expect_value(t, track.total_allocation_count, after_init)
+}
+
+// Whether a shadow submit in view has the model of a unit Cube at at.
+shadow_submitted :: proc(r: ^Recorder, view: int, at: [3]f32) -> bool {
+	for s in r.shadows {
+		if s.view == view && s.light_mvp == r.lights.light_view_proj[view] * mat4_translate(at) {
+			return true
+		}
+	}
+	return false
 }
 
 draw_pose_near :: proc(a, b: Draw_Pose) -> bool {
@@ -1324,7 +1457,7 @@ test_frame_render_skips_the_skin_with_submit_off :: proc(t: ^testing.T) {
 	chain := frame_fixture_skinned(&f)
 
 	draws := []Draw{{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LEAN}}}
-	frame_render_draw(&f.fr, scene_of(draws), scene_of(draws), 0, 1, {}, &f.meshes, &f.skies, nil, f.window, submit = false)
+	frame_render_draw(&f.fr, scene_of(draws), scene_of(draws), 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, f.window, submit = false)
 
 	testing.expect_value(t, len(f.fr.placed), 1)
 	testing.expect(t, f.fr.placed[0].skin != nil)
