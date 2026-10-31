@@ -59,7 +59,7 @@ Cursor :: Roc_View_Cursor
 Rgba :: Roc_VocabularyElement_Panel_0_Background
 Element :: Roc_VocabularyElement
 Element_Tag :: Roc_VocabularyElement_Tag
-Box_Config :: Roc_VocabularyElement_Panel_0
+Panel_Config :: Roc_VocabularyElement_Panel_0
 Sizing :: Roc_VocabularyElement_Panel_0_Height
 Sizing_Tag :: Roc_VocabularyElement_Panel_0_Height_Tag
 Sizing_Range :: Roc_VocabularyElement_Panel_0_Height_Fit

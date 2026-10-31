@@ -35,10 +35,10 @@ Accordion :: { header : U64, shown : [Open, Closed] }.{
 	view = |accordion, { buttons, focus, label, width, look, body }| {
 		header = buttons.view({ id: accordion.header, label, width, look, focus })
 		children = match accordion.shown {
-			Open => [header, Panel({ ..Ui.default_box, width, pad: { left: look.pad, right: look.pad, top: look.pad, bottom: look.pad }, background: look.panel }, body)]
+			Open => [header, Panel({ ..Ui.default_panel, width, pad: { left: look.pad, right: look.pad, top: look.pad, bottom: look.pad }, background: look.panel }, body)]
 			Closed => [header]
 		}
-		Panel({ ..Ui.default_box, direction: Col }, children)
+		Panel({ ..Ui.default_panel, direction: Col }, children)
 	}
 
 	## Two Accordions are equal when their states are equal.

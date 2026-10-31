@@ -394,7 +394,7 @@ json_write_element :: proc(b: ^strings.Builder, element: ^Element) {
 		config, children := &element.payload.panel._0, element.payload.panel._1
 		json_key(b, "Panel", first = true)
 		json_key(b, "config", first = true)
-		json_write_box_config(b, config)
+		json_write_panel_config(b, config)
 		json_key(b, "children")
 		json_write_list(b, children, json_write_element)
 		strings.write_byte(b, '}')
@@ -414,55 +414,55 @@ json_write_element :: proc(b: ^strings.Builder, element: ^Element) {
 	strings.write_byte(b, '}')
 }
 
-json_write_box_config :: proc(b: ^strings.Builder, box: ^Box_Config) {
+json_write_panel_config :: proc(b: ^strings.Builder, config: ^Panel_Config) {
 	json_key(b, "id", first = true)
-	strings.write_u64(b, box.id)
+	strings.write_u64(b, config.id)
 	json_key(b, "width")
-	json_write_sizing(b, box.width)
+	json_write_sizing(b, config.width)
 	json_key(b, "height")
-	json_write_sizing(b, box.height)
+	json_write_sizing(b, config.height)
 	json_key(b, "pad")
 	json_key(b, "left", first = true)
-	json_write_f32(b, box.pad.left)
+	json_write_f32(b, config.pad.left)
 	json_key(b, "right")
-	json_write_f32(b, box.pad.right)
+	json_write_f32(b, config.pad.right)
 	json_key(b, "top")
-	json_write_f32(b, box.pad.top)
+	json_write_f32(b, config.pad.top)
 	json_key(b, "bottom")
-	json_write_f32(b, box.pad.bottom)
+	json_write_f32(b, config.pad.bottom)
 	strings.write_byte(b, '}')
 	json_key(b, "gap")
-	json_write_f32(b, box.gap)
+	json_write_f32(b, config.gap)
 	json_key(b, "direction")
-	json_write_tag(b, box.direction)
+	json_write_tag(b, config.direction)
 	json_key(b, "child_align")
 	json_key(b, "x", first = true)
-	json_write_tag(b, box.child_align.x)
+	json_write_tag(b, config.child_align.x)
 	json_key(b, "y")
-	json_write_tag(b, box.child_align.y)
+	json_write_tag(b, config.child_align.y)
 	strings.write_byte(b, '}')
 	json_key(b, "background")
-	json_write_rgba(b, box.background)
+	json_write_rgba(b, config.background)
 	json_key(b, "radius")
-	json_write_f32(b, box.radius)
+	json_write_f32(b, config.radius)
 	json_key(b, "overflow")
-	switch box.overflow.tag {
+	switch config.overflow.tag {
 	case .Visible, .Clip:
-		json_write_tag(b, box.overflow.tag)
+		json_write_tag(b, config.overflow.tag)
 	case .Scroll:
 		json_key(b, "Scroll", first = true)
 		json_key(b, "x", first = true)
-		json_write_f32(b, box.overflow.payload.scroll.x)
+		json_write_f32(b, config.overflow.payload.scroll.x)
 		json_key(b, "y")
-		json_write_f32(b, box.overflow.payload.scroll.y)
+		json_write_f32(b, config.overflow.payload.scroll.y)
 		strings.write_string(b, "}}")
 	}
 	json_key(b, "floating")
-	switch box.floating.tag {
+	switch config.floating.tag {
 	case .NoFloat:
-		json_write_tag(b, box.floating.tag)
+		json_write_tag(b, config.floating.tag)
 	case .Float:
-		float := &box.floating.payload.float
+		float := &config.floating.payload.float
 		json_key(b, "Float", first = true)
 		json_key(b, "to", first = true)
 		json_write_tag(b, float.to)

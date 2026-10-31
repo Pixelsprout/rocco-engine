@@ -41,15 +41,15 @@ scene_ui :: proc(elements: []Element) -> Scene {
 	return {ui = {elements = raw_data(elements), length = uint(len(elements))}}
 }
 
-// The glue orders tags by name, so a zero Box_Config floats and is not the vocabulary's default.
-ui_box :: proc() -> Box_Config {
+// The glue orders tags by name, so a zero Panel_Config floats and is not the vocabulary's default.
+ui_default_panel :: proc() -> Panel_Config {
 	return {overflow = {tag = .Visible}, floating = {tag = .NoFloat}, direction = .Row, child_align = {.Start, .Start}}
 }
 
 // The children list points into the temp allocator and has no refcount, so
 // a Scene that the host frees must not hold it. fake_view copies g_fake.ui
 // into refcounted lists for that reason.
-ui_panel_of :: proc(config: Box_Config, children: ..Element) -> Element {
+ui_panel_of :: proc(config: Panel_Config, children: ..Element) -> Element {
 	kept := slice.clone(children, context.temp_allocator)
 	return {tag = .Panel, payload = {panel = {_0 = config, _1 = {elements = raw_data(kept), length = uint(len(kept))}}}}
 }
@@ -71,12 +71,12 @@ expect_rect_near :: proc(t: ^testing.T, got, want: [4]f32, loc := #caller_locati
 	testing.expectf(t, abs(d.x) < 1e-4 && abs(d.y) < 1e-4 && abs(d.z) < 1e-4 && abs(d.w) < 1e-4, "got %v, want %v", got, want, loc = loc)
 }
 
-ui_rect :: proc(width, height: f32) -> Box_Config {
-	box := ui_box()
-	box.width = ui_fixed(width)
-	box.height = ui_fixed(height)
-	box.background = RED
-	return box
+ui_rect :: proc(width, height: f32) -> Panel_Config {
+	config := ui_default_panel()
+	config.width = ui_fixed(width)
+	config.height = ui_fixed(height)
+	config.background = RED
+	return config
 }
 
 
@@ -113,7 +113,7 @@ test_ui_lays_out_16384_panels_and_texts_with_no_clay_error :: proc(t: ^testing.T
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	root := ui_box()
+	root := ui_default_panel()
 	root.direction = .Col
 	cells := make([]Element, 16384 / 2, context.temp_allocator)
 	for &cell, i in cells {
@@ -133,9 +133,9 @@ test_ui_panel_floating_at_right_bottom_sits_in_that_corner_at_two_window_sizes :
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_rect(100, 50)
-	box.floating = ui_floating(.RightBottom)
-	elements := []Element{ui_panel_of(box)}
+	config := ui_rect(100, 50)
+	config.floating = ui_floating(.RightBottom)
+	elements := []Element{ui_panel_of(config)}
 	scene := scene_ui(elements)
 
 	frame_fixture_draw(&f, scene, scene, 0)
@@ -163,10 +163,10 @@ test_ui_scales_sizes_offsets_and_radius_by_the_dpi :: proc(t: ^testing.T) {
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_rect(100, 50)
-	box.radius = 8
-	box.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightBottom, offset = {x = -10, y = -20}}}}
-	elements := []Element{ui_panel_of(box)}
+	config := ui_rect(100, 50)
+	config.radius = 8
+	config.floating = {tag = .Float, payload = {float = {to = .Window, attach = .RightBottom, on = .RightBottom, offset = {x = -10, y = -20}}}}
+	elements := []Element{ui_panel_of(config)}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
 	if !testing.expect_value(t, len(f.rec.ui_quads), 1) {
@@ -185,9 +185,9 @@ test_ui_text_draws_one_glyph_quad_per_visible_character_from_the_baseline :: pro
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_box()
-	box.pad = {left = 10, top = 20}
-	elements := []Element{ui_panel_of(box, ui_text("A B", 32))}
+	config := ui_default_panel()
+	config.pad = {left = 10, top = 20}
+	elements := []Element{ui_panel_of(config, ui_text("A B", 32))}
 	scene := scene_ui(elements)
 	frame_fixture_draw(&f, scene, scene, 0)
 
@@ -278,11 +278,11 @@ test_ui_tree_frees_every_allocation_with_the_generated_release_procs :: proc(t: 
 	long := "a string longer than twenty-three bytes"
 	inner := Element {
 		tag = .Panel,
-		payload = {panel = {_0 = ui_box(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), ui_text("ok", 16)})}},
+		payload = {panel = {_0 = ui_default_panel(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), ui_text("ok", 16)})}},
 	}
 	outer := Element {
 		tag = .Panel,
-		payload = {panel = {_0 = ui_box(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), inner})}},
+		payload = {panel = {_0 = ui_default_panel(), _1 = roc_list_from_slice([]Element{ui_text(long, 16), inner})}},
 	}
 	roots := roc_list_from_slice([]Element{outer, ui_text(long, 16)})
 	testing.expect_value(t, roc_heap_counters().allocs, 6)
@@ -357,9 +357,9 @@ test_ui_frame_allocates_nothing :: proc(t: ^testing.T) {
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 
-	box := ui_scroll(ui_tagged(1, 100, 100), {0, -4})
-	box.floating = ui_floating(.CenterCenter)
-	elements := []Element{ui_panel_of(box, ui_text("Keys 3 of 5", 24))}
+	config := ui_scroll(ui_tagged(1, 100, 100), {0, -4})
+	config.floating = ui_floating(.CenterCenter)
+	elements := []Element{ui_panel_of(config, ui_text("Keys 3 of 5", 24))}
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
@@ -394,16 +394,16 @@ test_ui_glyph_quad_vertices_carry_the_atlas_uv :: proc(t: ^testing.T) {
 	testing.expect_value(t, v[0].shape, [4]f32{0, 0, 0, 1})
 }
 
-ui_tagged :: proc(id: u64, width, height: f32) -> Box_Config {
-	box := ui_rect(width, height)
-	box.id = id
-	return box
+ui_tagged :: proc(id: u64, width, height: f32) -> Panel_Config {
+	config := ui_rect(width, height)
+	config.id = id
+	return config
 }
 
-ui_float_box :: proc(id: u64, to: Float_To, attach, on: Attach_Point, offset: [2]f32, width, height: f32) -> Box_Config {
-	box := ui_tagged(id, width, height)
-	box.floating = {tag = .Float, payload = {float = {to = to, attach = attach, on = on, offset = {x = offset.x, y = offset.y}}}}
-	return box
+ui_float_panel :: proc(id: u64, to: Float_To, attach, on: Attach_Point, offset: [2]f32, width, height: f32) -> Panel_Config {
+	config := ui_tagged(id, width, height)
+	config.floating = {tag = .Float, payload = {float = {to = to, attach = attach, on = on, offset = {x = offset.x, y = offset.y}}}}
+	return config
 }
 
 // Lays out the roots, then hit tests the pointer, in logical pixels.
@@ -449,8 +449,8 @@ test_ui_hit_a_tagged_floating_panel_blocks_the_panels_under_it :: proc(t: ^testi
 	defer frame_fixture_destroy_ui(&f)
 	roots := []Element {
 		ui_panel_of(ui_tagged(1, 200, 200)),
-		ui_panel_of(ui_float_box(3, .Window, .LeftTop, .LeftTop, {50, 50}, 100, 100), ui_panel_of(ui_tagged(4, 20, 20))),
-		ui_panel_of(ui_float_box(5, .Window, .LeftTop, .LeftTop, {60, 60}, 100, 100)),
+		ui_panel_of(ui_float_panel(3, .Window, .LeftTop, .LeftTop, {50, 50}, 100, 100), ui_panel_of(ui_tagged(4, 20, 20))),
+		ui_panel_of(ui_float_panel(5, .Window, .LeftTop, .LeftTop, {60, 60}, 100, 100)),
 	}
 
 	expect_over(t, ui_test_over(&f, roots, {65, 65}), {5})
@@ -465,9 +465,9 @@ test_ui_hit_an_open_dropdown_gives_only_the_menu_ids :: proc(t: ^testing.T) {
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	col := ui_box()
+	col := ui_default_panel()
 	col.direction = .Col
-	menu := ui_panel_of(ui_float_box(0, .Parent, .LeftTop, .LeftBottom, {0, 0}, 120, 60), ui_panel_of(ui_tagged(11, 120, 20)))
+	menu := ui_panel_of(ui_float_panel(0, .Parent, .LeftTop, .LeftBottom, {0, 0}, 120, 60), ui_panel_of(ui_tagged(11, 120, 20)))
 	roots := []Element{ui_panel_of(col, ui_panel_of(ui_tagged(1, 120, 40), menu), ui_panel_of(ui_tagged(2, 120, 40)))}
 
 	expect_over(t, ui_test_over(&f, roots, {10, 50}), {11})
@@ -480,7 +480,7 @@ test_ui_hit_an_untagged_floating_label_lets_the_pointer_through :: proc(t: ^test
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	label := ui_panel_of(ui_float_box(0, .Window, .LeftTop, .LeftTop, {20, 20}, 100, 30), ui_text("Hi", 16))
+	label := ui_panel_of(ui_float_panel(0, .Window, .LeftTop, .LeftTop, {20, 20}, 100, 30), ui_text("Hi", 16))
 	roots := []Element{ui_panel_of(ui_tagged(1, 200, 200)), label}
 
 	expect_over(t, ui_test_over(&f, roots, {30, 30}), {1})
@@ -489,8 +489,8 @@ test_ui_hit_an_untagged_floating_label_lets_the_pointer_through :: proc(t: ^test
 @(test)
 test_ui_has_hit_id_finds_a_tagged_panel_at_any_depth :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	deep := ui_panel_of(ui_box(), ui_panel_of(ui_box(), ui_panel_of(ui_tagged(9, 10, 10))))
-	text := ui_panel_of(ui_box(), ui_text("Hi", 16))
+	deep := ui_panel_of(ui_default_panel(), ui_panel_of(ui_default_panel(), ui_panel_of(ui_tagged(9, 10, 10))))
+	text := ui_panel_of(ui_default_panel(), ui_text("Hi", 16))
 
 	testing.expect(t, ui_has_hit_id(&deep))
 	testing.expect(t, !ui_has_hit_id(&text))
@@ -529,7 +529,7 @@ test_ui_repeated_id_hit_tests_the_first_panel_and_logs_once :: proc(t: ^testing.
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	roots := []Element{ui_panel_of(ui_box(), ui_panel_of(ui_tagged(7, 100, 100)), ui_panel_of(ui_tagged(7, 100, 100)))}
+	roots := []Element{ui_panel_of(ui_default_panel(), ui_panel_of(ui_tagged(7, 100, 100)), ui_panel_of(ui_tagged(7, 100, 100)))}
 
 	expect_over(t, ui_test_over(&f, roots, {50, 50}), {7})
 	expect_over(t, ui_test_over(&f, roots, {150, 50}), {})
@@ -537,27 +537,27 @@ test_ui_repeated_id_hit_tests_the_first_panel_and_logs_once :: proc(t: ^testing.
 	testing.expect(t, .DuplicateId not_in f.ui.errors_logged)
 }
 
-ui_clip :: proc(box: Box_Config) -> Box_Config {
-	box := box
-	box.overflow = {tag = .Clip}
-	return box
+ui_clip :: proc(config: Panel_Config) -> Panel_Config {
+	config := config
+	config.overflow = {tag = .Clip}
+	return config
 }
 
-ui_scroll :: proc(box: Box_Config, offset: [2]f32) -> Box_Config {
-	box := box
-	box.overflow = {tag = .Scroll, payload = {scroll = {x = offset.x, y = offset.y}}}
-	return box
+ui_scroll :: proc(config: Panel_Config, offset: [2]f32) -> Panel_Config {
+	config := config
+	config.overflow = {tag = .Scroll, payload = {scroll = {x = offset.x, y = offset.y}}}
+	return config
 }
 
 // A Col of rows Fixed width by 20, in a Scroll Panel Fixed width by height.
 ui_scroll_rows :: proc(id: u64, width, height: f32, rows: int) -> Element {
-	box := ui_scroll(ui_tagged(id, width, height), {0, 0})
-	box.direction = .Col
+	config := ui_scroll(ui_tagged(id, width, height), {0, 0})
+	config.direction = .Col
 	children := make([]Element, rows, context.temp_allocator)
 	for &row in children {
 		row = ui_panel_of(ui_rect(width, 20))
 	}
-	return ui_panel_of(box, ..children)
+	return ui_panel_of(config, ..children)
 }
 
 @(test)
@@ -638,7 +638,7 @@ test_ui_scroll_sizes_list_each_tagged_scroll_panel_in_logical_pixels :: proc(t: 
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
 	untagged := ui_panel_of(ui_scroll(ui_rect(50, 50), {0, 0}), ui_panel_of(ui_rect(50, 80)))
-	roots := []Element{ui_panel_of(ui_box(), ui_scroll_rows(9, 200, 100, 10), ui_panel_of(ui_clip(ui_tagged(5, 50, 50))), untagged)}
+	roots := []Element{ui_panel_of(ui_default_panel(), ui_scroll_rows(9, 200, 100, 10), ui_panel_of(ui_clip(ui_tagged(5, 50, 50))), untagged)}
 
 	ui_frame(f.ui, roots, f.window)
 
@@ -693,9 +693,9 @@ test_ui_parent_float_sits_on_the_on_point_of_its_parent :: proc(t: ^testing.T) {
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	root := ui_box()
+	root := ui_default_panel()
 	root.pad = {left = 100, top = 50}
-	menu := ui_panel_of(ui_float_box(8, .Parent, .LeftTop, .LeftBottom, {0, 4}, 120, 30))
+	menu := ui_panel_of(ui_float_panel(8, .Parent, .LeftTop, .LeftBottom, {0, 4}, 120, 30))
 	roots := []Element{ui_panel_of(root, ui_panel_of(ui_tagged(7, 120, 40), menu))}
 
 	quads := ui_frame(f.ui, roots, f.window)
@@ -713,7 +713,7 @@ test_ui_window_float_with_another_on_point :: proc(t: ^testing.T) {
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	roots := []Element{ui_panel_of(ui_float_box(0, .Window, .CenterCenter, .LeftTop, {0, 0}, 100, 100))}
+	roots := []Element{ui_panel_of(ui_float_panel(0, .Window, .CenterCenter, .LeftTop, {0, 0}, 100, 100))}
 
 	quads := ui_frame(f.ui, roots, f.window)
 
@@ -729,7 +729,7 @@ test_ui_root_float_to_parent_floats_on_the_window :: proc(t: ^testing.T) {
 	defer frame_fixture_destroy(&f)
 	frame_fixture_init_ui(&f)
 	defer frame_fixture_destroy_ui(&f)
-	roots := []Element{ui_panel_of(ui_float_box(0, .Parent, .RightBottom, .RightBottom, {0, 0}, 100, 100))}
+	roots := []Element{ui_panel_of(ui_float_panel(0, .Parent, .RightBottom, .RightBottom, {0, 0}, 100, 100))}
 
 	quads := ui_frame(f.ui, roots, f.window)
 

@@ -1,6 +1,6 @@
 import Font
 
-# These types copy pf.Vocabulary. Keep them identical, or a BoxConfig or a
+# These types copy pf.Vocabulary. Keep them identical, or a PanelConfig or a
 # Text from here stops unifying with the one in an Element.
 ## Defaults and small helpers for the UI tree in `Scene.ui`. A game writes the
 ## Element tags itself, `Panel(config, children)` and `Text(text)`, and takes the
@@ -29,9 +29,9 @@ Ui := [].{
 	## A point of a Panel, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
-	## The layout and look of a Panel. Start from `default_box`. See
-	## `Vocabulary.BoxConfig`.
-	BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })] }
+	## The layout and look of a Panel. Start from `default_panel`. See
+	## `Vocabulary.PanelConfig`.
+	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })] }
 
 	## One string at a size and a colour. Start from `default_text` or `label`.
 	## See `Vocabulary.Text`.
@@ -41,7 +41,7 @@ Ui := [].{
 	## Vocabulary's `Element`, which only the platform and the game can name.
 	## The widget modules return a Node. Turn it into an Element in your game
 	## with `build`, once, where the Node goes into `Scene.ui`.
-	Node := [Panel(BoxConfig, List(Node)), Text(Text)].{
+	Node := [Panel(PanelConfig, List(Node)), Text(Text)].{
 
 		## Two Nodes are equal when their tags, configs, Texts and children are
 		## equal. A nominal type gets no `==` of its own.
@@ -56,7 +56,7 @@ Ui := [].{
 		## Rebuilds the tree with your own constructors, children first. Give
 		## it the Element tags to get an Element:
 		## `node.build({ panel: |config, children| Panel(config, children), text: |text| Text(text) })`.
-		build : Node, { panel : BoxConfig, List(el) -> el, text : Text -> el } -> el
+		build : Node, { panel : PanelConfig, List(el) -> el, text : Text -> el } -> el
 		build = |node, { panel, text }|
 			match node {
 				Panel(config, children) => panel(config, children.map(|child| child.build({ panel, text })))
@@ -67,8 +67,8 @@ Ui := [].{
 	## Clay's defaults: not tagged, fits its children, no padding, no gap, a
 	## `Row`, children at the start, no background, square corners, children
 	## drawn past the edges and not floating.
-	default_box : BoxConfig
-	default_box = {
+	default_panel : PanelConfig
+	default_panel = {
 		id: 0,
 		width: Fit({ min: 0.0, max: 0.0 }),
 		height: Fit({ min: 0.0, max: 0.0 }),
@@ -91,14 +91,14 @@ Ui := [].{
 	label : Str -> Text
 	label = |str| { ..default_text, str }
 
-	## A `default_box` that floats to the window. It puts its own `attach` point
+	## A `default_panel` that floats to the window. It puts its own `attach` point
 	## on the window's, then moves by `offset`. It ignores its parent's layout.
-	float_at : AttachPoint, Offset -> BoxConfig
-	float_at = |attach, offset| { ..default_box, floating: Float({ to: Window, attach, on: attach, offset }) }
+	float_at : AttachPoint, Offset -> PanelConfig
+	float_at = |attach, offset| { ..default_panel, floating: Float({ to: Window, attach, on: attach, offset }) }
 
 	## A `float_at` Panel for a HUD: 8 pixels of padding, a black background at
 	## half alpha and corners with a radius of 8.
-	panel : AttachPoint, Offset -> BoxConfig
+	panel : AttachPoint, Offset -> PanelConfig
 	panel = |attach, offset| { ..float_at(attach, offset), pad: pad_all(8.0), background: { r: 0.0, g: 0.0, b: 0.0, a: 0.5 }, radius: 8.0 }
 
 	## The same padding on all four sides.
@@ -123,7 +123,7 @@ Ui := [].{
 	## whole-pixel `size` and leave a few pixels of margin in `width`, because
 	## the host rounds `size` times the DPI scale.
 	##
-	## For example, a HUD line in a 420 pixel box:
+	## For example, a HUD line in a 420 pixel Panel:
 	## `Text({ ..Ui.label(Ui.fit(line, { size: 18.0, width: 416.0 })), size: 18.0, wrap: None })`
 	fit : Str, { size : F32, width : F32 } -> Str
 	fit = |text, { size, width }| {
@@ -314,9 +314,9 @@ expect Ui.label("Keys") == { str: "Keys", size: 24.0, color: { r: 1.0, g: 1.0, b
 
 expect Ui.label("") == Ui.default_text
 
-expect Ui.default_box.id == 0 and Ui.default_box.overflow == Visible
+expect Ui.default_panel.id == 0 and Ui.default_panel.overflow == Visible
 
-expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_box, floating: Float({ to: Window, attach: RightBottom, on: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
+expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_panel, floating: Float({ to: Window, attach: RightBottom, on: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
 
 expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
 	id: 0,
@@ -384,7 +384,7 @@ expect {
 ## build rebuilds every Panel and Text of the tree, in order.
 expect {
 	tree : Ui.Node
-	tree = Panel(Ui.default_box, [Text(Ui.label("a")), Panel({ ..Ui.default_box, id: 3 }, [Text(Ui.label("b"))])])
+	tree = Panel(Ui.default_panel, [Text(Ui.label("a")), Panel({ ..Ui.default_panel, id: 3 }, [Text(Ui.label("b"))])])
 	tree.build({ panel: |config, children| "panel ${config.id.to_str()} [${Str.join_with(children, ", ")}]", text: |text| text.str }) == "panel 0 [a, panel 3 [b]]"
 }
 

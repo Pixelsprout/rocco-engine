@@ -108,10 +108,10 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 			Dragging(_) => look.down
 			Idle => look.idle
 		}
-		thumb = Panel({ ..Ui.default_box, id: scroll.thumb, width: Fixed(8.0), height: Fixed(sizes.height), radius: 4.0, background: thumb_color }, [])
-		track = Panel({ ..Ui.default_box, width: Fixed(8.0), height: grow, direction: Col, pad: { left: 0.0, right: 0.0, top: sizes.top, bottom: 0.0 }, background: look.panel }, [thumb])
-		box = Panel({ ..Ui.default_box, id: scroll.id, width: grow, height: grow, direction: Col, background: look.panel, overflow: Scroll({ x: 0.0, y: -scroll.offset }) }, rows)
-		Panel({ ..Ui.default_box, width, height }, [box, track])
+		thumb = Panel({ ..Ui.default_panel, id: scroll.thumb, width: Fixed(8.0), height: Fixed(sizes.height), radius: 4.0, background: thumb_color }, [])
+		track = Panel({ ..Ui.default_panel, width: Fixed(8.0), height: grow, direction: Col, pad: { left: 0.0, right: 0.0, top: sizes.top, bottom: 0.0 }, background: look.panel }, [thumb])
+		rows_panel = Panel({ ..Ui.default_panel, id: scroll.id, width: grow, height: grow, direction: Col, background: look.panel, overflow: Scroll({ x: 0.0, y: -scroll.offset }) }, rows)
+		Panel({ ..Ui.default_panel, width, height }, [rows_panel, track])
 	}
 
 	## Two Scrolls are equal when their states are equal.
@@ -224,7 +224,7 @@ expect settle(bottom, Seam.input, Seam.results).offset() == 108.0
 expect {
 	half = settle(bottom, wheel(3.0), sized(216.0, [5]))
 	match half.view({ rows: [], width: Fixed(420.0), height: Fixed(108.0), look }) {
-		Panel(_, [Panel(box, []), Panel(track, [Panel(thumb, [])])]) => (box.id, box.overflow, track.pad.top, thumb.id) == (5, Scroll({ x: 0.0, y: -54.0 }), 27.0, 6)
+		Panel(_, [Panel(rows_panel, []), Panel(track, [Panel(thumb, [])])]) => (rows_panel.id, rows_panel.overflow, track.pad.top, thumb.id) == (5, Scroll({ x: 0.0, y: -54.0 }), 27.0, 6)
 		_ => Bool.False
 	}
 }

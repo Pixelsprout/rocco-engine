@@ -331,28 +331,28 @@ ui_results :: proc(ui: ^Ui) -> Ui_Results {
 	return {over = roc_list_from_slice(ui.over[:]), scroll = roc_list_from_slice(ui.scrolls[:])}
 }
 
-ui_declaration :: proc(box: Box_Config, dpi: f32) -> clay.ElementDeclaration {
+ui_declaration :: proc(config: Panel_Config, dpi: f32) -> clay.ElementDeclaration {
 	d := clay.ElementDeclaration {
 		layout = {
-			sizing = {width = ui_sizing(box.width, dpi), height = ui_sizing(box.height, dpi)},
-			padding = {left = ui_px(box.pad.left, dpi), right = ui_px(box.pad.right, dpi), top = ui_px(box.pad.top, dpi), bottom = ui_px(box.pad.bottom, dpi)},
-			childGap = ui_px(box.gap, dpi),
-			childAlignment = {x = UI_ALIGN_X[box.child_align.x], y = UI_ALIGN_Y[box.child_align.y]},
-			layoutDirection = .LeftToRight if box.direction == .Row else .TopToBottom,
+			sizing = {width = ui_sizing(config.width, dpi), height = ui_sizing(config.height, dpi)},
+			padding = {left = ui_px(config.pad.left, dpi), right = ui_px(config.pad.right, dpi), top = ui_px(config.pad.top, dpi), bottom = ui_px(config.pad.bottom, dpi)},
+			childGap = ui_px(config.gap, dpi),
+			childAlignment = {x = UI_ALIGN_X[config.child_align.x], y = UI_ALIGN_Y[config.child_align.y]},
+			layoutDirection = .LeftToRight if config.direction == .Row else .TopToBottom,
 		},
-		backgroundColor = ui_color(box.background),
-		cornerRadius = clay.CornerRadiusAll(box.radius * dpi),
+		backgroundColor = ui_color(config.background),
+		cornerRadius = clay.CornerRadiusAll(config.radius * dpi),
 	}
-	switch box.overflow.tag {
+	switch config.overflow.tag {
 	case .Visible:
 	case .Clip:
 		d.clip = {horizontal = true, vertical = true}
 	case .Scroll:
-		offset := box.overflow.payload.scroll
+		offset := config.overflow.payload.scroll
 		d.clip = {horizontal = true, vertical = true, childOffset = {offset.x * dpi, offset.y * dpi}}
 	}
-	if box.floating.tag == .Float {
-		f := box.floating.payload.float
+	if config.floating.tag == .Float {
+		f := config.floating.payload.float
 		// clipTo stays None, so a menu that floats out of a Scroll Panel is not cut.
 		d.floating = {
 			offset = {f.offset.x * dpi, f.offset.y * dpi},
