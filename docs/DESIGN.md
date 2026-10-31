@@ -21,7 +21,7 @@ evidence are marked as decisions.
 | the asset tables, their ids and each asset's lifetime | which assets load together, as Packs; which mesh a game object uses |
 | the audio device, the mixer and their thread | what should be heard, as a Play Command or a Speaker Node in the Scene |
 | answering Queries about the Colliders | which shapes touch, as Colliders; which facts it asks for, as Queries; what a Contact means |
-| the hit test and the scroll sizes, after the layout | which Boxes it tags, and what a hover, a click or a scroll means |
+| the hit test and the scroll sizes, after the layout | which Panels it tags, and what a hover, a click or a scroll means |
 | messages from a Driver or an extension, as a port queue | which ports it Listens on, as Queries; what it Tells, as Commands |
 | the Roc heap, the six hooks, hot reload | nothing about memory |
 | the vocabulary types: `Config`, `Launch`, `Input`, `QueryResults`, `Scene`, `Command` | the `Model` type, which the host never reads |
@@ -181,7 +181,7 @@ Align    : [Start, Center, End]
 AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 BoxConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
-Element  := [Box(BoxConfig, List(Element)), Text(Text)]
+Element  := [Panel(BoxConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
@@ -359,12 +359,12 @@ its Group jumps once per fixed step.
 
 The game decides the UI in its Scene. `Scene.ui` is a list of root
 Elements, and each Element is a tree:
-`Element := [Box(BoxConfig, List(Element)), Text(Text)]`. A `Box` holds its
+`Element := [Panel(BoxConfig, List(Element)), Text(Text)]`. A `Panel` holds its
 children in its own list. A `Text` is a leaf. `Element` is nominal, because
 only a nominal recursive union crosses the host boundary. The tree crosses
 the seam as it is, with no flattening. An Element has no id. Its place in
 the tree is its identity. Games write the tags directly, for example
-`Box(config, [Text(text)])`. The UI package in `packages/ui/` gives the
+`Panel(config, [Text(text)])`. The UI package in `packages/ui/` gives the
 defaults, `default_box` and `default_text`, and small helpers, such as
 `float_at`, `panel` and `label`. Its widget modules, `Button`, `Focus`,
 `Dropdown`, `Accordion` and `Scroll`, keep widget state in the Model, read
@@ -376,10 +376,9 @@ which allocates nothing. Decision.
 `docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the tree.
 `docs/adr/0004-ui-layout-runs-in-the-host.md` records the layout options.
 
-A Box carries Clay's layout fields and Clay's defaults in its config. The
-config's type is `BoxConfig`, because the `Box` tag and Roc's builtin `Box`
-take the name. The tag names are short forms of Clay's, such as `Row` for
-`LEFT_TO_RIGHT`:
+A Panel carries Clay's layout fields and Clay's defaults in its config. The
+config's type is `BoxConfig`. The tag names are short forms of Clay's,
+such as `Row` for `LEFT_TO_RIGHT`:
 
 | Field | Values | Default |
 |---|---|---|
@@ -396,11 +395,11 @@ take the name. The tag names are short forms of Clay's, such as `Row` for
 
 An empty config means the same in Roc and in Clay, except that the glue
 orders tags by name, so an Odin literal must set `overflow` and `to`. A
-floating Box puts its `attach` point, one of the nine `AttachPoint`s, on
+floating Panel puts its `attach` point, one of the nine `AttachPoint`s, on
 the `on` point of the window (`to: Window`, Clay's root) or of its parent
-Box (`to: Parent`), then moves by `offset`. So a `RightBottom` Box on
+Panel (`to: Parent`), then moves by `offset`. So a `RightBottom` Panel on
 `RightBottom` of the window puts its own bottom-right corner on the
-window's. It ignores its parent's layout. A root Box with `to: Parent`
+window's. It ignores its parent's layout. A root Panel with `to: Parent`
 floats on the window.
 
 `Clip` and `Scroll` set Clay's clip config. `Scroll` also gives the offset
@@ -417,10 +416,10 @@ baked font, so the Text names no font.
 alpha is not premultiplied. A Tint stays `Rgb`. Decision.
 
 Sizes are logical pixels. Two layout results flow back to the game, in
-`QueryResults.ui`: the tagged Boxes under the Pointer, innermost first, and
-the view and content sizes of the tagged Scroll Boxes. The host hit tests
+`QueryResults.ui`: the tagged Panels under the Pointer, innermost first, and
+the view and content sizes of the tagged Scroll Panels. The host hit tests
 the pointer of the last step after the Frame's layout, so `over` lags by one
-step. A floating Box blocks the pointer when it, or any Box inside it, has
+step. A floating Panel blocks the pointer when it, or any Panel inside it, has
 a Hit id. `docs/adr/0020-the-pointer-and-the-ui-hit-test.md` records the
 decision. The host multiplies each size by `sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on
 a Retina Mac with `high_dpi` on. It is 1 with `high_dpi` off. Headless lays
@@ -441,7 +440,7 @@ bench game. The host allocates nothing per frame for the UI.
 
 Once per frame, the host lays out the current Scene's UI against
 `sapp.width()` and `sapp.height()`. One recursive procedure walks the tree
-in pre-order. A `Box` opens and configures a Clay element, walks its
+in pre-order. A `Panel` opens and configures a Clay element, walks its
 children, then closes the element. A `Text` adds text. A tree cannot be
 unbalanced, so the host has no open or close to repair. The UI does not
 interpolate. It changes once per fixed step. Text strings
@@ -914,7 +913,7 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - `List(Record)` is array-of-structs. Bevy stores columns. The repack at the
   seam is where to fix it if it ever matters.
 - One allocation per step for each non-empty `Scene` list: the root Nodes,
-  each Group's children, the root Elements, each Box's children and the
+  each Group's children, the root Elements, each Panel's children and the
   queries. It is the extract; it would exist anyway. A long Text
   string built at run time adds one allocation. A short one fits inside the
   `Str` and adds none.

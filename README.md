@@ -272,7 +272,7 @@ with a pad's stick halfway up and checks the half speed. Then it holds D in
 chapter 10, checks that Pip's Pose faded to Walk, saves a screenshot of
 Pip mid-walk and checks that it differs from a screenshot of Pip standing.
 Last it drives pong and checks that the `scene` reply holds a
-Box nested in a Box.
+Panel nested in a Panel.
 
 ### Docs
 
@@ -476,7 +476,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
 | `packages/camera/` | The camera package: `look_at` and `follow`. Games import it as `import cam.Camera as Cam`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`, and Clip ids and durations with `clip` and `clip_duration`. Games import it as `import mesh.Mesh as Mesh`. |
-| `packages/ui/` | The UI package for the `Scene.ui` tree. Games write `Box(config, [...])` and `Text(...)` themselves and take the configs from here: `default_box` holds Clay's defaults, `default_text` the Text defaults, and `float_at`, `panel`, `label` and `pad_all` are small helpers. `measure`, `fit` and `wrap` measure, cut and wrap text with the host's font numbers. Games import it as `import ui.Ui`. The widget modules `Button`, `Focus`, `Dropdown`, `Accordion` and `Scroll`, with `Widget` for their shared types, keep their state in the game's Model and return a `Ui.Node`. The game turns it into an Element with `Node.build`. |
+| `packages/ui/` | The UI package for the `Scene.ui` tree. Games write `Panel(config, [...])` and `Text(...)` themselves and take the configs from here: `default_box` holds Clay's defaults, `default_text` the Text defaults, and `float_at`, `panel`, `label` and `pad_all` are small helpers. `measure`, `fit` and `wrap` measure, cut and wrap text with the host's font numbers. Games import it as `import ui.Ui`. The widget modules `Button`, `Focus`, `Dropdown`, `Accordion` and `Scroll`, with `Widget` for their shared types, keep their state in the game's Model and return a `Ui.Node`. The game turns it into an Element with `Node.build`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
 | `bench/model-size/positions.golden` | The entity positions of `bench/model-size` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/model-size/model.golden` | The full Model of `bench/model-size` after 600 steps at Seed 7 and N=100. The idiomatic and the tuned game both check it. |
@@ -487,7 +487,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `bench/colliders/colliders.golden` | The Colliders of `bench/colliders` after 600 steps at Seed 7 and N=100. The Roc game and its twin both check them. |
 | `bench/colliders-twin/` | The Odin twin of `bench/colliders`: the same Colliders, motion and Queries through the same run loop. |
 | `bench/draws/` | The Draws bench game: `step` moves N primitive cubes, N from the first Arg, and `view` returns one Draw per cube under one Sun with shadows on. The cubes stay in a fixed square at every N. The Seed places the cubes. |
-| `bench/ui/` | The UI bench game: N Box and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
+| `bench/ui/` | The UI bench game: N Panel and Text elements, N from the first Arg, in one column of N / 2 cells. One lit cell moves each step. It has no Draws. Run it with `--windowed`, so the UI curve has the render Spans too. |
 | `bench/analyse.py` | Turns the runs of one bench game at one N into a summary JSON in `bench/out/results/`, or in the directory you name. |
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. `--check` fails unless the machine is ready for a reference run. |
@@ -519,7 +519,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
 | `scripts/screenshot.sh` | Runs a game with the Bridge and saves a frame to a PNG. |
 | `scripts/bridge.py` | The Bridge Driver: a Python library and a CLI with one command per op, `tell` included. `step --pointer X,Y` sets the pointer. `--devices` says hello with devices on first, so the real devices reach the game during the op. |
-| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then walks Pip in chapter 9 with a Bridge pad's stick, then walks Pip in chapter 10 and checks its Pose and that its screenshot differs from the still one, then checks pong's nested Boxes in the `scene` reply. It drives bridge-echo first: two tells come back as Tell Commands in the step reply, and a tell on a port nobody listens to is dropped. It then points at bridge-echo's tagged Boxes and reads ui.over, ui.scroll and a click Tell. With devices on, it injects a real click on bridge-echo's button and reads the Tell. Last it drives widgets with pointer requests: the thumb drag, the wheel, stick to bottom, Tab focus, the accordion, a dropdown item over another button and a press outside the menu. |
+| `scripts/bridge_check.py` | The Bridge check: drives tutorial chapter 3, checks Pip's movement and the screenshot size, then drives chapter 8 to a pickup and checks the `Play` in the `step` reply, then walks Pip in chapter 9 with a Bridge pad's stick, then walks Pip in chapter 10 and checks its Pose and that its screenshot differs from the still one, then checks pong's nested Panels in the `scene` reply. It drives bridge-echo first: two tells come back as Tell Commands in the step reply, and a tell on a port nobody listens to is dropped. It then points at bridge-echo's tagged Panels and reads ui.over, ui.scroll and a click Tell. With devices on, it injects a real click on bridge-echo's button and reads the Tell. Last it drives widgets with pointer requests: the thumb drag, the wheel, stick to bottom, Tab focus, the accordion, a dropdown item over another button and a press outside the menu. |
 | `scripts/linux/` | The Linux Docker image, the script that runs in it, and `check.sh`, the wrapper that runs the check from any machine with Docker. |
 | `sokol-odin/` | Submodule: floooh/sokol-odin. The engine imports its `sokol/` folder. |
 | `glue/` | Submodule: the roc-odin-glue spec. |
