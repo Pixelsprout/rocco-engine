@@ -80,6 +80,6 @@ children.
   literal of a Box config must set `overflow`, and a Float must set `to`,
   because the zero values of their tags are `Clip` and `Parent`.
 - The Driver protocol rises to 4.
-- The widgets in the platform and real devices through the Bridge build on
+- The widgets in `packages/ui` and real devices through the Bridge build on
   this: the first reads `over` and `scroll`, the second lets a person's
   clicks reach a game that a Driver steps.

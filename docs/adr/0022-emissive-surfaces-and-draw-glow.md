@@ -1,6 +1,7 @@
 # 0022: Emissive surfaces and Draw glow
 
-Status: accepted, 2026-10-31.
+Status: accepted, 2026-10-31. ADR 0023 later replaced the 8-light cap per
+Scene with 8 per Draw.
 
 ## Context
 

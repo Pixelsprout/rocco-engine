@@ -8,7 +8,7 @@ the rejection of the merge stands for a test run, and a Driver may opt in.
 Agent Town phase 4 needs a person's keys and clicks while the relay drives
 the stage. ADR 0009 rejected a merge of the real devices with the Driver's
 Input, because a run would then depend on where the mouse is. ADR 0020 gave
-the game a pointer and a hit test, so a click on a tagged Box can now reach
+the game a pointer and a hit test, so a click on a tagged Panel can now reach
 the game, but only from the Driver.
 
 ## Decision

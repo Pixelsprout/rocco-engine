@@ -1,7 +1,8 @@
 # 0023: A light list per Draw
 
 Status: accepted, 2026-10-31. It replaces the cap of 8 Directional and
-Point lights per Scene.
+Point lights per Scene. Cascaded sun shadows later lowered `DRAW_LIMIT` to
+1,195,444.
 
 ## Context
 

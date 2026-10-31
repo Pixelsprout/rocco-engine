@@ -1259,7 +1259,13 @@ Check: Odin tests cover the op, the queue, the drop rule, the size limit
 and the glue types. `scripts/test_bridge.py` covers the Driver. The Bridge
 check drives bridge-echo first on all three OSes in CI.
 
-## Milestone 30: UI text
+## Milestone 30: UI text (done)
+
+Results, 2026-10-31: PR #25 sets the SDF edge width from the screen-space
+gradient, starts each text line on a whole pixel and adds `Scene.clear`.
+The Bridge protocol is 5. PR #23 adds `Ui.measure`, `Ui.fit` and
+`Ui.wrap`, which read the font's advances and kern pairs from a generated
+Roc module. A corpus test checks them against the host.
 
 Done when HUD text is sharp at dpi 1, a Scene sets its clear colour, and a
 game measures, cuts and wraps text in pure Roc with the same numbers as the
@@ -1267,7 +1273,7 @@ host. Agent Town's HUD then cuts by pixels, not by characters.
 
 1. The SDF edge width follows the screen-space gradient, and each text line
    starts on a whole pixel.
-2. `Scene.clear` sets the colour behind the 3D view. The Bridge protocol is 3.
+2. `Scene.clear` sets the colour behind the 3D view. The Bridge protocol is 5.
 3. `scripts/build.roc` writes the font's advances and kern pairs into a Roc
    module. `Ui.measure`, `Ui.fit` and `Ui.wrap` use it, with no Vocabulary
    change.
@@ -1297,7 +1303,14 @@ of the Agent Town design. Closes dex tasks 5rxq8tn7 and ihjsa50n.
 Check: the Bridge check drives a click on a tagged Box in bridge-echo and
 reads the `Tell` from the `step` reply, on all three OSes.
 
-## Milestone 32: UI widgets
+## Milestone 32: UI widgets (done)
+
+Results, 2026-10-31: PR #26 puts the buttons, dropdowns, accordions, focus
+and scrolling views in `packages/ui`. They return a `Ui.Node`, which the
+game turns into an Element with `Node.build`. The Bridge check drives
+`examples/widgets` with pointer requests. PR #28 renames the gamepad
+module `pf.Button` to `pf.GamepadButton`. PR #29 renames the UI `Box` tag
+to `Panel`, and the Bridge protocol is 8.
 
 Done when `packages/ui` gives a game buttons, dropdowns, accordions, focus
 and scrolling views as pure Roc helpers, with every state in the game's
@@ -1308,7 +1321,13 @@ so the platform does not change.
 Check: an example game with every widget passes a Bridge check driven by
 pointer requests.
 
-## Milestone 33: Lighting
+## Milestone 33: Lighting (done)
+
+Results, 2026-10-31: PR #22 reads emissive from glTF and adds `Draw.glow`
+(ADR 0022). The Bridge protocol is 6. PR #30 gives each Draw a list of at
+most 8 lights (ADR 0023), and `bench/lights` records the cost of 40 Point
+lights. PR #31 adds `Launch.shadow_cascades`: up to 4 sun cascades, with 1
+as the default.
 
 Done when a surface glows without a tint above 1, a Scene holds any number
 of Lights, and sun shadows hold across a large world. Closes dex tasks

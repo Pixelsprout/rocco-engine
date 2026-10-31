@@ -193,8 +193,8 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the shadow cascade count; the table capacities | anything that changes after the window opens |
 | `Manifest` | each name one `Load` asked for, with its id or 0, and a Sound's length in seconds | a name the `Load` did not ask for |
-| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
-| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order | what the Contact means; a time of impact; a Contact that no Query asked for |
+| `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels; the Pointer: position, inside, buttons, wheel | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
+| `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order. `ui` holds the tagged Panels under the Pointer and the Scroll sizes, with no Query | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
 | `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
 
@@ -495,9 +495,8 @@ The UI pipeline has no depth test and no depth write. It blends by alpha
 and uses sample count 4. Every rectangle and glyph goes into one dynamic
 vertex buffer per frame, sized at init for 16384 quads. Rectangles and
 glyphs share one program and the atlas is the only texture, so the UI is
-one draw call. Clay emits scissor commands only for clip elements, which
-the vocabulary does not have yet. A clip element adds one draw per scissor
-change. A `ui` program in `engine/shaders/basic.glsl` draws rounded
+one draw call. `Clip` and `Scroll` Panels emit scissor commands, and each
+scissor change adds one draw. A `ui` program in `engine/shaders/basic.glsl` draws rounded
 rectangles and SDF glyphs with `smoothstep`. The glyph edge is `0.7071`
 times the length of the screen-space gradient of the distance, so it covers
 about one pixel. `ui_push_text` rounds each line origin to whole physical
@@ -739,7 +738,7 @@ platform ""
         loaded : Model, Str, Vocabulary.Manifest -> Model,
         view : Model -> Vocabulary.Scene,
     }
-    exposes [Collider, Config, Draw, GamepadButton, Input, Key, Launch, Light, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
+    exposes [Collider, Config, Draw, GamepadButton, Input, Key, Launch, Light, MouseButton, Port, Pose, Query, QueryResults, Scene, Sound, Speaker, Vocabulary]
 ```
 
 The clause appears on one entry. It declares the alias `Model` for the rest
