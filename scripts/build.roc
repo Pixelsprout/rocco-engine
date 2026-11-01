@@ -564,7 +564,7 @@ host! = |target, run| {
 }
 
 # roc build exits 2 when it wrote the binary with warnings and no errors.
-# The dbg in packages/mesh is such a warning, and roc has no flag to hide it.
+# The dbg in examples/entity-game is such a warning, and roc has no flag to hide it.
 link_game! : Target, Str, Str => Try({}, _)
 link_game! = |target, dir, name| {
 	if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {

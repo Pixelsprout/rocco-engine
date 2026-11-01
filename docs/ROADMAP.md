@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.6.0 is the latest release. A tag with a hyphen stays a
+  bundles. v0.7.0 is the latest release. A tag with a hyphen stays a
   pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
@@ -1341,7 +1341,15 @@ of Lights, and sun shadows hold across a large world. Closes dex tasks
 Check: a Scene with 40 Point lights draws each one, and the bench records
 the cost.
 
-## Milestone 34: UI images
+## Milestone 34: UI images (done)
+
+Results, 2026-11-01: PR #33 makes an Image a Pack asset, adds `size` to
+each Manifest entry and `Launch.capacity.images` (ADR 0024). PR #34 adds
+`PanelConfig.image`, splits UI draws by Image and scissor, and draws a
+checker for a missing Image. The Bridge protocol is 9. v0.7.0 is published
+with Images in Panels. kula#6 moves Kula to v0.7.0, and kula#7 shows the
+key and fruit icons in its HUD. Agent Town shows status icons in its
+ledger.
 
 Done when a Panel shows a PNG from a Pack, tinted, cut from a sheet and
 clipped by its radius, and Kula and Agent Town show icons in their HUDs.

@@ -30,8 +30,9 @@ The dev backend builds fast. To make a fast binary, see
 When something looks wrong, read the terminal first. The host repairs many
 problems so that the game keeps running, such as a misspelt asset name, and
 it writes one log line for each. A `dbg` in your Roc code also prints to the
-terminal, and [`Mesh.resolve`][Mesh.resolve] prints the name with `dbg`
-when the name is not in the [Manifest].
+terminal. [`Mesh.resolve`][Mesh.resolve] prints nothing itself: a name that
+is not in the [Manifest] gives 0, the fallback mesh, and the host logs
+mesh id 0 once when a Draw uses it.
 
 When the game stops, the host prints `Frame Count: N`, the number of frames
 that it ran.

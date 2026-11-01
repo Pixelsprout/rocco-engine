@@ -29,8 +29,10 @@ so layout inside the platform package is possible.
   Elements, and `Box` is now `Panel`. The host walks the trees into Clay's
   open, configure and close calls in order, once per frame, against the
   window size.
-- The host measures text with its one baked font. The game never measures
-  and never learns the window size.
+- The host measures text with its one baked font. At first the game never
+  measured and never learned the window size. Since ADR 0019, Input carries
+  the window size, and `Ui.measure` measures text with a copy of the
+  host's font table. The host still lays out.
 - At first the UI only displayed, and no layout result flowed back to the
   game. Since ADR 0020, the tagged Panels under the pointer and the sizes
   of the Scroll Panels come back in `QueryResults.ui`.
@@ -52,5 +54,6 @@ so layout inside the platform package is possible.
 
 - Panel fields follow Clay's names and defaults (`Fit`, `Start`), so an
   empty config means the same on both sides.
-- Pointer input for the UI reopens this decision. It needs either hit
-  results in Input or layout in Roc.
+- Pointer input for the UI reopened this decision. ADR 0020 settled it
+  with hit results: Input carries the pointer, and `QueryResults.ui` gives
+  the tagged Panels under it. The host still lays out.

@@ -352,7 +352,7 @@ lines:
 {"ok":true,"steps":1,"scene":{...,"ui":[
   {"Panel":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}},"image":"NoImage"},
           "children":[{"Text":{"str":"Pickups: 0 / 5","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}},
-  {"Panel":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}}},
+  {"Panel":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}},"image":"NoImage"},
           "children":[{"Text":{"str":"Collect every pickup.","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}}],...},...}
 ```
 

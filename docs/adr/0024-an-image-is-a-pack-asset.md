@@ -30,9 +30,12 @@ value.
   it. Every other kind, and a name that did not load, gives 0 by 0.
   `Image.size` reads it, so a game can count a region without the file.
 - `Launch.capacity.images` sizes the Image table, 256 by default, at least
-  2 and at most 65536. Slot 0 is no Image. A full table gives id 0 and one
-  log line, as for meshes. The sokol image and view pools grow by the
+  2 and at most 65536. Slot 0 holds no Image. A full table gives id 0 and
+  one log line, as for meshes. The sokol image and view pools grow by the
   capacity, and the sampler pool by 2.
+- Id 0, or a stale id, draws a magenta and black checker and logs once for
+  each id. A game shows `NoImage` until `loaded` gives the id, as Kula and
+  Agent Town do.
 - After the decode, the loader gives each fully transparent pixel the
   average colour of the nearest pixels that have one. The UI blend stays
   straight alpha, so linear filtering does not darken a visible edge.

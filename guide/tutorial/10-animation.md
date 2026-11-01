@@ -126,8 +126,9 @@ loaded = |model, _pack, manifest| {
 <!-- endregion -->
 
 `Mesh.clip(manifest, "pip", "Idle")` gives the id of the Idle Clip of the
-mesh `pip`. If the mesh or the Clip is not in the Manifest, it gives 0 and
-prints the two names with `dbg`, so a misspelt name shows up in the log.
+mesh `pip`. If the mesh or the Clip is not in the Manifest, it gives 0, and
+Pip stands in its bind pose. It prints nothing, so a misspelt name shows up
+only as a Pip that does not move.
 `Mesh.clip_duration` gives the duration of a Clip id, or 0 for an id it
 does not know.
 
@@ -400,7 +401,10 @@ into a stride that matches its speed. Push the stick halfway, and the stride
 slows down. Let go, and Pip fades back into Idle.
 
 If Pip stands still in its bind pose and never moves its legs, a Clip name
-did not match: look for the `dbg` line from `Mesh.clip` in the log.
+did not match, and `Mesh.clip` gave 0. Compare the names with the Clip names
+in the `.glb`. To find which one, add `expect idle != 0` and
+`expect walk != 0` to `loaded`, after the two `Mesh.clip` lines. Run
+`roc main.roc` again: a failed one writes `expect failed` to the log.
 
 You have made a whole game, with a character that walks. The guide pages
 explain each part in more detail. Start with

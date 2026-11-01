@@ -20,20 +20,17 @@ Mesh := [].{
 
 	## The mesh id of a name in the Manifest. Call it once, in `loaded`, and keep
 	## the id in your Model. A name that the engine did not load gives 0, the
-	## Fallback mesh, and prints the name.
+	## Fallback mesh, with no message.
 	resolve : Manifest, Str -> U32
 	resolve = |manifest, name| match List.find_first(manifest, |m| m.name == name) {
 		Ok(m) => m.id
-		Err(NotFound) => {
-			dbg name
-			0
-		}
+		Err(NotFound) => 0
 	}
 
 	## The Clip id of a Clip of a skinned mesh, by the mesh's name and the
 	## Clip's name in the file. Call it once, in `loaded`, and keep the id in
 	## your Model for a Draw's `pose`. A mesh or Clip name that is not in the
-	## Manifest gives 0, which draws the bind pose, and prints the names.
+	## Manifest gives 0, which draws the bind pose, with no message.
 	clip : Manifest, Str, Str -> U32
 	clip = |manifest, mesh_name, clip_name| {
 		clips = match List.find_first(manifest, |m| m.name == mesh_name) {
@@ -42,10 +39,7 @@ Mesh := [].{
 		}
 		match List.find_first(clips, |c| c.name == clip_name) {
 			Ok(c) => c.id
-			Err(NotFound) => {
-				dbg (mesh_name, clip_name)
-				0
-			}
+			Err(NotFound) => 0
 		}
 	}
 
