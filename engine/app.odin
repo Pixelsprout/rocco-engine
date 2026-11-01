@@ -68,7 +68,7 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	}
 
 	if g_state.mode == .Headless {
-		host_open_headless(&g_state, FRAME_RENDER_PORT_NONE) or_return
+		host_open_headless(&g_state, FRAME_RENDER_SUBMITS_NONE) or_return
 		headless_run(&g_state)
 		app_shutdown()
 		return

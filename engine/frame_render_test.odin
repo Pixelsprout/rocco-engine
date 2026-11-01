@@ -358,7 +358,7 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
 	f.rec.passes = make([dynamic]Pass_Begun, context.allocator)
 	f.rec.shadows = make([dynamic]Shadow_Submitted, context.allocator)
-	f.fr.port = recorder_port(&f.rec)
+	f.fr.submits = recorder_submits(&f.rec)
 	f.window = {size = {960, 540}, dpi = 1}
 }
 
@@ -369,7 +369,7 @@ recorder_destroy :: proc(r: ^Recorder) {
 	delete(r.ui_quads)
 }
 
-recorder_port :: proc(r: ^Recorder) -> Frame_Render_Port {
+recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
 	return {
 		begin_pass = record_begin_pass,
 		end_pass = record_end_pass,
@@ -1299,7 +1299,7 @@ test_frame_render_cascades_allocate_nothing :: proc(t: ^testing.T) {
 	fr: Frame_Render
 	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, 2048, 4, mem.tracking_allocator(&track))
 	defer frame_render_destroy(&fr)
-	fr.port = FRAME_RENDER_PORT_NONE
+	fr.submits = FRAME_RENDER_SUBMITS_NONE
 	meshes: Mesh_Table
 	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&meshes)

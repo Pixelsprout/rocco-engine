@@ -20,15 +20,15 @@ MAX_CASCADES :: 4
 SHADOW_GRID :: f32(1)
 SHADOW_NORMAL_OFFSET :: f32(0.05)
 
-// A Headless run never submits, so its port does nothing.
-FRAME_RENDER_PORT_NONE :: Frame_Render_Port {
-	begin_pass    = port_none_begin_pass,
-	end_pass      = port_none_end_pass,
-	submit_shadow = port_none_submit_shadow,
-	submit        = port_none_submit,
-	submit_lights = port_none_submit_lights,
-	submit_sky    = port_none_submit_sky,
-	submit_ui     = port_none_submit_ui,
+// A Headless run never submits, so its submits do nothing.
+FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
+	begin_pass    = submits_none_begin_pass,
+	end_pass      = submits_none_end_pass,
+	submit_shadow = submits_none_submit_shadow,
+	submit        = submits_none_submit,
+	submit_lights = submits_none_submit_lights,
+	submit_sky    = submits_none_submit_sky,
+	submit_ui     = submits_none_submit_ui,
 }
 
 #assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
@@ -56,7 +56,7 @@ Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
 
 // The renderer and the test Recorder are its two adapters. ctx is passed to
 // each proc.
-Frame_Render_Port :: struct {
+Frame_Render_Submits :: struct {
 	begin_pass:    Begin_Pass,
 	end_pass:      End_Pass,
 	submit_shadow: Submit_Shadow,
@@ -83,7 +83,7 @@ Frame_Render :: struct {
 	placed:             [dynamic]Placed,
 	draw_capacity:      int,
 	skins:              []Skin_Params,
-	port:               Frame_Render_Port,
+	submits:            Frame_Render_Submits,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
 	draws_logged:       bool,
@@ -284,7 +284,7 @@ frame_render_draw :: proc(
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, curr.clear, &span)
-	fr.port.submit_lights(fr.port.ctx, lights)
+	fr.submits.submit_lights(fr.submits.ctx, lights)
 	order := Placed_Order {
 		placed = fr.placed[:],
 	}
@@ -306,8 +306,8 @@ frame_render_draw :: proc(
 				light_drop(fr, .Draw_Over_Limit)
 			}
 		}
-		fr.port.submit(
-			fr.port.ctx,
+		fr.submits.submit(
+			fr.submits.ctx,
 			p.mesh,
 			vs_params = {mvp = view.view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
 			fs_params = params,
@@ -315,12 +315,12 @@ frame_render_draw :: proc(
 		)
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
-		fr.port.submit_sky(fr.port.ctx, sky, {view_proj = view.view_proj})
+		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
 	}
 	if len(quads) > 0 {
-		fr.port.submit_ui(fr.port.ctx, quads, window.size)
+		fr.submits.submit_ui(fr.submits.ctx, quads, window.size)
 	}
-	fr.port.end_pass(fr.port.ctx)
+	fr.submits.end_pass(fr.submits.ctx)
 	span_close(spans, .Render_Submit, span)
 }
 
@@ -388,9 +388,9 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 			placed = fr.placed[:],
 		}
 		for p in placed_next(&order) {
-			fr.port.submit_shadow(fr.port.ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
+			fr.submits.submit_shadow(fr.submits.ctx, p.mesh, {light_mvp = light_view_proj * p.model}, p.skin)
 		}
-		fr.port.end_pass(fr.port.ctx)
+		fr.submits.end_pass(fr.submits.ctx)
 		return
 	}
 
@@ -409,10 +409,10 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 		}
 		for p in placed_next(&order) {
 			if cascade_covers(cascade, p.light_box) {
-				fr.port.submit_shadow(fr.port.ctx, p.mesh, {light_mvp = cascade.view_proj * p.model}, p.skin)
+				fr.submits.submit_shadow(fr.submits.ctx, p.mesh, {light_mvp = cascade.view_proj * p.model}, p.skin)
 			}
 		}
-		fr.port.end_pass(fr.port.ctx)
+		fr.submits.end_pass(fr.submits.ctx)
 	}
 	forward := v3_normalize(view.camera.target - view.camera.eye)
 	lights.shadow = {f32(fr.cascades), 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND}
@@ -444,7 +444,7 @@ placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
 @(private = "file")
 frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, clear_colour: Rgb, span: ^Span_Tick) {
 	waited := span_open()
-	fr.port.begin_pass(fr.port.ctx, pass, view, clear_colour)
+	fr.submits.begin_pass(fr.submits.ctx, pass, view, clear_colour)
 	span^ = span_skip(span^, waited)
 }
 
@@ -751,23 +751,23 @@ to_quat :: proc(q: quaternion128) -> Quat {
 }
 
 @(private = "file")
-port_none_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
+submits_none_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
 
 @(private = "file")
-port_none_end_pass :: proc(ctx: rawptr) {}
+submits_none_end_pass :: proc(ctx: rawptr) {}
 
 @(private = "file")
-port_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
+submits_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
-port_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
+submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
-port_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights) {}
+submits_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights) {}
 
 @(private = "file")
-port_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
+submits_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
 
 @(private = "file")
-port_none_submit_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
+submits_none_submit_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
 

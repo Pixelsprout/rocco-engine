@@ -53,7 +53,7 @@ host_open_window :: proc(s: ^State, size: [2]f32) -> mem.Allocator_Error {
 	ui_quads := int(s.launch.capacity.ui_quads)
 	ui_init(&s.ui, size, ui_quads, perm) or_return
 	ui_gpu_init(&s.renderer.ui, ui_quads, msaa_sample_count(s.launch.window.samples), perm) or_return
-	s.frame_render.port = renderer_port(&s.renderer)
+	s.frame_render.submits = renderer_submits(&s.renderer)
 	if s.read_gamepads {
 		gamepad_reader_init(&s.gamepad_reader)
 	}
@@ -61,9 +61,9 @@ host_open_window :: proc(s: ^State, size: [2]f32) -> mem.Allocator_Error {
 }
 
 // With no window, the UI takes the size of the Launch window.
-host_open_headless :: proc(s: ^State, port: Frame_Render_Port) -> mem.Allocator_Error {
+host_open_headless :: proc(s: ^State, submits: Frame_Render_Submits) -> mem.Allocator_Error {
 	s.window = headless_window(s.launch)
-	s.frame_render.port = port
+	s.frame_render.submits = submits
 	return ui_init(&s.ui, s.window.size, int(s.launch.capacity.ui_quads), s.mem.perm_allocator)
 }
 

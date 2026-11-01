@@ -368,7 +368,7 @@ renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	sg.draw(0, cube.index_count, 1)
 }
 
-renderer_port :: proc(r: ^Renderer) -> Frame_Render_Port {
+renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 	return {
 		begin_pass = renderer_begin_pass,
 		end_pass = renderer_end_pass,

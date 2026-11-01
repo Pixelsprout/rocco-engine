@@ -25,7 +25,7 @@ g_fake_platform: Fake_Platform_Calls
 
 // The host owns launch. Holds g_clay_lock until fake_host_destroy, because
 // the render lays out the UI.
-fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, port: Maybe(Frame_Render_Port) = nil) {
+fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, submits: Maybe(Frame_Render_Submits) = nil) {
 	g_fake_platform = {}
 	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, launch_in = launch}
 	err := memory_init(&s.mem)
@@ -33,7 +33,7 @@ fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_
 	field, rule, ok := host_build(s, {mode = mode, exit_after_frames = exit_after_frames, assets_dir = assets_dir}, FAKE_GAME, fake_run_command)
 	fmt.assertf(ok, "Launch.%v %v", field, rule)
 	sync.mutex_lock(&g_clay_lock)
-	ui_err := host_open_headless(s, port.? or_else fake_port())
+	ui_err := host_open_headless(s, submits.? or_else fake_submits())
 	assert(ui_err == nil)
 }
 
@@ -44,10 +44,10 @@ fake_host_destroy :: proc(s: ^State) {
 }
 
 // Submits nothing and counts the submit_lights calls in g_fake_platform.
-fake_port :: proc() -> Frame_Render_Port {
-	port := FRAME_RENDER_PORT_NONE
-	port.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
-	return port
+fake_submits :: proc() -> Frame_Render_Submits {
+	submits := FRAME_RENDER_SUBMITS_NONE
+	submits.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
+	return submits
 }
 
 fake_platform :: proc(frame_duration: f64) -> Frame_Platform {
@@ -486,9 +486,9 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	slow := fake_port()
+	slow := fake_submits()
 	slow.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {time.sleep(FAKE_PASS_WAIT)}
-	fake_host_init(&s, exit_after_frames = 1, mode = .Lockstep, port = slow)
+	fake_host_init(&s, exit_after_frames = 1, mode = .Lockstep, submits = slow)
 	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(s.clock.fixed_dt))
@@ -605,7 +605,7 @@ test_frame_draws_the_mesh_that_init_loaded :: proc(t: ^testing.T) {
 	rec: Recorder
 	defer recorder_destroy(&rec)
 	s: State
-	fake_host_init(&s, mode = .Lockstep, assets_dir = dir, init_commands = {fake_load("A", "a")}, port = recorder_port(&rec))
+	fake_host_init(&s, mode = .Lockstep, assets_dir = dir, init_commands = {fake_load("A", "a")}, submits = recorder_submits(&rec))
 	defer fake_host_destroy(&s)
 	g_fake.camera = {eye = {0, 0, 5}, up = {y = 1}, fov_y = 1}
 	g_fake.draws = []Draw{{id = 1, mesh = g_fake.loaded_manifest[0].id}}
