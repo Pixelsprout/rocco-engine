@@ -362,6 +362,13 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 	f.window = {size = {960, 540}, dpi = 1}
 }
 
+recorder_destroy :: proc(r: ^Recorder) {
+	delete(r.submits)
+	delete(r.passes)
+	delete(r.shadows)
+	delete(r.ui_quads)
+}
+
 recorder_port :: proc(r: ^Recorder) -> Frame_Render_Port {
 	return {
 		begin_pass = record_begin_pass,
@@ -376,10 +383,7 @@ recorder_port :: proc(r: ^Recorder) -> Frame_Render_Port {
 }
 
 frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
-	delete(f.rec.submits)
-	delete(f.rec.passes)
-	delete(f.rec.shadows)
-	delete(f.rec.ui_quads)
+	recorder_destroy(&f.rec)
 	mesh_table_destroy(&f.meshes)
 	sky_table_destroy(&f.skies)
 	frame_render_destroy(&f.fr)

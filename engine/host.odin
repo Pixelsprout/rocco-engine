@@ -2,7 +2,7 @@ package engine
 
 import "core:mem"
 
-// What a run reads from its environment before the build. Tests pass a literal.
+// What a run reads from its environment before the build.
 Host_Options :: struct {
 	mode:              Run_Mode,
 	exit_after_frames: int, // 0 runs forever
@@ -16,10 +16,9 @@ Host_Options :: struct {
 	audio_device:      bool,
 }
 
-// Builds the host before the window opens: launch, the tables, then init,
-// whose Loads wait in the tables for the upload. The caller owns s.mem, the
-// Roc heap and the context, which launch and init already run under. A bad
-// Launch names its field and rule, and leaves nothing to destroy.
+// Runs before the window opens, so init's Loads wait in the tables for the
+// upload. The caller sets up s.mem, the Roc heap and the context first. A bad
+// Launch leaves nothing to destroy.
 host_build :: proc(s: ^State, options: Host_Options, calls: Game_Calls, run_command: Command_Runner) -> (field, rule: string, ok: bool) {
 	s.mode = options.mode
 	s.exit_after_frames = options.exit_after_frames
@@ -61,7 +60,7 @@ host_open_window :: proc(s: ^State, size: [2]f32) -> mem.Allocator_Error {
 	return nil
 }
 
-// Lays out the UI with no window. A Headless run passes FRAME_RENDER_PORT_NONE.
+// With no window, the UI takes the size of the Launch window.
 host_open_headless :: proc(s: ^State, port: Frame_Render_Port) -> mem.Allocator_Error {
 	s.window = headless_window(s.launch)
 	s.frame_render.port = port
@@ -80,8 +79,7 @@ host_destroy :: proc(s: ^State) {
 	span_sink_destroy(&s.spans)
 }
 
-// Runs after launch, because the capacities come from the Launch. audio
-// must have run audio_init.
+// The audio tables need the sample rate, so audio_init runs first.
 asset_tables_init :: proc(packs: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, images: ^Image_Table, audio: ^Audio, capacity: Capacity, perm, allocator: mem.Allocator) {
 	mesh_table_init(meshes, int(capacity.meshes), perm, allocator)
 	sky_table_init(skies, int(capacity.skies), perm, allocator)

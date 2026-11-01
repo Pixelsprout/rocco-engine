@@ -20,7 +20,7 @@ test_host_build_with_a_bad_launch_names_the_field_and_keeps_nothing :: proc(t: ^
 	mem.tracking_allocator_init(&track, context.allocator)
 	defer mem.tracking_allocator_destroy(&track)
 
-	field, rule, ok := build_tracked(&s, &track)
+	field, rule, ok := host_build_tracked(&s, &track)
 
 	testing.expect(t, !ok)
 	testing.expect_value(t, field, "step_hz")
@@ -29,7 +29,7 @@ test_host_build_with_a_bad_launch_names_the_field_and_keeps_nothing :: proc(t: ^
 	testing.expect_value(t, len(track.allocation_map), 0)
 }
 
-build_tracked :: proc(s: ^State, track: ^mem.Tracking_Allocator) -> (field, rule: string, ok: bool) {
+host_build_tracked :: proc(s: ^State, track: ^mem.Tracking_Allocator) -> (field, rule: string, ok: bool) {
 	context.allocator = mem.tracking_allocator(track)
 	return host_build(s, {assets_dir = NO_ASSETS_DIR}, FAKE_GAME, fake_run_command)
 }

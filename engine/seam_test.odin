@@ -78,7 +78,7 @@ Fake_Game :: struct {
 	launch_assets:    []string,
 	launch_args:      []string,
 	launch_out:       Launch,
-	// launch returns this, or launch_default when it is nil. The host owns it after.
+	// The host owns it after launch returns it.
 	launch_in:        Maybe(Launch),
 	inits:            int,
 	seed:             u64,

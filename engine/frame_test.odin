@@ -23,9 +23,8 @@ Fake_Platform_Calls :: struct {
 // Guarded by the Roc heap test lock, as g_fake is.
 g_fake_platform: Fake_Platform_Calls
 
-// Builds the host with the fake game and no window. The game returns launch
-// and the host owns it. Holds g_clay_lock until fake_host_destroy, because
-// the render lays out the UI. port defaults to fake_port.
+// The host owns launch. Holds g_clay_lock until fake_host_destroy, because
+// the render lays out the UI.
 fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, port: Maybe(Frame_Render_Port) = nil) {
 	g_fake_platform = {}
 	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, launch_in = launch}
@@ -604,10 +603,7 @@ test_frame_draws_the_mesh_that_init_loaded :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	rec: Recorder
-	defer delete(rec.submits)
-	defer delete(rec.passes)
-	defer delete(rec.shadows)
-	defer delete(rec.ui_quads)
+	defer recorder_destroy(&rec)
 	s: State
 	fake_host_init(&s, mode = .Lockstep, assets_dir = dir, init_commands = {fake_load("A", "a")}, port = recorder_port(&rec))
 	defer fake_host_destroy(&s)
