@@ -26,6 +26,13 @@ Query_Search :: struct {
 	logged_capsule: bool,
 }
 
+// The Queries' answers before the copy into Roc lists.
+Query_Answers :: struct {
+	contacts: []Contact,
+	rays:     []Ray_Hit,
+	overlaps: []Overlap_Hit,
+}
+
 // A Raycast and an Overlap may share an owner and a slot.
 Owner_Slot :: struct {
 	kind:  Query_Tag,

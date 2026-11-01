@@ -1,6 +1,10 @@
 package engine
 
 import "core:math"
+
+UP :: [3]f32{0, 1, 0}
+UP_EPSILON :: f32(1e-6)
+
 Mat4 :: matrix[4, 4]f32
 
 mat4_identity :: proc() -> Mat4 {
@@ -202,4 +206,20 @@ apart :: proc(a, b: Mat4) -> f32 {
 	}
 
 	return math.to_degrees(math.acos(math.clamp((sum - 1) / 2, -1, 1)))
+}
+
+vec3_array :: proc(v: Vec3) -> [3]f32 {
+	return {v.x, v.y, v.z}
+}
+
+quat_of :: proc(q: Quat) -> quaternion128 {
+	return quaternion(w = q.w, x = q.x, y = q.y, z = q.z)
+}
+
+to_vec3 :: proc(v: [3]f32) -> Vec3 {
+	return {v.x, v.y, v.z}
+}
+
+to_quat :: proc(q: quaternion128) -> Quat {
+	return {x = q.x, y = q.y, z = q.z, w = q.w}
 }
