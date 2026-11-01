@@ -847,7 +847,7 @@ Done when Kula builds on a clean machine with only Roc installed. Grilled
 Check: clone the Kula repo on a machine with Roc and nothing else, run
 `roc main.roc`, play level one.
 
-## Milestone 16: Benchmarks
+## Milestone 16: Benchmarks (done)
 
 Done when `docs/BENCHMARKS.md` states the headline figure from a reference
 run. The full spec is the dex task zbygy2an.
@@ -857,8 +857,8 @@ modes, a Span per stage of the Frame, the bench games for Draws, Colliders,
 Model size and UI, the Odin twins, the Roc heap A/B and the mixed bench game.
 The method document is merged.
 
-Open: the reference run (dex task 3aczuxv8). It needs a machine on mains
-power that nobody uses during the run.
+Results: the 2026-10-21 reference run gives the headline figure N = 8,192.
+`docs/BENCHMARKS.md` names the result directory.
 
 ## Milestone 17: Launch (done)
 
@@ -894,7 +894,7 @@ Check for the arc: Kula plays the first three levels of the original with a
 gamepad and a landing sound, from the release URLs. A person with only Roc installed follows the tutorial
 to a running game.
 
-## Milestone 18: docs and v0.2.0
+## Milestone 18: docs and v0.2.0 (done)
 
 Done when v0.2.0 is published, pixelsprout.dev shows the guides and the API
 from that tag, and Kula runs on v0.2.0. Grilled 2026-10-21. The dex
@@ -1081,7 +1081,11 @@ world space.
 4. ADR 0014 moves to accepted, and the alloc check records entity-game's
    count per step.
 
-## Milestone 23: Gamepad
+## Milestone 23: Gamepad (done)
+
+Results: a person played Kula with an Xbox pad on macOS and on Windows on
+v0.6.0-rc.1. The Linux pad check stays open beside the milestones (dex task
+xsl5lr4n).
 
 Done when Kula plays with an Xbox pad on macOS and Windows from the v0.5.0
 release URLs, and CI tests the mapping of each OS. A person checks Linux
@@ -1183,7 +1187,12 @@ Check: host tests cover a `Once` that ends, a Loop to Once change and a
 Speaker in a moving Group. The Bridge `scene` reply shows a `Speaker`
 Node. A person hears chapter 8 on macOS, Linux and Windows.
 
-## Milestone 27: the announcement release
+## Milestone 27: the announcement release (done)
+
+Results: v0.6.0 is published, Kula plays Hiro levels 1 to 3 from the v0.6.0
+URLs, and the announcement is out. The chapter 8 check on Linux and Windows
+and the docs check did not run on the rc. They were dropped when v0.7.0
+superseded it.
 
 Progress, 2026-10-28: v0.6.0 is published from 2e8525c, with the same engine
 source as rc.1. The user chose to tag it before the Kula work, so each
@@ -1237,7 +1246,7 @@ colour. One Vocabulary change, released as the next minor version. Closes dex ta
 and s1zhf2hf. It was Milestone 25 until 2026-10-27, when it moved after the
 announcement release.
 
-## Milestone 29: Ports over the Bridge
+## Milestone 29: Ports over the Bridge (done)
 
 Done when the Bridge check drives `examples/bridge-echo` on macOS, Linux
 and Windows: a Driver sends a message with `tell`, the game reads it from
