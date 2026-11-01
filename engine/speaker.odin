@@ -1,6 +1,5 @@
 package engine
 
-import "base:runtime"
 import "core:fmt"
 import "core:mem"
 
@@ -38,9 +37,8 @@ speaker_pairing_init :: proc(p: ^Speaker_Pairing, capacity: int, allocator: mem.
 	p.curr = make([dynamic]Speaker_Voice, 0, capacity, allocator)
 	p.prev_index = make(map[u64]int, allocator)
 	p.curr_index = make(map[u64]int, allocator)
-	// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-	reserve(&p.prev_index, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
-	reserve(&p.curr_index, capacity * 100 / runtime.MAP_LOAD_FACTOR + 1)
+	map_reserve_unfilled(&p.prev_index, capacity)
+	map_reserve_unfilled(&p.curr_index, capacity)
 	p.logged = make(map[u64]struct {}, allocator)
 }
 

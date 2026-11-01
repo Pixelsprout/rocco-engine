@@ -1,6 +1,5 @@
 package engine
 
-import "base:runtime"
 import "core:fmt"
 import "core:math/linalg"
 import "core:mem"
@@ -226,12 +225,6 @@ pairing_init :: proc(p: ^Pairing, capacity, group_capacity: int, allocator: mem.
 	p.groups = make(map[u64]Prev_Pose, allocator)
 	map_reserve_unfilled(&p.groups, group_capacity)
 	p.logged = make(map[u64]struct {}, allocator)
-}
-
-// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-// So it takes n entries without growing.
-map_reserve_unfilled :: proc(m: ^$M/map[$K]$V, n: int) {
-	reserve(m, n * 100 / runtime.MAP_LOAD_FACTOR + 1)
 }
 
 pairing_destroy :: proc(p: ^Pairing) {
