@@ -31,13 +31,6 @@ Seam :: struct {
 	search:  Query_Search,
 }
 
-// The Queries' answers before the copy into Roc lists.
-Query_Answers :: struct {
-	contacts: []Contact,
-	rays:     []Ray_Hit,
-	overlaps: []Overlap_Hit,
-}
-
 // The first Game call. ADR 0007 puts launch before init, so the host holds
 // the Launch before init's Commands run. It binds the Game calls that
 // seam_init then uses.

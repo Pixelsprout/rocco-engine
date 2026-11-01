@@ -9,6 +9,15 @@ TRACK_ALLOC :: #config(ROCCO_TRACK_ALLOC, false)
 // Only the TRACK_ALLOC code uses mem, so -vet needs this when it is off.
 _ :: mem
 
+ROC_GAME :: Game_Calls {
+	launch     = roc_game_launch,
+	init       = roc_game_init,
+	step       = roc_game_step,
+	loaded     = roc_game_loaded,
+	view       = roc_game_view,
+	drop_model = roc_game_drop_model,
+}
+
 when TRACK_ALLOC {
 	g_track: mem.Tracking_Allocator
 }
@@ -33,3 +42,25 @@ run :: proc(calls: Game_Calls) {
 		return
 	}
 }
+
+@(private = "file")
+roc_game_launch :: proc(config: Config) -> Launch {return roc_launch(config)}
+
+@(private = "file")
+roc_game_init :: proc(config: Config) -> Init_Result {return roc_init(config)}
+
+@(private = "file")
+roc_game_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result {
+	return roc_step(model, input, results, dt)
+}
+
+@(private = "file")
+roc_game_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr {
+	return roc_loaded(model, pack, manifest)
+}
+
+@(private = "file")
+roc_game_view :: proc(model: rawptr) -> Scene {return roc_view(model)}
+
+@(private = "file")
+roc_game_drop_model :: proc(model: rawptr) {roc_drop_model(model)}

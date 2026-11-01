@@ -9,7 +9,6 @@ import "core:strconv"
 import "core:strings"
 import "core:time"
 
-BRIDGE_ENV :: "ROCCO_BRIDGE"
 // A Bridge run has vsync off, so a paused window waits this long each Frame
 // instead of drawing as fast as it can.
 BRIDGE_PAUSE_WAIT :: 16 * time.Millisecond

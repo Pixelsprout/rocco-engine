@@ -6,12 +6,7 @@ import "core:math"
 import "core:math/linalg"
 import "core:mem"
 
-// The light arrays of fs_params in engine/shaders/basic.glsl have this size.
-// It is the limit per Draw.
-MAX_LIGHTS :: 8
 SCENE_NEAR :: f32(0.1)
-UP :: [3]f32{0, 1, 0}
-UP_EPSILON :: f32(1e-6)
 
 // The light_view_proj and cascade_far arrays in engine/shaders/basic.glsl have this size.
 MAX_CASCADES :: 4
@@ -31,7 +26,6 @@ FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
 	submit_ui     = submits_none_submit_ui,
 }
 
-#assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 #assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
@@ -732,22 +726,6 @@ camera_lerp :: proc(prev, curr: Scene_Camera, alpha: f32) -> Camera_Pose {
 
 v3_lerp :: proc(a, b: Vec3, t: f32) -> [3]f32 {
 	return math.lerp(vec3_array(a), vec3_array(b), t)
-}
-
-vec3_array :: proc(v: Vec3) -> [3]f32 {
-	return {v.x, v.y, v.z}
-}
-
-quat_of :: proc(q: Quat) -> quaternion128 {
-	return quaternion(w = q.w, x = q.x, y = q.y, z = q.z)
-}
-
-to_vec3 :: proc(v: [3]f32) -> Vec3 {
-	return {v.x, v.y, v.z}
-}
-
-to_quat :: proc(q: quaternion128) -> Quat {
-	return {x = q.x, y = q.y, z = q.z, w = q.w}
 }
 
 @(private = "file")

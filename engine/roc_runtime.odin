@@ -5,17 +5,10 @@ import "core:mem"
 import "core:os"
 import "core:strings"
 
+import "base:runtime"
+
 // The header size and the block length fill the last 16 bytes of the header.
 ROC_HEAP_HEADER_MIN :: 16
-
-ROC_GAME :: Game_Calls {
-	launch     = roc_game_launch,
-	init       = roc_game_init,
-	step       = roc_game_step,
-	loaded     = roc_game_loaded,
-	view       = roc_game_view,
-	drop_model = roc_game_drop_model,
-}
 
 Roc_Heap_Counters :: struct {
 	allocs:   uint,
@@ -41,6 +34,8 @@ Alloc_Report :: struct {
 // place.
 Roc_Heap :: struct {
 	backing:           mem.Allocator,
+	// The context of the roc_heap_init call. Every hook runs in it.
+	ctx:               runtime.Context,
 	roc_alloc_count:   uint,
 	roc_dealloc_count: uint,
 	roc_realloc_count: uint,
@@ -59,6 +54,7 @@ g_roc_heap: Roc_Heap
 roc_heap_init :: proc(backing: mem.Allocator) {
 	g_roc_heap = {}
 	g_roc_heap.backing = backing
+	g_roc_heap.ctx = context
 }
 
 // A block Roc never freed stays in the backing allocator. A host built with
@@ -122,33 +118,11 @@ roc_str_string :: proc(s: ^Roc_Str) -> string {
 	return string(s.bytes[:s.length])
 }
 
-@(private = "file")
-roc_game_launch :: proc(config: Config) -> Launch {return roc_launch(config)}
-
-@(private = "file")
-roc_game_init :: proc(config: Config) -> Init_Result {return roc_init(config)}
-
-@(private = "file")
-roc_game_step :: proc(model: rawptr, input: Input, results: Query_Results, dt: f32) -> Step_Result {
-	return roc_step(model, input, results, dt)
-}
-
-@(private = "file")
-roc_game_loaded :: proc(model: rawptr, pack: Roc_Str, manifest: Roc_List(Manifest_Entry)) -> rawptr {
-	return roc_loaded(model, pack, manifest)
-}
-
-@(private = "file")
-roc_game_view :: proc(model: rawptr) -> Scene {return roc_view(model)}
-
-@(private = "file")
-roc_game_drop_model :: proc(model: rawptr) {roc_drop_model(model)}
-
 // The backing alignment is at least the int alignment, so the header words
 // are aligned for any Roc alignment.
 @(export, link_name = "roc_alloc")
 roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 	g_roc_heap.roc_alloc_count += 1
 
 	size := roc_heap_header_size(int(alignment))
@@ -162,7 +136,7 @@ roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
 
 @(export, link_name = "roc_dealloc")
 roc_dealloc :: proc "c" (ptr: rawptr, alignment: uint) {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 	g_roc_heap.roc_dealloc_count += 1
 
 	header := roc_heap_header(ptr)
@@ -171,7 +145,7 @@ roc_dealloc :: proc "c" (ptr: rawptr, alignment: uint) {
 
 @(export, link_name = "roc_realloc")
 roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawptr {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 	g_roc_heap.roc_realloc_count += 1
 
 	header := roc_heap_header(ptr)
@@ -216,7 +190,7 @@ roc_heap_header_write :: proc "contextless" (base: rawptr, size, length: int) ->
 
 @(export, link_name = "roc_dbg")
 roc_dbg :: proc "c" (bytes: [^]u8, length: uint) {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 
 	msg := string(bytes[:length])
 
@@ -226,7 +200,7 @@ roc_dbg :: proc "c" (bytes: [^]u8, length: uint) {
 
 @(export, link_name = "roc_expect_failed")
 roc_expect_failed :: proc "c" (bytes: [^]u8, length: uint) {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 
 	msg := string(bytes[:length])
 
@@ -235,7 +209,7 @@ roc_expect_failed :: proc "c" (bytes: [^]u8, length: uint) {
 
 @(export, link_name = "roc_crashed")
 roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
-	context = g_state.ctx
+	context = g_roc_heap.ctx
 
 	msg := string(bytes[:length])
 

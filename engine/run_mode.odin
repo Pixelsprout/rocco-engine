@@ -5,6 +5,7 @@ import "core:os"
 
 LOCKSTEP_ENV :: "ROCCO_LOCKSTEP"
 HEADLESS_ENV :: "ROCCO_HEADLESS"
+BRIDGE_ENV :: "ROCCO_BRIDGE"
 
 // Lockstep runs one fixed step and one render per Frame, whatever the time.
 // Headless is Lockstep with no window and no GPU.

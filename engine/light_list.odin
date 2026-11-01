@@ -2,6 +2,12 @@ package engine
 
 import "core:math/linalg"
 
+// The light arrays of fs_params in engine/shaders/basic.glsl have this size.
+// It is the limit per Draw.
+MAX_LIGHTS :: 8
+
+#assert(len(Fs_Params{}.light_pos) == MAX_LIGHTS)
+
 // A light as the shader reads it. pos.w is 0 for a Directional and 1 for a
 // Point. color.w is a Point's range.
 Packed_Light :: struct {
