@@ -19,6 +19,13 @@ it at shutdown. Same code as the engine; say "host" when the sentence is about t
 seam.
 _Avoid_: script host, runtime
 
+**Host assembly**:
+The host module that builds the host from the game's Launch and Game calls
+before the window opens, finishes it with a window or with none, and takes
+it apart at shutdown. A run and the tests build the host through it, so a
+test runs the host that a run runs.
+_Avoid_: bootstrap, setup, wiring, factory
+
 **Platform**:
 The Roc platform package every game builds on: the vocabulary types, the
 binding of `Model`, the boxed wrappers, and the host they link against. There
