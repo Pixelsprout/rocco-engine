@@ -1,6 +1,5 @@
 package engine
 
-import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
@@ -108,31 +107,6 @@ Placed :: struct {
 	model:     Mat4,
 	skin:      ^Skin_Params,
 	light_box: Box,
-}
-
-// Maps each draw id of the previous Scene to its index in prev_draws, and
-// each Group id to that Group's Pose. Rebuilt every Frame with clear, so the
-// maps keep the capacity init reserved. The Group map takes no more than
-// group_capacity Groups, so it never grows. The draw map holds an index, not
-// the Draw, so its small value keeps the robin hood moves of an insert short.
-Pairing :: struct {
-	draws:                  map[u64]i32,
-	prev_draws:             [dynamic]Prev_Draw,
-	groups:                 map[u64]Prev_Pose,
-	logged:                 map[u64]struct {},
-	capacity:               int,
-	group_capacity:         int,
-	draws_seen:             int,
-	over_capacity_logged:   bool,
-	groups_full_logged:     bool,
-	group_duplicate_logged: bool,
-}
-
-// A Draw of the previous Scene. pairing_draw makes its Pose when it pairs.
-Prev_Draw :: struct {
-	draw:            ^Draw,
-	parent:          Parent_Id,
-	parent_unpaired: bool,
 }
 
 // placed_next gives the rigid Draws first, then the skinned ones, so the
@@ -520,119 +494,6 @@ scene_view_proj :: proc(camera: Camera_Pose, aspect: f32) -> Mat4 {
 	return mat4_perspective_reversed_infinite(camera.fov_y, aspect, SCENE_NEAR) * mat4_look_at(camera.eye, camera.target, camera.up)
 }
 
-pairing_init :: proc(p: ^Pairing, capacity, group_capacity: int, allocator: mem.Allocator) {
-	p.capacity = capacity
-	p.group_capacity = group_capacity
-	p.draws = make(map[u64]i32, allocator)
-	map_reserve_unfilled(&p.draws, capacity)
-	p.prev_draws = make([dynamic]Prev_Draw, 0, capacity, allocator)
-	p.groups = make(map[u64]Prev_Pose, allocator)
-	map_reserve_unfilled(&p.groups, group_capacity)
-	p.logged = make(map[u64]struct {}, allocator)
-}
-
-// A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.
-// So it takes n entries without growing.
-map_reserve_unfilled :: proc(m: ^$M/map[$K]$V, n: int) {
-	reserve(m, n * 100 / runtime.MAP_LOAD_FACTOR + 1)
-}
-
-pairing_destroy :: proc(p: ^Pairing) {
-	delete(p.draws)
-	delete(p.prev_draws)
-	delete(p.groups)
-	delete(p.logged)
-}
-
-// On a duplicate draw id the first Draw in walk order wins, and each
-// duplicate id is logged once per run. On a duplicate Group id the first
-// Group wins, and the first duplicate of the run is logged. Past
-// group_capacity, the first Groups pair.
-pairing_build :: proc(p: ^Pairing, nodes: []Node) {
-	clear(&p.draws)
-	clear(&p.prev_draws)
-	clear(&p.groups)
-	p.draws_seen = 0
-	walk := Tree_Walk {
-		visit = pairing_visit,
-		data  = p,
-	}
-	root := WALK_ROOT
-	for &node, i in nodes {
-		if node.tag == .Draw {
-			pairing_add(p, &node.payload.draw, root.id, false)
-		} else {
-			tree_walk(&walk, nodes[i:i + 1], &root)
-		}
-	}
-	if p.draws_seen > p.capacity && !p.over_capacity_logged {
-		p.over_capacity_logged = true
-		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
-	}
-}
-
-@(private = "file")
-pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
-	p := (^Pairing)(walk.data)
-	switch node.tag {
-	case .Draw:
-		pairing_add(p, &node.payload.draw, parent.id, parent.unpaired)
-	case .Group:
-		g := node.payload.group._0
-		if g.id in p.groups {
-			if !p.group_duplicate_logged {
-				p.group_duplicate_logged = true
-				fmt.eprintfln("two groups share id %v; the first one pairs", g.id)
-			}
-			walk.group_unpaired = true
-			return
-		}
-		if len(p.groups) == p.group_capacity {
-			if !p.groups_full_logged {
-				p.groups_full_logged = true
-				fmt.eprintfln("a Scene has more than %v groups; the host pairs the first %v", p.group_capacity, p.group_capacity)
-			}
-			walk.group_unpaired = true
-			return
-		}
-		local := pose_of(g.pos, g.rot)
-		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
-	case .Light, .Collider, .Speaker:
-	}
-}
-
-// An `in` test and an insert cost less here than map_entry.
-pairing_add :: #force_inline proc(p: ^Pairing, d: ^Draw, parent: Parent_Id, parent_unpaired: bool) {
-	p.draws_seen += 1
-	if d.id in p.draws {
-		if d.id not_in p.logged {
-			p.logged[d.id] = {}
-			fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
-		}
-		return
-	}
-	p.draws[d.id] = i32(len(p.prev_draws))
-	append(&p.prev_draws, Prev_Draw{draw = d, parent = parent, parent_unpaired = parent_unpaired})
-}
-
-// The previous Draw with this id and its Pose, for a Draw whose parent is
-// now. Not paired when the previous Scene has no such Draw, or when the
-// parent changed and the previous parent Group did not pair, so its world
-// Pose is unknown.
-pairing_draw :: #force_inline proc(p: ^Pairing, id: u64, now: Parent_Id) -> (draw: ^Draw, prev: Prev_Pose, paired: bool) {
-	index := p.draws[id] or_return
-	entry := &p.prev_draws[index]
-	prev = {parent = entry.parent, local = pose_of(entry.draw.pos, entry.draw.rot)}
-	prev.world = prev.local
-	if entry.parent != now && entry.parent.grouped {
-		if entry.parent_unpaired {
-			return
-		}
-		prev.world = pose_compose(pairing_group(p, entry.parent.id).world, prev.local)
-	}
-	return entry.draw, prev, true
-}
-
 // A root Pose is a world Pose. So a root Draw whose partner was also a root
 // Draw interpolates its own Pose, with no parent to compose.
 draw_place_root :: #force_inline proc(p: ^Pairing, d: ^Draw, alpha: f32) -> Draw_Transform {
@@ -652,14 +513,6 @@ draw_place :: proc(p: ^Pairing, d: ^Draw, parent: ^Walk_Parent, alpha: f32) -> D
 	from, prev, paired := pairing_draw(p, d.id, parent.id)
 	world := node_world(&prev if paired else nil, parent, pose_of(d.pos, d.rot), alpha)
 	return draw_transform(from if paired else d, d, world, alpha)
-}
-
-// nil when the previous Scene has no paired Group with this id.
-pairing_group :: proc(p: ^Pairing, id: u64) -> ^Prev_Pose {
-	if found, ok := &p.groups[id]; ok {
-		return found
-	}
-	return nil
 }
 
 // world is the Draw's Pose for this Frame. A Draw with no partner passes
