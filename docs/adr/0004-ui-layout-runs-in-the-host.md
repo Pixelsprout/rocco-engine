@@ -6,7 +6,8 @@ stream. The layout decision stands. ADR 0019 on 2026-10-30 gives the
 game the window size in Input; the host still lays out. On 2026-10-31,
 `Ui.measure`, `Ui.fit` and `Ui.wrap` let the game measure text with a
 copy of the host's font table; the host still lays out. ADR 0020 on
-2026-10-31 sends the pointer and the hit results to the game.
+2026-10-31 sends the pointer and the hit results to the game. On
+2026-11-01 a Panel can show an Image (ADR 0024); the host still lays out.
 
 ## Context
 
@@ -23,12 +24,16 @@ so layout inside the platform package is possible.
 - The host runs C Clay through its Odin bindings. A pinned submodule
   supplies the prebuilt lib per target, copied by the `inputs` step like
   sokol's.
-- `Scene.ui` is a flat stream of Elements: `Open(Box)`, `Text`, `Close`.
-  The host feeds the stream to Clay's open, configure and close calls in
-  order, once per frame, against the window size.
+- `Scene.ui` was at first a flat stream of Elements: `Open(Box)`, `Text`,
+  `Close`. Since ADR 0013 it is a list of trees of `Panel` and `Text`
+  Elements, and `Box` is now `Panel`. The host walks the trees into Clay's
+  open, configure and close calls in order, once per frame, against the
+  window size.
 - The host measures text with its one baked font. The game never measures
   and never learns the window size.
-- The UI only displays. No layout result flows back to the game.
+- At first the UI only displayed, and no layout result flowed back to the
+  game. Since ADR 0020, the tagged Panels under the pointer and the sizes
+  of the Scroll Panels come back in `QueryResults.ui`.
 
 ## Considered options
 
@@ -45,7 +50,7 @@ so layout inside the platform package is possible.
 
 ## Consequences
 
-- Box fields follow Clay's names and defaults (`Fit`, `Start`), so an empty
-  config means the same on both sides.
+- Panel fields follow Clay's names and defaults (`Fit`, `Start`), so an
+  empty config means the same on both sides.
 - Pointer input for the UI reopens this decision. It needs either hit
   results in Input or layout in Roc.

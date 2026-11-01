@@ -97,7 +97,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	// Headless submits nothing, so its render Spans stay at zero.
 	renders := s.mode != .Headless
-	frame_render_draw(&s.frame_render, prev, curr, alpha, view, &s.renderer.meshes, &s.renderer.skies, &s.ui, platform.window, &s.spans, renders)
+	frame_render_draw(&s.frame_render, prev, curr, alpha, view, &s.renderer.meshes, &s.renderer.skies, &s.renderer.images, &s.ui, platform.window, &s.spans, renders)
 	// The scene op replies the results that the next step gets, so they take
 	// the hit test of the layout that the window shows.
 	ui_hit_test(&s.ui, s.pointer, platform.window)

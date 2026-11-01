@@ -204,6 +204,7 @@ frame_render_draw :: proc(
 	view: Frame_View,
 	meshes: ^Mesh_Table,
 	skies: ^Sky_Table,
+	images: ^Image_Table,
 	ui: ^Ui,
 	window: Ui_Window,
 	spans: ^Span_Sink = nil,
@@ -254,7 +255,7 @@ frame_render_draw :: proc(
 
 	quads: []Ui_Quad
 	if ui != nil {
-		quads = ui_frame(ui, curr.ui.elements[:curr.ui.length], window)
+		quads = ui_frame(ui, curr.ui.elements[:curr.ui.length], window, images)
 		span = span_close(spans, .Ui_Layout, span)
 	}
 	if !submit {

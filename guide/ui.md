@@ -1,6 +1,6 @@
 ---
 title: The UI
-summary: Why the host lays out the UI, how a game writes it as a tree of Panels and Text, the ui package's defaults and helpers, and the layout rules.
+summary: Why the host lays out the UI, how a game writes it as a tree of Panels and Text, the ui package's defaults and helpers, Images in Panels, and the layout rules.
 order: 9
 ---
 
@@ -152,8 +152,8 @@ You write the tags yourself, so the [ui package][Ui] gives only the
 starting values and a few small helpers:
 
 - [`Ui.default_panel`][Ui.default_panel] is the PanelConfig to start from. It
-  holds Clay's defaults: it fits its children, with no padding, no gap and
-  no background, and lays them out in a `Row`.
+  holds Clay's defaults: it fits its children, with no padding, no gap, no
+  background and no Image, and lays them out in a `Row`.
 - [`Ui.default_text`][Ui.default_text] is the Text to start from: an
   empty string, 24 pixels high, opaque white, that wraps between words.
 - [`Ui.label(str)`][Ui.label] is a `default_text` that shows `str`. Change
@@ -256,7 +256,8 @@ view = |model| {
 	rows = model.lines.map(|line| Widget.label(look, Ui.fit(line, { size: 18.0, width: 404.0 })))
 	log = model.log.view({ rows, width: Fixed(420.0), height: Fixed(108.0), look })
 	panel = Panel({ ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 8.0 }, [Panel({ ..Ui.default_panel, gap: 8.0 }, [add, filter]), details, log])
-	{ ..Scene.empty, ui: [element(panel)] }
+	ui = if (model.sheet == 0) [element(panel)] else [element(panel), images(model)]
+	{ ..Scene.empty, ui }
 }
 ```
 <!-- endregion -->
@@ -351,6 +352,55 @@ furthest that `y` goes is `view.height - content.height`. A Scroll Panel
 needs an `id`. Without one, the host logs once, still scrolls the Panel, but
 lists no sizes for it.
 
+## Images
+
+A Panel can show an Image from a Pack. Set its `image` to `Show(image, fit)`.
+The `image` is an `Image` value: the Image's id, the part of it to show, a
+tint and a filter. Start from `Image.default`, as
+[Images](assets.md#images) explains. `NoImage`, the default, shows none.
+
+- `Stretch` fills the Panel with the region.
+- `Fit` keeps the region's shape, scales it to fit inside the Panel, and
+  centres it.
+
+The Image does not size the Panel, so give the Panel a size, such as
+`Fixed`. The host draws the Panel's background first, then the Image, then
+the children. The Panel's `radius` rounds the corners of the Image too. The
+tint multiplies each pixel, so a white icon takes the colour of its tint,
+and an alpha below 1 fades the Image.
+
+A tagged Panel with an Image is hit tested like any other, so an icon
+button is a `Button.panel` with an `image`. The widgets example shows an
+icon button, a tinted icon, a whole sprite sheet in a `Fit` Panel and one
+frame of the sheet:
+
+<!-- region: examples/widgets/main.roc#widgets-images -->
+```roc
+# An icon Button, a tinted icon, the whole sheet fit into a square, and one
+# frame of the sheet.
+images : Model -> Element
+images = |model| {
+	sheet = { ..Image.default, id: model.sheet, filter: Nearest }
+	square = { ..Ui.default_panel, width: Fixed(48.0), height: Fixed(48.0), radius: 6.0 }
+	icon_button = { ..model.buttons.panel({ id: icon_id, width: Fixed(48.0), look, focus: model.focus }), height: Fixed(48.0), image: Show({ ..sheet, region: frame(0) }, Fit) }
+	heart = { ..square, image: Show({ ..sheet, region: frame(1), tint: { r: 0.9, g: 0.2, b: 0.3, a: 1.0 } }, Stretch) }
+	whole = { ..square, background: look.idle, image: Show(sheet, Fit) }
+	star = { ..square, image: Show({ ..sheet, region: frame(2) }, Stretch) }
+	row = { ..Ui.panel(RightTop, { x: -16.0, y: 16.0 }), gap: 8.0, background: look.panel }
+	Panel(row, [Panel(icon_button, []), Panel(heart, []), Panel(whole, []), Panel(star, [])])
+}
+```
+<!-- endregion -->
+
+The example shows the Images only after `loaded` gives the sheet's id.
+Until then the id is 0, and an id of 0, or an id whose Pack has unloaded,
+draws a magenta and black checker. A `Px` region that runs past the edges
+of the Image is cut to them.
+
+Panels that show the same Image with the same filter draw together. Each
+change of Image or of filter starts a new draw, as each clip does, so one
+sprite sheet for many icons draws fastest.
+
 ## Text
 
 The host draws all Text in one font, Atkinson Hyperlegible. The font has
@@ -405,6 +455,9 @@ errors once, and keeps drawing:
   rest.
 - two Panels with the same `id`: the host hit tests only the first.
 - a Scroll Panel with id 0: the host lists no sizes for it.
+- an Image id that names no loaded Image: the host draws a checker. It
+  logs each such id once.
+- an empty `Px` region: the host draws no Image for that Panel.
 
 The host also logs each kind of Clay error once, such as a `Percent` above
 1, and draws what fits.

@@ -5,6 +5,7 @@ import clay "../clay/bindings/odin/clay-odin"
 import "core:mem"
 import vmem "core:mem/virtual"
 import "core:slice"
+import "core:strings"
 import "core:sync"
 import "core:testing"
 
@@ -196,7 +197,7 @@ test_ui_text_draws_one_glyph_quad_per_visible_character_from_the_baseline :: pro
 	}
 	a, b := f.rec.ui_quads[0], f.rec.ui_quads[1]
 	baseline := f32(45)
-	testing.expect(t, a.glyph)
+	testing.expect_value(t, a.kind, Ui_Quad_Kind.Glyph)
 	expect_rect_near(t, a.rect, {10 - 5, baseline - 23, 26, 28})
 	expect_rect_near(t, a.uv, {230.0 / 256, 64.0 / 287, 1, 92.0 / 287})
 	testing.expect_value(t, a.color, [4]f32{1, 0, 0, 1})
@@ -325,8 +326,8 @@ test_ui_drops_quads_past_the_cap_and_logs_it_once :: proc(t: ^testing.T) {
 	if !testing.expect_value(t, len(f.rec.ui_quads), 3) {
 		return
 	}
-	testing.expect(t, !f.rec.ui_quads[0].glyph)
-	testing.expect(t, f.rec.ui_quads[2].glyph)
+	testing.expect_value(t, f.rec.ui_quads[0].kind, Ui_Quad_Kind.Rect)
+	testing.expect_value(t, f.rec.ui_quads[2].kind, Ui_Quad_Kind.Glyph)
 	testing.expect_value(t, f.ui.repairs_logged, bit_set[Ui_Repair]{.Quad_Cap})
 }
 
@@ -371,22 +372,33 @@ test_ui_frame_allocates_nothing :: proc(t: ^testing.T) {
 	testing.expect_value(t, track.total_allocation_count, 0)
 }
 
-// A rect's uv is its offset from the centre, so the shader can round its corners.
+// The offset from the centre lets the shader round the corners.
 @(test)
 test_ui_rect_quad_vertices_carry_the_offset_from_the_centre :: proc(t: ^testing.T) {
 	v := ui_quad_vertices({rect = {10, 20, 100, 50}, color = {1, 0, 0, 1}, radius = 8})
-	testing.expect_value(t, v[0], Ui_Vertex{pos = {10, 20}, uv = {-50, -25}, color = {1, 0, 0, 1}, shape = {50, 25, 8, 0}})
+	testing.expect_value(t, v[0], Ui_Vertex{pos = {10, 20}, local = {-50, -25}, color = {1, 0, 0, 1}, shape = {50, 25, 8, 0}})
 	testing.expect_value(t, v[1].pos, [2]f32{110, 20})
-	testing.expect_value(t, v[1].uv, [2]f32{50, -25})
+	testing.expect_value(t, v[1].local, [2]f32{50, -25})
 	testing.expect_value(t, v[2].pos, [2]f32{110, 70})
-	testing.expect_value(t, v[2].uv, [2]f32{50, 25})
+	testing.expect_value(t, v[2].local, [2]f32{50, 25})
 	testing.expect_value(t, v[3].pos, [2]f32{10, 70})
-	testing.expect_value(t, v[3].uv, [2]f32{-50, 25})
+	testing.expect_value(t, v[3].local, [2]f32{-50, 25})
+}
+
+// A Fit Image is narrower than its Panel, so its offsets stop inside the
+// Panel's half size.
+@(test)
+test_ui_image_quad_vertices_carry_the_uv_and_the_offset_from_the_panel_centre :: proc(t: ^testing.T) {
+	v := ui_quad_vertices({rect = {35, 20, 50, 50}, panel = {10, 20, 100, 50}, uv = {0.25, 0, 0.5, 1}, radius = 8, kind = .Image})
+	testing.expect_value(t, v[0], Ui_Vertex{pos = {35, 20}, uv = {0.25, 0}, local = {-25, -25}, shape = {50, 25, 8, 2}})
+	testing.expect_value(t, v[2].pos, [2]f32{85, 70})
+	testing.expect_value(t, v[2].uv, [2]f32{0.5, 1})
+	testing.expect_value(t, v[2].local, [2]f32{25, 25})
 }
 
 @(test)
 test_ui_glyph_quad_vertices_carry_the_atlas_uv :: proc(t: ^testing.T) {
-	v := ui_quad_vertices({rect = {0, 0, 4, 2}, uv = {0.1, 0.2, 0.3, 0.4}, glyph = true})
+	v := ui_quad_vertices({rect = {0, 0, 4, 2}, uv = {0.1, 0.2, 0.3, 0.4}, kind = .Glyph})
 	testing.expect_value(t, v[0].uv, [2]f32{0.1, 0.2})
 	testing.expect_value(t, v[1].uv, [2]f32{0.3, 0.2})
 	testing.expect_value(t, v[2].uv, [2]f32{0.3, 0.4})
@@ -619,14 +631,43 @@ test_ui_nested_clips_intersect :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_ui_clip_run_end_splits_on_a_clip_change :: proc(t: ^testing.T) {
+test_ui_run_end_splits_on_a_clip_change :: proc(t: ^testing.T) {
 	small := Ui_Quad{clipped = true, clip = {0, 0, 10, 10}}
 	big := Ui_Quad{clipped = true, clip = {0, 0, 20, 20}}
 	quads := []Ui_Quad{{}, {}, small, small, small, big}
 
-	testing.expect_value(t, ui_clip_run_end(quads, 0), 2)
-	testing.expect_value(t, ui_clip_run_end(quads, 2), 5)
-	testing.expect_value(t, ui_clip_run_end(quads, 5), 6)
+	for want in ([][2]int{{0, 2}, {2, 5}, {5, 6}}) {
+		end, _, textured := ui_run_end(quads, want[0])
+		testing.expect_value(t, end, want[1])
+		testing.expect(t, !textured)
+	}
+}
+
+// Rects and glyphs bind no Image, so only a new Image, a new filter or a new
+// clip starts a draw.
+@(test)
+test_ui_run_end_splits_only_where_the_image_or_the_filter_changes :: proc(t: ^testing.T) {
+	rect := Ui_Quad{kind = .Rect}
+	glyph := Ui_Quad{kind = .Glyph}
+	a := Ui_Quad{kind = .Image, image = 1}
+	a_nearest := Ui_Quad{kind = .Image, image = 1, filter = .Nearest}
+	b := Ui_Quad{kind = .Image, image = 65538}
+	quads := []Ui_Quad{rect, a, glyph, a, rect, b, rect, glyph, a_nearest, a_nearest}
+
+	runs: [dynamic]Ui_Texture
+	defer delete(runs)
+	for start := 0; start < len(quads); {
+		end, texture, textured := ui_run_end(quads, start)
+		testing.expect(t, textured)
+		append(&runs, texture)
+		start = end
+	}
+	testing.expect_value(t, len(runs), 3)
+	if len(runs) == 3 {
+		testing.expect_value(t, runs[0], Ui_Texture{image = 1})
+		testing.expect_value(t, runs[1], Ui_Texture{image = 65538})
+		testing.expect_value(t, runs[2], Ui_Texture{image = 1, filter = .Nearest})
+	}
 }
 
 @(test)
@@ -736,4 +777,151 @@ test_ui_root_float_to_parent_floats_on_the_window :: proc(t: ^testing.T) {
 	if testing.expect_value(t, len(quads), 1) {
 		expect_rect_near(t, quads[0].rect, {860, 440, 100, 100})
 	}
+}
+
+// One 4 by 2 Image, not uploaded, so no test needs sokol.
+ui_test_images :: proc(table: ^Image_Table) -> (id: u32) {
+	image_table_init(table, 4, context.allocator, context.allocator)
+	slot, _ := image_table_add(table, strings.clone("image/sheet"), 4, 2, nil)
+	return image_id(table, slot)
+}
+
+ui_show :: proc(config: Panel_Config, id: u32, region: Image_Region, fit: Image_Fit, tint := Rgba{r = 1, g = 1, b = 1, a = 1}) -> Panel_Config {
+	config := config
+	config.image = {tag = .Show, payload = {show = {_0 = {id = id, region = region, tint = tint, filter = .Nearest}, _1 = fit}}}
+	return config
+}
+
+ui_px_region :: proc(x, y, w, h: u32) -> Image_Region {
+	return {tag = .Px, payload = {px = {x = x, y = y, w = w, h = h}}}
+}
+
+// Clay gives the tint as the Panel's background, and its Rectangle for it
+// would cover the Image. The children still draw over the Image.
+@(test)
+test_ui_image_panel_draws_its_background_then_the_tinted_image_then_its_children :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	images: Image_Table
+	defer image_table_destroy(&images)
+	id := ui_test_images(&images)
+	tint := Rgba{g = 1, a = 0.5}
+	config := ui_show(ui_rect(100, 50), id, {tag = .Whole}, .Stretch, tint)
+	config.radius = 6
+	roots := []Element{ui_panel_of(config, ui_text("A", 16))}
+
+	quads := ui_frame(f.ui, roots, f.window, &images)
+
+	if !testing.expect_value(t, len(quads), 3) {
+		return
+	}
+	testing.expect_value(t, quads[0].kind, Ui_Quad_Kind.Rect)
+	testing.expect_value(t, quads[0].color, [4]f32{1, 0, 0, 1})
+	testing.expect_value(t, quads[0].radius, 6)
+	image := quads[1]
+	testing.expect_value(t, image.kind, Ui_Quad_Kind.Image)
+	testing.expect_value(t, image.image, id)
+	testing.expect_value(t, image.filter, Image_Filter.Nearest)
+	testing.expect_value(t, image.rect, [4]f32{0, 0, 100, 50})
+	testing.expect_value(t, image.panel, [4]f32{0, 0, 100, 50})
+	testing.expect_value(t, image.uv, [4]f32{0, 0, 1, 1})
+	testing.expect_value(t, image.color, [4]f32{0, 1, 0, 0.5})
+	testing.expect_value(t, image.radius, 6)
+	testing.expect_value(t, quads[2].kind, Ui_Quad_Kind.Glyph)
+}
+
+// The 2 by 2 region is square, so Fit centres a 50 by 50 Image in the
+// 100 by 50 Panel.
+@(test)
+test_ui_image_fit_keeps_the_region_shape_and_centres_it :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	images: Image_Table
+	defer image_table_destroy(&images)
+	id := ui_test_images(&images)
+	config := ui_show(ui_rect(100, 50), id, ui_px_region(2, 0, 2, 2), .Fit)
+	config.background = {}
+
+	quads := ui_frame(f.ui, []Element{ui_panel_of(config)}, f.window, &images)
+
+	if !testing.expect_value(t, len(quads), 1) {
+		return
+	}
+	testing.expect_value(t, quads[0].rect, [4]f32{25, 0, 50, 50})
+	testing.expect_value(t, quads[0].panel, [4]f32{0, 0, 100, 50})
+	testing.expect_value(t, quads[0].uv, [4]f32{0.5, 0, 1, 1})
+}
+
+@(test)
+test_ui_image_region_is_cut_to_the_image_and_an_empty_one_draws_no_image :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	images: Image_Table
+	defer image_table_destroy(&images)
+	id := ui_test_images(&images)
+	roots := []Element{
+		ui_panel_of(ui_show(ui_rect(10, 10), id, ui_px_region(3, 1, 10, 10), .Stretch)),
+		ui_panel_of(ui_show(ui_rect(10, 10), id, ui_px_region(4, 0, 1, 1), .Stretch)),
+	}
+
+	quads := ui_frame(f.ui, roots, f.window, &images)
+
+	if !testing.expect_value(t, len(quads), 3) {
+		return
+	}
+	testing.expect_value(t, quads[1].uv, [4]f32{0.75, 0.5, 1, 1})
+	testing.expect_value(t, quads[2].kind, Ui_Quad_Kind.Rect)
+	testing.expect(t, .Empty_Region in f.ui.repairs_logged)
+}
+
+// A missing Image draws the checker, square for Whole, and logs its id once.
+@(test)
+test_ui_image_with_a_missing_id_draws_the_checker_and_logs_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	images: Image_Table
+	defer image_table_destroy(&images)
+	id := ui_test_images(&images)
+	missing := id + 1
+	config := ui_show(ui_rect(100, 50), missing, {tag = .Whole}, .Fit)
+	config.background = {}
+	config.image.payload.show._0.filter = .Linear
+	roots := []Element{ui_panel_of(config)}
+
+	ui_frame(f.ui, roots, f.window, &images)
+	quads := ui_frame(f.ui, roots, f.window, &images)
+
+	if !testing.expect_value(t, len(quads), 1) {
+		return
+	}
+	testing.expect_value(t, quads[0].image, 0)
+	testing.expect_value(t, quads[0].filter, Image_Filter.Nearest)
+	testing.expect_value(t, quads[0].rect, [4]f32{25, 0, 50, 50})
+	testing.expect_value(t, quads[0].uv, [4]f32{0, 0, 1, 1})
+	testing.expect_value(t, len(images.logged), 1)
+	testing.expect(t, missing in images.logged)
+}
+
+@(test)
+test_ui_hit_test_finds_a_tagged_image_panel :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+	roots := []Element{ui_panel_of(ui_show(ui_tagged(9, 40, 40), 0, {tag = .Whole}, .Fit))}
+
+	expect_over(t, ui_test_over(&f, roots, {20, 20}), {9})
 }

@@ -425,6 +425,7 @@ such as `Row` for `LEFT_TO_RIGHT`:
 | `radius` | one corner radius for all four corners | 0 |
 | `overflow` | `Visible`, `Clip`, or `Scroll({ x, y })` | `Visible` |
 | `floating` | `NoFloat`, or `Float({ to, attach, on, offset })` | `NoFloat` |
+| `image` | `NoImage`, or `Show(Image, [Stretch, Fit])` | `NoImage` |
 
 An empty config means the same in Roc and in Clay, except that the glue
 orders tags by name, so an Odin literal must set `overflow` and `to`. A
@@ -439,6 +440,18 @@ floats on the window.
 from the Scene as Clay's child offset. The game owns the offset; the host
 never feeds Clay a wheel or a drag. The UI pass applies Clay's scissor
 commands as one clip rect per run of quads.
+
+A `Show` Panel sets Clay's image config to the Panel's config and gives
+Clay the tint as its background colour. Clay then emits the Image command
+before a Rectangle in the tint. The host draws the Panel's real background
+at the Image command, then the Image, and drops that Rectangle, so the
+background draws under the Image and the children over it. `Stretch` fills
+the Panel rect. `Fit` scales the region to fit inside it, keeps its shape
+and centres it. The Image quad keeps the Panel rect for the corner radius,
+so the box SDF rounds a `Fit` Image at the Panel's corners. An id that
+finds no Image draws an 8 by 8 magenta and black checker, and the Image
+table logs each such id once. A `Px` region is cut to the Image's edges.
+Decision, Milestone 34.
 
 A Text carries the string, a size, an `Rgba` colour and a wrap mode,
 `Words` or `None`. `Words` is Clay's default. Clay takes a whole font size,
@@ -494,11 +507,17 @@ check both sides against one corpus.
 The host draws Clay's render commands inside the Main pass, after the sky.
 The UI pipeline has no depth test and no depth write. It blends by alpha
 and uses sample count 4. Every rectangle and glyph goes into one dynamic
-vertex buffer per frame, sized at init for 16384 quads. Rectangles and
-glyphs share one program and the atlas is the only texture, so the UI is
-one draw call. `Clip` and `Scroll` Panels emit scissor commands, and each
-scissor change adds one draw. A `ui` program in `engine/shaders/basic.glsl` draws rounded
-rectangles and SDF glyphs with `smoothstep`. The glyph edge is `0.7071`
+vertex buffer per frame, sized at init for 16384 quads. Rectangles, glyphs
+and Images share one program. The font atlas binds in the first texture
+slot for the whole UI, and an Image binds in the second, with the Linear or
+Nearest sampler of its `filter`. Each quad carries its kind and, for an
+Image, its id and filter. The UI makes one draw for each run of quads with
+one scissor rect and one Image. Rectangles and glyphs bind no Image, so
+they join any run. A UI with no clip and one Image, or none, is one draw
+call. Each scissor change, and each change of Image or filter, adds one
+draw. A `ui` program in `engine/shaders/basic.glsl` draws rounded
+rectangles, SDF glyphs and Images with `smoothstep`. An Image texel is
+sRGB, so the sample is linear, and the tint multiplies it. The glyph edge is `0.7071`
 times the length of the screen-space gradient of the distance, so it covers
 about one pixel. `ui_push_text` rounds each line origin to whole physical
 pixels and keeps the advances fractional, so a glyph at the bake size meets
@@ -511,6 +530,7 @@ The host logs each of these errors once and keeps drawing:
 
 - a character outside ASCII 32 to 126: the host draws `?`.
 - more quads than the vertex buffer holds: the host drops the rest.
+- an empty `Px` region: the host draws no Image for that Panel.
 
 A Clay error, such as a `Percent` over 1, logs once per kind, and the host
 draws what fits. The UI draws in every case. A bug is visible, not fatal.

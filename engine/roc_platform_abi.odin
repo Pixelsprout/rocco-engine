@@ -1094,11 +1094,11 @@ Roc_VocabularyElement_Panel :: struct {
 	_1: Roc_List(Roc_VocabularyElement),
 }
 
-#assert(size_of(Roc_VocabularyElement_Panel) == 128)
+#assert(size_of(Roc_VocabularyElement_Panel) == 184)
 #assert(align_of(Roc_VocabularyElement_Panel) == 8)
 #assert(offset_of(Roc_VocabularyElement_Panel, _0) == 0)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel{}._0)) == 104)
-#assert(offset_of(Roc_VocabularyElement_Panel, _1) == 104)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel{}._0)) == 160)
+#assert(offset_of(Roc_VocabularyElement_Panel, _1) == 160)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel{}._1)) == 24)
 
 Roc_VocabularyElement_Tag :: enum u8 {
@@ -1116,9 +1116,9 @@ Roc_VocabularyElement :: struct {
 	tag: Roc_VocabularyElement_Tag,
 }
 
-#assert(size_of(Roc_VocabularyElement) == 136)
+#assert(size_of(Roc_VocabularyElement) == 192)
 #assert(align_of(Roc_VocabularyElement) == 8)
-#assert(offset_of(Roc_VocabularyElement, tag) == 128)
+#assert(offset_of(Roc_VocabularyElement, tag) == 184)
 
 Roc_VocabularyElement_Panel_0 :: struct {
 	id: u64,
@@ -1126,6 +1126,7 @@ Roc_VocabularyElement_Panel_0 :: struct {
 	floating: Roc_VocabularyElement_Panel_0_Floating,
 	gap: f32,
 	height: Roc_VocabularyElement_Panel_0_Height,
+	image: Roc_VocabularyElement_Panel_0_Image,
 	overflow: Roc_VocabularyElement_Panel_0_Overflow,
 	pad: Roc_VocabularyElement_Panel_0_Pad,
 	radius: f32,
@@ -1134,7 +1135,7 @@ Roc_VocabularyElement_Panel_0 :: struct {
 	direction: Roc_VocabularyElement_Panel_0_Direction,
 }
 
-#assert(size_of(Roc_VocabularyElement_Panel_0) == 104)
+#assert(size_of(Roc_VocabularyElement_Panel_0) == 160)
 #assert(align_of(Roc_VocabularyElement_Panel_0) == 8)
 #assert(offset_of(Roc_VocabularyElement_Panel_0, id) == 0)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.id)) == 8)
@@ -1146,17 +1147,19 @@ Roc_VocabularyElement_Panel_0 :: struct {
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.gap)) == 4)
 #assert(offset_of(Roc_VocabularyElement_Panel_0, height) == 44)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.height)) == 12)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, overflow) == 56)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, image) == 56)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.image)) == 52)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, overflow) == 108)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.overflow)) == 12)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, pad) == 68)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, pad) == 120)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.pad)) == 16)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, radius) == 84)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, radius) == 136)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.radius)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, width) == 88)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, width) == 140)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.width)) == 12)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, child_align) == 100)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, child_align) == 152)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.child_align)) == 2)
-#assert(offset_of(Roc_VocabularyElement_Panel_0, direction) == 102)
+#assert(offset_of(Roc_VocabularyElement_Panel_0, direction) == 154)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.direction)) == 1)
 
 Roc_VocabularyElement_Panel_0_Background :: struct {
@@ -1274,6 +1277,107 @@ Roc_VocabularyElement_Panel_0_Height_Fit :: struct {
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Height_Fit{}.min)) == 4)
 
 Roc_VocabularyElement_Panel_0_Height_Grow :: Roc_VocabularyElement_Panel_0_Height_Fit
+Roc_VocabularyElement_Panel_0_Image_Show :: struct {
+	_0: Roc_VocabularyElement_Panel_0_Image_Show_0,
+	_1: Roc_VocabularyElement_Panel_0_Image_Show_1,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show) == 48)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show, _0) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show{}._0)) == 44)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show, _1) == 44)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show{}._1)) == 1)
+
+Roc_VocabularyElement_Panel_0_Image_Tag :: enum u8 {
+	NoImage = 0,
+	Show = 1,
+}
+
+Roc_VocabularyElement_Panel_0_Image_Payload :: struct #raw_union {
+	show: Roc_VocabularyElement_Panel_0_Image_Show,
+}
+
+Roc_VocabularyElement_Panel_0_Image :: struct {
+	payload: Roc_VocabularyElement_Panel_0_Image_Payload,
+	tag: Roc_VocabularyElement_Panel_0_Image_Tag,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image) == 52)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image, tag) == 48)
+
+Roc_VocabularyElement_Panel_0_Image_Show_0 :: struct {
+	id: u32,
+	region: Roc_VocabularyElement_Panel_0_Image_Show_0_Region,
+	tint: Roc_VocabularyElement_Panel_0_Background,
+	filter: Roc_VocabularyElement_Panel_0_Image_Show_0_Filter,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show_0) == 44)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show_0) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0, id) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0{}.id)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0, region) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0{}.region)) == 20)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0, tint) == 24)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0{}.tint)) == 16)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0, filter) == 40)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0{}.filter)) == 1)
+
+Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Tag :: enum u8 {
+	Px = 0,
+	Whole = 1,
+}
+
+Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Payload :: struct #raw_union {
+	px: Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px,
+}
+
+Roc_VocabularyElement_Panel_0_Image_Show_0_Region :: struct {
+	payload: Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Payload,
+	tag: Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Tag,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region) == 20)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region, tag) == 16)
+
+Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px :: struct {
+	h: u32,
+	w: u32,
+	x: u32,
+	y: u32,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px) == 16)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px, h) == 0)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px{}.h)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px, w) == 4)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px{}.w)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px, x) == 8)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px{}.x)) == 4)
+#assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px, y) == 12)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px{}.y)) == 4)
+
+Roc_VocabularyElement_Panel_0_Image_Show_0_Tint :: Roc_VocabularyElement_Panel_0_Background
+Roc_VocabularyElement_Panel_0_Image_Show_0_Filter :: enum u8 {
+	Linear = 0,
+	Nearest = 1,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Filter) == 1)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Filter) == 1)
+
+Roc_VocabularyElement_Panel_0_Image_Show_1 :: enum u8 {
+	Fit = 0,
+	Stretch = 1,
+}
+
+#assert(size_of(Roc_VocabularyElement_Panel_0_Image_Show_1) == 1)
+#assert(align_of(Roc_VocabularyElement_Panel_0_Image_Show_1) == 1)
+
 Roc_VocabularyElement_Panel_0_Overflow_Tag :: enum u8 {
 	Clip = 0,
 	Scroll = 1,

@@ -75,5 +75,15 @@ Attach_Point :: Roc_VocabularyElement_Panel_0_Floating_Float_Attach
 Float_To :: Roc_VocabularyElement_Panel_0_Floating_Float_To
 Overflow :: Roc_VocabularyElement_Panel_0_Overflow
 Overflow_Tag :: Roc_VocabularyElement_Panel_0_Overflow_Tag
+Panel_Image :: Roc_VocabularyElement_Panel_0_Image
+Panel_Image_Tag :: Roc_VocabularyElement_Panel_0_Image_Tag
+Panel_Image_Show :: Roc_VocabularyElement_Panel_0_Image_Show
+// The Vocabulary's Image. The host's Image is a slot of the Image table.
+Image_Ref :: Roc_VocabularyElement_Panel_0_Image_Show_0
+Image_Region :: Roc_VocabularyElement_Panel_0_Image_Show_0_Region
+Image_Region_Tag :: Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Tag
+Image_Px :: Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px
+Image_Filter :: Roc_VocabularyElement_Panel_0_Image_Show_0_Filter
+Image_Fit :: Roc_VocabularyElement_Panel_0_Image_Show_1
 Text :: Roc_VocabularyElement_Text
 Text_Wrap :: Roc_VocabularyElement_Text_Wrap

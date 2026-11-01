@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":9,"step_hz":120,"steps":0,"headless":false,"devices":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -140,7 +140,7 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":9,"step_hz":120,"steps":0,"headless":false,"devices":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
@@ -155,7 +155,7 @@ echoes the setting. This exchange is from a run of bridge-echo:
 
 ```
 {"op":"hello","devices":true}
-{"ok":true,"protocol":8,"step_hz":120,"steps":0,"headless":false,"devices":true}
+{"ok":true,"protocol":9,"step_hz":120,"steps":0,"headless":false,"devices":true}
 ```
 
 A `hello` without `devices` turns it off. The setting lasts while this
@@ -350,7 +350,7 @@ lines:
 ```
 {"op":"scene"}
 {"ok":true,"steps":1,"scene":{...,"ui":[
-  {"Panel":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}}},
+  {"Panel":{"config":{"id":0,"width":{"Fit":{"min":0,"max":0}},"height":{"Fit":{"min":0,"max":0}},"pad":{"left":8,"right":8,"top":8,"bottom":8},"gap":0,"direction":"Row","child_align":{"x":"Start","y":"Start"},"background":{"r":0,"g":0,"b":0,"a":0.5},"radius":8,"overflow":"Visible","floating":{"Float":{"to":"Window","attach":"LeftTop","on":"LeftTop","offset":{"x":16,"y":16}}},"image":"NoImage"},
           "children":[{"Text":{"str":"Pickups: 0 / 5","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}},
   {"Panel":{"config":{...,"floating":{"Float":{"to":"Window","attach":"CenterBottom","on":"CenterBottom","offset":{"x":0,"y":-16}}}},
           "children":[{"Text":{"str":"Collect every pickup.","size":24,"color":{"r":1,"g":1,"b":1,"a":1},"wrap":"None"}}]}}],...},...}
@@ -701,7 +701,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 8. |
+| `protocol` | The version of the requests and replies. Today it is 9. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
@@ -750,6 +750,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | A tag with a payload | An object with one key: `{"Sphere":0.25}`, `{"ContactsOf":2}`. |
 | A tag with no payload | A string: `"Quit"`, `"Free"`, `"Locked"`. |
 | `Element` | `{"Panel":{"config":{...},"children":[...]}}` or `{"Text":{...}}`. A Panel's two payloads get the names `config` and `children`. |
+| A Panel's `image` | `"NoImage"`, or `{"Show":{"image":{"id":1,"region":"Whole","tint":{...},"filter":"Linear"},"fit":"Fit"}}`. The two payloads of `Show` get the names `image` and `fit`. A `Px` region is `{"Px":{"x":0,"y":0,"w":16,"h":16}}`. |
 
 ### Errors
 

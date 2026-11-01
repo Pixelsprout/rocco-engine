@@ -42,7 +42,8 @@ Add and checks that the log sticks to the bottom only until the person scrolls
 up. It moves the focus with Tab and Shift-Tab, opens the accordion with Enter,
 picks a dropdown item that floats over the header, closes the menu with a press
 outside it, and checks that a press on one button and a release on another
-click nothing.
+click nothing. Last it clicks the icon Button, a Panel that shows a frame of
+the sprite sheet, and checks the click Tell and the image in the scene reply.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
@@ -59,7 +60,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge
 
 # The protocol of engine/bridge_ops.odin.
-PROTOCOL = 8
+PROTOCOL = 9
 # examples/bridge-echo/main.roc
 ECHO_BUTTON_ID = 7
 ECHO_MENU_ID = 8
@@ -115,6 +116,7 @@ SCOREBOARD_TEXTS = ["0", ":", "0"]
 WIDGETS_FILTER_ID = 2
 WIDGETS_MENU_ID = 3
 WIDGETS_LOG_ID = 5
+WIDGETS_ICON_ID = 7
 BODY_TEXT = "Tab moves the focus. Enter clicks."
 ADD_POINT = (96, 32)
 FILTER_POINT = (264, 32)
@@ -124,6 +126,8 @@ ITEM_POINT = (264, 84)
 LOG_POINT = (200, 150)
 THUMB_POINT = (432, 177)
 EMPTY_POINT = (700, 300)
+# The icon Button is 48 pixels square, first in the Images row at the top right.
+ICON_POINT = (744, 48)
 
 
 def binary_suffix():
@@ -492,6 +496,12 @@ def drive_widgets(b, out):
     ]
     said = [msg for reply in replies for msg in tells(reply)]
     check(said == [], f"a press on Add and a release on the filter click nothing: {said}")
+
+    said = tells(tap_at(b, ICON_POINT))
+    check(said == ["clicked 7"], f"a click on the icon Button Tells it: {said}")
+    show = find_panel(widgets_ui(b), WIDGETS_ICON_ID)["image"]["Show"]
+    frame = {"Px": {"x": 0, "y": 0, "w": 16, "h": 16}}
+    check(show["fit"] == "Fit" and show["image"]["region"] == frame and show["image"]["id"] != 0, f"the icon Button shows the first frame of the loaded sheet: {show}")
 
     b.quit()
 

@@ -48,17 +48,35 @@ UI_ALIGN_Y := [Align]clay.LayoutAlignmentY {
 	.End    = .Bottom,
 }
 
-// rect is x, y, width, height in window pixels. uv is the atlas rect of a
-// glyph as u0, v0, u1, v1. A rect quad rounds its corners by radius. A
-// clipped quad draws only inside clip, in window pixels.
+Ui_Quad_Kind :: enum u8 {
+	Rect,
+	Glyph,
+	Image,
+}
+
+// rect is x, y, width, height in window pixels. uv is u0, v0, u1, v1 in the
+// font atlas for a glyph, and in the Image for an Image quad. A rect quad
+// rounds its corners by radius. An Image quad draws only inside panel with
+// its corners rounded by radius, and Fit leaves rect smaller than panel.
+// image is an Image id, and 0 draws the checker. A clipped quad draws only
+// inside clip, in window pixels.
 Ui_Quad :: struct {
 	rect:    [4]f32,
 	uv:      [4]f32,
 	color:   [4]f32,
 	clip:    [4]f32,
+	panel:   [4]f32,
 	radius:  f32,
-	glyph:   bool,
+	image:   u32,
+	filter:  Image_Filter,
+	kind:    Ui_Quad_Kind,
 	clipped: bool,
+}
+
+// What the second texture slot holds for a run of quads.
+Ui_Texture :: struct {
+	image:  u32,
+	filter: Image_Filter,
 }
 
 Ui_Repair :: enum {
@@ -66,12 +84,15 @@ Ui_Repair :: enum {
 	Quad_Cap,
 	Duplicate_Id,
 	Scroll_Without_Id,
+	Empty_Region,
 }
 
-// shape is the half size and corner radius of a rect, and w is 1 for a glyph.
+// local is the offset from the centre of the rounded rect. shape is its half
+// size and corner radius, and w is the Ui_Quad_Kind.
 Ui_Vertex :: struct {
 	pos:   [2]f32,
 	uv:    [2]f32,
+	local: [2]f32,
 	color: [4]f32,
 	shape: [4]f32,
 }
@@ -145,18 +166,35 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 	return nil
 }
 
-// Lays out the trees under roots against the window and returns the quads to draw, in order.
-ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window) -> []Ui_Quad {
+// Lays out the trees under roots against the window and returns the quads to
+// draw, in order. A nil images table finds no Image.
+ui_frame :: proc(ui: ^Ui, roots: []Element, window: Ui_Window, images: ^Image_Table = nil) -> []Ui_Quad {
 	commands := ui_layout(ui, roots, window)
 	ui.quad_count = 0
 	clear(&ui.clips)
+	// An image Panel gives Clay its tint as the background, so Clay's
+	// Rectangle for that Panel follows the Image and is dropped.
+	tinted: u32
+	has_tinted := false
 	for &command in commands {
 		box := command.boundingBox
 		rect := [4]f32{box.x, box.y, box.width, box.height}
 		#partial switch command.commandType {
 		case .Rectangle:
+			if has_tinted && command.id == tinted {
+				continue
+			}
 			r := command.renderData.rectangle
 			ui_push(ui, {rect = rect, color = r.backgroundColor, radius = r.cornerRadius.topLeft})
+		case .Image:
+			r := command.renderData.image
+			config := (^Panel_Config)(r.imageData)
+			radius := r.cornerRadius.topLeft
+			if config.background.a > 0 {
+				ui_push(ui, {rect = rect, color = ui_color(config.background), radius = radius})
+			}
+			ui_push_image(ui, rect, radius, r.backgroundColor, &config.image.payload.show, images)
+			tinted, has_tinted = command.id, true
 		case .Text:
 			ui_push_text(ui, rect, command.renderData.text)
 		case .ScissorStart:
@@ -181,13 +219,25 @@ ui_rect_intersect :: proc(a, b: [4]f32) -> [4]f32 {
 	return {x0, y0, max(x1 - x0, 0), max(y1 - y0, 0)}
 }
 
-// The end of the run of quads that share clipped and clip with quads[start].
-ui_clip_run_end :: proc(quads: []Ui_Quad, start: int) -> (end: int) {
-	end = start + 1
-	for end < len(quads) && quads[end].clipped == quads[start].clipped && quads[end].clip == quads[start].clip {
-		end += 1
+// The end of the run of quads that share clipped and clip with quads[start]
+// and bind one texture. Rect and glyph quads bind no Image, so they join any
+// run. textured is false for a run with no Image quad.
+ui_run_end :: proc(quads: []Ui_Quad, start: int) -> (end: int, texture: Ui_Texture, textured: bool) {
+	first := quads[start]
+	for end = start; end < len(quads); end += 1 {
+		q := quads[end]
+		if q.clipped != first.clipped || q.clip != first.clip {
+			break
+		}
+		if q.kind == .Image {
+			key := Ui_Texture{image = q.image, filter = q.filter}
+			if textured && key != texture {
+				break
+			}
+			texture, textured = key, true
+		}
 	}
-	return end
+	return
 }
 
 // The commands point into Clay's arena and into the roots, so they last until the next layout.
@@ -238,6 +288,10 @@ ui_layout_element :: proc(ui: ^Ui, e: ^Element, dpi: f32, layer: u32) {
 			}
 		}
 		d := ui_declaration(config, dpi)
+		if config.image.tag == .Show {
+			d.image = {imageData = &e.payload.panel._0}
+			d.backgroundColor = ui_color(config.image.payload.show._0.tint)
+		}
 		if config.floating.tag == .Float {
 			// Clay reads the mode when the Panel opens, before its children.
 			d.floating.pointerCaptureMode = .Capture if ui_has_hit_id(e) else .Passthrough
@@ -406,30 +460,87 @@ ui_push_text :: proc(ui: ^Ui, rect: [4]f32, text: clay.TextRenderData) {
 				rect = {origin_x + (pen_x + f32(g.bearing.x)) * scale, baseline + f32(g.bearing.y) * scale, w * scale, h * scale},
 				uv = {x / FONT_ATLAS_WIDTH, y / FONT_ATLAS_HEIGHT, (x + w) / FONT_ATLAS_WIDTH, (y + h) / FONT_ATLAS_HEIGHT},
 				color = text.textColor,
-				glyph = true,
+				kind = .Glyph,
 			})
 		}
 	}
+}
+
+// Draws the Image of a Show Panel at rect, after the Panel's background.
+// A missing Image keeps the region's shape for Fit, or is square for Whole.
+ui_push_image :: proc(ui: ^Ui, rect: [4]f32, radius: f32, tint: clay.Color, show: ^Panel_Image_Show, images: ^Image_Table) {
+	image := &show._0
+	size := [2]f32{1, 1}
+	found := false
+	if images != nil {
+		if entry, ok := image_resolve(images, image.id); ok {
+			size, found = {f32(entry.width), f32(entry.height)}, true
+		}
+	}
+	region := [4]f32{0, 0, size.x, size.y}
+	if image.region.tag == .Px {
+		px := image.region.payload.px
+		x0, y0 := f32(px.x), f32(px.y)
+		x1, y1 := x0 + f32(px.w), y0 + f32(px.h)
+		if found {
+			x0, y0, x1, y1 = min(x0, size.x), min(y0, size.y), min(x1, size.x), min(y1, size.y)
+		}
+		region = {x0, y0, x1 - x0, y1 - y0}
+	}
+	if region.z <= 0 || region.w <= 0 {
+		ui_repair(ui, .Empty_Region)
+		return
+	}
+	if tint.a <= 0 || rect.z <= 0 || rect.w <= 0 {
+		return
+	}
+	quad := Ui_Quad {
+		rect   = rect,
+		uv     = {0, 0, 1, 1},
+		color  = tint,
+		panel  = rect,
+		radius = radius,
+		filter = .Nearest,
+		kind   = .Image,
+	}
+	if found {
+		quad.uv = {region.x / size.x, region.y / size.y, (region.x + region.z) / size.x, (region.y + region.w) / size.y}
+		quad.image = image.id
+		quad.filter = image.filter
+	}
+	if show._1 == .Fit {
+		scale := min(rect.z / region.z, rect.w / region.w)
+		w, h := region.z * scale, region.w * scale
+		quad.rect = {rect.x + (rect.z - w) / 2, rect.y + (rect.w - h) / 2, w, h}
+	}
+	ui_push(ui, quad)
 }
 
 // Corners go clockwise from the top left. UI_QUAD_INDICES draws them as two triangles.
 ui_quad_vertices :: proc(q: Ui_Quad) -> [4]Ui_Vertex {
 	x0, y0 := q.rect.x, q.rect.y
 	x1, y1 := x0 + q.rect.z, y0 + q.rect.w
-	uv, shape: [4]f32
-	if q.glyph {
+	uv, local, shape: [4]f32
+	switch q.kind {
+	case .Glyph:
 		uv = q.uv
-		shape = {0, 0, 0, 1}
-	} else {
+		shape = {0, 0, 0, f32(Ui_Quad_Kind.Glyph)}
+	case .Rect:
 		half := q.rect.zw / 2
-		uv = {-half.x, -half.y, half.x, half.y}
-		shape = {half.x, half.y, q.radius, 0}
+		local = {-half.x, -half.y, half.x, half.y}
+		shape = {half.x, half.y, q.radius, f32(Ui_Quad_Kind.Rect)}
+	case .Image:
+		uv = q.uv
+		half := q.panel.zw / 2
+		centre := q.panel.xy + half
+		local = {x0 - centre.x, y0 - centre.y, x1 - centre.x, y1 - centre.y}
+		shape = {half.x, half.y, q.radius, f32(Ui_Quad_Kind.Image)}
 	}
 	return {
-		{pos = {x0, y0}, uv = {uv[0], uv[1]}, color = q.color, shape = shape},
-		{pos = {x1, y0}, uv = {uv[2], uv[1]}, color = q.color, shape = shape},
-		{pos = {x1, y1}, uv = {uv[2], uv[3]}, color = q.color, shape = shape},
-		{pos = {x0, y1}, uv = {uv[0], uv[3]}, color = q.color, shape = shape},
+		{pos = {x0, y0}, uv = {uv[0], uv[1]}, local = {local[0], local[1]}, color = q.color, shape = shape},
+		{pos = {x1, y0}, uv = {uv[2], uv[1]}, local = {local[2], local[1]}, color = q.color, shape = shape},
+		{pos = {x1, y1}, uv = {uv[2], uv[3]}, local = {local[2], local[3]}, color = q.color, shape = shape},
+		{pos = {x0, y1}, uv = {uv[0], uv[3]}, local = {local[0], local[3]}, color = q.color, shape = shape},
 	}
 }
 
@@ -447,6 +558,8 @@ ui_repair :: proc(ui: ^Ui, repair: Ui_Repair) {
 		fmt.eprintln("two Panels in a Scene's ui share an id; the host hit tests only the first")
 	case .Scroll_Without_Id:
 		fmt.eprintln("a Scroll Panel has id 0; the host scrolls it but lists no sizes for it")
+	case .Empty_Region:
+		fmt.eprintln("an Image Panel shows an empty region; the host draws no Image for it")
 	}
 }
 

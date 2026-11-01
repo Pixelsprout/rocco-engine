@@ -224,7 +224,8 @@ scaled Image gets no dark fringe at its edges.
 An `Image` value names an Image, the part of it to show, a tint and a
 filter. Start from `Image.default` and set its `id`. A `Px` region counts
 in the pixels that `Image.size` reports, from the top-left corner, so one
-sprite sheet can hold many pictures.
+sprite sheet can hold many pictures. A Panel shows it with
+`image: Show(image, Fit)`. See [Images in the UI](ui.md#images).
 
 ### Capacities
 

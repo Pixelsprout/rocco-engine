@@ -29,9 +29,13 @@ Ui := [].{
 	## A point of a Panel, of its parent or of the window.
 	AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
 
+	## An Image from a Pack and the part of it to show. Start from
+	## `Image.default` in the platform. See `Vocabulary.Image`.
+	Image : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 })], tint : Rgba, filter : [Linear, Nearest] }
+
 	## The layout and look of a Panel. Start from `default_panel`. See
 	## `Vocabulary.PanelConfig`.
-	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })] }
+	PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : Padding, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll(Offset)], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : Offset })], image : [NoImage, Show(Image, [Stretch, Fit])] }
 
 	## One string at a size and a colour. Start from `default_text` or `label`.
 	## See `Vocabulary.Text`.
@@ -66,7 +70,7 @@ Ui := [].{
 
 	## Clay's defaults: not tagged, fits its children, no padding, no gap, a
 	## `Row`, children at the start, no background, square corners, children
-	## drawn past the edges and not floating.
+	## drawn past the edges, not floating and no Image.
 	default_panel : PanelConfig
 	default_panel = {
 		id: 0,
@@ -80,6 +84,7 @@ Ui := [].{
 		radius: 0.0,
 		overflow: Visible,
 		floating: NoFloat,
+		image: NoImage,
 	}
 
 	## An empty string, 24 pixels high, opaque white, that breaks lines between
@@ -314,7 +319,7 @@ expect Ui.label("Keys") == { str: "Keys", size: 24.0, color: { r: 1.0, g: 1.0, b
 
 expect Ui.label("") == Ui.default_text
 
-expect Ui.default_panel.id == 0 and Ui.default_panel.overflow == Visible
+expect Ui.default_panel.id == 0 and Ui.default_panel.overflow == Visible and Ui.default_panel.image == NoImage
 
 expect Ui.float_at(RightBottom, { x: 16.0, y: 8.0 }) == { ..Ui.default_panel, floating: Float({ to: Window, attach: RightBottom, on: RightBottom, offset: { x: 16.0, y: 8.0 } }) }
 
@@ -330,6 +335,7 @@ expect Ui.panel(LeftTop, { x: 16.0, y: 16.0 }) == {
 	radius: 8.0,
 	overflow: Visible,
 	floating: Float({ to: Window, attach: LeftTop, on: LeftTop, offset: { x: 16.0, y: 16.0 } }),
+	image: NoImage,
 }
 
 expect Ui.pad_all(4.0) == { left: 4.0, right: 4.0, top: 4.0, bottom: 4.0 }
