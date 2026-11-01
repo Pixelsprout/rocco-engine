@@ -34,7 +34,7 @@ Alloc_Report :: struct {
 // place.
 Roc_Heap :: struct {
 	backing:           mem.Allocator,
-	// The context of the roc_heap_init call. Every hook runs in it.
+	// Every Roc hook runs in this context, not only the heap hooks.
 	ctx:               runtime.Context,
 	roc_alloc_count:   uint,
 	roc_dealloc_count: uint,

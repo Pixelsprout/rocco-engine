@@ -44,7 +44,7 @@ Rotation about the forward axis — tilting the horizon. The third of Dunn & Par
 
 ## Callback, C {#callback-c}
 
-A procedure declared `proc "c"` so C code can call it. Odin's implicit `context` cannot cross that boundary, so the first line of every one must be `context = g_state.ctx`. Sokol's `init_cb`, `frame_cb`, `cleanup_cb`, and `event_cb` are all of this kind.
+A procedure declared `proc "c"` so C code can call it. Odin's implicit `context` cannot cross that boundary, so the first line of every one must set `context`. The Roc hooks use the context that `roc_heap_init` saved; the others use `g_state.ctx`. Sokol's `init_cb`, `frame_cb`, `cleanup_cb`, and `event_cb` are all of this kind.
 
 ## Clay {#clay}
 
