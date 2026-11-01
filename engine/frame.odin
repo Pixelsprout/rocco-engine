@@ -1,6 +1,5 @@
 package engine
 
-import "core:mem"
 import "core:strings"
 import "core:time"
 
@@ -133,12 +132,6 @@ headless_window :: proc(launch: Launch) -> Ui_Window {
 // Holds no sokol call, so a Headless run needs no window and no GPU.
 headless_platform :: proc(s: ^State) -> Frame_Platform {
 	return {frame_duration = s.clock.fixed_dt, window = headless_window(s.launch), lock_mouse = headless_lock_mouse, request_quit = headless_request_quit}
-}
-
-// Lays out the UI with no window. frame_run never submits in Headless.
-headless_init :: proc(s: ^State, allocator: mem.Allocator) -> mem.Allocator_Error {
-	s.window = headless_window(s.launch)
-	return ui_init(&s.ui, s.window.size, int(s.launch.capacity.ui_quads), allocator)
 }
 
 // Runs Frames until the Frame limit or a Quit, then returns.

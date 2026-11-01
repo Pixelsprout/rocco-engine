@@ -78,6 +78,8 @@ Fake_Game :: struct {
 	launch_assets:    []string,
 	launch_args:      []string,
 	launch_out:       Launch,
+	// The host owns it after launch returns it.
+	launch_in:        Maybe(Launch),
 	inits:            int,
 	seed:             u64,
 	assets:           []string,
@@ -225,7 +227,7 @@ fake_launch :: proc(config: Config) -> Launch {
 	g_fake.launches += 1
 	g_fake.launch_inits = g_fake.inits
 	g_fake.launch_seed, g_fake.launch_assets, g_fake.launch_args = fake_config_read(config)
-	return launch_default()
+	return g_fake.launch_in.? or_else launch_default()
 }
 
 fake_init :: proc(config: Config) -> Init_Result {
@@ -414,12 +416,15 @@ fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, que
 	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui}
 	packs_init(&g_fake.packs, assets_dir, context.allocator)
 	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
-	mesh_table_init(&g_fake.meshes, SMALL_MESHES, context.allocator, context.allocator)
-	sky_table_init(&g_fake.skies, SMALL_SKIES, context.allocator, context.allocator)
-	image_table_init(&g_fake.images, SMALL_IMAGES, context.allocator, context.allocator)
 	audio_init(&g_fake.audio, device = false)
-	audio_tables_init(&g_fake.audio, SMALL_SOUNDS, SMALL_VOICES, context.allocator, context.allocator)
-	packs_attach(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.images, &g_fake.audio, context.allocator)
+	small := Capacity {
+		meshes = SMALL_MESHES,
+		skies  = SMALL_SKIES,
+		images = SMALL_IMAGES,
+		sounds = SMALL_SOUNDS,
+		voices = SMALL_VOICES,
+	}
+	asset_tables_init(&g_fake.packs, &g_fake.meshes, &g_fake.skies, &g_fake.images, &g_fake.audio, small, context.allocator, context.allocator)
 	seam_init(s, fake_run_command, config_make(seed, g_fake.packs.on_disk, args), &g_fake.packs, &g_fake.audio)
 }
 
@@ -427,9 +432,7 @@ fake_seam_shutdown :: proc(s: ^Seam) {
 	seam_shutdown(s)
 	roc_decref(g_fake.launch_out)
 	packs_destroy(&g_fake.packs)
-	mesh_table_destroy(&g_fake.meshes)
-	sky_table_destroy(&g_fake.skies)
-	image_table_destroy(&g_fake.images)
+	asset_tables_destroy(&g_fake.meshes, &g_fake.skies, &g_fake.images)
 	audio_shutdown(&g_fake.audio)
 }
 

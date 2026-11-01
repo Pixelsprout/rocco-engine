@@ -18,7 +18,7 @@ Step_Run :: struct {
 }
 
 step_run_open :: proc(t: ^testing.T, r: ^Step_Run, queries: []Query = nil, ui: []Element = nil) {
-	fake_frame_state_init(&r.s, mode = .Lockstep, queries = queries, ui = ui)
+	fake_host_init(&r.s, mode = .Lockstep, queries = queries, ui = ui)
 	err := bridge_open(&r.s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	r.driver = driver_dial(t, bridge_transport_port(&r.s.bridge.transport))
@@ -27,7 +27,7 @@ step_run_open :: proc(t: ^testing.T, r: ^Step_Run, queries: []Query = nil, ui: [
 step_run_close :: proc(r: ^Step_Run) {
 	net.close(r.driver)
 	bridge_close(&r.s.bridge)
-	fake_frame_state_destroy(&r.s)
+	fake_host_destroy(&r.s)
 }
 
 // Sends one request and answers it, as frame_cb's poll does.

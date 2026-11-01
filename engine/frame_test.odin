@@ -1,9 +1,10 @@
 #+test
 package engine
 
-import clay "../clay/bindings/odin/clay-odin"
 import sapp "../sokol-odin/sokol/app"
 import sg "../sokol-odin/sokol/gfx"
+import "core:fmt"
+import "core:os"
 import "core:slice"
 import "core:sync"
 import "core:testing"
@@ -21,50 +22,31 @@ Fake_Platform_Calls :: struct {
 // Guarded by the Roc heap test lock, as g_fake is.
 g_fake_platform: Fake_Platform_Calls
 
-// Holds g_clay_lock until fake_frame_state_destroy, because the render lays out the UI.
-fake_frame_state_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil) {
+// The host owns launch. Holds g_clay_lock until fake_host_destroy, because
+// the render lays out the UI.
+fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, submits: Maybe(Frame_Render_Submits) = nil) {
 	g_fake_platform = {}
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, launch_in = launch}
 	err := memory_init(&s.mem)
 	assert(err == nil)
-	s.exit_after_frames = exit_after_frames
-	s.mode = mode
-	s.launch = launch.? or_else launch_default()
-	clock_init(&s.clock, s.launch.step_hz)
-	span_sink_init(&s.spans, "", exit_after_frames, context.allocator)
-	fake_seam_init(&s.seam, colliders = colliders, queries = queries, ui = ui)
-	capacity := s.launch.capacity
-	mesh_table_init(&s.renderer.meshes, int(capacity.meshes), context.allocator, context.allocator)
-	sky_table_init(&s.renderer.skies, int(capacity.skies), context.allocator, context.allocator)
-	frame_render_init(&s.frame_render, int(capacity.draws), int(capacity.groups), s.launch.shadow_map, int(s.launch.shadow_cascades), context.allocator)
+	field, rule, ok := host_build(s, {mode = mode, exit_after_frames = exit_after_frames, assets_dir = assets_dir}, FAKE_GAME, fake_run_command)
+	fmt.assertf(ok, "Launch.%v %v", field, rule)
 	sync.mutex_lock(&g_clay_lock)
-	ui_err := headless_init(s, context.allocator)
+	ui_err := host_open_headless(s, submits.? or_else fake_submits())
 	assert(ui_err == nil)
-	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
-	s.frame_render.end_pass = proc(ctx: rawptr) {}
-	s.frame_render.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
-	s.frame_render.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
-	s.frame_render.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
-	s.frame_render.submit_sky = proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
-	s.frame_render.submit_ui = proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
 }
 
-fake_frame_state_destroy :: proc(s: ^State) {
-	clay.SetCurrentContext(nil)
-	delete(s.ui.memory)
-	delete(s.ui.quads)
-	delete(s.ui.hits)
-	delete(s.ui.over)
-	delete(s.ui.scroll_panels)
-	delete(s.ui.scrolls)
-	delete(s.ui.clips)
+fake_host_destroy :: proc(s: ^State) {
+	host_destroy(s)
 	sync.mutex_unlock(&g_clay_lock)
-	frame_render_destroy(&s.frame_render)
-	mesh_table_destroy(&s.renderer.meshes)
-	sky_table_destroy(&s.renderer.skies)
-	fake_seam_shutdown(&s.seam)
-	roc_decref(s.launch)
-	span_sink_destroy(&s.spans)
 	memory_shutdown(&s.mem)
+}
+
+// Submits nothing and counts the submit_lights calls in g_fake_platform.
+fake_submits :: proc() -> Frame_Render_Submits {
+	submits := FRAME_RENDER_SUBMITS_NONE
+	submits.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
+	return submits
 }
 
 fake_platform :: proc(frame_duration: f64) -> Frame_Platform {
@@ -82,8 +64,8 @@ test_frame_run_steps_once_and_views_once_per_frame_at_the_fixed_dt :: proc(t: ^t
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 
 	for _ in 0 ..< 5 {
 		frame_run(&s, fake_platform(s.clock.fixed_dt))
@@ -105,8 +87,8 @@ test_frame_run_at_60_hz_steps_once_per_interval_with_a_dt_of_one_over_60 :: proc
 	launch := launch_default()
 	launch.step_hz = 60
 	s: State
-	fake_frame_state_init(&s, launch = launch)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, launch = launch)
+	defer fake_host_destroy(&s)
 
 	for _ in 0 ..< 5 {
 		frame_run(&s, fake_platform(1.0 / 60))
@@ -122,8 +104,8 @@ test_frame_run_runs_every_fixed_step_the_frame_time_holds :: proc(t: ^testing.T)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
 
@@ -137,8 +119,8 @@ test_frame_run_shorter_than_a_fixed_step_renders_without_a_step :: proc(t: ^test
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
 
@@ -153,8 +135,8 @@ test_frame_run_requests_quit_at_the_limit_and_skips_later_frames :: proc(t: ^tes
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 2)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 2)
+	defer fake_host_destroy(&s)
 
 	for _ in 0 ..< 4 {
 		frame_run(&s, fake_platform(s.clock.fixed_dt))
@@ -171,8 +153,8 @@ test_frame_run_in_lockstep_runs_one_fixed_step_whatever_the_frame_time :: proc(t
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
 	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
@@ -190,8 +172,8 @@ test_frame_run_in_lockstep_at_60_hz_runs_one_step_per_frame_with_a_dt_of_one_ove
 	launch := launch_default()
 	launch.step_hz = 60
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep, launch = launch)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep, launch = launch)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(3.0 / 60))
 	frame_run(&s, fake_platform(1.0 / 120))
@@ -206,8 +188,8 @@ test_headless_run_steps_and_views_once_per_frame_and_stops_at_the_limit :: proc(
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 7, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 7, mode = .Headless)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -223,8 +205,8 @@ test_headless_run_at_60_hz_steps_once_per_frame_at_the_launch_interval :: proc(t
 	launch := launch_default()
 	launch.step_hz = 60
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Headless, launch = launch)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 3, mode = .Headless, launch = launch)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -238,8 +220,8 @@ test_frame_run_gives_step_the_window_in_logical_pixels :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 	platform.window = {size = {2560, 1600}, dpi = 2}
 
@@ -253,8 +235,8 @@ test_frame_gives_step_the_pointer_in_logical_pixels :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 	platform.window = {size = {1920, 1080}, dpi = 2}
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 200, mouse_y = 100}
@@ -277,8 +259,8 @@ test_frame_pointer_past_the_window_edge_is_not_inside :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 	platform.window = {size = {1920, 1080}, dpi = 2}
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 2000, mouse_y = 100}
@@ -295,8 +277,8 @@ test_frame_pointer_with_the_mouse_locked_is_not_inside :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 	platform.mouse_locked = true
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 200, mouse_y = 100}
@@ -315,8 +297,8 @@ test_headless_run_gives_step_the_launch_window :: proc(t: ^testing.T) {
 	launch.window.width = 1280
 	launch.window.height = 800
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -328,8 +310,8 @@ test_headless_run_never_calls_sokol :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 3, mode = .Headless)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -346,8 +328,8 @@ test_headless_run_stops_after_a_quit :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 5, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 5, mode = .Headless)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, headless_platform(&s))
 	s.quit = true
@@ -369,8 +351,8 @@ test_headless_lays_out_the_ui_against_the_launch_window_at_dpi_1 :: proc(t: ^tes
 	config := ui_rect(100, 50)
 	config.floating = ui_floating(.RightBottom)
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_panel_of(config)})
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 1, mode = .Headless, launch = launch, ui = {ui_panel_of(config)})
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -387,8 +369,8 @@ test_headless_run_answers_queries :: proc(t: ^testing.T) {
 	s: State
 	colliders := []Collider{test_box(7, {0, 0.5, 0}, IDENTITY, {0.3, 0.5, 0.3}), test_box(2, {0, -2, 0}, IDENTITY, {1, 1, 1})}
 	queries := []Query{test_ray(7, 0, {0, 0.5, 0}, {0, -1, 0}, 10)}
-	fake_frame_state_init(&s, exit_after_frames = 2, mode = .Headless, colliders = colliders, queries = queries)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 2, mode = .Headless, colliders = colliders, queries = queries)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -402,8 +384,8 @@ test_frame_run_records_one_span_row_per_frame_only_in_a_spans_build :: proc(t: ^
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 4, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 4, mode = .Headless)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -429,8 +411,8 @@ test_frame_run_span_row_counts_every_fixed_step_of_the_frame :: proc(t: ^testing
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 2)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 2)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
 	frame_run(&s, fake_platform(s.clock.fixed_dt / 2))
@@ -454,8 +436,8 @@ test_frame_run_closes_every_span_once_per_frame_and_per_step :: proc(t: ^testing
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 3, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 
 	for _ in 0 ..< 3 {
 		frame_run(&s, fake_platform(s.clock.fixed_dt))
@@ -480,8 +462,8 @@ test_headless_rows_leave_the_render_spans_at_zero :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 3, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 3, mode = .Headless)
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -503,9 +485,10 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 1, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
-	s.frame_render.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {time.sleep(FAKE_PASS_WAIT)}
+	slow := fake_submits()
+	slow.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {time.sleep(FAKE_PASS_WAIT)}
+	fake_host_init(&s, exit_after_frames = 1, mode = .Lockstep, submits = slow)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(s.clock.fixed_dt))
 
@@ -520,10 +503,10 @@ test_render_submit_span_leaves_out_the_wait_in_begin_pass :: proc(t: ^testing.T)
 }
 
 // A tagged Panel at the top left, 100 by 100, with the pointer at (50, 50).
-fake_frame_state_init_pointing :: proc(s: ^State, mode := Run_Mode.Real_Clock) {
+fake_host_init_pointing :: proc(s: ^State, mode := Run_Mode.Real_Clock) {
 	// g_fake keeps the roots past this call.
 	roots := slice.clone([]Element{ui_panel_of(ui_tagged(7, 100, 100))}, context.temp_allocator)
-	fake_frame_state_init(s, mode = mode, ui = roots)
+	fake_host_init(s, mode = mode, ui = roots)
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
 	input_on_event(&s.input, &move)
 }
@@ -533,8 +516,8 @@ test_frame_gives_the_next_step_the_panels_under_the_pointer :: proc(t: ^testing.
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init_pointing(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init_pointing(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 
 	frame_run(&s, platform)
@@ -551,8 +534,8 @@ test_frame_gives_every_step_of_a_frame_the_same_ui :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init_pointing(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init_pointing(&s)
+	defer fake_host_destroy(&s)
 
 	frame_run(&s, fake_platform(s.clock.fixed_dt))
 	frame_run(&s, fake_platform(3 * s.clock.fixed_dt))
@@ -567,8 +550,8 @@ test_frame_lists_the_scroll_sizes_in_headless :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, exit_after_frames = 2, mode = .Headless, ui = {ui_scroll_rows(9, 200, 100, 10)})
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, exit_after_frames = 2, mode = .Headless, ui = {ui_scroll_rows(9, 200, 100, 10)})
+	defer fake_host_destroy(&s)
 
 	headless_run(&s)
 
@@ -582,8 +565,8 @@ test_frame_with_the_mouse_locked_gives_an_empty_over :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init_pointing(&s)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init_pointing(&s)
+	defer fake_host_destroy(&s)
 	platform := fake_platform(s.clock.fixed_dt)
 	platform.mouse_locked = true
 
@@ -598,8 +581,8 @@ test_frame_ui_lists_leak_nothing :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, ui = {ui_panel_of(ui_scroll(ui_tagged(7, 100, 100), {0, 0}), ui_panel_of(ui_rect(100, 200)))})
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, ui = {ui_panel_of(ui_scroll(ui_tagged(7, 100, 100), {0, 0}), ui_panel_of(ui_rect(100, 200)))})
+	defer fake_host_destroy(&s)
 	move := sapp.Event{type = .MOUSE_MOVE, mouse_x = 50, mouse_y = 50}
 	input_on_event(&s.input, &move)
 	platform := fake_platform(s.clock.fixed_dt)
@@ -610,4 +593,26 @@ test_frame_ui_lists_leak_nothing :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, g_fake.over_len, 1)
 	testing.expect_value(t, g_fake.scroll_len, 1)
+}
+
+@(test)
+test_frame_draws_the_mesh_that_init_loaded :: proc(t: ^testing.T) {
+	dir := fake_assets_dir(t)
+	defer os.remove_all(dir)
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	rec: Recorder
+	defer recorder_destroy(&rec)
+	s: State
+	fake_host_init(&s, mode = .Lockstep, assets_dir = dir, init_commands = {fake_load("A", "a")}, submits = recorder_submits(&rec))
+	defer fake_host_destroy(&s)
+	g_fake.camera = {eye = {0, 0, 5}, up = {y = 1}, fov_y = 1}
+	g_fake.draws = []Draw{{id = 1, mesh = g_fake.loaded_manifest[0].id}}
+
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+	clear(&rec.submits)
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+
+	testing.expect_value(t, len(rec.submits), 1)
+	testing.expect_value(t, rec.submits[0].mesh.name, "a")
 }

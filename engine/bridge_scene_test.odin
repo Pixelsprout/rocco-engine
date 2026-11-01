@@ -17,8 +17,8 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	corner.floating = ui_floating(.LeftTop)
 	ui := []Element{ui_panel_of(corner, ui_panel_of(ui_default_panel()))}
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep, colliders = colliders, queries = queries, ui = ui)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep, colliders = colliders, queries = queries, ui = ui)
+	defer fake_host_destroy(&s)
 	g_fake.camera = {eye = {0, 2, 5}, up = {0, 1, 0}, fov_y = 1}
 	g_fake.draws = []Draw{{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}}}
 	g_fake.lights = []Light{light_ambient({r = 0.1, g = 0.1, b = 0.1}), light_sun({0, -1, 0}, {1, 1, 1}), light_point({0, 3, 0}, {r = 1}, 5)}
@@ -134,8 +134,8 @@ test_bridge_scene_after_a_step_that_delivered_shows_no_ports :: proc(t: ^testing
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep, queries = {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep, queries = {{tag = .Listen, payload = {listen = roc_str_from_slice("town")}}})
+	defer fake_host_destroy(&s)
 	err := bridge_open(&s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	defer bridge_close(&s.bridge)
@@ -158,8 +158,8 @@ test_bridge_paused_render_draws_the_scene_that_scene_replies :: proc(t: ^testing
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 	err := bridge_open(&s.bridge, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	defer bridge_close(&s.bridge)
