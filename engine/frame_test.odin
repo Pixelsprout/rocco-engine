@@ -1,7 +1,6 @@
 #+test
 package engine
 
-import clay "../clay/bindings/odin/clay-odin"
 import sapp "../sokol-odin/sokol/app"
 import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
