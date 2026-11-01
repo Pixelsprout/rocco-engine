@@ -64,9 +64,8 @@ A few things to watch for:
   musl target, and the platform has no musl target.
 - `roc build` uses `--opt=speed` by default. The binary is fast, but the
   build is slower than a `roc run`.
-- If your game imports the mesh package, `roc build` warns about the `dbg`
-  in `Mesh.resolve`. Roc then exits with code 2, but it still writes the
-  binary.
+- If your game has a `dbg`, `roc build` warns about it. Roc then exits with
+  code 2, but it still writes the binary.
 - On Windows, run `roc` in a shell where `LIB` is not set.
 
 ## What to ship

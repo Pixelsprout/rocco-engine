@@ -120,7 +120,7 @@ those defaults in one place. Each one links to the page that explains it.
   binary but builds slower.
 - **On Linux, always give `--target=x64glibc`.** Without it, `roc build`
   picks a static musl target, and the platform has no musl target.
-- **`roc build` can exit with code 2 and still work.** If your game imports
-  the mesh package, Roc warns about the `dbg` in `Mesh.resolve` and exits
-  with code 2, but it writes the binary. See
+- **`roc build` can exit with code 2 and still work.** If your game has a
+  `dbg`, Roc warns about it in an optimized build and exits with code 2, but
+  it writes the binary. See
   [Shipping a game](shipping.md#build-for-each-target).

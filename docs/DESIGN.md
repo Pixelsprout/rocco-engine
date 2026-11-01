@@ -679,7 +679,7 @@ decision.
 The primitives have type-safe tags in the mesh package:
 `Mesh.primitive(Cube)` returns the fixed id and takes no `Config`.
 `Mesh.resolve(manifest, "name")` resolves a loaded name to its mesh id. It
-returns 0 and prints a `dbg` line on a miss. The tags live in the package
+returns 0 on a miss and prints nothing. The tags live in the package
 only. The vocabulary still carries only a `U32`. A host test and a `roc
 test` in `packages/mesh` pin the same four primitive ids. Decision.
 

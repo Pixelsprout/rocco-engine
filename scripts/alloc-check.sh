@@ -51,7 +51,7 @@ for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1 tutorial/10-animation:15
 		if [ "$opt" = dev ]; then want=$want_dev; else want=$want_speed; fi
 		# tutorial/10-animation builds 10-animation_alloc_dev.
 		bin="./${game##*/}_alloc_${opt}${suffix}"
-		# Exit 2 is warnings only, such as the dbg in packages/mesh. build.roc allows it too.
+		# Exit 2 is warnings only, such as the dbg in examples/entity-game. build.roc allows it too.
 		set +e
 		(cd "examples/$game" && roc build --target="$target" --opt="$opt" --output="$bin" main.roc) > "$log" 2>&1
 		code=$?
