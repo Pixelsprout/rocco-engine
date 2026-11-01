@@ -617,8 +617,10 @@ Files sit on disk by type, not by pack, so one file serves many packs:
 - An Image is a `.png` file in `assets/images/`. Its name is
   `image/<stem>`. The host decodes it to RGBA8, bleeds the edge colours into
   each fully transparent pixel, and uploads it as sRGB with no mipmaps. Its
-  Manifest entry carries its size in pixels. Image 0 is no Image. ADR 0024
-  records the decision, Milestone 34.
+  Manifest entry carries its size in pixels. No Image has id 0. Id 0, or a
+  stale id, draws a magenta and black checker and logs once for each id. A
+  game shows `NoImage` until `loaded` gives the id, as Kula and Agent Town
+  do. ADR 0024 records the decision, Milestone 34.
 
 Each asset table uses the slot-and-generation id of the mesh table and
 reuses freed slots through a free list. The mesh table has 64 slots. The
@@ -626,7 +628,8 @@ sky table has 16 slots, and sky 0 means no sky. Decision, built in
 Milestone 12. The Sound table has 64 slots, and Sound 0 means no Sound. It
 holds each Sound as f32 samples at the rate the engine mixes at, with the
 channels of its file. Built in Milestone 20. The Image table has 256
-slots, and Image 0 means no Image. Built in Milestone 34.
+slots, and slot 0 holds no Image, so Image 0 draws the checker. Built in
+Milestone 34.
 
 ### Meshes are ids
 

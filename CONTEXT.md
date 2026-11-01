@@ -433,7 +433,9 @@ _Avoid_: texture (the engine's GPU word), sprite, icon, picture
 
 **Image id**:
 A number the engine assigns to each Image it loaded, published in a
-Manifest with the Image's size in pixels. Id 0 is no Image.
+Manifest with the Image's size in pixels. No Image has id 0. Id 0, or a
+stale id, draws a magenta and black checker, so a game shows `NoImage`
+until `loaded` gives the id.
 _Avoid_: texture id, image handle
 
 ## Time
