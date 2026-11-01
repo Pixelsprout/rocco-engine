@@ -51,8 +51,8 @@ test_frame_run_with_the_bridge_and_no_owed_step_runs_zero_steps :: proc(t: ^test
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 	s.bridge.on = true
 
 	for _ in 0 ..< 5 {
@@ -70,8 +70,8 @@ test_frame_run_with_the_bridge_runs_one_step_per_frame_while_steps_are_owed :: p
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 	s.bridge.on = true
 	s.bridge.owed_steps = 3
 
@@ -103,8 +103,8 @@ test_frame_run_with_the_bridge_drops_the_real_pressed_keys_and_mouse_each_frame 
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	s: State
-	fake_frame_state_init(&s, mode = .Lockstep)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Lockstep)
+	defer fake_host_destroy(&s)
 	s.bridge.on = true
 	s.use_debug_camera = true
 	camera_init(&s.debug_camera)
@@ -128,8 +128,8 @@ test_headless_run_with_the_bridge_answers_hello_and_ends_on_quit :: proc(t: ^tes
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
 	s: State
-	fake_frame_state_init(&s, mode = .Headless)
-	defer fake_frame_state_destroy(&s)
+	fake_host_init(&s, mode = .Headless)
+	defer fake_host_destroy(&s)
 	err := bridge_transport_open(&s.bridge.transport, 0, context.allocator)
 	testing.expect_value(t, err, nil)
 	s.bridge.on = true

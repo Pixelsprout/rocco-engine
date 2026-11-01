@@ -53,40 +53,22 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 
 	g_state.ctx = context
 	g_state.ctx.temp_allocator = g_state.mem.frame_allocator
+	context = g_state.ctx
 
-	g_state.exit_after_frames = exit_after_frames_from_env()
 	bridge_port := bridge_port_from_env()
-	g_state.mode = run_mode_from_env(g_state.exit_after_frames, bridge_port > 0)
+	options := host_options_from_env(bridge = bridge_port > 0)
 	if bridge_port > 0 {
 		bridge_open_or_exit(&g_state.bridge, bridge_port, context.allocator)
 	}
-	span_sink_init(&g_state.spans, spans_csv_from_env(g_state.exit_after_frames), g_state.exit_after_frames, context.allocator)
-	audio_init(&g_state.audio, device = g_state.mode != .Headless)
-	g_state.use_debug_camera = debug_camera_from_env()
-	g_state.alloc_report = alloc_report_from_env()
-	g_state.read_gamepads = !no_gamepads_from_env()
-
-	camera_init(&g_state.debug_camera)
-
-	context = g_state.ctx
-	perm := g_state.mem.perm_allocator
-	packs_init(&g_state.packs, assets_dir_from_env(), context.allocator)
 	roc_heap_init(context.allocator)
-	g_state.launch = seam_launch(&g_state.seam, calls, app_config())
-	launch_check_or_exit(g_state.launch)
-	capacity := g_state.launch.capacity
-	// init runs before sokol starts. renderer_init uploads the assets its Loads added.
-	mesh_table_init(&g_state.renderer.meshes, int(capacity.meshes), perm, context.allocator)
-	sky_table_init(&g_state.renderer.skies, int(capacity.skies), perm, context.allocator)
-	image_table_init(&g_state.renderer.images, int(capacity.images), perm, context.allocator)
-	audio_tables_init(&g_state.audio, int(capacity.sounds), int(capacity.voices), perm, context.allocator)
-	packs_attach(&g_state.packs, &g_state.renderer.meshes, &g_state.renderer.skies, &g_state.renderer.images, &g_state.audio, perm)
-	frame_render_init(&g_state.frame_render, int(capacity.draws), int(capacity.groups), g_state.launch.shadow_map, int(g_state.launch.shadow_cascades), perm)
-	clock_init(&g_state.clock, g_state.launch.step_hz)
-	seam_init(&g_state.seam, app_run_command, app_config(), &g_state.packs, &g_state.audio)
+	// A bad Launch ends the run, so a typo cannot change the run silently.
+	if field, rule, ok := host_build(&g_state, options, calls, app_run_command); !ok {
+		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
+		os.exit(1)
+	}
 
 	if g_state.mode == .Headless {
-		headless_init(&g_state, g_state.mem.perm_allocator) or_return
+		host_open_headless(&g_state, FRAME_RENDER_PORT_NONE) or_return
 		headless_run(&g_state)
 		app_shutdown()
 		return
@@ -97,9 +79,21 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	return
 }
 
-// launch and init get an equal Config. Each call consumes its own.
-app_config :: proc() -> Config {
-	return config_make(seed_from_env(), g_state.packs.on_disk, args_from_env())
+host_options_from_env :: proc(bridge: bool) -> Host_Options {
+	exit_after_frames := exit_after_frames_from_env()
+	mode := run_mode_from_env(exit_after_frames, bridge)
+	return {
+		mode = mode,
+		exit_after_frames = exit_after_frames,
+		assets_dir = assets_dir_from_env(),
+		seed = seed_from_env(),
+		args = args_from_env(),
+		spans_csv = spans_csv_from_env(exit_after_frames),
+		debug_camera = debug_camera_from_env(),
+		alloc_report = alloc_report_from_env(),
+		read_gamepads = !no_gamepads_from_env(),
+		audio_device = mode != .Headless,
+	}
 }
 
 // The window the Launch asks for. Lockstep turns vsync off whatever the
@@ -152,24 +146,9 @@ init_cb :: proc "c" () {
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
-	renderer_init(&g_state.renderer, g_state.launch)
-	ui_quads := int(g_state.launch.capacity.ui_quads)
-	ui_err := ui_init(&g_state.ui, {f32(sapp.width()), f32(sapp.height())}, ui_quads, g_state.mem.perm_allocator)
-	fmt.assertf(ui_err == nil, "the Clay arena did not allocate: %v", ui_err)
+	err := host_open_window(&g_state, {f32(sapp.width()), f32(sapp.height())})
+	fmt.assertf(err == nil, "the UI did not allocate: %v", err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
-	ui_gpu_err := ui_gpu_init(&g_state.renderer.ui, ui_quads, msaa_sample_count(g_state.launch.window.samples), g_state.mem.perm_allocator)
-	fmt.assertf(ui_gpu_err == nil, "the UI vertices did not allocate: %v", ui_gpu_err)
-	g_state.frame_render.begin_pass = renderer_begin_pass
-	g_state.frame_render.end_pass = renderer_end_pass
-	g_state.frame_render.submit_shadow = renderer_shadow
-	g_state.frame_render.submit = renderer_draw
-	g_state.frame_render.submit_lights = renderer_lights
-	g_state.frame_render.submit_sky = renderer_sky
-	g_state.frame_render.submit_ui = renderer_ui
-	g_state.frame_render.submit_ctx = &g_state.renderer
-	if g_state.read_gamepads {
-		gamepad_reader_init(&g_state.gamepad_reader)
-	}
 }
 
 frame_cb :: proc "c" () {
@@ -215,16 +194,9 @@ app_shutdown :: proc() {
 	if spans_err != nil {
 		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
-	span_sink_destroy(&g_state.spans)
 	bridge_close(&g_state.bridge)
-	audio_shutdown(&g_state.audio)
-
-	renderer_shutdown(&g_state.renderer)
-	seam_shutdown(&g_state.seam)
-	roc_decref(g_state.launch)
-	packs_destroy(&g_state.packs)
+	host_destroy(&g_state)
 	roc_heap_shutdown()
-	frame_render_destroy(&g_state.frame_render)
 
 	if g_state.mode != .Headless {
 		if g_state.read_gamepads {

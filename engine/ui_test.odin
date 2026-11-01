@@ -24,16 +24,8 @@ frame_fixture_init_ui :: proc(f: ^Frame_Fixture, quad_capacity := UI_QUAD_LIMIT)
 	assert(err == nil)
 }
 
-// Clay_Initialize reads the current context, so it must not point at freed memory.
 frame_fixture_destroy_ui :: proc(f: ^Frame_Fixture) {
-	clay.SetCurrentContext(nil)
-	delete(f.ui.memory)
-	delete(f.ui.quads)
-	delete(f.ui.hits)
-	delete(f.ui.over)
-	delete(f.ui.scroll_panels)
-	delete(f.ui.scrolls)
-	delete(f.ui.clips)
+	ui_destroy(f.ui)
 	free(f.ui)
 	sync.mutex_unlock(&g_clay_lock)
 }

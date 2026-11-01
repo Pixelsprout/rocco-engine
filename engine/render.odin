@@ -368,9 +368,15 @@ renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	sg.draw(0, cube.index_count, 1)
 }
 
-renderer_shutdown :: proc(r: ^Renderer) {
-	// sg.shutdown destroys every pooled resource, later we would add a per mesh teardown.
-	mesh_table_destroy(&r.meshes)
-	sky_table_destroy(&r.skies)
-	image_table_destroy(&r.images)
+renderer_port :: proc(r: ^Renderer) -> Frame_Render_Port {
+	return {
+		begin_pass = renderer_begin_pass,
+		end_pass = renderer_end_pass,
+		submit_shadow = renderer_shadow,
+		submit = renderer_draw,
+		submit_lights = renderer_lights,
+		submit_sky = renderer_sky,
+		submit_ui = renderer_ui,
+		ctx = r,
+	}
 }

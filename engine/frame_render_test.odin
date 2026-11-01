@@ -358,15 +358,21 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
 	f.rec.passes = make([dynamic]Pass_Begun, context.allocator)
 	f.rec.shadows = make([dynamic]Shadow_Submitted, context.allocator)
-	f.fr.begin_pass = record_begin_pass
-	f.fr.end_pass = record_end_pass
-	f.fr.submit_shadow = record_shadow
-	f.fr.submit = record_submit
-	f.fr.submit_lights = record_lights
-	f.fr.submit_sky = record_sky
-	f.fr.submit_ui = record_ui
-	f.fr.submit_ctx = &f.rec
+	f.fr.port = recorder_port(&f.rec)
 	f.window = {size = {960, 540}, dpi = 1}
+}
+
+recorder_port :: proc(r: ^Recorder) -> Frame_Render_Port {
+	return {
+		begin_pass = record_begin_pass,
+		end_pass = record_end_pass,
+		submit_shadow = record_shadow,
+		submit = record_submit,
+		submit_lights = record_lights,
+		submit_sky = record_sky,
+		submit_ui = record_ui,
+		ctx = r,
+	}
 }
 
 frame_fixture_destroy :: proc(f: ^Frame_Fixture) {
@@ -1289,11 +1295,7 @@ test_frame_render_cascades_allocate_nothing :: proc(t: ^testing.T) {
 	fr: Frame_Render
 	frame_render_init(&fr, SMALL_DRAWS, SMALL_GROUPS, 2048, 4, mem.tracking_allocator(&track))
 	defer frame_render_destroy(&fr)
-	fr.begin_pass = proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {}
-	fr.end_pass = proc(ctx: rawptr) {}
-	fr.submit_shadow = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
-	fr.submit = proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
-	fr.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {}
+	fr.port = FRAME_RENDER_PORT_NONE
 	meshes: Mesh_Table
 	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&meshes)

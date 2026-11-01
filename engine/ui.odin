@@ -139,6 +139,7 @@ Ui :: struct {
 	scrolls:        [dynamic]Scroll_Size,
 	// The scissor stack while ui_frame reads the commands.
 	clips:          [dynamic][4]f32,
+	allocator:      mem.Allocator,
 }
 
 // The window size that the game gets in Input, in logical pixels.
@@ -146,13 +147,13 @@ ui_window_logical :: proc(window: Ui_Window) -> [2]f32 {
 	return window.size / window.dpi
 }
 
-// The arena lives as long as the allocator, so there is no ui_destroy.
 ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Allocator) -> mem.Allocator_Error {
 	// Clay sets these on the current context, or on its defaults when there is
 	// none. Initialize copies them from either, so set both before sizing.
 	clay.SetMaxElementCount(UI_ELEMENT_CAPACITY)
 	clay.SetMaxMeasureTextCacheWordCount(UI_TEXT_WORD_CAPACITY)
 	capacity := clay.MinMemorySize()
+	ui.allocator = allocator
 	ui.memory = make([]u8, capacity, allocator) or_return
 	ui.quads = make([]Ui_Quad, quad_capacity, allocator) or_return
 	ui.hits = make(map[u32]Ui_Hit_Panel, UI_HIT_CAPACITY, allocator) or_return
@@ -164,6 +165,20 @@ ui_init :: proc(ui: ^Ui, size: [2]f32, quad_capacity: int, allocator: mem.Alloca
 	ui.ctx = clay.Initialize(arena, {size.x, size.y}, {handler = ui_error_cb, userData = ui})
 	clay.SetMeasureTextFunction(ui_measure_cb, nil)
 	return nil
+}
+
+// Clay_Initialize reads the current context, which lives in ui.memory, so it
+// must not point at freed memory.
+ui_destroy :: proc(ui: ^Ui) {
+	clay.SetCurrentContext(nil)
+	delete(ui.memory, ui.allocator)
+	delete(ui.quads, ui.allocator)
+	delete(ui.hits)
+	delete(ui.over)
+	delete(ui.scroll_panels)
+	delete(ui.scrolls)
+	delete(ui.clips)
+	ui^ = {}
 }
 
 // Lays out the trees under roots against the window and returns the quads to

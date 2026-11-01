@@ -1,8 +1,5 @@
 package engine
 
-import "core:fmt"
-import "core:os"
-
 // A Group pairing map past this would take hundreds of megabytes at init.
 GROUP_LIMIT :: 1 << 20
 LAUNCH_RULE_ZERO :: "must be above zero"
@@ -27,15 +24,6 @@ launch_default :: proc() -> Launch {
 		shadow_map = 2048,
 		shadow_cascades = 1,
 		capacity = {meshes = 64, skies = 16, images = 256, draws = 16384, groups = 1024, ui_quads = 16384, sounds = 64, voices = 64},
-	}
-}
-
-// Exits the process on a bad Launch, so a typo cannot change the run silently.
-launch_check_or_exit :: proc(launch: Launch) {
-	field, rule, ok := launch_check(launch)
-	if !ok {
-		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
-		os.exit(1)
 	}
 }
 
