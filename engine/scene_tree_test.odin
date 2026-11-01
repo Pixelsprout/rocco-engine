@@ -3,7 +3,108 @@ package engine
 
 import "core:math"
 import "core:math/linalg"
+import "core:mem"
 import "core:testing"
+
+@(test)
+test_pairing_finds_the_previous_draw_by_id :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
+	defer pairing_destroy(&p)
+
+	nodes := draw_nodes({{id = 7}, {id = 3}})
+	pairing_build(&p, nodes)
+	found, _, ok := pairing_draw(&p, 3, {})
+	testing.expect(t, ok && found == &nodes[1].payload.draw)
+	_, _, missing := pairing_draw(&p, 9, {})
+	testing.expect(t, !missing)
+
+	pairing_build(&p, draw_nodes({{id = 9}}))
+	_, _, stale := pairing_draw(&p, 7, {})
+	testing.expect(t, !stale)
+}
+
+@(test)
+test_pairing_keeps_the_first_of_a_duplicate_id_and_logs_it_once :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
+	defer pairing_destroy(&p)
+
+	nodes := draw_nodes({{id = 5}, {id = 5}, {id = 5}})
+	pairing_build(&p, nodes)
+	pairing_build(&p, draw_nodes({{id = 5}, {id = 5}}))
+	pairing_build(&p, nodes)
+	first, _, _ := pairing_draw(&p, 5, {})
+	testing.expect(t, first == &nodes[0].payload.draw)
+	testing.expect_value(t, len(p.logged), 1)
+}
+
+@(test)
+test_pairing_builds_its_capacity_of_draws_and_groups_without_allocating :: proc(t: ^testing.T) {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, mem.tracking_allocator(&track))
+	defer pairing_destroy(&p)
+
+	draws := make([]Draw, SMALL_DRAWS)
+	defer delete(draws)
+	for &d, i in draws {
+		d.id = u64(i)
+	}
+	groups := make([]Node, SMALL_GROUPS + 1)
+	defer delete(groups)
+	groups[0] = node_group(100, {}, IDENTITY, draw_nodes(draws))
+	for i in 1 ..< len(groups) {
+		groups[i] = node_group(u64(100 + i), {}, IDENTITY, nil)
+	}
+	after_init := track.total_allocation_count
+	pairing_build(&p, groups[:SMALL_GROUPS])
+	testing.expect_value(t, track.total_allocation_count, after_init)
+	testing.expect(t, !p.over_capacity_logged)
+	testing.expect_value(t, len(p.groups), SMALL_GROUPS)
+
+	// Past group_capacity the first Groups pair, and the map does not grow.
+	pairing_build(&p, groups)
+	testing.expect_value(t, track.total_allocation_count, after_init)
+	testing.expect_value(t, len(p.groups), SMALL_GROUPS)
+	testing.expect(t, pairing_group(&p, 100 + SMALL_GROUPS) == nil)
+	testing.expect(t, p.groups_full_logged)
+}
+
+@(test)
+test_pairing_logs_once_when_a_scene_has_more_draws_than_its_capacity :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
+	defer pairing_destroy(&p)
+
+	draws := make([]Draw, SMALL_DRAWS + 1)
+	defer delete(draws)
+	for &d, i in draws {
+		d.id = u64(i)
+	}
+	pairing_build(&p, draw_nodes(draws[:SMALL_DRAWS]))
+	testing.expect(t, !p.over_capacity_logged)
+	nodes := draw_nodes(draws)
+	pairing_build(&p, nodes)
+	testing.expect(t, p.over_capacity_logged)
+	found, _, ok := pairing_draw(&p, SMALL_DRAWS, {})
+	testing.expect(t, ok && found == &nodes[SMALL_DRAWS].payload.draw)
+}
+
+@(test)
+test_pairing_keeps_the_first_of_a_duplicate_group_id_and_logs_once :: proc(t: ^testing.T) {
+	p: Pairing
+	pairing_init(&p, SMALL_DRAWS, SMALL_GROUPS, context.allocator)
+	defer pairing_destroy(&p)
+
+	inner := []Node{node_group(5, {x = 2}, IDENTITY, nil)}
+	nodes := []Node{node_group(5, {x = 1}, IDENTITY, inner), node_group(5, {x = 3}, IDENTITY, nil), node_group(6, {}, IDENTITY, nil), node_group(6, {}, IDENTITY, nil)}
+	pairing_build(&p, nodes)
+	testing.expect_value(t, pairing_group(&p, 5).local.pos, [3]f32{1, 0, 0})
+	testing.expect(t, p.group_duplicate_logged)
+}
 
 @(test)
 test_a_draw_on_a_turning_group_follows_an_arc_not_a_chord :: proc(t: ^testing.T) {
