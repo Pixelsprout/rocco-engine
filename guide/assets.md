@@ -179,7 +179,9 @@ fur, metal and glowing lenses can share one file.
   [Past a capacity](launch.md#past-a-capacity).
 - A Draw's `tint` and `glow` apply to every material of its mesh.
 - A mesh draws up to 16 textures. A texture that several materials share
-  counts once. A texture used as a metallic-roughness map and also as a
+  counts once. Blender writes a glTF texture for each material that uses an
+  image, and the host loads the textures that name the same image and
+  sampler as one. A texture used as a metallic-roughness map and also as a
   base colour or emissive map counts twice, because the two read their
   colours differently. A texture that cannot draw, such as a JPEG, does
   not count. A file with more still loads: the textures past the first 16

@@ -238,8 +238,8 @@ Glb_Texture_Key :: struct {
 	slot:  Maybe(int),
 }
 
-// The textures are glTF texture indices, so two materials that name the
-// same textures compare equal.
+// Each texture is the first glTF texture with the same image and sampler,
+// so two materials that use the same textures compare equal.
 Glb_Material :: struct {
 	values:             Material,
 	texture:            Maybe(int),
@@ -350,10 +350,10 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 		},
 	}
 	if ref, textured := pbr.base_color_texture.?; textured {
-		material.texture = ref.index
+		material.texture = glb_first_texture(l, ref.index)
 	}
 	if ref, textured := pbr.metallic_roughness_texture.?; textured {
-		material.metallic_roughness = ref.index
+		material.metallic_roughness = glb_first_texture(l, ref.index)
 	}
 	factor := gltf_material.emissive_factor.? or_else {}
 	strength: f32 = 1
@@ -365,9 +365,27 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 	}
 	material.values.emissive = factor
 	if ref, textured := gltf_material.emissive_texture.?; textured {
-		material.emissive = ref.index
+		material.emissive = glb_first_texture(l, ref.index)
 	}
 	return material
+}
+
+// Blender writes one glTF texture for each material that uses an image, so
+// textures that name the same image and sampler decode as one.
+glb_first_texture :: proc(l: ^Glb_Loader, index: int) -> int {
+	if index < 0 || index >= len(l.gltf.textures) {
+		return index
+	}
+	t := l.gltf.textures[index]
+	if t.source == nil {
+		return index
+	}
+	for other, i in l.gltf.textures[:index] {
+		if other.source == t.source && other.sampler == t.sampler {
+			return i
+		}
+	}
+	return index
 }
 
 // The slot in l.textures of the glTF texture in this colour space, decoding

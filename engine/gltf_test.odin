@@ -616,6 +616,38 @@ test_glb_decodes_a_texture_that_two_materials_share_once :: proc(t: ^testing.T) 
 	testing.expect_value(t, data.parts[1].texture, Maybe(int)(0))
 }
 
+@(test)
+test_glb_decodes_textures_that_name_the_same_image_and_sampler_once :: proc(t: ^testing.T) {
+	second := `,{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5},"indices":3,"material":1}`
+	materials := `
+		{"pbrMetallicRoughness":{"baseColorTexture":{"index":0},"metallicFactor":0}},
+		{"pbrMetallicRoughness":{"baseColorTexture":{"index":1},"metallicFactor":1}}`
+	textures := `{"source":0,"sampler":0},{"source":0,"sampler":0}`
+	samplers := `"samplers":[{"magFilter":9729}],`
+	glb := textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), texture = textures, samplers = samplers, second = second, material = materials)
+	data, _, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.textures), 1)
+	testing.expect_value(t, len(data.parts), 2)
+	testing.expect_value(t, data.parts[0].texture, Maybe(int)(0))
+	testing.expect_value(t, data.parts[1].texture, Maybe(int)(0))
+}
+
+@(test)
+test_glb_decodes_textures_with_different_samplers_apart :: proc(t: ^testing.T) {
+	second := `,{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5},"indices":3,"material":1}`
+	materials := `
+		{"pbrMetallicRoughness":{"baseColorTexture":{"index":0}}},
+		{"pbrMetallicRoughness":{"baseColorTexture":{"index":1}}}`
+	textures := `{"source":0,"sampler":0},{"source":0,"sampler":1}`
+	samplers := `"samplers":[{"magFilter":9729},{"magFilter":9728}],`
+	glb := textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), texture = textures, samplers = samplers, second = second, material = materials)
+	data, _, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.textures), 2)
+	testing.expect_value(t, len(data.parts), 2)
+}
+
 // Base colour and emissive are sRGB and metallic-roughness is linear, so one
 // glTF texture in all three slots decodes twice.
 @(test)
@@ -633,23 +665,27 @@ test_glb_decodes_a_texture_once_per_colour_space :: proc(t: ^testing.T) {
 	testing.expect(t, !metallic_roughness.srgb)
 }
 
-// Each material names its own glTF texture, so the file has one more texture than the limit.
+// Each material names its own glTF texture and image, so the file has one more texture than the limit.
 @(test)
 test_glb_keeps_the_first_textures_up_to_the_limit_and_notes_the_rest :: proc(t: ^testing.T) {
 	primitives := strings.builder_make(context.temp_allocator)
 	materials := strings.builder_make(context.temp_allocator)
 	textures := strings.builder_make(context.temp_allocator)
+	images := strings.builder_make(context.temp_allocator)
 	for i in 0 ..= MESH_TEXTURE_LIMIT {
 		if i > 0 {
 			fmt.sbprintf(&primitives, `,{{"attributes":{{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5}},"indices":2,"material":%v}}`, i)
 			strings.write_string(&materials, ",")
 			strings.write_string(&textures, ",")
+			strings.write_string(&images, ",")
 		}
 		fmt.sbprintf(&materials, `{{"pbrMetallicRoughness":{{"baseColorTexture":{{"index":%v}}}}}}`, i)
-		strings.write_string(&textures, `{"source":0}`)
+		fmt.sbprintf(&textures, `{{"source":%v}}`, i)
+		strings.write_string(&images, `{"bufferView":6,"mimeType":"image/png"}`)
 	}
 	glb := textured_glb(
 		png_make(1, 1, PNG_RGB, {1, 2, 3}),
+		image = strings.to_string(images),
 		texture = strings.to_string(textures),
 		second = strings.to_string(primitives),
 		material = strings.to_string(materials),
