@@ -1238,7 +1238,11 @@ Check: a person compares a Bridge screenshot of each level start with an
 emulator frame of the same start. The Linux pad check of Milestone 23 stays
 open.
 
-## Milestone 28: Environment
+## Milestone 28: Environment (moved)
+
+Moved into Milestone 37, Post and Environment, on 2026-11-02. The tone map
+moves to the post pass there, so it is built once. The original entry
+follows.
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
@@ -1377,6 +1381,130 @@ Closes dex task sl2s3h8t.
 Check: the widgets example shows an icon Button, a tinted icon, a fitted
 icon and a sheet region, and a click on the icon reaches the game.
 
+## The fourth arc: fidelity
+
+Agent Town's fidelity pass pulls this arc: a dusk town of salvage-futurism
+buildings with many small lamps, a textured otter with glowing gear, a
+selected building with a teal outline, smoke and steam, and a console in a
+monospace face. Grilled 2026-11-02. Each milestone is one minor release. An
+engine example with Bridge screenshots in CI proves each one. Agent Town
+adopts each release after it ships, and does not block it.
+
+Out of this arc: screen-space ambient occlusion, depth of field, soft
+particles and fur strands. Instancing and frustum culling (dex task
+cqz1zbne) wait until the town's Draw count measures over budget.
+
+## Milestone 35: Materials per primitive
+
+Done when one `.glb` draws each primitive with its own material and its own
+textures, and the otter's goggle lenses and backpack lamp glow while its fur
+stays matte.
+
+1. Each primitive keeps its material factors (base colour, metallic,
+   roughness, emissive, unlit) and its textures (base colour,
+   metallic-roughness, emissive). The `Mixed_Materials` and
+   `Mixed_Textures` notes go.
+2. A Draw's `tint` and `glow` apply to every primitive. The shadow pass
+   draws every primitive.
+3. No Vocabulary change.
+
+Check: an example draws a multi-material `.glb` and a Bridge screenshot
+shows each material.
+
+## Milestone 36: Surface detail
+
+Done when a `.glb` with a normal map and an occlusion map shows the baked
+detail under a moving light.
+
+1. The loader reads `normalTexture` and `occlusionTexture`. Occlusion
+   multiplies the ambient term only.
+2. Every vertex carries a tangent. The loader reads `TANGENT`. A file with
+   no tangents gets Lengyel tangents and the note `Generated_Tangents`.
+   The guide tells authors to export tangents, because Blender bakes in
+   MikkTSpace.
+3. The skinned pipeline skins the tangent. The shadow pipelines ignore it.
+
+Check: an example shows a normal-mapped panel under a circling Point light.
+
+## Milestone 37: Post and Environment
+
+Done when a game sets its tone map, exposure, fog and bloom in
+`Scene.environment`, and an emissive surface blooms. Absorbs Milestone 28.
+Closes dex tasks yjtqgdd4 and s1zhf2hf.
+
+1. The Main pass draws into an HDR target. The tone map moves from the mesh
+   shader to the final pass: ACES (the default, so games do not change),
+   AgX or Khronos PBR Neutral, after `exposure`.
+2. Fog runs forward in the mesh shader, by distance toward a colour. The
+   sky does not fog.
+3. Bloom is a mip chain (13-tap down, tent up) with `{ strength, threshold,
+   knee }`. The default threshold is 1.0.
+4. One Vocabulary change: `Scene.environment`. One ADR.
+
+Check: `examples/glow` blooms its emissive surfaces, and Bridge screenshots
+compare each tone map.
+
+## Milestone 38: Clustered lights
+
+Done when `bench/lights` at N = 256 Point lights costs no more than the
+per-Draw list at N = 8 on the same Mac (render_submit plus a cluster build
+Span), and 200 lamps over a tiled floor show no popping as the camera moves.
+
+1. The host builds a froxel grid on the CPU once per frame, in the frame
+   arena (for example 16 by 9 tiles by 24 exponential depth slices). It
+   uploads a light index list and an offset and count per cluster as
+   storage buffers. Metal, D3D11 and GL core 4.3 read them.
+2. Directional lights stay a per-frame uniform list of at most 4, with the
+   Sun in slot 0. Point lights go only through the clusters.
+3. Limits: 1,024 Point lights per frame and 64 per cluster. A full cluster
+   keeps its nearest lights and logs once per run.
+4. A new ADR supersedes ADR 0023. The Draw world-box light selection goes.
+
+Check: the lamps example in CI, and a bench run recorded in
+`docs/BENCHMARKS.md`.
+
+## Milestone 39: Selection outline
+
+Done when a selected Group shows an even outline of a set pixel width that
+blooms, around the whole Group, with its front wall cut away.
+
+1. One Vocabulary change: `Group.outline : [None, Outline { color, width }]`.
+   Every Draw under the Group draws into a mask image.
+2. A post pass finds the mask's edge, widens it to `width` pixels and
+   composites `color` in HDR, before bloom.
+
+Check: an example outlines one Group of several Draws, and a Bridge
+screenshot shows one outline around the Group, not one around each Draw.
+
+## Milestone 40: Particles
+
+Done when a game declares an emitter and fires a burst, and the host draws
+the particles as billboards that repeat exactly in a Bridge screenshot.
+Closes dex task ot75948k.
+
+1. One Vocabulary change: `Scene.emitters` and a `Burst` Command. An
+   emitter has a position, rate, lifetime, start and end size and colour,
+   velocity, drag, seed, an optional Pack image and a blend `[Alpha, Add]`.
+2. The host steps the particles at the fixed step rate and draws them
+   with its own instance buffer. The game never reads a particle.
+3. Each emitter sorts back to front. No soft particles.
+
+Check: an example shows smoke (Alpha) and a burst of sparks (Add), and two
+Bridge runs give the same screenshot.
+
+## Milestone 41: Game fonts
+
+Done when a Text draws in a face from a Pack, and Agent Town's console
+shows its tool log in a monospace face. Closes dex task kf5vd0lp.
+
+1. A `.ttf` in a Pack bakes to an SDF atlas at load, through the same
+   stb_truetype baker as the built-in face, now linked into the host.
+2. One Vocabulary change: `Text.font : Str`, a Pack asset id. The default is
+   the built-in face. The measure reads per-font metrics.
+3. The Linux stubs audit passes with stb_truetype linked.
+
+Check: the widgets example shows the built-in face beside a Pack face.
+
 ## Later arcs
 
 These arcs are a direction, not a plan. Each gets milestone numbers and its
@@ -1388,7 +1516,7 @@ own grilling when it starts.
   cqz1zbne).
 - Scenery as a Pack: Blender as the level editor, with static colliders and
   triangle mesh colliders (dex task 99iz77jj).
-- Particles: `Scene.emitters` and `Burst`, on the instanced pipeline.
+- Particles moved to Milestone 40.
 - Cascaded shadow maps and light selection moved to Milestone 33.
 - A third-person controller: capsule tests and shape casts.
 
@@ -1400,8 +1528,9 @@ repo, pulls this arc.
 - Saves, and Ports for extensions. Milestone 29 added Ports over the
   Bridge (ADR 0018), and an extension feeds the same port queue.
 - The extension ABI, with FMOD as its first proof.
-- Materials on the Draw and shading modes, then post-processing, then game
-  shaders as Pack assets (dex task bdathrx5).
+- Materials on the Draw and shading modes, then game shaders as Pack
+  assets (dex task bdathrx5). Materials per primitive and post-processing
+  moved to Milestones 35 and 37.
 - The author kit: `rocco new`, `--replace-dep` in place of Kula's header
   swap, and hot reload across a Model change.
 
@@ -1411,8 +1540,8 @@ Slot these in when they pay for themselves. Do not run them as a block.
 
 - **Debug drawing.** Lines, wireframe, text. `Scene` gains a `lines` list.
   This is a vocabulary change.
-- **Game-provided fonts.** Faces in `assets/fonts/`, beside the one the
-  host bakes in.
+- **`Camera.unproject`.** A pointer ray from `packages/camera`, which the
+  game sends as a `Raycast`. No Vocabulary change.
 - **An equirectangular sky loader.** One panorama converted to the six
   cubemap faces at load.
 - **A `settle` call.** Same-step contact resolution. See `docs/NOTES.md`.
@@ -1425,7 +1554,7 @@ Slot these in when they pay for themselves. Do not run them as a block.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
 
-Audio and fog moved into milestones 20 and 28. World-space sprites, Blender
+Audio, fog and game-provided fonts moved into milestones 20, 37 and 41. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
 
 ## Out of scope
