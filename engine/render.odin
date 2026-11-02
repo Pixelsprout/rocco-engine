@@ -131,6 +131,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 				ATTR_basic_col = {format = sg.Vertex_Format.FLOAT4},
 				ATTR_basic_nrm = {format = sg.Vertex_Format.FLOAT3},
 				ATTR_basic_uv = {format = sg.Vertex_Format.FLOAT2},
+				ATTR_basic_tng = {format = sg.Vertex_Format.FLOAT4},
 			},
 		},
 	}
@@ -145,6 +146,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 			ATTR_skinned_col = {format = .FLOAT4, offset = i32(offset_of(Skinned_Vertex, color))},
 			ATTR_skinned_nrm = {format = .FLOAT3, offset = i32(offset_of(Skinned_Vertex, normal))},
 			ATTR_skinned_uv = {format = .FLOAT2, offset = i32(offset_of(Skinned_Vertex, uv))},
+			ATTR_skinned_tng = {format = .FLOAT4, offset = i32(offset_of(Skinned_Vertex, tangent))},
 			ATTR_skinned_joint_ids = {format = .UBYTE4, offset = i32(offset_of(Skinned_Vertex, joints))},
 			ATTR_skinned_joint_weights = {format = .UBYTE4N, offset = i32(offset_of(Skinned_Vertex, weights))},
 		},

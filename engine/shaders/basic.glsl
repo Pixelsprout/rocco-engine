@@ -58,11 +58,13 @@ in vec3 pos;
 in vec4 col;
 in vec3 nrm;
 in vec2 uv;
+in vec4 tng;
 
 out vec4 v_col;
 out vec3 v_nrm;
 out vec3 v_world;
 out vec2 v_uv;
+out vec4 v_tng;
 
 void main() {
     gl_Position = mvp * vec4(pos, 1.0);
@@ -70,6 +72,7 @@ void main() {
     v_nrm = (normal_model * vec4(nrm, 0.0)).xyz;
     v_world = (model * vec4(pos, 1.0)).xyz;
     v_uv = uv;
+    v_tng = vec4((model * vec4(tng.xyz, 0.0)).xyz, tng.w);
 }
 @end
 
@@ -126,6 +129,7 @@ in vec4 v_col;
 in vec3 v_nrm;
 in vec3 v_world;
 in vec2 v_uv;
+in vec4 v_tng;
 
 out vec4 frag_color;
 
@@ -311,6 +315,7 @@ in vec3 pos;
 in vec4 col;
 in vec3 nrm;
 in vec2 uv;
+in vec4 tng;
 // UBYTE4 needs an integer input, or sokol rejects the pipeline.
 in uvec4 joint_ids;
 in vec4 joint_weights;
@@ -319,6 +324,7 @@ out vec4 v_col;
 out vec3 v_nrm;
 out vec3 v_world;
 out vec2 v_uv;
+out vec4 v_tng;
 
 // A Joint has no non-uniform scale, so the skin matrix turns a normal
 // without the inverse transpose.
@@ -330,6 +336,7 @@ void main() {
     v_nrm = (normal_model * (skin * vec4(nrm, 0.0))).xyz;
     v_world = (model * posed).xyz;
     v_uv = uv;
+    v_tng = vec4((model * (skin * vec4(tng.xyz, 0.0))).xyz, tng.w);
 }
 @end
 

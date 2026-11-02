@@ -18,6 +18,8 @@ SKINNED_BOX_PAD :: 0.25
 // with more keeps the first ones, and its other parts draw white for them.
 MESH_TEXTURE_LIMIT :: 16
 
+#assert(size_of(Vertex) == 64)
+
 // A file stem cannot contain "/", so a loaded file never takes a primitive's name.
 PRIMITIVE_NAMES := [Primitive]string {
 	.Fallback = "primitive/fallback",
@@ -36,10 +38,10 @@ MAGENTA :: [4]f32{1, 0, 1, 1}
 // A 1 x 1 quad in x-z, facing +y. One-sided: back-face culling hides it from below.
 @(rodata)
 PLANE_VERTICES := [4]Vertex {
-	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 0}},
-	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 1}},
-	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 1}},
-	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 0}},
+	{pos = {-0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 0}, tangent = {1, 0, 0, 1}},
+	{pos = {-0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {0, 1}, tangent = {1, 0, 0, 1}},
+	{pos = {0.5, 0, 0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 1}, tangent = {1, 0, 0, 1}},
+	{pos = {0.5, 0, -0.5}, color = GREY, normal = {0, 1, 0}, uv = {1, 0}, tangent = {1, 0, 0, 1}},
 }
 
 @(rodata)
@@ -103,12 +105,15 @@ Primitive :: enum u32 {
 	Plane,
 }
 
-// glTF puts uv 0, 0 at the top left of the image.
+// glTF puts uv 0, 0 at the top left of the image. tangent points along
+// increasing u. Its w is 1 when cross(normal, tangent) points up the image,
+// towards decreasing v, and -1 where the uvs are mirrored.
 Vertex :: struct {
-	pos:    [3]f32,
-	color:  [4]f32,
-	normal: [3]f32,
-	uv:     [2]f32,
+	pos:     [3]f32,
+	color:   [4]f32,
+	normal:  [3]f32,
+	uv:      [2]f32,
+	tangent: [4]f32,
 }
 
 // unlit draws the base colour plus the emissive, with no lights and no tone
@@ -508,7 +513,7 @@ primitive_build :: proc(p: Primitive, allocator: mem.Allocator) -> Mesh_Data {
 cube_build :: proc(color: [4]f32, allocator: mem.Allocator) -> Mesh_Data {
 	vertices := make([]Vertex, len(CUBE_VERTICES), allocator)
 	for v, i in CUBE_VERTICES {
-		vertices[i] = {pos = v.pos, color = color, normal = v.normal, uv = cube_uv(v.pos, v.normal)}
+		vertices[i] = {pos = v.pos, color = color, normal = v.normal, uv = cube_uv(v.pos, v.normal), tangent = cube_tangent(v.normal)}
 	}
 	return {vertices = vertices, indices = CUBE_INDICES[:]}
 }
@@ -528,6 +533,18 @@ cube_uv :: proc(pos, normal: [3]f32) -> [2]f32 {
 	return {u + 0.5, v + 0.5}
 }
 
+// The direction of increasing u in cube_uv. No face is mirrored.
+cube_tangent :: proc(normal: [3]f32) -> [4]f32 {
+	switch {
+	case normal.x != 0:
+		return {0, 0, -normal.x, 1}
+	case normal.y != 0:
+		return {1, 0, 0, 1}
+	case:
+		return {normal.z, 0, 0, 1}
+	}
+}
+
 // A UV sphere of diameter 1. Ring 0 is the +y pole. Each ring repeats its
 // first vertex at the seam so the last segment closes without a wrap index.
 sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
@@ -538,7 +555,9 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 			phi := 2 * math.PI * f32(s) / SPHERE_SEGMENTS
 			n := [3]f32{math.sin(theta) * math.cos(phi), math.cos(theta), math.sin(theta) * math.sin(phi)}
 			uv := [2]f32{f32(s) / SPHERE_SEGMENTS, f32(r) / SPHERE_RINGS}
-			vertices[r * (SPHERE_SEGMENTS + 1) + s] = {pos = n * 0.5, color = GREY, normal = n, uv = uv}
+			// u grows with phi, which mirrors the texture seen from outside.
+			tangent := [4]f32{-math.sin(phi), 0, math.cos(phi), -1}
+			vertices[r * (SPHERE_SEGMENTS + 1) + s] = {pos = n * 0.5, color = GREY, normal = n, uv = uv, tangent = tangent}
 		}
 	}
 

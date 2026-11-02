@@ -7,7 +7,7 @@ import "core:strings"
 // One skin uniform block holds this many Joint matrices.
 MAX_JOINTS :: 64
 
-#assert(size_of(Skinned_Vertex) == 56)
+#assert(size_of(Skinned_Vertex) == 72)
 #assert(len(Skin_Params{}.joints) == MAX_JOINTS)
 
 Skinned_Vertex :: struct {

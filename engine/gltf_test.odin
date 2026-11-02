@@ -297,6 +297,88 @@ test_glb_reads_texcoord_0_into_each_vertex_uv :: proc(t: ^testing.T) {
 	}
 }
 
+// The triangle with TANGENT as accessor 5, which reads buffer view 5.
+tangent_glb :: proc(nodes := `[{"mesh":0}]`, accessor := `{"bufferView":5,"componentType":5126,"count":3,"type":"VEC4"}`) -> []byte {
+	bin := make([dynamic]byte, context.temp_allocator)
+	append(&bin, ..triangle_bin())
+	for v in ([]f32{1, 0, 0, 1, 0, 1, 0, -1, 0.6, 0.8, 0, 1}) {
+		bin_put(&bin, v)
+	}
+	json := fmt.tprintf(
+		`{{"scenes":[{{"nodes":[0]}}],"nodes":%s,
+		"meshes":[{{"primitives":[{{"attributes":{{"POSITION":0,"NORMAL":1,"TANGENT":5}},"indices":2}}]}}],
+		"bufferViews":[
+			{{"buffer":0,"byteOffset":0,"byteLength":36}},
+			{{"buffer":0,"byteOffset":36,"byteLength":36}},
+			{{"buffer":0,"byteOffset":72,"byteLength":6}},
+			{{"buffer":0,"byteOffset":80,"byteLength":12}},
+			{{"buffer":0,"byteOffset":92,"byteLength":3}},
+			{{"buffer":0,"byteOffset":96,"byteLength":48}}],
+		"accessors":[
+			{{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}},
+			{{"bufferView":1,"componentType":5126,"count":3,"type":"VEC3"}},
+			{{"bufferView":2,"componentType":5123,"count":3,"type":"SCALAR"}},
+			{{"bufferView":3,"componentType":5125,"count":3,"type":"SCALAR"}},
+			{{"bufferView":4,"componentType":5121,"count":3,"type":"SCALAR"}},
+			%s]}}`,
+		nodes,
+		accessor,
+	)
+	return glb_make(json, bin[:])
+}
+
+expect_tangents :: proc(t: ^testing.T, data: Mesh_Data, want: [3][4]f32) {
+	testing.expect_value(t, len(data.vertices), 3)
+	for v, i in data.vertices {
+		testing.expectf(t, linalg.length(v.tangent - want[i]) < 1e-5, "vertex %v has tangent %v, want %v", i, v.tangent, want[i])
+	}
+}
+
+@(test)
+test_glb_reads_tangent_into_each_vertex :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(tangent_glb(), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	expect_tangents(t, data, {{1, 0, 0, 1}, {0, 1, 0, -1}, {0.6, 0.8, 0, 1}})
+}
+
+@(test)
+test_glb_gives_a_primitive_without_tangent_the_placeholder_and_no_note :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(triangle_glb(TRIANGLE_PRIMITIVES), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	for v in data.vertices {
+		testing.expect_value(t, v.tangent, [4]f32{1, 0, 0, 1})
+	}
+}
+
+@(test)
+test_glb_rejects_a_tangent_that_is_not_three_float_vec4s :: proc(t: ^testing.T) {
+	accessors := []string {
+		`{"bufferView":5,"componentType":5126,"count":3,"type":"VEC3"}`,
+		`{"bufferView":5,"componentType":5123,"count":3,"type":"VEC4"}`,
+		`{"bufferView":5,"componentType":5126,"count":2,"type":"VEC4"}`,
+	}
+	for accessor in accessors {
+		_, _, err := glb_parse(tangent_glb(accessor = accessor), context.temp_allocator)
+		testing.expectf(t, err == .Bad_Accessor, "%v gave %v, want Bad_Accessor", accessor, err)
+	}
+}
+
+@(test)
+test_glb_turns_each_tangent_with_its_node :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(tangent_glb(`[{"mesh":0,"rotation":[0,0.70710678,0,0.70710678],"scale":[2,2,2]}]`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	expect_tangents(t, data, {{0, 0, -1, 1}, {0, 1, 0, -1}, {0, 0.8, -0.6, 1}})
+}
+
+@(test)
+test_glb_flips_the_tangent_handedness_of_a_mirrored_node :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(tangent_glb(`[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	expect_tangents(t, data, {{-1, 0, 0, -1}, {0, 1, 0, 1}, {-0.6, 0.8, 0, -1}})
+}
+
 @(test)
 test_glb_reads_an_embedded_png_as_the_base_colour_texture :: proc(t: ^testing.T) {
 	data, notes, err := glb_parse(textured_glb(png_make(2, 1, PNG_RGB, {10, 20, 30, 40, 50, 60})), context.temp_allocator)
