@@ -1385,8 +1385,9 @@ icon and a sheet region, and a click on the icon reaches the game.
 
 Agent Town's fidelity pass pulls this arc: a dusk town of salvage-futurism
 buildings with many small lamps, a textured otter with glowing gear, a
-selected building with a teal outline, smoke and steam, and a console in a
-monospace face. Grilled 2026-11-02. Each milestone is one minor release. An
+glass tube that orbs flow through, a selected building with a teal
+outline, smoke and steam, and a console in a monospace face. Grilled
+2026-11-02, with transparency added 2026-11-03. Each milestone is one minor release. An
 engine example with Bridge screenshots in CI proves each one. Agent Town
 adopts each release after it ships, and does not block it.
 
@@ -1455,7 +1456,36 @@ Closes dex tasks yjtqgdd4 and s1zhf2hf.
 Check: `examples/glow` blooms its emissive surfaces, and Bridge screenshots
 compare each tone map.
 
-## Milestone 38: Clustered lights
+## Milestone 38: Transparency
+
+Done when a `.glb` material with alpha draws as glass or as a cutout, and
+Agent Town's glass tube shows the orbs that flow through it. Grilled
+2026-11-03.
+
+1. The loader reads `alphaMode`, `alphaCutoff` and `doubleSided`. The alpha
+   mode is part of the part key, and the index buffer orders the parts
+   OPAQUE, MASK, BLEND. A material with `KHR_materials_transmission` draws
+   solid and notes `Transmission_Ignored`.
+2. MASK discards below the cutoff and keeps its depth writes. BLEND tests
+   depth, writes none, and blends premultiplied: the diffuse scales by
+   alpha, and the specular and emissive do not.
+3. The frame draws OPAQUE and MASK parts, then the sky, then BLEND parts
+   back to front by the centre of each Draw's world box. Ties keep their
+   Scene order.
+4. `doubleSided` applies to MASK and BLEND parts only. A double-sided BLEND
+   part draws its back faces, then its front faces, and counts 2 against
+   `Launch.capacity.draws`. Back faces flip their normal.
+5. The shadow pass draws only the OPAQUE and MASK range, one draw per Draw,
+   so glass casts no shadow. No Vocabulary change. One ADR.
+
+Check: `examples/glow` moves an orb through a glass tube, and Bridge
+screenshots on macOS, Linux and Windows show the orb inside the tube and
+no shadow of the tube.
+
+Later: a Draw opacity (a Vocabulary change), cutout shadows, a second
+shadow draw for double-sided MASK parts, and alpha-to-coverage.
+
+## Milestone 39: Clustered lights
 
 Done when `bench/lights` at N = 256 Point lights costs no more than the
 per-Draw list at N = 8 on the same Mac (render_submit plus a cluster build
@@ -1474,7 +1504,7 @@ Span), and 200 lamps over a tiled floor show no popping as the camera moves.
 Check: the lamps example in CI, and a bench run recorded in
 `docs/BENCHMARKS.md`.
 
-## Milestone 39: Selection outline
+## Milestone 40: Selection outline
 
 Done when a selected Group shows an even outline of a set pixel width that
 blooms, around the whole Group, with its front wall cut away.
@@ -1483,11 +1513,13 @@ blooms, around the whole Group, with its front wall cut away.
    Every Draw under the Group draws into a mask image.
 2. A post pass finds the mask's edge, widens it to `width` pixels and
    composites `color` in HDR, before bloom.
+3. A BLEND part writes its full shape into the mask, so glass outlines
+   too.
 
 Check: an example outlines one Group of several Draws, and a Bridge
 screenshot shows one outline around the Group, not one around each Draw.
 
-## Milestone 40: Particles
+## Milestone 41: Particles
 
 Done when a game declares an emitter and fires a burst, and the host draws
 the particles as billboards that repeat exactly in a Bridge screenshot.
@@ -1498,12 +1530,13 @@ Closes dex task ot75948k.
    velocity, drag, seed, an optional Pack image and a blend `[Alpha, Add]`.
 2. The host steps the particles at the fixed step rate and draws them
    with its own instance buffer. The game never reads a particle.
-3. Each emitter sorts back to front. No soft particles.
+3. An Alpha emitter sorts back to front with the BLEND Draws of Milestone
+   38, by its position. Add particles skip the sort. No soft particles.
 
 Check: an example shows smoke (Alpha) and a burst of sparks (Add), and two
 Bridge runs give the same screenshot.
 
-## Milestone 41: Game fonts
+## Milestone 42: Game fonts
 
 Done when a Text draws in a face from a Pack, and Agent Town's console
 shows its tool log in a monospace face. Closes dex task kf5vd0lp.
@@ -1527,7 +1560,7 @@ own grilling when it starts.
   cqz1zbne).
 - Scenery as a Pack: Blender as the level editor, with static colliders and
   triangle mesh colliders (dex task 99iz77jj).
-- Particles moved to Milestone 40.
+- Particles moved to Milestone 41.
 - Cascaded shadow maps and light selection moved to Milestone 33.
 - A third-person controller: capsule tests and shape casts.
 
