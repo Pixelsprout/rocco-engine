@@ -29,6 +29,11 @@ TRIANGLE_BUFFERS :: `"buffers":[{"byteLength":96}],
 	{"bufferView":3,"componentType":5125,"count":3,"type":"SCALAR"},
 	{"bufferView":4,"componentType":5121,"count":3,"type":"SCALAR"}]`
 
+QUAD_PRIMITIVE :: `{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}`
+NORMAL_MAPPED :: `[{"normalTexture":{"index":0}}]`
+// u follows +x and v runs down the image, as glTF lays out a quad that is not mirrored.
+QUAD_UVS :: [4][2]f32{{0, 1}, {1, 1}, {1, 0}, {0, 0}}
+
 triangle_bin :: proc() -> []byte {
 	bin := make([dynamic]byte, context.temp_allocator)
 	for v in ([]f32{0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1}) {
@@ -377,6 +382,147 @@ test_glb_flips_the_tangent_handedness_of_a_mirrored_node :: proc(t: ^testing.T) 
 	data, _, err := glb_parse(tangent_glb(`[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	expect_tangents(t, data, {{-1, 0, 0, -1}, {0, 1, 0, 1}, {-0.6, 0.8, 0, -1}})
+}
+
+// The unit quad in x-y. Accessors: 0 POSITION, 1 NORMAL, 2 TEXCOORD_0, 3 u16
+// indices, 4 TANGENT of (0, 1, 0, -1). Texture 0 is a flat normal PNG, so the
+// normal map decodes.
+quad_glb :: proc(
+	uvs: [4][2]f32,
+	materials := NORMAL_MAPPED,
+	primitives := "[" + QUAD_PRIMITIVE + "]",
+	nodes := `[{"mesh":0}]`,
+	normal := [3]f32{0, 0, 1},
+) -> []byte {
+	bin := make([dynamic]byte, context.temp_allocator)
+	for v in ([]f32{0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0}) {
+		bin_put(&bin, v)
+	}
+	for _ in 0 ..< 4 {
+		for v in normal {
+			bin_put(&bin, v)
+		}
+	}
+	for uv in uvs {
+		bin_put(&bin, uv.x)
+		bin_put(&bin, uv.y)
+	}
+	for i in ([]u16{0, 1, 2, 0, 2, 3}) {
+		bin_put(&bin, i)
+	}
+	for _ in 0 ..< 4 {
+		for v in ([]f32{0, 1, 0, -1}) {
+			bin_put(&bin, v)
+		}
+	}
+	png := png_make(1, 1, PNG_RGB, {128, 128, 255})
+	append(&bin, ..png)
+	json := fmt.tprintf(
+		`{{"scenes":[{{"nodes":[0]}}],"nodes":%s,"meshes":[{{"primitives":%s}}],"materials":%s,
+		"textures":[{{"source":0}}],"images":[{{"bufferView":5,"mimeType":"image/png"}}],
+		"bufferViews":[
+			{{"buffer":0,"byteOffset":0,"byteLength":48}},
+			{{"buffer":0,"byteOffset":48,"byteLength":48}},
+			{{"buffer":0,"byteOffset":96,"byteLength":32}},
+			{{"buffer":0,"byteOffset":128,"byteLength":12}},
+			{{"buffer":0,"byteOffset":140,"byteLength":64}},
+			{{"buffer":0,"byteOffset":204,"byteLength":%v}}],
+		"accessors":[
+			{{"bufferView":0,"componentType":5126,"count":4,"type":"VEC3"}},
+			{{"bufferView":1,"componentType":5126,"count":4,"type":"VEC3"}},
+			{{"bufferView":2,"componentType":5126,"count":4,"type":"VEC2"}},
+			{{"bufferView":3,"componentType":5123,"count":6,"type":"SCALAR"}},
+			{{"bufferView":4,"componentType":5126,"count":4,"type":"VEC4"}}]}}`,
+		nodes,
+		primitives,
+		materials,
+		len(png),
+	)
+	return glb_make(json, bin[:])
+}
+
+expect_each_tangent :: proc(t: ^testing.T, vertices: []Vertex, want: [4]f32) {
+	for v, i in vertices {
+		testing.expectf(t, linalg.length(v.tangent - want) < 1e-5, "vertex %v has tangent %v, want %v", i, v.tangent, want)
+	}
+}
+
+@(test)
+test_glb_generates_the_tangent_of_a_normal_mapped_quad_from_its_uvs :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(quad_glb(QUAD_UVS), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Generated_Tangents})
+	testing.expect_value(t, len(data.vertices), 4)
+	expect_each_tangent(t, data.vertices, {1, 0, 0, 1})
+}
+
+@(test)
+test_glb_generates_a_left_handed_tangent_for_uvs_mirrored_in_u :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(quad_glb({{1, 1}, {0, 1}, {0, 0}, {1, 0}}), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	expect_each_tangent(t, data.vertices, {-1, 0, 0, -1})
+}
+
+// u follows +y and v follows +x: the image turned a quarter, not mirrored.
+@(test)
+test_glb_generates_a_tangent_for_turned_uvs :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(quad_glb({{0, 0}, {0, 1}, {1, 1}, {1, 0}}), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	expect_each_tangent(t, data.vertices, {0, 1, 0, 1})
+}
+
+// The generated frame matches the one a TANGENT of (1, 0, 0, 1) gets under the same node.
+@(test)
+test_glb_generates_the_tangent_of_a_mirrored_node_from_its_placed_positions :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(quad_glb(QUAD_UVS, nodes = `[{"mesh":0,"scale":[-1,1,1]}]`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	expect_each_tangent(t, data.vertices, {-1, 0, 0, -1})
+}
+
+@(test)
+test_glb_gives_uvs_with_zero_area_a_unit_tangent_at_right_angles_to_the_normal :: proc(t: ^testing.T) {
+	line := [4][2]f32{{0, 0}, {1, 0}, {2, 0}, {3, 0}}
+	for normal in ([][3]f32{{0, 0, 1}, {1, 0, 0}, {0.6, 0, 0.8}}) {
+		data, notes, err := glb_parse(quad_glb(line, normal = normal), context.temp_allocator)
+		testing.expect_value(t, err, Glb_Error.None)
+		testing.expect_value(t, notes, Glb_Notes{.Generated_Tangents})
+		for v, i in data.vertices {
+			tangent := v.tangent.xyz
+			testing.expectf(t, abs(linalg.length(tangent) - 1) < 1e-5, "normal %v, vertex %v: tangent %v is not unit", normal, i, v.tangent)
+			testing.expectf(t, abs(linalg.dot(tangent, v.normal)) < 1e-5, "normal %v, vertex %v: tangent %v is not at right angles", normal, i, v.tangent)
+			testing.expectf(t, v.tangent.w == 1, "normal %v, vertex %v: tangent %v has w other than 1", normal, i, v.tangent)
+		}
+	}
+}
+
+@(test)
+test_glb_keeps_the_tangent_of_a_normal_mapped_primitive_that_has_one :: proc(t: ^testing.T) {
+	primitives := `[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2,"TANGENT":4},"indices":3,"material":0}]`
+	data, notes, err := glb_parse(quad_glb(QUAD_UVS, primitives = primitives), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	expect_each_tangent(t, data.vertices, {0, 1, 0, -1})
+}
+
+@(test)
+test_glb_gives_a_primitive_without_a_normal_map_the_placeholder_and_no_note :: proc(t: ^testing.T) {
+	materials := `[{"pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}]`
+	data, notes, err := glb_parse(quad_glb({{0, 0}, {0, 1}, {1, 1}, {1, 0}}, materials = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	expect_each_tangent(t, data.vertices, GLB_PLACEHOLDER_TANGENT)
+}
+
+// The second primitive's vertices start past the first's, so its indices do too.
+@(test)
+test_glb_generates_tangents_only_for_the_normal_mapped_primitive :: proc(t: ^testing.T) {
+	primitives := `[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3},` + QUAD_PRIMITIVE + "]"
+	data, notes, err := glb_parse(quad_glb({{0, 0}, {0, 1}, {1, 1}, {1, 0}}, primitives = primitives), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Generated_Tangents})
+	testing.expect_value(t, len(data.vertices), 8)
+	expect_each_tangent(t, data.vertices[:4], GLB_PLACEHOLDER_TANGENT)
+	expect_each_tangent(t, data.vertices[4:], {0, 1, 0, 1})
 }
 
 @(test)

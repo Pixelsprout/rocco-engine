@@ -58,11 +58,12 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 
 #assert(MESH_TEXTURE_LIMIT == 16, "the Too_Many_Textures reason states the limit")
 GLB_NOTE_REASONS := [Glb_Note]string {
-	.Jpeg_Skipped      = "a texture is a JPEG, so it draws without that texture; export PNG",
-	.Bad_Png           = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
-	.Unsupported_Image = "a texture is not an embedded PNG, so it draws without that texture",
-	.Too_Many_Textures = "it has more than 16 textures, so the textures past the first 16 do not draw",
-	.Channel_Skipped   = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
+	.Jpeg_Skipped       = "a texture is a JPEG, so it draws without that texture; export PNG",
+	.Bad_Png            = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
+	.Unsupported_Image  = "a texture is not an embedded PNG, so it draws without that texture",
+	.Too_Many_Textures  = "it has more than 16 textures, so the textures past the first 16 do not draw",
+	.Channel_Skipped    = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
+	.Generated_Tangents = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
 }
 
 Glb_Error :: enum {
@@ -98,6 +99,7 @@ Glb_Note :: enum {
 	Unsupported_Image,
 	Too_Many_Textures,
 	Channel_Skipped,
+	Generated_Tangents,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -122,6 +124,7 @@ Gltf :: struct {
 		} `json:"pbrMetallicRoughness"`,
 		emissive_factor:  Maybe([3]f32) `json:"emissiveFactor"`,
 		emissive_texture: Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
+		normal_texture:   Maybe(Gltf_Texture_Ref) `json:"normalTexture"`,
 		extensions:       struct {
 			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
 			emissive_strength: Maybe(struct {
@@ -586,11 +589,13 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 	}
 
 	color := GREY
+	normal_mapped := false
 	if m, ok := p.material.?; ok {
 		if m < 0 || m >= len(l.gltf.materials) {
 			return .Bad_Material
 		}
 		color = l.gltf.materials[m].pbr.base_color_factor.? or_else {1, 1, 1, 1}
+		normal_mapped = l.gltf.materials[m].normal_texture != nil
 	}
 	run := glb_material_run(l, glb_material(l, p.material))
 
@@ -636,6 +641,7 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 	if index_count % 3 != 0 {
 		return .Bad_Index
 	}
+	first_index := len(run.indices)
 	for i in 0 ..< index_count {
 		// A mirrored triangle swaps its last two corners.
 		corner := i
@@ -651,7 +657,55 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		}
 		append(&run.indices, u16(base + index))
 	}
+	if normal_mapped && !has_tangent {
+		glb_lengyel_tangents(l.vertices[base:], run.indices[first_index:], base)
+		l.notes += {.Generated_Tangents}
+	}
 	return .None
+}
+
+// Works from the placed positions, so a mirroring node needs no w flip. Each
+// index in triangles is base more than its vertex's place in vertices.
+glb_lengyel_tangents :: proc(vertices: []Vertex, triangles: []u16, base: int) {
+	// Per vertex: the sum of dP/du, and the sum of -dP/dv, which points up the
+	// image as glTF's bitangent does.
+	sums := make([][2][3]f32, len(vertices), context.temp_allocator)
+	for i := 0; i < len(triangles); i += 3 {
+		corners := [3]int{int(triangles[i]) - base, int(triangles[i + 1]) - base, int(triangles[i + 2]) - base}
+		a, b, c := vertices[corners[0]], vertices[corners[1]], vertices[corners[2]]
+		e1, e2 := b.pos - a.pos, c.pos - a.pos
+		d1, d2 := b.uv - a.uv, c.uv - a.uv
+		det := d1.x * d2.y - d2.x * d1.y
+		if abs(det) < 1e-12 {
+			continue
+		}
+		du := (e1 * d2.y - e2 * d1.y) / det
+		dv := (e2 * d1.x - e1 * d2.x) / det
+		for corner in corners {
+			sums[corner][0] += du
+			sums[corner][1] -= dv
+		}
+	}
+	for &v, i in vertices {
+		n := v.normal
+		sum, up := sums[i][0], sums[i][1]
+		t := sum - n * linalg.dot(n, sum)
+		length := linalg.length(t)
+		if length <= 1e-4 * linalg.length(sum) {
+			v.tangent = glb_any_tangent(n)
+			continue
+		}
+		t /= length
+		w: f32 = 1 if linalg.dot(linalg.cross(n, t), up) >= 0 else -1
+		v.tangent = {t.x, t.y, t.z, w}
+	}
+}
+
+// For a vertex whose UVs give no direction.
+glb_any_tangent :: proc(n: [3]f32) -> [4]f32 {
+	axis := [3]f32{1, 0, 0} if abs(n.x) < 0.9 else [3]f32{0, 1, 0}
+	t := linalg.normalize(axis - n * linalg.dot(n, axis))
+	return {t.x, t.y, t.z, 1}
 }
 
 glb_vec3_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {
