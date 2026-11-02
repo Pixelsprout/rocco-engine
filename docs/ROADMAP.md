@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.7.0 is the latest release. A tag with a hyphen stays a
+  bundles. v0.8.0 is the latest release. A tag with a hyphen stays a
   pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
@@ -1405,8 +1405,9 @@ sampler decode once. `Launch.capacity.draws` counts part draws. The shadow
 pass stays one draw per Draw. `examples/glow` draws a salvage block with a
 ceramic, a rust and a neon material, built by `source/make_salvage.py`. The
 Bridge check screenshots it on macOS, Linux and Windows and finds the
-neon's teal. No Vocabulary change. The v0.8.0 release task checks the
-otter's glowing gear.
+neon's teal. No Vocabulary change. v0.8.0 is published. Agent Town's otter
+v2 draws in a scratch game on the release commit: its goggle lenses glow
+teal, its backpack lamp glows amber and its fur stays matte.
 
 Done when one `.glb` draws each primitive with its own material and its own
 textures, and the otter's goggle lenses and backpack lamp glow while its fur
