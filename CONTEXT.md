@@ -230,8 +230,8 @@ _Avoid_: emission (for the field), bloom, self-illumination, a tint above 1
 
 **Emissive**:
 The light that a glTF material gives off: `emissiveFactor`, times
-`emissiveTexture`, times `KHR_materials_emissive_strength`. A mesh has one,
-from its first part. A Draw's Glow adds to it. It lights no other surface.
+`emissiveTexture`, times `KHR_materials_emissive_strength`. Each Mesh part
+has one. A Draw's Glow adds to it. It lights no other surface.
 _Avoid_: glow (for the material), emission map
 
 **Rgba**:
@@ -410,6 +410,12 @@ pack can hold)
 The engine's table from mesh id to GPU resources. The game never sees it; it
 sees a Manifest.
 _Avoid_: manifest, asset store, resource cache
+
+**Mesh part**:
+A share of a mesh's triangles that draws with one material and its own
+textures. A Primitive has one part. A Draw's Tint and Glow apply to every
+part of its mesh.
+_Avoid_: submesh, glTF primitive (a unit of the file), material slot
 
 **Fallback mesh**:
 The mesh at id 0, drawn for any id the engine does not know. A magenta cube:

@@ -35,14 +35,15 @@ Pass :: enum {
 
 // Lets tests run without sokol. Each frame begins and ends one Shadow pass
 // per shadow view, then one Main pass. submit_shadow runs only in a Shadow
-// pass. In the Main pass, submit_lights runs before any submit,
+// pass, once per Draw. In the Main pass, submit runs once per part of each
+// Draw's mesh. submit_lights runs before any submit,
 // submit_sky runs at most once, after every submit, and submit_ui runs at
 // most once, last. In each pass, the skinned Draws follow the rigid ones, so
 // the renderer changes pipeline once. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
-Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
+Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
@@ -259,28 +260,29 @@ frame_render_draw :: proc(
 	for p in placed_next(&order) {
 		tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
 		glow := [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
-		material := p.mesh.material
-		e := material.emissive
 		params := Fs_Params {
 			tint = tint,
-			material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0},
-			emissive = {e.x, e.y, e.z, 0},
 			glow = glow,
 		}
-		if !material.unlit {
+		if !mesh_unlit(p.mesh) {
 			// Only the Point lights need the world box.
 			bounds := box_transform(p.mesh.box, p.model) if len(gathered.points) > 0 else Box{}
 			if light_select(gathered.directionals[:], gathered.points[:], bounds, &params.light_pos, &params.light_color) {
 				light_drop(fr, .Draw_Over_Limit)
 			}
 		}
-		fr.submits.submit(
-			fr.submits.ctx,
-			p.mesh,
-			vs_params = {mvp = view.view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)},
-			fs_params = params,
-			skin = p.skin,
-		)
+		vs_params := Vs_Params {
+			mvp          = view.view_proj * p.model,
+			model        = p.model,
+			normal_model = draw_normal_matrix(p.transform),
+		}
+		for &part in p.mesh.parts {
+			material := part.material
+			e := material.emissive
+			params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}
+			params.emissive = {e.x, e.y, e.z, 0}
+			fr.submits.submit(fr.submits.ctx, p.mesh, &part, vs_params, params, p.skin)
+		}
 	}
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
@@ -591,7 +593,7 @@ submits_none_end_pass :: proc(ctx: rawptr) {}
 submits_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
-submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
+submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
 submits_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights) {}

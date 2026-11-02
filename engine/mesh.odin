@@ -117,11 +117,21 @@ Material :: struct {
 	emissive:  [3]f32,
 }
 
-// A zero id means the mesh has no texture and binds the white image.
+// A zero id means the part has no texture and binds the white image.
 Mesh_Texture :: struct {
 	image:   sg.Image,
 	view:    sg.View,
 	sampler: sg.Sampler,
+}
+
+// A range of the mesh's index buffer that draws with its own material and textures.
+Mesh_Part :: struct {
+	first:              int,
+	count:              int,
+	material:           Material,
+	texture:            Mesh_Texture,
+	metallic_roughness: Mesh_Texture,
+	emissive:           Mesh_Texture,
 }
 
 // An axis-aligned box in the mesh's own space, around every vertex.
@@ -136,10 +146,7 @@ Mesh :: struct {
 	vertices:           sg.Buffer,
 	indices:            sg.Buffer,
 	index_count:        int,
-	texture:            Mesh_Texture,
-	metallic_roughness: Mesh_Texture,
-	emissive:           Mesh_Texture,
-	material:           Material,
+	parts:              []Mesh_Part,
 	box:                Box,
 	skin:               Skin,
 	first_clip:         u32,
@@ -147,7 +154,8 @@ Mesh :: struct {
 }
 
 // After mesh_table_upload, a new mesh uploads when it is added. The table
-// owns each loaded mesh's name and data. The slots never grow.
+// owns each mesh's parts and each loaded mesh's name and data. The slots
+// never grow.
 Mesh_Table :: struct {
 	meshes:       []Mesh,
 	count:        int,
@@ -177,8 +185,8 @@ Mesh_Data :: struct {
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
-// The slots come from perm; the names, data and log from allocator, which
-// must free.
+// The slots come from perm; the names, data, parts and log from allocator,
+// which must free.
 mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allocator) {
 	fmt.assertf(capacity >= len(Primitive) && capacity <= SLOT_LIMIT, "a mesh table of %v slots cannot hold the primitives or give each slot an id", capacity)
 	t.allocator = allocator
@@ -189,19 +197,26 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 	t.clips_logged = make(map[u32]struct {}, allocator)
 	t.next_clip = 1
 	for p in Primitive {
-		box := mesh_box(primitive_build(p, context.temp_allocator).vertices)
-		t.meshes[p] = {name = PRIMITIVE_NAMES[p], live = true, material = MATERIAL_MATTE, box = box}
+		data := primitive_build(p, context.temp_allocator)
+		t.meshes[p] = {
+			name        = PRIMITIVE_NAMES[p],
+			live        = true,
+			index_count = len(data.indices),
+			parts       = mesh_one_part(len(data.indices), MATERIAL_MATTE, allocator),
+			box         = mesh_box(data.vertices),
+		}
 	}
 	t.count = len(Primitive)
 }
 
-// Frees the names and data of the loaded meshes. sg.shutdown destroys their buffers.
+// sg.shutdown destroys the GPU buffers and textures.
 mesh_table_destroy :: proc(t: ^Mesh_Table) {
+	for &m in t.meshes[:len(Primitive)] {
+		delete(m.parts, t.allocator)
+	}
 	for &m in t.meshes[len(Primitive):t.count] {
 		if m.live {
-			delete(m.name, t.allocator)
-			mesh_data_delete(t, m.data)
-			skin_delete(m.skin, t.allocator)
+			mesh_loaded_delete(t, &m)
 		}
 	}
 	delete(t.logged)
@@ -253,14 +268,15 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		box = box_pad(box, SKINNED_BOX_PAD)
 	}
 	t.meshes[slot] = {
-		name       = name,
-		data       = data,
-		live       = true,
-		material   = data.material,
-		box        = box,
-		skin       = data.skin,
-		first_clip = t.next_clip,
-		generation = t.meshes[slot].generation,
+		name        = name,
+		data        = data,
+		live        = true,
+		index_count = len(data.indices),
+		parts       = mesh_one_part(len(data.indices), data.material, t.allocator),
+		box         = box,
+		skin        = data.skin,
+		first_clip  = t.next_clip,
+		generation  = t.meshes[slot].generation,
 	}
 	t.meshes[slot].data.skin = {}
 	t.next_clip += u32(len(data.skin.clips))
@@ -279,12 +295,12 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 		sg.destroy_buffer(m.vertices)
 		sg.destroy_buffer(m.indices)
 	}
-	mesh_texture_destroy(m.texture)
-	mesh_texture_destroy(m.metallic_roughness)
-	mesh_texture_destroy(m.emissive)
-	delete(m.name, t.allocator)
-	mesh_data_delete(t, m.data)
-	skin_delete(m.skin, t.allocator)
+	for part in m.parts {
+		mesh_texture_destroy(part.texture)
+		mesh_texture_destroy(part.metallic_roughness)
+		mesh_texture_destroy(part.emissive)
+	}
+	mesh_loaded_delete(t, m)
 	m^ = {generation = m.generation + 1}
 	t.free[t.free_count] = slot
 	t.free_count += 1
@@ -328,6 +344,21 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 }
 
 @(private = "file")
+mesh_loaded_delete :: proc(t: ^Mesh_Table, m: ^Mesh) {
+	delete(m.name, t.allocator)
+	mesh_data_delete(t, m.data)
+	delete(m.parts, t.allocator)
+	skin_delete(m.skin, t.allocator)
+}
+
+@(private = "file")
+mesh_one_part :: proc(index_count: int, material: Material, allocator: mem.Allocator) -> []Mesh_Part {
+	parts := make([]Mesh_Part, 1, allocator)
+	parts[0] = {count = index_count, material = material}
+	return parts
+}
+
+@(private = "file")
 mesh_texture_destroy :: proc(tex: Mesh_Texture) {
 	if tex.image.id != 0 {
 		sg.destroy_view(tex.view)
@@ -337,7 +368,8 @@ mesh_texture_destroy :: proc(tex: Mesh_Texture) {
 }
 
 // A skinned mesh uploads Skinned_Vertex, for the skinned pipelines. sokol
-// copies the data, so the skinned vertices are scratch.
+// copies the data, so the skinned vertices are scratch. A Mesh_Data has one
+// material, so its textures go on the one part.
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	vertices := sg.Range{raw_data(data.vertices), uint(len(data.vertices) * size_of(Vertex))}
 	if len(data.influences) > 0 {
@@ -352,24 +384,34 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 			usage = {index_buffer = true},
 		},
 	)
-	m.index_count = len(data.indices)
+	part := &m.parts[0]
 	if tex, ok := data.texture.?; ok {
-		m.texture = texture_upload(tex)
+		part.texture = texture_upload(tex)
 	}
 	if tex, ok := data.metallic_roughness.?; ok {
-		m.metallic_roughness = texture_upload(tex)
+		part.metallic_roughness = texture_upload(tex)
 	}
 	if tex, ok := data.emissive.?; ok {
-		m.emissive = texture_upload(tex)
+		part.emissive = texture_upload(tex)
 	}
 }
 
 // White leaves the base colour as it is and the material factors at their values.
-mesh_textures :: proc(m: ^Mesh, white: Mesh_Texture) -> (base, metallic_roughness, emissive: Mesh_Texture) {
-	base = m.texture if m.texture.image.id != 0 else white
-	metallic_roughness = m.metallic_roughness if m.metallic_roughness.image.id != 0 else white
-	emissive = m.emissive if m.emissive.image.id != 0 else white
+mesh_part_textures :: proc(part: ^Mesh_Part, white: Mesh_Texture) -> (base, metallic_roughness, emissive: Mesh_Texture) {
+	base = part.texture if part.texture.image.id != 0 else white
+	metallic_roughness = part.metallic_roughness if part.metallic_roughness.image.id != 0 else white
+	emissive = part.emissive if part.emissive.image.id != 0 else white
 	return
+}
+
+// A mesh with no lit part needs no lights.
+mesh_unlit :: proc(m: ^Mesh) -> bool {
+	for part in m.parts {
+		if !part.material.unlit {
+			return false
+		}
+	}
+	return true
 }
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.

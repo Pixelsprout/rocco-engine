@@ -4,6 +4,7 @@ package engine
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
@@ -17,6 +18,7 @@ SMALL_GROUPS :: 4
 // joints holds the first skin matrices of a skinned Draw, as they were at the submit.
 Submitted :: struct {
 	mesh:         ^Mesh,
+	part:         ^Mesh_Part,
 	model:        Mat4,
 	normal_model: Mat4,
 	tint:         [4]f32,
@@ -181,12 +183,13 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 	testing.expect_value(t, c.fov_y, 2)
 }
 
-record_submit :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.submits,
 		Submitted {
 			mesh = mesh,
+			part = part,
 			model = vs_params.model,
 			normal_model = vs_params.normal_model,
 			tint = fs_params.tint,
@@ -870,6 +873,73 @@ test_frame_render_submits_the_emissive_of_each_mesh :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(got), 2)
 	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
 	testing.expect_value(t, got[1].emissive, [4]f32{4, 2, 0, 0})
+}
+
+@(test)
+test_frame_render_submits_each_part_with_its_material_and_the_draws_tint_glow_and_lights :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	otter := frame_fixture_two_part_mesh(&f)
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1}), light_point({x = 1}, {g = 1}, 20)}
+	draws := []Draw{{id = 1, mesh = otter, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY, tint = {r = 0.5, g = 1, b = 1}, glow = {r = 0.25}}}
+	got := frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	mesh, _ := mesh_lookup(&f.meshes, otter)
+	testing.expect_value(t, len(got), 2)
+	testing.expect_value(t, got[0].part, &mesh.parts[0])
+	testing.expect_value(t, got[1].part, &mesh.parts[1])
+	testing.expect_value(t, got[0].material, [4]f32{1, 0, 0, 0})
+	testing.expect_value(t, got[1].material, [4]f32{0.3, 0.7, 0, 0})
+	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
+	testing.expect_value(t, got[1].emissive, [4]f32{4, 2, 0, 0})
+	testing.expect_value(t, got[0].tint, [4]f32{0.5, 1, 1, 1})
+	testing.expect_value(t, got[0].glow, [4]f32{0.25, 0, 0, 0})
+	testing.expect_value(t, got[0].light_color[0], [4]f32{1, 0, 0, 0})
+	for s in got[1:] {
+		testing.expect_value(t, s.mesh, mesh)
+		testing.expect_value(t, s.model, got[0].model)
+		testing.expect_value(t, s.tint, got[0].tint)
+		testing.expect_value(t, s.glow, got[0].glow)
+		testing.expect_value(t, s.light_pos, got[0].light_pos)
+		testing.expect_value(t, s.light_color, got[0].light_color)
+	}
+}
+
+@(test)
+test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+
+	otter := frame_fixture_two_part_mesh(&f)
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = otter, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	testing.expect_value(t, len(f.rec.submits), 2)
+	testing.expect_value(t, len(f.rec.shadows), 4)
+	for s, i in f.rec.shadows {
+		testing.expect_value(t, s.view, i)
+	}
+}
+
+// The table frees each mesh's parts, so the one part from the add must go
+// before the two parts replace it.
+frame_fixture_two_part_mesh :: proc(f: ^Frame_Fixture) -> u32 {
+	slot, _ := mesh_table_add(&f.meshes, strings.clone("otter"), {})
+	m := &f.meshes.meshes[slot]
+	m.box = {min = -0.5, max = 0.5}
+	delete(m.parts, f.meshes.allocator)
+	m.parts = slice.clone(
+		[]Mesh_Part {
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 0.3, metallic = 0.7, emissive = {4, 2, 0}}},
+		},
+		f.meshes.allocator,
+	)
+	return mesh_id(&f.meshes, slot)
 }
 
 @(test)

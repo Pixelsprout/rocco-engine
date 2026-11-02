@@ -2,6 +2,7 @@
 package engine
 
 import "core:math/linalg"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
@@ -190,33 +191,54 @@ test_each_cube_face_spans_the_whole_texture :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_a_mesh_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
+test_a_part_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
 	white := Mesh_Texture{image = {id = 1}, view = {id = 2}, sampler = {id = 3}}
-	plain := Mesh{}
-	base, mr, emissive := mesh_textures(&plain, white)
+	plain := Mesh_Part{}
+	base, mr, emissive := mesh_part_textures(&plain, white)
 	testing.expect_value(t, base, white)
 	testing.expect_value(t, mr, white)
 	testing.expect_value(t, emissive, white)
-	textured := Mesh {
+	textured := Mesh_Part {
 		texture            = {image = {id = 7}, view = {id = 8}, sampler = {id = 9}},
 		metallic_roughness = {image = {id = 4}, view = {id = 5}, sampler = {id = 6}},
 		emissive           = {image = {id = 10}, view = {id = 11}, sampler = {id = 12}},
 	}
-	base, mr, emissive = mesh_textures(&textured, white)
+	base, mr, emissive = mesh_part_textures(&textured, white)
 	testing.expect_value(t, base, textured.texture)
 	testing.expect_value(t, mr, textured.metallic_roughness)
 	testing.expect_value(t, emissive, textured.emissive)
 }
 
 @(test)
-test_every_primitive_is_matte_and_not_metal :: proc(t: ^testing.T) {
+test_each_primitive_has_one_matte_part_over_all_its_indices :: proc(t: ^testing.T) {
 	meshes: Mesh_Table
 	mesh_table_init(&meshes, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&meshes)
 	for p in Primitive {
-		testing.expect_value(t, meshes.meshes[p].material, MATERIAL_MATTE)
-		testing.expect_value(t, meshes.meshes[p].material.emissive, [3]f32{0, 0, 0})
+		indices := len(primitive_build(p, context.temp_allocator).indices)
+		parts := meshes.meshes[p].parts
+		testing.expect_value(t, len(parts), 1)
+		testing.expect_value(t, parts[0], Mesh_Part{first = 0, count = indices, material = MATERIAL_MATTE})
+		testing.expect_value(t, parts[0].material.emissive, [3]f32{0, 0, 0})
 	}
+}
+
+@(test)
+test_a_loaded_mesh_has_one_part_over_all_its_indices_with_its_material :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	material := Material{roughness = 0.4, metallic = 1, emissive = {1, 0, 0}}
+	data := Mesh_Data {
+		vertices = make([]Vertex, 3),
+		indices  = slice.clone([]u16{0, 1, 2, 0, 2, 1}),
+		material = material,
+	}
+	slot, _ := mesh_table_add(&table, strings.clone("rock"), data)
+	parts := table.meshes[slot].parts
+	testing.expect_value(t, len(parts), 1)
+	testing.expect_value(t, parts[0], Mesh_Part{first = 0, count = 6, material = material})
 }
 
 @(test)

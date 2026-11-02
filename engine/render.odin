@@ -319,10 +319,10 @@ renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Sk
 // A nil skin draws a rigid mesh. Each change between the rigid and the
 // skinned pipeline applies the lights again, so the uniform buffer has room
 // for one change per Frame.
-renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pip, r.skinned_pip, skin)
-	base, metallic_roughness, emissive := mesh_textures(mesh, r.white)
+	base, metallic_roughness, emissive := mesh_part_textures(part, r.white)
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = mesh.vertices},
@@ -347,7 +347,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Vs_Params, fs_params:
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
 	sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
 
-	sg.draw(0, mesh.index_count, 1)
+	sg.draw(part.first, part.count, 1)
 }
 
 // Applies the sky pipeline, so it must follow every renderer_draw of the frame.
