@@ -11,6 +11,7 @@ GLB_MAGIC :: 0x46546C67 // "glTF"
 GLB_CHUNK_JSON :: 0x4E4F534A // "JSON"
 GLB_CHUNK_BIN :: 0x004E4942 // "BIN\0"
 GLB_MAX_VERTICES :: 65_535
+GLB_PLACEHOLDER_TANGENT :: [4]f32{1, 0, 0, 1}
 
 GLTF_MODE_TRIANGLES :: 4
 GLTF_I8 :: 5120
@@ -572,6 +573,14 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 			return .Bad_Accessor
 		}
 	}
+	tangents: Glb_View
+	tangent_index, has_tangent := p.attributes["TANGENT"]
+	if has_tangent {
+		tangents = glb_accessor(l, tangent_index, "VEC4") or_return
+		if tangents.component_type != GLTF_F32 || tangents.count != count {
+			return .Bad_Accessor
+		}
+	}
 	if skinned {
 		glb_add_influences(l, p, count) or_return
 	}
@@ -596,6 +605,15 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		if has_uv {
 			uv = glb_read_vec2(uvs, i)
 		}
+		tangent := GLB_PLACEHOLDER_TANGENT
+		if has_tangent {
+			tangent = glb_read_vec4(tangents, i)
+			tangent.xyz = linalg.normalize0(basis * tangent.xyz)
+			// A mirroring transform flips the handedness.
+			if mirrored {
+				tangent.w = -tangent.w
+			}
+		}
 		append(
 			&l.vertices,
 			Vertex {
@@ -603,6 +621,7 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 				color = color,
 				normal = linalg.normalize0(normal_matrix * nrm),
 				uv = uv,
+				tangent = tangent,
 			},
 		)
 	}

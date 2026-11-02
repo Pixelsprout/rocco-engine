@@ -191,6 +191,42 @@ test_each_cube_face_spans_the_whole_texture :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_every_primitive_has_unit_tangents_at_right_angles_to_its_normals :: proc(t: ^testing.T) {
+	for p in Primitive {
+		data := primitive_build(p, context.temp_allocator)
+		for v, i in data.vertices {
+			testing.expectf(t, abs(v3_dot(v.tangent.xyz, v.tangent.xyz) - 1) < 1e-5, "%v vertex %v has tangent %v, want unit length", p, i, v.tangent)
+			testing.expectf(t, abs(v3_dot(v.tangent.xyz, v.normal)) < 1e-5, "%v vertex %v has tangent %v and normal %v", p, i, v.tangent, v.normal)
+			testing.expectf(t, v.tangent.w == 1 || v.tangent.w == -1, "%v vertex %v has handedness %v", p, i, v.tangent.w)
+		}
+	}
+}
+
+// Each triangle's uv gradients give the way u and v run across it. The
+// tangent follows u, and its bitangent points up the image, towards less v.
+@(test)
+test_every_primitive_tangent_follows_its_uvs :: proc(t: ^testing.T) {
+	for p in Primitive {
+		data := primitive_build(p, context.temp_allocator)
+		for i := 0; i < len(data.indices); i += 3 {
+			a := data.vertices[data.indices[i]]
+			b := data.vertices[data.indices[i + 1]]
+			c := data.vertices[data.indices[i + 2]]
+			e1, e2 := b.pos - a.pos, c.pos - a.pos
+			d1, d2 := b.uv - a.uv, c.uv - a.uv
+			area := d1.x * d2.y - d2.x * d1.y
+			along_u := (e1 * d2.y - e2 * d1.y) / area
+			along_v := (e2 * d1.x - e1 * d2.x) / area
+			for v in ([]Vertex{a, b, c}) {
+				bitangent := v3_cross(v.normal, v.tangent.xyz) * v.tangent.w
+				testing.expectf(t, v3_dot(v.tangent.xyz, along_u) > 0, "%v triangle %v has a tangent against u", p, i / 3)
+				testing.expectf(t, v3_dot(bitangent, along_v) < 0, "%v triangle %v has handedness %v", p, i / 3, v.tangent.w)
+			}
+		}
+	}
+}
+
+@(test)
 test_a_part_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
 	white := Mesh_Texture{image = {id = 1}, view = {id = 2}, sampler = {id = 3}}
 	plain := Mesh_Part{}
