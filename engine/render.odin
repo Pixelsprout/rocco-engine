@@ -42,6 +42,9 @@ Renderer :: struct {
 	// fs_lights at each apply_pipeline, so the Main pass keeps them to apply
 	// again.
 	applied:            sg.Pipeline,
+	// The skin block applied since that pipeline. The parts of one Draw
+	// share it, so the uniform buffer holds one skin block per Draw.
+	applied_skin:       ^Skin_Params,
 	lights:             Fs_Lights,
 	meshes:             Mesh_Table,
 	skies:              Sky_Table,
@@ -65,13 +68,12 @@ Shadow_Map :: struct {
 	sampler: sg.Sampler,
 }
 
-// Each loaded mesh can own a base colour, a metallic-roughness and an
-// emissive texture, each with its own image, view and sampler. The white
-// image, each sky, each Image, the shadow map, the font atlas and the UI's
-// checker need one more. The Images add their Linear and Nearest samplers.
+// Each loaded mesh can own MESH_TEXTURE_LIMIT textures, each with its own
+// image, view and sampler. The white image, each sky, each Image, the
+// shadow map, the font atlas and the UI's checker need one more. The Images add their Linear and Nearest samplers.
 // The render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(3 * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
+	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -80,9 +82,10 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
 }
 
-// A Draw applies a vertex and a fragment block in the Main pass and a shadow
-// block in each cascade. A skinned Draw also applies a skin block in each
-// pass.
+// capacity.draws counts the Main-pass draws, one per mesh part. Each
+// applies a vertex and a fragment block. A Draw applies a shadow block in
+// each cascade, and a Frame has no more Draws than mesh parts. A skinned
+// Draw also applies one skin block in each pass.
 uniform_buffer_size :: proc(capacity: Capacity, cascades: int) -> i32 {
 	skins := (1 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
 	slots := MAIN_UNIFORM_SLOTS + cascades * SHADOW_UNIFORM_SLOTS
@@ -298,21 +301,23 @@ renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
 renderer_apply_pipeline :: proc(r: ^Renderer, pip: sg.Pipeline) {
 	sg.apply_pipeline(pip)
 	r.applied = pip
+	r.applied_skin = nil
 	if pip == r.pip || pip == r.skinned_pip {
 		sg.apply_uniforms(UB_fs_lights, {ptr = &r.lights, size = size_of(Fs_Lights)})
 	}
 }
 
 // Changes to the rigid or the skinned pipeline of the pass when the Draw
-// needs the other one, then applies the skin block of a skinned Draw.
+// needs the other one, then applies the skin block of a skinned Draw once.
 @(private = "file")
 renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Skin_Params) {
 	pip := skinned if skin != nil else rigid
 	if r.applied != pip {
 		renderer_apply_pipeline(r, pip)
 	}
-	if skin != nil {
+	if skin != nil && skin != r.applied_skin {
 		sg.apply_uniforms(UB_skin_params, {ptr = skin, size = size_of(Skin_Params)})
+		r.applied_skin = skin
 	}
 }
 

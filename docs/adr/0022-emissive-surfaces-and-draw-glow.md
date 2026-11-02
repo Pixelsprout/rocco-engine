@@ -1,7 +1,9 @@
 # 0022: Emissive surfaces and Draw glow
 
 Status: accepted, 2026-10-31. ADR 0023 later replaced the 8-light cap per
-Scene with 8 per Draw.
+Scene with 8 per Draw. Milestone 35 on 2026-11-02 gave each glTF material
+its own Mesh part, with its own Material and emissive, and dropped
+`Mixed_Materials`.
 
 ## Context
 

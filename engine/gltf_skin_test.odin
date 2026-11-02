@@ -85,6 +85,24 @@ test_glb_keeps_a_skinned_mesh_in_bind_pose_space :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_glb_keeps_the_influences_of_both_parts_of_a_skinned_two_material_file :: proc(t: ^testing.T) {
+	primitive :: `{"attributes":{"POSITION":0,"NORMAL":1,"JOINTS_0":2,"WEIGHTS_0":3},"indices":4`
+	two_primitives := fmt.tprintf(`%v,"material":0}},%v,"material":1}}]`, primitive, primitive)
+	materials := `"materials":[{},{"emissiveFactor":[0,1,1]}],"meshes"`
+	data, notes, err := glb_parse(skinned_glb(t, {primitive + "}]", two_primitives}, {`"meshes"`, materials}), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect_value(t, len(data.parts), 2)
+	testing.expect_value(t, data.parts[1].material.emissive, [3]f32{0, 1, 1})
+	testing.expect_value(t, len(data.vertices), 12)
+	testing.expect_value(t, len(data.influences), 12)
+	testing.expect(t, slice.equal(data.influences[:6], data.influences[6:]))
+	for index in data.indices[data.parts[1].first:][:data.parts[1].count] {
+		testing.expectf(t, index >= 6, "part 1 names vertex %v of the first primitive", index)
+	}
+}
+
+@(test)
 test_glb_gives_each_vertex_weights_that_sum_to_255 :: proc(t: ^testing.T) {
 	data, _, err := glb_parse(skinned_glb(t), context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)

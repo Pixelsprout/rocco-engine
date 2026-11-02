@@ -413,8 +413,8 @@ _Avoid_: manifest, asset store, resource cache
 
 **Mesh part**:
 A share of a mesh's triangles that draws with one material and its own
-textures. A Primitive has one part. A Draw's Tint and Glow apply to every
-part of its mesh.
+textures. A loaded mesh has one part per glTF material, and a Primitive has
+one. A Draw's Tint and Glow apply to every part of its mesh.
 _Avoid_: submesh, glTF primitive (a unit of the file), material slot
 
 **Fallback mesh**:

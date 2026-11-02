@@ -153,19 +153,37 @@ The host ignores these Commands, and logs each one once:
 ### Meshes from glTF
 
 A mesh file is a binary glTF (`.glb`) file. In glTF, a mesh has one or
-more parts, each with its own triangles. The host merges each part of each
-mesh node in the glTF scene into one mesh.
+more primitives, each with its own triangles and material. The host merges
+every primitive of every mesh node in the glTF scene into one mesh, and
+each glTF material draws as you authored it. Export the model as it is:
+fur, metal and glowing lenses can share one file.
 
-- Each part must hold triangles. If one part does not, the file does not
+- Each primitive must hold triangles. If one does not, the file does not
   load, and its name gets id 0.
-- The merged mesh draws with one material and one base colour texture:
-  those of its first part.
-- The material is glTF metallic-roughness.
-- The material's emissive draws: `emissiveFactor`, `emissiveTexture` and
+- The material is glTF metallic-roughness. Each material keeps its own
+  base colour, metallic and roughness factors, and its own base colour and
+  metallic-roughness textures.
+- Each material's emissive draws: `emissiveFactor`, `emissiveTexture` and
   `KHR_materials_emissive_strength`. An emissive surface lights nothing
   else.
-- A mesh with `KHR_materials_unlit` skips the lights and draws its base
-  colour plus its emissive.
+- A material with `KHR_materials_unlit` skips the lights and draws its base
+  colour plus its emissive. The other materials of the mesh still take the
+  lights.
+- A primitive with no material draws matte grey.
+- The primitives that share a material draw together, so a model split
+  into many primitives costs one draw per material. Each material counts
+  once against `Launch.capacity.draws`. See
+  [Past a capacity](launch.md#past-a-capacity).
+- A Draw's `tint` and `glow` apply to every material of its mesh.
+- A mesh draws up to 16 textures. A texture that several materials share
+  counts once. A texture used as a metallic-roughness map and also as a
+  base colour or emissive map counts twice, because the two read their
+  colours differently. A texture that cannot draw, such as a JPEG, does
+  not count. A file with more still loads: the textures past the first 16
+  do not draw, and the host logs a line that ends in "the textures past
+  the first 16 do not draw". The host keeps room for 16 textures in every
+  mesh slot, about a third of a megabyte for the 64 mesh slots of the
+  default Capacity.
 - A file with a Skin loads as one skinned mesh. See
   [Skinned meshes](#skinned-meshes).
 

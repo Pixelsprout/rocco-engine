@@ -224,21 +224,42 @@ test_each_primitive_has_one_matte_part_over_all_its_indices :: proc(t: ^testing.
 }
 
 @(test)
-test_a_loaded_mesh_has_one_part_over_all_its_indices_with_its_material :: proc(t: ^testing.T) {
+test_a_loaded_mesh_keeps_the_range_and_material_of_each_part :: proc(t: ^testing.T) {
 	table: Mesh_Table
 	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
 	defer mesh_table_destroy(&table)
 
-	material := Material{roughness = 0.4, metallic = 1, emissive = {1, 0, 0}}
+	shiny := Material{roughness = 0.4, metallic = 1}
+	lamp := Material{roughness = 1, emissive = {1, 0, 0}}
 	data := Mesh_Data {
 		vertices = make([]Vertex, 3),
 		indices  = slice.clone([]u16{0, 1, 2, 0, 2, 1}),
-		material = material,
+		parts    = slice.clone([]Mesh_Data_Part{{first = 0, count = 3, material = shiny}, {first = 3, count = 3, material = lamp, texture = 0}}),
+		textures = make([]Texture, 1),
 	}
 	slot, _ := mesh_table_add(&table, strings.clone("rock"), data)
 	parts := table.meshes[slot].parts
+	testing.expect_value(t, len(parts), 2)
+	testing.expect_value(t, parts[0], Mesh_Part{first = 0, count = 3, material = shiny})
+	testing.expect_value(t, parts[1], Mesh_Part{first = 3, count = 3, material = lamp})
+}
+
+@(test)
+test_a_mesh_whose_data_has_no_parts_gets_one_matte_part_over_all_its_indices :: proc(t: ^testing.T) {
+	table: Mesh_Table
+	mesh_table_init(&table, SMALL_MESHES, context.allocator, context.allocator)
+	defer mesh_table_destroy(&table)
+
+	slot, _ := mesh_table_add(&table, strings.clone("rock"), {indices = slice.clone([]u16{0, 1, 2})})
+	parts := table.meshes[slot].parts
 	testing.expect_value(t, len(parts), 1)
-	testing.expect_value(t, parts[0], Mesh_Part{first = 0, count = 6, material = material})
+	testing.expect_value(t, parts[0], Mesh_Part{first = 0, count = 3, material = MATERIAL_MATTE})
+}
+
+// One part over no indices, as a one-material file gives. The parts come
+// from context.allocator, which the test tables use.
+mesh_data_of :: proc(material: Material) -> Mesh_Data {
+	return {parts = slice.clone([]Mesh_Data_Part{{material = material}})}
 }
 
 @(test)

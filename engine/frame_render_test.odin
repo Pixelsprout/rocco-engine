@@ -752,7 +752,7 @@ test_frame_render_gives_an_unlit_draw_no_lights :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), {material = {roughness = 1, unlit = true}})
+	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), mesh_data_of({roughness = 1, unlit = true}))
 	draws := []Draw{{id = 1, mesh = mesh_id(&f.meshes, sign), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
 	lights := []Light{light_point({x = 1}, {r = 1}, 4)}
 	scene := scene_lit(draws, lights)
@@ -847,8 +847,8 @@ test_frame_render_submits_the_material_of_each_mesh :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	shiny, _ := mesh_table_add(&f.meshes, strings.clone("shiny"), {material = {roughness = 0.3, metallic = 0.7}})
-	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), {material = {roughness = 1, unlit = true}})
+	shiny, _ := mesh_table_add(&f.meshes, strings.clone("shiny"), mesh_data_of({roughness = 0.3, metallic = 0.7}))
+	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), mesh_data_of({roughness = 1, unlit = true}))
 	draws := []Draw {
 		{id = 1, mesh = u32(Primitive.Sphere)},
 		{id = 2, mesh = mesh_id(&f.meshes, shiny)},
@@ -867,7 +867,7 @@ test_frame_render_submits_the_emissive_of_each_mesh :: proc(t: ^testing.T) {
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	lamp, _ := mesh_table_add(&f.meshes, strings.clone("lamp"), {material = {roughness = 1, emissive = {4, 2, 0}}})
+	lamp, _ := mesh_table_add(&f.meshes, strings.clone("lamp"), mesh_data_of({roughness = 1, emissive = {4, 2, 0}}))
 	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere)}, {id = 2, mesh = mesh_id(&f.meshes, lamp)}}
 	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
 	testing.expect_value(t, len(got), 2)
@@ -925,21 +925,44 @@ test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing
 	}
 }
 
-// The table frees each mesh's parts, so the one part from the add must go
-// before the two parts replace it.
 frame_fixture_two_part_mesh :: proc(f: ^Frame_Fixture) -> u32 {
-	slot, _ := mesh_table_add(&f.meshes, strings.clone("otter"), {})
-	m := &f.meshes.meshes[slot]
-	m.box = {min = -0.5, max = 0.5}
-	delete(m.parts, f.meshes.allocator)
-	m.parts = slice.clone(
-		[]Mesh_Part {
+	parts := slice.clone(
+		[]Mesh_Data_Part {
 			{first = 0, count = 30, material = {roughness = 1}},
 			{first = 30, count = 6, material = {roughness = 0.3, metallic = 0.7, emissive = {4, 2, 0}}},
 		},
 		f.meshes.allocator,
 	)
+	slot, _ := mesh_table_add(&f.meshes, strings.clone("otter"), {parts = parts})
+	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
 	return mesh_id(&f.meshes, slot)
+}
+
+@(test)
+test_frame_render_draws_the_parts_that_fit_its_draw_capacity_and_logs_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	otter := frame_fixture_two_part_mesh(&f)
+	cube := u32(Primitive.Cube)
+	meshes := [6]u32{otter, otter, otter, cube, otter, cube}
+	draws: [len(meshes)]Draw
+	for &d, i in draws {
+		d = {id = u64(i + 1), mesh = meshes[i], scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+	}
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	scene := scene_lit(draws[:], lights)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	// With SMALL_DRAWS at 8, the fourth otter draws only its first part.
+	mesh, _ := mesh_lookup(&f.meshes, otter)
+	testing.expect_value(t, len(got), SMALL_DRAWS)
+	testing.expect_value(t, got[SMALL_DRAWS - 1].part, &mesh.parts[0])
+	testing.expect_value(t, len(f.rec.shadows), 5)
+	testing.expect(t, f.fr.draws_logged)
+	got = frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, len(got), SMALL_DRAWS)
 }
 
 @(test)

@@ -14,6 +14,9 @@ SPHERE_SEGMENTS :: 32
 // A posed mesh can reach past its bind-pose box, so the box of a skinned
 // mesh grows by this share of its largest side on every side.
 SKINNED_BOX_PAD :: 0.25
+// The texture pools reserve this many textures for each mesh slot. A file
+// with more keeps the first ones, and its other parts draw white for them.
+MESH_TEXTURE_LIMIT :: 16
 
 // A file stem cannot contain "/", so a loaded file never takes a primitive's name.
 PRIMITIVE_NAMES := [Primitive]string {
@@ -124,7 +127,8 @@ Mesh_Texture :: struct {
 	sampler: sg.Sampler,
 }
 
-// A range of the mesh's index buffer that draws with its own material and textures.
+// A range of the mesh's index buffer that draws with its own material and
+// textures. Parts can share a texture, which Mesh.textures owns.
 Mesh_Part :: struct {
 	first:              int,
 	count:              int,
@@ -147,6 +151,7 @@ Mesh :: struct {
 	indices:            sg.Buffer,
 	index_count:        int,
 	parts:              []Mesh_Part,
+	textures:           []Mesh_Texture,
 	box:                Box,
 	skin:               Skin,
 	first_clip:         u32,
@@ -172,16 +177,25 @@ Mesh_Table :: struct {
 }
 
 // A skinned mesh has one Influence per vertex. Its skin moves to the Mesh
-// at mesh_table_add, because the upload deletes the rest.
+// at mesh_table_add, because the upload deletes the rest. Data with no parts
+// draws as one matte part.
 Mesh_Data :: struct {
-	vertices:           []Vertex,
-	influences:         []Influence,
-	indices:            []u16,
-	texture:            Maybe(Texture),
-	metallic_roughness: Maybe(Texture),
-	emissive:           Maybe(Texture),
+	vertices:   []Vertex,
+	influences: []Influence,
+	indices:    []u16,
+	textures:   []Texture,
+	parts:      []Mesh_Data_Part,
+	skin:       Skin,
+}
+
+// Each texture is an index into Mesh_Data.textures. nil binds white.
+Mesh_Data_Part :: struct {
+	first:              int,
+	count:              int,
 	material:           Material,
-	skin:               Skin,
+	texture:            Maybe(int),
+	metallic_roughness: Maybe(int),
+	emissive:           Maybe(int),
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -272,7 +286,7 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		data        = data,
 		live        = true,
 		index_count = len(data.indices),
-		parts       = mesh_one_part(len(data.indices), data.material, t.allocator),
+		parts       = mesh_parts(data, t.allocator),
 		box         = box,
 		skin        = data.skin,
 		first_clip  = t.next_clip,
@@ -295,10 +309,8 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 		sg.destroy_buffer(m.vertices)
 		sg.destroy_buffer(m.indices)
 	}
-	for part in m.parts {
-		mesh_texture_destroy(part.texture)
-		mesh_texture_destroy(part.metallic_roughness)
-		mesh_texture_destroy(part.emissive)
+	for tex in m.textures {
+		mesh_texture_destroy(tex)
 	}
 	mesh_loaded_delete(t, m)
 	m^ = {generation = m.generation + 1}
@@ -323,8 +335,26 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 @(private = "file")
 mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 	mesh_upload(m, m.data)
+	m.textures = make([]Mesh_Texture, len(m.data.textures), t.allocator)
+	for tex, i in m.data.textures {
+		m.textures[i] = texture_upload(tex)
+	}
+	for data_part, i in m.data.parts {
+		part := &m.parts[i]
+		part.texture = mesh_texture_at(m.textures, data_part.texture)
+		part.metallic_roughness = mesh_texture_at(m.textures, data_part.metallic_roughness)
+		part.emissive = mesh_texture_at(m.textures, data_part.emissive)
+	}
 	mesh_data_delete(t, m.data)
 	m.data = {}
+}
+
+@(private = "file")
+mesh_texture_at :: proc(textures: []Mesh_Texture, index: Maybe(int)) -> Mesh_Texture {
+	if i, ok := index.?; ok {
+		return textures[i]
+	}
+	return {}
 }
 
 @(private = "file")
@@ -332,15 +362,11 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	delete(data.vertices, t.allocator)
 	delete(data.influences, t.allocator)
 	delete(data.indices, t.allocator)
-	if tex, ok := data.texture.?; ok {
+	for tex in data.textures {
 		texture_delete(tex, t.allocator)
 	}
-	if tex, ok := data.metallic_roughness.?; ok {
-		texture_delete(tex, t.allocator)
-	}
-	if tex, ok := data.emissive.?; ok {
-		texture_delete(tex, t.allocator)
-	}
+	delete(data.textures, t.allocator)
+	delete(data.parts, t.allocator)
 }
 
 @(private = "file")
@@ -348,7 +374,21 @@ mesh_loaded_delete :: proc(t: ^Mesh_Table, m: ^Mesh) {
 	delete(m.name, t.allocator)
 	mesh_data_delete(t, m.data)
 	delete(m.parts, t.allocator)
+	delete(m.textures, t.allocator)
 	skin_delete(m.skin, t.allocator)
+}
+
+// The textures upload later, so each part starts with none.
+@(private = "file")
+mesh_parts :: proc(data: Mesh_Data, allocator: mem.Allocator) -> []Mesh_Part {
+	if len(data.parts) == 0 {
+		return mesh_one_part(len(data.indices), MATERIAL_MATTE, allocator)
+	}
+	parts := make([]Mesh_Part, len(data.parts), allocator)
+	for p, i in data.parts {
+		parts[i] = {first = p.first, count = p.count, material = p.material}
+	}
+	return parts
 }
 
 @(private = "file")
@@ -368,8 +408,7 @@ mesh_texture_destroy :: proc(tex: Mesh_Texture) {
 }
 
 // A skinned mesh uploads Skinned_Vertex, for the skinned pipelines. sokol
-// copies the data, so the skinned vertices are scratch. A Mesh_Data has one
-// material, so its textures go on the one part.
+// copies the data, so the skinned vertices are scratch.
 mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	vertices := sg.Range{raw_data(data.vertices), uint(len(data.vertices) * size_of(Vertex))}
 	if len(data.influences) > 0 {
@@ -384,16 +423,6 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 			usage = {index_buffer = true},
 		},
 	)
-	part := &m.parts[0]
-	if tex, ok := data.texture.?; ok {
-		part.texture = texture_upload(tex)
-	}
-	if tex, ok := data.metallic_roughness.?; ok {
-		part.metallic_roughness = texture_upload(tex)
-	}
-	if tex, ok := data.emissive.?; ok {
-		part.emissive = texture_upload(tex)
-	}
 }
 
 // White leaves the base colour as it is and the material factors at their values.

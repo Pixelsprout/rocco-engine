@@ -69,9 +69,9 @@ Light_Drop :: enum {
 	Draw_Over_Limit,
 }
 
-// The renderer sizes its uniform buffer for draw_capacity Draws per Frame,
-// and len(skins) of them skinned. The host drops the rest, because a release
-// sokol writes past a full buffer.
+// The renderer sizes its uniform buffer for draw_capacity mesh parts and
+// len(skins) skinned Draws per Frame. The host drops the rest, because a
+// release sokol writes past a full buffer.
 Frame_Render :: struct {
 	pairing:            Pairing,
 	placed:             [dynamic]Placed,
@@ -96,11 +96,13 @@ Draw_Transform :: struct {
 }
 
 // A Draw at its interpolated pose, kept so both passes use one transform.
-// skin is a slot of Frame_Render.skins for a skinned mesh, and nil for a
-// rigid one. light_box is the mesh box in the Sun's view space; only the
-// shadow pass of 2 to 4 cascades fills it.
+// parts are the mesh parts that fit the draw capacity. skin is a slot of
+// Frame_Render.skins for a skinned mesh, and nil for a rigid one. light_box
+// is the mesh box in the Sun's view space; only the shadow pass of 2 to 4
+// cascades fills it.
 Placed :: struct {
 	mesh:      ^Mesh,
+	parts:     []Mesh_Part,
 	fallback:  bool,
 	tint:      Rgb,
 	glow:      Rgb,
@@ -124,8 +126,18 @@ Frame_Walk :: struct {
 	fr:           ^Frame_Render,
 	meshes:       ^Mesh_Table,
 	lights:       Light_Gather,
-	draws_seen:   int,
+	parts_seen:   int,
+	parts_placed: int,
 	skinned_seen: int,
+}
+
+// The mesh of a Draw that fits the Frame, and the parts of it that fit.
+@(private = "file")
+Frame_Room :: struct {
+	mesh:     ^Mesh,
+	fallback: bool,
+	parts:    []Mesh_Part,
+	skin:     ^Skin_Params,
 }
 
 // Every Directional and Point Light of the Scene, in walk order, except the
@@ -218,13 +230,16 @@ frame_render_draw :: proc(
 	for &node, i in nodes {
 		if node.tag != .Draw {
 			tree_walk(&walk, nodes[i:i + 1], &root)
-		} else if d := &node.payload.draw; frame_counts_draw(&frame_walk) {
-			frame_place(&frame_walk, d, draw_place_root(&fr.pairing, d, alpha))
+			continue
+		}
+		d := &node.payload.draw
+		if room, fits := frame_room(&frame_walk, d); fits {
+			frame_place(&frame_walk, d, room, draw_place_root(&fr.pairing, d, alpha))
 		}
 	}
-	if frame_walk.draws_seen > fr.draw_capacity && !fr.draws_logged {
+	if frame_walk.parts_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
-		fmt.eprintfln("a Scene has %v draws; the host draws the first %v", frame_walk.draws_seen, fr.draw_capacity)
+		fmt.eprintfln("a Scene's Draws have %v mesh parts; the host draws the first %v", frame_walk.parts_seen, fr.draw_capacity)
 	}
 	if frame_walk.skinned_seen > len(fr.skins) && !fr.skinned_logged {
 		fr.skinned_logged = true
@@ -276,7 +291,7 @@ frame_render_draw :: proc(
 			model        = p.model,
 			normal_model = draw_normal_matrix(p.transform),
 		}
-		for &part in p.mesh.parts {
+		for &part in p.parts {
 			material := part.material
 			e := material.emissive
 			params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}
@@ -302,8 +317,8 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 	switch node.tag {
 	case .Draw:
 		d := &node.payload.draw
-		if frame_counts_draw(fw) {
-			frame_place(fw, d, draw_place(walk.pairing, d, parent, walk.alpha))
+		if room, fits := frame_room(fw, d); fits {
+			frame_place(fw, d, room, draw_place(walk.pairing, d, parent, walk.alpha))
 		}
 	case .Light:
 		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
@@ -311,26 +326,44 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 	}
 }
 
-// Past the draw capacity, the Frame counts a Draw and skips it.
+// The draw capacity counts parts, so the Draw that crosses it keeps the parts
+// that fit. Past the draw capacity or the skinned capacity, the Frame counts
+// the Draw and skips it.
 @(private = "file")
-frame_counts_draw :: #force_inline proc(fw: ^Frame_Walk) -> bool {
-	fw.draws_seen += 1
-	return len(fw.fr.placed) < fw.fr.draw_capacity
-}
-
-// Past the skinned capacity, the Frame counts a skinned Draw and skips it.
-@(private = "file")
-frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, x: Draw_Transform) {
+frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room, fits: bool) {
 	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
+	fw.parts_seen += len(mesh.parts)
+	count := min(len(mesh.parts), fw.fr.draw_capacity - fw.parts_placed)
+	if count <= 0 {
+		return {}, false
+	}
 	skin: ^Skin_Params
 	if mesh_skinned(mesh) {
 		fw.skinned_seen += 1
 		if fw.skinned_seen > len(fw.fr.skins) {
-			return
+			return {}, false
 		}
 		skin = &fw.fr.skins[fw.skinned_seen - 1]
 	}
-	append(&fw.fr.placed, Placed{mesh = mesh, fallback = fallback, tint = d.tint, glow = d.glow, transform = x, model = draw_model_matrix(x), skin = skin})
+	fw.parts_placed += count
+	return {mesh = mesh, fallback = fallback, parts = mesh.parts[:count], skin = skin}, true
+}
+
+@(private = "file")
+frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x: Draw_Transform) {
+	append(
+		&fw.fr.placed,
+		Placed {
+			mesh = room.mesh,
+			parts = room.parts,
+			fallback = room.fallback,
+			tint = d.tint,
+			glow = d.glow,
+			transform = x,
+			model = draw_model_matrix(x),
+			skin = room.skin,
+		},
+	)
 }
 
 // A mesh with fewer than MAX_JOINTS Joints leaves the rest of its skin as it
