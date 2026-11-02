@@ -210,6 +210,8 @@ test_glb_reads_pip_as_a_skinned_mesh_with_idle_and_walk :: proc(t: ^testing.T) {
 	testing.expect_value(t, notes, Glb_Notes{})
 	testing.expect_value(t, len(data.skin.joints), 12)
 	testing.expect_value(t, len(data.influences), len(data.vertices))
+	// Pip's materials differ only in base colour, so Pip draws in one call.
+	testing.expect_value(t, len(data.parts), 1)
 	for joint, j in data.skin.joints {
 		testing.expectf(t, joint.parent < j, "Joint %v has parent %v", j, joint.parent)
 	}

@@ -64,12 +64,13 @@ the host does not stop. It logs once and carries on:
 
 - `meshes`, `skies`, `sounds` or `images`: a `Load` gives the new name id 0.
 - `draws`: the capacity counts mesh parts, not Draws. A Draw uses one part
-  for each glTF material of its mesh, so a primitive uses 1 and a mesh with
-  three materials uses 3. The host walks `Scene.nodes` depth first, draws
-  the parts that fit, and drops the rest. The Draw that crosses the
-  capacity draws only its first parts, but its shadow covers the whole
-  mesh. The host also draws at most 256
-  Draws of skinned meshes, or `draws` if that is lower, in the same order.
+  for each distinct material of its mesh, so a primitive uses 1 and a mesh
+  with three materials uses up to 3. See
+  [Meshes from glTF](assets.md#meshes-from-gltf). The host walks
+  `Scene.nodes` depth first, draws the parts that fit, and drops the rest.
+  The Draw that crosses the capacity draws only its first parts, but its
+  shadow covers the whole mesh. The host also draws at most 256 Draws of
+  skinned meshes, or `draws` if that is lower, in the same order.
 - `groups`: the host pairs the first Groups of the Scene, in the same
   order. Every Group still draws its children, but a Group past the
   capacity does not interpolate. See [Groups](scene.md#groups).

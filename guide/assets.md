@@ -171,8 +171,11 @@ fur, metal and glowing lenses can share one file.
   lights.
 - A primitive with no material draws matte grey.
 - The primitives that share a material draw together, so a model split
-  into many primitives costs one draw per material. Each material counts
-  once against `Launch.capacity.draws`. See
+  into many primitives costs one draw per material. Materials that differ
+  only in their base colour factor also draw together, because the host
+  keeps that colour on the vertices. A robot with a red, a white and a
+  grey material that share their other values costs one draw. Each draw
+  counts once against `Launch.capacity.draws`. See
   [Past a capacity](launch.md#past-a-capacity).
 - A Draw's `tint` and `glow` apply to every material of its mesh.
 - A mesh draws up to 16 textures. A texture that several materials share

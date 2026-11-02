@@ -212,7 +212,7 @@ Glb_Loader :: struct {
 	vertices:     [dynamic]Vertex,
 	// One per vertex when the mesh nodes are skinned.
 	influences:   [dynamic]Glb_Influence,
-	// One per glTF material, in the order the walk first meets it.
+	// One per distinct material, in the order the walk first meets it.
 	runs:         [dynamic]Glb_Material_Run,
 	// The textures hold their pixels in the parse's allocator.
 	textures:     [dynamic]Texture,
@@ -222,10 +222,11 @@ Glb_Loader :: struct {
 	rigid:        bool,
 }
 
-// The indices of every primitive with this glTF material. The primitives
-// with no material share the run whose material is nil.
+// The indices of every primitive that draws with this material. glTF
+// materials that differ only in base colour factor share a run, because
+// that factor goes in the vertex colour.
 Glb_Material_Run :: struct {
-	material: Maybe(int),
+	material: Glb_Material,
 	indices:  [dynamic]u16,
 }
 
@@ -237,7 +238,8 @@ Glb_Texture_Key :: struct {
 	slot:  Maybe(int),
 }
 
-// The textures are glTF texture indices.
+// The textures are glTF texture indices, so two materials that name the
+// same textures compare equal.
 Glb_Material :: struct {
 	values:             Material,
 	texture:            Maybe(int),
@@ -317,7 +319,7 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 	all := make([dynamic]u16, 0, len(l.vertices), context.temp_allocator)
 	parts = make([]Mesh_Data_Part, len(l.runs), context.temp_allocator)
 	for run, i in l.runs {
-		material := glb_material(l, run.material)
+		material := run.material
 		parts[i] = {
 			first              = len(all),
 			count              = len(run.indices),
@@ -396,7 +398,7 @@ glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocato
 }
 
 // The primitives with this material so far, or a new empty run.
-glb_material_run :: proc(l: ^Glb_Loader, material: Maybe(int)) -> ^Glb_Material_Run {
+glb_material_run :: proc(l: ^Glb_Loader, material: Glb_Material) -> ^Glb_Material_Run {
 	for &run in l.runs {
 		if run.material == material {
 			return &run
@@ -556,8 +558,6 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		glb_add_influences(l, p, count) or_return
 	}
 
-	// The base colour factor goes in the vertex colour, so primitives that
-	// share a material can still differ in colour.
 	color := GREY
 	if m, ok := p.material.?; ok {
 		if m < 0 || m >= len(l.gltf.materials) {
@@ -565,7 +565,7 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		}
 		color = l.gltf.materials[m].pbr.base_color_factor.? or_else {1, 1, 1, 1}
 	}
-	run := glb_material_run(l, p.material)
+	run := glb_material_run(l, glb_material(l, p.material))
 
 	basis := linalg.matrix3_from_matrix4_f32(world)
 	normal_matrix := linalg.matrix3_inverse_transpose_f32(basis)

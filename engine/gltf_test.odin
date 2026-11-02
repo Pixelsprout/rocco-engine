@@ -560,6 +560,21 @@ test_glb_draws_primitives_that_share_a_material_as_one_part :: proc(t: ^testing.
 	}
 }
 
+// The base colour factor goes in the vertex colour, so materials that differ
+// only in it draw with one part.
+@(test)
+test_glb_draws_materials_that_differ_only_in_colour_as_one_part :: proc(t: ^testing.T) {
+	materials := `"materials":[
+		{"pbrMetallicRoughness":{"baseColorFactor":[1,0,0,1],"metallicFactor":0}},
+		{"pbrMetallicRoughness":{"baseColorFactor":[0,0,1,1],"metallicFactor":0}}],`
+	data, _, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.parts), 1)
+	testing.expect_value(t, data.parts[0], Mesh_Data_Part{first = 0, count = 6, material = {roughness = 1}})
+	testing.expect_value(t, data.vertices[0].color, [4]f32{1, 0, 0, 1})
+	testing.expect_value(t, data.vertices[3].color, [4]f32{0, 0, 1, 1})
+}
+
 @(test)
 test_glb_reads_unlit_and_emissive_strength_for_each_material :: proc(t: ^testing.T) {
 	materials := `"materials":[
