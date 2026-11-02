@@ -1,27 +1,32 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 
 # A dark Scene with a glowing window and two orbs. The window glows with no
-# Light of its own. Each orb lights the floor around it.
+# Light of its own. Each orb lights the floor around it. Between the orbs
+# stands a salvage block with a matte ceramic body, a rusted metal lid and
+# two neon tubes. source/make_salvage.py builds it.
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
 import cam.Camera as Cam
+import linalg.Quat
 import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Manifest, Rgb, Vec3]
+import pf.Config
 import pf.Draw
 import pf.Launch
 import pf.Light
 import pf.Scene
 
-Model : {}
+# salvage is 0, the fallback mesh, until loaded gives its id.
+Model : { salvage : U32 }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Glow" } }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: {}, commands: [] }
+init = |_config| { model: { salvage: 0 }, commands: [Load({ pack: "salvage", assets: ["salvage"] })] }
 
 loaded : Model, Str, Manifest -> Model
-loaded = |model, _pack, _manifest| model
+loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "salvage") }
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, _input, _results, _dt| { model, commands: [] }
@@ -52,12 +57,20 @@ orb = |id, pos, color| {
 
 # endregion
 
+# The turn shows the front with the neon and the side with a rusted rib.
+salvage : U32 -> Vocabulary.Draw
+salvage = |mesh| { ..Draw.default, id: 4, mesh, pos: { x: 0.0, y: 0.0, z: -0.3 }, scale: { x: 1.3, y: 1.3, z: 1.3 }, rot: Quat.from_yaw(-0.5) }
+
+# The orbs sit below the lid, so a lamp above shows the rust's highlight.
+lamp : Vocabulary.Light
+lamp = Light.point({ x: 0.4, y: 2.2, z: -1.0 }, { r: 2.0, g: 1.9, b: 1.7 }, 4.0)
+
 view : Model -> Vocabulary.Scene
-view = |_model| {
+view = |model| {
 	camera = Cam.look_at({ x: 0.0, y: 2.4, z: 5.0 }, { x: 0.0, y: 0.8, z: 0.0 })
 	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
 	orb_right = orb(11, { x: 1.6, y: 0.5, z: 0.4 }, { r: 0.15, g: 0.35, b: 1.0 })
-	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window)], orb_left, orb_right])
+	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Light(lamp)], orb_left, orb_right])
 	{ ..Scene.empty, camera, nodes }
 }
 
@@ -73,5 +86,14 @@ expect {
 	in_range(window.tint.r) and in_range(window.tint.g) and in_range(window.tint.b) and window.glow.r > 1.0
 }
 
-## The Scene has the ambient and one Point Light for each orb, and no sun.
-expect view({}).nodes.keep_if(is_light).len() == 3
+## The Scene has the ambient, the lamp and one Point Light for each orb, and no sun.
+expect view(init(Config.empty).model).nodes.keep_if(is_light).len() == 4
+
+## init loads the salvage Pack.
+expect init(Config.empty).commands == [Load({ pack: "salvage", assets: ["salvage"] })]
+
+## loaded keeps the salvage mesh id from the Manifest.
+expect {
+	model = loaded(init(Config.empty).model, "salvage", [{ name: "salvage", id: 7, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }])
+	model.salvage == 7
+}

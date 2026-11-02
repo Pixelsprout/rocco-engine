@@ -45,6 +45,11 @@ outside it, and checks that a press on one button and a release on another
 click nothing. Last it clicks the icon Button, a Panel that shows a frame of
 the sprite sheet, and checks the click Tell and the image in the scene reply.
 
+Then it runs glow and checks that the salvage block loaded. It saves a "-glow"
+screenshot next to the first one and checks its size. The neon tubes are the
+block's third material, so the screenshot must show their teal. A host that
+draws the whole mesh with its first material shows no teal.
+
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
 """
@@ -128,6 +133,11 @@ THUMB_POINT = (432, 177)
 EMPTY_POINT = (700, 300)
 # The icon Button is 48 pixels square, first in the Images row at the top right.
 ICON_POINT = (744, 48)
+
+# examples/glow/main.roc: the salvage block's Draw id. Its neon tubes are the
+# only teal in the Scene, about 640 pixels at 960 by 540.
+SALVAGE_ID = 4
+MIN_NEON_PIXELS = 200
 
 
 def binary_suffix():
@@ -506,6 +516,34 @@ def drive_widgets(b, out):
     b.quit()
 
 
+# A teal pixel has far more green than red, and no less green than blue. The
+# blue orb and its light have more blue than green.
+def teal_pixels(path):
+    with open(path, "rb") as f:
+        _, _, pixels = bridge.png_rgba(f.read())
+    return sum(1 for i in range(0, len(pixels), 4) if pixels[i + 1] > 150 and pixels[i + 1] - pixels[i] >= 20 and pixels[i + 1] >= pixels[i + 2])
+
+
+def drive_glow(b, out):
+    b.hello()
+    b.step(STEPS)
+    draws = [n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == SALVAGE_ID]
+    check(len(draws) == 1 and draws[0]["mesh"] != 0, f"the salvage block has its loaded mesh: {draws}")
+
+    stem, ext = os.path.splitext(out)
+    glow_out = f"{stem}-glow{ext}"
+    shot = b.screenshot(glow_out)
+    check(shot["logical"] == WINDOW, f"screenshot logical size {shot['logical']}")
+    size = bridge.png_size(glow_out)
+    check(size == shot["physical"], f"PNG of the glow Scene is the physical size {shot['physical']}")
+    # physical is 1 or 2 times logical, so scale the minimum by the area.
+    scale = (size[0] // WINDOW[0]) * (size[1] // WINDOW[1])
+    teal = teal_pixels(glow_out)
+    check(teal >= MIN_NEON_PIXELS * scale, f"{teal} teal pixels show the neon material")
+
+    b.quit()
+
+
 def ui_strings(elements):
     strings = []
     for element in elements:
@@ -522,7 +560,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui), ("widgets", drive_widgets)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
 
 
 def run_game(game, drive, out, tmp, suffix):

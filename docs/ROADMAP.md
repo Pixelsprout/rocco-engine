@@ -1394,7 +1394,18 @@ Out of this arc: screen-space ambient occlusion, depth of field, soft
 particles and fur strands. Instancing and frustum culling (dex task
 cqz1zbne) wait until the town's Draw count measures over budget.
 
-## Milestone 35: Materials per primitive
+## Milestone 35: Materials per primitive (done)
+
+Results, 2026-11-02: a Mesh holds a list of parts. The loader makes one
+part for each glTF material, and materials that differ only in base colour
+share a part. Each part draws with its own factors and textures. A mesh
+draws up to 16 textures, and glTF textures that name the same image and
+sampler decode once. `Launch.capacity.draws` counts part draws. The shadow
+pass stays one draw per Draw. `examples/glow` draws a salvage block with a
+ceramic, a rust and a neon material, built by `source/make_salvage.py`. The
+Bridge check screenshots it on macOS, Linux and Windows and finds the
+neon's teal. No Vocabulary change. The v0.8.0 release task checks the
+otter's glowing gear.
 
 Done when one `.glb` draws each primitive with its own material and its own
 textures, and the otter's goggle lenses and backpack lamp glow while its fur
