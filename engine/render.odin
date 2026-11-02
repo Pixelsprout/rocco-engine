@@ -31,6 +31,9 @@ SHADOW_SLOPE_BIAS :: f32(-2)
 
 @(rodata)
 WHITE_TEXEL := [4]byte{255, 255, 255, 255}
+// A tangent-space normal of about (0, 0, 1). Material.normal_scale is 0 with it.
+@(rodata)
+FLAT_NORMAL_TEXEL := [4]byte{128, 128, 255, 255}
 
 Renderer :: struct {
 	pip:                sg.Pipeline,
@@ -50,6 +53,7 @@ Renderer :: struct {
 	skies:              Sky_Table,
 	images:             Image_Table,
 	white:              Mesh_Texture,
+	flat_normal:        Mesh_Texture,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
 	target:             Render_Target,
@@ -69,11 +73,12 @@ Shadow_Map :: struct {
 }
 
 // Each loaded mesh can own MESH_TEXTURE_LIMIT textures, each with its own
-// image, view and sampler. The white image, each sky, each Image, the
-// shadow map, the font atlas and the UI's checker need one more. The Images add their Linear and Nearest samplers.
+// image, view and sampler. The white image, the flat normal image, each sky,
+// each Image, the shadow map, the font atlas and the UI's checker need one
+// more. The Images add their Linear and Nearest samplers.
 // The render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 1 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
+	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 2 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -105,12 +110,15 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	mesh_table_upload(&r.meshes)
 	sky_table_upload(&r.skies)
 	image_table_upload(&r.images)
-	r.white = texture_upload(
-		{
-			levels = {{width = 1, height = 1, pixels = WHITE_TEXEL[:]}},
-			sampler = {min_filter = .NEAREST, mag_filter = .NEAREST, mipmap_filter = .NEAREST, wrap_u = .REPEAT, wrap_v = .REPEAT},
-		},
-	)
+	texel_sampler := Texture_Sampler {
+		min_filter    = .NEAREST,
+		mag_filter    = .NEAREST,
+		mipmap_filter = .NEAREST,
+		wrap_u        = .REPEAT,
+		wrap_v        = .REPEAT,
+	}
+	r.white = texture_upload({levels = {{width = 1, height = 1, pixels = WHITE_TEXEL[:]}}, sampler = texel_sampler})
+	r.flat_normal = texture_upload({levels = {{width = 1, height = 1, pixels = FLAT_NORMAL_TEXEL[:]}}, sampler = texel_sampler})
 
 	r.shadow = shadow_map_make(launch.shadow_map, int(launch.shadow_cascades))
 
@@ -329,22 +337,26 @@ renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Sk
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pip, r.skinned_pip, skin)
-	base, metallic_roughness, emissive := mesh_part_textures(part, r.white)
+	tex := mesh_part_textures(part, r.white, r.flat_normal)
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = mesh.vertices},
 			index_buffer = mesh.indices,
 			views = {
-				VIEW_base_tex = base.view,
-				VIEW_metallic_roughness_tex = metallic_roughness.view,
+				VIEW_base_tex = tex.base.view,
+				VIEW_metallic_roughness_tex = tex.metallic_roughness.view,
 				VIEW_shadow_tex = r.shadow.texture,
-				VIEW_emissive_tex = emissive.view,
+				VIEW_emissive_tex = tex.emissive.view,
+				VIEW_normal_tex = tex.normal.view,
+				VIEW_occlusion_tex = tex.occlusion.view,
 			},
 			samplers = {
-				SMP_base_smp = base.sampler,
-				SMP_metallic_roughness_smp = metallic_roughness.sampler,
+				SMP_base_smp = tex.base.sampler,
+				SMP_metallic_roughness_smp = tex.metallic_roughness.sampler,
 				SMP_shadow_smp = r.shadow.sampler,
-				SMP_emissive_smp = emissive.sampler,
+				SMP_emissive_smp = tex.emissive.sampler,
+				SMP_normal_smp = tex.normal.sampler,
+				SMP_occlusion_smp = tex.occlusion.sampler,
 			},
 		},
 	)

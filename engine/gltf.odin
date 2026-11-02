@@ -64,6 +64,7 @@ GLB_NOTE_REASONS := [Glb_Note]string {
 	.Too_Many_Textures  = "it has more than 16 textures, so the textures past the first 16 do not draw",
 	.Channel_Skipped    = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
 	.Generated_Tangents = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
+	.Second_Uv_Ignored  = "a texture names a texCoord other than 0, so it draws with the first UV set",
 }
 
 Glb_Error :: enum {
@@ -100,6 +101,7 @@ Glb_Note :: enum {
 	Too_Many_Textures,
 	Channel_Skipped,
 	Generated_Tangents,
+	Second_Uv_Ignored,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -122,10 +124,11 @@ Gltf :: struct {
 			roughness_factor:           Maybe(f32) `json:"roughnessFactor"`,
 			metallic_roughness_texture: Maybe(Gltf_Texture_Ref) `json:"metallicRoughnessTexture"`,
 		} `json:"pbrMetallicRoughness"`,
-		emissive_factor:  Maybe([3]f32) `json:"emissiveFactor"`,
-		emissive_texture: Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
-		normal_texture:   Maybe(Gltf_Texture_Ref) `json:"normalTexture"`,
-		extensions:       struct {
+		normal_texture:    Maybe(Gltf_Texture_Ref) `json:"normalTexture"`,
+		occlusion_texture: Maybe(Gltf_Texture_Ref) `json:"occlusionTexture"`,
+		emissive_factor:   Maybe([3]f32) `json:"emissiveFactor"`,
+		emissive_texture:  Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
+		extensions:        struct {
 			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
 			emissive_strength: Maybe(struct {
 					strength: Maybe(f32) `json:"emissiveStrength"`,
@@ -152,8 +155,12 @@ Gltf :: struct {
 	animations:   []Gltf_Animation,
 }
 
+// Only normalTexture has scale and only occlusionTexture has strength.
 Gltf_Texture_Ref :: struct {
-	index: int,
+	index:     int,
+	tex_coord: int `json:"texCoord"`,
+	scale:     Maybe(f32),
+	strength:  Maybe(f32),
 }
 
 Gltf_Node :: struct {
@@ -249,6 +256,8 @@ Glb_Material :: struct {
 	texture:            Maybe(int),
 	metallic_roughness: Maybe(int),
 	emissive:           Maybe(int),
+	normal:             Maybe(int),
+	occlusion:          Maybe(int),
 }
 
 // joints index the glTF skin's joints, which the Skin puts in another order.
@@ -324,14 +333,23 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 	parts = make([]Mesh_Data_Part, len(l.runs), context.temp_allocator)
 	for run, i in l.runs {
 		material := run.material
-		parts[i] = {
+		part := Mesh_Data_Part {
 			first              = len(all),
 			count              = len(run.indices),
 			material           = material.values,
 			texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
 			metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
 			emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
+			normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
+			occlusion          = glb_texture_slot(l, material.occlusion, srgb = false, allocator = allocator) or_return,
 		}
+		if part.normal == nil {
+			part.material.normal_scale = 0
+		}
+		if part.occlusion == nil {
+			part.material.occlusion_strength = 0
+		}
+		parts[i] = part
 		append(&all, ..run.indices[:])
 	}
 	return all[:], parts, .None
@@ -354,10 +372,18 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 		},
 	}
 	if ref, textured := pbr.base_color_texture.?; textured {
-		material.texture = glb_first_texture(l, ref.index)
+		material.texture = glb_texture_ref(l, ref)
 	}
 	if ref, textured := pbr.metallic_roughness_texture.?; textured {
-		material.metallic_roughness = glb_first_texture(l, ref.index)
+		material.metallic_roughness = glb_texture_ref(l, ref)
+	}
+	if ref, textured := gltf_material.normal_texture.?; textured {
+		material.normal = glb_texture_ref(l, ref)
+		material.values.normal_scale = ref.scale.? or_else 1
+	}
+	if ref, textured := gltf_material.occlusion_texture.?; textured {
+		material.occlusion = glb_texture_ref(l, ref)
+		material.values.occlusion_strength = clamp(ref.strength.? or_else 1, 0, 1)
 	}
 	factor := gltf_material.emissive_factor.? or_else {}
 	strength: f32 = 1
@@ -369,9 +395,17 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 	}
 	material.values.emissive = factor
 	if ref, textured := gltf_material.emissive_texture.?; textured {
-		material.emissive = glb_first_texture(l, ref.index)
+		material.emissive = glb_texture_ref(l, ref)
 	}
 	return material
+}
+
+// Every texture samples the first UV set.
+glb_texture_ref :: proc(l: ^Glb_Loader, ref: Gltf_Texture_Ref) -> int {
+	if ref.tex_coord != 0 {
+		l.notes += {.Second_Uv_Ignored}
+	}
+	return glb_first_texture(l, ref.index)
 }
 
 // Blender writes one glTF texture for each material that uses an image, so
