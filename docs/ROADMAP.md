@@ -1427,17 +1427,34 @@ shows each material.
 ## Milestone 36: Surface detail
 
 Done when a `.glb` with a normal map and an occlusion map shows the baked
-detail under a moving light.
+detail under a moving light. Grilled 2026-11-03.
 
-1. The loader reads `normalTexture` and `occlusionTexture`. Occlusion
-   multiplies the ambient term only.
-2. Every vertex carries a tangent. The loader reads `TANGENT`. A file with
-   no tangents gets Lengyel tangents and the note `Generated_Tangents`.
-   The guide tells authors to export tangents, because Blender bakes in
-   MikkTSpace.
-3. The skinned pipeline skins the tangent. The shadow pipelines ignore it.
+1. The loader reads `normalTexture` with its `scale` and
+   `occlusionTexture` with its `strength`. Every texture samples UV 0. A
+   texture that names another `texCoord` notes `Second_Uv_Ignored`.
+2. Every vertex carries a `[4]f32` tangent, so `Vertex` grows from 48 to
+   64 bytes. The loader reads `TANGENT`. A normal-mapped primitive with no
+   `TANGENT` gets Lengyel tangents and the note `Generated_Tangents`.
+   Other primitives get the placeholder tangent (1, 0, 0, 1) and no note.
+   The built-in primitives get exact tangents.
+3. A part with no normal map binds a flat 1 x 1 normal image. Occlusion
+   multiplies the whole ambient term, diffuse and specular, by
+   `mix(1, ao, strength)`. Normal map mips keep the box average, and the
+   shader normalizes.
+4. The skinned pipeline skins the tangent. The shadow pipelines ignore it.
+5. The guide tells authors to export tangents, because Blender bakes in
+   MikkTSpace. No Vocabulary change. One ADR.
 
-Check: an example shows a normal-mapped panel under a circling Point light.
+Check: `examples/glow` hangs a ribbed panel from `source/make_panel.py` on
+its wall, with a packed occlusion, metallic and roughness image, under a
+circling Point light. Bridge screenshots on macOS, Linux and Windows show
+the left side of each rib brighter while the light is on the left, and the
+right side brighter while it is on the right. A person checks the
+occlusion in one screenshot, because the dusk ambient is too dim for a
+pixel check.
+
+Later: Toksvig roughness for normal map mips, a second UV set, packed
+tangents and MikkTSpace at load time.
 
 ## Milestone 37: Post and Environment
 
