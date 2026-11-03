@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.8.0 is the latest release. A tag with a hyphen stays a
+  bundles. v0.9.0 is the latest release. A tag with a hyphen stays a
   pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
@@ -1424,7 +1424,23 @@ stays matte.
 Check: an example draws a multi-material `.glb` and a Bridge screenshot
 shows each material.
 
-## Milestone 36: Surface detail
+## Milestone 36: Surface detail (done)
+
+Results, 2026-11-03: every vertex carries a `[4]f32` tangent, so `Vertex`
+is 64 bytes, and the skinned pipeline skins it. The built-in primitives get
+exact tangents. The loader reads `TANGENT`, `normalTexture` with its
+`scale` and `occlusionTexture` with its `strength`. A normal-mapped
+primitive with no `TANGENT` gets Lengyel tangents and the note
+`Generated_Tangents`. A texture that names another `texCoord` notes
+`Second_Uv_Ignored`. A part with no normal map binds a flat 1 x 1 normal
+image, and occlusion multiplies the whole ambient term. `examples/glow`
+hangs a ribbed panel from `source/make_panel.py` on its wall, with a packed
+occlusion, metallic and roughness image, under a circling Point light. The
+Bridge check screenshots it on macOS, Linux and Windows with the light on
+the left, then on the right, and finds the rib flank that faces the light
+brighter. The user checked the occlusion in a screenshot of the panel. No
+Vocabulary change. ADR 0025 records that a normal map uses the file's
+tangents. v0.9.0 is published.
 
 Done when a `.glb` with a normal map and an occlusion map shows the baked
 detail under a moving light. Grilled 2026-11-03.
