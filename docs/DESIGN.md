@@ -184,7 +184,7 @@ PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, r
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
-Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : [None, Fog({ color : Rgb, start : F32, end : F32 })], bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })] }
+Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]

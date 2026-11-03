@@ -690,7 +690,7 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 184)
+#assert(size_of(Roc_View) == 176)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, nodes) == 0)
 #assert(size_of(type_of(Roc_View{}.nodes)) == 24)
@@ -701,8 +701,8 @@ Roc_View :: struct {
 #assert(offset_of(Roc_View, camera) == 72)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
 #assert(offset_of(Roc_View, environment) == 112)
-#assert(size_of(type_of(Roc_View{}.environment)) == 64)
-#assert(offset_of(Roc_View, cursor) == 176)
+#assert(size_of(type_of(Roc_View{}.environment)) == 60)
+#assert(offset_of(Roc_View, cursor) == 172)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_VocabularyNode_Group :: struct {
@@ -1503,89 +1503,56 @@ Roc_View_Environment :: struct {
 	tone_map: Roc_View_Environment_ToneMap,
 }
 
-#assert(size_of(Roc_View_Environment) == 64)
+#assert(size_of(Roc_View_Environment) == 60)
 #assert(align_of(Roc_View_Environment) == 4)
 #assert(offset_of(Roc_View_Environment, bloom) == 0)
-#assert(size_of(type_of(Roc_View_Environment{}.bloom)) == 16)
-#assert(offset_of(Roc_View_Environment, clear) == 16)
+#assert(size_of(type_of(Roc_View_Environment{}.bloom)) == 12)
+#assert(offset_of(Roc_View_Environment, clear) == 12)
 #assert(size_of(type_of(Roc_View_Environment{}.clear)) == 12)
-#assert(offset_of(Roc_View_Environment, exposure) == 28)
+#assert(offset_of(Roc_View_Environment, exposure) == 24)
 #assert(size_of(type_of(Roc_View_Environment{}.exposure)) == 4)
-#assert(offset_of(Roc_View_Environment, fog) == 32)
+#assert(offset_of(Roc_View_Environment, fog) == 28)
 #assert(size_of(type_of(Roc_View_Environment{}.fog)) == 24)
-#assert(offset_of(Roc_View_Environment, sky) == 56)
+#assert(offset_of(Roc_View_Environment, sky) == 52)
 #assert(size_of(type_of(Roc_View_Environment{}.sky)) == 4)
-#assert(offset_of(Roc_View_Environment, tone_map) == 60)
+#assert(offset_of(Roc_View_Environment, tone_map) == 56)
 #assert(size_of(type_of(Roc_View_Environment{}.tone_map)) == 1)
 
-Roc_View_Environment_Bloom_Tag :: enum u8 {
-	Bloom = 0,
-	None = 1,
-}
-
-Roc_View_Environment_Bloom_Payload :: struct #raw_union {
-	bloom: Roc_View_Environment_Bloom_Bloom,
-}
-
 Roc_View_Environment_Bloom :: struct {
-	payload: Roc_View_Environment_Bloom_Payload,
-	tag: Roc_View_Environment_Bloom_Tag,
-}
-
-#assert(size_of(Roc_View_Environment_Bloom) == 16)
-#assert(align_of(Roc_View_Environment_Bloom) == 4)
-#assert(offset_of(Roc_View_Environment_Bloom, tag) == 12)
-
-Roc_View_Environment_Bloom_Bloom :: struct {
 	knee: f32,
 	strength: f32,
 	threshold: f32,
 }
 
-#assert(size_of(Roc_View_Environment_Bloom_Bloom) == 12)
-#assert(align_of(Roc_View_Environment_Bloom_Bloom) == 4)
-#assert(offset_of(Roc_View_Environment_Bloom_Bloom, knee) == 0)
-#assert(size_of(type_of(Roc_View_Environment_Bloom_Bloom{}.knee)) == 4)
-#assert(offset_of(Roc_View_Environment_Bloom_Bloom, strength) == 4)
-#assert(size_of(type_of(Roc_View_Environment_Bloom_Bloom{}.strength)) == 4)
-#assert(offset_of(Roc_View_Environment_Bloom_Bloom, threshold) == 8)
-#assert(size_of(type_of(Roc_View_Environment_Bloom_Bloom{}.threshold)) == 4)
+#assert(size_of(Roc_View_Environment_Bloom) == 12)
+#assert(align_of(Roc_View_Environment_Bloom) == 4)
+#assert(offset_of(Roc_View_Environment_Bloom, knee) == 0)
+#assert(size_of(type_of(Roc_View_Environment_Bloom{}.knee)) == 4)
+#assert(offset_of(Roc_View_Environment_Bloom, strength) == 4)
+#assert(size_of(type_of(Roc_View_Environment_Bloom{}.strength)) == 4)
+#assert(offset_of(Roc_View_Environment_Bloom, threshold) == 8)
+#assert(size_of(type_of(Roc_View_Environment_Bloom{}.threshold)) == 4)
 
 Roc_View_Environment_Clear :: Roc_VocabularyNode_Draw_Glow
-Roc_View_Environment_Fog_Tag :: enum u8 {
-	Fog = 0,
-	None = 1,
-}
-
-Roc_View_Environment_Fog_Payload :: struct #raw_union {
-	fog: Roc_View_Environment_Fog_Fog,
-}
-
 Roc_View_Environment_Fog :: struct {
-	payload: Roc_View_Environment_Fog_Payload,
-	tag: Roc_View_Environment_Fog_Tag,
-}
-
-#assert(size_of(Roc_View_Environment_Fog) == 24)
-#assert(align_of(Roc_View_Environment_Fog) == 4)
-#assert(offset_of(Roc_View_Environment_Fog, tag) == 20)
-
-Roc_View_Environment_Fog_Fog :: struct {
+	amount: f32,
 	color: Roc_VocabularyNode_Draw_Glow,
 	end: f32,
 	start: f32,
 }
 
-#assert(size_of(Roc_View_Environment_Fog_Fog) == 20)
-#assert(align_of(Roc_View_Environment_Fog_Fog) == 4)
-#assert(offset_of(Roc_View_Environment_Fog_Fog, color) == 0)
-#assert(size_of(type_of(Roc_View_Environment_Fog_Fog{}.color)) == 12)
-#assert(offset_of(Roc_View_Environment_Fog_Fog, end) == 12)
-#assert(size_of(type_of(Roc_View_Environment_Fog_Fog{}.end)) == 4)
-#assert(offset_of(Roc_View_Environment_Fog_Fog, start) == 16)
-#assert(size_of(type_of(Roc_View_Environment_Fog_Fog{}.start)) == 4)
+#assert(size_of(Roc_View_Environment_Fog) == 24)
+#assert(align_of(Roc_View_Environment_Fog) == 4)
+#assert(offset_of(Roc_View_Environment_Fog, amount) == 0)
+#assert(size_of(type_of(Roc_View_Environment_Fog{}.amount)) == 4)
+#assert(offset_of(Roc_View_Environment_Fog, color) == 4)
+#assert(size_of(type_of(Roc_View_Environment_Fog{}.color)) == 12)
+#assert(offset_of(Roc_View_Environment_Fog, end) == 16)
+#assert(size_of(type_of(Roc_View_Environment_Fog{}.end)) == 4)
+#assert(offset_of(Roc_View_Environment_Fog, start) == 20)
+#assert(size_of(type_of(Roc_View_Environment_Fog{}.start)) == 4)
 
-Roc_View_Environment_Fog_Fog_Color :: Roc_VocabularyNode_Draw_Glow
+Roc_View_Environment_Fog_Color :: Roc_VocabularyNode_Draw_Glow
 Roc_View_Environment_ToneMap :: enum u8 {
 	Aces = 0,
 	AgX = 1,

@@ -1097,7 +1097,7 @@ test_frame_render_clamps_the_environment_with_no_submit :: proc(t: ^testing.T) {
 	defer frame_fixture_destroy(&f)
 
 	s := scene_of({})
-	s.environment.fog = fog_of({}, 4, 2)
+	s.environment.fog = {start = 4, end = 2, amount = 1}
 	frame_render_draw(&f.fr, s, s, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
 	testing.expect_value(t, len(f.rec.passes), 0)
 	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Fog_Range})

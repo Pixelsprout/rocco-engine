@@ -9,6 +9,7 @@ FOG_MIN_SPAN :: f32(0.001)
 
 Environment_Clamp :: enum {
 	Exposure,
+	Fog_Amount,
 	Fog_Range,
 	Bloom_Strength,
 	Bloom_Threshold,
@@ -24,8 +25,13 @@ environment_clamp :: proc(env: Environment, logged: ^bit_set[Environment_Clamp])
 		environment_log(logged, .Exposure, "an Environment exposure of %v is at or below 0; the host draws with 1", e.exposure)
 		e.exposure = 1
 	}
-	if e.fog.tag == .Fog {
-		fog := &e.fog.payload.fog
+	fog := &e.fog
+	if !(fog.amount >= 0 && fog.amount <= 1) {
+		environment_log(logged, .Fog_Amount, "a Fog amount of %v is outside 0 to 1; the host clamps it", fog.amount)
+		fog.amount = 0 if math.is_nan(fog.amount) else clamp(fog.amount, 0, 1)
+	}
+	// Fog with amount 0 draws nothing, so its range is not read.
+	if fog.amount > 0 {
 		if math.is_nan(fog.start) {
 			environment_log(logged, .Fog_Range, "a Fog start is NaN; the host draws with 0")
 			fog.start = 0
@@ -36,12 +42,9 @@ environment_clamp :: proc(env: Environment, logged: ^bit_set[Environment_Clamp])
 			fog.end = max(fog.start + FOG_MIN_SPAN, math.nextafter(fog.start, math.inf_f32(1)))
 		}
 	}
-	if e.bloom.tag == .Bloom {
-		bloom := &e.bloom.payload.bloom
-		bloom.strength = bloom_number(logged, .Bloom_Strength, "strength", bloom.strength)
-		bloom.threshold = bloom_number(logged, .Bloom_Threshold, "threshold", bloom.threshold)
-		bloom.knee = bloom_number(logged, .Bloom_Knee, "knee", bloom.knee)
-	}
+	e.bloom.strength = bloom_number(logged, .Bloom_Strength, "strength", e.bloom.strength)
+	e.bloom.threshold = bloom_number(logged, .Bloom_Threshold, "threshold", e.bloom.threshold)
+	e.bloom.knee = bloom_number(logged, .Bloom_Knee, "knee", e.bloom.knee)
 	return e
 }
 

@@ -225,7 +225,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		camera = {eye = {0, 2, 5}, up = {0, 1, 0}, fov_y = 1},
 		nodes  = json_test_list(nodes),
 		cursor = .Locked,
-		environment = {sky = 2, clear = {r = 0.25, g = 0.5, b = 1}, tone_map = .Neutral, exposure = 2, fog = {tag = .None}, bloom = bloom_of(0.5, 1, 0.25)},
+		environment = {sky = 2, clear = {r = 0.25, g = 0.5, b = 1}, tone_map = .Neutral, exposure = 2, fog = {color = {r = 0.5}, start = 1, end = 8, amount = 0.75}, bloom = {strength = 0.5, threshold = 1, knee = 0.25}},
 	}
 	b := strings.builder_make(context.temp_allocator)
 
@@ -244,7 +244,8 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		`{"Collider":{"id":2,"pos":{"x":1,"y":0,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Sphere":0.5}}},` +
 		`{"Speaker":{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here","repeat":"Once"}}],` +
 		`"cursor":"Locked","environment":{"sky":2,"clear":{"r":0.25,"g":0.5,"b":1},"tone_map":"Neutral","exposure":2,` +
-		`"fog":"None","bloom":{"Bloom":{"strength":0.5,"threshold":1,"knee":0.25}}},"ui":[],"queries":[]}`,
+		`"fog":{"color":{"r":0.5,"g":0,"b":0},"start":1,"end":8,"amount":0.75},"bloom":{"strength":0.5,"threshold":1,"knee":0.25}},` +
+		`"ui":[],"queries":[]}`,
 	)
 }
 

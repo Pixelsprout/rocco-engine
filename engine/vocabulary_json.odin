@@ -105,35 +105,25 @@ json_write_environment :: proc(b: ^strings.Builder, env: ^Environment) {
 }
 
 json_write_fog :: proc(b: ^strings.Builder, fog: ^Fog) {
-	switch fog.tag {
-	case .None:
-		json_write_tag(b, fog.tag)
-	case .Fog:
-		json_key(b, "Fog", first = true)
-		json_key(b, "color", first = true)
-		json_write_rgb(b, fog.payload.fog.color)
-		json_key(b, "start")
-		json_write_f32(b, fog.payload.fog.start)
-		json_key(b, "end")
-		json_write_f32(b, fog.payload.fog.end)
-		strings.write_string(b, "}}")
-	}
+	json_key(b, "color", first = true)
+	json_write_rgb(b, fog.color)
+	json_key(b, "start")
+	json_write_f32(b, fog.start)
+	json_key(b, "end")
+	json_write_f32(b, fog.end)
+	json_key(b, "amount")
+	json_write_f32(b, fog.amount)
+	strings.write_byte(b, '}')
 }
 
 json_write_bloom :: proc(b: ^strings.Builder, bloom: ^Bloom) {
-	switch bloom.tag {
-	case .None:
-		json_write_tag(b, bloom.tag)
-	case .Bloom:
-		json_key(b, "Bloom", first = true)
-		json_key(b, "strength", first = true)
-		json_write_f32(b, bloom.payload.bloom.strength)
-		json_key(b, "threshold")
-		json_write_f32(b, bloom.payload.bloom.threshold)
-		json_key(b, "knee")
-		json_write_f32(b, bloom.payload.bloom.knee)
-		strings.write_string(b, "}}")
-	}
+	json_key(b, "strength", first = true)
+	json_write_f32(b, bloom.strength)
+	json_key(b, "threshold")
+	json_write_f32(b, bloom.threshold)
+	json_key(b, "knee")
+	json_write_f32(b, bloom.knee)
+	strings.write_byte(b, '}')
 }
 
 json_write_query_results :: proc(b: ^strings.Builder, results: ^Query_Results) {

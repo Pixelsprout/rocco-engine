@@ -411,19 +411,22 @@ Vocabulary := [].{
 	##   closest to its authored value.
 	## - `exposure`: a linear multiplier on every colour before the tone map.
 	##   1 changes nothing. At or below 0, the host draws with 1 and logs once.
-	## - `fog`: linear fog by distance from the camera, from `start` to `end`
-	##   in `color`. The host checks it but does not draw it yet. An `end` at
-	##   or below `start` moves just past `start` and logs once.
+	## - `fog`: linear fog by distance from the camera. It starts at `start`
+	##   and reaches `amount` of `color` at `end`. `amount` runs from 0 to 1,
+	##   and 0 draws no fog. The host checks it but does not draw it yet. An
+	##   `amount` outside 0 to 1 is clamped into it. With fog on, an `end` at
+	##   or below `start` moves just past `start`. Each logs once.
 	## - `bloom`: a glow from light above `threshold`, scaled by `strength`,
-	##   with `knee` to soften the threshold. The host checks it but does not
-	##   draw it yet. A negative number becomes 0 and logs once.
+	##   with `knee` to soften the threshold. A `strength` of 0 draws no bloom.
+	##   The host checks it but does not draw it yet. A negative number
+	##   becomes 0 and logs once.
 	Environment : {
 		sky : U32,
 		clear : Rgb,
 		tone_map : [Aces, AgX, Neutral],
 		exposure : F32,
-		fog : [None, Fog({ color : Rgb, start : F32, end : F32 })],
-		bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })],
+		fog : { color : Rgb, start : F32, end : F32, amount : F32 },
+		bloom : { strength : F32, threshold : F32, knee : F32 },
 	}
 
 	## Where a Play or a Speaker sounds. The Listener is the Camera of the

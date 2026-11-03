@@ -300,7 +300,8 @@ host sends it on one line, and it is split into lines here:
    {"Draw":{"id":1,"mesh":1,"pos":{"x":0,"y":-0.1,"z":0},"scale":{"x":6,"y":0.2,"z":6},"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":0.12,"g":0.25,"b":0.1},"glow":{"r":0,"g":0,"b":0},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}},
    {"Draw":{"id":2,"mesh":4,"pos":{"x":0,"y":0,"z":-0.62499994},"scale":{"x":1,"y":1,"z":1},"rot":{"x":0,"y":1,"z":0,"w":-4.3711392e-08},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":1,"b":1},"glow":{"r":0,"g":0,"b":0},"pose":{"clip":0,"time":0,"fade_clip":0,"fade_time":0,"fade":0}}}],
   "cursor":"Free",
-  "environment":{"sky":0,"clear":{"r":0,"g":0,"b":0},"tone_map":"Aces","exposure":1,"fog":"None","bloom":"None"},
+  "environment":{"sky":0,"clear":{"r":0,"g":0,"b":0},"tone_map":"Aces","exposure":1,
+   "fog":{"color":{"r":0.5,"g":0.5,"b":0.5},"start":10,"end":50,"amount":0},"bloom":{"strength":0,"threshold":1,"knee":0.5}},
   "ui":[],"queries":[]},
  "results":{"contacts":[],"rays":[],"overlaps":[],"ports":[],"ui":{"over":[],"scroll":[]}}}
 ```

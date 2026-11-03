@@ -1,25 +1,23 @@
 import Vocabulary
 
-## Gives the Environment that `Scene.empty` holds, and a Bloom to start from.
+## Gives the Environment that `Scene.empty` holds.
 Environment := [].{
 
-	## No sky, a black clear colour, the `Aces` tone map, an exposure of 1, no
-	## fog and no bloom.
+	## No sky, a black clear colour, the `Aces` tone map and an exposure of 1.
+	## Fog and bloom are off: the fog `amount` and the bloom `strength` are 0.
+	## Raise one to turn it on, as in
+	## `fog: { ..Environment.default.fog, amount: 1.0 }`. The other numbers
+	## are a starting point: grey fog from 10 to 50 units, and bloom above 1
+	## with a knee of 0.5.
 	default : Vocabulary.Environment
 	default = {
 		sky: 0,
 		clear: { r: 0.0, g: 0.0, b: 0.0 },
 		tone_map: Aces,
 		exposure: 1.0,
-		fog: None,
-		bloom: None,
+		fog: { color: { r: 0.5, g: 0.5, b: 0.5 }, start: 10.0, end: 50.0, amount: 0.0 },
+		bloom: { strength: 0.0, threshold: 1.0, knee: 0.5 },
 	}
-
-	## A Bloom to start from: strength 0.5, threshold 1 and knee 0.5. Set it
-	## with `{ ..Environment.default, bloom: Environment.bloom }`.
-	bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })]
-	bloom = Bloom({ strength: 0.5, threshold: 1.0, knee: 0.5 })
 }
 
-expect Environment.default == { sky: 0, clear: { r: 0.0, g: 0.0, b: 0.0 }, tone_map: Aces, exposure: 1.0, fog: None, bloom: None }
-expect Environment.bloom == Bloom({ strength: 0.5, threshold: 1.0, knee: 0.5 })
+expect Environment.default == { sky: 0, clear: { r: 0.0, g: 0.0, b: 0.0 }, tone_map: Aces, exposure: 1.0, fog: { color: { r: 0.5, g: 0.5, b: 0.5 }, start: 10.0, end: 50.0, amount: 0.0 }, bloom: { strength: 0.0, threshold: 1.0, knee: 0.5 } }
