@@ -23,7 +23,8 @@ DRAW_LIMIT ::
 	(MAIN_UNIFORM_SLOTS + MAX_CASCADES * SHADOW_UNIFORM_SLOTS)
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
-#assert(2 * ((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
+// The 3 is one block each for the sky, the tone map and the UI.
+#assert(2 *((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 

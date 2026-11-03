@@ -24,7 +24,6 @@ Bloom_Step :: struct {
 	knee:      f32,
 }
 
-// Mip 0 has half the window's size. Each later mip halves the one before.
 bloom_mip_count :: proc(window: [2]i32) -> int {
 	count := 0
 	for count < BLOOM_MIP_LIMIT {
@@ -37,12 +36,12 @@ bloom_mip_count :: proc(window: [2]i32) -> int {
 	return count
 }
 
-// Rounds down, so each mip is the one before it halved and rounded down.
+// Mip 0 has half the window's size. Each later mip halves the one before.
 bloom_mip_size :: proc(window: [2]i32, mip: int) -> [2]i32 {
 	return {max(window.x, 0) >> uint(mip + 1), max(window.y, 0) >> uint(mip + 1)}
 }
 
-// The steps over a chain of mips mips, in the order they must run.
+// The steps for a chain with this many mips, in the order they must run.
 bloom_steps :: proc(bloom: Bloom, mips: int) -> (steps: [BLOOM_STEP_LIMIT]Bloom_Step, count: int) {
 	if mips <= 0 {
 		return

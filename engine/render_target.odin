@@ -10,11 +10,14 @@ TARGET_COLOR_FORMAT :: sg.Pixel_Format.RGBA8
 TARGET_DEPTH_FORMAT :: sg.Pixel_Format.DEPTH_STENCIL
 // One image per bloom mip, and a black image to bind when there is no mip.
 BLOOM_IMAGES :: BLOOM_MIP_LIMIT + 1
-// Each of the two Target_Layers has two images. The depth image is the fifth.
+// The hdr and color layers have two images each, the depth image is the
+// fifth, and the bloom images follow.
 TARGET_IMAGES :: 5 + BLOOM_IMAGES
-// Each image has an attachment view, and each Target_Layer adds a texture
-// view. The black image has only a texture view.
-TARGET_VIEWS :: 7 + 2 * BLOOM_MIP_LIMIT + 1
+// hdr, color, and one layer per bloom image.
+TARGET_LAYERS :: 2 + BLOOM_IMAGES
+// Each image but the black one has an attachment view, and each layer adds
+// a texture view.
+TARGET_VIEWS :: TARGET_IMAGES - 1 + TARGET_LAYERS
 
 // One pass's colour: the image it resolves into, the MSAA image it draws
 // into, a texture view of the resolved image, and the pass attachments. With
@@ -26,63 +29,46 @@ Target_Layer :: struct {
 	attachments: sg.Attachments,
 }
 
-// The colour image has the swapchain's physical size and a readable format,
-// so a screenshot can read it back. The Main pass's depth image has the
-// sample count of the Launch. bloom holds bloom_mips mips of one sample each,
-// sized by bloom_mip_size.
-Render_Target :: struct {
-	size:              [2]i32,
-	samples:           i32,
-	hdr:               Target_Layer,
-	color:             Target_Layer,
-	depth:             sg.Image,
-	bloom:             [BLOOM_MIP_LIMIT]Target_Layer,
-	bloom_mips:        int,
-	bloom_black:       Target_Layer,
-	sampler:           sg.Sampler,
-	bloom_sampler:     sg.Sampler,
-	tone_map:          sg.Pipeline,
-	blit:              sg.Pipeline,
-	bloom_prefilter:   sg.Pipeline,
-	bloom_down:        sg.Pipeline,
-	bloom_up:          sg.Pipeline,
-	post_action:       sg.Pass_Action,
-	copy_action:       sg.Pass_Action,
-	bloom_draw_action: sg.Pass_Action,
-	bloom_add_action:  sg.Pass_Action,
+// The first count mips have one sample each and the size from
+// bloom_mip_size. black is a 1 x 1 image to bind when there is no mip.
+Bloom_Chain :: struct {
+	mips:        [BLOOM_MIP_LIMIT]Target_Layer,
+	count:       int,
+	black:       Target_Layer,
+	sampler:     sg.Sampler,
+	prefilter:   sg.Pipeline,
+	down:        sg.Pipeline,
+	up:          sg.Pipeline,
+	draw_action: sg.Pass_Action,
+	add_action:  sg.Pass_Action,
 }
 
-// Makes no image. render_target_fit makes them at the first Main pass.
+// The colour image has the swapchain's physical size and a readable format,
+// so a screenshot can read it back. The Main pass's depth image has the
+// sample count of the Launch.
+Render_Target :: struct {
+	size:        [2]i32,
+	samples:     i32,
+	hdr:         Target_Layer,
+	color:       Target_Layer,
+	depth:       sg.Image,
+	bloom:       Bloom_Chain,
+	sampler:     sg.Sampler,
+	tone_map:    sg.Pipeline,
+	blit:        sg.Pipeline,
+	post_action: sg.Pass_Action,
+	copy_action: sg.Pass_Action,
+}
+
+// Makes only the bloom's black image. render_target_fit makes the others at
+// the first Main pass.
 render_target_init :: proc(t: ^Render_Target, samples: i32) {
 	t.samples = samples
 	t.sampler = sg.make_sampler({min_filter = .NEAREST, mag_filter = .NEAREST, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, label = "target"})
-	t.bloom_sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, label = "bloom"})
-	// The tone map, the copy and each bloom draw cover every pixel, so nothing
-	// needs a clear. An Up adds to the mip, so it keeps what the mip holds.
+	// The tone map and the copy cover every pixel, so nothing needs a clear.
 	t.post_action = {colors = {0 = {load_action = .DONTCARE}}}
 	t.copy_action = {colors = {0 = {load_action = .DONTCARE}}, depth = {load_action = .DONTCARE}, stencil = {load_action = .DONTCARE}}
-	t.bloom_draw_action = {colors = {0 = {load_action = .DONTCARE}}}
-	t.bloom_add_action = {colors = {0 = {load_action = .LOAD}}}
-	// Half floats of 0 are zero bytes.
-	black := [4]u16{}
-	t.bloom_black.image = sg.make_image({width = 1, height = 1, pixel_format = HDR_COLOR_FORMAT, data = {mip_levels = {0 = {ptr = &black, size = size_of(black)}}}, label = "bloom-black"})
-	t.bloom_black.texture = sg.make_view({texture = {image = t.bloom_black.image}})
-	bloom := sg.Pipeline_Desc {
-		shader = sg.make_shader(bloom_prefilter_shader_desc(sg.query_backend())),
-		sample_count = 1,
-		colors = {0 = {pixel_format = HDR_COLOR_FORMAT}},
-		depth = {pixel_format = .NONE},
-		cull_mode = .NONE,
-		label = "bloom-prefilter",
-	}
-	t.bloom_prefilter = sg.make_pipeline(bloom)
-	bloom.shader = sg.make_shader(bloom_down_shader_desc(sg.query_backend()))
-	bloom.label = "bloom-down"
-	t.bloom_down = sg.make_pipeline(bloom)
-	bloom.shader = sg.make_shader(bloom_up_shader_desc(sg.query_backend()))
-	bloom.colors[0].blend = {enabled = true, src_factor_rgb = .ONE, dst_factor_rgb = .ONE, src_factor_alpha = .ONE, dst_factor_alpha = .ZERO}
-	bloom.label = "bloom-up"
-	t.bloom_up = sg.make_pipeline(bloom)
+	bloom_chain_init(&t.bloom)
 	t.tone_map = sg.make_pipeline(
 		{
 			shader = sg.make_shader(tone_map_shader_desc(sg.query_backend())),
@@ -117,10 +103,40 @@ render_target_fit :: proc(t: ^Render_Target, size: [2]i32) {
 	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", platform_readable_color_texture(size.x, size.y))
 	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
 	t.hdr.attachments.depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})
-	t.bloom_mips = bloom_mip_count(size)
-	for i in 0 ..< t.bloom_mips {
-		t.bloom[i] = target_layer_make(bloom_mip_size(size, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
+	t.bloom.count = bloom_mip_count(size)
+	for i in 0 ..< t.bloom.count {
+		t.bloom.mips[i] = target_layer_make(bloom_mip_size(size, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
 	}
+}
+
+// Makes the black image, the sampler and the pipelines. render_target_fit
+// makes the mips.
+bloom_chain_init :: proc(c: ^Bloom_Chain) {
+	c.sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, label = "bloom"})
+	// Each bloom draw covers every pixel, so nothing needs a clear. An Up adds
+	// to the mip, so it keeps what the mip holds.
+	c.draw_action = {colors = {0 = {load_action = .DONTCARE}}}
+	c.add_action = {colors = {0 = {load_action = .LOAD}}}
+	// Half floats of 0 are zero bytes.
+	black := [4]u16{}
+	c.black.image = sg.make_image({width = 1, height = 1, pixel_format = HDR_COLOR_FORMAT, data = {mip_levels = {0 = {ptr = &black, size = size_of(black)}}}, label = "bloom-black"})
+	c.black.texture = sg.make_view({texture = {image = c.black.image}})
+	desc := sg.Pipeline_Desc {
+		shader = sg.make_shader(bloom_prefilter_shader_desc(sg.query_backend())),
+		sample_count = 1,
+		colors = {0 = {pixel_format = HDR_COLOR_FORMAT}},
+		depth = {pixel_format = .NONE},
+		cull_mode = .NONE,
+		label = "bloom-prefilter",
+	}
+	c.prefilter = sg.make_pipeline(desc)
+	desc.shader = sg.make_shader(bloom_down_shader_desc(sg.query_backend()))
+	desc.label = "bloom-down"
+	c.down = sg.make_pipeline(desc)
+	desc.shader = sg.make_shader(bloom_up_shader_desc(sg.query_backend()))
+	desc.colors[0].blend = {enabled = true, src_factor_rgb = .ONE, dst_factor_rgb = .ONE, src_factor_alpha = .ONE, dst_factor_alpha = .ZERO}
+	desc.label = "bloom-up"
+	c.up = sg.make_pipeline(desc)
 }
 
 // mtl_texture is a Metal texture that sokol takes for the resolved image, or nil.
@@ -163,25 +179,26 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 	case .Up:
 		read = step.mip + 1
 	}
-	if step.mip < 0 || step.mip >= t.bloom_mips || read >= t.bloom_mips || (step.kind != .Prefilter && read < 0) {
+	c := &t.bloom
+	if step.mip < 0 || step.mip >= c.count || read >= c.count || (step.kind != .Prefilter && read < 0) {
 		return
 	}
-	pip := t.bloom_prefilter
-	action := t.bloom_draw_action
+	pip := c.prefilter
+	action := c.draw_action
 	src := t.hdr.texture
 	switch step.kind {
 	case .Prefilter:
 	case .Down:
-		pip = t.bloom_down
-		src = t.bloom[read].texture
+		pip = c.down
+		src = c.mips[read].texture
 	case .Up:
-		pip = t.bloom_up
-		action = t.bloom_add_action
-		src = t.bloom[read].texture
+		pip = c.up
+		action = c.add_action
+		src = c.mips[read].texture
 	}
-	sg.begin_pass({action = action, attachments = t.bloom[step.mip].attachments, label = "bloom"})
+	sg.begin_pass({action = action, attachments = c.mips[step.mip].attachments, label = "bloom"})
 	sg.apply_pipeline(pip)
-	sg.apply_bindings({views = {VIEW_bloom_src_tex = src}, samplers = {SMP_bloom_src_smp = t.bloom_sampler}})
+	sg.apply_bindings({views = {VIEW_bloom_src_tex = src}, samplers = {SMP_bloom_src_smp = c.sampler}})
 	switch step.kind {
 	case .Prefilter:
 		params := Bloom_Prefilter_Params {
@@ -206,8 +223,8 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 // no bloom mip it binds the black image, which a bloom_strength of 0 never reads.
 render_target_tone_map :: proc(t: ^Render_Target, params: Tone_Map_Params) {
 	sg.apply_pipeline(t.tone_map)
-	bloom := t.bloom[0].texture if t.bloom_mips > 0 else t.bloom_black.texture
-	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr.texture, VIEW_bloom_tex = bloom}, samplers = {SMP_hdr_smp = t.sampler, SMP_bloom_smp = t.bloom_sampler}})
+	bloom := t.bloom.mips[0].texture if t.bloom.count > 0 else t.bloom.black.texture
+	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr.texture, VIEW_bloom_tex = bloom}, samplers = {SMP_hdr_smp = t.sampler, SMP_bloom_smp = t.bloom.sampler}})
 	p := params
 	sg.apply_uniforms(UB_tone_map_params, {ptr = &p, size = size_of(Tone_Map_Params)})
 	sg.draw(0, 3, 1)
@@ -227,10 +244,10 @@ render_target_copy :: proc(t: ^Render_Target, swapchain: sg.Swapchain) {
 render_target_destroy :: proc(t: ^Render_Target) {
 	target_layer_destroy(&t.hdr)
 	target_layer_destroy(&t.color)
-	for &mip in t.bloom {
+	for &mip in t.bloom.mips {
 		target_layer_destroy(&mip)
 	}
-	t.bloom_mips = 0
+	t.bloom.count = 0
 	sg.destroy_image(t.depth)
 	t.depth = {}
 	t.size = {}

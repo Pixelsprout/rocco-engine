@@ -110,8 +110,8 @@ layout(binding = 1) uniform fs_params {
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
 // cascade 0. With one cascade, cascade_far and view_dir are zero. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
-// fog_color is linear, with w spare. fog is the fog start, 1 / (end - start),
-// the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
+// fog_color is linear, with w spare. fog_ramp is the fog start,
+// 1 / (end - start), the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
@@ -119,7 +119,7 @@ layout(binding = 2) uniform fs_lights {
     vec4 cascade_far;
     vec4 view_dir;
     vec4 fog_color;
-    vec4 fog;
+    vec4 fog_ramp;
     mat4 light_view_proj[4];
 };
 
@@ -255,7 +255,7 @@ float sun_visibility(vec3 n) {
 // camera turns in place.
 vec3 apply_fog(vec3 color) {
     float d = length(v_world - camera_pos.xyz);
-    float factor = fog.z * clamp((d - fog.x) * fog.y, 0.0, 1.0);
+    float factor = fog_ramp.z * clamp((d - fog_ramp.x) * fog_ramp.y, 0.0, 1.0);
     return mix(color, fog_color.rgb, factor);
 }
 

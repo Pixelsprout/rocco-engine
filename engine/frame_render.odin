@@ -286,7 +286,7 @@ frame_render_draw :: proc(
 	if !submit {
 		return
 	}
-	lights.fog_color, lights.fog = fog_uniform(env.fog)
+	lights.fog_color, lights.fog_ramp = fog_uniform(env.fog)
 
 	if gathered.has_sun && len(fr.placed) > 0 {
 		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span)

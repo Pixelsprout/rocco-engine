@@ -16,7 +16,7 @@ SMALL_DRAWS :: 8
 SMALL_GROUPS :: 4
 
 // joints holds the first skin matrices of a skinned Draw, as they were at the
-// submit. fog_color and fog are the fog of the lights block the submit drew
+// submit. fog_color and fog_ramp are the fog of the lights block the submit drew
 // under, as the renderer applies that block to both mesh pipelines.
 Submitted :: struct {
 	mesh:         ^Mesh,
@@ -33,7 +33,7 @@ Submitted :: struct {
 	skinned:      bool,
 	joints:       [2]Mat4,
 	fog_color:    [4]f32,
-	fog:          [4]f32,
+	fog_ramp:     [4]f32,
 }
 
 // main_before is the number of main pass submits before this shadow submit.
@@ -219,7 +219,7 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 			fog_color = r.lights.fog_color,
-			fog = r.lights.fog,
+			fog_ramp = r.lights.fog_ramp,
 		},
 	)
 }
@@ -1121,7 +1121,6 @@ test_frame_render_blooms_each_mip_between_the_main_and_post_passes :: proc(t: ^t
 	s.environment.bloom = {strength = 0.5, threshold = 2, knee = 0.25}
 	frame_fixture_draw(&f, s, s, 0)
 
-	// The fixture window is 960 x 540, so it has 6 mips.
 	want := []Bloom_Step {
 		{kind = .Prefilter, mip = 0, threshold = 2, knee = 0.25},
 		{kind = .Down, mip = 1},
@@ -1183,19 +1182,19 @@ test_frame_render_submits_no_bloom_in_a_window_with_no_mip :: proc(t: ^testing.T
 }
 
 @(test)
-test_frame_render_prefilters_the_bloom_with_no_exposure :: proc(t: ^testing.T) {
+test_frame_render_prefilters_the_bloom_at_the_same_threshold_for_any_exposure :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
 	s := scene_of({})
 	s.environment.bloom = {strength = 1, threshold = 1, knee = 0.5}
-	frame_fixture_draw(&f, s, s, 0)
-	bright := f.rec.blooms[0].step
-	s.environment.exposure = 4
-	frame_fixture_draw(&f, s, s, 0)
-	testing.expect_value(t, f.rec.blooms[0].step, bright)
-	testing.expect_value(t, f.rec.tone_map.exposure, 4)
+	for exposure in ([]f32{0.25, 1, 4}) {
+		s.environment.exposure = exposure
+		frame_fixture_draw(&f, s, s, 0)
+		testing.expect_value(t, f.rec.blooms[0].step, Bloom_Step{kind = .Prefilter, threshold = 1, knee = 0.5})
+		testing.expect_value(t, f.rec.tone_map.exposure, exposure)
+	}
 }
 
 @(test)
@@ -1236,8 +1235,8 @@ test_frame_render_sends_a_zero_fog_for_a_fog_amount_of_0 :: proc(t: ^testing.T) 
 		s := scene_of(cube)
 		s.environment.fog = fog
 		got := frame_fixture_draw(&f, s, s, 0)
-		testing.expect_value(t, f.rec.lights.fog, [4]f32{})
-		testing.expect_value(t, got[0].fog, [4]f32{})
+		testing.expect_value(t, f.rec.lights.fog_ramp, [4]f32{})
+		testing.expect_value(t, got[0].fog_ramp, [4]f32{})
 	}
 }
 
@@ -1253,7 +1252,7 @@ test_frame_render_sends_the_fog_of_the_current_scene :: proc(t: ^testing.T) {
 	frame_fixture_draw(&f, prev, curr, 0.5)
 
 	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 0})
-	testing.expect_value(t, f.rec.lights.fog, [4]f32{10, 1.0 / 40, 0.8, 0})
+	testing.expect_value(t, f.rec.lights.fog_ramp, [4]f32{10, 1.0 / 40, 0.8, 0})
 }
 
 @(test)
@@ -1266,7 +1265,7 @@ test_frame_render_sends_the_clamped_fog :: proc(t: ^testing.T) {
 	s.environment.fog = {start = 5, end = 3, amount = 2}
 	frame_fixture_draw(&f, s, s, 0)
 
-	testing.expect_value(t, f.rec.lights.fog, [4]f32{5, 1 / ((5 + FOG_MIN_SPAN) - 5), 1, 0})
+	testing.expect_value(t, f.rec.lights.fog_ramp, [4]f32{5, 1 / ((5 + FOG_MIN_SPAN) - 5), 1, 0})
 	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Fog_Amount, .Fog_Range})
 }
 
@@ -1292,7 +1291,7 @@ test_frame_render_gives_rigid_unlit_and_skinned_draws_the_fog :: proc(t: ^testin
 	testing.expect_value(t, got[1].material.z, 1)
 	for g, i in got {
 		testing.expectf(t, g.fog_color == {0, 0, 1, 0}, "submit %v: fog_color is %v", i, g.fog_color)
-		testing.expectf(t, g.fog == {0, 0.25, 1, 0}, "submit %v: fog is %v", i, g.fog)
+		testing.expectf(t, g.fog_ramp == {0, 0.25, 1, 0}, "submit %v: fog_ramp is %v", i, g.fog_ramp)
 	}
 }
 
@@ -1315,7 +1314,7 @@ test_frame_render_sends_the_same_fog_and_eye_when_the_camera_turns_in_place :: p
 		frame_render_draw(&f.fr, s, s, 0, view, &f.meshes, &f.skies, nil, nil, f.window)
 		sent[i] = f.rec.lights
 	}
-	testing.expect_value(t, sent[0].fog, sent[1].fog)
+	testing.expect_value(t, sent[0].fog_ramp, sent[1].fog_ramp)
 	testing.expect_value(t, sent[0].fog_color, sent[1].fog_color)
 	testing.expect_value(t, sent[0].camera_pos, sent[1].camera_pos)
 }
