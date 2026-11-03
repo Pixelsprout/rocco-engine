@@ -1241,8 +1241,9 @@ open.
 ## Milestone 28: Environment (moved)
 
 Moved into Milestone 37, Post and Environment, on 2026-11-02. The tone map
-moves to the post pass there, so it is built once. The original entry
-follows.
+moves to the post pass there, so it is built once. On 2026-11-03 the shadow
+knobs stayed out, because no fidelity goal needs them. They wait under
+Milestone 37's "Later". The original entry follows.
 
 Done when a game sets its tone map, its exposure, its fog and its shadow
 knobs in `Scene.environment`, and Kula fades distant blocks toward its Theme
@@ -1474,21 +1475,61 @@ tangents and MikkTSpace at load time.
 
 ## Milestone 37: Post and Environment
 
-Done when a game sets its tone map, exposure, fog and bloom in
-`Scene.environment`, and an emissive surface blooms. Absorbs Milestone 28.
-Closes dex tasks yjtqgdd4 and s1zhf2hf.
+Done when a game sets its sky, clear colour, tone map, exposure, fog and
+bloom in `Scene.environment`, and an emissive surface blooms. Absorbs
+Milestone 28. Closes dex tasks yjtqgdd4 and s1zhf2hf. Grilled 2026-11-03.
 
-1. The Main pass draws into an HDR target. The tone map moves from the mesh
-   shader to the final pass: ACES (the default, so games do not change),
-   AgX or Khronos PBR Neutral, after `exposure`.
-2. Fog runs forward in the mesh shader, by distance toward a colour. The
-   sky does not fog.
-3. Bloom is a mip chain (13-tap down, tent up) with `{ strength, threshold,
-   knee }`. The default threshold is 1.0.
-4. One Vocabulary change: `Scene.environment`. One ADR.
+1. The Main pass draws into an RGBA16F target and resolves its MSAA before
+   post. A new LDR pass, at the same sample count, draws the tone map and
+   then the UI. It resolves into the RGBA8 image that the screenshot and
+   the blit read.
+2. Everything in the HDR target goes through the tone map: lit and unlit
+   surfaces, the sky and the clear colour. Lit surfaces keep today's look
+   under ACES. Unlit surfaces, the sky and the clear colour darken a
+   little, and the release notes say so.
+3. The final pass computes `(hdr + strength * bloom) * exposure`, then the
+   tone map, then sRGB. The tone map is ACES (Hill's fit, the default),
+   AgX (the base look) or Khronos PBR Neutral. `exposure` is a linear
+   multiplier, default 1.0.
+4. Fog is linear, `{ color, start, end }`, by radial distance from the
+   camera. It runs forward in the mesh shader and mixes the whole surface
+   colour, emissive and unlit surfaces included. The sky does not fog.
+5. A bloom prefilter applies the soft threshold (`threshold`, `knee`)
+   before exposure. 13-tap downsamples from half resolution make up to 6
+   mips, none smaller than 8 px. Tent upsamples add each mip back.
+   `bloom: None` skips the passes.
+6. One Vocabulary change. Scene loses `sky` and `clear` and gains
+   `environment : Environment`:
 
-Check: `examples/glow` blooms its emissive surfaces, and Bridge screenshots
-compare each tone map.
+   ```roc
+   Environment : {
+       sky : U32,
+       clear : Rgb,
+       tone_map : [Aces, AgX, Neutral],
+       exposure : F32,
+       fog : [None, Fog({ color : Rgb, start : F32, end : F32 })],
+       bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })],
+   }
+   ```
+
+   `Scene.empty` holds `Environment.default`: no sky, a black clear
+   colour, ACES, exposure 1.0, no fog and no bloom. `Environment.bloom` is
+   `Bloom({ strength: 0.5, threshold: 1.0, knee: 0.5 })`. The host clamps
+   a bad value (exposure at or below 0, `end` at or below `start`, a
+   negative bloom number) and logs once per run. The Bridge `scene` op
+   shows the record. ADR 0026.
+
+Check: `examples/glow` turns bloom on. One key cycles the tone map and one
+key toggles bloom. Bridge screenshots on macOS, Linux and Windows show a
+ring of pixels around the window brighter with bloom on than off, each pair
+of tone maps differ by more than `MIN_CHANGED_PIXELS`, and the teal check
+still passes. A person compares the tone map screenshots.
+`docs/BENCHMARKS.md` records one GPU frame time with bloom on and off. Kula
+adopts fog in its own repo after the release.
+
+Later: shadow knobs in `Scene.environment`, exponential fog, an RG11B10F
+target, a GPU frame budget and AgX Punchy. Particles and outlines opt in to
+fog when they ship.
 
 ## Milestone 38: Transparency
 
