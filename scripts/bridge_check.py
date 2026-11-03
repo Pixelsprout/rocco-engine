@@ -63,7 +63,8 @@ a "-glow-no-bloom" one and taps B again for a "-glow-bloom-again" one. The
 spark moves at each step, so the mean of the two bloom shots stands for the
 bloom at the step of the shot without it. A ring of pixels around the window
 must be much brighter with bloom than without it, and than one step of the
-spark changes it.
+spark changes it. A patch of lit floor far from every bright surface is below
+the threshold, so it must not get brighter with bloom.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
@@ -175,6 +176,13 @@ RING_INNER = 3
 RING_OUTER = 12
 MIN_RING_GAIN = 5
 MIN_BLOOM_RATIO = 10
+# A patch of floor in the left orb's pool of light, as (left, top, right,
+# bottom) in logical pixels. It is lit, with a mean brightness of about 34,
+# but is far from the orbs, the window and the neon. Its mean rises by under
+# 0.05 with the bloom, and by about 30 with a threshold of 0.
+QUIET_BOX = (180, 370, 230, 410)
+MIN_QUIET_BRIGHTNESS = 15
+MAX_QUIET_GAIN = 0.5
 # examples/glow/source/make_panel.py: the panel's face is 0.02 in front of its
 # Draw pos. Each rib has a cosine profile, so its steepest lines are a quarter
 # of its width each side of its crest. The samples stay near those lines and
@@ -682,20 +690,26 @@ def face_box(camera, draw, size):
     return min(x for x, _ in corners), min(y for _, y in corners), max(x for x, _ in corners), max(y for _, y in corners)
 
 
-# The mean brightness of the pixels from inner to outer pixels outside box.
-def ring_brightness(path, box, inner, outer):
+# The mean brightness of the pixels in box and outside hole. Each is
+# (left, top, right, bottom).
+def mean_brightness(path, box, hole=(0, 0, 0, 0)):
     with open(path, "rb") as f:
         width, height, pixels = bridge.png_rgba(f.read())
     left, top, right, bottom = box
     total = count = 0
-    for y in range(max(top - outer, 0), min(bottom + outer, height)):
-        for x in range(max(left - outer, 0), min(right + outer, width)):
-            if left - inner <= x < right + inner and top - inner <= y < bottom + inner:
+    for y in range(max(top, 0), min(bottom, height)):
+        for x in range(max(left, 0), min(right, width)):
+            if hole[0] <= x < hole[2] and hole[1] <= y < hole[3]:
                 continue
             i = (y * width + x) * 4
             total += 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]
             count += 1
     return total / count
+
+
+def grow(box, by):
+    left, top, right, bottom = box
+    return left - by, top - by, right + by, bottom + by
 
 
 def check_bloom(b, stem, ext, camera, window):
@@ -713,11 +727,18 @@ def check_bloom(b, stem, ext, camera, window):
     size = bridge.png_size(shots[0])
     scale = size[0] // WINDOW[0]
     box = face_box(camera, window, size)
-    bloom, none, again = [ring_brightness(path, box, RING_INNER * scale, RING_OUTER * scale) for path in shots]
+    bloom, none, again = [mean_brightness(path, grow(box, RING_OUTER * scale), grow(box, RING_INNER * scale)) for path in shots]
     gain = (bloom + again) / 2 - none
     step_change = abs(again - bloom) / 2
     least = max(MIN_RING_GAIN, MIN_BLOOM_RATIO * step_change)
     check(gain > least, f"the ring around the window is {gain:.2f} brighter with bloom, and one step changes it by {step_change:.2f}")
+
+    quiet_box = tuple(v * scale for v in QUIET_BOX)
+    bloom, none, again = [mean_brightness(path, quiet_box) for path in shots]
+    check(none > MIN_QUIET_BRIGHTNESS, f"the quiet floor patch is lit, with a mean brightness of {none:.2f}")
+    gain = (bloom + again) / 2 - none
+    step_change = abs(again - bloom) / 2
+    check(gain < MAX_QUIET_GAIN + step_change, f"the quiet floor patch is {gain:.2f} brighter with bloom, and one step changes it by {step_change:.2f}")
 
 
 def ui_strings(elements):
