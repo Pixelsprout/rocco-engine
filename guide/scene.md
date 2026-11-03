@@ -279,11 +279,13 @@ multiplies the lit colour, so it shows only where a Light reaches.
 
 Every colour is linear, not sRGB. The host multiplies the colour of the
 mesh by the `tint` of the Draw. The fallback mesh ignores the tint and the
-glow. The host adds the glow after the lights and before the tone map. Then
-it tone maps the lit colour and encodes it to sRGB for the screen.
+glow. The host adds the glow after the lights and before the tone map.
 
-`Scene.clear` is linear too. The host encodes it to sRGB, with no tone map,
-like the sky.
+The host draws the 3D view in linear colour, then tone maps all of it and
+encodes it to sRGB for the screen. Lit and unlit surfaces, the sky and
+`Scene.clear` all go through the tone map, so an unlit colour shows a
+little darker than its value. The UI draws after the tone map, so it shows
+the colours you give it.
 
 ## Defaults to start from
 

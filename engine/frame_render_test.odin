@@ -63,6 +63,7 @@ Recorder :: struct {
 	ui_screen:     [2]f32,
 	ui_calls:      int,
 	ui_after_sky:  int,
+	ui_pass:       Pass,
 	main_clear:    Rgb,
 }
 
@@ -226,6 +227,7 @@ record_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 	r.ui_screen = screen
 	r.ui_calls += 1
 	r.ui_after_sky = r.sky_calls
+	r.ui_pass = r.passes[len(r.passes) - 1].pass
 }
 
 record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
@@ -1073,10 +1075,11 @@ test_frame_render_draws_every_draw_from_the_sun_before_the_main_pass :: proc(t: 
 	curr := []Draw{{id = 1, mesh = 1, pos = {4, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY}, {id = 2, mesh = 2, scale = {1, 1, 1}, rot = IDENTITY}}
 	frame_fixture_draw(&f, scene_lit(prev, lights), scene_lit(curr, lights), 0.25)
 
-	testing.expect_value(t, len(f.rec.passes), 2)
+	testing.expect_value(t, len(f.rec.passes), 3)
 	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
 	testing.expect_value(t, f.rec.passes[1], Pass_Begun{.Main, 0})
-	testing.expect_value(t, f.rec.pass_ends, 2)
+	testing.expect_value(t, f.rec.passes[2], Pass_Begun{.Post, 0})
+	testing.expect_value(t, f.rec.pass_ends, 3)
 	testing.expect_value(t, len(f.rec.shadows), 2)
 	testing.expect_value(t, f.rec.shadows[0].mesh, &f.meshes.meshes[Primitive.Cube])
 	testing.expect_value(t, f.rec.shadows[1].mesh, &f.meshes.meshes[Primitive.Sphere])
@@ -1149,9 +1152,10 @@ test_frame_render_skips_the_shadow_pass_with_no_sun :: proc(t: ^testing.T) {
 	draws := []Draw{{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY}}
 	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
 
-	testing.expect_value(t, len(f.rec.passes), 1)
+	testing.expect_value(t, len(f.rec.passes), 2)
 	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Main, 0})
-	testing.expect_value(t, f.rec.pass_ends, 1)
+	testing.expect_value(t, f.rec.passes[1], Pass_Begun{.Post, 0})
+	testing.expect_value(t, f.rec.pass_ends, 2)
 	testing.expect_value(t, len(f.rec.shadows), 0)
 	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
 }
@@ -1215,7 +1219,7 @@ test_frame_render_one_cascade_leaves_the_other_views_zero :: proc(t: ^testing.T)
 		testing.expect_value(t, f.rec.lights.light_view_proj[i], Mat4{})
 	}
 	testing.expect_value(t, f.rec.lights.cascade_far, [4]f32{})
-	testing.expect_value(t, len(f.rec.passes), 2)
+	testing.expect_value(t, len(f.rec.passes), 3)
 	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
 }
 
@@ -1229,12 +1233,13 @@ test_frame_render_draws_one_shadow_pass_per_cascade :: proc(t: ^testing.T) {
 	draws := []Draw{{id = 1, mesh = 1, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY}}
 	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
 
-	testing.expect_value(t, len(f.rec.passes), 5)
+	testing.expect_value(t, len(f.rec.passes), 6)
 	for i in 0 ..< 4 {
 		testing.expect_value(t, f.rec.passes[i], Pass_Begun{.Shadow, i})
 	}
 	testing.expect_value(t, f.rec.passes[4], Pass_Begun{.Main, 0})
-	testing.expect_value(t, f.rec.pass_ends, 5)
+	testing.expect_value(t, f.rec.passes[5], Pass_Begun{.Post, 0})
+	testing.expect_value(t, f.rec.pass_ends, 6)
 	testing.expect_value(t, f.rec.lights.shadow, [4]f32{4, 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND})
 	testing.expect_value(t, f.rec.lights.cascade_far, cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 4, CASCADE_SPLIT_WEIGHT))
 	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, 0})
@@ -1291,10 +1296,11 @@ test_frame_render_with_two_cascades_draws_two_passes :: proc(t: ^testing.T) {
 	draws := []Draw{{id = 1, mesh = 1, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY}}
 	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
 
-	testing.expect_value(t, len(f.rec.passes), 3)
+	testing.expect_value(t, len(f.rec.passes), 4)
 	testing.expect_value(t, f.rec.passes[0], Pass_Begun{.Shadow, 0})
 	testing.expect_value(t, f.rec.passes[1], Pass_Begun{.Shadow, 1})
 	testing.expect_value(t, f.rec.passes[2], Pass_Begun{.Main, 0})
+	testing.expect_value(t, f.rec.passes[3], Pass_Begun{.Post, 0})
 	testing.expect_value(t, f.rec.lights.shadow.x, 2)
 	testing.expect_value(t, f.rec.lights.cascade_far[0], cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 2, CASCADE_SPLIT_WEIGHT)[0])
 	testing.expect_value(t, f.rec.lights.light_view_proj[2], Mat4{})

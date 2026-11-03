@@ -290,8 +290,8 @@ _Avoid_: cursor (the lock), mouse (the delta), touch
 **Clear colour**:
 The field of a Scene, `clear`, that sets the colour behind the 3D view. It is
 a linear `Rgb`. The host clears to it every frame, before any mesh, and
-encodes it to sRGB without the tone map. A sky draws over it. `pf.Scene.empty`
-has black.
+tone maps it with the rest of the 3D view. A sky draws over it.
+`pf.Scene.empty` has black.
 _Avoid_: background, clear color, sky colour
 
 **UI**:

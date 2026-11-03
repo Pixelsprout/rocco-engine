@@ -324,7 +324,7 @@ test_ui_drops_quads_past_the_cap_and_logs_it_once :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_ui_submits_once_after_the_sky_and_not_at_all_when_empty :: proc(t: ^testing.T) {
+test_ui_submits_once_in_the_post_pass_after_the_sky_and_not_at_all_when_empty :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
@@ -337,6 +337,7 @@ test_ui_submits_once_after_the_sky_and_not_at_all_when_empty :: proc(t: ^testing
 	frame_fixture_draw(&f, scene, scene, 0)
 	testing.expect_value(t, f.rec.ui_calls, 1)
 	testing.expect_value(t, f.rec.ui_after_sky, 1)
+	testing.expect_value(t, f.rec.ui_pass, Pass.Post)
 
 	frame_fixture_draw(&f, {}, {}, 0)
 	testing.expect_value(t, f.rec.ui_calls, 0)

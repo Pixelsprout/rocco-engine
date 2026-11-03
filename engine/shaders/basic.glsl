@@ -1,10 +1,12 @@
 // basic: a metallic-roughness BRDF under the Scene's lights, plus the
-// emissive, tone mapped. An unlit mesh draws its base colour plus the
-// emissive, with no lights and no tone map.
+// emissive, in linear HDR. An unlit mesh draws its base colour plus the
+// emissive, with no lights.
 // skinned: basic for a skinned mesh, posed by its skin matrices.
-// sky: a cubemap on a cube around the camera, at its authored colour.
+// sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
-// ui: rounded rectangles and SDF glyphs in window pixels, at their authored colour.
+// tone_map: maps the resolved HDR image to sRGB for the Post pass.
+// ui: rounded rectangles and SDF glyphs in window pixels, at their authored
+// colour. It draws after the tone map.
 // blit: copies the render target to the swapchain.
 // Compiled by sokol-shdc to MSL, GLSL and HLSL; see engine/shader_basic.odin
 // for the command. shdc comes from floooh/sokol-tools-bin at commit 11d0cf6.
@@ -141,30 +143,12 @@ in vec4 v_tng;
 
 out vec4 frag_color;
 
-@include_block srgb
-
 const float PI = 3.14159265;
 // Filament's lower bound, so alpha squared stays above fp32 underflow.
 const float MIN_ROUGHNESS = 0.045;
 const float MIN_N_DOT_V = 1e-4;
 // Point lights stop growing inside 1 cm, as in Filament.
 const float MIN_POINT_DISTANCE_SQ = 1e-4;
-
-// Stephen Hill's fit of the ACES RRT and sRGB ODT. It rolls highlights off
-// towards 1 instead of clipping them, so a light colour above 1 keeps detail.
-vec3 aces_fitted(vec3 c) {
-    const mat3 aces_in = mat3(
-        0.59719, 0.07600, 0.02840,
-        0.35458, 0.90834, 0.13383,
-        0.04823, 0.01566, 0.83777);
-    const mat3 aces_out = mat3(
-         1.60475, -0.10208, -0.00327,
-        -0.53108,  1.10813, -0.07276,
-        -0.07367, -0.00605,  1.07602);
-    c = aces_in * c;
-    c = (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.4329510) + 0.238081);
-    return aces_out * c;
-}
 
 // v / |v|, or zero for a zero vector, where normalize gives NaN.
 vec3 safe_normalize(vec3 v) {
@@ -276,7 +260,7 @@ void main() {
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
     vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        frag_color = vec4(linear_to_srgb(albedo + emitted), base.a);
+        frag_color = vec4(albedo + emitted, base.a);
         return;
     }
 
@@ -322,7 +306,7 @@ void main() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    frag_color = vec4(linear_to_srgb(aces_fitted(color + emitted)), base.a);
+    frag_color = vec4(color + emitted, base.a);
 }
 @end
 
@@ -392,10 +376,8 @@ in vec3 v_dir;
 
 out vec4 frag_color;
 
-@include_block srgb
-
 void main() {
-    frag_color = vec4(linear_to_srgb(texture(samplerCube(sky_tex, sky_smp), v_dir).rgb), 1.0);
+    frag_color = vec4(texture(samplerCube(sky_tex, sky_smp), v_dir).rgb, 1.0);
 }
 @end
 
@@ -539,3 +521,37 @@ void main() {
 @end
 
 @program blit blit_vs blit_fs
+
+@fs tone_map_fs
+layout(binding = 0) uniform texture2D hdr_tex;
+layout(binding = 0) uniform sampler hdr_smp;
+
+out vec4 frag_color;
+
+@include_block srgb
+
+// Stephen Hill's fit of the ACES RRT and sRGB ODT. It rolls highlights off
+// towards 1 instead of clipping them, so a light colour above 1 keeps detail.
+vec3 aces_fitted(vec3 c) {
+    const mat3 aces_in = mat3(
+        0.59719, 0.07600, 0.02840,
+        0.35458, 0.90834, 0.13383,
+        0.04823, 0.01566, 0.83777);
+    const mat3 aces_out = mat3(
+         1.60475, -0.10208, -0.00327,
+        -0.53108,  1.10813, -0.07276,
+        -0.07367, -0.00605,  1.07602);
+    c = aces_in * c;
+    c = (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.4329510) + 0.238081);
+    return aces_out * c;
+}
+
+// The HDR image and the Post pass have the same size and row order, so each
+// pixel reads the texel under it.
+void main() {
+    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb;
+    frag_color = vec4(linear_to_srgb(aces_fitted(hdr)), 1.0);
+}
+@end
+
+@program tone_map blit_vs tone_map_fs

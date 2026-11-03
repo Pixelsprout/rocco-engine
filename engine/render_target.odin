@@ -2,29 +2,40 @@ package engine
 
 import sg "../sokol-odin/sokol/gfx"
 
+// The Main pass draws linear colour above 1, so the tone map can roll it off.
+HDR_COLOR_FORMAT :: sg.Pixel_Format.RGBA16F
 // Every backend can read RGBA8 back to the CPU.
 TARGET_COLOR_FORMAT :: sg.Pixel_Format.RGBA8
 // The swapchain's depth format, so the depth test gives the same result.
 TARGET_DEPTH_FORMAT :: sg.Pixel_Format.DEPTH_STENCIL
-// An MSAA colour image, the colour image it resolves into, and a depth image.
-TARGET_IMAGES :: 3
-// The colour image has an attachment view and a texture view.
-TARGET_VIEWS :: TARGET_IMAGES + 1
+// Each of the two Target_Layers has two images. The depth image is the fifth.
+TARGET_IMAGES :: 5
+// Each Target_Layer adds a texture view to the attachment view of each image.
+TARGET_VIEWS :: TARGET_IMAGES + 2
 
-// The Main pass draws into the target, then a copy pass writes the colour
-// image to the swapchain. The colour image has the swapchain's physical size,
-// one sample and a readable format, so a screenshot can read it back. With
-// one sample the Main pass draws into it directly and msaa stays empty.
+// One pass's colour: the image it resolves into, the MSAA image it draws
+// into, a texture view of the resolved image, and the pass attachments. With
+// one sample the pass draws into the resolved image and msaa stays empty.
+Target_Layer :: struct {
+	image:       sg.Image,
+	msaa:        sg.Image,
+	texture:     sg.View,
+	attachments: sg.Attachments,
+}
+
+// The colour image has the swapchain's physical size and a readable format,
+// so a screenshot can read it back. The Main pass's depth image has the
+// sample count of the Launch.
 Render_Target :: struct {
 	size:        [2]i32,
 	samples:     i32,
-	color:       sg.Image,
-	msaa:        sg.Image,
+	hdr:         Target_Layer,
+	color:       Target_Layer,
 	depth:       sg.Image,
-	attachments: sg.Attachments,
-	texture:     sg.View,
 	sampler:     sg.Sampler,
-	pip:         sg.Pipeline,
+	tone_map:    sg.Pipeline,
+	blit:        sg.Pipeline,
+	post_action: sg.Pass_Action,
 	copy_action: sg.Pass_Action,
 }
 
@@ -32,10 +43,21 @@ Render_Target :: struct {
 render_target_init :: proc(t: ^Render_Target, samples: i32) {
 	t.samples = samples
 	t.sampler = sg.make_sampler({min_filter = .NEAREST, mag_filter = .NEAREST, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, label = "target"})
-	// The copy covers every swapchain pixel, so nothing needs a clear.
+	// The tone map and the copy each cover every pixel, so nothing needs a clear.
+	t.post_action = {colors = {0 = {load_action = .DONTCARE}}}
 	t.copy_action = {colors = {0 = {load_action = .DONTCARE}}, depth = {load_action = .DONTCARE}, stencil = {load_action = .DONTCARE}}
+	t.tone_map = sg.make_pipeline(
+		{
+			shader = sg.make_shader(tone_map_shader_desc(sg.query_backend())),
+			sample_count = samples,
+			colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}},
+			depth = {pixel_format = .NONE},
+			cull_mode = .NONE,
+			label = "tone-map",
+		},
+	)
 	// The swapchain has one sample. Its formats are the pipeline defaults.
-	t.pip = sg.make_pipeline(
+	t.blit = sg.make_pipeline(
 		{
 			shader = sg.make_shader(blit_shader_desc(sg.query_backend())),
 			sample_count = 1,
@@ -54,35 +76,49 @@ render_target_fit :: proc(t: ^Render_Target, size: [2]i32) {
 	}
 	render_target_destroy(t)
 	t.size = size
-	msaa := t.samples > 1
+	t.hdr = target_layer_make(size, t.samples, HDR_COLOR_FORMAT, "target-hdr", "target-hdr-msaa")
+	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", platform_readable_color_texture(size.x, size.y))
+	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
+	t.hdr.attachments.depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})
+}
 
-	color_desc := sg.Image_Desc {
+// mtl_texture is a Metal texture that sokol takes for the resolved image, or nil.
+target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, label, msaa_label: cstring, mtl_texture: rawptr = nil) -> (l: Target_Layer) {
+	msaa := samples > 1
+	desc := sg.Image_Desc {
 		usage        = {resolve_attachment = msaa, color_attachment = !msaa},
 		width        = size.x,
 		height       = size.y,
-		pixel_format = TARGET_COLOR_FORMAT,
+		pixel_format = format,
 		sample_count = 1,
-		label        = "target-color",
+		label        = label,
 	}
-	color_desc.mtl_textures[0] = platform_readable_color_texture(size.x, size.y)
-	t.color = sg.make_image(color_desc)
-	t.texture = sg.make_view({texture = {image = t.color}})
-	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
-	t.attachments = {depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})}
+	desc.mtl_textures[0] = mtl_texture
+	l.image = sg.make_image(desc)
+	l.texture = sg.make_view({texture = {image = l.image}})
 	if msaa {
-		t.msaa = sg.make_image({usage = {color_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_COLOR_FORMAT, sample_count = t.samples, label = "target-msaa"})
-		t.attachments.colors[0] = sg.make_view({color_attachment = {image = t.msaa}})
-		t.attachments.resolves[0] = sg.make_view({resolve_attachment = {image = t.color}})
+		l.msaa = sg.make_image({usage = {color_attachment = true}, width = size.x, height = size.y, pixel_format = format, sample_count = samples, label = msaa_label})
+		l.attachments.colors[0] = sg.make_view({color_attachment = {image = l.msaa}})
+		l.attachments.resolves[0] = sg.make_view({resolve_attachment = {image = l.image}})
 	} else {
-		t.attachments.colors[0] = sg.make_view({color_attachment = {image = t.color}})
+		l.attachments.colors[0] = sg.make_view({color_attachment = {image = l.image}})
 	}
+	return
+}
+
+// Must run outside a pass. Leaves the Post pass open for the UI.
+render_target_begin_post :: proc(t: ^Render_Target) {
+	sg.begin_pass({action = t.post_action, attachments = t.color.attachments, label = "post"})
+	sg.apply_pipeline(t.tone_map)
+	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr.texture}, samplers = {SMP_hdr_smp = t.sampler}})
+	sg.draw(0, 3, 1)
 }
 
 // Must run outside a pass.
 render_target_copy :: proc(t: ^Render_Target, swapchain: sg.Swapchain) {
 	sg.begin_pass({action = t.copy_action, swapchain = swapchain, label = "blit"})
-	sg.apply_pipeline(t.pip)
-	sg.apply_bindings({views = {VIEW_blit_tex = t.texture}, samplers = {SMP_blit_smp = t.sampler}})
+	sg.apply_pipeline(t.blit)
+	sg.apply_bindings({views = {VIEW_blit_tex = t.color.texture}, samplers = {SMP_blit_smp = t.sampler}})
 	sg.draw(0, 3, 1)
 	sg.end_pass()
 }
@@ -90,17 +126,20 @@ render_target_copy :: proc(t: ^Render_Target, swapchain: sg.Swapchain) {
 // Destroys the images and their views. sokol skips an invalid id, so this
 // is safe before the first fit. sg.shutdown destroys the rest.
 render_target_destroy :: proc(t: ^Render_Target) {
-	sg.destroy_view(t.attachments.colors[0])
-	sg.destroy_view(t.attachments.resolves[0])
-	sg.destroy_view(t.attachments.depth_stencil)
-	sg.destroy_view(t.texture)
-	sg.destroy_image(t.msaa)
-	sg.destroy_image(t.color)
+	target_layer_destroy(&t.hdr)
+	target_layer_destroy(&t.color)
 	sg.destroy_image(t.depth)
-	t.attachments = {}
-	t.texture = {}
-	t.msaa = {}
-	t.color = {}
 	t.depth = {}
 	t.size = {}
+}
+
+// Also destroys a depth view in the attachments.
+target_layer_destroy :: proc(l: ^Target_Layer) {
+	sg.destroy_view(l.attachments.colors[0])
+	sg.destroy_view(l.attachments.resolves[0])
+	sg.destroy_view(l.attachments.depth_stencil)
+	sg.destroy_view(l.texture)
+	sg.destroy_image(l.msaa)
+	sg.destroy_image(l.image)
+	l^ = {}
 }

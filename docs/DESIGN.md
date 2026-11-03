@@ -262,9 +262,10 @@ light colour carries intensity, so a channel can exceed 1. The host
 multiplies the mesh base colour by the tint and lights the result in linear.
 The tint does not multiply the lit result, so a dielectric's highlight
 keeps the light's colour. A metal's highlight takes its tinted base colour
-through F0. The shader tone maps the result with a fixed ACES fit, so a
-bright channel rolls off towards 1 instead of clipping. Then it encodes the
-result to sRGB for the screen. The tone map has no knob. Decision.
+through F0. The Main pass draws the 3D view in linear HDR. The Post pass
+tone maps it with a fixed ACES fit, so a bright channel rolls off towards 1
+instead of clipping. Then it encodes the result to sRGB and draws the UI
+over it. The tone map has no knob. Decision.
 
 A glow is an `Rgb` that carries intensity, like a light colour. The shader
 adds the mesh emissive and the Draw glow after the lights and before the
@@ -365,8 +366,8 @@ The ambient light adds `ambient * ((1 - metallic) * base + EnvBRDFApprox)`,
 after Karis (2014), so metal keeps its colour in shade. There are no shadows
 and no environment map. A mesh's glTF emissive, and the glow of each Draw,
 add after the lights and before the tone map. A mesh with
-`KHR_materials_unlit` skips the lights and the tone map and draws its base
-colour plus the emissive.
+`KHR_materials_unlit` skips the lights and draws its base colour plus the
+emissive. The tone map still applies to it.
 
 A material's `normalTexture` bends the normal for every light, through the
 tangent frame of each vertex, with the glTF handedness. A part with no
@@ -617,8 +618,8 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   holds the directions nearest +x, with its top row towards +y and its left
   column towards +z; `engine/sky.odin` states the layout. The host draws
   `Scene.sky` as a cube around the camera at the far plane, after every
-  mesh, with no lights and no tone map. Where no mesh and no sky draws, the
-  window shows `Scene.clear`.
+  mesh, with no lights. The tone map applies to it. Where no mesh and no
+  sky draws, the window shows `Scene.clear`.
 - A Sound is a `.wav` or `.ogg` file in `assets/sound/`. Its name is
   `sound/<stem>`. The host decodes it fully at load. If two files share a
   stem, the first in sorted order loads and the host logs once. Sound 0

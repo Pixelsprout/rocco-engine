@@ -12,7 +12,7 @@ screenshot_save :: proc(r: ^Renderer, path: string) -> (size: [2]i32, error: str
 		return size, "no Frame has been drawn yet"
 	}
 	rgba := make([]byte, int(size.x) * int(size.y) * 4, context.temp_allocator)
-	error = platform_read_target(r.target.color, size, rgba)
+	error = platform_read_target(r.target.color.image, size, rgba)
 	if error == "" {
 		error = screenshot_write(path, size, rgba)
 	}

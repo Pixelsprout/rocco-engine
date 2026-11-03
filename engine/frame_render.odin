@@ -28,18 +28,21 @@ FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 #assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
+// The Main pass draws linear HDR colour. The Post pass tone maps it and then
+// draws the UI over the result, so the UI keeps its authored colour.
 Pass :: enum {
 	Shadow,
 	Main,
+	Post,
 }
 
 // Lets tests run without sokol. Each frame begins and ends one Shadow pass
-// per shadow view, then one Main pass. submit_shadow runs only in a Shadow
-// pass, once per Draw. In the Main pass, submit runs once per part of each
-// Draw's mesh. submit_lights runs before any submit,
-// submit_sky runs at most once, after every submit, and submit_ui runs at
-// most once, last. In each pass, the skinned Draws follow the rigid ones, so
-// the renderer changes pipeline once. A nil skin is a rigid Draw.
+// per shadow view, then one Main pass, then one Post pass. submit_shadow runs
+// only in a Shadow pass, once per Draw. In the Main pass, submit runs once
+// per part of each Draw's mesh. submit_lights runs before any submit, and
+// submit_sky runs at most once, after every submit. submit_ui runs at most
+// once, in the Post pass. In each pass, the skinned Draws follow the rigid
+// ones, so the renderer changes pipeline once. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
@@ -192,7 +195,7 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 
 // The fallback ignores the tint and the glow, so an unknown mesh id shows
 // magenta whatever the game asked for. The sky draws last, so the depth test
-// hides it behind every mesh. The UI draws over everything. A nil ui draws
+// hides it behind every mesh. The UI draws after the tone map. A nil ui draws
 // none. With submit false, the Frame still places the Draws and lays out the
 // UI, but submits nothing.
 frame_render_draw :: proc(
@@ -303,6 +306,9 @@ frame_render_draw :: proc(
 	if sky, ok := sky_resolve(skies, curr.sky); ok {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
 	}
+	fr.submits.end_pass(fr.submits.ctx)
+
+	frame_render_begin_pass(fr, .Post, 0, {}, &span)
 	if len(quads) > 0 {
 		fr.submits.submit_ui(fr.submits.ctx, quads, window.size)
 	}

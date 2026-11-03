@@ -58,7 +58,7 @@ Renderer :: struct {
 	ui:                 Ui_Gpu,
 	target:             Render_Target,
 	// Taken when the Main pass begins, where the wait for the drawable is
-	// outside the render Span. The copy pass after it reuses it.
+	// outside the render Span. The copy pass after the Post pass reuses it.
 	swapchain:          sg.Swapchain,
 	pass:               Pass,
 }
@@ -82,7 +82,7 @@ texture_pool_size :: proc(capacity: Capacity) -> i32 {
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
-// the target's colour image has two views.
+// the render target adds its views.
 view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
 }
@@ -128,7 +128,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	desc := sg.Pipeline_Desc {
 		shader = shader,
 		sample_count = sample_count,
-		colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}},
+		colors = {0 = {pixel_format = HDR_COLOR_FORMAT}},
 		depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .GREATER_EQUAL, write_enabled = true},
 		index_type = .UINT16,
 		cull_mode = .BACK,
@@ -169,7 +169,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		{
 			shader = sg.make_shader(sky_shader_desc(sg.query_backend())),
 			sample_count = sample_count,
-			colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}},
+			colors = {0 = {pixel_format = HDR_COLOR_FORMAT}},
 			depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .GREATER_EQUAL},
 			index_type = .UINT16,
 			cull_mode = .NONE,
@@ -249,33 +249,25 @@ shadow_map_make :: proc(size: u32, cascades: int) -> Shadow_Map {
 renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
 	r := (^Renderer)(ctx)
 	r.pass = pass
+	r.applied = {}
 	switch pass {
 	case .Shadow:
 		// sokol discards depth at the end of a pass unless told to store it.
 		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
 		renderer_apply_pipeline(r, r.shadow_pip)
 	case .Main:
-		r.applied = {}
 		r.swapchain = sglue.swapchain()
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height})
-		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.attachments, label = "main"})
+		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
+	case .Post:
+		render_target_begin_post(&r.target)
 	}
 }
 
-// A pass clear skips the shader, so the clear colour is encoded to sRGB here.
+// The clear colour is linear, like a surface, and the Post pass tone maps it.
 main_pass_action :: proc(clear_colour: Rgb) -> sg.Pass_Action {
 	return {
-		colors = {
-			0 = {
-				load_action = .CLEAR,
-				clear_value = {
-					r = linear_to_srgb(clamp(clear_colour.r, 0, 1)),
-					g = linear_to_srgb(clamp(clear_colour.g, 0, 1)),
-					b = linear_to_srgb(clamp(clear_colour.b, 0, 1)),
-					a = 1,
-				},
-			},
-		},
+		colors = {0 = {load_action = .CLEAR, clear_value = {r = max(clear_colour.r, 0), g = max(clear_colour.g, 0), b = max(clear_colour.b, 0), a = 1}}},
 		depth = {load_action = .CLEAR, clear_value = 0},
 	}
 }
@@ -283,7 +275,7 @@ main_pass_action :: proc(clear_colour: Rgb) -> sg.Pass_Action {
 renderer_end_pass :: proc(ctx: rawptr) {
 	r := (^Renderer)(ctx)
 	sg.end_pass()
-	if r.pass == .Main {
+	if r.pass == .Post {
 		render_target_copy(&r.target, r.swapchain)
 	}
 }

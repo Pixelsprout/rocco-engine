@@ -21,7 +21,7 @@ Ui_Gpu :: struct {
 }
 
 // Needs sokol set up. The buffers hold quad_capacity quads. sample_count is
-// the render target's, so the pipeline matches it.
+// the render target's, so the pipeline matches the Post pass.
 ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator: mem.Allocator) -> mem.Allocator_Error {
 	g.scratch = make([]Ui_Vertex, quad_capacity * 4, allocator) or_return
 	indices := make([]u16, quad_capacity * len(UI_QUAD_INDICES), context.temp_allocator) or_return
@@ -63,12 +63,13 @@ ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator
 	)
 	g.checker_view = sg.make_view({texture = {image = g.checker}})
 
-	// The UI draws over the scene, so it ignores depth and blends by alpha.
+	// The UI draws over the tone mapped scene in the Post pass, which has no
+	// depth image, and blends by alpha.
 	g.pip = sg.make_pipeline(
 		{
 			shader = sg.make_shader(ui_shader_desc(sg.query_backend())),
 			sample_count = sample_count,
-			depth = {pixel_format = TARGET_DEPTH_FORMAT, compare = .ALWAYS},
+			depth = {pixel_format = .NONE},
 			colors = {
 				0 = {
 					pixel_format = TARGET_COLOR_FORMAT,
