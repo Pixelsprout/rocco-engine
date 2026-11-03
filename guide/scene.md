@@ -293,6 +293,27 @@ give it.
 environment: { ..Environment.default, tone_map: AgX, exposure: 1.4 }
 ```
 
+## Fog
+
+Fog fades each mesh towards one colour as it gets further from the camera.
+Up to `start` units away a surface draws as it would without fog. From
+there the fog grows in a straight line until, at `end` units and beyond,
+the surface is `amount` of the way to `color`. An `amount` of 1 hides a far
+surface in the fog colour, and the default `amount` of 0 turns fog off.
+
+```roc
+environment: { ..Environment.default, fog: { color: { r: 0.32, g: 0.36, b: 0.45 }, start: 8.0, end: 40.0, amount: 1.0 } }
+```
+
+The distance is measured straight from the camera, so the fog stays put
+when the camera turns on the spot. The fog mixes the whole colour of a
+surface after its lights and its glow, so a far lamp or an unlit sign
+fades too. The sky and the `clear` colour do not fog. Set the fog `color`
+to the colour of the sky at its horizon, or to the `clear` colour when
+there is no sky, so that far meshes melt into what is behind them instead
+of showing as flat shapes against it. The fog colour is linear, like every
+other colour, and goes through the tone map with the rest of the 3D view.
+
 ## Defaults to start from
 
 The platform gives a default record for each large record. Start from it
@@ -301,7 +322,7 @@ with a record update, and set only the fields that you need.
 | Record | Default | Use |
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
-| Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky` or `tone_map`. |
+| Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky`, `tone_map` or `fog`. |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
