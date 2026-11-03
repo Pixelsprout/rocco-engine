@@ -56,6 +56,12 @@ saves a "-glow-right" screenshot and checks the reverse. A panel with no
 normal map, or with its tangents turned round, fails one of the two. Then it
 taps T twice, saving a screenshot under each tone map, and checks that each
 pair of tone maps changes many more pixels than one step of the spark does.
+Last it taps T back to Aces and saves a "-glow-bloom" screenshot, taps B for
+a "-glow-no-bloom" one and taps B again for a "-glow-bloom-again" one. The
+spark moves at each step, so the mean of the two bloom shots stands for the
+bloom at the step of the shot without it. A ring of pixels around the window
+must be much brighter with bloom than without it, and than one step of the
+spark changes it.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
@@ -158,6 +164,15 @@ HALF_TURN_STEPS = 2 * 120
 # change must change this many times as many as one step does.
 TONE_MAPS = ["Aces", "AgX", "Neutral"]
 MIN_TONE_MAP_RATIO = 10
+# examples/glow/main.roc: the window's Draw id. B turns the bloom on and off.
+# The ring runs from RING_INNER to RING_OUTER logical pixels outside the
+# window's face, clear of the panel on its left. Its mean brightness, from 0
+# to 255, rises by about 45 with the bloom at 960 by 540 on a Retina Mac.
+WINDOW_ID = 3
+RING_INNER = 3
+RING_OUTER = 12
+MIN_RING_GAIN = 5
+MIN_BLOOM_RATIO = 10
 # examples/glow/source/make_panel.py: the panel's face is 0.02 in front of its
 # Draw pos. Each rib has a cosine profile, so its steepest lines are a quarter
 # of its width each side of its crest. The samples stay near those lines and
@@ -635,6 +650,7 @@ def drive_glow(b, out):
     b.screenshot(right_out)
     check_ribs(right_out, scene["camera"], centre, "right")
     check_tone_maps(b, stem, ext, right_out)
+    check_bloom(b, stem, ext, scene["camera"], draws[WINDOW_ID])
 
     b.quit()
 
@@ -654,6 +670,52 @@ def check_tone_maps(b, stem, ext, last_out):
     for a, c in itertools.combinations(TONE_MAPS, 2):
         changed = bridge.png_changed_pixels(shots[a], shots[c])
         check(changed > least, f"{a} and {c} differ in {changed} pixels, and one step changes {step_changed}")
+
+
+# The pixel box of the front face of a box Draw with no rotation, as
+# (left, top, right, bottom).
+def face_box(camera, draw, size):
+    pos, scale = draw["pos"], draw["scale"]
+    corners = [project(camera, {"x": pos["x"] + sx * scale["x"] / 2, "y": pos["y"] + sy * scale["y"] / 2, "z": pos["z"] + scale["z"] / 2}, size) for sx in (-1, 1) for sy in (-1, 1)]
+    return min(x for x, _ in corners), min(y for _, y in corners), max(x for x, _ in corners), max(y for _, y in corners)
+
+
+# The mean brightness of the pixels from inner to outer pixels outside box.
+def ring_brightness(path, box, inner, outer):
+    with open(path, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+    left, top, right, bottom = box
+    total = count = 0
+    for y in range(max(top - outer, 0), min(bottom + outer, height)):
+        for x in range(max(left - outer, 0), min(right + outer, width)):
+            if left - inner <= x < right + inner and top - inner <= y < bottom + inner:
+                continue
+            i = (y * width + x) * 4
+            total += 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]
+            count += 1
+    return total / count
+
+
+def check_bloom(b, stem, ext, camera, window):
+    b.step(1, tap=["T"])
+    environment = b.scene()["scene"]["environment"]
+    check(environment["tone_map"] == "Aces", f"a third tap of T sets the tone map back to Aces: {environment['tone_map']}")
+    check(environment["bloom"]["strength"] > 0, f"glow starts with bloom: {environment['bloom']}")
+    shots = [f"{stem}-glow-bloom{ext}", f"{stem}-glow-no-bloom{ext}", f"{stem}-glow-bloom-again{ext}"]
+    b.screenshot(shots[0])
+    for tap, path in enumerate(shots[1:], start=1):
+        b.step(1, tap=["B"])
+        strength = b.scene()["scene"]["environment"]["bloom"]["strength"]
+        check((strength > 0) == (tap == 2), f"tap {tap} of B sets the bloom strength to {strength}")
+        b.screenshot(path)
+    size = bridge.png_size(shots[0])
+    scale = size[0] // WINDOW[0]
+    box = face_box(camera, window, size)
+    bloom, none, again = [ring_brightness(path, box, RING_INNER * scale, RING_OUTER * scale) for path in shots]
+    gain = (bloom + again) / 2 - none
+    step_change = abs(again - bloom) / 2
+    least = max(MIN_RING_GAIN, MIN_BLOOM_RATIO * step_change)
+    check(gain > least, f"the ring around the window is {gain:.2f} brighter with bloom, and one step changes it by {step_change:.2f}")
 
 
 def ui_strings(elements):
