@@ -754,6 +754,119 @@ test_glb_rejects_a_metallic_roughness_texture_index_out_of_range :: proc(t: ^tes
 }
 
 @(test)
+test_glb_reads_the_normal_texture_as_linear_with_its_scale :: proc(t: ^testing.T) {
+	material := `{"normalTexture":{"index":0,"scale":0.5}}`
+	data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {128, 64, 255}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	part := data.parts[0]
+	testing.expect(t, part.texture == nil)
+	testing.expect(t, part.occlusion == nil)
+	tex, ok := part_texture(data, part.normal).?
+	testing.expect(t, ok)
+	testing.expect(t, !tex.srgb)
+	want := [4]byte{128, 64, 255, 255}
+	for b, i in tex.levels[0].pixels {
+		testing.expect_value(t, b, want[i])
+	}
+	testing.expect_value(t, part.material.normal_scale, f32(0.5))
+	testing.expect_value(t, part.material.occlusion_strength, f32(0))
+}
+
+@(test)
+test_glb_reads_the_occlusion_texture_as_linear_with_its_strength :: proc(t: ^testing.T) {
+	material := `{"occlusionTexture":{"index":0,"strength":0.25}}`
+	data, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {90, 0, 0}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	part := data.parts[0]
+	testing.expect(t, part.normal == nil)
+	tex, ok := part_texture(data, part.occlusion).?
+	testing.expect(t, ok)
+	testing.expect(t, !tex.srgb)
+	testing.expect_value(t, tex.levels[0].pixels[0], 90)
+	testing.expect_value(t, part.material.occlusion_strength, f32(0.25))
+	testing.expect_value(t, part.material.normal_scale, f32(0))
+}
+
+@(test)
+test_glb_gives_a_normal_scale_and_an_occlusion_strength_of_1_by_default :: proc(t: ^testing.T) {
+	material := `{"normalTexture":{"index":0},"occlusionTexture":{"index":0}}`
+	data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {128, 128, 255}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, data.parts[0].material.normal_scale, f32(1))
+	testing.expect_value(t, data.parts[0].material.occlusion_strength, f32(1))
+}
+
+@(test)
+test_glb_clamps_the_occlusion_strength :: proc(t: ^testing.T) {
+	strengths := [2]f32{-1, 3}
+	wants := [2]f32{0, 1}
+	for strength, i in strengths {
+		material := fmt.tprintf(`{{"occlusionTexture":{{"index":0,"strength":%v}}}}`, strength)
+		data, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+		testing.expect_value(t, err, Glb_Error.None)
+		testing.expect_value(t, data.parts[0].material.occlusion_strength, wants[i])
+	}
+}
+
+// The flat normal image gives the vertex normal exactly only with a scale of 0.
+@(test)
+test_glb_gives_a_normal_map_that_cannot_draw_a_scale_of_0 :: proc(t: ^testing.T) {
+	material := `{"normalTexture":{"index":0,"scale":2},"occlusionTexture":{"index":0,"strength":0.5}}`
+	glb := textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), image = `{"bufferView":6,"mimeType":"image/jpeg"}`, material = material)
+	data, notes, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect(t, .Jpeg_Skipped in notes)
+	testing.expect(t, data.parts[0].normal == nil)
+	testing.expect(t, data.parts[0].occlusion == nil)
+	testing.expect_value(t, data.parts[0].material.normal_scale, f32(0))
+	testing.expect_value(t, data.parts[0].material.occlusion_strength, f32(0))
+}
+
+@(test)
+test_glb_rejects_a_normal_or_occlusion_texture_index_out_of_range :: proc(t: ^testing.T) {
+	for material in ([]string{`{"normalTexture":{"index":3}}`, `{"occlusionTexture":{"index":3}}`}) {
+		_, _, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+		testing.expect_value(t, err, Glb_Error.Bad_Texture)
+	}
+}
+
+// An ORM image holds occlusion in R and metallic-roughness in G and B. Both
+// slots are linear, so they share one texture.
+@(test)
+test_glb_decodes_a_packed_orm_texture_once :: proc(t: ^testing.T) {
+	material := `{"pbrMetallicRoughness":{"metallicRoughnessTexture":{"index":0}},"occlusionTexture":{"index":0}}`
+	data, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {200, 120, 0}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect_value(t, len(data.textures), 1)
+	testing.expect_value(t, data.parts[0].occlusion, Maybe(int)(0))
+	testing.expect_value(t, data.parts[0].metallic_roughness, Maybe(int)(0))
+}
+
+@(test)
+test_glb_notes_a_second_uv_set_on_any_texture_and_still_loads :: proc(t: ^testing.T) {
+	materials := []string {
+		`{"pbrMetallicRoughness":{"baseColorTexture":{"index":0,"texCoord":1}}}`,
+		`{"pbrMetallicRoughness":{"metallicRoughnessTexture":{"index":0,"texCoord":1}}}`,
+		`{"normalTexture":{"index":0,"texCoord":1}}`,
+		`{"occlusionTexture":{"index":0,"texCoord":1}}`,
+		`{"emissiveTexture":{"index":0,"texCoord":1}}`,
+	}
+	for material in materials {
+		data, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+		testing.expectf(t, err == .None, "%v: %v", material, err)
+		testing.expectf(t, .Second_Uv_Ignored in notes, "%v: %v", material, notes)
+		testing.expect_value(t, len(data.textures), 1)
+	}
+
+	material := `{"pbrMetallicRoughness":{"baseColorTexture":{"index":0,"texCoord":0}}}`
+	_, notes, err := glb_parse(textured_glb(png_make(1, 1, PNG_RGB, {1, 2, 3}), material = material), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+}
+
+@(test)
 test_glb_gives_each_material_a_part_with_its_range_and_factors :: proc(t: ^testing.T) {
 	materials := `"materials":[
 		{"pbrMetallicRoughness":{"roughnessFactor":0.2,"metallicFactor":0}},
@@ -925,4 +1038,45 @@ test_glb_keeps_the_first_textures_up_to_the_limit_and_notes_the_rest :: proc(t: 
 	testing.expect_value(t, len(data.parts), MESH_TEXTURE_LIMIT + 1)
 	testing.expect_value(t, data.parts[MESH_TEXTURE_LIMIT - 1].texture, Maybe(int)(MESH_TEXTURE_LIMIT - 1))
 	testing.expect(t, data.parts[MESH_TEXTURE_LIMIT].texture == nil)
+}
+
+// Each material names its own normal and occlusion images, so the ninth
+// material's two textures are past the limit.
+@(test)
+test_glb_counts_normal_and_occlusion_textures_against_the_limit :: proc(t: ^testing.T) {
+	MATERIALS :: MESH_TEXTURE_LIMIT / 2 + 1
+	primitives := strings.builder_make(context.temp_allocator)
+	materials := strings.builder_make(context.temp_allocator)
+	textures := strings.builder_make(context.temp_allocator)
+	images := strings.builder_make(context.temp_allocator)
+	for i in 0 ..< MATERIALS {
+		if i > 0 {
+			fmt.sbprintf(&primitives, `,{{"attributes":{{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5}},"indices":2,"material":%v}}`, i)
+			strings.write_string(&materials, ",")
+			strings.write_string(&textures, ",")
+			strings.write_string(&images, ",")
+		}
+		fmt.sbprintf(&materials, `{{"normalTexture":{{"index":%v}},"occlusionTexture":{{"index":%v}}}}`, 2 * i, 2 * i + 1)
+		fmt.sbprintf(&textures, `{{"source":%v}},{{"source":%v}}`, 2 * i, 2 * i + 1)
+		strings.write_string(&images, `{"bufferView":6,"mimeType":"image/png"},{"bufferView":6,"mimeType":"image/png"}`)
+	}
+	glb := textured_glb(
+		png_make(1, 1, PNG_RGB, {128, 128, 255}),
+		image = strings.to_string(images),
+		texture = strings.to_string(textures),
+		second = strings.to_string(primitives),
+		material = strings.to_string(materials),
+	)
+	data, notes, err := glb_parse(glb, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect(t, .Too_Many_Textures in notes)
+	testing.expect_value(t, len(data.textures), MESH_TEXTURE_LIMIT)
+	testing.expect_value(t, len(data.parts), MATERIALS)
+	last := data.parts[MATERIALS - 2]
+	testing.expect_value(t, last.normal, Maybe(int)(MESH_TEXTURE_LIMIT - 2))
+	testing.expect_value(t, last.occlusion, Maybe(int)(MESH_TEXTURE_LIMIT - 1))
+	past := data.parts[MATERIALS - 1]
+	testing.expect(t, past.normal == nil)
+	testing.expect(t, past.occlusion == nil)
+	testing.expect_value(t, past.material.normal_scale, f32(0))
 }

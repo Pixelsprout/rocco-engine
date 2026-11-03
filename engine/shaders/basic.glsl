@@ -80,6 +80,7 @@ void main() {
 // vec4 so every member is 16 bytes and flattens cleanly for GL. material is
 // roughness, metallic, unlit (0 or 1) and a spare. emissive is the mesh
 // emissive, linear, with w spare. glow is the Draw glow, linear, with w spare.
+// maps is the normal scale and the occlusion strength, with zw spare.
 // The host picks this Draw's lights: the Sun in slot 0, the other
 // Directionals, then the nearest Point lights in range. The array size is
 // MAX_LIGHTS in engine/frame_render.odin. An unused slot has a zero colour.
@@ -92,6 +93,7 @@ layout(binding = 1) uniform fs_params {
     vec4 material;
     vec4 emissive;
     vec4 glow;
+    vec4 maps;
     vec4 light_pos[8];
     vec4 light_color[8];
 };
@@ -113,8 +115,10 @@ layout(binding = 2) uniform fs_lights {
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
 // linear data: G is roughness and B is metallic, as glTF puts them.
-// emissive_tex is SRGB8A8, so a sample is linear. A mesh without a texture
-// binds a white texel.
+// emissive_tex is SRGB8A8, so a sample is linear. normal_tex is a linear
+// tangent-space normal, +y up the image. occlusion_tex is linear, with the
+// occlusion in R. A mesh without a texture binds a white texel, or a flat
+// normal for normal_tex.
 layout(binding = 0) uniform texture2D base_tex;
 layout(binding = 0) uniform sampler base_smp;
 layout(binding = 1) uniform texture2D metallic_roughness_tex;
@@ -124,6 +128,10 @@ layout(binding = 2) uniform texture2DArray shadow_tex;
 layout(binding = 2) uniform sampler shadow_smp;
 layout(binding = 3) uniform texture2D emissive_tex;
 layout(binding = 3) uniform sampler emissive_smp;
+layout(binding = 4) uniform texture2D normal_tex;
+layout(binding = 4) uniform sampler normal_smp;
+layout(binding = 5) uniform texture2D occlusion_tex;
+layout(binding = 5) uniform sampler occlusion_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -251,6 +259,17 @@ float sun_visibility(vec3 n) {
     return mix(here, next == cascade ? 1.0 : there, blend);
 }
 
+// The normal map's normal in world space. The tangent is made at right
+// angles to the vertex normal, and its w gives the bitangent's side.
+vec3 surface_normal() {
+    vec3 ng = safe_normalize(v_nrm);
+    vec3 t = safe_normalize(v_tng.xyz - ng * dot(ng, v_tng.xyz));
+    vec3 b = cross(ng, t) * v_tng.w;
+    vec3 m = texture(sampler2D(normal_tex, normal_smp), v_uv).xyz * 2.0 - 1.0;
+    m.xy *= maps.x;
+    return safe_normalize(t * m.x + b * m.y + ng * m.z);
+}
+
 void main() {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
     vec3 albedo = base.rgb * tint.rgb;
@@ -268,17 +287,20 @@ void main() {
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
     vec3 diffuse_color = (1.0 - metallic) * albedo;
 
-    vec3 n = safe_normalize(v_nrm);
+    vec3 n = surface_normal();
     vec3 v = safe_normalize(camera_pos.xyz - v_world);
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
 
-    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v));
+    float ao = texture(sampler2D(occlusion_tex, occlusion_smp), v_uv).r;
+    float occlusion = mix(1.0, ao, maps.y);
+    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * occlusion;
     int sun = shadow.x > 0.0 ? int(shadow.y) : -1;
     for (int i = 0; i < 8; i++) {
         vec3 l = light_pos[i].xyz;
         float attenuation = 1.0;
         if (i == sun) {
-            attenuation = sun_visibility(n);
+            // The offset follows the surface, not the bumps of the normal map.
+            attenuation = sun_visibility(safe_normalize(v_nrm));
         } else if (light_pos[i].w != 0.0) {
             vec3 to_light = l - v_world;
             float d2 = dot(to_light, to_light);

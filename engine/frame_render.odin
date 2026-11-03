@@ -296,6 +296,7 @@ frame_render_draw :: proc(
 			e := material.emissive
 			params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, 0}
 			params.emissive = {e.x, e.y, e.z, 0}
+			params.maps = {material.normal_scale, material.occlusion_strength, 0, 0}
 			fr.submits.submit(fr.submits.ctx, p.mesh, &part, vs_params, params, p.skin)
 		}
 	}

@@ -117,15 +117,20 @@ Vertex :: struct {
 }
 
 // unlit draws the base colour plus the emissive, with no lights and no tone
-// map. emissive is linear and can exceed 1.
+// map. emissive is linear and can exceed 1. normal_scale and
+// occlusion_strength are 0 for a part without that map, so the flat normal
+// image gives the vertex normal exactly.
 Material :: struct {
-	roughness: f32,
-	metallic:  f32,
-	unlit:     bool,
-	emissive:  [3]f32,
+	roughness:          f32,
+	metallic:           f32,
+	unlit:              bool,
+	emissive:           [3]f32,
+	normal_scale:       f32,
+	occlusion_strength: f32,
 }
 
-// A zero id means the part has no texture and binds the white image.
+// A zero id means the part has no texture and binds the white image, or the
+// flat normal image for a normal map.
 Mesh_Texture :: struct {
 	image:   sg.Image,
 	view:    sg.View,
@@ -141,6 +146,13 @@ Mesh_Part :: struct {
 	texture:            Mesh_Texture,
 	metallic_roughness: Mesh_Texture,
 	emissive:           Mesh_Texture,
+	normal:             Mesh_Texture,
+	occlusion:          Mesh_Texture,
+}
+
+// The textures a part binds, with each missing one filled in.
+Mesh_Part_Textures :: struct {
+	base, metallic_roughness, emissive, normal, occlusion: Mesh_Texture,
 }
 
 // An axis-aligned box in the mesh's own space, around every vertex.
@@ -193,7 +205,8 @@ Mesh_Data :: struct {
 	skin:       Skin,
 }
 
-// Each texture is an index into Mesh_Data.textures. nil binds white.
+// Each texture is an index into Mesh_Data.textures. nil binds white, or the
+// flat normal image for normal.
 Mesh_Data_Part :: struct {
 	first:              int,
 	count:              int,
@@ -201,6 +214,8 @@ Mesh_Data_Part :: struct {
 	texture:            Maybe(int),
 	metallic_roughness: Maybe(int),
 	emissive:           Maybe(int),
+	normal:             Maybe(int),
+	occlusion:          Maybe(int),
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -349,6 +364,8 @@ mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 		part.texture = mesh_texture_at(m.textures, data_part.texture)
 		part.metallic_roughness = mesh_texture_at(m.textures, data_part.metallic_roughness)
 		part.emissive = mesh_texture_at(m.textures, data_part.emissive)
+		part.normal = mesh_texture_at(m.textures, data_part.normal)
+		part.occlusion = mesh_texture_at(m.textures, data_part.occlusion)
 	}
 	mesh_data_delete(t, m.data)
 	m.data = {}
@@ -430,12 +447,19 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 	)
 }
 
-// White leaves the base colour as it is and the material factors at their values.
-mesh_part_textures :: proc(part: ^Mesh_Part, white: Mesh_Texture) -> (base, metallic_roughness, emissive: Mesh_Texture) {
-	base = part.texture if part.texture.image.id != 0 else white
-	metallic_roughness = part.metallic_roughness if part.metallic_roughness.image.id != 0 else white
-	emissive = part.emissive if part.emissive.image.id != 0 else white
-	return
+// White leaves the base colour as it is, the material factors at their
+// values and the ambient without occlusion.
+mesh_part_textures :: proc(part: ^Mesh_Part, white, flat_normal: Mesh_Texture) -> Mesh_Part_Textures {
+	pick :: proc(tex, missing: Mesh_Texture) -> Mesh_Texture {
+		return tex if tex.image.id != 0 else missing
+	}
+	return {
+		base = pick(part.texture, white),
+		metallic_roughness = pick(part.metallic_roughness, white),
+		emissive = pick(part.emissive, white),
+		normal = pick(part.normal, flat_normal),
+		occlusion = pick(part.occlusion, white),
+	}
 }
 
 // A mesh with no lit part needs no lights.

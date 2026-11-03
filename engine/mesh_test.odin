@@ -227,22 +227,31 @@ test_every_primitive_tangent_follows_its_uvs :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_a_part_without_a_texture_binds_the_white_image :: proc(t: ^testing.T) {
+test_a_part_without_a_texture_binds_the_white_or_the_flat_normal_image :: proc(t: ^testing.T) {
 	white := Mesh_Texture{image = {id = 1}, view = {id = 2}, sampler = {id = 3}}
+	flat_normal := Mesh_Texture{image = {id = 13}, view = {id = 14}, sampler = {id = 15}}
 	plain := Mesh_Part{}
-	base, mr, emissive := mesh_part_textures(&plain, white)
-	testing.expect_value(t, base, white)
-	testing.expect_value(t, mr, white)
-	testing.expect_value(t, emissive, white)
+	got := mesh_part_textures(&plain, white, flat_normal)
+	testing.expect_value(t, got, Mesh_Part_Textures{base = white, metallic_roughness = white, emissive = white, normal = flat_normal, occlusion = white})
 	textured := Mesh_Part {
 		texture            = {image = {id = 7}, view = {id = 8}, sampler = {id = 9}},
 		metallic_roughness = {image = {id = 4}, view = {id = 5}, sampler = {id = 6}},
 		emissive           = {image = {id = 10}, view = {id = 11}, sampler = {id = 12}},
+		normal             = {image = {id = 16}, view = {id = 17}, sampler = {id = 18}},
+		occlusion          = {image = {id = 19}, view = {id = 20}, sampler = {id = 21}},
 	}
-	base, mr, emissive = mesh_part_textures(&textured, white)
-	testing.expect_value(t, base, textured.texture)
-	testing.expect_value(t, mr, textured.metallic_roughness)
-	testing.expect_value(t, emissive, textured.emissive)
+	got = mesh_part_textures(&textured, white, flat_normal)
+	testing.expect_value(
+		t,
+		got,
+		Mesh_Part_Textures {
+			base = textured.texture,
+			metallic_roughness = textured.metallic_roughness,
+			emissive = textured.emissive,
+			normal = textured.normal,
+			occlusion = textured.occlusion,
+		},
+	)
 }
 
 @(test)

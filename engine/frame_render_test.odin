@@ -25,6 +25,7 @@ Submitted :: struct {
 	material:     [4]f32,
 	emissive:     [4]f32,
 	glow:         [4]f32,
+	maps:         [4]f32,
 	light_pos:    [MAX_LIGHTS][4]f32,
 	light_color:  [MAX_LIGHTS][4]f32,
 	skinned:      bool,
@@ -196,6 +197,7 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_
 			material = fs_params.material,
 			emissive = fs_params.emissive,
 			glow = fs_params.glow,
+			maps = fs_params.maps,
 			light_pos = fs_params.light_pos,
 			light_color = fs_params.light_color,
 			skinned = skin != nil,
@@ -873,6 +875,20 @@ test_frame_render_submits_the_emissive_of_each_mesh :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(got), 2)
 	testing.expect_value(t, got[0].emissive, [4]f32{0, 0, 0, 0})
 	testing.expect_value(t, got[1].emissive, [4]f32{4, 2, 0, 0})
+}
+
+@(test)
+test_frame_render_submits_the_normal_scale_and_occlusion_strength_of_each_mesh :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	panel, _ := mesh_table_add(&f.meshes, strings.clone("panel"), mesh_data_of({roughness = 1, normal_scale = 0.5, occlusion_strength = 0.75}))
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Sphere)}, {id = 2, mesh = mesh_id(&f.meshes, panel)}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+	testing.expect_value(t, len(got), 2)
+	testing.expect_value(t, got[0].maps, [4]f32{0, 0, 0, 0})
+	testing.expect_value(t, got[1].maps, [4]f32{0.5, 0.75, 0, 0})
 }
 
 @(test)
