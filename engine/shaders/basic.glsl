@@ -1,6 +1,6 @@
 // basic: a metallic-roughness BRDF under the Scene's lights, plus the
 // emissive, in linear HDR. An unlit mesh draws its base colour plus the
-// emissive, with no lights.
+// emissive, with no lights. Either result then mixes towards the fog colour.
 // skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
@@ -107,12 +107,16 @@ layout(binding = 1) uniform fs_params {
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
 // cascade 0. With one cascade, cascade_far and view_dir are zero. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
+// fog_color is linear, with w spare. fog is the fog start, 1 / (end - start),
+// the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
     vec4 shadow;
     vec4 cascade_far;
     vec4 view_dir;
+    vec4 fog_color;
+    vec4 fog;
     mat4 light_view_proj[4];
 };
 
@@ -244,6 +248,14 @@ float sun_visibility(vec3 n) {
     return mix(here, next == cascade ? 1.0 : there, blend);
 }
 
+// Linear in the distance from the camera, so the fog does not change as the
+// camera turns in place.
+vec3 apply_fog(vec3 color) {
+    float d = length(v_world - camera_pos.xyz);
+    float factor = fog.z * clamp((d - fog.x) * fog.y, 0.0, 1.0);
+    return mix(color, fog_color.rgb, factor);
+}
+
 // The normal map's normal in world space. The tangent is made at right
 // angles to the vertex normal, and its w gives the bitangent's side.
 vec3 surface_normal() {
@@ -261,7 +273,7 @@ void main() {
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
     vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        frag_color = vec4(albedo + emitted, base.a);
+        frag_color = vec4(apply_fog(albedo + emitted), base.a);
         return;
     }
 
@@ -307,7 +319,7 @@ void main() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    frag_color = vec4(color + emitted, base.a);
+    frag_color = vec4(apply_fog(color + emitted), base.a);
 }
 @end
 

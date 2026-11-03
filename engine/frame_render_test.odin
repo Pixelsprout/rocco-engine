@@ -15,7 +15,9 @@ SMALL_DRAWS :: 8
 // Above the Group count of every fixture Scene except the capacity tests.
 SMALL_GROUPS :: 4
 
-// joints holds the first skin matrices of a skinned Draw, as they were at the submit.
+// joints holds the first skin matrices of a skinned Draw, as they were at the
+// submit. fog_color and fog are the fog of the lights block the submit drew
+// under, as the renderer applies that block to both mesh pipelines.
 Submitted :: struct {
 	mesh:         ^Mesh,
 	part:         ^Mesh_Part,
@@ -30,6 +32,8 @@ Submitted :: struct {
 	light_color:  [MAX_LIGHTS][4]f32,
 	skinned:      bool,
 	joints:       [2]Mat4,
+	fog_color:    [4]f32,
+	fog:          [4]f32,
 }
 
 // main_before is the number of main pass submits before this shadow submit.
@@ -207,6 +211,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_
 			light_color = fs_params.light_color,
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
+			fog_color = r.lights.fog_color,
+			fog = r.lights.fog,
 		},
 	)
 }
@@ -1101,6 +1107,101 @@ test_frame_render_clamps_the_environment_with_no_submit :: proc(t: ^testing.T) {
 	frame_render_draw(&f.fr, s, s, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
 	testing.expect_value(t, len(f.rec.passes), 0)
 	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Fog_Range})
+}
+
+@(test)
+test_frame_render_sends_a_zero_fog_for_a_fog_amount_of_0 :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	cube := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY}}
+	for fog in ([]Fog{ENVIRONMENT_DEFAULT.fog, {color = {r = 1}, start = 4, end = 2, amount = 0}, {start = math.nan_f32(), end = 2, amount = 0}}) {
+		s := scene_of(cube)
+		s.environment.fog = fog
+		got := frame_fixture_draw(&f, s, s, 0)
+		testing.expect_value(t, f.rec.lights.fog, [4]f32{})
+		testing.expect_value(t, got[0].fog, [4]f32{})
+	}
+}
+
+@(test)
+test_frame_render_sends_the_fog_of_the_current_scene :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := scene_of({})
+	curr := scene_of({})
+	curr.environment.fog = {color = {r = 0.2, g = 0.3, b = 0.4}, start = 10, end = 50, amount = 0.8}
+	frame_fixture_draw(&f, prev, curr, 0.5)
+
+	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 0})
+	testing.expect_value(t, f.rec.lights.fog, [4]f32{10, 1.0 / 40, 0.8, 0})
+}
+
+@(test)
+test_frame_render_sends_the_clamped_fog :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.fog = {start = 5, end = 3, amount = 2}
+	frame_fixture_draw(&f, s, s, 0)
+
+	testing.expect_value(t, f.rec.lights.fog, [4]f32{5, 1 / ((5 + FOG_MIN_SPAN) - 5), 1, 0})
+	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Fog_Amount, .Fog_Range})
+}
+
+@(test)
+test_frame_render_gives_rigid_unlit_and_skinned_draws_the_fog :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := frame_fixture_skinned(&f)
+	f.meshes.meshes[Primitive.Plane].parts[0].material.unlit = true
+
+	draws := []Draw {
+		{id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = u32(Primitive.Plane), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	s := scene_of(draws)
+	s.environment.fog = {color = {b = 1}, start = 0, end = 4, amount = 1}
+	got := frame_fixture_draw(&f, s, s, 0)
+
+	testing.expect_value(t, len(got), 3)
+	testing.expect(t, got[2].skinned)
+	testing.expect_value(t, got[1].material.z, 1)
+	for g, i in got {
+		testing.expectf(t, g.fog_color == {0, 0, 1, 0}, "submit %v: fog_color is %v", i, g.fog_color)
+		testing.expectf(t, g.fog == {0, 0.25, 1, 0}, "submit %v: fog is %v", i, g.fog)
+	}
+}
+
+@(test)
+test_frame_render_sends_the_same_fog_and_eye_when_the_camera_turns_in_place :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.fog = {color = {g = 1}, start = 2, end = 6, amount = 0.5}
+	eye := [3]f32{1, 2, 3}
+	sent: [2]Fs_Lights
+	for target, i in ([2][3]f32{eye + {0, 0, -1}, eye + {1, 0, 0}}) {
+		view := Frame_View {
+			view_proj = 1,
+			camera = {eye = eye, target = target, up = UP, fov_y = 1.047},
+			aspect = 16.0 / 9,
+		}
+		frame_render_draw(&f.fr, s, s, 0, view, &f.meshes, &f.skies, nil, nil, f.window)
+		sent[i] = f.rec.lights
+	}
+	testing.expect_value(t, sent[0].fog, sent[1].fog)
+	testing.expect_value(t, sent[0].fog_color, sent[1].fog_color)
+	testing.expect_value(t, sent[0].camera_pos, sent[1].camera_pos)
 }
 
 @(test)

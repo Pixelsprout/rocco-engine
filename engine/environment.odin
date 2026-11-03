@@ -48,6 +48,15 @@ environment_clamp :: proc(env: Environment, logged: ^bit_set[Environment_Clamp])
 	return e
 }
 
+// The fog uniforms of the mesh shader, from a clamped Fog. The clamp skips
+// the range of fog with amount 0, so that fog sends zeros and never divides.
+fog_uniform :: proc(fog: Fog) -> (color, ramp: [4]f32) {
+	if fog.amount == 0 {
+		return {}, {}
+	}
+	return {fog.color.r, fog.color.g, fog.color.b, 0}, {fog.start, 1 / (fog.end - fog.start), fog.amount, 0}
+}
+
 @(private = "file")
 bloom_number :: proc(logged: ^bit_set[Environment_Clamp], which: Environment_Clamp, name: string, n: f32) -> f32 {
 	if n >= 0 {
