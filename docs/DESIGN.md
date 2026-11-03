@@ -368,6 +368,15 @@ add after the lights and before the tone map. A mesh with
 `KHR_materials_unlit` skips the lights and the tone map and draws its base
 colour plus the emissive.
 
+A material's `normalTexture` bends the normal for every light, through the
+tangent frame of each vertex, with the glTF handedness. A part with no
+normal map binds a flat 1 x 1 normal image, so the shader has no branch. The
+Sun's shadow lookup keeps the vertex normal. The red of `occlusionTexture`
+multiplies the ambient line, diffuse and specular, by `mix(1, ao,
+strength)`; direct light does not change. The loader reads `TANGENT`. A
+normal-mapped primitive with no `TANGENT` gets Lengyel tangents and the note
+`Generated_Tangents`. ADR 0025 records the tangent decision.
+
 The host takes the first ambient, in the depth-first, pre-order walk of the
 tree. A Scene may hold any number of directional and point lights. Each Draw
 gets at most 8 of them: the Sun in slot 0, the other directionals in walk

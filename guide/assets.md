@@ -166,6 +166,8 @@ nodes and export settings that make it.
 - The material is glTF metallic-roughness. Each material keeps its own
   base colour, metallic and roughness factors, and its own base colour and
   metallic-roughness textures.
+- Each material's normal map and occlusion map draw. See
+  [Normal and occlusion maps](#normal-and-occlusion-maps).
 - Each material's emissive draws: `emissiveFactor`, `emissiveTexture` and
   `KHR_materials_emissive_strength`. An emissive surface lights nothing
   else.
@@ -186,14 +188,56 @@ nodes and export settings that make it.
   image, and the host loads the textures that name the same image and
   sampler as one. A texture used as a metallic-roughness map and also as a
   base colour or emissive map counts twice, because the two read their
-  colours differently. A texture that cannot draw, such as a JPEG, does
-  not count. A file with more still loads: the textures past the first 16
+  colours differently. Normal and occlusion maps read their colours as
+  metallic-roughness maps do, so a packed image that a material names as
+  both its occlusion and its metallic-roughness texture counts once. A
+  texture that cannot draw, such as a JPEG, does not count. A file with
+  more still loads: the textures past the first 16
   do not draw, and the host logs a line that ends in "the textures past
   the first 16 do not draw". The host keeps room for 16 textures in every
   mesh slot, about a third of a megabyte for the 64 mesh slots of the
   default Capacity.
 - A file with a Skin loads as one skinned mesh. See
   [Skinned meshes](#skinned-meshes).
+
+### Normal and occlusion maps
+
+A normal map adds detail that the mesh does not model, such as ribs,
+seams and dents. An occlusion map darkens the creases that the light from
+the sky and the room cannot reach. The glow example's panel has both, and
+`examples/glow/source/make_panel.py` shows how to make them from one
+height field.
+
+- `normalTexture` is a tangent-space normal map, as glTF defines it. Its
+  `scale` multiplies the red and green of the map, so 0 draws the mesh's
+  own normals and a value above 1 makes the detail steeper. It is 1 when
+  the file does not give it.
+- `occlusionTexture` reads the red channel. Its `strength` mixes from no
+  occlusion at 0 to the full map at 1, and it is 1 when the file does not
+  give it. The host clamps it to 0 to 1. The occlusion darkens only the
+  ambient light, both its diffuse and its specular part. Direct light from
+  the Sun, the other Directionals and the Point lights stays as it is.
+- glTF lets one image carry occlusion in red, roughness in green and
+  metallic in blue. Name it as both the `occlusionTexture` and the
+  `metallicRoughnessTexture`, and the host decodes it once.
+- Every texture reads the first UV set, `TEXCOORD_0`. A texture that names
+  another `texCoord` still draws, with the first UV set, and the host logs
+  a line that ends in "a texture names a texCoord other than 0, so it
+  draws with the first UV set".
+
+A normal map is baked against the mesh's tangents, the directions in which
+u and v grow across each face. The host draws it right only with the same
+tangents. Export them with the mesh: in Blender, tick Data > Mesh >
+Tangents in the glTF export. Blender bakes normal maps in MikkTSpace, and
+this writes those tangents as `TANGENT`.
+
+If a normal-mapped primitive has no `TANGENT`, the host makes its own
+tangents from the UVs and logs a line that ends in "a normal-mapped
+primitive has no TANGENT, so the host makes tangents that may not match
+the baker; export tangents". They match the bake on flat faces. On curved
+faces, UV seams and mirrored UVs they can differ, and the light shows
+creases that the bake did not have. A primitive with no normal map needs
+no tangents, and logs nothing.
 
 ### Skinned meshes
 

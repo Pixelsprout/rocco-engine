@@ -45,15 +45,21 @@ outside it, and checks that a press on one button and a release on another
 click nothing. Last it clicks the icon Button, a Panel that shows a frame of
 the sprite sheet, and checks the click Tell and the image in the scene reply.
 
-Then it runs glow and checks that the salvage block loaded. It saves a "-glow"
-screenshot next to the first one and checks its size. The neon tubes are the
-block's third material, so the screenshot must show their teal. A host that
-draws the whole mesh with its first material shows no teal.
+Then it runs glow and checks that the salvage block and the ribbed panel
+loaded. It steps until the spark that circles the panel is on its left, saves
+a "-glow" screenshot next to the first one and checks its size. The neon
+tubes are the block's third material, so the screenshot must show their teal.
+A host that draws the whole mesh with its first material shows no teal. The
+panel's ribs come from its normal map, so the left flank of each rib must be
+brighter than its right flank. It steps until the spark is on the right,
+saves a "-glow-right" screenshot and checks the reverse. A panel with no
+normal map, or with its tangents turned round, fails one of the two.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
 """
 
+import math
 import os
 import shlex
 import subprocess
@@ -138,6 +144,24 @@ ICON_POINT = (744, 48)
 # only teal in the Scene, about 640 pixels at 960 by 540.
 SALVAGE_ID = 4
 MIN_NEON_PIXELS = 200
+
+# examples/glow/main.roc: the spark circles the panel once every 4 seconds. It
+# is on the left of the panel at 2 seconds and on the right at 4.
+PANEL_ID = 5
+SPARK_ID = 6
+HALF_TURN_STEPS = 2 * 120
+# examples/glow/source/make_panel.py: the panel's face is 0.02 in front of its
+# Draw pos. Each rib has a cosine profile, so its steepest lines are a quarter
+# of its width each side of its crest. The samples stay near those lines and
+# away from the rounded ends at y 0.3.
+PANEL_FACE = 0.02
+RIB_CENTRES = [-0.255, -0.085, 0.085, 0.255]
+RIB_WIDTH = 0.13
+FLANK_OFFSETS = [0.2 * RIB_WIDTH, 0.25 * RIB_WIDTH, 0.3 * RIB_WIDTH]
+FLANK_YS = [y / 20 for y in range(-4, 5)]
+# On a flat panel the two flanks of a rib differ by about 15 percent, from their
+# distances to the spark.
+MIN_FLANK_RATIO = 1.5
 
 
 def binary_suffix():
@@ -524,11 +548,65 @@ def teal_pixels(path):
     return sum(1 for i in range(0, len(pixels), 4) if pixels[i + 1] > 150 and pixels[i + 1] - pixels[i] >= 20 and pixels[i + 1] >= pixels[i + 2])
 
 
+# The pixel of a world point in a screenshot, from the Scene's camera, as
+# engine/frame_render.odin projects it. y counts down from the top.
+def project(camera, point, size):
+    def sub(a, b):
+        return [a[k] - b[k] for k in "xyz"]
+
+    def dot(a, b):
+        return sum(x * y for x, y in zip(a, b))
+
+    def cross(a, b):
+        return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+    def unit(a):
+        length = math.sqrt(dot(a, a))
+        return [x / length for x in a]
+
+    forward = unit(sub(camera["target"], camera["eye"]))
+    side = unit(cross(forward, [camera["up"][k] for k in "xyz"]))
+    up = cross(side, forward)
+    rel = sub(point, camera["eye"])
+    depth = dot(rel, forward)
+    tan_half = math.tan(camera["fov_y"] / 2)
+    ndc_x = dot(rel, side) / (depth * tan_half * size[0] / size[1])
+    ndc_y = dot(rel, up) / (depth * tan_half)
+    return int((ndc_x + 1) / 2 * size[0]), int((1 - ndc_y) / 2 * size[1])
+
+
+# The mean brightness of one flank of each rib, the left flank first.
+def rib_flanks(path, camera, centre):
+    with open(path, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+
+    def brightness(x, y):
+        px, py = project(camera, {"x": centre["x"] + x, "y": centre["y"] + y, "z": centre["z"] + PANEL_FACE}, (width, height))
+        i = (py * width + px) * 4
+        return 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]
+
+    def flank(x_of):
+        points = [(x_of(offset), y) for offset in FLANK_OFFSETS for y in FLANK_YS]
+        return sum(brightness(x, y) for x, y in points) / len(points)
+
+    return [(flank(lambda off: rib - off), flank(lambda off: rib + off)) for rib in RIB_CENTRES]
+
+
+def check_ribs(path, camera, centre, lit_side):
+    for i, (left, right) in enumerate(rib_flanks(path, camera, centre)):
+        lit, dim = (left, right) if lit_side == "left" else (right, left)
+        check(lit > MIN_FLANK_RATIO * dim, f"rib {i + 1}: the {lit_side} flank is {lit:.1f} and the other is {dim:.1f}, with the spark on the {lit_side}")
+
+
 def drive_glow(b, out):
     b.hello()
-    b.step(STEPS)
-    draws = [n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == SALVAGE_ID]
-    check(len(draws) == 1 and draws[0]["mesh"] != 0, f"the salvage block has its loaded mesh: {draws}")
+    b.step(HALF_TURN_STEPS)
+    scene = b.scene()["scene"]
+    draws = {n["Draw"]["id"]: n["Draw"] for n in scene["nodes"] if "Draw" in n}
+    check(draws[SALVAGE_ID]["mesh"] != 0, f"the salvage block has its loaded mesh: {draws[SALVAGE_ID]}")
+    check(draws[PANEL_ID]["mesh"] != 0, f"the panel has its loaded mesh: {draws[PANEL_ID]}")
+    centre = draws[PANEL_ID]["pos"]
+    check(draws[SPARK_ID]["pos"]["x"] < centre["x"] - 0.4, f"the spark is left of the panel: {draws[SPARK_ID]['pos']}")
 
     stem, ext = os.path.splitext(out)
     glow_out = f"{stem}-glow{ext}"
@@ -540,6 +618,14 @@ def drive_glow(b, out):
     scale = (size[0] // WINDOW[0]) * (size[1] // WINDOW[1])
     teal = teal_pixels(glow_out)
     check(teal >= MIN_NEON_PIXELS * scale, f"{teal} teal pixels show the neon material")
+    check_ribs(glow_out, scene["camera"], centre, "left")
+
+    b.step(HALF_TURN_STEPS)
+    spark = [n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == SPARK_ID][0]
+    check(spark["pos"]["x"] > centre["x"] + 0.4, f"the spark is right of the panel: {spark['pos']}")
+    right_out = f"{stem}-glow-right{ext}"
+    b.screenshot(right_out)
+    check_ribs(right_out, scene["camera"], centre, "right")
 
     b.quit()
 
