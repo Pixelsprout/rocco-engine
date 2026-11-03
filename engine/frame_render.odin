@@ -13,16 +13,25 @@ MAX_CASCADES :: 4
 // and its edges do not crawl as a Draw moves.
 SHADOW_GRID :: f32(1)
 SHADOW_NORMAL_OFFSET :: f32(0.05)
+// The tone_map_fs branch that draws each Tone_Map. The glue numbers the tags
+// in name order, so a new tag would move them.
+@(rodata)
+TONE_MAP_SHADER := [Tone_Map]f32 {
+	.Aces    = 0,
+	.AgX     = 1,
+	.Neutral = 2,
+}
 
 // A Headless run never submits, so its submits do nothing.
 FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
-	begin_pass    = submits_none_begin_pass,
-	end_pass      = submits_none_end_pass,
-	submit_shadow = submits_none_submit_shadow,
-	submit        = submits_none_submit,
-	submit_lights = submits_none_submit_lights,
-	submit_sky    = submits_none_submit_sky,
-	submit_ui     = submits_none_submit_ui,
+	begin_pass      = submits_none_begin_pass,
+	end_pass        = submits_none_end_pass,
+	submit_shadow   = submits_none_submit_shadow,
+	submit          = submits_none_submit,
+	submit_lights   = submits_none_submit_lights,
+	submit_sky      = submits_none_submit_sky,
+	submit_tone_map = submits_none_submit_tone_map,
+	submit_ui       = submits_none_submit_ui,
 }
 
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
@@ -40,28 +49,31 @@ Pass :: enum {
 // per shadow view, then one Main pass, then one Post pass. submit_shadow runs
 // only in a Shadow pass, once per Draw. In the Main pass, submit runs once
 // per part of each Draw's mesh. submit_lights runs before any submit, and
-// submit_sky runs at most once, after every submit. submit_ui runs at most
-// once, in the Post pass. In each pass, the skinned Draws follow the rigid
-// ones, so the renderer changes pipeline once. A nil skin is a rigid Draw.
+// submit_sky runs at most once, after every submit. submit_tone_map runs
+// once, first in the Post pass, and submit_ui runs at most once after it.
+// In each pass, the skinned Draws follow the rigid ones, so the renderer
+// changes pipeline once. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
+Submit_Tone_Map :: #type proc(ctx: rawptr, params: Tone_Map_Params)
 Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
 
 // The renderer and the test Recorder are its two adapters. ctx is passed to
 // each proc.
 Frame_Render_Submits :: struct {
-	begin_pass:    Begin_Pass,
-	end_pass:      End_Pass,
-	submit_shadow: Submit_Shadow,
-	submit:        Submit,
-	submit_lights: Submit_Lights,
-	submit_sky:    Submit_Sky,
-	submit_ui:     Submit_Ui,
-	ctx:           rawptr,
+	begin_pass:      Begin_Pass,
+	end_pass:        End_Pass,
+	submit_shadow:   Submit_Shadow,
+	submit:          Submit,
+	submit_lights:   Submit_Lights,
+	submit_sky:      Submit_Sky,
+	submit_tone_map: Submit_Tone_Map,
+	submit_ui:       Submit_Ui,
+	ctx:             rawptr,
 }
 
 Light_Drop :: enum {
@@ -83,6 +95,7 @@ Frame_Render :: struct {
 	submits:            Frame_Render_Submits,
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
+	environment_logged: bit_set[Environment_Clamp],
 	draws_logged:       bool,
 	skinned_logged:     bool,
 	shadow_map:         u32,
@@ -262,6 +275,7 @@ frame_render_draw :: proc(
 		quads = ui_frame(ui, curr.ui.elements[:curr.ui.length], window, images)
 		span = span_close(spans, .Ui_Layout, span)
 	}
+	env := environment_clamp(curr.environment, &fr.environment_logged)
 	if !submit {
 		return
 	}
@@ -270,7 +284,7 @@ frame_render_draw :: proc(
 		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span)
 	}
 
-	frame_render_begin_pass(fr, .Main, 0, curr.clear, &span)
+	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
 	fr.submits.submit_lights(fr.submits.ctx, lights)
 	order := Placed_Order {
 		placed = fr.placed[:],
@@ -303,12 +317,13 @@ frame_render_draw :: proc(
 			fr.submits.submit(fr.submits.ctx, p.mesh, &part, vs_params, params, p.skin)
 		}
 	}
-	if sky, ok := sky_resolve(skies, curr.sky); ok {
+	if sky, ok := sky_resolve(skies, env.sky); ok {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
 	}
 	fr.submits.end_pass(fr.submits.ctx)
 
 	frame_render_begin_pass(fr, .Post, 0, {}, &span)
+	fr.submits.submit_tone_map(fr.submits.ctx, {exposure = env.exposure, tone_map = TONE_MAP_SHADER[env.tone_map]})
 	if len(quads) > 0 {
 		fr.submits.submit_ui(fr.submits.ctx, quads, window.size)
 	}
@@ -643,4 +658,7 @@ submits_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params
 
 @(private = "file")
 submits_none_submit_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
+
+@(private = "file")
+submits_none_submit_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {}
 

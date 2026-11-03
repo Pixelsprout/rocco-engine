@@ -183,7 +183,8 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : [None, Fog({ color : Rgb, start : F32, end : F32 })], bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })] }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
@@ -617,9 +618,9 @@ Files sit on disk by type, not by pack, so one file serves many packs:
   `nx`, `py`, `ny`, `pz` and `nz`. Its name is `sky/<dir>`. Face `px`
   holds the directions nearest +x, with its top row towards +y and its left
   column towards +z; `engine/sky.odin` states the layout. The host draws
-  `Scene.sky` as a cube around the camera at the far plane, after every
-  mesh, with no lights. The tone map applies to it. Where no mesh and no
-  sky draws, the window shows `Scene.clear`.
+  `Scene.environment.sky` as a cube around the camera at the far plane,
+  after every mesh, with no lights. The tone map applies to it. Where no
+  mesh and no sky draws, the window shows `Scene.environment.clear`.
 - A Sound is a `.wav` or `.ogg` file in `assets/sound/`. Its name is
   `sound/<stem>`. The host decodes it fully at load. If two files share a
   stem, the first in sorted order loads and the host logs once. Sound 0

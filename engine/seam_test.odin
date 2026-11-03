@@ -138,7 +138,7 @@ Fake_Game :: struct {
 	lights:           []Light,
 	speakers:         []Speaker,
 	cursor:           Cursor,
-	sky:              u32,
+	environment:      Environment,
 	commands_out:     int,
 	next_commands:    []Command,
 	runs:             [FAKE_COMMANDS_MAX]Fake_Command_Run,
@@ -364,7 +364,7 @@ fake_view :: proc(model: rawptr) -> Scene {
 		camera = g_fake.camera,
 		nodes = roc_list_from_slice(nodes[:]),
 		cursor = g_fake.cursor,
-		sky = g_fake.sky,
+		environment = g_fake.environment,
 		queries = roc_list_from_slice(g_fake.queries),
 		ui = roc_list_from_slice(ui[:]),
 	}
@@ -413,7 +413,7 @@ fake_run_command :: proc(command: Command) {
 }
 
 fake_seam_init :: proc(s: ^Seam, seed: u64 = 0, colliders: []Collider = nil, queries: []Query = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, args: []string = nil, ui: []Element = nil) {
-	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui}
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, environment = ENVIRONMENT_DEFAULT}
 	packs_init(&g_fake.packs, assets_dir, context.allocator)
 	g_fake.launch_out = seam_launch(s, FAKE_GAME, config_make(seed, g_fake.packs.on_disk, args))
 	audio_init(&g_fake.audio, device = false)

@@ -47,7 +47,8 @@ Pass_Begun :: struct {
 	view: int,
 }
 
-// sky_after is the number of submits before the sky.
+// sky_after is the number of submits before the sky. tone_map_ui is the
+// number of submit_ui calls before the tone map.
 Recorder :: struct {
 	passes:        [dynamic]Pass_Begun,
 	pass_ends:     int,
@@ -65,6 +66,9 @@ Recorder :: struct {
 	ui_after_sky:  int,
 	ui_pass:       Pass,
 	main_clear:    Rgb,
+	tone_map:      Tone_Map_Params,
+	tone_map_pass: Pass,
+	tone_map_ui:   int,
 }
 
 // The table is never uploaded, so the tests need no sokol setup. ui is nil
@@ -230,6 +234,13 @@ record_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 	r.ui_pass = r.passes[len(r.passes) - 1].pass
 }
 
+record_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {
+	r := (^Recorder)(ctx)
+	r.tone_map = params
+	r.tone_map_pass = r.passes[len(r.passes) - 1].pass
+	r.tone_map_ui = r.ui_calls
+}
+
 record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
 	r := (^Recorder)(ctx)
 	append(&r.passes, Pass_Begun{pass, view})
@@ -284,6 +295,7 @@ recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
 		submit = record_submit,
 		submit_lights = record_lights,
 		submit_sky = record_sky,
+		submit_tone_map = record_tone_map,
 		submit_ui = record_ui,
 		ctx = r,
 	}
@@ -316,7 +328,7 @@ frame_fixture_view :: proc(eye: [3]f32) -> Frame_View {
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
 scene_of :: proc(draws: []Draw) -> Scene {
-	return {nodes = roc_list_view(draw_nodes(draws))}
+	return {nodes = roc_list_view(draw_nodes(draws)), environment = ENVIRONMENT_DEFAULT}
 }
 
 // One unit Cube with id 1 at at, after the Lights. Returns its submit.
@@ -343,7 +355,7 @@ scene_lit :: proc(draws: []Draw, lights: []Light) -> Scene {
 	nodes := make([dynamic]Node, context.temp_allocator)
 	append(&nodes, ..light_nodes(lights))
 	append(&nodes, ..draw_nodes(draws))
-	return {nodes = roc_list_view(nodes[:])}
+	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT}
 }
 
 light_point :: proc(pos: Vec3, c: Rgb, range: f32) -> Light {
@@ -1006,15 +1018,89 @@ test_frame_render_begins_the_main_pass_with_the_clear_of_the_current_scene :: pr
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
 
-	prev := Scene {
-		clear = {r = 1},
-	}
-	curr := Scene {
-		clear = {r = 0.2, g = 0.4, b = 0.6},
-	}
+	prev := scene_of({})
+	prev.environment.clear = {r = 1}
+	curr := scene_of({})
+	curr.environment.clear = {r = 0.2, g = 0.4, b = 0.6}
 	frame_fixture_draw(&f, prev, curr, 0.5)
 
-	testing.expect_value(t, f.rec.main_clear, curr.clear)
+	testing.expect_value(t, f.rec.main_clear, curr.environment.clear)
+}
+
+@(test)
+test_frame_render_tone_maps_environment_default_with_aces_at_exposure_1 :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	frame_fixture_draw(&f, s, s, 0)
+	testing.expect_value(t, f.rec.tone_map.exposure, 1)
+	testing.expect_value(t, f.rec.tone_map.tone_map, 0)
+	testing.expect_value(t, f.rec.tone_map_pass, Pass.Post)
+}
+
+@(test)
+test_frame_render_tone_maps_with_the_tone_map_and_exposure_of_the_current_scene :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	prev := scene_of({})
+	curr := scene_of({})
+	cases := []struct {
+		tone_map: Tone_Map,
+		branch:   f32,
+	}{{.Aces, 0}, {.AgX, 1}, {.Neutral, 2}}
+	for c in cases {
+		curr.environment.tone_map = c.tone_map
+		curr.environment.exposure = 2.5
+		frame_fixture_draw(&f, prev, curr, 0.5)
+		testing.expect_value(t, f.rec.tone_map.exposure, 2.5)
+		testing.expect_value(t, f.rec.tone_map.tone_map, c.branch)
+	}
+}
+
+@(test)
+test_frame_render_tone_maps_before_the_ui :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_init_ui(&f)
+	defer frame_fixture_destroy_ui(&f)
+
+	scene := scene_ui([]Element{ui_panel_of(ui_rect(10, 10))})
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.ui_calls, 1)
+	testing.expect_value(t, f.rec.tone_map_ui, 0)
+	testing.expect_value(t, f.rec.tone_map_pass, Pass.Post)
+}
+
+@(test)
+test_frame_render_draws_a_bad_exposure_with_1_and_logs_it_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.exposure = -1
+	frame_fixture_draw(&f, s, s, 0)
+	frame_fixture_draw(&f, s, s, 0)
+	testing.expect_value(t, f.rec.tone_map.exposure, 1)
+	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Exposure})
+}
+
+@(test)
+test_frame_render_clamps_the_environment_with_no_submit :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.fog = fog_of({}, 4, 2)
+	frame_render_draw(&f.fr, s, s, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
+	testing.expect_value(t, len(f.rec.passes), 0)
+	testing.expect_value(t, f.fr.environment_logged, bit_set[Environment_Clamp]{.Fog_Range})
 }
 
 @(test)
@@ -1040,7 +1126,7 @@ test_frame_render_submits_the_sky_after_every_draw :: proc(t: ^testing.T) {
 	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}, {id = 2, mesh = u32(Primitive.Sphere), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
 	prev := scene_of(draws)
 	curr := scene_of(draws)
-	curr.sky = sky
+	curr.environment.sky = sky
 	frame_fixture_draw(&f, prev, curr, 0)
 
 	testing.expect_value(t, f.rec.sky_calls, 1)
@@ -1057,7 +1143,8 @@ test_frame_render_submits_no_sky_for_a_stale_sky_id_and_logs_it_once :: proc(t: 
 	sky := frame_fixture_sky(&f)
 	sky_table_remove(&f.skies, sky_slot(sky))
 
-	scene := Scene{sky = sky}
+	scene := scene_of({})
+	scene.environment.sky = sky
 	frame_fixture_draw(&f, scene, scene, 0)
 	frame_fixture_draw(&f, scene, scene, 0)
 	testing.expect_value(t, f.rec.sky_calls, 0)

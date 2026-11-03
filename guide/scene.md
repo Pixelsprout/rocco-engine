@@ -51,7 +51,7 @@ view = |m| {
 
 Pong starts each Draw from `Draw.default` and its Scene from `Scene.empty`,
 then sets only the fields it cares about. It keeps the default `queries`,
-`sky` and `cursor`. Start your own records the same way.
+`environment` and `cursor`. Start your own records the same way.
 [Defaults to start from](#defaults-to-start-from) lists every default
 record.
 
@@ -65,8 +65,7 @@ host to do one thing once.
 |---|---|---|
 | `camera` | the [Camera] | this page |
 | `nodes` | the root [Node]s of the 3D tree: Groups, Draws, Lights, Colliders and Speakers | this page |
-| `sky` | a sky id | [Assets and Packs](assets.md) |
-| `clear` | the colour behind the 3D view, black by default | this page |
+| `environment` | the [Environment]: the sky id, the colour behind the 3D view, the tone map, the exposure, fog and bloom | this page and [Assets and Packs](assets.md) |
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
 | `ui` | the root [Element]s of the UI tree over the 3D view | [The UI](ui.md) |
@@ -281,11 +280,18 @@ Every colour is linear, not sRGB. The host multiplies the colour of the
 mesh by the `tint` of the Draw. The fallback mesh ignores the tint and the
 glow. The host adds the glow after the lights and before the tone map.
 
-The host draws the 3D view in linear colour, then tone maps all of it and
-encodes it to sRGB for the screen. Lit and unlit surfaces, the sky and
-`Scene.clear` all go through the tone map, so an unlit colour shows a
-little darker than its value. The UI draws after the tone map, so it shows
-the colours you give it.
+The host draws the 3D view in linear colour, multiplies it by the
+`exposure` of the Scene's `environment`, then tone maps all of it and
+encodes it to sRGB for the screen. Lit and unlit surfaces, the sky and the
+`clear` colour all go through the tone map. Under the default `Aces` tone
+map an unlit colour shows a little darker than its value. `Neutral` keeps
+a colour closest to its value, and `AgX` keeps a bright colour from
+shifting hue. The UI draws after the tone map, so it shows the colours you
+give it.
+
+```roc
+environment: { ..Environment.default, tone_map: AgX, exposure: 1.4 }
+```
 
 ## Defaults to start from
 
@@ -295,6 +301,7 @@ with a record update, and set only the fields that you need.
 | Record | Default | Use |
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
+| Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky` or `tone_map`. |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
@@ -316,6 +323,8 @@ with a record update, and set only the fields that you need.
 [Cursor]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Cursor
 [Element]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Element
 [Scene.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Scene/#Scene.empty
+[Environment]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Environment
+[Environment.default]: https://pixelsprout.dev/projects/rocco/api/platform/Environment/#Environment.default
 [Draw.default]: https://pixelsprout.dev/projects/rocco/api/platform/Draw/#Draw.default
 [Speaker.default]: https://pixelsprout.dev/projects/rocco/api/platform/Speaker/#Speaker.default
 [Launch.default]: https://pixelsprout.dev/projects/rocco/api/platform/Launch/#Launch.default

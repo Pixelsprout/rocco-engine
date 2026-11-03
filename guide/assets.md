@@ -64,8 +64,10 @@ you need there and keep them in your Model. [`Mesh.resolve`][Mesh.resolve]
 finds a name in the Manifest. Call it in `loaded`, not in `view`.
 
 A mesh id goes in the `mesh` of a [Draw]. A sky id goes in the `sky` of the
-[Scene]. A Sound id goes in a Play or a Speaker, as [Sound](sound.md) shows.
-`Mesh.resolve` finds any name in the Manifest, so it gives sky ids too.
+`environment` of the [Scene], as in
+`environment: { ..Environment.default, sky: model.meshes.sky }`. A Sound id
+goes in a Play or a Speaker, as [Sound](sound.md) shows. `Mesh.resolve`
+finds any name in the Manifest, so it gives sky ids too.
 `Sound.resolve` gives Sound ids.
 
 If a name is not on disk, or its file does not load, it gets id 0 in the

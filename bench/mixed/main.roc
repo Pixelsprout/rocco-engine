@@ -10,6 +10,7 @@ import pf.Light
 import pf.Query
 import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgba, Scene, Vec3]
 import pf.QueryResults
+import pf.Environment
 import pf.Launch
 import pf.Pose
 
@@ -165,8 +166,7 @@ view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: m.half * 2.0, z: m.half * 1.5 }, { x: 0.0, y: 0.0, z: 0.0 }),
 	nodes: nodes_of(m),
 	cursor: Free,
-	sky: 0,
-	clear: { r: 0.0, g: 0.0, b: 0.0 },
+	environment: Environment.default,
 	ui: elements(m),
 	queries: queries(m.half),
 }

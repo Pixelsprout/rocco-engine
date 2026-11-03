@@ -288,11 +288,30 @@ UI.
 _Avoid_: cursor (the lock), mouse (the delta), touch
 
 **Clear colour**:
-The field of a Scene, `clear`, that sets the colour behind the 3D view. It is
-a linear `Rgb`. The host clears to it every frame, before any mesh, and
-tone maps it with the rest of the 3D view. A sky draws over it.
-`pf.Scene.empty` has black.
+The field of an Environment, `clear`, that sets the colour behind the 3D
+view. It is a linear `Rgb`. The host clears to it every frame, before any
+mesh, and tone maps it with the rest of the 3D view. A sky draws over it.
+`pf.Environment.default` has black.
 _Avoid_: background, clear color, sky colour
+
+**Environment**:
+The field of a Scene, `environment`, that sets the look of the 3D view: the
+sky, the Clear colour, the Tone map, the Exposure, fog and bloom. The host
+takes it from the current Scene, with no interpolation. The UI draws after
+the Tone map, so the Environment never changes the UI. Start from
+`pf.Environment.default`. ADR 0026.
+_Avoid_: look, post settings, render settings
+
+**Tone map**:
+The curve that maps the linear colour of the 3D view, above 1 included, to
+the screen: `Aces`, `AgX` or `Neutral`. The Post pass applies it to
+everything in the HDR target, then encodes sRGB.
+_Avoid_: tonemapper, colour grade
+
+**Exposure**:
+The linear multiplier that the Post pass applies to the 3D view before the
+Tone map. 1 changes nothing. At or below 0, the host draws with 1.
+_Avoid_: brightness, EV
 
 **UI**:
 The field of a Scene that lists the root Elements drawn flat over the 3D

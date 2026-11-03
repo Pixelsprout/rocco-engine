@@ -106,11 +106,17 @@ target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, l
 	return
 }
 
-// Must run outside a pass. Leaves the Post pass open for the UI.
+// Must run outside a pass. render_target_tone_map draws first in it.
 render_target_begin_post :: proc(t: ^Render_Target) {
 	sg.begin_pass({action = t.post_action, attachments = t.color.attachments, label = "post"})
+}
+
+// Covers every pixel of the Post pass, so it must draw before the UI.
+render_target_tone_map :: proc(t: ^Render_Target, params: Tone_Map_Params) {
 	sg.apply_pipeline(t.tone_map)
 	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr.texture}, samplers = {SMP_hdr_smp = t.sampler}})
+	p := params
+	sg.apply_uniforms(UB_tone_map_params, {ptr = &p, size = size_of(Tone_Map_Params)})
 	sg.draw(0, 3, 1)
 }
 

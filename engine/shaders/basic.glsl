@@ -4,7 +4,8 @@
 // skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
-// tone_map: maps the resolved HDR image to sRGB for the Post pass.
+// tone_map: scales the resolved HDR image by the exposure, maps it with the
+// Scene's tone map and encodes sRGB, for the Post pass.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored
 // colour. It draws after the tone map.
 // blit: copies the render target to the swapchain.
@@ -526,6 +527,12 @@ void main() {
 layout(binding = 0) uniform texture2D hdr_tex;
 layout(binding = 0) uniform sampler hdr_smp;
 
+// tone_map is the branch of main: 0 ACES, 1 AgX, 2 Neutral.
+layout(binding = 0) uniform tone_map_params {
+    float exposure;
+    float tone_map;
+};
+
 out vec4 frag_color;
 
 @include_block srgb
@@ -546,11 +553,66 @@ vec3 aces_fitted(vec3 c) {
     return aces_out * c;
 }
 
+// Troy Sobotka's AgX base look, as Benjamin Wrensch's minimal fit gives it.
+// The sigmoid runs in log2 space from AGX_MIN_EV to AGX_MAX_EV around 0.18.
+const float AGX_MIN_EV = -12.47393;
+const float AGX_MAX_EV = 4.026069;
+
+vec3 agx_contrast(vec3 x) {
+    vec3 x2 = x * x;
+    vec3 x4 = x2 * x2;
+    return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
+}
+
+// Returns linear colour, so it ends in the same sRGB encode as the others.
+vec3 agx(vec3 c) {
+    const mat3 agx_in = mat3(
+        0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+        0.0784335999999992, 0.878468636469772, 0.0784336,
+        0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+    const mat3 agx_out = mat3(
+         1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+        -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+        -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+    c = agx_in * c;
+    c = clamp(log2(max(c, 1e-10)), AGX_MIN_EV, AGX_MAX_EV);
+    c = (c - AGX_MIN_EV) / (AGX_MAX_EV - AGX_MIN_EV);
+    c = agx_out * agx_contrast(c);
+    return pow(max(c, 0.0), vec3(2.2));
+}
+
+// Khronos PBR Neutral. A colour below 0.76 keeps its value, less a small
+// offset, so a base colour shows close to as authored.
+vec3 pbr_neutral(vec3 c) {
+    const float start_compression = 0.8 - 0.04;
+    const float desaturation = 0.15;
+    float x = min(c.r, min(c.g, c.b));
+    float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+    c -= offset;
+    float peak = max(c.r, max(c.g, c.b));
+    if (peak < start_compression) {
+        return c;
+    }
+    const float d = 1.0 - start_compression;
+    float new_peak = 1.0 - d * d / (peak + d - start_compression);
+    c *= new_peak / peak;
+    float g = 1.0 - 1.0 / (desaturation * (peak - new_peak) + 1.0);
+    return mix(c, vec3(new_peak), g);
+}
+
 // The HDR image and the Post pass have the same size and row order, so each
 // pixel reads the texel under it.
 void main() {
-    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb;
-    frag_color = vec4(linear_to_srgb(aces_fitted(hdr)), 1.0);
+    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb * exposure;
+    vec3 mapped;
+    if (tone_map < 0.5) {
+        mapped = aces_fitted(hdr);
+    } else if (tone_map < 1.5) {
+        mapped = agx(hdr);
+    } else {
+        mapped = pbr_neutral(hdr);
+    }
+    frag_color = vec4(linear_to_srgb(mapped), 1.0);
 }
 @end
 

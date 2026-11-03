@@ -31,7 +31,7 @@ frame_fixture_destroy_ui :: proc(f: ^Frame_Fixture) {
 }
 
 scene_ui :: proc(elements: []Element) -> Scene {
-	return {ui = {elements = raw_data(elements), length = uint(len(elements))}}
+	return {ui = {elements = raw_data(elements), length = uint(len(elements))}, environment = ENVIRONMENT_DEFAULT}
 }
 
 // The glue orders tags by name, so a zero Panel_Config floats and is not the vocabulary's default.
@@ -333,7 +333,7 @@ test_ui_submits_once_in_the_post_pass_after_the_sky_and_not_at_all_when_empty ::
 
 	elements := []Element{ui_panel_of(ui_rect(10, 10))}
 	scene := scene_ui(elements)
-	scene.sky = frame_fixture_sky(&f)
+	scene.environment.sky = frame_fixture_sky(&f)
 	frame_fixture_draw(&f, scene, scene, 0)
 	testing.expect_value(t, f.rec.ui_calls, 1)
 	testing.expect_value(t, f.rec.ui_after_sky, 1)

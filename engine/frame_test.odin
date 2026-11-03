@@ -26,7 +26,7 @@ g_fake_platform: Fake_Platform_Calls
 // the render lays out the UI.
 fake_host_init :: proc(s: ^State, exit_after_frames := 0, mode := Run_Mode.Real_Clock, colliders: []Collider = nil, queries: []Query = nil, launch: Maybe(Launch) = nil, ui: []Element = nil, assets_dir := NO_ASSETS_DIR, init_commands: []Command = nil, submits: Maybe(Frame_Render_Submits) = nil) {
 	g_fake_platform = {}
-	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, launch_in = launch}
+	g_fake = {colliders = colliders, queries = queries, init_commands = init_commands, ui = ui, launch_in = launch, environment = ENVIRONMENT_DEFAULT}
 	err := memory_init(&s.mem)
 	assert(err == nil)
 	field, rule, ok := host_build(s, {mode = mode, exit_after_frames = exit_after_frames, assets_dir = assets_dir}, FAKE_GAME, fake_run_command)

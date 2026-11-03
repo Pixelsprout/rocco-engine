@@ -13,7 +13,8 @@ import "core:strings"
 // 7: hello takes and echoes devices, and the inject op feeds the real devices.
 // 8: the scene reply names the UI rectangle Panel, not Box.
 // 9: each Panel config in scene gained image.
-BRIDGE_PROTOCOL :: 9
+// 10: the scene reply moved sky and clear into environment.
+BRIDGE_PROTOCOL :: 10
 BRIDGE_NOT_YET :: "not yet"
 
 // ask and listen are kept for Ports (ADR 0009).

@@ -79,15 +79,61 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_write_list(b, scene.nodes, json_write_node)
 	json_key(b, "cursor")
 	json_write_tag(b, scene.cursor)
-	json_key(b, "sky")
-	strings.write_u64(b, u64(scene.sky))
-	json_key(b, "clear")
-	json_write_rgb(b, scene.clear)
+	json_key(b, "environment")
+	json_write_environment(b, &scene.environment)
 	json_key(b, "ui")
 	json_write_list(b, scene.ui, json_write_element)
 	json_key(b, "queries")
 	json_write_list(b, scene.queries, json_write_query)
 	strings.write_byte(b, '}')
+}
+
+json_write_environment :: proc(b: ^strings.Builder, env: ^Environment) {
+	json_key(b, "sky", first = true)
+	strings.write_u64(b, u64(env.sky))
+	json_key(b, "clear")
+	json_write_rgb(b, env.clear)
+	json_key(b, "tone_map")
+	json_write_tag(b, env.tone_map)
+	json_key(b, "exposure")
+	json_write_f32(b, env.exposure)
+	json_key(b, "fog")
+	json_write_fog(b, &env.fog)
+	json_key(b, "bloom")
+	json_write_bloom(b, &env.bloom)
+	strings.write_byte(b, '}')
+}
+
+json_write_fog :: proc(b: ^strings.Builder, fog: ^Fog) {
+	switch fog.tag {
+	case .None:
+		json_write_tag(b, fog.tag)
+	case .Fog:
+		json_key(b, "Fog", first = true)
+		json_key(b, "color", first = true)
+		json_write_rgb(b, fog.payload.fog.color)
+		json_key(b, "start")
+		json_write_f32(b, fog.payload.fog.start)
+		json_key(b, "end")
+		json_write_f32(b, fog.payload.fog.end)
+		strings.write_string(b, "}}")
+	}
+}
+
+json_write_bloom :: proc(b: ^strings.Builder, bloom: ^Bloom) {
+	switch bloom.tag {
+	case .None:
+		json_write_tag(b, bloom.tag)
+	case .Bloom:
+		json_key(b, "Bloom", first = true)
+		json_key(b, "strength", first = true)
+		json_write_f32(b, bloom.payload.bloom.strength)
+		json_key(b, "threshold")
+		json_write_f32(b, bloom.payload.bloom.threshold)
+		json_key(b, "knee")
+		json_write_f32(b, bloom.payload.bloom.knee)
+		strings.write_string(b, "}}")
+	}
 }
 
 json_write_query_results :: proc(b: ^strings.Builder, results: ^Query_Results) {

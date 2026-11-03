@@ -5,6 +5,7 @@ import cam.Camera as Cam
 import ui.Ui
 import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, Scene]
 import pf.QueryResults
+import pf.Environment
 import pf.Launch
 
 # The UI bench game. Its Scene has no Draws, and its UI holds exactly N Panel and
@@ -67,8 +68,7 @@ view = |m| {
 	camera: Cam.look_at({ x: 0.0, y: 10.0, z: 10.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
 	nodes: [],
 	cursor: Free,
-	sky: 0,
-	clear: { r: 0.0, g: 0.0, b: 0.0 },
+	environment: Environment.default,
 	ui: elements(m),
 	queries: [],
 }
