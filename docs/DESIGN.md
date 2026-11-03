@@ -268,6 +268,18 @@ tone maps it with a fixed ACES fit, so a bright channel rolls off towards 1
 instead of clipping. Then it encodes the result to sRGB and draws the UI
 over it. The tone map has no knob. Decision.
 
+Bloom runs between the Main pass and the Post pass, when
+`Scene.environment.bloom.strength` is above 0. A prefilter reads the
+resolved HDR image, keeps the light above `threshold` with a soft `knee`,
+and draws the first mip at half the window size. 13-tap downsamples
+(Jimenez 2014) make up to 6 mips, and stop before a mip side under 8 px.
+Tent upsamples then add each mip into the one above it. The Post pass
+computes `(hdr + strength * bloom) * exposure`, then the tone map. The
+threshold reads the colour before the exposure, so the exposure does not
+change which surfaces bloom. A window resize remakes the mips with the
+other target images. A `strength` of 0 runs no bloom pass. Decision,
+Milestone 37.
+
 A glow is an `Rgb` that carries intensity, like a light colour. The shader
 adds the mesh emissive and the Draw glow after the lights and before the
 tone map. Emissive lights no other surface. Decision.

@@ -417,9 +417,12 @@ Vocabulary := [].{
 	##   `amount` outside 0 to 1 is clamped into it. With fog on, an `end` at
 	##   or below `start` moves just past `start`. Each logs once.
 	## - `bloom`: a glow from light above `threshold`, scaled by `strength`,
-	##   with `knee` to soften the threshold. A `strength` of 0 draws no bloom.
-	##   The host checks it but does not draw it yet. A negative number
-	##   becomes 0 and logs once.
+	##   with `knee` to soften the threshold. The halo starts where the
+	##   brightest channel passes `threshold - knee`. Past `threshold + knee`
+	##   it takes the light above `threshold`. The threshold reads the colour
+	##   before `exposure`, so an exposure change does not change which
+	##   surfaces bloom. A `strength` of 0 draws no bloom and runs no bloom
+	##   pass. A negative number becomes 0 and logs once.
 	Environment : {
 		sky : U32,
 		clear : Rgb,

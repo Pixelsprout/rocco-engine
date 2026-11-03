@@ -12,8 +12,10 @@ SKINNED_DRAW_LIMIT :: 256
 SHADOW_UNIFORM_SLOTS :: (size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 MAIN_UNIFORM_SLOTS :: (size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN + (size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 // The slots outside the Draws: the lights, the lights again after the switch
-// to the skinned pipeline, the sky and the UI.
+// to the skinned pipeline, the sky, the bloom, the tone map and the UI.
 UNIFORM_SPARE_SLOTS :: 16
+// The Prefilter and each Up apply a block. A Down applies none.
+BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must
 // fit one. The limit takes MAX_CASCADES for every game.
 DRAW_LIMIT ::
@@ -21,7 +23,7 @@ DRAW_LIMIT ::
 	(MAIN_UNIFORM_SLOTS + MAX_CASCADES * SHADOW_UNIFORM_SLOTS)
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
-#assert(2 * ((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 2 <= UNIFORM_SPARE_SLOTS)
+#assert(2 * ((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 
@@ -379,6 +381,11 @@ renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	sg.draw(0, cube.index_count, 1)
 }
 
+renderer_bloom :: proc(ctx: rawptr, step: Bloom_Step) {
+	r := (^Renderer)(ctx)
+	render_target_bloom(&r.target, step)
+}
+
 renderer_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {
 	r := (^Renderer)(ctx)
 	render_target_tone_map(&r.target, params)
@@ -392,6 +399,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
 		submit_sky = renderer_sky,
+		submit_bloom = renderer_bloom,
 		submit_tone_map = renderer_tone_map,
 		submit_ui = renderer_ui,
 		ctx = r,

@@ -47,6 +47,12 @@ Pass_Begun :: struct {
 	view: int,
 }
 
+// after_main is true when the Main pass was the last pass begun and it had ended.
+Bloom_Submitted :: struct {
+	step:       Bloom_Step,
+	after_main: bool,
+}
+
 // sky_after is the number of submits before the sky. tone_map_ui is the
 // number of submit_ui calls before the tone map.
 Recorder :: struct {
@@ -69,6 +75,7 @@ Recorder :: struct {
 	tone_map:      Tone_Map_Params,
 	tone_map_pass: Pass,
 	tone_map_ui:   int,
+	blooms:        [dynamic]Bloom_Submitted,
 }
 
 // The table is never uploaded, so the tests need no sokol setup. ui is nil
@@ -241,6 +248,12 @@ record_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {
 	r.tone_map_ui = r.ui_calls
 }
 
+record_bloom :: proc(ctx: rawptr, step: Bloom_Step) {
+	r := (^Recorder)(ctx)
+	last := r.passes[len(r.passes) - 1].pass
+	append(&r.blooms, Bloom_Submitted{step, last == .Main && r.pass_ends == len(r.passes)})
+}
+
 record_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
 	r := (^Recorder)(ctx)
 	append(&r.passes, Pass_Begun{pass, view})
@@ -276,6 +289,7 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 	f.rec.submits = make([dynamic]Submitted, context.allocator)
 	f.rec.passes = make([dynamic]Pass_Begun, context.allocator)
 	f.rec.shadows = make([dynamic]Shadow_Submitted, context.allocator)
+	f.rec.blooms = make([dynamic]Bloom_Submitted, context.allocator)
 	f.fr.submits = recorder_submits(&f.rec)
 	f.window = {size = {960, 540}, dpi = 1}
 }
@@ -285,6 +299,7 @@ recorder_destroy :: proc(r: ^Recorder) {
 	delete(r.passes)
 	delete(r.shadows)
 	delete(r.ui_quads)
+	delete(r.blooms)
 }
 
 recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
@@ -295,6 +310,7 @@ recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
 		submit = record_submit,
 		submit_lights = record_lights,
 		submit_sky = record_sky,
+		submit_bloom = record_bloom,
 		submit_tone_map = record_tone_map,
 		submit_ui = record_ui,
 		ctx = r,
@@ -312,6 +328,7 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	clear(&f.rec.submits)
 	clear(&f.rec.passes)
 	clear(&f.rec.shadows)
+	clear(&f.rec.blooms)
 	f.rec.pass_ends = 0
 	f.rec.lights_calls = 0
 	f.rec.sky_calls = 0
@@ -1074,6 +1091,105 @@ test_frame_render_tone_maps_before_the_ui :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.rec.ui_calls, 1)
 	testing.expect_value(t, f.rec.tone_map_ui, 0)
 	testing.expect_value(t, f.rec.tone_map_pass, Pass.Post)
+}
+
+@(test)
+test_frame_render_submits_no_bloom_at_strength_0 :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	frame_fixture_draw(&f, s, s, 0)
+	testing.expect_value(t, len(f.rec.blooms), 0)
+	testing.expect_value(t, f.rec.tone_map.bloom_strength, 0)
+}
+
+@(test)
+test_frame_render_blooms_each_mip_between_the_main_and_post_passes :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.bloom = {strength = 0.5, threshold = 2, knee = 0.25}
+	frame_fixture_draw(&f, s, s, 0)
+
+	// The fixture window is 960 x 540, so it has 6 mips.
+	want := []Bloom_Step {
+		{kind = .Prefilter, mip = 0, threshold = 2, knee = 0.25},
+		{kind = .Down, mip = 1},
+		{kind = .Down, mip = 2},
+		{kind = .Down, mip = 3},
+		{kind = .Down, mip = 4},
+		{kind = .Down, mip = 5},
+		{kind = .Up, mip = 4},
+		{kind = .Up, mip = 3},
+		{kind = .Up, mip = 2},
+		{kind = .Up, mip = 1},
+		{kind = .Up, mip = 0},
+	}
+	testing.expect_value(t, len(f.rec.blooms), len(want))
+	for b, i in f.rec.blooms[:min(len(f.rec.blooms), len(want))] {
+		testing.expect_value(t, b.step, want[i])
+		testing.expect(t, b.after_main)
+	}
+	testing.expect_value(t, f.rec.passes[len(f.rec.passes) - 1].pass, Pass.Post)
+	testing.expect_value(t, f.rec.tone_map.bloom_strength, 0.5)
+}
+
+@(test)
+test_frame_render_blooms_fewer_mips_in_a_small_window :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.window = {size = {256, 64}, dpi = 1}
+
+	s := scene_of({})
+	s.environment.bloom = {strength = 1, threshold = 1, knee = 0.5}
+	frame_fixture_draw(&f, s, s, 0)
+
+	want := []Bloom_Step {
+		{kind = .Prefilter, mip = 0, threshold = 1, knee = 0.5},
+		{kind = .Down, mip = 1},
+		{kind = .Down, mip = 2},
+		{kind = .Up, mip = 1},
+		{kind = .Up, mip = 0},
+	}
+	testing.expect_value(t, len(f.rec.blooms), len(want))
+	for b, i in f.rec.blooms[:min(len(f.rec.blooms), len(want))] {
+		testing.expect_value(t, b.step, want[i])
+	}
+}
+
+@(test)
+test_frame_render_submits_no_bloom_in_a_window_with_no_mip :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.window = {size = {15, 300}, dpi = 1}
+
+	s := scene_of({})
+	s.environment.bloom.strength = 1
+	frame_fixture_draw(&f, s, s, 0)
+	testing.expect_value(t, len(f.rec.blooms), 0)
+	testing.expect_value(t, f.rec.tone_map.bloom_strength, 0)
+}
+
+@(test)
+test_frame_render_prefilters_the_bloom_with_no_exposure :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.bloom = {strength = 1, threshold = 1, knee = 0.5}
+	frame_fixture_draw(&f, s, s, 0)
+	bright := f.rec.blooms[0].step
+	s.environment.exposure = 4
+	frame_fixture_draw(&f, s, s, 0)
+	testing.expect_value(t, f.rec.blooms[0].step, bright)
+	testing.expect_value(t, f.rec.tone_map.exposure, 4)
 }
 
 @(test)

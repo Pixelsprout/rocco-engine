@@ -30,6 +30,7 @@ FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
 	submit          = submits_none_submit,
 	submit_lights   = submits_none_submit_lights,
 	submit_sky      = submits_none_submit_sky,
+	submit_bloom    = submits_none_submit_bloom,
 	submit_tone_map = submits_none_submit_tone_map,
 	submit_ui       = submits_none_submit_ui,
 }
@@ -37,8 +38,9 @@ FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 #assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
-// The Main pass draws linear HDR colour. The Post pass tone maps it and then
-// draws the UI over the result, so the UI keeps its authored colour.
+// The Main pass draws linear HDR colour. The Post pass adds the bloom, tone
+// maps the result and then draws the UI over it, so the UI keeps its
+// authored colour.
 Pass :: enum {
 	Shadow,
 	Main,
@@ -49,8 +51,11 @@ Pass :: enum {
 // per shadow view, then one Main pass, then one Post pass. submit_shadow runs
 // only in a Shadow pass, once per Draw. In the Main pass, submit runs once
 // per part of each Draw's mesh. submit_lights runs before any submit, and
-// submit_sky runs at most once, after every submit. submit_tone_map runs
-// once, first in the Post pass, and submit_ui runs at most once after it.
+// submit_sky runs at most once, after every submit. With bloom on,
+// submit_bloom runs once per Bloom_Step between the Main pass and the Post
+// pass, outside any pass, because each step is a pass of its own.
+// submit_tone_map runs once, first in the Post pass, and submit_ui runs at
+// most once after it.
 // In each pass, the skinned Draws follow the rigid ones, so the renderer
 // changes pipeline once. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
@@ -59,6 +64,7 @@ Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Param
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
+Submit_Bloom :: #type proc(ctx: rawptr, step: Bloom_Step)
 Submit_Tone_Map :: #type proc(ctx: rawptr, params: Tone_Map_Params)
 Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
 
@@ -71,6 +77,7 @@ Frame_Render_Submits :: struct {
 	submit:          Submit,
 	submit_lights:   Submit_Lights,
 	submit_sky:      Submit_Sky,
+	submit_bloom:    Submit_Bloom,
 	submit_tone_map: Submit_Tone_Map,
 	submit_ui:       Submit_Ui,
 	ctx:             rawptr,
@@ -322,8 +329,19 @@ frame_render_draw :: proc(
 	}
 	fr.submits.end_pass(fr.submits.ctx)
 
+	// A window with no mip draws no bloom, so the tone map reads none.
+	bloom_strength := f32(0)
+	if env.bloom.strength > 0 {
+		mips := bloom_mip_count({i32(window.size.x), i32(window.size.y)})
+		steps, count := bloom_steps(env.bloom, mips)
+		for step in steps[:count] {
+			fr.submits.submit_bloom(fr.submits.ctx, step)
+		}
+		bloom_strength = env.bloom.strength if mips > 0 else 0
+	}
+
 	frame_render_begin_pass(fr, .Post, 0, {}, &span)
-	fr.submits.submit_tone_map(fr.submits.ctx, {exposure = env.exposure, tone_map = TONE_MAP_SHADER[env.tone_map]})
+	fr.submits.submit_tone_map(fr.submits.ctx, {exposure = env.exposure, tone_map = TONE_MAP_SHADER[env.tone_map], bloom_strength = bloom_strength})
 	if len(quads) > 0 {
 		fr.submits.submit_ui(fr.submits.ctx, quads, window.size)
 	}
@@ -658,6 +676,9 @@ submits_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params
 
 @(private = "file")
 submits_none_submit_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}
+
+@(private = "file")
+submits_none_submit_bloom :: proc(ctx: rawptr, step: Bloom_Step) {}
 
 @(private = "file")
 submits_none_submit_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {}

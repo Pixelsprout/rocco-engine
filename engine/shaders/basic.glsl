@@ -4,8 +4,11 @@
 // skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
-// tone_map: scales the resolved HDR image by the exposure, maps it with the
-// Scene's tone map and encodes sRGB, for the Post pass.
+// bloom_prefilter, bloom_down, bloom_up: the bloom mip chain, between the
+// Main pass and the Post pass.
+// tone_map: adds the bloom to the resolved HDR image, scales the sum by the
+// exposure, maps it with the Scene's tone map and encodes sRGB, for the Post
+// pass.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored
 // colour. It draws after the tone map.
 // blit: copies the render target to the swapchain.
@@ -523,14 +526,115 @@ void main() {
 
 @program blit blit_vs blit_fs
 
+@block bloom_down_13
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
+
+out vec4 frag_color;
+
+// The 13 taps of Jimenez 2014. Each bloom mip is its source halved and
+// rounded down, so the target's size comes from the source's. textureLod
+// takes no derivatives, so a branch around it is safe on D3D.
+vec3 bloom_down_13() {
+    ivec2 src_size = textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0);
+    vec2 t = 1.0 / vec2(src_size);
+    vec2 uv = gl_FragCoord.xy / vec2(src_size / 2);
+    vec3 a = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0, -2.0), 0.0).rgb;
+    vec3 b = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0, -2.0), 0.0).rgb;
+    vec3 c = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0, -2.0), 0.0).rgb;
+    vec3 d = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0,  0.0), 0.0).rgb;
+    vec3 e = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv, 0.0).rgb;
+    vec3 f = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0,  0.0), 0.0).rgb;
+    vec3 g = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0,  2.0), 0.0).rgb;
+    vec3 h = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0,  2.0), 0.0).rgb;
+    vec3 i = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0,  2.0), 0.0).rgb;
+    vec3 j = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0, -1.0), 0.0).rgb;
+    vec3 k = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0, -1.0), 0.0).rgb;
+    vec3 l = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  1.0), 0.0).rgb;
+    vec3 m = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  1.0), 0.0).rgb;
+    return e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+}
+@end
+
+@fs bloom_prefilter_fs
+@include_block bloom_down_13
+
+layout(binding = 0) uniform bloom_prefilter_params {
+    float threshold;
+    float knee;
+};
+
+// A quadratic soft threshold: no light below threshold - knee, the light
+// above threshold past threshold + knee, and a curve between. It runs before the exposure,
+// so the exposure does not change which surfaces bloom.
+void main() {
+    vec3 c = bloom_down_13();
+    float brightness = max(c.r, max(c.g, c.b));
+    float soft = clamp(brightness - threshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee + 1e-4);
+    float weight = max(soft, brightness - threshold) / max(brightness, 1e-4);
+    frag_color = vec4(c * weight, 1.0);
+}
+@end
+
+@program bloom_prefilter blit_vs bloom_prefilter_fs
+
+@fs bloom_down_fs
+@include_block bloom_down_13
+
+void main() {
+    frag_color = vec4(bloom_down_13(), 1.0);
+}
+@end
+
+@program bloom_down blit_vs bloom_down_fs
+
+@fs bloom_up_fs
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
+
+// The target may be one texel more than twice the source, so its size
+// comes as a uniform.
+layout(binding = 0) uniform bloom_up_params {
+    float target_width;
+    float target_height;
+};
+
+out vec4 frag_color;
+
+// A 3 x 3 tent over the smaller mip. The pipeline adds the result to the
+// target, which holds its own downsample.
+void main() {
+    vec2 t = 1.0 / vec2(textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0));
+    vec2 uv = gl_FragCoord.xy / vec2(target_width, target_height);
+    vec3 a = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0, -1.0), 0.0).rgb;
+    vec3 b = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0, -1.0), 0.0).rgb;
+    vec3 c = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0, -1.0), 0.0).rgb;
+    vec3 d = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  0.0), 0.0).rgb;
+    vec3 e = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv, 0.0).rgb;
+    vec3 f = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  0.0), 0.0).rgb;
+    vec3 g = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  1.0), 0.0).rgb;
+    vec3 h = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0,  1.0), 0.0).rgb;
+    vec3 i = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  1.0), 0.0).rgb;
+    vec3 up = (e * 4.0 + (b + d + f + h) * 2.0 + (a + c + g + i)) / 16.0;
+    frag_color = vec4(up, 1.0);
+}
+@end
+
+@program bloom_up blit_vs bloom_up_fs
+
 @fs tone_map_fs
 layout(binding = 0) uniform texture2D hdr_tex;
 layout(binding = 0) uniform sampler hdr_smp;
+layout(binding = 1) uniform texture2D bloom_tex;
+layout(binding = 1) uniform sampler bloom_smp;
 
-// tone_map is the branch of main: 0 ACES, 1 AgX, 2 Neutral.
+// tone_map is the branch of main: 0 ACES, 1 AgX, 2 Neutral. A
+// bloom_strength of 0 reads no bloom.
 layout(binding = 0) uniform tone_map_params {
     float exposure;
     float tone_map;
+    float bloom_strength;
 };
 
 out vec4 frag_color;
@@ -601,9 +705,14 @@ vec3 pbr_neutral(vec3 c) {
 }
 
 // The HDR image and the Post pass have the same size and row order, so each
-// pixel reads the texel under it.
+// pixel reads the texel under it. The bloom is the first mip, at half size.
 void main() {
-    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb * exposure;
+    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb;
+    if (bloom_strength > 0.0) {
+        vec2 uv = gl_FragCoord.xy / vec2(textureSize(sampler2D(hdr_tex, hdr_smp), 0));
+        hdr += bloom_strength * textureLod(sampler2D(bloom_tex, bloom_smp), uv, 0.0).rgb;
+    }
+    hdr *= exposure;
     vec3 mapped;
     if (tone_map < 0.5) {
         mapped = aces_fitted(hdr);
