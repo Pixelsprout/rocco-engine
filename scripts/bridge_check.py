@@ -15,7 +15,9 @@ a local run, because the real pointer moves it.
 
 Then it runs tutorial chapter 3 with ROCCO_BRIDGE, holds W for 30 steps and
 checks that Pip's Draw moved by the expected distance. Then it saves a
-screenshot, by default into a temporary folder, and checks its size.
+screenshot to out.png, by default in a temporary folder, and checks its size.
+It makes the folder of out.png if it is missing. Every later screenshot goes
+next to it.
 
 Then it runs tutorial chapter 8 and checks the music and the hum in the door's
 Group. It holds W until Pip takes a pickup. The step reply must hold the Play
@@ -766,6 +768,7 @@ def main(argv):
     suffix = binary_suffix()
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.abspath(argv[0]) if argv else os.path.join(tmp, "bridge-check.png")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         for game, drive in GAMES:
             run_game(game, drive, out, tmp, suffix)
     print("PASS: bridge check")

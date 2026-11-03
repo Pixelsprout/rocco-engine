@@ -56,7 +56,15 @@ jobs:
         run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python3 scripts/bridge_check.py
+        run: python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
+
+      - name: Keep the Bridge check screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-check-macos
+          path: build/bridge-check/
+          if-no-files-found: warn
 
       - name: Test
         run: sh scripts/test-all.sh
@@ -102,6 +110,15 @@ jobs:
 
       - name: Build, run and test in the Linux image
         run: docker run --rm -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
+
+      # in-container.sh saves the Bridge check screenshots in build/bridge-check.
+      - name: Keep the Bridge check screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-check-linux
+          path: build/bridge-check/
+          if-no-files-found: warn
 
       - name: Check for changes to committed files
         run: git diff --exit-code
@@ -168,7 +185,15 @@ jobs:
         run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python scripts/bridge_check.py
+        run: python scripts/bridge_check.py build/bridge-check/bridge-check.png
+
+      - name: Keep the Bridge check screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-check-windows
+          path: build/bridge-check/
+          if-no-files-found: warn
 
       - name: Test
         run: sh scripts/test-all.sh
