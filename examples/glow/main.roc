@@ -5,7 +5,8 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # stands a salvage block with a matte ceramic body, a rusted metal lid and
 # two neon tubes. source/make_salvage.py builds it. Left of the window hangs a
 # ribbed panel with a normal map and an occlusion map, and a small light
-# circles in front of it. source/make_panel.py builds the panel.
+# circles in front of it. source/make_panel.py builds the panel. T cycles
+# the tone map from Aces to AgX to Neutral.
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
 import cam.Camera as Cam
@@ -14,7 +15,9 @@ import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Manifest, Rgb, Vec3]
 import pf.Config
 import pf.Draw
+import pf.Environment
 import pf.Input
+import pf.Key
 import pf.Launch
 import pf.Light
 import pf.QueryResults
@@ -22,19 +25,31 @@ import pf.Scene
 
 # salvage and panel are 0, the fallback mesh, until loaded gives their ids.
 # time is the seconds since init, which moves the circling light.
-Model : { salvage : U32, panel : U32, time : F32 }
+Model : { salvage : U32, panel : U32, time : F32, tone_map : ToneMap }
+
+ToneMap : [Aces, AgX, Neutral]
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Glow" } }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { salvage: 0, panel: 0, time: 0.0 }, commands: [Load({ pack: "props", assets: ["salvage", "panel"] })] }
+init = |_config| { model: { salvage: 0, panel: 0, time: 0.0, tone_map: Aces }, commands: [Load({ pack: "props", assets: ["salvage", "panel"] })] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "salvage"), panel: Mesh.resolve(manifest, "panel") }
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
-step = |model, _input, _results, dt| { model: { ..model, time: model.time + dt }, commands: [] }
+step = |model, input, _results, dt| {
+	tone_map = if Key.pressed(input, T) next_tone_map(model.tone_map) else model.tone_map
+	{ model: { ..model, time: model.time + dt, tone_map }, commands: [] }
+}
+
+next_tone_map : ToneMap -> ToneMap
+next_tone_map = |tone_map| match tone_map {
+	Aces => AgX
+	AgX => Neutral
+	Neutral => Aces
+}
 
 night : Vocabulary.Light
 night = Light.ambient({ r: 0.02, g: 0.02, b: 0.03 })
@@ -105,7 +120,7 @@ view = |model| {
 	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
 	orb_right = orb(11, { x: 1.6, y: 0.5, z: 0.4 }, { r: 0.15, g: 0.35, b: 1.0 })
 	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Draw(panel(model.panel)), Light(lamp)], orb_left, orb_right, spark(model.time)])
-	{ ..Scene.empty, camera, nodes }
+	{ ..Scene.empty, camera, nodes, environment: { ..Environment.default, tone_map: model.tone_map } }
 }
 
 is_light : Vocabulary.Node -> Bool
@@ -138,6 +153,18 @@ expect {
 	stepped = step(init(Config.empty).model, Input.empty, QueryResults.empty, 0.25)
 	stepped.model.time == 0.25
 }
+
+## Each press of T moves the tone map on, and the third returns to Aces.
+expect {
+	press = |model| step(model, { ..Input.empty, pressed: [Key.code(T)] }, QueryResults.empty, 0.0).model
+	first = press(init(Config.empty).model)
+	second = press(first)
+	third = press(second)
+	first.tone_map == AgX and second.tone_map == Neutral and third.tone_map == Aces
+}
+
+## The Scene draws with the tone map of the Model.
+expect view({ ..init(Config.empty).model, tone_map: Neutral }).environment.tone_map == Neutral
 
 ## The spark is right of the panel at 0 seconds, above it at 1 and left of it at 2.
 expect {

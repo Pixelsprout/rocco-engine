@@ -53,12 +53,15 @@ A host that draws the whole mesh with its first material shows no teal. The
 panel's ribs come from its normal map, so the left flank of each rib must be
 brighter than its right flank. It steps until the spark is on the right,
 saves a "-glow-right" screenshot and checks the reverse. A panel with no
-normal map, or with its tangents turned round, fails one of the two.
+normal map, or with its tangents turned round, fails one of the two. Then it
+taps T twice, saving a screenshot under each tone map, and checks that each
+pair of tone maps changes many more pixels than one step of the spark does.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
 """
 
+import itertools
 import math
 import os
 import shlex
@@ -150,6 +153,11 @@ MIN_NEON_PIXELS = 200
 PANEL_ID = 5
 SPARK_ID = 6
 HALF_TURN_STEPS = 2 * 120
+# examples/glow/main.roc: T cycles the tone map in this order from Aces. The
+# spark's light moves every step, so a step alone changes pixels; a tone map
+# change must change this many times as many as one step does.
+TONE_MAPS = ["Aces", "AgX", "Neutral"]
+MIN_TONE_MAP_RATIO = 10
 # examples/glow/source/make_panel.py: the panel's face is 0.02 in front of its
 # Draw pos. Each rib has a cosine profile, so its steepest lines are a quarter
 # of its width each side of its crest. The samples stay near those lines and
@@ -626,8 +634,26 @@ def drive_glow(b, out):
     right_out = f"{stem}-glow-right{ext}"
     b.screenshot(right_out)
     check_ribs(right_out, scene["camera"], centre, "right")
+    check_tone_maps(b, stem, ext, right_out)
 
     b.quit()
+
+
+def check_tone_maps(b, stem, ext, last_out):
+    b.step(1)
+    shots = {"Aces": f"{stem}-glow-aces{ext}"}
+    b.screenshot(shots["Aces"])
+    step_changed = bridge.png_changed_pixels(last_out, shots["Aces"])
+    for tone_map in TONE_MAPS[1:]:
+        b.step(1, tap=["T"])
+        got = b.scene()["scene"]["environment"]["tone_map"]
+        check(got == tone_map, f"a tap of T sets the tone map to {tone_map}: {got}")
+        shots[tone_map] = f"{stem}-glow-{tone_map.lower()}{ext}"
+        b.screenshot(shots[tone_map])
+    least = max(MIN_CHANGED_PIXELS, MIN_TONE_MAP_RATIO * step_changed)
+    for a, c in itertools.combinations(TONE_MAPS, 2):
+        changed = bridge.png_changed_pixels(shots[a], shots[c])
+        check(changed > least, f"{a} and {c} differ in {changed} pixels, and one step changes {step_changed}")
 
 
 def ui_strings(elements):
