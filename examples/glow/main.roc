@@ -124,7 +124,6 @@ view = |model| {
 	{ ..Scene.empty, camera, nodes, environment: environment(model) }
 }
 
-# The bloom raises only its strength. The threshold and knee stay at their defaults.
 # region: environment
 bloom_strength : F32
 bloom_strength = 0.2

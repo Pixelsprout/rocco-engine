@@ -118,9 +118,9 @@ traces of each build.
   is the better measure of the bloom work, at that clock.
 - The Spans measure the CPU side. Each build ran 3 times in windowed
   Lockstep with `ROCCO_EXIT_AFTER_FRAMES=2120`, and `bench/realclock.py`
-  dropped the 120 warmup Frames. The `render_submit` median rose
-  from 12 to 21 us with bloom off to 66 to 229 us with bloom on, and its p99
-  from 95 to 112 us to 423 to 446 us. The spread comes from the shared Mac.
+  dropped the 120 warmup Frames. The `render_submit` median rose from 12 to
+  21 us with bloom off to 66 to 229 us with bloom on. Its p99 rose from 95 to
+  112 us to 423 to 446 us. The spread comes from the shared Mac.
   The rise is the CPU cost of the 11 extra passes.
 
 ## What the numbers do not claim

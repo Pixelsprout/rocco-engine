@@ -418,7 +418,7 @@ Vocabulary := [].{
 	##   `clear` do not fog, so match `color` to the sky's horizon or to
 	##   `clear`. An `amount` outside 0 to 1 is clamped into it. With fog on,
 	##   an `end` at or below `start` moves just past `start`. Each logs once.
-	## - `bloom`: a glow from light above `threshold`, scaled by `strength`,
+	## - `bloom`: a halo around light above `threshold`, scaled by `strength`,
 	##   with `knee` to soften the threshold. The halo starts where the
 	##   brightest channel passes `threshold - knee`. Past `threshold + knee`
 	##   it takes the light above `threshold`. The threshold reads the colour
