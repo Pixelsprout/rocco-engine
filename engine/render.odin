@@ -379,6 +379,11 @@ renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	sg.draw(0, cube.index_count, 1)
 }
 
+renderer_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {
+	r := (^Renderer)(ctx)
+	render_target_tone_map(&r.target, params)
+}
+
 renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 	return {
 		begin_pass = renderer_begin_pass,
@@ -387,6 +392,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
 		submit_sky = renderer_sky,
+		submit_tone_map = renderer_tone_map,
 		submit_ui = renderer_ui,
 		ctx = r,
 	}

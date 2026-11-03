@@ -7,6 +7,7 @@ import linalg.Quat
 import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Rgb, Scene, Vec3]
 import pf.Light
 import pf.QueryResults
+import pf.Environment
 import pf.Launch
 import pf.Pose
 
@@ -125,8 +126,7 @@ view = |m| {
 		camera: Cam.look_at({ x: 0.0, y: 28.0, z: 22.0 }, { x: 0.0, y: 0.0, z: 0.0 }),
 		nodes: List.fold(m.orbs, drawn, |nodes, o| nodes.append(Light(Light.point(o.pos, orb_color, orb_range)))),
 		cursor: Free,
-		sky: 0,
-		clear: { r: 0.0, g: 0.0, b: 0.0 },
+		environment: Environment.default,
 		ui: [],
 		queries: [],
 	}

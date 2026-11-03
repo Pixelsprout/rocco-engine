@@ -10,7 +10,7 @@ test_host_build_with_a_bad_launch_names_the_field_and_keeps_nothing :: proc(t: ^
 	defer roc_heap_test_end()
 	launch := launch_default()
 	launch.step_hz = 0
-	g_fake = {launch_in = launch}
+	g_fake = {launch_in = launch, environment = ENVIRONMENT_DEFAULT}
 	s: State
 	err := memory_init(&s.mem)
 	testing.expect_value(t, err, nil)

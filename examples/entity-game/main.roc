@@ -10,6 +10,7 @@ import linalg.Pose
 import pf.Vocabulary exposing [Command, Contact, Manifest, Vec3]
 import pf.Config
 import pf.Draw
+import pf.Environment
 import pf.Input
 import pf.Launch
 import pf.Scene
@@ -661,7 +662,7 @@ view = |curr| {
 		Won(t) => Cam.look_at(orbit_eye(target, t), target)
 	}
 
-	{ ..Scene.empty, camera, nodes: List.join([scenery, entities, shadows]), sky: curr.meshes.sky, queries }
+	{ ..Scene.empty, camera, nodes: List.join([scenery, entities, shadows]), environment: { ..Environment.default, sky: curr.meshes.sky }, queries }
 }
 
 # region: tree
@@ -863,8 +864,8 @@ test_meshes = resolve_meshes(manifest)
 expect launch(Config.empty) == Launch.default
 expect init({ ..Config.empty, assets: ["sprout", "sky/meadow"] }).commands == [Load({ pack: "sprout", assets: ["sprout", "sky/meadow"] })]
 expect loaded(init(Config.empty).model, "sprout", manifest).meshes == { cube: 1, sphere: 2, plane: 3, sprout: 4, sky: 1 }
-expect view(init(Config.empty).model).sky == 0
-expect view(loaded(init(Config.empty).model, "sprout", manifest)).sky == 1
+expect view(init(Config.empty).model).environment.sky == 0
+expect view(loaded(init(Config.empty).model, "sprout", manifest)).environment.sky == 1
 
 right : Vocabulary.Input
 right = { ..Input.empty, held: [Key.code(D)] }

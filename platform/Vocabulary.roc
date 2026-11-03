@@ -388,16 +388,46 @@ Vocabulary := [].{
 	##
 	## - `nodes`: the root Nodes of the 3D tree. A root Node's Pose is in the
 	##   world.
-	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
-	##   know, draws no sky.
-	## - `clear`: the linear colour behind the 3D view. The host clears to it
-	##   each frame, before any mesh. A sky draws over it. `Scene.empty` has
-	##   black.
+	## - `environment`: the look of the 3D view. `Scene.empty` has
+	##   `Environment.default`.
 	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, sky : U32, clear : Rgb, ui : List(Element), queries : List(Query) }
+	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+
+	## The look of the 3D view: what is behind it, how its linear colour maps
+	## to the screen, its fog and its bloom. Start from `Environment.default`.
+	## The host takes it from the current Scene, with no interpolation. The UI
+	## draws after the tone map, so none of it changes the UI.
+	##
+	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
+	##   know, draws no sky.
+	## - `clear`: the linear colour behind the 3D view. The host clears to it
+	##   each frame, before any mesh. A sky draws over it.
+	## - `tone_map`: how linear colour above 1 rolls off to the screen. `Aces`
+	##   is Stephen Hill's fit of ACES. `AgX` keeps a saturated highlight from
+	##   shifting hue. `Neutral` is Khronos PBR Neutral, which keeps a colour
+	##   closest to its authored value.
+	## - `exposure`: a linear multiplier on every colour before the tone map.
+	##   1 changes nothing. At or below 0, the host draws with 1 and logs once.
+	## - `fog`: linear fog by distance from the camera. It starts at `start`
+	##   and reaches `amount` of `color` at `end`. `amount` runs from 0 to 1,
+	##   and 0 draws no fog. The host checks it but does not draw it yet. An
+	##   `amount` outside 0 to 1 is clamped into it. With fog on, an `end` at
+	##   or below `start` moves just past `start`. Each logs once.
+	## - `bloom`: a glow from light above `threshold`, scaled by `strength`,
+	##   with `knee` to soften the threshold. A `strength` of 0 draws no bloom.
+	##   The host checks it but does not draw it yet. A negative number
+	##   becomes 0 and logs once.
+	Environment : {
+		sky : U32,
+		clear : Rgb,
+		tone_map : [Aces, AgX, Neutral],
+		exposure : F32,
+		fog : { color : Rgb, start : F32, end : F32, amount : F32 },
+		bloom : { strength : F32, threshold : F32, knee : F32 },
+	}
 
 	## Where a Play or a Speaker sounds. The Listener is the Camera of the
 	## current Scene.

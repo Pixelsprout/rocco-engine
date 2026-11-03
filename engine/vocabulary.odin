@@ -37,6 +37,10 @@ Port_Message :: Roc_Step_Arg2_Ports
 Ui_Results :: Roc_Step_Arg2_Ui
 Scroll_Size :: Roc_Step_Arg2_Ui_Scroll
 Scene :: Roc_View
+Environment :: Roc_View_Environment
+Tone_Map :: Roc_View_Environment_ToneMap
+Fog :: Roc_View_Environment_Fog
+Bloom :: Roc_View_Environment_Bloom
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag
 Group :: Roc_VocabularyNode_Group

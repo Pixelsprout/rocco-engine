@@ -1491,13 +1491,14 @@ Milestone 28. Closes dex tasks yjtqgdd4 and s1zhf2hf. Grilled 2026-11-03.
    tone map, then sRGB. The tone map is ACES (Hill's fit, the default),
    AgX (the base look) or Khronos PBR Neutral. `exposure` is a linear
    multiplier, default 1.0.
-4. Fog is linear, `{ color, start, end }`, by radial distance from the
-   camera. It runs forward in the mesh shader and mixes the whole surface
-   colour, emissive and unlit surfaces included. The sky does not fog.
+4. Fog is linear, `{ color, start, end, amount }`, by radial distance from
+   the camera. It reaches `amount` of `color` at `end`. It runs forward in
+   the mesh shader and mixes the whole surface colour, emissive and unlit
+   surfaces included. The sky does not fog.
 5. A bloom prefilter applies the soft threshold (`threshold`, `knee`)
    before exposure. 13-tap downsamples from half resolution make up to 6
-   mips, none smaller than 8 px. Tent upsamples add each mip back.
-   `bloom: None` skips the passes.
+   mips, none smaller than 8 px. Tent upsamples add each mip back. A
+   `strength` of 0 skips the passes.
 6. One Vocabulary change. Scene loses `sky` and `clear` and gains
    `environment : Environment`:
 
@@ -1507,16 +1508,19 @@ Milestone 28. Closes dex tasks yjtqgdd4 and s1zhf2hf. Grilled 2026-11-03.
        clear : Rgb,
        tone_map : [Aces, AgX, Neutral],
        exposure : F32,
-       fog : [None, Fog({ color : Rgb, start : F32, end : F32 })],
-       bloom : [None, Bloom({ strength : F32, threshold : F32, knee : F32 })],
+       fog : { color : Rgb, start : F32, end : F32, amount : F32 },
+       bloom : { strength : F32, threshold : F32, knee : F32 },
    }
    ```
 
    `Scene.empty` holds `Environment.default`: no sky, a black clear
-   colour, ACES, exposure 1.0, no fog and no bloom. `Environment.bloom` is
-   `Bloom({ strength: 0.5, threshold: 1.0, knee: 0.5 })`. The host clamps
-   a bad value (exposure at or below 0, `end` at or below `start`, a
-   negative bloom number) and logs once per run. The Bridge `scene` op
+   colour, ACES and exposure 1.0. Its fog `amount` and bloom `strength`
+   are 0, which turns each off; the other fog and bloom numbers are a
+   starting point. Changed on 2026-11-04 from `[None, Fog(...)]` and
+   `[None, Bloom(...)]` unions, so that a default value turns each effect
+   off. The host clamps a bad value (exposure at or below 0, a fog amount
+   outside 0 to 1, `end` at or below `start`, a negative bloom number) and
+   logs once per run. The Bridge `scene` op
    shows the record. ADR 0026.
 
 Check: `examples/glow` turns bloom on. One key cycles the tone map and one

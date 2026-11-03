@@ -26,7 +26,7 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	child := []Node{node_draw({id = 8, pos = {0, 0, 1}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}})}
 	g_fake.nodes = {node_group(5, {x = 4}, quat_yaw(1), child)}
 	g_fake.cursor = .Locked
-	g_fake.sky = 2
+	g_fake.environment = {sky = 2, clear = {r = 0.1}, tone_map = .AgX, exposure = 1.5, fog = {color = {b = 1}, start = 2, end = 9, amount = 0.5}, bloom = {threshold = 1, knee = 0.5}}
 	g_fake.ui_texts = {"Pip"}
 	frame_run(&s, fake_platform(s.clock.fixed_dt))
 
@@ -48,7 +48,18 @@ test_bridge_scene_replies_every_scene_field_and_the_results_the_next_step_gets :
 	testing.expect_value(t, draw["pos"].(json.Object)["y"].(json.Float), 2)
 	testing.expect_value(t, draw["rot"].(json.Object)["w"].(json.Float), 1)
 	testing.expect_value(t, scene["cursor"].(json.String), "Locked")
-	testing.expect_value(t, scene["sky"].(json.Float), 2)
+	env := scene["environment"].(json.Object)
+	testing.expect_value(t, env["sky"].(json.Float), 2)
+	testing.expect_value(t, f32(env["clear"].(json.Object)["r"].(json.Float)), 0.1)
+	testing.expect_value(t, env["tone_map"].(json.String), "AgX")
+	testing.expect_value(t, env["exposure"].(json.Float), 1.5)
+	fog := env["fog"].(json.Object)
+	testing.expect_value(t, fog["start"].(json.Float), 2)
+	testing.expect_value(t, fog["end"].(json.Float), 9)
+	testing.expect_value(t, fog["amount"].(json.Float), 0.5)
+	testing.expect_value(t, fog["color"].(json.Object)["b"].(json.Float), 1)
+	testing.expect_value(t, env["bloom"].(json.Object)["strength"].(json.Float), 0)
+	testing.expect(t, "sky" not_in scene)
 	shapes := make(json.Array, 0, 3, context.temp_allocator)
 	for collider in nodes[1:4] {
 		append(&shapes, expect_tag(t, collider, "Collider").(json.Object)["shape"])
