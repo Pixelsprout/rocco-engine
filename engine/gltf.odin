@@ -238,10 +238,11 @@ Glb_Loader :: struct {
 
 // The indices of every primitive that draws with this material. glTF
 // materials that differ only in base colour factor share a run, because
-// that factor goes in the vertex colour.
+// that factor goes in the vertex colour. part is empty until glb_parts.
 Glb_Material_Run :: struct {
 	material: Glb_Material,
 	indices:  [dynamic]u16,
+	part:     Mesh_Data_Part,
 }
 
 // A glTF texture decodes once per colour space. slot is nil for a texture
@@ -332,33 +333,42 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 // one range of the index buffer. The indices and parts are frame memory; the
 // textures go to allocator.
 glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, parts: []Mesh_Data_Part, err: Glb_Error) {
+	// Textures take their slots in walk order, so the texture limit drops the
+	// last textures the walk meets, whatever their part's alpha mode.
+	for &run in l.runs {
+		run.part = glb_part(l, run.material, allocator) or_return
+	}
 	slice.stable_sort_by(l.runs[:], proc(a, b: Glb_Material_Run) -> bool {
 		return a.material.values.alpha_mode < b.material.values.alpha_mode
 	})
 	all := make([dynamic]u16, 0, len(l.vertices), context.temp_allocator)
 	parts = make([]Mesh_Data_Part, len(l.runs), context.temp_allocator)
 	for run, i in l.runs {
-		material := run.material
-		part := Mesh_Data_Part {
-			first              = len(all),
-			count              = len(run.indices),
-			material           = material.values,
-			texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
-			metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
-			emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
-			normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
-			occlusion          = glb_texture_slot(l, material.occlusion, srgb = false, allocator = allocator) or_return,
-		}
-		if part.normal == nil {
-			part.material.normal_scale = 0
-		}
-		if part.occlusion == nil {
-			part.material.occlusion_strength = 0
-		}
-		parts[i] = part
+		parts[i] = run.part
+		parts[i].first = len(all)
+		parts[i].count = len(run.indices)
 		append(&all, ..run.indices[:])
 	}
 	return all[:], parts, .None
+}
+
+// The part's material and texture slots, without its range.
+glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+	part = {
+		material           = material.values,
+		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
+		metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
+		emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
+		normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
+		occlusion          = glb_texture_slot(l, material.occlusion, srgb = false, allocator = allocator) or_return,
+	}
+	if part.normal == nil {
+		part.material.normal_scale = 0
+	}
+	if part.occlusion == nil {
+		part.material.occlusion_strength = 0
+	}
+	return part, .None
 }
 
 // A primitive with no material is matte. glTF gives a material without

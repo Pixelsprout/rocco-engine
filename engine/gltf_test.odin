@@ -1114,6 +1114,34 @@ test_glb_decodes_a_texture_once_per_colour_space :: proc(t: ^testing.T) {
 // Each material names its own glTF texture and image, so the file has one more texture than the limit.
 @(test)
 test_glb_keeps_the_first_textures_up_to_the_limit_and_notes_the_rest :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(over_texture_limit_glb(), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Too_Many_Textures})
+	testing.expect_value(t, len(data.textures), MESH_TEXTURE_LIMIT)
+	testing.expect_value(t, len(data.parts), MESH_TEXTURE_LIMIT + 1)
+	testing.expect_value(t, data.parts[MESH_TEXTURE_LIMIT - 1].texture, Maybe(int)(MESH_TEXTURE_LIMIT - 1))
+	testing.expect(t, data.parts[MESH_TEXTURE_LIMIT].texture == nil)
+}
+
+// Each material names its own normal and occlusion images, so the ninth
+// material's two textures are past the limit.
+// The first material is the first the walk meets, so its texture keeps a slot
+// though its Blend part goes last.
+@(test)
+test_glb_gives_the_textures_slots_in_walk_order_before_it_orders_the_parts :: proc(t: ^testing.T) {
+	data, notes, err := glb_parse(over_texture_limit_glb(`"alphaMode":"BLEND",`), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{.Too_Many_Textures})
+	last := data.parts[MESH_TEXTURE_LIMIT]
+	testing.expect_value(t, last.material.alpha_mode, Alpha_Mode.Blend)
+	testing.expect_value(t, last.texture, Maybe(int)(0))
+	testing.expect(t, data.parts[MESH_TEXTURE_LIMIT - 1].texture == nil)
+}
+
+// One primitive per material, and one more material than MESH_TEXTURE_LIMIT,
+// each with its own base colour texture. first goes at the start of the first
+// material's JSON.
+over_texture_limit_glb :: proc(first := "") -> []byte {
 	primitives := strings.builder_make(context.temp_allocator)
 	materials := strings.builder_make(context.temp_allocator)
 	textures := strings.builder_make(context.temp_allocator)
@@ -1125,28 +1153,19 @@ test_glb_keeps_the_first_textures_up_to_the_limit_and_notes_the_rest :: proc(t: 
 			strings.write_string(&textures, ",")
 			strings.write_string(&images, ",")
 		}
-		fmt.sbprintf(&materials, `{{"pbrMetallicRoughness":{{"baseColorTexture":{{"index":%v}}}}}}`, i)
+		fmt.sbprintf(&materials, `{{%s"pbrMetallicRoughness":{{"baseColorTexture":{{"index":%v}}}}}}`, first if i == 0 else "", i)
 		fmt.sbprintf(&textures, `{{"source":%v}}`, i)
 		strings.write_string(&images, `{"bufferView":6,"mimeType":"image/png"}`)
 	}
-	glb := textured_glb(
+	return textured_glb(
 		png_make(1, 1, PNG_RGB, {1, 2, 3}),
 		image = strings.to_string(images),
 		texture = strings.to_string(textures),
 		second = strings.to_string(primitives),
 		material = strings.to_string(materials),
 	)
-	data, notes, err := glb_parse(glb, context.temp_allocator)
-	testing.expect_value(t, err, Glb_Error.None)
-	testing.expect_value(t, notes, Glb_Notes{.Too_Many_Textures})
-	testing.expect_value(t, len(data.textures), MESH_TEXTURE_LIMIT)
-	testing.expect_value(t, len(data.parts), MESH_TEXTURE_LIMIT + 1)
-	testing.expect_value(t, data.parts[MESH_TEXTURE_LIMIT - 1].texture, Maybe(int)(MESH_TEXTURE_LIMIT - 1))
-	testing.expect(t, data.parts[MESH_TEXTURE_LIMIT].texture == nil)
 }
 
-// Each material names its own normal and occlusion images, so the ninth
-// material's two textures are past the limit.
 @(test)
 test_glb_counts_normal_and_occlusion_textures_against_the_limit :: proc(t: ^testing.T) {
 	MATERIALS :: MESH_TEXTURE_LIMIT / 2 + 1
