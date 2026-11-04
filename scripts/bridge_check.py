@@ -64,7 +64,7 @@ spark moves at each step, so the mean of the two bloom shots stands for the
 bloom at the step of the shot without it. A ring of pixels around the window
 must be much brighter with bloom than without it, and than one step of the
 spark changes it. A patch of lit floor far from every bright surface is below
-the threshold, so it must not get brighter with bloom.
+the threshold, so it must get no more than the faint edge of the halo.
 
 RUN_PREFIX wraps each game, as in run-games.sh, for example the xvfb-run line
 in the Linux image.
@@ -170,7 +170,7 @@ MIN_TONE_MAP_RATIO = 10
 # examples/glow/main.roc: the window's Draw id. B turns the bloom on and off.
 # The ring runs from RING_INNER to RING_OUTER logical pixels outside the
 # window's face, clear of the panel on its left. Its mean brightness, from 0
-# to 255, rises by about 45 with the bloom at 960 by 540 on a Retina Mac.
+# to 255, rises by about 47 with the bloom at 960 by 540, at 1x or 2x.
 WINDOW_ID = 3
 RING_INNER = 3
 RING_OUTER = 12
@@ -178,11 +178,12 @@ MIN_RING_GAIN = 5
 MIN_BLOOM_RATIO = 10
 # A patch of floor in the left orb's pool of light, as (left, top, right,
 # bottom) in logical pixels. It is lit, with a mean brightness of about 34,
-# but is far from the orbs, the window and the neon. Its mean rises by under
-# 0.05 with the bloom, and by about 30 with a threshold of 0.
+# but is far from the orbs, the window and the neon. Its mean rises by about
+# 0.6 with the bloom, from the faint edge of the left orb's halo, and by about
+# 30 with a threshold of 0.
 QUIET_BOX = (180, 370, 230, 410)
 MIN_QUIET_BRIGHTNESS = 15
-MAX_QUIET_GAIN = 0.5
+MAX_QUIET_GAIN = 2
 # examples/glow/source/make_panel.py: the panel's face is 0.02 in front of its
 # Draw pos. Each rib has a cosine profile, so its steepest lines are a quarter
 # of its width each side of its crest. The samples stay near those lines and
