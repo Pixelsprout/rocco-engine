@@ -47,12 +47,13 @@ outside it, and checks that a press on one button and a release on another
 click nothing. Last it clicks the icon Button, a Panel that shows a frame of
 the sprite sheet, and checks the click Tell and the image in the scene reply.
 
-Then it runs glow and checks that the salvage block, ribbed panel and glass
-tube loaded. It finds blue orb pixels inside the tube and visible tube wall
-pixels around them. It hides the tube for one frame and checks that the floor
-below it did not darken. It steps until the spark circles to the panel's left, saves
-a "-glow" screenshot next to the first one and checks its size. The neon
-tubes are the block's third material, so the screenshot must show their teal.
+Then it runs glow and steps until the spark circles to the panel's left.
+It checks that the salvage block, ribbed panel and glass tube loaded, then
+saves a "-glow" screenshot next to the first one and checks its size.
+It finds blue orb pixels inside the tube and visible tube wall pixels beside
+them. It hides the tube for one frame and checks that the floor below it did
+not darken. The neon tubes are the block's third material, so the screenshot
+must show their teal.
 A host that draws the whole mesh with its first material shows no teal. The
 panel's ribs come from its normal map, so the left flank of each rib must be
 brighter than its right flank. It steps until the spark is on the right,
