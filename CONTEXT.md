@@ -440,7 +440,11 @@ _Avoid_: submesh, glTF primitive (a unit of the file), material slot
 **Alpha mode**:
 How a Mesh part's material treats the alpha of its base colour, from glTF's
 `alphaMode`: Opaque, Mask (a cutout) or Blend (see-through, such as glass).
-A Blend part casts no shadow. Not the Frame's Alpha.
+A Mask part keeps depth writes and casts the whole shape of its triangles
+from faces that point at the Sun. A Blend part draws after the sky, writes
+no depth and casts no shadow. A double-sided Blend part draws its back faces
+before its front faces and counts twice against `Launch.capacity.draws`.
+Not the Frame's Alpha.
 _Avoid_: alpha (on its own), transparency mode, blend mode, opacity
 
 **Fallback mesh**:

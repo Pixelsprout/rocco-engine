@@ -58,13 +58,14 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 
 #assert(MESH_TEXTURE_LIMIT == 16, "the Too_Many_Textures reason states the limit")
 GLB_NOTE_REASONS := [Glb_Note]string {
-	.Jpeg_Skipped       = "a texture is a JPEG, so it draws without that texture; export PNG",
-	.Bad_Png            = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
-	.Unsupported_Image  = "a texture is not an embedded PNG, so it draws without that texture",
-	.Too_Many_Textures  = "it has more than 16 textures, so the textures past the first 16 do not draw",
-	.Channel_Skipped    = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
-	.Generated_Tangents = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
-	.Second_Uv_Ignored  = "a texture names a texCoord other than 0, so it draws with the first UV set",
+	.Jpeg_Skipped         = "a texture is a JPEG, so it draws without that texture; export PNG",
+	.Bad_Png              = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
+	.Unsupported_Image    = "a texture is not an embedded PNG, so it draws without that texture",
+	.Too_Many_Textures    = "it has more than 16 textures, so the textures past the first 16 do not draw",
+	.Channel_Skipped      = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
+	.Generated_Tangents   = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
+	.Second_Uv_Ignored    = "a texture names a texCoord other than 0, so it draws with the first UV set",
+	.Transmission_Ignored = "a material has KHR_materials_transmission, so it draws by alphaMode; use Alpha in Blender for glass",
 }
 
 Glb_Error :: enum {
@@ -102,6 +103,7 @@ Glb_Note :: enum {
 	Channel_Skipped,
 	Generated_Tangents,
 	Second_Uv_Ignored,
+	Transmission_Ignored,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -133,6 +135,9 @@ Gltf :: struct {
 		double_sided:      bool `json:"doubleSided"`,
 		extensions:        struct {
 			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
+			transmission:      Maybe(struct {
+					factor: Maybe(f32) `json:"transmissionFactor"`,
+				}) `json:"KHR_materials_transmission"`,
 			emissive_strength: Maybe(struct {
 					strength: Maybe(f32) `json:"emissiveStrength"`,
 				}) `json:"KHR_materials_emissive_strength"`,
@@ -379,6 +384,9 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 		return {values = MATERIAL_MATTE}
 	}
 	gltf_material := &l.gltf.materials[m]
+	if gltf_material.extensions.transmission != nil {
+		l.notes += {.Transmission_Ignored}
+	}
 	pbr := &gltf_material.pbr
 	material := Glb_Material {
 		values = {

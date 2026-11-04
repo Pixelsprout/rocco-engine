@@ -1204,3 +1204,22 @@ test_glb_counts_normal_and_occlusion_textures_against_the_limit :: proc(t: ^test
 	testing.expect(t, past.occlusion == nil)
 	testing.expect_value(t, past.material.normal_scale, f32(0))
 }
+
+@(test)
+test_glb_notes_transmission_and_uses_the_material_alpha_mode :: proc(t: ^testing.T) {
+	Case :: struct {
+		json: string,
+		want: Alpha_Mode,
+	}
+	cases := []Case {
+		{`{"extensions":{"KHR_materials_transmission":{"transmissionFactor":0.7}}}`, .Opaque},
+		{`{"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":0.7}}}`, .Blend},
+	}
+	for mode in cases {
+		materials := fmt.tprintf(`"materials":[%s],`, mode.json)
+		data, notes, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+		testing.expect_value(t, err, Glb_Error.None)
+		testing.expect_value(t, notes, Glb_Notes{.Transmission_Ignored})
+		testing.expect_value(t, data.parts[0].material.alpha_mode, mode.want)
+	}
+}
