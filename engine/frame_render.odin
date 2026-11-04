@@ -123,17 +123,18 @@ Draw_Transform :: struct {
 // parts are the mesh parts that fit the draw capacity. skin is a slot of
 // Frame_Render.skins for a skinned mesh, and nil for a rigid one. light_box
 // is the mesh box in the Sun's view space; only the shadow pass of 2 to 4
-// cascades fills it.
+// cascades fills it. A Draw with a shadow_count of 0 casts no shadow.
 Placed :: struct {
-	mesh:      ^Mesh,
-	parts:     []Mesh_Part,
-	fallback:  bool,
-	tint:      Rgb,
-	glow:      Rgb,
-	transform: Draw_Transform,
-	model:     Mat4,
-	skin:      ^Skin_Params,
-	light_box: Box,
+	mesh:         ^Mesh,
+	parts:        []Mesh_Part,
+	fallback:     bool,
+	tint:         Rgb,
+	glow:         Rgb,
+	transform:    Draw_Transform,
+	model:        Mat4,
+	skin:         ^Skin_Params,
+	light_box:    Box,
+	shadow_count: int,
 }
 
 // placed_next gives the rigid Draws first, then the skinned ones, so the
@@ -289,7 +290,7 @@ frame_render_draw :: proc(
 	}
 	lights.fog_color, lights.fog_ramp = fog_uniform(env.fog)
 
-	if gathered.has_sun && len(fr.placed) > 0 {
+	if gathered.has_sun && placed_casts(fr.placed[:]) {
 		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span)
 	}
 
@@ -404,6 +405,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 			transform = x,
 			model = draw_model_matrix(x),
 			skin = room.skin,
+			shadow_count = mesh_shadow_count(room.mesh),
 		},
 	)
 }
@@ -441,7 +443,9 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 
 	light_view := light_view_of(to_light)
 	for &p in fr.placed {
-		p.light_box = light_box(light_view, p.model, p.mesh.box)
+		if p.shadow_count > 0 {
+			p.light_box = light_box(light_view, p.model, p.mesh.box)
+		}
 	}
 	splits := cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, fr.cascades, CASCADE_SPLIT_WEIGHT)
 	for i in 0 ..< fr.cascades {
@@ -467,9 +471,19 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 
 @(private = "file")
 frame_render_submit_shadow :: proc(fr: ^Frame_Render, p: ^Placed, light_view_proj: Mat4) {
-	if count := mesh_shadow_count(p.mesh); count > 0 {
-		fr.submits.submit_shadow(fr.submits.ctx, p.mesh, count, {light_mvp = light_view_proj * p.model}, p.skin)
+	if p.shadow_count > 0 {
+		fr.submits.submit_shadow(fr.submits.ctx, p.mesh, p.shadow_count, {light_mvp = light_view_proj * p.model}, p.skin)
 	}
+}
+
+@(private = "file")
+placed_casts :: proc(placed: []Placed) -> bool {
+	for p in placed {
+		if p.shadow_count > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 placed_next :: proc(order: ^Placed_Order) -> (p: ^Placed, ok: bool) {
@@ -500,13 +514,17 @@ frame_render_begin_pass :: proc(fr: ^Frame_Render, pass: Pass, view: int, clear_
 	span^ = span_skip(span^, waited)
 }
 
-// An orthographic view from the Sun over the box of every placed Draw. A
-// skinned mesh's box is padded at load, so it holds the posed mesh.
+// An orthographic view from the Sun over the box of every placed Draw that
+// casts a shadow. A skinned mesh's box is padded at load, so it holds the
+// posed mesh. At least one Draw must cast.
 shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
 	light_view := light_view_of(to_light)
 	lo := [3]f32{max(f32), max(f32), max(f32)}
 	hi := -lo
 	for p in placed {
+		if p.shadow_count == 0 {
+			continue
+		}
 		box := light_box(light_view, p.model, p.mesh.box)
 		lo = linalg.min(lo, box.min)
 		hi = linalg.max(hi, box.max)

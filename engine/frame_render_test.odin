@@ -1025,6 +1025,46 @@ test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: pr
 	}
 }
 
+@(test)
+test_frame_render_fits_the_shadow_map_to_the_draws_that_cast :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		cube := Draw{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+		glass := Draw{id = 2, mesh = pane, pos = {3, 60, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+
+		alone := []Draw{cube}
+		frame_fixture_draw(&f, scene_lit(alone, lights), scene_lit(alone, lights), 0)
+		want := f.rec.lights.light_view_proj
+
+		beside := []Draw{cube, glass}
+		frame_fixture_draw(&f, scene_lit(beside, lights), scene_lit(beside, lights), 0)
+		testing.expectf(t, f.rec.lights.light_view_proj == want, "%v cascades: a Draw with only Blend parts moved the shadow map", cascades)
+	}
+}
+
+@(test)
+test_frame_render_draws_no_shadow_pass_when_no_draw_casts :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = pane, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	for p in f.rec.passes {
+		testing.expect(t, p.pass != .Shadow)
+	}
+	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
+	testing.expect_value(t, len(f.rec.submits), 1)
+}
+
 frame_fixture_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
 	slot, _ := mesh_table_add(&f.meshes, strings.clone(name), {parts = slice.clone(parts, f.meshes.allocator)})
 	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}

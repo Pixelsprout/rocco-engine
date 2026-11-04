@@ -133,7 +133,7 @@ test_cascade_view_reaches_a_caster_toward_the_sun :: proc(t: ^testing.T) {
 		box = {{-0.5, -0.5, -0.5}, {0.5, 0.5, 0.5}},
 	}
 	model := mat4_translate({0, 60, -5})
-	placed := []Placed{{mesh = &mesh, model = model, light_box = light_box(light_view, model, mesh.box)}}
+	placed := []Placed{{mesh = &mesh, model = model, light_box = light_box(light_view, model, mesh.box), shadow_count = 36}}
 	splits := cascade_splits(0.1, 150, 4, 0.5)
 	view := cascade_view(light_view, cascade_sphere(CASCADE_CAMERA, CASCADE_ASPECT, 0.1, splits[0]), 2048, placed)
 
@@ -165,8 +165,8 @@ test_shadow_view_proj_is_unchanged_by_the_helpers :: proc(t: ^testing.T) {
 		box = {{-0.3, -0.4, -0.2}, {0.6, 0.5, 0.7}},
 	}
 	placed := []Placed {
-		{mesh = &cube, model = draw_model_matrix({position = {1.3, 0.2, -4}, scale = {2, 1, 1}, rotation = quat_from_axis_angle(UP, 0.7), scale_rotation = 1})},
-		{mesh = &sphere, model = draw_model_matrix({position = {-6, 3, 2.5}, scale = {1, 3, 1}, rotation = quat_from_axis_angle({1, 0, 0}, 0.3), scale_rotation = 1})},
+		{mesh = &cube, model = draw_model_matrix({position = {1.3, 0.2, -4}, scale = {2, 1, 1}, rotation = quat_from_axis_angle(UP, 0.7), scale_rotation = 1}), shadow_count = 36},
+		{mesh = &sphere, model = draw_model_matrix({position = {-6, 3, 2.5}, scale = {1, 3, 1}, rotation = quat_from_axis_angle({1, 0, 0}, 0.3), scale_rotation = 1}), shadow_count = 36},
 	}
 	for to_light in ([][3]f32{v3_normalize({0.4, 0.8, 0.45}), {0, 1, 0}}) {
 		testing.expect_value(t, shadow_view_proj(to_light, placed), shadow_view_proj_before_cascades(to_light, placed))
