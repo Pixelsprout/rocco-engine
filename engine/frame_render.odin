@@ -333,7 +333,7 @@ frame_render_draw :: proc(
 	// A window with no mip draws no bloom, so the tone map reads none.
 	bloom_strength := f32(0)
 	if env.bloom.strength > 0 {
-		mips := bloom_mip_count({i32(window.size.x), i32(window.size.y)})
+		mips := bloom_mip_count({i32(window.size.x), i32(window.size.y)}, window.dpi)
 		steps, count := bloom_steps(env.bloom, mips)
 		for step in steps[:count] {
 			fr.submits.submit_bloom(fr.submits.ctx, step)

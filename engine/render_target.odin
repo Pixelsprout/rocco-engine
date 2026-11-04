@@ -45,9 +45,10 @@ Bloom_Chain :: struct {
 
 // The colour image has the swapchain's physical size and a readable format,
 // so a screenshot can read it back. The Main pass's depth image has the
-// sample count of the Launch.
+// sample count of the Launch. dpi sizes the bloom mips.
 Render_Target :: struct {
 	size:        [2]i32,
+	dpi:         f32,
 	samples:     i32,
 	hdr:         Target_Layer,
 	color:       Target_Layer,
@@ -92,20 +93,22 @@ render_target_init :: proc(t: ^Render_Target, samples: i32) {
 }
 
 // Remakes the images when the swapchain changes size, such as on a window
-// resize, so the copy stays one texel per pixel.
-render_target_fit :: proc(t: ^Render_Target, size: [2]i32) {
-	if size == t.size || size.x <= 0 || size.y <= 0 {
+// resize, so the copy stays one texel per pixel. A dpi change, such as a move
+// to another display, remakes them too, for the bloom mips.
+render_target_fit :: proc(t: ^Render_Target, size: [2]i32, dpi: f32) {
+	if (size == t.size && dpi == t.dpi) || size.x <= 0 || size.y <= 0 {
 		return
 	}
 	render_target_destroy(t)
 	t.size = size
+	t.dpi = dpi
 	t.hdr = target_layer_make(size, t.samples, HDR_COLOR_FORMAT, "target-hdr", "target-hdr-msaa")
 	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", platform_readable_color_texture(size.x, size.y))
 	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
 	t.hdr.attachments.depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})
-	t.bloom.count = bloom_mip_count(size)
+	t.bloom.count = bloom_mip_count(size, dpi)
 	for i in 0 ..< t.bloom.count {
-		t.bloom.mips[i] = target_layer_make(bloom_mip_size(size, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
+		t.bloom.mips[i] = target_layer_make(bloom_mip_size(size, dpi, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
 	}
 }
 
@@ -201,14 +204,17 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 	sg.apply_bindings({views = {VIEW_bloom_src_tex = src}, samplers = {SMP_bloom_src_smp = c.sampler}})
 	switch step.kind {
 	case .Prefilter:
+		size := bloom_mip_size(t.size, t.dpi, 0)
 		params := Bloom_Prefilter_Params {
-			threshold = step.threshold,
-			knee      = step.knee,
+			threshold     = step.threshold,
+			knee          = step.knee,
+			target_width  = f32(size.x),
+			target_height = f32(size.y),
 		}
 		sg.apply_uniforms(UB_bloom_prefilter_params, {ptr = &params, size = size_of(params)})
 	case .Down:
 	case .Up:
-		size := bloom_mip_size(t.size, step.mip)
+		size := bloom_mip_size(t.size, t.dpi, step.mip)
 		params := Bloom_Up_Params {
 			target_width  = f32(size.x),
 			target_height = f32(size.y),
@@ -251,6 +257,7 @@ render_target_destroy :: proc(t: ^Render_Target) {
 	sg.destroy_image(t.depth)
 	t.depth = {}
 	t.size = {}
+	t.dpi = 0
 }
 
 // Also destroys a depth view in the attachments.

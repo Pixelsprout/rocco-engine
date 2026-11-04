@@ -388,11 +388,12 @@ glow, raise the threshold. If a glow gets no halo, make the glow brighter
 or lower the threshold. A strength of about 0.2 gives a clear halo, and a
 strength near 1 washes the Scene out.
 
-The largest blur needs a window of at least 512 screen pixels on its
-shorter side. A smaller window drops it and shows a smaller, dimmer halo,
-so check the strength at the window size your players use. Bloom adds up
-to eleven small passes to each frame, and a strength of 0 runs none of
-them.
+The blurs are sized in logical pixels, so the halo looks the same on a
+Retina display and on a 1x display. The largest blur needs a window of at
+least 512 logical pixels on its shorter side. A smaller window drops it
+and shows a smaller, dimmer halo, so check the strength at the window size
+your players use. Bloom adds up to eleven small passes to each frame, and
+a strength of 0 runs none of them.
 
 ## Defaults to start from
 

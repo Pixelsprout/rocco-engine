@@ -569,23 +569,67 @@ vec3 bloom_down_13() {
 @end
 
 @fs bloom_prefilter_fs
-@include_block bloom_down_13
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
 
+// Mip 0 has half the window's logical size, so it is not always half the
+// HDR image's size. Its size comes as a uniform.
 layout(binding = 0) uniform bloom_prefilter_params {
     float threshold;
     float knee;
+    float target_width;
+    float target_height;
 };
 
-// A quadratic soft threshold: no light below threshold - knee, the light
-// above threshold past threshold + knee, and a curve between. It runs before the exposure,
-// so the exposure does not change which surfaces bloom.
+out vec4 frag_color;
+
+// The mean of the HDR texels in a box of cover texels around uv. Each tap is
+// bilinear and reads 2 x 2 texels, so the taps tile the box. textureLod takes
+// no derivatives, so the loops are safe on D3D.
+vec3 prefilter_box(vec2 uv, vec2 texel, vec2 cover, ivec2 taps) {
+    vec3 sum = vec3(0.0);
+    for (int y = 0; y < taps.y; y++) {
+        for (int x = 0; x < taps.x; x++) {
+            vec2 offset = ((vec2(x, y) + 0.5) / vec2(taps) - 0.5) * cover;
+            sum += textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + offset * texel, 0.0).rgb;
+        }
+    }
+    return sum / float(taps.x * taps.y);
+}
+
+// The 13 taps of bloom_down_13, each a box of the HDR texels under one mip 0
+// texel, so a bright texel reaches mip 0 at any display scale. Then a quadratic
+// soft threshold: no light below threshold - knee, the light above threshold
+// past threshold + knee, and a curve between. It runs before the exposure, so
+// the exposure does not change which surfaces bloom.
 void main() {
-    vec3 c = bloom_down_13();
-    float brightness = max(c.r, max(c.g, c.b));
+    vec2 src_size = vec2(textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0));
+    vec2 target = vec2(target_width, target_height);
+    vec2 texel = 1.0 / src_size;
+    vec2 cover = src_size / target;
+    // The 0.01 keeps a window one pixel past a multiple of the mip size at one tap.
+    ivec2 taps = clamp(ivec2(ceil(cover * 0.5 - 0.01)), ivec2(1), ivec2(4));
+    vec2 uv = gl_FragCoord.xy / target;
+    vec2 t = 0.5 * cover * texel;
+    vec3 a = prefilter_box(uv + t * vec2(-2.0, -2.0), texel, cover, taps);
+    vec3 b = prefilter_box(uv + t * vec2( 0.0, -2.0), texel, cover, taps);
+    vec3 c = prefilter_box(uv + t * vec2( 2.0, -2.0), texel, cover, taps);
+    vec3 d = prefilter_box(uv + t * vec2(-2.0,  0.0), texel, cover, taps);
+    vec3 e = prefilter_box(uv, texel, cover, taps);
+    vec3 f = prefilter_box(uv + t * vec2( 2.0,  0.0), texel, cover, taps);
+    vec3 g = prefilter_box(uv + t * vec2(-2.0,  2.0), texel, cover, taps);
+    vec3 h = prefilter_box(uv + t * vec2( 0.0,  2.0), texel, cover, taps);
+    vec3 i = prefilter_box(uv + t * vec2( 2.0,  2.0), texel, cover, taps);
+    vec3 j = prefilter_box(uv + t * vec2(-1.0, -1.0), texel, cover, taps);
+    vec3 k = prefilter_box(uv + t * vec2( 1.0, -1.0), texel, cover, taps);
+    vec3 l = prefilter_box(uv + t * vec2(-1.0,  1.0), texel, cover, taps);
+    vec3 m = prefilter_box(uv + t * vec2( 1.0,  1.0), texel, cover, taps);
+    vec3 mean = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+    float brightness = max(mean.r, max(mean.g, mean.b));
     float soft = clamp(brightness - threshold + knee, 0.0, 2.0 * knee);
     soft = soft * soft / (4.0 * knee + 1e-4);
     float weight = max(soft, brightness - threshold) / max(brightness, 1e-4);
-    frag_color = vec4(c * weight, 1.0);
+    frag_color = vec4(mean * weight, 1.0);
 }
 @end
 
@@ -717,7 +761,8 @@ vec3 pbr_neutral(vec3 c) {
 }
 
 // The HDR image and the Post pass have the same size and row order, so each
-// pixel reads the texel under it. The bloom is the first mip, at half size.
+// pixel reads the texel under it. The bloom is the first mip, at half the
+// logical size.
 void main() {
     vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb;
     if (bloom_strength > 0.0) {

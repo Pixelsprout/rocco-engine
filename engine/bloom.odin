@@ -24,10 +24,12 @@ Bloom_Step :: struct {
 	knee:      f32,
 }
 
-bloom_mip_count :: proc(window: [2]i32) -> int {
+// window is in physical pixels. dpi is physical pixels per logical pixel, and
+// a dpi under 1 counts as 1.
+bloom_mip_count :: proc(window: [2]i32, dpi: f32) -> int {
 	count := 0
 	for count < BLOOM_MIP_LIMIT {
-		side := bloom_mip_size(window, count)
+		side := bloom_mip_size(window, dpi, count)
 		if min(side.x, side.y) < BLOOM_MIP_MIN_SIDE {
 			break
 		}
@@ -36,9 +38,12 @@ bloom_mip_count :: proc(window: [2]i32) -> int {
 	return count
 }
 
-// Mip 0 has half the window's size. Each later mip halves the one before.
-bloom_mip_size :: proc(window: [2]i32, mip: int) -> [2]i32 {
-	return {max(window.x, 0) >> uint(mip + 1), max(window.y, 0) >> uint(mip + 1)}
+// Mip 0 has half the window's logical size, so the halo reaches as far at any
+// display scale. Each later mip halves the one before.
+bloom_mip_size :: proc(window: [2]i32, dpi: f32, mip: int) -> [2]i32 {
+	scale := 2 * (dpi if dpi > 1 else 1)
+	first := [2]i32{i32(f32(max(window.x, 0)) / scale), i32(f32(max(window.y, 0)) / scale)}
+	return {first.x >> uint(mip), first.y >> uint(mip)}
 }
 
 // The steps for a chain with this many mips, in the order they must run.

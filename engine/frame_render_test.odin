@@ -1168,6 +1168,24 @@ test_frame_render_blooms_fewer_mips_in_a_small_window :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_frame_render_blooms_the_same_steps_at_dpi_1_and_2_for_the_same_logical_window :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	s := scene_of({})
+	s.environment.bloom = {strength = 1, threshold = 1, knee = 0.5}
+	f.window = {size = {256, 64}, dpi = 1}
+	frame_fixture_draw(&f, s, s, 0)
+	at_1 := slice.clone(f.rec.blooms[:], context.temp_allocator)
+	f.window = {size = {512, 128}, dpi = 2}
+	frame_fixture_draw(&f, s, s, 0)
+
+	testing.expect_value(t, len(at_1), 5)
+	testing.expect(t, slice.equal(f.rec.blooms[:], at_1), "a dpi 2 window blooms the steps of a dpi 1 window with the same logical size")
+}
+
+@(test)
 test_frame_render_submits_no_bloom_in_a_window_with_no_mip :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)

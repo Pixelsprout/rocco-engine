@@ -271,16 +271,19 @@ encodes the result to sRGB and draws the UI over it, so the Environment
 never changes a UI colour. Decision, ADR 0026.
 
 Bloom runs between the Main pass and the Post pass, when
-`Scene.environment.bloom.strength` is above 0. A prefilter reads the
-resolved HDR image, keeps the light above `threshold` with a soft `knee`,
-and draws the first mip at half the window size. 13-tap downsamples
-(Jimenez 2014) make up to 6 mips, and stop before a mip side under 8 px.
-Tent upsamples then add each mip into the one above it. The Post pass
-computes `(hdr + strength * bloom) * exposure`, then the tone map. The
-threshold reads the colour before the exposure, so the exposure does not
-change which surfaces bloom. A window resize remakes the mips with the
-other target images. A `strength` of 0 runs no bloom pass. Decision,
-Milestone 37.
+`Scene.environment.bloom.strength` is above 0. The first mip has half the
+window's logical size, so the halo reaches as far at any display scale. At
+2x it is a quarter of the physical size. A prefilter reads the resolved HDR
+image with 13 taps, each the mean of the HDR texels under one mip texel. So
+a small bright pixel does not flicker or vanish at 2x. It keeps the light
+above `threshold` with a soft `knee` and draws the first mip. 13-tap
+downsamples (Jimenez 2014) make up to 6 mips, and stop before a mip side
+under 8 px. Tent upsamples then add each mip into the one above it. The
+Post pass computes `(hdr + strength * bloom) * exposure`, then the tone
+map. The threshold reads the colour before the exposure, so the exposure
+does not change which surfaces bloom. A window resize or a change of
+display scale remakes the mips with the other target images. A `strength`
+of 0 runs no bloom pass. Decision, Milestone 37.
 
 A glow is an `Rgb` that carries intensity, like a light colour. The shader
 adds the mesh emissive and the Draw glow after the lights and before the

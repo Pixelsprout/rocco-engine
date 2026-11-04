@@ -1,5 +1,6 @@
 package engine
 
+import sapp "../sokol-odin/sokol/app"
 import sg "../sokol-odin/sokol/gfx"
 import sglue "../sokol-odin/sokol/glue"
 
@@ -260,7 +261,7 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 		renderer_apply_pipeline(r, r.shadow_pip)
 	case .Main:
 		r.swapchain = sglue.swapchain()
-		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height})
+		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height}, sapp.dpi_scale())
 		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
 	case .Post:
 		render_target_begin_post(&r.target)
