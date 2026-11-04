@@ -79,7 +79,7 @@ Built and running:
   `ROCCO_EXIT_AFTER_FRAMES` makes a run end cleanly for checks.
   `scripts/alloc-check.sh` and `scripts/host-check.sh` check the seam.
 - A `v*` tag publishes the platform, `linalg`, `mesh` and `ui` as Roc
-  bundles. v0.9.0 is the latest release. A tag with a hyphen stays a
+  bundles. v0.10.0 is the latest release. A tag with a hyphen stays a
   pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
@@ -1473,7 +1473,24 @@ pixel check.
 Later: Toksvig roughness for normal map mips, a second UV set, packed
 tangents and MikkTSpace at load time.
 
-## Milestone 37: Post and Environment
+## Milestone 37: Post and Environment (done)
+
+Results, 2026-11-04: the Main pass draws into an RGBA16F target, and a Post
+pass draws the tone map, then the UI, into the RGBA8 image. Lit surfaces keep
+their look under ACES. Unlit surfaces, the sky and the clear colour now go
+through the tone map, so they darken a little. Scene loses `sky` and `clear`
+and gains `environment`, which also holds `tone_map` (ACES, AgX or Neutral),
+`exposure`, linear `fog` and `bloom`. Fog and bloom are plain records that a
+zero `amount` or `strength` turns off, and `Environment.default` turns both
+off. The default bloom threshold is 2. Bloom mips are sized in logical
+pixels, so the halo is the same at 1x and 2x. `examples/glow` turns bloom on
+at strength 0.2. B toggles bloom and T cycles the tone map. The Bridge check
+finds a halo ring around the window, no halo on a far floor patch, and a
+difference between each pair of tone maps, on macOS, Linux and Windows. The
+user compared the tone maps on 2026-11-04. `docs/BENCHMARKS.md` records
+0.74 ms of GPU bloom work in glow. `guide/scene.md` explains
+`Scene.environment`. ADR 0026 records that the look lives in
+`Scene.environment`. v0.10.0 is published.
 
 Done when a game sets its sky, clear colour, tone map, exposure, fog and
 bloom in `Scene.environment`, and an emissive surface blooms. Absorbs
