@@ -93,7 +93,7 @@ light_box :: proc(light_view: Mat4, model: Mat4, box: Box) -> Box {
 // whole texels and the shadow does not shimmer. The map is two texels wider
 // than the sphere on each side, so after the snap the shader's 3 x 3 taps
 // stay inside it. The depth range reaches every caster over the map's square, so
-// a caster toward the Sun still casts.
+// a caster toward the Sun still casts. A Draw that casts no shadow is not a caster.
 cascade_view :: proc(light_view: Mat4, sphere: Cascade_Sphere, map_size: u32, placed: []Placed) -> Cascade_View {
 	size := f32(map_size)
 	half := sphere.radius * size / (size - 4)
@@ -105,7 +105,7 @@ cascade_view :: proc(light_view: Mat4, sphere: Cascade_Sphere, map_size: u32, pl
 		hi = {c.x + half, c.y + half, c.z + sphere.radius},
 	}
 	for p in placed {
-		if cascade_covers(view, p.light_box) {
+		if p.shadow_count > 0 && cascade_covers(view, p.light_box) {
 			view.lo.z = min(view.lo.z, p.light_box.min.z)
 			view.hi.z = max(view.hi.z, p.light_box.max.z)
 		}

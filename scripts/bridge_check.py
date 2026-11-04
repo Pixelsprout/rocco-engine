@@ -47,10 +47,13 @@ outside it, and checks that a press on one button and a release on another
 click nothing. Last it clicks the icon Button, a Panel that shows a frame of
 the sprite sheet, and checks the click Tell and the image in the scene reply.
 
-Then it runs glow and checks that the salvage block and the ribbed panel
-loaded. It steps until the spark that circles the panel is on its left, saves
-a "-glow" screenshot next to the first one and checks its size. The neon
-tubes are the block's third material, so the screenshot must show their teal.
+Then it runs glow and steps until the spark circles to the panel's left.
+It checks that the salvage block, ribbed panel and glass tube loaded, then
+saves a "-glow" screenshot next to the first one and checks its size.
+It finds blue orb pixels inside the tube and visible tube wall pixels beside
+them. It hides the tube for one frame and checks that the floor below it did
+not darken. The neon tubes are the block's third material, so the screenshot
+must show their teal.
 A host that draws the whole mesh with its first material shows no teal. The
 panel's ribs come from its normal map, so the left flank of each rib must be
 brighter than its right flank. It steps until the spark is on the right,
@@ -156,6 +159,14 @@ ICON_POINT = (744, 48)
 # only teal in the Scene, about 640 pixels at 960 by 540.
 SALVAGE_ID = 4
 MIN_NEON_PIXELS = 200
+TUBE_ID = 7
+TUBE_ORB_ID = 11
+TUBE_HALF_LENGTH = 0.8
+TUBE_RADIUS = 0.42
+MIN_TUBE_BLUE_PIXELS = 50
+MIN_TUBE_WALL_PIXELS = 300
+GLASS_FLOOR_BOX = (570, 355, 700, 390)
+MAX_GLASS_FLOOR_LOSS = 5
 
 # examples/glow/main.roc: the spark circles the panel once every 4 seconds. It
 # is on the left of the panel at 2 seconds and on the right at 4.
@@ -632,6 +643,68 @@ def check_ribs(path, camera, centre, lit_side):
         check(lit > MIN_FLANK_RATIO * dim, f"rib {i + 1}: the {lit_side} flank is {lit:.1f} and the other is {dim:.1f}, with the spark on the {lit_side}")
 
 
+def count_pixels(path, box, matches):
+    with open(path, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+    left, top, right, bottom = box
+    found = 0
+    for y in range(max(top, 0), min(bottom, height)):
+        for x in range(max(left, 0), min(right, width)):
+            i = (y * width + x) * 4
+            found += matches(pixels[i:i + 3])
+    return found
+
+
+def changed_pixels_in_box(a_path, b_path, box, threshold):
+    with open(a_path, "rb") as f:
+        width, height, a = bridge.png_rgba(f.read())
+    with open(b_path, "rb") as f:
+        other_width, other_height, b = bridge.png_rgba(f.read())
+    check((width, height) == (other_width, other_height), "glass screenshots have the same size")
+    left, top, right, bottom = box
+    changed = 0
+    for y in range(max(top, 0), min(bottom, height)):
+        for x in range(max(left, 0), min(right, width)):
+            i = (y * width + x) * 4
+            changed += max(abs(a[i + channel] - b[i + channel]) for channel in range(3)) > threshold
+    return changed
+
+
+def check_glass(b, scene, draws, on_path, stem, ext, scale):
+    camera = scene["camera"]
+    size = bridge.png_size(on_path)
+    tube = draws[TUBE_ID]
+    orb = draws[TUBE_ORB_ID]
+    centre = tube["pos"]
+    orb_pixel = project(camera, orb["pos"], size)
+    left = project(camera, {**centre, "x": centre["x"] - TUBE_HALF_LENGTH}, size)[0]
+    right = project(camera, {**centre, "x": centre["x"] + TUBE_HALF_LENGTH}, size)[0]
+    top = project(camera, {**centre, "y": centre["y"] + TUBE_RADIUS}, size)[1]
+    bottom = project(camera, {**centre, "y": centre["y"] - TUBE_RADIUS}, size)[1]
+    check(left < orb_pixel[0] < right and top < orb_pixel[1] < bottom, f"the blue orb is inside the tube outline at {orb_pixel}")
+
+    x, y = orb_pixel
+    blue = count_pixels(on_path, (x - 10 * scale, y - 10 * scale, x + 11 * scale, y + 11 * scale), lambda rgb: rgb[0] > 125 and rgb[1] > 160 and rgb[2] > 185 and rgb[2] - rgb[0] > 25)
+    check(blue >= MIN_TUBE_BLUE_PIXELS * scale * scale, f"{blue} blue orb pixels show through the tube")
+
+    b.step(1, tap=["G"])
+    hidden = b.scene()["scene"]
+    check(all(n.get("Draw", {}).get("id") != TUBE_ID for n in hidden["nodes"]), "G hides the tube")
+    off_path = f"{stem}-glow-no-tube{ext}"
+    b.screenshot(off_path)
+    wall_top_left = project(camera, {**centre, "x": centre["x"] - 0.7, "y": centre["y"] + 0.25}, size)
+    wall_bottom_right = project(camera, {**centre, "x": centre["x"] - 0.1, "y": centre["y"] - 0.25}, size)
+    wall_box = (*wall_top_left, *wall_bottom_right)
+    changed = changed_pixels_in_box(on_path, off_path, wall_box, 8)
+    check(changed >= MIN_TUBE_WALL_PIXELS * scale * scale, f"{changed} tube wall pixels show beside the orb")
+
+    floor_box = tuple(v * scale for v in GLASS_FLOOR_BOX)
+    on_floor = mean_brightness(on_path, floor_box)
+    off_floor = mean_brightness(off_path, floor_box)
+    check(on_floor > off_floor - MAX_GLASS_FLOOR_LOSS, f"the tube casts no floor shadow: {on_floor:.2f} with glass, {off_floor:.2f} without")
+    b.step(1, tap=["G"])
+
+
 def drive_glow(b, out):
     b.hello()
     b.step(HALF_TURN_STEPS)
@@ -639,6 +712,7 @@ def drive_glow(b, out):
     draws = {n["Draw"]["id"]: n["Draw"] for n in scene["nodes"] if "Draw" in n}
     check(draws[SALVAGE_ID]["mesh"] != 0, f"the salvage block has its loaded mesh: {draws[SALVAGE_ID]}")
     check(draws[PANEL_ID]["mesh"] != 0, f"the panel has its loaded mesh: {draws[PANEL_ID]}")
+    check(draws[TUBE_ID]["mesh"] != 0, f"the tube has its loaded mesh: {draws[TUBE_ID]}")
     centre = draws[PANEL_ID]["pos"]
     check(draws[SPARK_ID]["pos"]["x"] < centre["x"] - 0.4, f"the spark is left of the panel: {draws[SPARK_ID]['pos']}")
 
@@ -653,6 +727,7 @@ def drive_glow(b, out):
     teal = teal_pixels(glow_out)
     check(teal >= MIN_NEON_PIXELS * scale, f"{teal} teal pixels show the neon material")
     check_ribs(glow_out, scene["camera"], centre, "left")
+    check_glass(b, scene, draws, glow_out, stem, ext, size[0] // WINDOW[0])
 
     b.step(HALF_TURN_STEPS)
     spark = [n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == SPARK_ID][0]

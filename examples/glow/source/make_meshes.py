@@ -1,6 +1,6 @@
-# Builds salvage.glb, a block with three materials, into the glow example's
+# Builds salvage.glb and a double-sided glass tube into the glow example's
 # assets. Run from the repository root with Blender 5.2:
-#   /Applications/Blender.app/Contents/MacOS/Blender --background --python examples/glow/source/make_salvage.py
+#   /Applications/Blender.app/Contents/MacOS/Blender --background --python examples/glow/source/make_meshes.py
 #
 # Blender is +Z up and the export turns that into glTF +Y up. Blender -Y
 # becomes glTF +Z, so the front of the block faces Blender -Y.
@@ -15,7 +15,9 @@ import bpy
 from mathutils import Matrix, Vector
 
 GLOW = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-OUT = os.path.join(GLOW, "assets", "meshes", "salvage.glb")
+MESHES = os.path.join(GLOW, "assets", "meshes")
+SALVAGE_OUT = os.path.join(MESHES, "salvage.glb")
+TUBE_OUT = os.path.join(MESHES, "tube.glb")
 
 # Linear colours. The ceramic and the rust multiply the same grime texture.
 CERAMIC = (0.8, 0.78, 0.72, 1.0)
@@ -28,6 +30,9 @@ GRIME_SIZE = 64
 SEAM = 16
 
 SEGMENTS = 24
+GLASS = (0.38, 0.83, 0.96, 0.28)
+TUBE_RADIUS = 0.42
+TUBE_LENGTH = 1.6
 
 
 def clear_scene():
@@ -170,6 +175,26 @@ def make_scene():
     return make_block(materials)
 
 
+def make_glass_tube():
+    clear_scene()
+    glass, bsdf = material("glass", 0.15, 0.0)
+    glass.use_backface_culling = False
+    bsdf.inputs["Base Color"].default_value = GLASS
+    bsdf.inputs["Alpha"].default_value = GLASS[3]
+
+    bm = bmesh.new()
+    made = bmesh.ops.create_cone(bm, cap_ends=False, segments=SEGMENTS, radius1=TUBE_RADIUS, radius2=TUBE_RADIUS, depth=TUBE_LENGTH, matrix=Matrix.Rotation(math.pi / 2.0, 4, "Y"), calc_uvs=True)
+    paint(faces_of(made["verts"]), 0, True)
+    sort_elements(bm)
+    mesh = bpy.data.meshes.new("tube")
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.materials.append(glass)
+    obj = bpy.data.objects.new("tube", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
 def export(obj, path):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
@@ -194,7 +219,7 @@ def glb_json(path):
 
 # Reads the JSON chunk back, so a change to the export or the node setup that
 # drops a texture, a factor or the emissive strength fails the run.
-def check(path):
+def check_salvage(path):
     gltf = glb_json(path)
     materials = {m["name"]: m for m in gltf["materials"]}
     assert sorted(materials) == ["ceramic", "neon", "rust"], f"materials {sorted(materials)}"
@@ -214,7 +239,18 @@ def check(path):
     print(f"salvage.glb: {len(primitives)} primitives, materials " + ", ".join(sorted(materials)))
 
 
-block = make_scene()
-os.makedirs(os.path.dirname(OUT), exist_ok=True)
-export(block, os.path.normpath(OUT))
-check(os.path.normpath(OUT))
+def check_tube(path):
+    gltf = glb_json(path)
+    material = gltf["materials"][0]
+    assert material["alphaMode"] == "BLEND", f"tube alphaMode: {material.get('alphaMode')}"
+    assert material["doubleSided"] is True, f"tube doubleSided: {material.get('doubleSided')}"
+    assert 0.0 < material["pbrMetallicRoughness"]["baseColorFactor"][3] < 1.0, "tube Alpha is not between 0 and 1"
+    assert len(gltf["meshes"][0]["primitives"]) == 1, "tube has more than one part"
+    print("tube.glb: double-sided Blend part")
+
+
+os.makedirs(MESHES, exist_ok=True)
+export(make_scene(), os.path.normpath(SALVAGE_OUT))
+check_salvage(os.path.normpath(SALVAGE_OUT))
+export(make_glass_tube(), os.path.normpath(TUBE_OUT))
+check_tube(os.path.normpath(TUBE_OUT))

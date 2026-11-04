@@ -1404,7 +1404,7 @@ share a part. Each part draws with its own factors and textures. A mesh
 draws up to 16 textures, and glTF textures that name the same image and
 sampler decode once. `Launch.capacity.draws` counts part draws. The shadow
 pass stays one draw per Draw. `examples/glow` draws a salvage block with a
-ceramic, a rust and a neon material, built by `source/make_salvage.py`. The
+ceramic, a rust and a neon material, built by `source/make_meshes.py`. The
 Bridge check screenshots it on macOS, Linux and Windows and finds the
 neon's teal. No Vocabulary change. v0.8.0 is published. Agent Town's otter
 v2 draws in a scratch game on the release commit: its goggle lenses glow
@@ -1552,7 +1552,20 @@ Later: shadow knobs in `Scene.environment`, exponential fog, an RG11B10F
 target, a GPU frame budget and AgX Punchy. Particles and outlines opt in to
 fog when they ship.
 
-## Milestone 38: Transparency
+## Milestone 38: Transparency (done)
+
+Results, 2026-11-05: the loader reads Opaque, Mask and Blend materials.
+Mask parts draw cutouts. Blend parts draw after the sky, back to front by
+Draw, and cast no shadow. Double-sided Blend parts draw both walls and
+cost two submits. ADR 0027 records the frame order and the uniform buffer
+rule. The loader notes unsupported Transmission. The guide explains Alpha,
+sorting, shadows and capacity. `examples/mask` shows cutouts.
+`examples/glow` moves a blue orb through a double-sided glass tube.
+The Bridge check finds the orb through the tube and finds no tube shadow
+on the floor. CI runs this screenshot on macOS, Linux and Windows.
+The engine passes 765 tests with `-vet -strict-style`. No Vocabulary or
+Bridge protocol changes were needed. The v0.11.0 release and Agent Town
+check follow.
 
 Done when a `.glb` material with alpha draws as glass or as a cutout, and
 Agent Town's glass tube shows the orbs that flow through it. Grilled

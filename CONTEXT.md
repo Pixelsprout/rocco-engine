@@ -433,8 +433,19 @@ _Avoid_: manifest, asset store, resource cache
 **Mesh part**:
 A share of a mesh's triangles that draws with one material and its own
 textures. A loaded mesh has one part per distinct material, and a Primitive
-has one. A Draw's Tint and Glow apply to every part of its mesh.
+has one. A Draw's Tint and Glow apply to every part of its mesh. Each part
+has an Alpha mode.
 _Avoid_: submesh, glTF primitive (a unit of the file), material slot
+
+**Alpha mode**:
+How a Mesh part's material treats the alpha of its base colour, from glTF's
+`alphaMode`: Opaque, Mask (a cutout) or Blend (see-through, such as glass).
+A Mask part keeps depth writes and casts the whole shape of its triangles
+from faces that point at the Sun. A Blend part draws after the sky, writes
+no depth and casts no shadow. A double-sided Blend part draws its back faces
+before its front faces and counts twice against `Launch.capacity.draws`.
+Not the Frame's Alpha.
+_Avoid_: alpha (on its own), transparency mode, blend mode, opacity
 
 **Fallback mesh**:
 The mesh at id 0, drawn for any id the engine does not know. A magenta cube:

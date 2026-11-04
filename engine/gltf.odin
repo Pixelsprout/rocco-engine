@@ -58,13 +58,14 @@ GLB_ERROR_REASONS := [Glb_Error]string {
 
 #assert(MESH_TEXTURE_LIMIT == 16, "the Too_Many_Textures reason states the limit")
 GLB_NOTE_REASONS := [Glb_Note]string {
-	.Jpeg_Skipped       = "a texture is a JPEG, so it draws without that texture; export PNG",
-	.Bad_Png            = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
-	.Unsupported_Image  = "a texture is not an embedded PNG, so it draws without that texture",
-	.Too_Many_Textures  = "it has more than 16 textures, so the textures past the first 16 do not draw",
-	.Channel_Skipped    = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
-	.Generated_Tangents = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
-	.Second_Uv_Ignored  = "a texture names a texCoord other than 0, so it draws with the first UV set",
+	.Jpeg_Skipped         = "a texture is a JPEG, so it draws without that texture; export PNG",
+	.Bad_Png              = "a texture PNG does not decode or has a side over 32768, so it draws without that texture",
+	.Unsupported_Image    = "a texture is not an embedded PNG, so it draws without that texture",
+	.Too_Many_Textures    = "it has more than 16 textures, so the textures past the first 16 do not draw",
+	.Channel_Skipped      = "a Clip moves morph weights, a node that is not a Joint, or no node, so the Clip skips that channel",
+	.Generated_Tangents   = "a normal-mapped primitive has no TANGENT, so the host makes tangents that may not match the baker; export tangents",
+	.Second_Uv_Ignored    = "a texture names a texCoord other than 0, so it draws with the first UV set",
+	.Transmission_Ignored = "a material has KHR_materials_transmission, so it draws by alphaMode; use Alpha in Blender for glass",
 }
 
 Glb_Error :: enum {
@@ -102,6 +103,7 @@ Glb_Note :: enum {
 	Channel_Skipped,
 	Generated_Tangents,
 	Second_Uv_Ignored,
+	Transmission_Ignored,
 }
 
 Glb_Notes :: bit_set[Glb_Note]
@@ -128,8 +130,14 @@ Gltf :: struct {
 		occlusion_texture: Maybe(Gltf_Texture_Ref) `json:"occlusionTexture"`,
 		emissive_factor:   Maybe([3]f32) `json:"emissiveFactor"`,
 		emissive_texture:  Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
+		alpha_mode:        string `json:"alphaMode"`,
+		alpha_cutoff:      Maybe(f32) `json:"alphaCutoff"`,
+		double_sided:      bool `json:"doubleSided"`,
 		extensions:        struct {
 			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
+			transmission:      Maybe(struct {
+					factor: Maybe(f32) `json:"transmissionFactor"`,
+				}) `json:"KHR_materials_transmission"`,
 			emissive_strength: Maybe(struct {
 					strength: Maybe(f32) `json:"emissiveStrength"`,
 				}) `json:"KHR_materials_emissive_strength"`,
@@ -235,10 +243,11 @@ Glb_Loader :: struct {
 
 // The indices of every primitive that draws with this material. glTF
 // materials that differ only in base colour factor share a run, because
-// that factor goes in the vertex colour.
+// that factor goes in the vertex colour. part is empty until glb_parts.
 Glb_Material_Run :: struct {
 	material: Glb_Material,
 	indices:  [dynamic]u16,
+	part:     Mesh_Data_Part,
 }
 
 // A glTF texture decodes once per colour space. slot is nil for a texture
@@ -325,44 +334,59 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	return data, l.notes, .None
 }
 
-// Lays the runs out in order, so each part is one range of the index
-// buffer. The indices and parts are frame memory; the textures go to
-// allocator.
+// Lays the runs out by alpha mode, each mode in walk order, so each part is
+// one range of the index buffer. The indices and parts are frame memory; the
+// textures go to allocator.
 glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, parts: []Mesh_Data_Part, err: Glb_Error) {
+	// Textures take their slots in walk order, so the texture limit drops the
+	// last textures the walk meets, whatever their part's alpha mode.
+	for &run in l.runs {
+		run.part = glb_part(l, run.material, allocator) or_return
+	}
+	slice.stable_sort_by(l.runs[:], proc(a, b: Glb_Material_Run) -> bool {
+		return a.material.values.alpha_mode < b.material.values.alpha_mode
+	})
 	all := make([dynamic]u16, 0, len(l.vertices), context.temp_allocator)
 	parts = make([]Mesh_Data_Part, len(l.runs), context.temp_allocator)
 	for run, i in l.runs {
-		material := run.material
-		part := Mesh_Data_Part {
-			first              = len(all),
-			count              = len(run.indices),
-			material           = material.values,
-			texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
-			metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
-			emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
-			normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
-			occlusion          = glb_texture_slot(l, material.occlusion, srgb = false, allocator = allocator) or_return,
-		}
-		if part.normal == nil {
-			part.material.normal_scale = 0
-		}
-		if part.occlusion == nil {
-			part.material.occlusion_strength = 0
-		}
-		parts[i] = part
+		parts[i] = run.part
+		parts[i].first = len(all)
+		parts[i].count = len(run.indices)
 		append(&all, ..run.indices[:])
 	}
 	return all[:], parts, .None
 }
 
+// The part's material and texture slots, without its range.
+glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+	part = {
+		material           = material.values,
+		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
+		metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
+		emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
+		normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
+		occlusion          = glb_texture_slot(l, material.occlusion, srgb = false, allocator = allocator) or_return,
+	}
+	if part.normal == nil {
+		part.material.normal_scale = 0
+	}
+	if part.occlusion == nil {
+		part.material.occlusion_strength = 0
+	}
+	return part, .None
+}
+
 // A primitive with no material is matte. glTF gives a material without
-// factors a roughness and a metallic of 1.
+// factors a roughness and a metallic of 1. An unknown alphaMode is opaque.
 glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 	m, ok := index.?
 	if !ok {
 		return {values = MATERIAL_MATTE}
 	}
 	gltf_material := &l.gltf.materials[m]
+	if gltf_material.extensions.transmission != nil {
+		l.notes += {.Transmission_Ignored}
+	}
 	pbr := &gltf_material.pbr
 	material := Glb_Material {
 		values = {
@@ -371,6 +395,15 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 			unlit = gltf_material.extensions.unlit != nil,
 		},
 	}
+	switch gltf_material.alpha_mode {
+	case "MASK":
+		material.values.alpha_mode = .Mask
+		material.values.alpha_cutoff = gltf_material.alpha_cutoff.? or_else 0.5
+	case "BLEND":
+		material.values.alpha_mode = .Blend
+	}
+	// Blender writes doubleSided true by default, so an Opaque part always culls back faces.
+	material.values.double_sided = gltf_material.double_sided && material.values.alpha_mode != .Opaque
 	if ref, textured := pbr.base_color_texture.?; textured {
 		material.texture = glb_texture_ref(l, ref)
 	}

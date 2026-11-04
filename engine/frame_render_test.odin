@@ -34,11 +34,13 @@ Submitted :: struct {
 	joints:       [2]Mat4,
 	fog_color:    [4]f32,
 	fog_ramp:     [4]f32,
+	pipeline:     Mesh_Pipeline,
 }
 
 // main_before is the number of main pass submits before this shadow submit.
 Shadow_Submitted :: struct {
 	mesh:        ^Mesh,
+	count:       int,
 	light_mvp:   Mat4,
 	view:        int,
 	main_before: int,
@@ -200,7 +202,7 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 	testing.expect_value(t, c.fov_y, 2)
 }
 
-record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.submits,
@@ -220,6 +222,7 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 			fog_color = r.lights.fog_color,
 			fog_ramp = r.lights.fog_ramp,
+			pipeline = pipeline,
 		},
 	)
 }
@@ -273,12 +276,13 @@ record_end_pass :: proc(ctx: rawptr) {
 	r.pass_ends += 1
 }
 
-record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.shadows,
 		Shadow_Submitted {
 			mesh = mesh,
+			count = count,
 			light_mvp = vs_params.light_mvp,
 			view = r.passes[len(r.passes) - 1].view,
 			main_before = len(r.submits),
@@ -978,17 +982,314 @@ test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing
 	}
 }
 
+@(test)
+test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		lantern := frame_fixture_mesh(
+			&f,
+			"lantern",
+			{
+				{first = 0, count = 30, material = {roughness = 1}},
+				{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+				{first = 36, count = 12, material = {roughness = 1, alpha_mode = .Blend}},
+			},
+		)
+		pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		draws := []Draw {
+			{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+			{id = 2, mesh = lantern, pos = {2, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+			{id = 3, mesh = pane, pos = {-2, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		}
+		frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+		cube, _ := mesh_lookup(&f.meshes, u32(Primitive.Cube))
+		lantern_mesh, _ := mesh_lookup(&f.meshes, lantern)
+		testing.expect_value(t, len(f.rec.submits), 5)
+		cube_shadows, lantern_shadows := 0, 0
+		for s in f.rec.shadows {
+			switch s.mesh {
+			case cube:
+				cube_shadows += 1
+				testing.expect_value(t, s.count, len(CUBE_INDICES))
+			case lantern_mesh:
+				lantern_shadows += 1
+				testing.expect_value(t, s.count, 36)
+			case:
+				testing.expectf(t, false, "%v cascades: a shadow draws a mesh with only Blend parts", cascades)
+			}
+		}
+		testing.expectf(t, cube_shadows > 0 && lantern_shadows > 0, "%v cascades: %v cube and %v lantern shadows", cascades, cube_shadows, lantern_shadows)
+	}
+}
+
+@(test)
+test_frame_render_fits_the_shadow_map_to_the_draws_that_cast :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		cube := Draw{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+		glass := Draw{id = 2, mesh = pane, pos = {3, 60, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+
+		alone := []Draw{cube}
+		frame_fixture_draw(&f, scene_lit(alone, lights), scene_lit(alone, lights), 0)
+		want := f.rec.lights.light_view_proj
+
+		beside := []Draw{cube, glass}
+		frame_fixture_draw(&f, scene_lit(beside, lights), scene_lit(beside, lights), 0)
+		testing.expectf(t, f.rec.lights.light_view_proj == want, "%v cascades: a Draw with only Blend parts moved the shadow map", cascades)
+	}
+}
+
+@(test)
+test_frame_render_draws_no_shadow_pass_when_no_draw_casts :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+	draws := []Draw{{id = 1, mesh = pane, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	for p in f.rec.passes {
+		testing.expect(t, p.pass != .Shadow)
+	}
+	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
+	testing.expect_value(t, len(f.rec.submits), 1)
+}
+
+@(test)
+test_frame_render_culls_nothing_only_for_a_double_sided_mask_part :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	sampler := frame_fixture_mesh(
+		&f,
+		"sampler",
+		{
+			{first = 0, count = 6, material = {roughness = 1, double_sided = true}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.25, double_sided = true}},
+		},
+	)
+	draws := []Draw{{id = 1, mesh = sampler, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []struct {
+		first:    int,
+		pipeline: Mesh_Pipeline,
+		cutoff:   f32,
+	}{{0, .Opaque, 0}, {6, .Mask, 0.5}, {12, .Mask_Double_Sided, 0.25}}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].part.first == w.first, "submit %v: part %v, want part %v", i, got[i].part.first, w.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+		testing.expectf(t, got[i].material.w == w.cutoff, "submit %v: cutoff %v, want %v", i, got[i].material.w, w.cutoff)
+	}
+}
+
+@(test)
+test_frame_render_submits_the_parts_of_the_rigid_then_the_skinned_draws_in_pipeline_order :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	leaf_parts := []Mesh_Data_Part {
+		{first = 0, count = 30, material = {roughness = 1}},
+		{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+		{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5, double_sided = true}},
+	}
+	leaf := frame_fixture_mesh(&f, "leaf", leaf_parts)
+	vine := frame_fixture_skinned_mesh(&f, "vine", leaf_parts)
+	chain := frame_fixture_skinned(&f)
+
+	lights := []Light{light_point({x = 0, y = 2, z = 0}, {r = 1}, 10)}
+	draws := []Draw {
+		{id = 1, mesh = vine, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = leaf, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = u32(Primitive.Plane), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	leaf_mesh, _ := mesh_lookup(&f.meshes, leaf)
+	vine_mesh, _ := mesh_lookup(&f.meshes, vine)
+	want := []struct {
+		mesh:     ^Mesh,
+		first:    int,
+		pipeline: Mesh_Pipeline,
+	} {
+		{leaf_mesh, 0, .Opaque},
+		{&f.meshes.meshes[Primitive.Plane], 0, .Opaque},
+		{leaf_mesh, 30, .Mask},
+		{leaf_mesh, 36, .Mask_Double_Sided},
+		{vine_mesh, 0, .Opaque},
+		{&f.meshes.meshes[Primitive.Sphere], 0, .Opaque},
+		{vine_mesh, 30, .Mask},
+		{vine_mesh, 36, .Mask_Double_Sided},
+	}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].mesh == w.mesh && got[i].part.first == w.first, "submit %v: %v part %v", i, got[i].mesh.name, got[i].part.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+		testing.expectf(t, got[i].skinned == (i >= 4), "submit %v: skinned is %v", i, got[i].skinned)
+	}
+	testing.expect_value(t, got[3].light_color, got[0].light_color)
+	testing.expect_value(t, got[7].light_color, got[4].light_color)
+	testing.expect_value(t, got[3].model, got[0].model)
+}
+
+@(test)
+test_frame_render_draws_the_blend_parts_after_the_sky_with_the_lights_of_their_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+
+	lamp := frame_fixture_mesh(
+		&f,
+		"lamp",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 0.1, alpha_mode = .Blend}},
+		},
+	)
+	draws := []Draw {
+		{id = 1, mesh = lamp, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = u32(Primitive.Cube), pos = {9, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	lights := []Light{light_point({x = 0, y = 2, z = 0}, {g = 1}, 4)}
+	scene := scene_lit(draws, lights)
+	scene.environment.sky = sky
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	lamp_mesh, _ := mesh_lookup(&f.meshes, lamp)
+	testing.expect_value(t, len(got), 3)
+	testing.expect_value(t, f.rec.sky_after, 2)
+	testing.expect_value(t, got[2].part, &lamp_mesh.parts[1])
+	testing.expect_value(t, got[2].pipeline, Mesh_Pipeline.Blend)
+	testing.expect_value(t, got[2].model, got[0].model)
+	testing.expect_value(t, got[2].light_color[0], [4]f32{0, 1, 0, 4})
+	testing.expect_value(t, got[2].material.x, 0.1)
+}
+
+// The eye is at the origin. The bottle's box sits 20 units past its position,
+// so the bottle sorts by its box and not by its position.
+@(test)
+test_frame_render_draws_the_far_blend_draw_first_and_keeps_the_scene_order_of_a_tie :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	bottle := frame_fixture_mesh(&f, "bottle", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	bottle_mesh, _ := mesh_lookup(&f.meshes, bottle)
+	bottle_mesh.box = {min = {-0.5, -0.5, -20.5}, max = {0.5, 0.5, -19.5}}
+	draws := []Draw {
+		{id = 1, mesh = pane, pos = {0, 0, -2}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = pane, pos = {3, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = bottle, pos = {0, 0, -1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = pane, pos = {-3, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []f32{0, 3, -3, 0}
+	testing.expect_value(t, len(got), len(want))
+	for x, i in want {
+		testing.expectf(t, got[i].model[0, 3] == x, "submit %v: x %v, want %v", i, got[i].model[0, 3], x)
+	}
+	testing.expect_value(t, got[0].mesh.name, "bottle")
+}
+
+@(test)
+test_frame_render_draws_the_back_faces_then_the_front_faces_of_each_double_sided_blend_part :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	tube := frame_fixture_mesh(
+		&f,
+		"tube",
+		{
+			{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+		},
+	)
+	draws := []Draw{{id = 1, mesh = tube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []struct {
+		first:    int,
+		pipeline: Mesh_Pipeline,
+	}{{0, .Blend_Back_Faces}, {0, .Blend}, {6, .Blend}, {12, .Blend_Back_Faces}, {12, .Blend}}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].part.first == w.first, "submit %v: part %v, want part %v", i, got[i].part.first, w.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+	}
+}
+
+// With SMALL_DRAWS at 8, the second tube has room for 2 draws. Its Opaque
+// part takes 1, and its double-sided Blend part needs 2. The last cube would
+// fit in the 1 left, but the host draws only the first parts.
+@(test)
+test_frame_render_counts_a_double_sided_blend_part_as_2_draws_against_its_draw_capacity :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	tube := frame_fixture_mesh(
+		&f,
+		"tube",
+		{
+			{first = 0, count = 6, material = {roughness = 1}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+		},
+	)
+	cube := u32(Primitive.Cube)
+	draws := []Draw {
+		{id = 1, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = tube, pos = {0, 0, -9}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = tube, pos = {0, 0, -1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 5, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	testing.expect_value(t, len(got), 7)
+	testing.expect(t, f.fr.draws_logged)
+	for s, i in got[4:] {
+		testing.expectf(t, s.model[2, 3] == -9, "blend submit %v: z %v, want -9", i, s.model[2, 3])
+	}
+}
+
+frame_fixture_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
+	slot, _ := mesh_table_add(&f.meshes, strings.clone(name), {parts = slice.clone(parts, f.meshes.allocator)})
+	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
+	return mesh_id(&f.meshes, slot)
+}
+
 frame_fixture_two_part_mesh :: proc(f: ^Frame_Fixture) -> u32 {
-	parts := slice.clone(
-		[]Mesh_Data_Part {
+	return frame_fixture_mesh(
+		f,
+		"otter",
+		{
 			{first = 0, count = 30, material = {roughness = 1}},
 			{first = 30, count = 6, material = {roughness = 0.3, metallic = 0.7, emissive = {4, 2, 0}}},
 		},
-		f.meshes.allocator,
 	)
-	slot, _ := mesh_table_add(&f.meshes, strings.clone("otter"), {parts = parts})
-	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
-	return mesh_id(&f.meshes, slot)
 }
 
 @(test)
@@ -1681,6 +1982,16 @@ frame_fixture_skinned :: proc(f: ^Frame_Fixture) -> u32 {
 	return u32(Primitive.Sphere)
 }
 
+// The table frees a loaded mesh's skin, so the mesh takes a copy of the chain Skin.
+frame_fixture_skinned_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
+	id := frame_fixture_mesh(f, name, parts)
+	chain := chain_mesh()
+	m, _ := mesh_lookup(&f.meshes, id)
+	m.skin = skin_clone(chain.skin, f.meshes.allocator)
+	m.first_clip = chain.first_clip
+	return id
+}
+
 expect_skin_of_pose :: proc(t: ^testing.T, f: ^Frame_Fixture, got: [2]Mat4, pose: Draw_Pose, loc := #caller_location) {
 	want: [MAX_JOINTS]Mat4
 	skin_matrices(&f.meshes, &f.meshes.meshes[Primitive.Sphere], pose, &want)
@@ -1765,6 +2076,80 @@ test_frame_render_submits_skinned_draws_after_rigid_draws_in_each_pass :: proc(t
 	}
 	testing.expect_value(t, got[0].mesh, &f.meshes.meshes[Primitive.Cube])
 	testing.expect_value(t, got[1].mesh, &f.meshes.meshes[Primitive.Plane])
+}
+
+// The Main pass applies a skinned Draw's skin block once for each pipeline
+// its parts use, so the skinned capacity counts those blocks.
+@(test)
+test_frame_render_counts_a_skin_block_for_each_pipeline_of_a_skinned_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	vine := frame_fixture_skinned_mesh(
+		&f,
+		"vine",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+			{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5, double_sided = true}},
+		},
+	)
+	chain := frame_fixture_skinned(&f)
+	delete(f.fr.skins)
+	f.fr.skins = make([]Skin_Params, 3)
+
+	draws := []Draw {
+		{id = 1, mesh = vine, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	vine_mesh, _ := mesh_lookup(&f.meshes, vine)
+	testing.expect_value(t, len(got), 4)
+	for s in got {
+		testing.expectf(t, s.mesh != &f.meshes.meshes[Primitive.Sphere], "the chain drew past the skin blocks")
+	}
+	testing.expect_value(t, got[1].mesh, vine_mesh)
+	testing.expect(t, f.fr.skinned_logged)
+}
+
+// The jar applies its skin block for its Opaque part, then for each run of
+// one pipeline in its Blend submits: back, front, back and front.
+@(test)
+test_frame_render_draws_skinned_blend_parts_and_counts_a_skin_block_for_each_run_of_their_pipelines :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	jar := frame_fixture_skinned_mesh(
+		&f,
+		"jar",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+			{first = 42, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+		},
+	)
+	chain := frame_fixture_skinned(&f)
+	delete(f.fr.skins)
+	f.fr.skins = make([]Skin_Params, 5)
+
+	draws := []Draw {
+		{id = 1, mesh = jar, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	want := []Mesh_Pipeline{.Opaque, .Blend_Back_Faces, .Blend, .Blend, .Blend_Back_Faces, .Blend}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].pipeline == w && got[i].skinned, "submit %v: pipeline %v, skinned %v", i, got[i].pipeline, got[i].skinned)
+		testing.expectf(t, got[i].mesh.name == "jar", "submit %v: mesh %v", i, got[i].mesh.name)
+	}
+	testing.expect(t, f.fr.skinned_logged)
 }
 
 @(test)

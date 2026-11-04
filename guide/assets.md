@@ -160,7 +160,7 @@ every primitive of every mesh node in the glTF scene into one mesh, and
 each glTF material draws as you authored it. Export the model as it is:
 fur, metal and glowing lenses can share one file. The glow example's
 salvage block has a matte ceramic, a metallic rust and a glowing neon
-material, and `examples/glow/source/make_salvage.py` shows the Blender
+material, and `examples/glow/source/make_meshes.py` shows the Blender
 nodes and export settings that make it.
 
 - Each primitive must hold triangles. If one does not, the file does not
@@ -179,10 +179,11 @@ nodes and export settings that make it.
 - A primitive with no material draws matte grey.
 - The primitives that share a material draw together, so a model split
   into many primitives costs one draw per material. Materials that differ
-  only in their base colour factor also draw together, because the host
-  keeps that colour on the vertices. A robot with a red, a white and a
-  grey material that share their other values costs one draw. Each draw
-  counts once against `Launch.capacity.draws`. See
+  only in their base colour factor, including Alpha, also draw together,
+  because the host keeps that colour on the vertices. A robot with a red,
+  a white and a grey material that share their other values costs one draw.
+  Each part counts once against `Launch.capacity.draws`, except a
+  double-sided Blend part, which counts twice. See
   [Past a capacity](launch.md#past-a-capacity).
 - A Draw's `tint` and `glow` apply to every material of its mesh.
 - A mesh draws up to 16 textures. A texture that several materials share
@@ -201,6 +202,35 @@ nodes and export settings that make it.
   default Capacity.
 - A file with a Skin loads as one skinned mesh. See
   [Skinned meshes](#skinned-meshes).
+
+### Alpha modes and glass
+
+The material's glTF `alphaMode` selects Opaque, Mask or Blend. Opaque is the
+default and ignores Alpha. Mask cuts out pixels whose Alpha is below
+`alphaCutoff`, which defaults to 0.5. Blend shows surfaces behind the part.
+The base colour factor and texture supply Alpha. A Draw's `tint` and `glow`
+still apply to every part.
+
+In Blender, lower the material's Alpha below 1 to export Blend. To export
+Mask, connect a clip node, such as Round or Less Than, to Alpha. Enable
+Backface Culling for a single-sided Mask or Blend part. With Backface
+Culling off, Blender writes `doubleSided: true`. A double-sided Mask part
+draws both faces. A double-sided Blend part draws its back faces before its
+front faces and uses two draws of `Launch.capacity.draws`. Opaque parts
+always cull back faces, even if the file says `doubleSided: true`.
+
+The host draws Opaque and Mask parts, then the sky, then Blend parts.
+Blend parts sort back to front by the centre of each Draw's world box.
+This sort cannot order triangles inside one Draw. Blend parts of one Draw
+keep their file order. Split overlapping glass into separate Draws when
+their order matters. Blend parts cast no shadow. A Mask part casts the
+whole shape of its triangles, from faces that point at the Sun; its cutout
+does not appear in the shadow.
+
+Use Alpha for glass. The host does not implement refraction or
+`KHR_materials_transmission`. A material with that extension draws by its
+`alphaMode` and logs `Transmission_Ignored`. An Opaque material with
+Transmission stays solid.
 
 ### Normal and occlusion maps
 
