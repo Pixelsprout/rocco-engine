@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
+import "core:slice"
 
 SCENE_NEAR :: f32(0.1)
 
@@ -35,6 +36,14 @@ FRAME_RENDER_SUBMITS_NONE :: Frame_Render_Submits {
 	submit_ui       = submits_none_submit_ui,
 }
 
+// The Main pass draws these in Scene order before the sky, and the Blend
+// parts sorted after it.
+SCENE_ORDER_PIPELINES :: [3]Mesh_Pipeline{.Opaque, .Mask, .Mask_Double_Sided}
+// A double-sided Blend part draws its far wall first, so its near wall
+// blends over it.
+@(rodata)
+BLEND_SUBMITS_DOUBLE_SIDED := [2]Mesh_Pipeline{.Blend_Back_Faces, .Blend}
+
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 #assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
@@ -50,17 +59,19 @@ Pass :: enum {
 // Lets tests run without sokol. Each frame begins and ends one Shadow pass
 // per shadow view, then one Main pass, then one Post pass. submit_shadow runs
 // only in a Shadow pass, once per Draw that casts a shadow, and draws count
-// indices from index 0. In the Main pass, submit runs once
-// per part of each Draw's mesh. submit_lights runs before any submit, and
-// submit_sky runs at most once, after every submit. With bloom on,
+// indices from index 0. In the Main pass, submit runs once per part of each
+// Draw's mesh, and twice for a double-sided Blend part. submit_lights runs
+// before any submit. submit_sky runs at most once, after every part before
+// the sky and before every Blend part. With bloom on,
 // submit_bloom runs once per Bloom_Step between the Main pass and the Post
 // pass, outside any pass, because each step is a pass of its own.
 // submit_tone_map runs once, first in the Post pass, and submit_ui runs at
 // most once after it.
-// In each pass, the skinned Draws follow the rigid ones. In the Main pass,
+// Before the sky, the skinned Draws follow the rigid ones. In the Main pass,
 // the parts of the rigid Draws, then of the skinned Draws, go in
-// Mesh_Pipeline order, because each change of mesh pipeline applies the
-// lights again. A nil skin is a rigid Draw.
+// SCENE_ORDER_PIPELINES order, because each change of mesh pipeline applies
+// the lights again. After the sky, the Draws with Blend parts go back to
+// front, rigid and skinned together. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
@@ -89,11 +100,14 @@ Frame_Render_Submits :: struct {
 // The Main-pass pipeline of a mesh part. The Mask pipelines discard a
 // fragment under the cutoff. Only Mask_Double_Sided culls nothing: Blender
 // writes doubleSided true by default, so an Opaque part culls back faces
-// whatever its material says. A Blend part draws as Opaque.
+// whatever its material says. A Blend part blends over what is behind it.
+// A double-sided one draws with Blend_Back_Faces, then with Blend.
 Mesh_Pipeline :: enum u8 {
 	Opaque,
 	Mask,
 	Mask_Double_Sided,
+	Blend,
+	Blend_Back_Faces,
 }
 
 Light_Drop :: enum {
@@ -104,11 +118,10 @@ Light_Drop :: enum {
 	Draw_Over_Limit,
 }
 
-// The renderer sizes its uniform buffer for draw_capacity mesh parts and
+// The renderer sizes its uniform buffer for draw_capacity part draws and
 // len(skins) skin blocks per pass. In the Main pass, a skinned Draw applies
-// its skin block once for each Mesh_Pipeline its parts use. The host drops
-// the Draws past either limit, because a release sokol writes past a full
-// buffer.
+// its skin block at each change of Mesh_Pipeline. The host drops the Draws
+// past either limit, because a release sokol writes past a full buffer.
 Frame_Render :: struct {
 	pairing:            Pairing,
 	placed:             [dynamic]Placed,
@@ -152,20 +165,26 @@ Placed :: struct {
 }
 
 // placed_next gives the rigid Draws first, then the skinned ones, so the
-// renderer changes pipeline once per pass.
+// renderer changes pipeline once per Shadow pass.
 Placed_Order :: struct {
 	placed:  []Placed,
 	skinned: bool,
 	next:    int,
 }
 
-// A Draw's uniform blocks. Its Mask parts wait until the Opaque parts of
-// every rigid or every skinned Draw have drawn.
+// A Draw's uniform blocks, made once and shared by all its parts.
 @(private = "file")
 Draw_Params :: struct {
 	p:         ^Placed,
 	vs_params: Vs_Params,
 	fs_params: Fs_Params,
+}
+
+// The distance is to the centre of the Draw's world box.
+@(private = "file")
+Blend_Draw :: struct {
+	params:      Draw_Params,
+	distance_sq: f32,
 }
 
 // What the Frame's walk of the current Scene gathers.
@@ -174,8 +193,8 @@ Frame_Walk :: struct {
 	fr:           ^Frame_Render,
 	meshes:       ^Mesh_Table,
 	lights:       Light_Gather,
-	parts_seen:   int,
-	parts_placed: int,
+	part_draws_seen:   int,
+	part_draws_placed: int,
 	skinned_seen: int,
 	// The skinned Draws placed, and their skin blocks in the Main pass.
 	skinned_placed: int,
@@ -243,8 +262,9 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 }
 
 // The fallback ignores the tint and the glow, so an unknown mesh id shows
-// magenta whatever the game asked for. The sky draws last, so the depth test
-// hides it behind every mesh. The UI draws after the tone map. A nil ui draws
+// magenta whatever the game asked for. The sky draws after every part that
+// writes depth, so the depth test hides it behind them, and before every
+// Blend part, so they blend over it. The UI draws after the tone map. A nil ui draws
 // none. With submit false, the Frame still places the Draws and lays out the
 // UI, but submits nothing.
 frame_render_draw :: proc(
@@ -289,9 +309,9 @@ frame_render_draw :: proc(
 			frame_place(&frame_walk, d, room, draw_place_root(&fr.pairing, d, alpha))
 		}
 	}
-	if frame_walk.parts_seen > fr.draw_capacity && !fr.draws_logged {
+	if frame_walk.part_draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
-		fmt.eprintfln("a Scene's Draws have %v mesh parts; the host draws the first %v", frame_walk.parts_seen, fr.draw_capacity)
+		fmt.eprintfln("a Scene's Draws need %v mesh part draws; the host draws the first %v", frame_walk.part_draws_seen, fr.draw_capacity)
 	}
 	if frame_walk.skin_blocks_seen > len(fr.skins) && !fr.skinned_logged {
 		fr.skinned_logged = true
@@ -323,26 +343,24 @@ frame_render_draw :: proc(
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
 	fr.submits.submit_lights(fr.submits.ctx, lights)
-	waiting := make([dynamic]Draw_Params, 0, 8, context.temp_allocator)
+	draw_params := make([]Draw_Params, len(fr.placed), context.temp_allocator)
+	for &p, i in fr.placed {
+		draw_params[i] = frame_render_draw_params(fr, &p, view, gathered)
+	}
 	for skinned in ([2]bool{false, true}) {
-		clear(&waiting)
-		for &p in fr.placed {
-			if (p.skin != nil) != skinned {
-				continue
-			}
-			d := frame_render_draw_params(fr, &p, view, gathered)
-			if frame_render_submit_parts(fr, d, .Opaque) < len(p.parts) {
-				append(&waiting, d)
-			}
-		}
-		for pipeline in ([2]Mesh_Pipeline{.Mask, .Mask_Double_Sided}) {
-			for d in waiting {
-				frame_render_submit_parts(fr, d, pipeline)
+		for pipeline in SCENE_ORDER_PIPELINES {
+			for d in draw_params {
+				if (d.p.skin != nil) == skinned {
+					frame_render_submit_parts(fr, d, pipeline)
+				}
 			}
 		}
 	}
 	if sky, ok := sky_resolve(skies, env.sky); ok {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
+	}
+	for b in frame_render_sort_blend_draws(draw_params, view.camera.eye) {
+		frame_render_submit_blend_parts(fr, b.params)
 	}
 	fr.submits.end_pass(fr.submits.ctx)
 
@@ -390,39 +408,110 @@ frame_render_draw_params :: proc(fr: ^Frame_Render, p: ^Placed, view: Frame_View
 	return {p, vs_params, params}
 }
 
+// Back to front. The sort is stable, so a tie keeps its Scene order.
 @(private = "file")
-frame_render_submit_parts :: proc(fr: ^Frame_Render, d: Draw_Params, pipeline: Mesh_Pipeline) -> (submitted: int) {
-	for &part in d.p.parts {
-		material := part.material
-		if part_pipeline(material) != pipeline {
+frame_render_sort_blend_draws :: proc(draw_params: []Draw_Params, eye: [3]f32) -> []Blend_Draw {
+	blend := make([dynamic]Blend_Draw, 0, len(draw_params), context.temp_allocator)
+	for d in draw_params {
+		if !placed_has_blend(d.p) {
 			continue
 		}
-		e := material.emissive
-		params := d.fs_params
-		params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, material.alpha_cutoff}
-		params.emissive = {e.x, e.y, e.z, 0}
-		params.maps = {material.normal_scale, material.occlusion_strength, 0, 0}
-		fr.submits.submit(fr.submits.ctx, d.p.mesh, &part, pipeline, d.vs_params, params, d.p.skin)
-		submitted += 1
+		box := box_transform(d.p.mesh.box, d.p.model)
+		to_centre := (box.min + box.max) / 2 - eye
+		append(&blend, Blend_Draw{d, linalg.dot(to_centre, to_centre)})
 	}
-	return submitted
+	slice.stable_sort_by(blend[:], proc(a, b: Blend_Draw) -> bool {
+		return a.distance_sq > b.distance_sq
+	})
+	return blend[:]
 }
 
 @(private = "file")
-part_pipeline :: proc(m: Material) -> Mesh_Pipeline {
-	if m.alpha_mode != .Mask {
-		return .Opaque
+placed_has_blend :: proc(p: ^Placed) -> bool {
+	for part in p.parts {
+		if part.material.alpha_mode == .Blend {
+			return true
+		}
 	}
-	return .Mask_Double_Sided if m.double_sided else .Mask
+	return false
 }
 
 @(private = "file")
-pipelines_used :: proc(parts: []Mesh_Part) -> int {
+frame_render_submit_parts :: proc(fr: ^Frame_Render, d: Draw_Params, pipeline: Mesh_Pipeline) {
+	for &part in d.p.parts {
+		if p, ok := part_pipeline(part.material); ok && p == pipeline {
+			frame_render_submit_part(fr, d, &part, pipeline)
+		}
+	}
+}
+
+// The Blend parts of a Draw keep their file order.
+@(private = "file")
+frame_render_submit_blend_parts :: proc(fr: ^Frame_Render, d: Draw_Params) {
+	for &part in d.p.parts {
+		for pipeline in blend_submits(part.material) {
+			frame_render_submit_part(fr, d, &part, pipeline)
+		}
+	}
+}
+
+@(private = "file")
+frame_render_submit_part :: proc(fr: ^Frame_Render, d: Draw_Params, part: ^Mesh_Part, pipeline: Mesh_Pipeline) {
+	material := part.material
+	e := material.emissive
+	params := d.fs_params
+	params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, material.alpha_cutoff}
+	params.emissive = {e.x, e.y, e.z, 0}
+	params.maps = {material.normal_scale, material.occlusion_strength, 0, 0}
+	fr.submits.submit(fr.submits.ctx, d.p.mesh, part, pipeline, d.vs_params, params, d.p.skin)
+}
+
+// The pipeline of a part that draws before the sky. A Blend part has no
+// such pipeline.
+@(private = "file")
+part_pipeline :: proc(m: Material) -> (pipeline: Mesh_Pipeline, ok: bool) {
+	switch m.alpha_mode {
+	case .Opaque:
+		return .Opaque, true
+	case .Mask:
+		return .Mask_Double_Sided if m.double_sided else .Mask, true
+	case .Blend:
+	}
+	return {}, false
+}
+
+// Empty for a part that draws before the sky.
+@(private = "file")
+blend_submits :: proc(m: Material) -> []Mesh_Pipeline {
+	if m.alpha_mode != .Blend {
+		return nil
+	}
+	return BLEND_SUBMITS_DOUBLE_SIDED[:] if m.double_sided else BLEND_SUBMITS_DOUBLE_SIDED[1:]
+}
+
+@(private = "file")
+part_draws :: proc(m: Material) -> int {
+	return max(len(blend_submits(m)), 1)
+}
+
+// A skinned Draw applies its skin block again at each change of pipeline:
+// once for each pipeline it uses before the sky, then once for each run of
+// one pipeline in its Blend submits.
+@(private = "file")
+skin_blocks :: proc(parts: []Mesh_Part) -> int {
 	used: bit_set[Mesh_Pipeline]
+	runs := 0
+	last := Mesh_Pipeline.Opaque
 	for part in parts {
-		used += {part_pipeline(part.material)}
+		if p, ok := part_pipeline(part.material); ok {
+			used += {p}
+		}
+		for p in blend_submits(part.material) {
+			runs += 1 if p != last else 0
+			last = p
+		}
 	}
-	return card(used)
+	return card(used) + runs
 }
 
 // Places each Draw in a Group at its Pose for this Frame and gathers each
@@ -442,21 +531,34 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 	}
 }
 
-// The draw capacity counts parts, so the Draw that crosses it keeps the parts
-// that fit. Past the draw capacity or the room for skin blocks, the Frame
+// The draw capacity counts part draws, so the Draw that crosses it keeps the
+// parts before the first that does not fit, and the Draws after it draw
+// nothing. Past the draw capacity or the room for skin blocks, the Frame
 // counts the Draw and skips it.
 @(private = "file")
 frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room, fits: bool) {
 	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
-	fw.parts_seen += len(mesh.parts)
-	count := min(len(mesh.parts), fw.fr.draw_capacity - fw.parts_placed)
-	if count <= 0 {
+	left := fw.fr.draw_capacity - fw.part_draws_placed
+	count, counted := 0, 0
+	for part, i in mesh.parts {
+		n := part_draws(part.material)
+		fw.part_draws_seen += n
+		if count == i && counted + n <= left {
+			count += 1
+			counted += n
+		}
+	}
+	if count < len(mesh.parts) {
+		fw.part_draws_placed = fw.fr.draw_capacity
+		counted = 0
+	}
+	if count == 0 {
 		return {}, false
 	}
 	skin: ^Skin_Params
 	if mesh_skinned(mesh) {
 		fw.skinned_seen += 1
-		blocks := pipelines_used(mesh.parts[:count])
+		blocks := skin_blocks(mesh.parts[:count])
 		fw.skin_blocks_seen += blocks
 		if fw.skin_blocks + blocks > len(fw.fr.skins) {
 			return {}, false
@@ -465,7 +567,7 @@ frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room
 		fw.skinned_placed += 1
 		fw.skin_blocks += blocks
 	}
-	fw.parts_placed += count
+	fw.part_draws_placed += counted
 	return {mesh = mesh, fallback = fallback, parts = mesh.parts[:count], skin = skin}, true
 }
 

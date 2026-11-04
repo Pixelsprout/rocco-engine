@@ -1080,7 +1080,6 @@ test_frame_render_culls_nothing_only_for_a_double_sided_mask_part :: proc(t: ^te
 			{first = 0, count = 6, material = {roughness = 1, double_sided = true}},
 			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
 			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.25, double_sided = true}},
-			{first = 18, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
 		},
 	)
 	draws := []Draw{{id = 1, mesh = sampler, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
@@ -1090,7 +1089,7 @@ test_frame_render_culls_nothing_only_for_a_double_sided_mask_part :: proc(t: ^te
 		first:    int,
 		pipeline: Mesh_Pipeline,
 		cutoff:   f32,
-	}{{0, .Opaque, 0}, {18, .Opaque, 0}, {6, .Mask, 0.5}, {12, .Mask_Double_Sided, 0.25}}
+	}{{0, .Opaque, 0}, {6, .Mask, 0.5}, {12, .Mask_Double_Sided, 0.25}}
 	testing.expect_value(t, len(got), len(want))
 	for w, i in want {
 		testing.expectf(t, got[i].part.first == w.first, "submit %v: part %v, want part %v", i, got[i].part.first, w.first)
@@ -1148,6 +1147,132 @@ test_frame_render_submits_the_parts_of_the_rigid_then_the_skinned_draws_in_pipel
 	testing.expect_value(t, got[3].light_color, got[0].light_color)
 	testing.expect_value(t, got[7].light_color, got[4].light_color)
 	testing.expect_value(t, got[3].model, got[0].model)
+}
+
+@(test)
+test_frame_render_draws_the_blend_parts_after_the_sky_with_the_lights_of_their_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+
+	lamp := frame_fixture_mesh(
+		&f,
+		"lamp",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 0.1, alpha_mode = .Blend}},
+		},
+	)
+	draws := []Draw {
+		{id = 1, mesh = lamp, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = u32(Primitive.Cube), pos = {9, 0, 0}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	lights := []Light{light_point({x = 0, y = 2, z = 0}, {g = 1}, 4)}
+	scene := scene_lit(draws, lights)
+	scene.environment.sky = sky
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	lamp_mesh, _ := mesh_lookup(&f.meshes, lamp)
+	testing.expect_value(t, len(got), 3)
+	testing.expect_value(t, f.rec.sky_after, 2)
+	testing.expect_value(t, got[2].part, &lamp_mesh.parts[1])
+	testing.expect_value(t, got[2].pipeline, Mesh_Pipeline.Blend)
+	testing.expect_value(t, got[2].model, got[0].model)
+	testing.expect_value(t, got[2].light_color[0], [4]f32{0, 1, 0, 4})
+	testing.expect_value(t, got[2].material.x, 0.1)
+}
+
+// The eye is at the origin. The bottle's box sits 20 units past its position,
+// so the bottle sorts by its box and not by its position.
+@(test)
+test_frame_render_draws_the_far_blend_draw_first_and_keeps_the_scene_order_of_a_tie :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	bottle := frame_fixture_mesh(&f, "bottle", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+	bottle_mesh, _ := mesh_lookup(&f.meshes, bottle)
+	bottle_mesh.box = {min = {-0.5, -0.5, -20.5}, max = {0.5, 0.5, -19.5}}
+	draws := []Draw {
+		{id = 1, mesh = pane, pos = {0, 0, -2}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = pane, pos = {3, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = bottle, pos = {0, 0, -1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = pane, pos = {-3, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []f32{0, 3, -3, 0}
+	testing.expect_value(t, len(got), len(want))
+	for x, i in want {
+		testing.expectf(t, got[i].model[0, 3] == x, "submit %v: x %v, want %v", i, got[i].model[0, 3], x)
+	}
+	testing.expect_value(t, got[0].mesh.name, "bottle")
+}
+
+@(test)
+test_frame_render_draws_the_back_faces_then_the_front_faces_of_each_double_sided_blend_part :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	tube := frame_fixture_mesh(
+		&f,
+		"tube",
+		{
+			{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+		},
+	)
+	draws := []Draw{{id = 1, mesh = tube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []struct {
+		first:    int,
+		pipeline: Mesh_Pipeline,
+	}{{0, .Blend_Back_Faces}, {0, .Blend}, {6, .Blend}, {12, .Blend_Back_Faces}, {12, .Blend}}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].part.first == w.first, "submit %v: part %v, want part %v", i, got[i].part.first, w.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+	}
+}
+
+// With SMALL_DRAWS at 8, the second tube has room for 2 draws. Its Opaque
+// part takes 1, and its double-sided Blend part needs 2. The last cube would
+// fit in the 1 left, but the host draws only the first parts.
+@(test)
+test_frame_render_counts_a_double_sided_blend_part_as_2_draws_against_its_draw_capacity :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	tube := frame_fixture_mesh(
+		&f,
+		"tube",
+		{
+			{first = 0, count = 6, material = {roughness = 1}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+		},
+	)
+	cube := u32(Primitive.Cube)
+	draws := []Draw {
+		{id = 1, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = tube, pos = {0, 0, -9}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = tube, pos = {0, 0, -1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 5, mesh = cube, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	testing.expect_value(t, len(got), 7)
+	testing.expect(t, f.fr.draws_logged)
+	for s, i in got[4:] {
+		testing.expectf(t, s.model[2, 3] == -9, "blend submit %v: z %v, want -9", i, s.model[2, 3])
+	}
 }
 
 frame_fixture_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
@@ -1987,6 +2112,43 @@ test_frame_render_counts_a_skin_block_for_each_pipeline_of_a_skinned_draw :: pro
 		testing.expectf(t, s.mesh != &f.meshes.meshes[Primitive.Sphere], "the chain drew past the skin blocks")
 	}
 	testing.expect_value(t, got[1].mesh, vine_mesh)
+	testing.expect(t, f.fr.skinned_logged)
+}
+
+// The jar applies its skin block for its Opaque part, then for each run of
+// one pipeline in its Blend submits: back, front, back and front.
+@(test)
+test_frame_render_draws_skinned_blend_parts_and_counts_a_skin_block_for_each_run_of_their_pipelines :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	jar := frame_fixture_skinned_mesh(
+		&f,
+		"jar",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+			{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Blend}},
+			{first = 42, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+		},
+	)
+	chain := frame_fixture_skinned(&f)
+	delete(f.fr.skins)
+	f.fr.skins = make([]Skin_Params, 5)
+
+	draws := []Draw {
+		{id = 1, mesh = jar, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	want := []Mesh_Pipeline{.Opaque, .Blend_Back_Faces, .Blend, .Blend, .Blend_Back_Faces, .Blend}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].pipeline == w && got[i].skinned, "submit %v: pipeline %v, skinned %v", i, got[i].pipeline, got[i].skinned)
+		testing.expectf(t, got[i].mesh.name == "jar", "submit %v: mesh %v", i, got[i].mesh.name)
+	}
 	testing.expect(t, f.fr.skinned_logged)
 }
 

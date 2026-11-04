@@ -5,6 +5,8 @@
 // mask, skinned_mask: basic and skinned for a Mask part, which discards a
 // fragment whose alpha is under the cutoff. Opaque parts keep a shader with
 // no discard, so the GPU can still drop hidden fragments before shading.
+// blend, skinned_blend: basic and skinned for a Blend part, in premultiplied
+// alpha.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
 // bloom_prefilter, bloom_down, bloom_up: the bloom mip chain, between the
@@ -254,10 +256,11 @@ float sun_visibility(vec3 n) {
 
 // Linear in the distance from the camera, so the fog does not change as the
 // camera turns in place.
-vec3 apply_fog(vec3 color) {
+// coverage scales the fog colour. It is 1 outside a Blend part.
+vec3 apply_fog(vec3 color, float coverage) {
     float d = length(v_world - camera_pos.xyz);
     float factor = fog_ramp.z * clamp((d - fog_ramp.x) * fog_ramp.y, 0.0, 1.0);
-    return mix(color, fog_color.rgb, factor);
+    return mix(color, fog_color.rgb * coverage, factor);
 }
 
 // The normal map's normal in world space. The tangent is made at right
@@ -271,13 +274,16 @@ vec3 surface_normal() {
     return safe_normalize(t * m.x + b * m.y + ng * m.z);
 }
 
-vec4 surface_color() {
+// premultiplied scales the diffuse light and the fog by alpha. The specular
+// and the emissive stay whole, so glass keeps its highlight and its glow.
+vec4 surface_color(bool premultiplied) {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
+    float coverage = premultiplied ? base.a : 1.0;
     vec3 albedo = base.rgb * tint.rgb;
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
     vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        return vec4(apply_fog(albedo + emitted), base.a);
+        return vec4(apply_fog(albedo * coverage + emitted, coverage), base.a);
     }
 
     vec4 mr = texture(sampler2D(metallic_roughness_tex, metallic_roughness_smp), v_uv);
@@ -285,9 +291,9 @@ vec4 surface_color() {
     float metallic = clamp(material.y * mr.b, 0.0, 1.0);
     float alpha = roughness * roughness;
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
-    vec3 diffuse_color = (1.0 - metallic) * albedo;
+    vec3 diffuse_color = (1.0 - metallic) * albedo * coverage;
 
-    // Only a part that culls nothing draws back faces. A back face is lit
+    // Only a double-sided part draws back faces. A back face is lit
     // from the side the camera sees.
     float facing = gl_FrontFacing ? 1.0 : -1.0;
     vec3 n = surface_normal() * facing;
@@ -325,7 +331,7 @@ vec4 surface_color() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    return vec4(apply_fog(color + emitted), base.a);
+    return vec4(apply_fog(color + emitted, coverage), base.a);
 }
 @end
 
@@ -335,7 +341,7 @@ vec4 surface_color() {
 out vec4 frag_color;
 
 void main() {
-    frag_color = surface_color();
+    frag_color = surface_color(false);
 }
 @end
 
@@ -346,7 +352,7 @@ void main() {
 out vec4 frag_color;
 
 void main() {
-    vec4 color = surface_color();
+    vec4 color = surface_color(false);
     if (color.a < material.w) {
         discard;
     }
@@ -354,8 +360,19 @@ void main() {
 }
 @end
 
+@fs blend_fs
+@include_block surface
+
+out vec4 frag_color;
+
+void main() {
+    frag_color = surface_color(true);
+}
+@end
+
 @program basic vs fs
 @program mask vs mask_fs
+@program blend vs blend_fs
 
 @vs skinned_vs
 @glsl_options fixup_clipspace
@@ -393,6 +410,7 @@ void main() {
 
 @program skinned skinned_vs fs
 @program skinned_mask skinned_vs mask_fs
+@program skinned_blend skinned_vs blend_fs
 
 @vs sky_vs
 @glsl_options fixup_clipspace

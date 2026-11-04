@@ -12,8 +12,9 @@ SKINNED_DRAW_LIMIT :: 256
 // sokol on Metal starts each block on a UNIFORM_ALIGN boundary, so a block takes whole slots.
 SHADOW_UNIFORM_SLOTS :: (size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 MAIN_UNIFORM_SLOTS :: (size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN + (size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
-// The slots outside the Draws: the lights once per mesh pipeline, the sky,
-// the bloom, the tone map and the UI.
+LIGHTS_UNIFORM_SLOTS :: (size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
+// The slots outside the Draws: the lights once per pipeline before the sky,
+// the sky, the bloom, the tone map and the UI.
 UNIFORM_SPARE_SLOTS :: 21
 // The Prefilter and each Up apply a block. A Down applies none.
 BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
@@ -21,11 +22,11 @@ BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
 // fit one. The limit takes MAX_CASCADES for every game.
 DRAW_LIMIT ::
 	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (1 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
-	(MAIN_UNIFORM_SLOTS + MAX_CASCADES * SHADOW_UNIFORM_SLOTS)
+	(MAIN_UNIFORM_SLOTS + max(MAX_CASCADES * SHADOW_UNIFORM_SLOTS, LIGHTS_UNIFORM_SLOTS))
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
 // The 3 is one block each for the sky, the tone map and the UI.
-#assert(2 * len(Mesh_Pipeline) * ((size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN) + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
+#assert(2 * len(SCENE_ORDER_PIPELINES) * LIGHTS_UNIFORM_SLOTS + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
 
@@ -38,6 +39,13 @@ WHITE_TEXEL := [4]byte{255, 255, 255, 255}
 // A tangent-space normal of about (0, 0, 1). Material.normal_scale is 0 with it.
 @(rodata)
 FLAT_NORMAL_TEXEL := [4]byte{128, 128, 255, 255}
+
+// The shaders of the Mesh_Pipelines other than Opaque, which takes the
+// shader of its Pipeline_Desc.
+Mesh_Shaders :: struct {
+	mask:  sg.Shader,
+	blend: sg.Shader,
+}
 
 Renderer :: struct {
 	pips:               [Mesh_Pipeline]sg.Pipeline,
@@ -91,13 +99,15 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
 }
 
-// capacity.draws counts the Main-pass draws, one per mesh part. Each
-// applies a vertex and a fragment block. A Draw applies a shadow block in
-// each cascade, and a Frame has no more Draws than mesh parts. Each pass
-// applies at most skinned_draw_capacity skin blocks.
+// capacity.draws counts the Main-pass submits. Each applies a vertex and a
+// fragment block. A Draw with a part before the sky applies a shadow block in
+// each cascade. A Blend submit can change pipeline, which applies the lights
+// again, and its Draw may cast no shadow. So each submit has room for the
+// greater of the two. Each pass applies at most skinned_draw_capacity skin
+// blocks.
 uniform_buffer_size :: proc(capacity: Capacity, cascades: int) -> i32 {
 	skins := (1 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
-	slots := MAIN_UNIFORM_SLOTS + cascades * SHADOW_UNIFORM_SLOTS
+	slots := MAIN_UNIFORM_SLOTS + max(cascades * SHADOW_UNIFORM_SLOTS, LIGHTS_UNIFORM_SLOTS)
 	return i32((slots * int(capacity.draws) + UNIFORM_SPARE_SLOTS) * UNIFORM_ALIGN + skins)
 }
 
@@ -148,7 +158,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	}
 	desc.label = "mesh"
-	r.pips = mesh_pipelines(desc, sg.make_shader(mask_shader_desc(sg.query_backend())))
+	r.pips = mesh_pipelines(desc, {mask = sg.make_shader(mask_shader_desc(sg.query_backend())), blend = sg.make_shader(blend_shader_desc(sg.query_backend()))})
 
 	skinned := desc
 	skinned.shader = sg.make_shader(skinned_shader_desc(sg.query_backend()))
@@ -165,7 +175,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	}
 	skinned.label = "skinned"
-	r.skinned_pips = mesh_pipelines(skinned, sg.make_shader(skinned_mask_shader_desc(sg.query_backend())))
+	r.skinned_pips = mesh_pipelines(skinned, {mask = sg.make_shader(skinned_mask_shader_desc(sg.query_backend())), blend = sg.make_shader(skinned_blend_shader_desc(sg.query_backend()))})
 
 	// The sky draws the cube primitive from inside, so it reads only the
 	// position and culls nothing. It writes no depth and passes at the
@@ -217,22 +227,35 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	r.skinned_shadow_pip = sg.make_pipeline(skinned_shadow)
 }
 
-mesh_pipelines :: proc(opaque: sg.Pipeline_Desc, mask_shader: sg.Shader) -> (pips: [Mesh_Pipeline]sg.Pipeline) {
+mesh_pipelines :: proc(opaque: sg.Pipeline_Desc, shaders: Mesh_Shaders) -> (pips: [Mesh_Pipeline]sg.Pipeline) {
 	for pipeline in Mesh_Pipeline {
-		pips[pipeline] = sg.make_pipeline(mesh_pipeline_desc(opaque, mask_shader, pipeline))
+		pips[pipeline] = sg.make_pipeline(mesh_pipeline_desc(opaque, shaders, pipeline))
 	}
 	return pips
 }
 
-mesh_pipeline_desc :: proc(opaque: sg.Pipeline_Desc, mask_shader: sg.Shader, pipeline: Mesh_Pipeline) -> sg.Pipeline_Desc {
+// A Blend part tests depth and writes none, so a Blend part behind it still
+// draws. Its colour is premultiplied by alpha.
+mesh_pipeline_desc :: proc(opaque: sg.Pipeline_Desc, shaders: Mesh_Shaders, pipeline: Mesh_Pipeline) -> sg.Pipeline_Desc {
 	d := opaque
 	switch pipeline {
 	case .Opaque:
 	case .Mask:
-		d.shader = mask_shader
+		d.shader = shaders.mask
 	case .Mask_Double_Sided:
-		d.shader = mask_shader
+		d.shader = shaders.mask
 		d.cull_mode = .NONE
+	case .Blend, .Blend_Back_Faces:
+		d.shader = shaders.blend
+		d.depth.write_enabled = false
+		d.colors[0].blend = {
+			enabled          = true,
+			src_factor_rgb   = .ONE,
+			dst_factor_rgb   = .ONE_MINUS_SRC_ALPHA,
+			src_factor_alpha = .ONE,
+			dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+		}
+		d.cull_mode = .FRONT if pipeline == .Blend_Back_Faces else .BACK
 	}
 	return d
 }
@@ -352,8 +375,9 @@ renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Sk
 }
 
 // A nil skin draws a rigid mesh. Each change of mesh pipeline applies the
-// lights again and drops the applied skin block. The uniform buffer has room
-// for one change to each mesh pipeline per Frame.
+// lights again and drops the applied skin block. Before the sky, the uniform
+// buffer has room for one change to each mesh pipeline per Frame. After it,
+// each Blend submit has room for one change.
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin)
@@ -389,7 +413,8 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	sg.draw(part.first, part.count, 1)
 }
 
-// Applies the sky pipeline, so it must follow every renderer_draw of the frame.
+// Applies the sky pipeline, so it must follow every renderer_draw that writes
+// depth.
 renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r := (^Renderer)(ctx)
 	cube := &r.meshes.meshes[Primitive.Cube]
