@@ -280,18 +280,120 @@ Every colour is linear, not sRGB. The host multiplies the colour of the
 mesh by the `tint` of the Draw. The fallback mesh ignores the tint and the
 glow. The host adds the glow after the lights and before the tone map.
 
-The host draws the 3D view in linear colour, multiplies it by the
-`exposure` of the Scene's `environment`, then tone maps all of it and
-encodes it to sRGB for the screen. Lit and unlit surfaces, the sky and the
-`clear` colour all go through the tone map. Under the default `Aces` tone
-map an unlit colour shows a little darker than its value. `Neutral` keeps
-a colour closest to its value, and `AgX` keeps a bright colour from
-shifting hue. The UI draws after the tone map, so it shows the colours you
-give it.
+The host draws the 3D view in linear colour and turns it into screen
+colour at the end of each frame, as [The environment](#the-environment)
+explains. The UI draws after that, so it shows the colours you give it.
+
+## The environment
+
+`Scene.environment` sets the look of the whole 3D view: what shows behind
+the meshes, how the linear colour becomes screen colour, the fog and the
+bloom. Start from `Environment.default` and set only what you need. The
+glow example sets its tone map and its bloom from its Model:
+
+<!-- region: examples/glow/main.roc#environment -->
+```roc
+bloom_strength : F32
+bloom_strength = 0.2
+
+environment : Model -> Vocabulary.Environment
+environment = |model| {
+	strength = if model.bloom bloom_strength else 0.0
+	{ ..Environment.default, tone_map: model.tone_map, bloom: { ..Environment.default.bloom, strength } }
+}
+```
+<!-- endregion -->
+
+The host takes the environment from the newest Scene each frame, with no
+blend between two Scenes, so a change shows at once. None of it changes
+the UI.
+
+| Field | Default | Sets |
+|---|---|---|
+| `sky` | 0, no sky | the sky drawn behind the meshes |
+| `clear` | black | the colour behind the meshes where no sky is |
+| `tone_map` | `Aces` | how a bright colour rolls off to the screen |
+| `exposure` | 1 | a multiplier on every colour before the tone map |
+| `fog` | an `amount` of 0, which is off | a fade towards one colour with distance |
+| `bloom` | a `strength` of 0, which is off | a soft halo around very bright surfaces |
+
+### Sky and clear colour
+
+Each frame starts from the `clear` colour. The meshes draw over it, and
+then the sky fills every pixel that no mesh covers. A `sky` of 0, or an id
+that the host does not know, draws no sky, so the `clear` colour shows
+behind the meshes instead. [Assets and Packs](assets.md) shows how to load
+a sky and get its id. Like every colour, `clear` is linear, and both it and
+the sky go through the tone map.
+
+### Tone map and exposure
+
+The host multiplies the 3D view by `exposure`, then tone maps all of it
+and encodes it to sRGB for the screen. Lit and unlit surfaces, the sky and
+the `clear` colour all go through the tone map. Under the default `Aces`
+tone map an unlit colour shows a little darker than its value. `Neutral`
+keeps a colour closest to its value, and `AgX` keeps a bright colour from
+shifting hue. The glow example cycles the three with T, so you can compare
+them on one Scene.
+
+`exposure` is a plain multiplier: 2 doubles every colour before the tone
+map, and 0.5 halves it. Use it to brighten or darken the whole Scene
+without changing each Light.
 
 ```roc
 environment: { ..Environment.default, tone_map: AgX, exposure: 1.4 }
 ```
+
+### Fog
+
+Fog fades each mesh towards one colour as it gets further from the camera.
+Up to `start` units away a surface draws as it would without fog. From
+there the fog grows in a straight line until, at `end` units and beyond,
+the surface is `amount` of the way to `color`. An `amount` of 1 hides a far
+surface in the fog colour, and the default `amount` of 0 turns fog off.
+
+```roc
+environment: { ..Environment.default, fog: { color: { r: 0.32, g: 0.36, b: 0.45 }, start: 8.0, end: 40.0, amount: 1.0 } }
+```
+
+The distance is measured straight from the camera, so the fog stays put
+when the camera turns on the spot. The fog mixes the whole colour of a
+surface after its lights and its glow, so a far lamp or an unlit sign
+fades too. The sky and the `clear` colour do not fog. Set the fog `color`
+to the colour of the sky at its horizon, or to the `clear` colour when
+there is no sky, so that far meshes melt into what is behind them instead
+of showing as flat shapes against it. The fog colour is linear, like every
+other colour, and goes through the tone map with the rest of the 3D view.
+
+### Bloom
+
+Bloom spreads the light of a very bright surface into a soft halo around
+it, the way a lamp or a neon sign looks on a hazy night or through a
+camera. It is off until you raise `strength`. The glow example above sets
+only the strength, 0.2, and keeps the default threshold and knee. Press B
+in the glow example to turn its bloom off and on.
+
+The host keeps the light above `threshold`, blurs it at up to six sizes,
+sums the blurs and adds `strength` times the result to the 3D view,
+before the exposure and the tone map. `knee` softens the cut: the halo
+fades in from `threshold - knee` and takes all the light above `threshold`
+from `threshold + knee`. The threshold compares the brightest channel of
+the colour before the exposure, so a change of exposure makes the halo
+brighter or dimmer but does not change which surfaces bloom.
+
+The default threshold of 2 suits a glow of about 3, like the glow
+example's window, orbs and neon. It halos them but not a wall or a floor
+that a Light makes a little brighter than 1. If a lit surface starts to
+glow, raise the threshold. If a glow gets no halo, make the glow brighter
+or lower the threshold. A strength of about 0.2 gives a clear halo, and a
+strength near 1 washes the Scene out.
+
+The blurs are sized in logical pixels, so the halo looks the same on a
+Retina display and on a 1x display. The largest blur needs a window of at
+least 512 logical pixels on its shorter side. A smaller window drops it
+and shows a smaller, dimmer halo, so check the strength at the window size
+your players use. Bloom adds up to eleven small passes to each frame, and
+a strength of 0 runs none of them.
 
 ## Defaults to start from
 
@@ -301,7 +403,7 @@ with a record update, and set only the fields that you need.
 | Record | Default | Use |
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
-| Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky` or `tone_map`. |
+| Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky`, `tone_map`, `fog` or `bloom`. |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |

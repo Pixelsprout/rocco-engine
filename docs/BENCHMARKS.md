@@ -73,6 +73,56 @@ ms, and their changes in either direction are mostly noise.
   median, 2,404 us, includes the fifth process at 1,534 us.
 - The selection runs in the `render_submit` Span.
 
+### Bloom in the glow example
+
+These runs give one reference for the cost of bloom. They are not a gate
+and not a reference run. Apple M5 (Mac17,2, 10-core GPU), macOS 26.5.1, on
+AC power, 2026-11-04. The Mac was shared with other work: the 1-minute load
+average was about 4. `examples/glow` ran in windowed Lockstep at its default
+960 by 540 window, which is a 1920 by 1080 drawable on this Retina display.
+Bloom on is glow as committed, with a `strength` of 0.2. Bloom off is the
+same build with `bloom: Bool.False` in `init`, so the `strength` is 0 and
+the host runs no bloom pass.
+
+The GPU time comes from a Metal System Trace of 1,200 Frames, not from the
+Spans. Build the release host with Spans first, as "Build flags" says,
+because the trace sets `ROCCO_SPANS_CSV`:
+
+```sh
+cd examples/glow
+xcrun xctrace record --template 'Metal System Trace' --time-limit 12s \
+  --output glow.trace --env ROCCO_LOCKSTEP=1 --env ROCCO_EXIT_AFTER_FRAMES=1200 \
+  --env ROCCO_SPANS_CSV=$PWD/glow.csv --launch -- ./glow.bin
+xcrun xctrace export --input glow.trace \
+  --xpath '/trace-toc/run[@number="1"]/data/table[@schema="metal-gpu-intervals"]'
+```
+
+In the exported table, take the rows of `glow.bin` after its first 120
+frames. The GPU time of one encoder in one frame is the union of its Vertex
+and Fragment intervals. The GPU frame time is the union of all the frame's
+intervals. Each row below is the median over about 1,070 frames, in two
+traces of each build.
+
+| Bloom | Encoders per frame | GPU frame time median | p95 | The 11 bloom encoders |
+|---|---|---|---|---|
+| off | 3 | 2.61 to 2.85 ms | 6.4 ms | none |
+| on | 14 | 2.67 ms | 6.1 ms | 0.74 ms |
+
+- Bloom off has 3 encoders: the Main pass, the Post pass and the copy of
+  the frame to the window. The 11 bloom encoders are the prefilter into the
+  960 by 540 mip (0.30 ms), 5 downsamples and 5 upsamples. The last
+  upsample, into the 960 by 540 mip, takes 0.15 ms.
+- The GPU frame time does not rise with bloom on. At 120 Frames a second
+  the GPU is mostly idle and lowers its clock. With the bloom passes it runs
+  faster, and the Main pass drops from about 1.7 ms to 1.3 ms. So the 0.74 ms
+  is the better measure of the bloom work, at that clock.
+- The Spans measure the CPU side. Each build ran 3 times in windowed
+  Lockstep with `ROCCO_EXIT_AFTER_FRAMES=2120`, and `bench/realclock.py`
+  dropped the 120 warmup Frames. The `render_submit` median rose from 12 to
+  21 us with bloom off to 66 to 229 us with bloom on. Its p99 rose from 95 to
+  112 us to 423 to 446 us. The spread comes from the shared Mac.
+  The rise is the CPU cost of the 11 extra passes.
+
 ## What the numbers do not claim
 
 - **No comparison with other engines.** A fair comparison needs the same
@@ -84,7 +134,9 @@ ms, and their changes in either direction are mostly noise.
   run the same logic through the same run loop with no Roc, so the difference
   is the cost of the Seam and of Roc.
 - **No GPU time.** The Spans measure CPU time only. `render_submit` and
-  `commit` measure the CPU cost of the sokol calls, not the GPU work.
+  `commit` measure the CPU cost of the sokol calls, not the GPU work. The
+  one GPU number, in "Bloom in the glow example", comes from a Metal System
+  Trace on one Mac.
 - **No CI timing.** On macOS, CI runs each bench game once at N=64 as a
   smoke test. On Linux and Windows, CI runs `model-size` and
   `model-size-twin` once at N=64. CI runners share their hardware, so CI

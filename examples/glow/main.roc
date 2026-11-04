@@ -6,7 +6,7 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # two neon tubes. source/make_salvage.py builds it. Left of the window hangs a
 # ribbed panel with a normal map and an occlusion map, and a small light
 # circles in front of it. source/make_panel.py builds the panel. T cycles
-# the tone map from Aces to AgX to Neutral.
+# the tone map from Aces to AgX to Neutral, and B turns the bloom on and off.
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
 import cam.Camera as Cam
@@ -25,7 +25,7 @@ import pf.Scene
 
 # salvage and panel are 0, the fallback mesh, until loaded gives their ids.
 # time is the seconds since init, which moves the circling light.
-Model : { salvage : U32, panel : U32, time : F32, tone_map : ToneMap }
+Model : { salvage : U32, panel : U32, time : F32, tone_map : ToneMap, bloom : Bool }
 
 ToneMap : [Aces, AgX, Neutral]
 
@@ -33,7 +33,7 @@ launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Glow" } }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { salvage: 0, panel: 0, time: 0.0, tone_map: Aces }, commands: [Load({ pack: "props", assets: ["salvage", "panel"] })] }
+init = |_config| { model: { salvage: 0, panel: 0, time: 0.0, tone_map: Aces, bloom: Bool.True }, commands: [Load({ pack: "props", assets: ["salvage", "panel"] })] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "salvage"), panel: Mesh.resolve(manifest, "panel") }
@@ -41,7 +41,8 @@ loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "sa
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
 	tone_map = if Key.pressed(input, T) next_tone_map(model.tone_map) else model.tone_map
-	{ model: { ..model, time: model.time + dt, tone_map }, commands: [] }
+	bloom = if Key.pressed(input, B) !model.bloom else model.bloom
+	{ model: { ..model, time: model.time + dt, tone_map, bloom }, commands: [] }
 }
 
 next_tone_map : ToneMap -> ToneMap
@@ -120,8 +121,20 @@ view = |model| {
 	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
 	orb_right = orb(11, { x: 1.6, y: 0.5, z: 0.4 }, { r: 0.15, g: 0.35, b: 1.0 })
 	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Draw(panel(model.panel)), Light(lamp)], orb_left, orb_right, spark(model.time)])
-	{ ..Scene.empty, camera, nodes, environment: { ..Environment.default, tone_map: model.tone_map } }
+	{ ..Scene.empty, camera, nodes, environment: environment(model) }
 }
+
+# region: environment
+bloom_strength : F32
+bloom_strength = 0.2
+
+environment : Model -> Vocabulary.Environment
+environment = |model| {
+	strength = if model.bloom bloom_strength else 0.0
+	{ ..Environment.default, tone_map: model.tone_map, bloom: { ..Environment.default.bloom, strength } }
+}
+
+# endregion
 
 is_light : Vocabulary.Node -> Bool
 is_light = |node| match node {
@@ -165,6 +178,21 @@ expect {
 
 ## The Scene draws with the tone map of the Model.
 expect view({ ..init(Config.empty).model, tone_map: Neutral }).environment.tone_map == Neutral
+
+## The bloom starts on, and each press of B turns it off or on again.
+expect {
+	press = |model| step(model, { ..Input.empty, pressed: [Key.code(B)] }, QueryResults.empty, 0.0).model
+	start = init(Config.empty).model
+	off = press(start)
+	start.bloom and !off.bloom and press(off).bloom
+}
+
+## The bloom sets only the strength, and a strength of 0 turns it off.
+expect {
+	on = view(init(Config.empty).model).environment.bloom
+	off = view({ ..init(Config.empty).model, bloom: Bool.False }).environment.bloom
+	on == { ..Environment.default.bloom, strength: bloom_strength } and off == Environment.default.bloom
+}
 
 ## The spark is right of the panel at 0 seconds, above it at 1 and left of it at 2.
 expect {

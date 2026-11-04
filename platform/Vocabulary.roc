@@ -413,13 +413,18 @@ Vocabulary := [].{
 	##   1 changes nothing. At or below 0, the host draws with 1 and logs once.
 	## - `fog`: linear fog by distance from the camera. It starts at `start`
 	##   and reaches `amount` of `color` at `end`. `amount` runs from 0 to 1,
-	##   and 0 draws no fog. The host checks it but does not draw it yet. An
-	##   `amount` outside 0 to 1 is clamped into it. With fog on, an `end` at
-	##   or below `start` moves just past `start`. Each logs once.
-	## - `bloom`: a glow from light above `threshold`, scaled by `strength`,
-	##   with `knee` to soften the threshold. A `strength` of 0 draws no bloom.
-	##   The host checks it but does not draw it yet. A negative number
-	##   becomes 0 and logs once.
+	##   and 0 draws no fog. It mixes the lit colour of every mesh, glow and
+	##   unlit surfaces included, towards the linear `color`. The sky and
+	##   `clear` do not fog, so match `color` to the sky's horizon or to
+	##   `clear`. An `amount` outside 0 to 1 is clamped into it. With fog on,
+	##   an `end` at or below `start` moves just past `start`. Each logs once.
+	## - `bloom`: a halo around light above `threshold`, scaled by `strength`,
+	##   with `knee` to soften the threshold. The halo starts where the
+	##   brightest channel passes `threshold - knee`. Past `threshold + knee`
+	##   it takes the light above `threshold`. The threshold reads the colour
+	##   before `exposure`, so an exposure change does not change which
+	##   surfaces bloom. A `strength` of 0 draws no bloom and runs no bloom
+	##   pass. A negative number becomes 0 and logs once.
 	Environment : {
 		sky : U32,
 		clear : Rgb,

@@ -1,11 +1,14 @@
 // basic: a metallic-roughness BRDF under the Scene's lights, plus the
 // emissive, in linear HDR. An unlit mesh draws its base colour plus the
-// emissive, with no lights.
+// emissive, with no lights. Either result then mixes towards the fog colour.
 // skinned: basic for a skinned mesh, posed by its skin matrices.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
-// tone_map: scales the resolved HDR image by the exposure, maps it with the
-// Scene's tone map and encodes sRGB, for the Post pass.
+// bloom_prefilter, bloom_down, bloom_up: the bloom mip chain, between the
+// Main pass and the Post pass.
+// tone_map: adds the bloom to the resolved HDR image, scales the sum by the
+// exposure, maps it with the Scene's tone map and encodes sRGB, for the Post
+// pass.
 // ui: rounded rectangles and SDF glyphs in window pixels, at their authored
 // colour. It draws after the tone map.
 // blit: copies the render target to the swapchain.
@@ -107,12 +110,16 @@ layout(binding = 1) uniform fs_params {
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
 // cascade 0. With one cascade, cascade_far and view_dir are zero. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
+// fog_color is linear, with w spare. fog_ramp is the fog start,
+// 1 / (end - start), the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
     vec4 shadow;
     vec4 cascade_far;
     vec4 view_dir;
+    vec4 fog_color;
+    vec4 fog_ramp;
     mat4 light_view_proj[4];
 };
 
@@ -244,6 +251,14 @@ float sun_visibility(vec3 n) {
     return mix(here, next == cascade ? 1.0 : there, blend);
 }
 
+// Linear in the distance from the camera, so the fog does not change as the
+// camera turns in place.
+vec3 apply_fog(vec3 color) {
+    float d = length(v_world - camera_pos.xyz);
+    float factor = fog_ramp.z * clamp((d - fog_ramp.x) * fog_ramp.y, 0.0, 1.0);
+    return mix(color, fog_color.rgb, factor);
+}
+
 // The normal map's normal in world space. The tangent is made at right
 // angles to the vertex normal, and its w gives the bitangent's side.
 vec3 surface_normal() {
@@ -261,7 +276,7 @@ void main() {
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
     vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        frag_color = vec4(albedo + emitted, base.a);
+        frag_color = vec4(apply_fog(albedo + emitted), base.a);
         return;
     }
 
@@ -307,7 +322,7 @@ void main() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    frag_color = vec4(color + emitted, base.a);
+    frag_color = vec4(apply_fog(color + emitted), base.a);
 }
 @end
 
@@ -523,14 +538,159 @@ void main() {
 
 @program blit blit_vs blit_fs
 
+@block bloom_down_13
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
+
+out vec4 frag_color;
+
+// The 13 taps of Jimenez 2014. Each bloom mip is its source halved and
+// rounded down, so the target's size comes from the source's. textureLod
+// takes no derivatives, so a branch around it is safe on D3D.
+vec3 bloom_down_13() {
+    ivec2 src_size = textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0);
+    vec2 t = 1.0 / vec2(src_size);
+    vec2 uv = gl_FragCoord.xy / vec2(src_size / 2);
+    vec3 a = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0, -2.0), 0.0).rgb;
+    vec3 b = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0, -2.0), 0.0).rgb;
+    vec3 c = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0, -2.0), 0.0).rgb;
+    vec3 d = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0,  0.0), 0.0).rgb;
+    vec3 e = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv, 0.0).rgb;
+    vec3 f = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0,  0.0), 0.0).rgb;
+    vec3 g = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-2.0,  2.0), 0.0).rgb;
+    vec3 h = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0,  2.0), 0.0).rgb;
+    vec3 i = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 2.0,  2.0), 0.0).rgb;
+    vec3 j = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0, -1.0), 0.0).rgb;
+    vec3 k = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0, -1.0), 0.0).rgb;
+    vec3 l = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  1.0), 0.0).rgb;
+    vec3 m = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  1.0), 0.0).rgb;
+    return e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+}
+@end
+
+@fs bloom_prefilter_fs
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
+
+// Mip 0 has half the window's logical size, so it is not always half the
+// HDR image's size. Its size comes as a uniform.
+layout(binding = 0) uniform bloom_prefilter_params {
+    float threshold;
+    float knee;
+    float target_width;
+    float target_height;
+};
+
+out vec4 frag_color;
+
+// The mean of the HDR texels in a box of cover texels around uv. Each tap is
+// bilinear and reads 2 x 2 texels, so the taps tile the box. textureLod takes
+// no derivatives, so the loops are safe on D3D.
+vec3 prefilter_box(vec2 uv, vec2 texel, vec2 cover, ivec2 taps) {
+    vec3 sum = vec3(0.0);
+    for (int y = 0; y < taps.y; y++) {
+        for (int x = 0; x < taps.x; x++) {
+            vec2 offset = ((vec2(x, y) + 0.5) / vec2(taps) - 0.5) * cover;
+            sum += textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + offset * texel, 0.0).rgb;
+        }
+    }
+    return sum / float(taps.x * taps.y);
+}
+
+// The 13 taps of bloom_down_13, each a box of the HDR texels under one mip 0
+// texel, so a bright texel reaches mip 0 at any display scale. Then a quadratic
+// soft threshold: no light below threshold - knee, the light above threshold
+// past threshold + knee, and a curve between. It runs before the exposure, so
+// the exposure does not change which surfaces bloom.
+void main() {
+    vec2 src_size = vec2(textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0));
+    vec2 target = vec2(target_width, target_height);
+    vec2 texel = 1.0 / src_size;
+    vec2 cover = src_size / target;
+    // The 0.01 keeps a window one pixel past a multiple of the mip size at one tap.
+    ivec2 taps = clamp(ivec2(ceil(cover * 0.5 - 0.01)), ivec2(1), ivec2(4));
+    vec2 uv = gl_FragCoord.xy / target;
+    vec2 t = 0.5 * cover * texel;
+    vec3 a = prefilter_box(uv + t * vec2(-2.0, -2.0), texel, cover, taps);
+    vec3 b = prefilter_box(uv + t * vec2( 0.0, -2.0), texel, cover, taps);
+    vec3 c = prefilter_box(uv + t * vec2( 2.0, -2.0), texel, cover, taps);
+    vec3 d = prefilter_box(uv + t * vec2(-2.0,  0.0), texel, cover, taps);
+    vec3 e = prefilter_box(uv, texel, cover, taps);
+    vec3 f = prefilter_box(uv + t * vec2( 2.0,  0.0), texel, cover, taps);
+    vec3 g = prefilter_box(uv + t * vec2(-2.0,  2.0), texel, cover, taps);
+    vec3 h = prefilter_box(uv + t * vec2( 0.0,  2.0), texel, cover, taps);
+    vec3 i = prefilter_box(uv + t * vec2( 2.0,  2.0), texel, cover, taps);
+    vec3 j = prefilter_box(uv + t * vec2(-1.0, -1.0), texel, cover, taps);
+    vec3 k = prefilter_box(uv + t * vec2( 1.0, -1.0), texel, cover, taps);
+    vec3 l = prefilter_box(uv + t * vec2(-1.0,  1.0), texel, cover, taps);
+    vec3 m = prefilter_box(uv + t * vec2( 1.0,  1.0), texel, cover, taps);
+    vec3 mean = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+    float brightness = max(mean.r, max(mean.g, mean.b));
+    float soft = clamp(brightness - threshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee + 1e-4);
+    float weight = max(soft, brightness - threshold) / max(brightness, 1e-4);
+    frag_color = vec4(mean * weight, 1.0);
+}
+@end
+
+@program bloom_prefilter blit_vs bloom_prefilter_fs
+
+@fs bloom_down_fs
+@include_block bloom_down_13
+
+void main() {
+    frag_color = vec4(bloom_down_13(), 1.0);
+}
+@end
+
+@program bloom_down blit_vs bloom_down_fs
+
+@fs bloom_up_fs
+layout(binding = 0) uniform texture2D bloom_src_tex;
+layout(binding = 0) uniform sampler bloom_src_smp;
+
+// The target may be one texel more than twice the source, so its size
+// comes as a uniform.
+layout(binding = 0) uniform bloom_up_params {
+    float target_width;
+    float target_height;
+};
+
+out vec4 frag_color;
+
+// A 3 x 3 tent over the smaller mip. The pipeline adds the result to the
+// target, which holds its own downsample.
+void main() {
+    vec2 t = 1.0 / vec2(textureSize(sampler2D(bloom_src_tex, bloom_src_smp), 0));
+    vec2 uv = gl_FragCoord.xy / vec2(target_width, target_height);
+    vec3 a = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0, -1.0), 0.0).rgb;
+    vec3 b = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0, -1.0), 0.0).rgb;
+    vec3 c = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0, -1.0), 0.0).rgb;
+    vec3 d = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  0.0), 0.0).rgb;
+    vec3 e = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv, 0.0).rgb;
+    vec3 f = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  0.0), 0.0).rgb;
+    vec3 g = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2(-1.0,  1.0), 0.0).rgb;
+    vec3 h = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 0.0,  1.0), 0.0).rgb;
+    vec3 i = textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + t * vec2( 1.0,  1.0), 0.0).rgb;
+    vec3 up = (e * 4.0 + (b + d + f + h) * 2.0 + (a + c + g + i)) / 16.0;
+    frag_color = vec4(up, 1.0);
+}
+@end
+
+@program bloom_up blit_vs bloom_up_fs
+
 @fs tone_map_fs
 layout(binding = 0) uniform texture2D hdr_tex;
 layout(binding = 0) uniform sampler hdr_smp;
+layout(binding = 1) uniform texture2D bloom_tex;
+layout(binding = 1) uniform sampler bloom_smp;
 
-// tone_map is the branch of main: 0 ACES, 1 AgX, 2 Neutral.
+// tone_map is the branch of main: 0 ACES, 1 AgX, 2 Neutral. A
+// bloom_strength of 0 reads no bloom.
 layout(binding = 0) uniform tone_map_params {
     float exposure;
     float tone_map;
+    float bloom_strength;
 };
 
 out vec4 frag_color;
@@ -601,9 +761,15 @@ vec3 pbr_neutral(vec3 c) {
 }
 
 // The HDR image and the Post pass have the same size and row order, so each
-// pixel reads the texel under it.
+// pixel reads the texel under it. The bloom is the first mip, at half the
+// logical size.
 void main() {
-    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb * exposure;
+    vec3 hdr = texelFetch(sampler2D(hdr_tex, hdr_smp), ivec2(gl_FragCoord.xy), 0).rgb;
+    if (bloom_strength > 0.0) {
+        vec2 uv = gl_FragCoord.xy / vec2(textureSize(sampler2D(hdr_tex, hdr_smp), 0));
+        hdr += bloom_strength * textureLod(sampler2D(bloom_tex, bloom_smp), uv, 0.0).rgb;
+    }
+    hdr *= exposure;
     vec3 mapped;
     if (tone_map < 0.5) {
         mapped = aces_fitted(hdr);

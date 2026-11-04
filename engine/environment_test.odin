@@ -10,7 +10,7 @@ ENVIRONMENT_DEFAULT :: Environment {
 	tone_map = .Aces,
 	exposure = 1,
 	fog = {color = {r = 0.5, g = 0.5, b = 0.5}, start = 10, end = 50, amount = 0},
-	bloom = {strength = 0, threshold = 1, knee = 0.5},
+	bloom = {strength = 0, threshold = 2, knee = 0.5},
 }
 
 @(test)
