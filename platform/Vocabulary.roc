@@ -86,7 +86,7 @@ Vocabulary := [].{
 	##   and at most 65536.
 	## - `draws`: mesh parts drawn per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
-	##   materials uses up to 3. Above zero and at most 1195444. The uniform
+	##   materials uses up to 3. Above zero and at most 1195443. The uniform
 	##   buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first

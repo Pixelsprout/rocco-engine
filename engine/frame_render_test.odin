@@ -34,6 +34,7 @@ Submitted :: struct {
 	joints:       [2]Mat4,
 	fog_color:    [4]f32,
 	fog_ramp:     [4]f32,
+	pipeline:     Mesh_Pipeline,
 }
 
 // main_before is the number of main pass submits before this shadow submit.
@@ -201,7 +202,7 @@ test_camera_interpolates_eye_target_and_up_and_takes_the_new_fov :: proc(t: ^tes
 	testing.expect_value(t, c.fov_y, 2)
 }
 
-record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.submits,
@@ -221,6 +222,7 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, vs_params: Vs_
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 			fog_color = r.lights.fog_color,
 			fog_ramp = r.lights.fog_ramp,
+			pipeline = pipeline,
 		},
 	)
 }
@@ -1065,6 +1067,89 @@ test_frame_render_draws_no_shadow_pass_when_no_draw_casts :: proc(t: ^testing.T)
 	testing.expect_value(t, len(f.rec.submits), 1)
 }
 
+@(test)
+test_frame_render_culls_nothing_only_for_a_double_sided_mask_part :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	sampler := frame_fixture_mesh(
+		&f,
+		"sampler",
+		{
+			{first = 0, count = 6, material = {roughness = 1, double_sided = true}},
+			{first = 6, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+			{first = 12, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.25, double_sided = true}},
+			{first = 18, count = 6, material = {roughness = 1, alpha_mode = .Blend, double_sided = true}},
+		},
+	)
+	draws := []Draw{{id = 1, mesh = sampler, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
+
+	want := []struct {
+		first:    int,
+		pipeline: Mesh_Pipeline,
+		cutoff:   f32,
+	}{{0, .Opaque, 0}, {18, .Opaque, 0}, {6, .Mask, 0.5}, {12, .Mask_Double_Sided, 0.25}}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].part.first == w.first, "submit %v: part %v, want part %v", i, got[i].part.first, w.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+		testing.expectf(t, got[i].material.w == w.cutoff, "submit %v: cutoff %v, want %v", i, got[i].material.w, w.cutoff)
+	}
+}
+
+@(test)
+test_frame_render_submits_the_parts_of_the_rigid_then_the_skinned_draws_in_pipeline_order :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+
+	leaf_parts := []Mesh_Data_Part {
+		{first = 0, count = 30, material = {roughness = 1}},
+		{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+		{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5, double_sided = true}},
+	}
+	leaf := frame_fixture_mesh(&f, "leaf", leaf_parts)
+	vine := frame_fixture_skinned_mesh(&f, "vine", leaf_parts)
+	chain := frame_fixture_skinned(&f)
+
+	lights := []Light{light_point({x = 0, y = 2, z = 0}, {r = 1}, 10)}
+	draws := []Draw {
+		{id = 1, mesh = vine, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 2, mesh = leaf, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 3, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		{id = 4, mesh = u32(Primitive.Plane), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+	}
+	got := frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+	leaf_mesh, _ := mesh_lookup(&f.meshes, leaf)
+	vine_mesh, _ := mesh_lookup(&f.meshes, vine)
+	want := []struct {
+		mesh:     ^Mesh,
+		first:    int,
+		pipeline: Mesh_Pipeline,
+	} {
+		{leaf_mesh, 0, .Opaque},
+		{&f.meshes.meshes[Primitive.Plane], 0, .Opaque},
+		{leaf_mesh, 30, .Mask},
+		{leaf_mesh, 36, .Mask_Double_Sided},
+		{vine_mesh, 0, .Opaque},
+		{&f.meshes.meshes[Primitive.Sphere], 0, .Opaque},
+		{vine_mesh, 30, .Mask},
+		{vine_mesh, 36, .Mask_Double_Sided},
+	}
+	testing.expect_value(t, len(got), len(want))
+	for w, i in want {
+		testing.expectf(t, got[i].mesh == w.mesh && got[i].part.first == w.first, "submit %v: %v part %v", i, got[i].mesh.name, got[i].part.first)
+		testing.expectf(t, got[i].pipeline == w.pipeline, "submit %v: pipeline %v, want %v", i, got[i].pipeline, w.pipeline)
+		testing.expectf(t, got[i].skinned == (i >= 4), "submit %v: skinned is %v", i, got[i].skinned)
+	}
+	testing.expect_value(t, got[3].light_color, got[0].light_color)
+	testing.expect_value(t, got[7].light_color, got[4].light_color)
+	testing.expect_value(t, got[3].model, got[0].model)
+}
+
 frame_fixture_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
 	slot, _ := mesh_table_add(&f.meshes, strings.clone(name), {parts = slice.clone(parts, f.meshes.allocator)})
 	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
@@ -1772,6 +1857,16 @@ frame_fixture_skinned :: proc(f: ^Frame_Fixture) -> u32 {
 	return u32(Primitive.Sphere)
 }
 
+// The table frees a loaded mesh's skin, so the mesh takes a copy of the chain Skin.
+frame_fixture_skinned_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
+	id := frame_fixture_mesh(f, name, parts)
+	chain := chain_mesh()
+	m, _ := mesh_lookup(&f.meshes, id)
+	m.skin = skin_clone(chain.skin, f.meshes.allocator)
+	m.first_clip = chain.first_clip
+	return id
+}
+
 expect_skin_of_pose :: proc(t: ^testing.T, f: ^Frame_Fixture, got: [2]Mat4, pose: Draw_Pose, loc := #caller_location) {
 	want: [MAX_JOINTS]Mat4
 	skin_matrices(&f.meshes, &f.meshes.meshes[Primitive.Sphere], pose, &want)
@@ -1856,6 +1951,43 @@ test_frame_render_submits_skinned_draws_after_rigid_draws_in_each_pass :: proc(t
 	}
 	testing.expect_value(t, got[0].mesh, &f.meshes.meshes[Primitive.Cube])
 	testing.expect_value(t, got[1].mesh, &f.meshes.meshes[Primitive.Plane])
+}
+
+// The Main pass applies a skinned Draw's skin block once for each pipeline
+// its parts use, so the skinned capacity counts those blocks.
+@(test)
+test_frame_render_counts_a_skin_block_for_each_pipeline_of_a_skinned_draw :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	vine := frame_fixture_skinned_mesh(
+		&f,
+		"vine",
+		{
+			{first = 0, count = 30, material = {roughness = 1}},
+			{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+			{first = 36, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5, double_sided = true}},
+		},
+	)
+	chain := frame_fixture_skinned(&f)
+	delete(f.fr.skins)
+	f.fr.skins = make([]Skin_Params, 3)
+
+	draws := []Draw {
+		{id = 1, mesh = vine, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 2, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY},
+		{id = 3, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY},
+	}
+	scene := scene_of(draws)
+	got := frame_fixture_draw(&f, scene, scene, 0)
+
+	vine_mesh, _ := mesh_lookup(&f.meshes, vine)
+	testing.expect_value(t, len(got), 4)
+	for s in got {
+		testing.expectf(t, s.mesh != &f.meshes.meshes[Primitive.Sphere], "the chain drew past the skin blocks")
+	}
+	testing.expect_value(t, got[1].mesh, vine_mesh)
+	testing.expect(t, f.fr.skinned_logged)
 }
 
 @(test)

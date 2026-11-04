@@ -2,6 +2,9 @@
 // emissive, in linear HDR. An unlit mesh draws its base colour plus the
 // emissive, with no lights. Either result then mixes towards the fog colour.
 // skinned: basic for a skinned mesh, posed by its skin matrices.
+// mask, skinned_mask: basic and skinned for a Mask part, which discards a
+// fragment whose alpha is under the cutoff. Opaque parts keep a shader with
+// no discard, so the GPU can still drop hidden fragments before shading.
 // sky: a cubemap on a cube around the camera, in linear HDR.
 // shadow: depth only, from the Sun. skinned_shadow poses a skinned mesh first.
 // bloom_prefilter, bloom_down, bloom_up: the bloom mip chain, between the
@@ -82,11 +85,11 @@ void main() {
 }
 @end
 
-@fs fs
+@block surface
 // vec4 so every member is 16 bytes and flattens cleanly for GL. material is
-// roughness, metallic, unlit (0 or 1) and a spare. emissive is the mesh
-// emissive, linear, with w spare. glow is the Draw glow, linear, with w spare.
-// maps is the normal scale and the occlusion strength, with zw spare.
+// roughness, metallic, unlit (0 or 1) and the alpha cutoff, which is 0
+// outside a Mask part. emissive is the mesh emissive, linear, with w spare.
+// glow is the Draw glow, linear, with w spare. maps is the normal scale and the occlusion strength, with zw spare.
 // The host picks this Draw's lights: the Sun in slot 0, the other
 // Directionals, then the nearest Point lights in range. The array size is
 // MAX_LIGHTS in engine/frame_render.odin. An unused slot has a zero colour.
@@ -148,8 +151,6 @@ in vec3 v_nrm;
 in vec3 v_world;
 in vec2 v_uv;
 in vec4 v_tng;
-
-out vec4 frag_color;
 
 const float PI = 3.14159265;
 // Filament's lower bound, so alpha squared stays above fp32 underflow.
@@ -270,14 +271,13 @@ vec3 surface_normal() {
     return safe_normalize(t * m.x + b * m.y + ng * m.z);
 }
 
-void main() {
+vec4 surface_color() {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
     vec3 albedo = base.rgb * tint.rgb;
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
     vec3 emitted = emissive.rgb * texture(sampler2D(emissive_tex, emissive_smp), v_uv).rgb + glow.rgb;
     if (material.z != 0.0) {
-        frag_color = vec4(apply_fog(albedo + emitted), base.a);
-        return;
+        return vec4(apply_fog(albedo + emitted), base.a);
     }
 
     vec4 mr = texture(sampler2D(metallic_roughness_tex, metallic_roughness_smp), v_uv);
@@ -287,7 +287,10 @@ void main() {
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
     vec3 diffuse_color = (1.0 - metallic) * albedo;
 
-    vec3 n = surface_normal();
+    // Only a part that culls nothing draws back faces. A back face is lit
+    // from the side the camera sees.
+    float facing = gl_FrontFacing ? 1.0 : -1.0;
+    vec3 n = surface_normal() * facing;
     vec3 v = safe_normalize(camera_pos.xyz - v_world);
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
 
@@ -300,7 +303,7 @@ void main() {
         float attenuation = 1.0;
         if (i == sun) {
             // The offset follows the surface, not the bumps of the normal map.
-            attenuation = sun_visibility(safe_normalize(v_nrm));
+            attenuation = sun_visibility(safe_normalize(v_nrm) * facing);
         } else if (light_pos[i].w != 0.0) {
             vec3 to_light = l - v_world;
             float d2 = dot(to_light, to_light);
@@ -322,11 +325,37 @@ void main() {
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
         color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
     }
-    frag_color = vec4(apply_fog(color + emitted), base.a);
+    return vec4(apply_fog(color + emitted), base.a);
+}
+@end
+
+@fs fs
+@include_block surface
+
+out vec4 frag_color;
+
+void main() {
+    frag_color = surface_color();
+}
+@end
+
+// Discards after every sample, so D3D keeps uniform control flow around them.
+@fs mask_fs
+@include_block surface
+
+out vec4 frag_color;
+
+void main() {
+    vec4 color = surface_color();
+    if (color.a < material.w) {
+        discard;
+    }
+    frag_color = color;
 }
 @end
 
 @program basic vs fs
+@program mask vs mask_fs
 
 @vs skinned_vs
 @glsl_options fixup_clipspace
@@ -363,6 +392,7 @@ void main() {
 @end
 
 @program skinned skinned_vs fs
+@program skinned_mask skinned_vs mask_fs
 
 @vs sky_vs
 @glsl_options fixup_clipspace
