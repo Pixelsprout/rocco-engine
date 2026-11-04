@@ -1404,7 +1404,7 @@ share a part. Each part draws with its own factors and textures. A mesh
 draws up to 16 textures, and glTF textures that name the same image and
 sampler decode once. `Launch.capacity.draws` counts part draws. The shadow
 pass stays one draw per Draw. `examples/glow` draws a salvage block with a
-ceramic, a rust and a neon material, built by `source/make_salvage.py`. The
+ceramic, a rust and a neon material, built by `source/make_meshes.py`. The
 Bridge check screenshots it on macOS, Linux and Windows and finds the
 neon's teal. No Vocabulary change. v0.8.0 is published. Agent Town's otter
 v2 draws in a scratch game on the release commit: its goggle lenses glow

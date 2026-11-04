@@ -160,7 +160,7 @@ every primitive of every mesh node in the glTF scene into one mesh, and
 each glTF material draws as you authored it. Export the model as it is:
 fur, metal and glowing lenses can share one file. The glow example's
 salvage block has a matte ceramic, a metallic rust and a glowing neon
-material, and `examples/glow/source/make_salvage.py` shows the Blender
+material, and `examples/glow/source/make_meshes.py` shows the Blender
 nodes and export settings that make it.
 
 - Each primitive must hold triangles. If one does not, the file does not

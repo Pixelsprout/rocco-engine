@@ -3,7 +3,9 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # A dark Scene with a glowing window and two orbs. The window glows with no
 # Light of its own. Each orb lights the floor around it. Between the orbs
 # stands a salvage block with a matte ceramic body, a rusted metal lid and
-# two neon tubes. source/make_salvage.py builds it. Left of the window hangs a
+# two neon tubes. source/make_meshes.py builds it. A glass tube surrounds the
+# blue orb, which moves through it. G shows or hides the tube. A Sun lights
+# the floor so the tube's shadow rule is visible. Left of the window hangs a
 # ribbed panel with a normal map and an occlusion map, and a small light
 # circles in front of it. source/make_panel.py builds the panel. T cycles
 # the tone map from Aces to AgX to Neutral, and B turns the bloom on and off.
@@ -23,9 +25,9 @@ import pf.Light
 import pf.QueryResults
 import pf.Scene
 
-# salvage and panel are 0, the fallback mesh, until loaded gives their ids.
+# salvage, panel and tube are 0, the fallback mesh, until loaded gives their ids.
 # time is the seconds since init, which moves the circling light.
-Model : { salvage : U32, panel : U32, time : F32, tone_map : ToneMap, bloom : Bool }
+Model : { salvage : U32, panel : U32, tube : U32, time : F32, tone_map : ToneMap, bloom : Bool, show_tube : Bool }
 
 ToneMap : [Aces, AgX, Neutral]
 
@@ -33,16 +35,17 @@ launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Glow" } }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { salvage: 0, panel: 0, time: 0.0, tone_map: Aces, bloom: Bool.True }, commands: [Load({ pack: "props", assets: ["salvage", "panel"] })] }
+init = |_config| { model: { salvage: 0, panel: 0, tube: 0, time: 0.0, tone_map: Aces, bloom: Bool.True, show_tube: Bool.True }, commands: [Load({ pack: "props", assets: ["salvage", "panel", "tube"] })] }
 
 loaded : Model, Str, Manifest -> Model
-loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "salvage"), panel: Mesh.resolve(manifest, "panel") }
+loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "salvage"), panel: Mesh.resolve(manifest, "panel"), tube: Mesh.resolve(manifest, "tube") }
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
 	tone_map = if Key.pressed(input, T) next_tone_map(model.tone_map) else model.tone_map
 	bloom = if Key.pressed(input, B) !model.bloom else model.bloom
-	{ model: { ..model, time: model.time + dt, tone_map, bloom }, commands: [] }
+	show_tube = if Key.pressed(input, G) !model.show_tube else model.show_tube
+	{ model: { ..model, time: model.time + dt, tone_map, bloom, show_tube }, commands: [] }
 }
 
 next_tone_map : ToneMap -> ToneMap
@@ -54,6 +57,9 @@ next_tone_map = |tone_map| match tone_map {
 
 night : Vocabulary.Light
 night = Light.ambient({ r: 0.02, g: 0.02, b: 0.03 })
+
+sun : Vocabulary.Light
+sun = Light.sun({ x: -0.25, y: -1.0, z: 0.7 }, { r: 0.6, g: 0.55, b: 0.5 })
 
 floor : Vocabulary.Draw
 floor = { ..Draw.default, id: 1, mesh: Mesh.primitive(Plane), scale: { x: 8.0, y: 1.0, z: 8.0 }, tint: { r: 0.6, g: 0.6, b: 0.6 } }
@@ -89,6 +95,15 @@ panel_centre = { x: -1.35, y: 1.5, z: -1.35 }
 panel : U32 -> Vocabulary.Draw
 panel = |mesh| { ..Draw.default, id: 5, mesh, pos: panel_centre }
 
+tube_centre : Vec3
+tube_centre = { x: 1.6, y: 0.55, z: 0.4 }
+
+tube : U32 -> Vocabulary.Draw
+tube = |mesh| { ..Draw.default, id: 7, mesh, pos: tube_centre }
+
+tube_orb_pos : F32 -> Vec3
+tube_orb_pos = |time| { ..tube_centre, x: tube_centre.x + 0.3 * (time * pi / 4.0).sin() }
+
 spark_color : Rgb
 spark_color = { r: 1.2, g: 1.0, b: 0.75 }
 
@@ -119,8 +134,9 @@ view : Model -> Vocabulary.Scene
 view = |model| {
 	camera = Cam.look_at({ x: 0.0, y: 2.4, z: 5.0 }, { x: 0.0, y: 0.8, z: 0.0 })
 	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
-	orb_right = orb(11, { x: 1.6, y: 0.5, z: 0.4 }, { r: 0.15, g: 0.35, b: 1.0 })
-	nodes = List.join([[Light(night), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Draw(panel(model.panel)), Light(lamp)], orb_left, orb_right, spark(model.time)])
+	orb_right = orb(11, tube_orb_pos(model.time), { r: 0.15, g: 0.35, b: 1.0 })
+	tube_nodes = if model.show_tube [Draw(tube(model.tube))] else []
+	nodes = List.join([[Light(night), Light(sun), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Draw(panel(model.panel)), Light(lamp)], orb_left, orb_right, tube_nodes, spark(model.time)])
 	{ ..Scene.empty, camera, nodes, environment: environment(model) }
 }
 
@@ -148,17 +164,31 @@ expect {
 	in_range(window.tint.r) and in_range(window.tint.g) and in_range(window.tint.b) and window.glow.r > 1.0
 }
 
-## The Scene has the ambient, the lamp, one Point Light for each orb and the spark's, and no sun.
-expect view(init(Config.empty).model).nodes.keep_if(is_light).len() == 5
+## The Scene has the ambient, Sun, lamp, one Point Light for each orb and the spark's.
+expect view(init(Config.empty).model).nodes.keep_if(is_light).len() == 6
 
 ## init loads the props Pack.
-expect init(Config.empty).commands == [Load({ pack: "props", assets: ["salvage", "panel"] })]
+expect init(Config.empty).commands == [Load({ pack: "props", assets: ["salvage", "panel", "tube"] })]
 
-## loaded keeps the salvage and panel mesh ids from the Manifest.
+## loaded keeps the salvage, panel and tube mesh ids from the Manifest.
 expect {
 	entry = |name, id| { name, id, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }
-	model = loaded(init(Config.empty).model, "props", [entry("salvage", 7), entry("panel", 8)])
-	model.salvage == 7 and model.panel == 8
+	model = loaded(init(Config.empty).model, "props", [entry("salvage", 7), entry("panel", 8), entry("tube", 9)])
+	model.salvage == 7 and model.panel == 8 and model.tube == 9
+}
+
+## G hides the tube while the orb stays in the Scene.
+expect {
+	start = init(Config.empty).model
+	hidden = step(start, { ..Input.empty, pressed: [Key.code(G)] }, QueryResults.empty, 0.0).model
+	hidden.show_tube == Bool.False and view(hidden).nodes.len() + 1 == view(start).nodes.len()
+}
+
+## The blue orb moves inside the tube along x.
+expect {
+	start = tube_orb_pos(0.0)
+	moved = tube_orb_pos(2.0)
+	start.x == tube_centre.x and moved.x > start.x and moved.y == tube_centre.y and moved.z == tube_centre.z
 }
 
 ## step adds up the time.
