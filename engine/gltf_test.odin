@@ -50,6 +50,13 @@ triangle_bin :: proc() -> []byte {
 	return bin[:]
 }
 
+// The material of a one-triangle file whose only material is this JSON.
+glb_one_material :: proc(t: ^testing.T, material: string, loc := #caller_location) -> Material {
+	data, _, err := glb_parse(triangle_glb(MATERIAL_PRIMITIVES, extra = fmt.tprintf(`"materials":[%s],`, material)), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None, loc = loc)
+	return data.parts[0].material if err == .None else {}
+}
+
 part_texture :: proc(data: Mesh_Data, slot: Maybe(int)) -> Maybe(Texture) {
 	if i, ok := slot.?; ok {
 		return data.textures[i]
@@ -914,6 +921,104 @@ test_glb_draws_materials_that_differ_only_in_colour_as_one_part :: proc(t: ^test
 	testing.expect_value(t, data.parts[0], Mesh_Data_Part{first = 0, count = 6, material = {roughness = 1}})
 	testing.expect_value(t, data.vertices[0].color, [4]f32{1, 0, 0, 1})
 	testing.expect_value(t, data.vertices[3].color, [4]f32{0, 0, 1, 1})
+}
+
+@(test)
+test_glb_reads_each_alpha_mode :: proc(t: ^testing.T) {
+	cases := []struct {
+		material: string,
+		want:     Alpha_Mode,
+	} {
+		{`{}`, .Opaque},
+		{`{"alphaMode":"OPAQUE"}`, .Opaque},
+		{`{"alphaMode":"MASK"}`, .Mask},
+		{`{"alphaMode":"BLEND"}`, .Blend},
+		{`{"alphaMode":"SHINY"}`, .Opaque},
+	}
+	for c in cases {
+		got := glb_one_material(t, c.material).alpha_mode
+		testing.expectf(t, got == c.want, "%s has alpha mode %v, want %v", c.material, got, c.want)
+	}
+}
+
+// glTF ignores alphaCutoff outside MASK, so only a MASK part keeps one.
+@(test)
+test_glb_reads_the_alpha_cutoff_of_a_mask_material_with_a_default_of_half :: proc(t: ^testing.T) {
+	cases := []struct {
+		material: string,
+		want:     f32,
+	} {
+		{`{"alphaMode":"MASK"}`, 0.5},
+		{`{"alphaMode":"MASK","alphaCutoff":0.25}`, 0.25},
+		{`{"alphaMode":"BLEND","alphaCutoff":0.25}`, 0},
+		{`{"alphaCutoff":0.25}`, 0},
+	}
+	for c in cases {
+		got := glb_one_material(t, c.material).alpha_cutoff
+		testing.expectf(t, got == c.want, "%s has cutoff %v, want %v", c.material, got, c.want)
+	}
+}
+
+@(test)
+test_glb_reads_double_sided_for_mask_and_blend_materials_only :: proc(t: ^testing.T) {
+	cases := []struct {
+		material: string,
+		want:     bool,
+	} {
+		{`{"doubleSided":true}`, false},
+		{`{"alphaMode":"MASK","doubleSided":true}`, true},
+		{`{"alphaMode":"MASK"}`, false},
+		{`{"alphaMode":"BLEND","doubleSided":true}`, true},
+		{`{"alphaMode":"BLEND","doubleSided":false}`, false},
+	}
+	for c in cases {
+		got := glb_one_material(t, c.material).double_sided
+		testing.expectf(t, got == c.want, "%s has double_sided %v, want %v", c.material, got, c.want)
+	}
+}
+
+@(test)
+test_glb_draws_opaque_materials_that_differ_only_in_double_sided_as_one_part :: proc(t: ^testing.T) {
+	materials := `"materials":[{"doubleSided":true}, {}],`
+	data, _, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.parts), 1)
+}
+
+@(test)
+test_glb_orders_the_parts_opaque_then_mask_then_blend :: proc(t: ^testing.T) {
+	primitives := `[
+		{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0},
+		{"attributes":{"POSITION":0,"NORMAL":1},"indices":3,"material":1},
+		{"attributes":{"POSITION":0,"NORMAL":1},"indices":4,"material":2}]`
+	materials := `"materials":[{"alphaMode":"BLEND"}, {"alphaMode":"MASK"}, {}],`
+	data, _, err := glb_parse(triangle_glb(primitives, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.parts), 3)
+	want_modes := [3]Alpha_Mode{.Opaque, .Mask, .Blend}
+	for part, i in data.parts {
+		testing.expect_value(t, part.material.alpha_mode, want_modes[i])
+		testing.expect_value(t, part.first, 3 * i)
+		testing.expect_value(t, part.count, 3)
+	}
+	want := [9]u16{6, 7, 8, 3, 4, 5, 0, 1, 2}
+	for index, i in data.indices {
+		testing.expect_value(t, index, want[i])
+	}
+}
+
+// The alpha goes in the vertex colour with the base colour factor.
+@(test)
+test_glb_draws_blend_materials_that_differ_only_in_alpha_as_one_part :: proc(t: ^testing.T) {
+	materials := `"materials":[
+		{"alphaMode":"BLEND","pbrMetallicRoughness":{"baseColorFactor":[1,1,1,0.5]}},
+		{"alphaMode":"BLEND","pbrMetallicRoughness":{"baseColorFactor":[1,1,1,0.25]}}],`
+	data, _, err := glb_parse(triangle_glb(TWO_MATERIAL_PRIMITIVES, extra = materials), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, len(data.parts), 1)
+	testing.expect_value(t, data.parts[0].material.alpha_mode, Alpha_Mode.Blend)
+	testing.expect_value(t, data.vertices[0].color, [4]f32{1, 1, 1, 0.5})
+	testing.expect_value(t, data.vertices[3].color, [4]f32{1, 1, 1, 0.25})
 }
 
 @(test)

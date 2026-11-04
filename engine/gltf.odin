@@ -128,6 +128,9 @@ Gltf :: struct {
 		occlusion_texture: Maybe(Gltf_Texture_Ref) `json:"occlusionTexture"`,
 		emissive_factor:   Maybe([3]f32) `json:"emissiveFactor"`,
 		emissive_texture:  Maybe(Gltf_Texture_Ref) `json:"emissiveTexture"`,
+		alpha_mode:        string `json:"alphaMode"`,
+		alpha_cutoff:      Maybe(f32) `json:"alphaCutoff"`,
+		double_sided:      bool `json:"doubleSided"`,
 		extensions:        struct {
 			unlit:             Maybe(struct {}) `json:"KHR_materials_unlit"`,
 			emissive_strength: Maybe(struct {
@@ -325,10 +328,13 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 	return data, l.notes, .None
 }
 
-// Lays the runs out in order, so each part is one range of the index
-// buffer. The indices and parts are frame memory; the textures go to
-// allocator.
+// Lays the runs out by alpha mode, each mode in walk order, so each part is
+// one range of the index buffer. The indices and parts are frame memory; the
+// textures go to allocator.
 glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, parts: []Mesh_Data_Part, err: Glb_Error) {
+	slice.stable_sort_by(l.runs[:], proc(a, b: Glb_Material_Run) -> bool {
+		return a.material.values.alpha_mode < b.material.values.alpha_mode
+	})
 	all := make([dynamic]u16, 0, len(l.vertices), context.temp_allocator)
 	parts = make([]Mesh_Data_Part, len(l.runs), context.temp_allocator)
 	for run, i in l.runs {
@@ -356,7 +362,7 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 }
 
 // A primitive with no material is matte. glTF gives a material without
-// factors a roughness and a metallic of 1.
+// factors a roughness and a metallic of 1. An unknown alphaMode is opaque.
 glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 	m, ok := index.?
 	if !ok {
@@ -371,6 +377,15 @@ glb_material :: proc(l: ^Glb_Loader, index: Maybe(int)) -> Glb_Material {
 			unlit = gltf_material.extensions.unlit != nil,
 		},
 	}
+	switch gltf_material.alpha_mode {
+	case "MASK":
+		material.values.alpha_mode = .Mask
+		material.values.alpha_cutoff = gltf_material.alpha_cutoff.? or_else 0.5
+	case "BLEND":
+		material.values.alpha_mode = .Blend
+	}
+	// Blender writes doubleSided true by default, so an Opaque part always culls back faces.
+	material.values.double_sided = gltf_material.double_sided && material.values.alpha_mode != .Opaque
 	if ref, textured := pbr.base_color_texture.?; textured {
 		material.texture = glb_texture_ref(l, ref)
 	}

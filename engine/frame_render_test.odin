@@ -39,6 +39,7 @@ Submitted :: struct {
 // main_before is the number of main pass submits before this shadow submit.
 Shadow_Submitted :: struct {
 	mesh:        ^Mesh,
+	count:       int,
 	light_mvp:   Mat4,
 	view:        int,
 	main_before: int,
@@ -273,12 +274,13 @@ record_end_pass :: proc(ctx: rawptr) {
 	r.pass_ends += 1
 }
 
-record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.shadows,
 		Shadow_Submitted {
 			mesh = mesh,
+			count = count,
 			light_mvp = vs_params.light_mvp,
 			view = r.passes[len(r.passes) - 1].view,
 			main_before = len(r.submits),
@@ -978,17 +980,66 @@ test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing
 	}
 }
 
+@(test)
+test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		lantern := frame_fixture_mesh(
+			&f,
+			"lantern",
+			{
+				{first = 0, count = 30, material = {roughness = 1}},
+				{first = 30, count = 6, material = {roughness = 1, alpha_mode = .Mask, alpha_cutoff = 0.5}},
+				{first = 36, count = 12, material = {roughness = 1, alpha_mode = .Blend}},
+			},
+		)
+		pane := frame_fixture_mesh(&f, "pane", {{first = 0, count = 6, material = {roughness = 1, alpha_mode = .Blend}}})
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		draws := []Draw {
+			{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+			{id = 2, mesh = lantern, pos = {2, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+			{id = 3, mesh = pane, pos = {-2, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
+		}
+		frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+
+		cube, _ := mesh_lookup(&f.meshes, u32(Primitive.Cube))
+		lantern_mesh, _ := mesh_lookup(&f.meshes, lantern)
+		testing.expect_value(t, len(f.rec.submits), 5)
+		cube_shadows, lantern_shadows := 0, 0
+		for s in f.rec.shadows {
+			switch s.mesh {
+			case cube:
+				cube_shadows += 1
+				testing.expect_value(t, s.count, len(CUBE_INDICES))
+			case lantern_mesh:
+				lantern_shadows += 1
+				testing.expect_value(t, s.count, 36)
+			case:
+				testing.expectf(t, false, "%v cascades: a shadow draws a mesh with only Blend parts", cascades)
+			}
+		}
+		testing.expectf(t, cube_shadows > 0 && lantern_shadows > 0, "%v cascades: %v cube and %v lantern shadows", cascades, cube_shadows, lantern_shadows)
+	}
+}
+
+frame_fixture_mesh :: proc(f: ^Frame_Fixture, name: string, parts: []Mesh_Data_Part) -> u32 {
+	slot, _ := mesh_table_add(&f.meshes, strings.clone(name), {parts = slice.clone(parts, f.meshes.allocator)})
+	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
+	return mesh_id(&f.meshes, slot)
+}
+
 frame_fixture_two_part_mesh :: proc(f: ^Frame_Fixture) -> u32 {
-	parts := slice.clone(
-		[]Mesh_Data_Part {
+	return frame_fixture_mesh(
+		f,
+		"otter",
+		{
 			{first = 0, count = 30, material = {roughness = 1}},
 			{first = 30, count = 6, material = {roughness = 0.3, metallic = 0.7, emissive = {4, 2, 0}}},
 		},
-		f.meshes.allocator,
 	)
-	slot, _ := mesh_table_add(&f.meshes, strings.clone("otter"), {parts = parts})
-	f.meshes.meshes[slot].box = {min = -0.5, max = 0.5}
-	return mesh_id(&f.meshes, slot)
 }
 
 @(test)

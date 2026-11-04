@@ -116,10 +116,19 @@ Vertex :: struct {
 	tangent: [4]f32,
 }
 
+// glTF's alphaMode. A mesh's parts go in this order in its index buffer, so
+// the Opaque and Mask parts are one range from index 0.
+Alpha_Mode :: enum u8 {
+	Opaque,
+	Mask,
+	Blend,
+}
+
 // unlit draws the base colour plus the emissive, with no lights and no tone
 // map. emissive is linear and can exceed 1. normal_scale and
 // occlusion_strength are 0 for a part without that map, so the flat normal
-// image gives the vertex normal exactly.
+// image gives the vertex normal exactly. alpha_cutoff is 0 outside Mask, and
+// double_sided is false for Opaque.
 Material :: struct {
 	roughness:          f32,
 	metallic:           f32,
@@ -127,6 +136,9 @@ Material :: struct {
 	emissive:           [3]f32,
 	normal_scale:       f32,
 	occlusion_strength: f32,
+	alpha_mode:         Alpha_Mode,
+	alpha_cutoff:       f32,
+	double_sided:       bool,
 }
 
 // A zero id means the part has no texture and binds the white image, or the
@@ -470,6 +482,18 @@ mesh_unlit :: proc(m: ^Mesh) -> bool {
 		}
 	}
 	return true
+}
+
+// Blend parts cast no shadow. The loader puts them last.
+mesh_shadow_count :: proc(m: ^Mesh) -> int {
+	count := 0
+	for part in m.parts {
+		if part.material.alpha_mode == .Blend {
+			break
+		}
+		count = part.first + part.count
+	}
+	return count
 }
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.

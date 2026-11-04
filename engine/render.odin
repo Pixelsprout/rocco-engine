@@ -285,13 +285,13 @@ renderer_end_pass :: proc(ctx: rawptr) {
 }
 
 // A nil skin draws a rigid mesh.
-renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.shadow_pip, r.skinned_shadow_pip, skin)
 	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
 	vs := vs_params
 	sg.apply_uniforms(UB_shadow_vs_params, {ptr = &vs, size = size_of(Shadow_Vs_Params)})
-	sg.draw(0, mesh.index_count, 1)
+	sg.draw(0, count, 1)
 }
 
 renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
