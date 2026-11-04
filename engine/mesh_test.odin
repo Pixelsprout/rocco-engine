@@ -109,10 +109,10 @@ test_a_first_generation_id_is_the_slot_index :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_sphere_has_16_rings_of_32_segments :: proc(t: ^testing.T) {
+test_sphere_has_32_rings_of_64_segments :: proc(t: ^testing.T) {
 	data := primitive_build(.Sphere, context.temp_allocator)
-	testing.expect_value(t, len(data.vertices), 561)
-	testing.expect_value(t, len(data.indices), 3 * SPHERE_SEGMENTS * (2 * SPHERE_RINGS - 2))
+	testing.expect_value(t, len(data.vertices), 33 * 65)
+	testing.expect_value(t, len(data.indices), 3 * 64 * (2 * 32 - 2))
 }
 
 @(test)

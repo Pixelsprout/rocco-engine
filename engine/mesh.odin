@@ -9,8 +9,8 @@ import "core:mem"
 MESH_SLOT_BITS :: 16
 // A mesh or sky id packs its slot in MESH_SLOT_BITS, so a table holds at most this many slots.
 SLOT_LIMIT :: 1 << MESH_SLOT_BITS
-SPHERE_RINGS :: 16
-SPHERE_SEGMENTS :: 32
+SPHERE_RINGS :: 32
+SPHERE_SEGMENTS :: 64
 // A posed mesh can reach past its bind-pose box, so the box of a skinned
 // mesh grows by this share of its largest side on every side.
 SKINNED_BOX_PAD :: 0.25
