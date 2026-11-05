@@ -22,7 +22,8 @@ skin: engine.Skin_Params
 audio: engine.Audio
 
 main :: proc() {
-	assert(len(os.args) == 3)
+	assert(len(os.args) == 3 || len(os.args) == 4)
+	probe_parse()
 	saved_context = context
 	sapp.run({init_cb = init, frame_cb = frame, cleanup_cb = cleanup, width = 480, height = 360, window_title = "Scene depth parity", sample_count = 1, logger = {func = log_item}, gl = {major_version = 4, minor_version = 3}})
 	assert(errors == 0)
@@ -64,6 +65,7 @@ prepare :: proc(samples: engine.Msaa) {
 	engine.renderer_init(&renderer, launch)
 	engine.frame_render_init(&frame_render, int(launch.capacity.draws), 4, 32, 4, allocator)
 	frame_render.submits = engine.renderer_submits(&renderer)
+	frame_render.submits.submit_surface = fixture_surface
 }
 
 placed_draws :: proc(time: f32) -> []engine.Draw_Params {
@@ -109,7 +111,7 @@ render :: proc(draws: []engine.Draw_Params, individual: bool, mode: int) {
 			pipeline, writes := engine.part_pipeline(part.material)
 			if !writes { continue }
 			fs := engine.frame_render_part_params(d.fs_params, &part)
-			if part.surface != nil { engine.renderer_surface(ctx, .Colour, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
+			if part.surface != nil { fixture_surface(ctx, .Colour, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
 			else { engine.renderer_draw(ctx, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
 		}
 	}
@@ -130,15 +132,31 @@ render :: proc(draws: []engine.Draw_Params, individual: bool, mode: int) {
 
 frame :: proc "c" () {
 	context = saved_context
+	info := driver_info()
+	skip := ""
+	if probe_mode != .Baseline && info.backend != "GLCORE" { skip = "diagnostic controls require GL" }
+	if probe_mode == .Zero_To_One && !info.clip_control { skip = "GL clip control is unsupported" }
+	write_json(fmt.tprintf("%v/metadata.json", os.args[2]), Probe_Metadata{probe_mode, info, skip})
+	if skip != "" { fmt.println("SCENE_DEPTH_SKIPPED", skip); sapp.request_quit(); return }
 	for samples in SAMPLES {
 		count := engine.msaa_sample_count(samples)
-		if !supported(count) { continue }
+		if !supported(count) || probe_mode != .Baseline && count != 1 { continue }
+		probe_samples = count
 		prepare(samples)
+		if probe_mode == .Zero_To_One { probe_clip_control(true) }
+		write_json(fmt.tprintf("%v/driver-%v.json", os.args[2], count), driver_info())
 		for time, pose in ([2]f32{0.25, 1.75}) {
 			draws := placed_draws(time)
+			probe_inputs(draws, pose)
+			if probe_mode != .Baseline { draws = draws[3:4] }
 			for mode in 0 ..< 4 {
 				for individual in ([2]bool{true, false}) {
+					if probe_mode == .Zero_To_One { probe_clip_control(true) }
 					render(draws, individual, mode)
+					if mode == 0 {
+						write_json(fmt.tprintf("%v/active-driver-%v-%v-%v.json", os.args[2], count, pose, "individual" if individual else "batched"), driver_info())
+						probe_read_depth(fmt.tprintf("%v/%v-%v-depth-%v.f32", os.args[2], count, pose, "individual" if individual else "batched"))
+					}
 					rgba := make([]byte, 480*360*4, context.temp_allocator)
 					assert(engine.platform_read_target(renderer.target.color.image, {480, 360}, rgba) == "")
 					path := fmt.tprintf("%v/%v-%v-%v-%v.png", os.args[2], count, pose, mode, "individual" if individual else "batched")
@@ -148,6 +166,7 @@ frame :: proc "c" () {
 			}
 		}
 		fmt.printfln("SCENE_DEPTH_SAMPLES %v", count)
+		if probe_mode == .Zero_To_One { probe_clip_control(false) }
 		engine.frame_render_destroy(&frame_render)
 		engine.packs_destroy(&packs)
 		engine.mesh_table_destroy(&renderer.meshes)
