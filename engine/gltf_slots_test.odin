@@ -168,3 +168,41 @@ test_glb_slots_do_not_change_authored_root_transforms :: proc(t: ^testing.T) {
 	testing.expect_value(t, data.vertices[0].normal, [3]f32{0, 0, 1})
 	testing.expect_value(t, data.parts[0].slot, Maybe(int)(0))
 }
+
+@(test)
+test_mask_mip_threshold_uses_combined_imported_alpha_once :: proc(t: ^testing.T) {
+	bytes := []byte{255,255,255,128, 255,255,255,128, 255,255,255,128}
+	accessor := `{"bufferView":2,"componentType":5121,"normalized":true,"count":3,"type":"VEC4"}`
+	data, _, err := glb_parse(color_glb(accessor, bytes), context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	loader := Glb_Loader{vertices = make([dynamic]Vertex, context.temp_allocator)}
+	append(&loader.vertices, ..data.vertices)
+	run := Glb_Material_Run{material = {values = {alpha_mode = .Mask, alpha_cutoff = 0.2}}, indices = make([dynamic]u16, context.temp_allocator)}
+	append(&run.indices, 0, 1, 2)
+	testing.expect_value(t, glb_mask_texture_cutoff(&loader, &run), f32(0.2) / (f32(128) / 255 * 0.5))
+	loader.vertices[1].color.w = 1
+	testing.expect_value(t, glb_mask_texture_cutoff(&loader, &run), 0)
+}
+
+@(test)
+test_mask_mip_variants_share_only_equal_effective_cutoffs_and_keep_named_slots :: proc(t: ^testing.T) {
+	materials := `{"name":"leaf","alphaMode":"MASK","alphaCutoff":0.3,"pbrMetallicRoughness":{"baseColorFactor":[1,1,1,0.5],"baseColorTexture":{"index":0}}},
+	{"name":"bark","pbrMetallicRoughness":{"baseColorTexture":{"index":0}}},
+	{"name":"twig","alphaMode":"MASK","alphaCutoff":0.6,"pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}`
+	second := `,{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5},"indices":2,"material":1},{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":5},"indices":2,"material":2}`
+	rgba := []byte{80,120,160,255, 80,120,160,0, 80,120,160,0, 80,120,160,0}
+	bytes := textured_glb(png_make(2, 2, PNG_RGBA, rgba), material = materials, second = second, texture = `{"source":0,"sampler":0}`, samplers = `"samplers":[{"minFilter":9987}],`)
+	data, notes, err := glb_parse(bytes, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	testing.expect_value(t, notes, Glb_Notes{})
+	testing.expect_value(t, len(data.textures), 2)
+	testing.expect_value(t, data.parts[0].slot, Maybe(int)(1))
+	testing.expect_value(t, data.parts[1].slot, Maybe(int)(0))
+	testing.expect_value(t, data.parts[2].slot, Maybe(int)(2))
+	testing.expect_value(t, data.parts[1].texture, data.parts[2].texture)
+	testing.expect(t, data.parts[0].texture != data.parts[1].texture)
+	opaque := data.textures[data.parts[0].texture.? or_else -1]
+	mask := data.textures[data.parts[1].texture.? or_else -1]
+	testing.expect_value(t, opaque.levels[1].pixels[3], 64)
+	testing.expect(t, f32(mask.levels[1].pixels[3]) / 255 >= 0.6)
+}

@@ -2,6 +2,9 @@
 
 Date: 2026-11-04
 
+Implementation: [ADR 0031](adr/0031-cutout-shadow-coverage.md) replaces the temporary rule below.
+[Validation](CUTOUT-SHADOW-VALIDATION.md) records the implementation, mip evaluation, and reference Mac measurements.
+
 ## Question
 
 How do modern engines cast shadows from alpha-tested (glTF MASK) materials, and what does each approach cost? Which approach fits rocco, and what would it cost here?

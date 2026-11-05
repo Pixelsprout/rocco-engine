@@ -1,6 +1,7 @@
 # 0027: Alpha modes and Blend frame order
 
 Status: accepted, 2026-11-05. Milestone 38.
+The temporary MASK shadow rule is superseded by [ADR 0031](0031-cutout-shadow-coverage.md).
 
 ## Context
 

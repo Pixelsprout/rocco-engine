@@ -519,16 +519,20 @@ mesh_unlit :: proc(m: ^Mesh) -> bool {
 	return true
 }
 
-// Blend parts cast no shadow. The loader puts them last.
-mesh_shadow_count :: proc(m: ^Mesh) -> int {
-	count := 0
-	for part in m.parts {
-		if part.material.alpha_mode == .Blend {
-			break
-		}
-		count = part.first + part.count
+parts_opaque_count :: proc(parts: []Mesh_Part) -> (count: int) {
+	for part in parts {
+		if part.material.alpha_mode != .Opaque { break }
+		count += part.count
 	}
-	return count
+	return
+}
+
+parts_shadow_count :: proc(parts: []Mesh_Part) -> (count: int) {
+	for part in parts {
+		if part.material.alpha_mode == .Blend { break }
+		count += part.count
+	}
+	return
 }
 
 // Id 0, an id past the table and a stale id draw the fallback. Each such id is logged once per run.

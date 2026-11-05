@@ -58,8 +58,8 @@ Pass :: enum {
 
 // Lets tests run without sokol. Each frame begins and ends one Shadow pass
 // per shadow view, then one Main pass, then one Post pass. submit_shadow runs
-// only in a Shadow pass, once per Draw that casts a shadow, and draws count
-// indices from index 0. In the Main pass, submit runs once per part of each
+// only in a Shadow pass, once per Opaque range and once per placed MASK part.
+// In the Main pass, submit runs once per part of each
 // Draw's mesh, and twice for a double-sided Blend part. submit_lights runs
 // before any submit. submit_sky runs at most once, after every part before
 // the sky and before every Blend part. With bloom on,
@@ -74,7 +74,7 @@ Pass :: enum {
 // front, rigid and skinned together. A nil skin is a rigid Draw.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
-Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
+Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
@@ -165,7 +165,7 @@ Placed :: struct {
 }
 
 // placed_next gives the rigid Draws first, then the skinned ones, so the
-// renderer changes pipeline once per Shadow pass.
+// renderer can reuse each shadow pipeline and skin block.
 Placed_Order :: struct {
 	placed:  []Placed,
 	skinned: bool,
@@ -584,7 +584,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 			transform = x,
 			model = draw_model_matrix(x),
 			skin = room.skin,
-			shadow_count = mesh_shadow_count(room.mesh),
+			shadow_count = parts_shadow_count(room.parts),
 		},
 	)
 }
@@ -610,12 +610,7 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 		lights.shadow = {1, 0, SHADOW_NORMAL_OFFSET, 0}
 		lights.light_view_proj[0] = light_view_proj
 		frame_render_begin_pass(fr, .Shadow, 0, {}, span)
-		order := Placed_Order {
-			placed = fr.placed[:],
-		}
-		for p in placed_next(&order) {
-			frame_render_submit_shadow(fr, p, light_view_proj)
-		}
+		frame_render_shadow_parts(fr, light_view_proj)
 		fr.submits.end_pass(fr.submits.ctx)
 		return
 	}
@@ -632,14 +627,7 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 		cascade := cascade_view(light_view, sphere, fr.shadow_map, fr.placed[:])
 		lights.light_view_proj[i] = cascade.view_proj
 		frame_render_begin_pass(fr, .Shadow, i, {}, span)
-		order := Placed_Order {
-			placed = fr.placed[:],
-		}
-		for p in placed_next(&order) {
-			if cascade_covers(cascade, p.light_box) {
-				frame_render_submit_shadow(fr, p, cascade.view_proj)
-			}
-		}
+		frame_render_shadow_parts(fr, cascade.view_proj, &cascade)
 		fr.submits.end_pass(fr.submits.ctx)
 	}
 	forward := v3_normalize(view.camera.target - view.camera.eye)
@@ -648,10 +636,30 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 	lights.view_dir = {forward.x, forward.y, forward.z, 0}
 }
 
+// Opaque ranges precede all fragment-discard work in each cascade.
 @(private = "file")
-frame_render_submit_shadow :: proc(fr: ^Frame_Render, p: ^Placed, light_view_proj: Mat4) {
-	if p.shadow_count > 0 {
-		fr.submits.submit_shadow(fr.submits.ctx, p.mesh, p.shadow_count, {light_mvp = light_view_proj * p.model}, p.skin)
+frame_render_shadow_parts :: proc(fr: ^Frame_Render, light_view_proj: Mat4, cascade: ^Cascade_View = nil) {
+	for pipeline in SCENE_ORDER_PIPELINES {
+		order := Placed_Order{placed = fr.placed[:]}
+		for p in placed_next(&order) {
+			if p.shadow_count == 0 || (cascade != nil && !cascade_covers(cascade^, p.light_box)) {
+				continue
+			}
+			params := Shadow_Vs_Params{light_mvp = light_view_proj * p.model}
+			if pipeline == .Opaque {
+				part := Mesh_Part{count = parts_opaque_count(p.parts)}
+				if part.count > 0 {
+					fr.submits.submit_shadow(fr.submits.ctx, p.mesh, &part, pipeline, params, p.skin)
+				}
+				continue
+			}
+			for &part in p.parts {
+				if pp, ok := part_pipeline(part.material); ok && pp == pipeline {
+					params.shadow_material = {part.material.alpha_cutoff, 0, 0, 0}
+					fr.submits.submit_shadow(fr.submits.ctx, p.mesh, &part, pipeline, params, p.skin)
+				}
+			}
+		}
 	}
 }
 
@@ -869,7 +877,7 @@ submits_none_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour
 submits_none_end_pass :: proc(ctx: rawptr) {}
 
 @(private = "file")
-submits_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
+submits_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
 submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
