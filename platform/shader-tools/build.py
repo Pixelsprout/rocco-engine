@@ -93,6 +93,8 @@ def compile_shader(declaration, document, contract_dir, contract, compiler, pins
 
 def write_changed(path, data):
     if path.is_file() and path.read_bytes() == data:
+        if path.stat().st_mode & 0o777 != 0o644:
+            os.chmod(path, 0o644)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".shader-", dir=path.parent)

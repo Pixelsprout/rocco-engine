@@ -37,6 +37,21 @@ The wrapper keeps its Sun comparison sample before the hook-controlled unlit bra
 The native GL and D3D image checks remain pending CI.
 The CI jobs now run the same environment image check and retain its screenshots.
 
+## Integration checks
+
+The integration retains `Vertex.world_position`, `Vertex.world_origin`, and the benchmark casting fields.
+Both full engine modes passed 780 tests with vet and strict style checks.
+The compiler, package, helper, and release checks passed 50 tests.
+The public Metal proof passed all eleven variants with the thirteen-attribute layout and two instance records.
+GPU readbacks verified world inputs and both outline occlusion policies.
+Built-in and published material blocks match at 96 bytes, and lighting blocks match at 512 bytes.
+Environment image checks covered colour response, roughness, unlit surfaces, exposure, missing skies, unload, and exact reload recovery.
+The agent inspected the warm and cool images.
+Both native processes exited successfully without graphics errors.
+The integration artifacts are in `/tmp/rocco-env-merged/`.
+Each CI backend retains one production proof and the existing cluster fixture.
+Native GL and D3D11 environment results remain CI gates.
+
 ## Preparation cost
 
 The CPU filter prepared a 256-face source five times under `taskpolicy -a`.

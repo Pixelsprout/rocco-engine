@@ -45,8 +45,10 @@ class OutputTests(unittest.TestCase):
                 write_changed(path, b"first")
                 self.assertEqual(path.stat().st_mode & 0o777, 0o644)
                 before = path.stat().st_mtime_ns
+                path.chmod(0o600)
                 write_changed(path, b"first")
                 self.assertEqual(path.stat().st_mtime_ns, before)
+                self.assertEqual(path.stat().st_mode & 0o777, 0o644)
                 with mock.patch("build.os.replace", side_effect=OSError("replacement failed")):
                     with self.assertRaises(OSError):
                         write_changed(path, b"second")

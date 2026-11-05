@@ -63,5 +63,8 @@ def main():
     out.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         run_game('environment-lighting',drive,str(out),tmp,binary_suffix())
+        log=Path(tmp,'environment-lighting.log').read_text(errors='replace')
+        out.with_name('environment-native.log').write_text(log)
+        check('[sg][error]' not in log and '[sg][panic]' not in log,'the graphics log has no errors')
 
 if __name__=='__main__':main()
