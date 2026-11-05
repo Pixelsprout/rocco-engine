@@ -41,6 +41,11 @@ Submitted :: struct {
 Shadow_Submitted :: struct {
 	mesh:        ^Mesh,
 	count:       int,
+	first:       int,
+	pipeline:    Mesh_Pipeline,
+	cutoff:      f32,
+	texture:     Mesh_Texture,
+	slot:        Maybe(int),
 	light_mvp:   Mat4,
 	view:        int,
 	main_before: int,
@@ -276,13 +281,18 @@ record_end_pass :: proc(ctx: rawptr) {
 	r.pass_ends += 1
 }
 
-record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.shadows,
 		Shadow_Submitted {
 			mesh = mesh,
-			count = count,
+			count = part.count,
+			first = part.first,
+			pipeline = pipeline,
+			cutoff = vs_params.shadow_material.x,
+			texture = part.texture,
+			slot = part.slot,
 			light_mvp = vs_params.light_mvp,
 			view = r.passes[len(r.passes) - 1].view,
 			main_before = len(r.submits),
@@ -983,7 +993,7 @@ test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing
 }
 
 @(test)
-test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: proc(t: ^testing.T) {
+test_frame_render_shadow_separates_opaque_and_mask_and_skips_blend :: proc(t: ^testing.T) {
 	for cascades in ([]int{1, 4}) {
 		f: Frame_Fixture
 		frame_fixture_init(&f, cascades = cascades)
@@ -1018,7 +1028,15 @@ test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: pr
 				testing.expect_value(t, s.count, len(CUBE_INDICES))
 			case lantern_mesh:
 				lantern_shadows += 1
-				testing.expect_value(t, s.count, 36)
+				if s.pipeline == .Opaque {
+					testing.expect_value(t, s.count, 30)
+					testing.expect_value(t, s.first, 0)
+				} else {
+					testing.expect_value(t, s.pipeline, Mesh_Pipeline.Mask)
+					testing.expect_value(t, s.count, 6)
+					testing.expect_value(t, s.first, 30)
+					testing.expect_value(t, s.cutoff, 0.5)
+				}
 			case:
 				testing.expectf(t, false, "%v cascades: a shadow draws a mesh with only Blend parts", cascades)
 			}
@@ -2189,4 +2207,60 @@ test_frame_render_skips_the_skin_with_submit_off :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(f.fr.placed), 1)
 	testing.expect(t, f.fr.placed[0].skin != nil)
 	expect_mat4_near(t, f.fr.placed[0].skin.joints[0], 0)
+}
+
+@(test)
+test_shadow_keeps_mask_slots_textures_cutoffs_and_skin_in_every_cascade :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+	parts := []Mesh_Data_Part {
+		{first = 0, count = 3},
+		{first = 3, count = 3},
+		{first = 6, count = 6, slot = 1, material = {alpha_mode = .Mask, alpha_cutoff = 0.3}},
+		{first = 12, count = 6, slot = 2, material = {alpha_mode = .Mask, alpha_cutoff = 0.7, double_sided = true}},
+	}
+	vine := frame_fixture_skinned_mesh(&f, "vine", parts)
+	mesh, _ := mesh_lookup(&f.meshes, vine)
+	mesh.parts[2].texture = {image = {id = 11}, view = {id = 12}, sampler = {id = 13}}
+	mesh.parts[3].texture = {image = {id = 21}, view = {id = 22}, sampler = {id = 23}}
+	draws := []Draw{{id = 1, mesh = vine, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.5}}}
+	lights := []Light{light_sun({y = -1}, {r = 1})}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+	testing.expect_value(t, len(f.rec.shadows), 12)
+	for s, i in f.rec.shadows {
+		testing.expect_value(t, s.view, i / 3)
+		order := SCENE_ORDER_PIPELINES
+		testing.expect_value(t, s.pipeline, order[i % 3])
+		testing.expect(t, s.skinned)
+		expect_mat4_near(t, s.joints[0], mat4_translate({0, 1, 0}))
+		if i % 3 == 0 {
+			testing.expect_value(t, s.first, 0)
+			testing.expect_value(t, s.count, 6)
+		} else {
+			part := mesh.parts[i % 3 + 1]
+			testing.expect_value(t, s.first, part.first)
+			testing.expect_value(t, s.texture, part.texture)
+			testing.expect_value(t, s.slot, part.slot)
+			testing.expect_value(t, s.cutoff, part.material.alpha_cutoff)
+		}
+	}
+	testing.expect_value(t, SHADOW_UNIFORM_SLOTS, 1)
+}
+
+@(test)
+test_shadow_omits_parts_past_draw_capacity :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, draws = 1)
+	defer frame_fixture_destroy(&f)
+	id := frame_fixture_mesh(&f, "fence", {
+		{first = 0, count = 3},
+		{first = 3, count = 6, material = {alpha_mode = .Mask, alpha_cutoff = 0.5}},
+	})
+	draws := []Draw{{id = 1, mesh = id, scale = {1, 1, 1}, rot = IDENTITY}}
+	lights := []Light{light_sun({y = -1}, {r = 1})}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+	testing.expect_value(t, len(f.rec.shadows), 1)
+	testing.expect_value(t, f.rec.shadows[0].count, 3)
+	testing.expect_value(t, f.rec.shadows[0].pipeline, Mesh_Pipeline.Opaque)
 }

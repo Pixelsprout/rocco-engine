@@ -37,7 +37,7 @@ The importer preserves linear values without sRGB conversion or premultiplicatio
 
 `Vertex.color` contains the component-wise product of `COLOR_0` and the base factor.
 The existing renderer multiplies this value by the base texture exactly once.
-Mask uses the resulting alpha for its cutoff.
+Mask uses the resulting alpha for its cutoff in both colour and shadow passes.
 Blend uses the resulting alpha for coverage.
 Opaque ignores alpha for coverage through its existing pipeline.
 The alpha mode still comes from the material, including when vertex alpha is below 1.
@@ -75,3 +75,19 @@ Pip now has five parts for its five named materials.
 The existing capacity checks still limit parts and skin blocks.
 This change adds no GPU attributes, uniform blocks, or texture slots.
 Set draw capacity from part draws when adding more named materials.
+
+## Cutout mip coverage
+
+MASK base textures preserve mip coverage when every vertex in a material run has the same combined alpha.
+The effective texture cutoff is the imported cutoff divided by that combined alpha.
+The texture cache includes this threshold and colour space in each variant key.
+Opaque textures and MASK textures with different thresholds therefore keep separate mip data.
+Variants count against the existing 16-texture limit per Mesh.
+Equal effective thresholds share one variant.
+
+Mip generation keeps base-level pixels and RGB values unchanged.
+Each completed mip scales alpha to the closest available nonzero coverage at its effective cutoff.
+A mip with positive base coverage retains at least one surviving texel when its averaged alpha permits it.
+Small mips can exceed target coverage because their alpha bins cannot represent every requested fraction.
+Variable vertex alpha keeps ordinary mips because interpolated alpha has no single texture threshold.
+Future Surface material overrides must select or rebuild compatible coverage mips when their alpha rules change.

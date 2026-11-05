@@ -47,12 +47,12 @@ Mesh_Shaders :: struct {
 	blend: sg.Shader,
 }
 
-Renderer :: struct {
-	pips:               [Mesh_Pipeline]sg.Pipeline,
-	skinned_pips:       [Mesh_Pipeline]sg.Pipeline,
-	sky_pip:            sg.Pipeline,
-	shadow_pip:         sg.Pipeline,
-	skinned_shadow_pip: sg.Pipeline,
+	Renderer           : : struct {
+	pips               : [Mesh_Pipeline]sg.Pipeline,
+	skinned_pips       : [Mesh_Pipeline]sg.Pipeline,
+	sky_pip            : sg.Pipeline,
+	shadow_pips        : [Mesh_Pipeline]sg.Pipeline,
+	skinned_shadow_pips: [Mesh_Pipeline]sg.Pipeline,
 	// The pipeline the pass applied last. sokol drops the applied
 	// fs_lights at each apply_pipeline, so the Main pass keeps them to apply
 	// again.
@@ -100,8 +100,8 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 }
 
 // capacity.draws counts the Main-pass submits. Each applies a vertex and a
-// fragment block. A Draw with a part before the sky applies a shadow block in
-// each cascade. A Blend submit can change pipeline, which applies the lights
+// fragment block. Each placed Opaque range or MASK part applies one shadow
+// block per cascade. A Blend submit can change pipeline, which applies the lights
 // again, and its Draw may cast no shadow. So each submit has room for the
 // greater of the two. Each pass applies at most skinned_draw_capacity skin
 // blocks.
@@ -211,7 +211,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		layout = {buffers = {0 = {stride = size_of(Vertex)}}, attrs = {ATTR_shadow_pos = {format = .FLOAT3, offset = i32(offset_of(Vertex, pos))}}},
 		label = "shadow",
 	}
-	r.shadow_pip = sg.make_pipeline(shadow)
+	r.shadow_pips[.Opaque] = sg.make_pipeline(shadow)
 
 	skinned_shadow := shadow
 	skinned_shadow.shader = sg.make_shader(skinned_shadow_shader_desc(sg.query_backend()))
@@ -224,7 +224,43 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	}
 	skinned_shadow.label = "skinned-shadow"
-	r.skinned_shadow_pip = sg.make_pipeline(skinned_shadow)
+	r.skinned_shadow_pips[.Opaque] = sg.make_pipeline(skinned_shadow)
+
+	mask_shadow := shadow
+	mask_shadow.shader = sg.make_shader(shadow_mask_shader_desc(sg.query_backend()))
+	mask_shadow.layout = {
+		buffers = {0 = {stride = size_of(Vertex)}},
+		attrs = {
+			ATTR_shadow_mask_pos = {format = .FLOAT3, offset = i32(offset_of(Vertex, pos))},
+			ATTR_shadow_mask_col = {format = .FLOAT4, offset = i32(offset_of(Vertex, color))},
+			ATTR_shadow_mask_uv = {format = .FLOAT2, offset = i32(offset_of(Vertex, uv))},
+		},
+	}
+	mask_shadow.label = "shadow-mask"
+	skinned_mask_shadow := mask_shadow
+	skinned_mask_shadow.shader = sg.make_shader(skinned_shadow_mask_shader_desc(sg.query_backend()))
+	skinned_mask_shadow.layout = {
+		buffers = {0 = {stride = size_of(Skinned_Vertex)}},
+		attrs = {
+			ATTR_skinned_shadow_mask_pos = {format = .FLOAT3, offset = i32(offset_of(Skinned_Vertex, pos))},
+			ATTR_skinned_shadow_mask_col = {format = .FLOAT4, offset = i32(offset_of(Skinned_Vertex, color))},
+			ATTR_skinned_shadow_mask_uv = {format = .FLOAT2, offset = i32(offset_of(Skinned_Vertex, uv))},
+			ATTR_skinned_shadow_mask_joint_ids = {format = .UBYTE4, offset = i32(offset_of(Skinned_Vertex, joints))},
+			ATTR_skinned_shadow_mask_joint_weights = {format = .UBYTE4N, offset = i32(offset_of(Skinned_Vertex, weights))},
+		},
+	}
+	skinned_mask_shadow.label = "skinned-shadow-mask"
+	for pipeline in SCENE_ORDER_PIPELINES {
+		if pipeline == .Opaque { continue }
+		r.shadow_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(mask_shadow, pipeline))
+		r.skinned_shadow_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(skinned_mask_shadow, pipeline))
+	}
+}
+
+shadow_mask_pipeline_desc :: proc(desc: sg.Pipeline_Desc, pipeline: Mesh_Pipeline) -> sg.Pipeline_Desc {
+	d := desc
+	d.cull_mode = .NONE if pipeline == .Mask_Double_Sided else .BACK
+	return d
 }
 
 mesh_pipelines :: proc(opaque: sg.Pipeline_Desc, shaders: Mesh_Shaders) -> (pips: [Mesh_Pipeline]sg.Pipeline) {
@@ -302,7 +338,6 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 	case .Shadow:
 		// sokol discards depth at the end of a pass unless told to store it.
 		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
-		renderer_apply_pipeline(r, r.shadow_pip)
 	case .Main:
 		r.swapchain = sglue.swapchain()
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height}, sapp.dpi_scale())
@@ -329,13 +364,19 @@ renderer_end_pass :: proc(ctx: rawptr) {
 }
 
 // A nil skin draws a rigid mesh.
-renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
-	renderer_apply_skin(r, r.shadow_pip, r.skinned_shadow_pip, skin)
-	sg.apply_bindings({vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices})
+	renderer_apply_skin(r, r.shadow_pips[pipeline], r.skinned_shadow_pips[pipeline], skin)
+	bindings := sg.Bindings{vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices}
+	if pipeline != .Opaque {
+		tex := mesh_part_textures(part, r.white, r.flat_normal).base
+		bindings.views[VIEW_base_tex] = tex.view
+		bindings.samplers[SMP_base_smp] = tex.sampler
+	}
+	sg.apply_bindings(bindings)
 	vs := vs_params
 	sg.apply_uniforms(UB_shadow_vs_params, {ptr = &vs, size = size_of(Shadow_Vs_Params)})
-	sg.draw(0, count, 1)
+	sg.draw(part.first, part.count, 1)
 }
 
 renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {

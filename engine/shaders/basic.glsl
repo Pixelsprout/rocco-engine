@@ -450,6 +450,7 @@ void main() {
 @block shadow_vs_params
 layout(binding = 0) uniform shadow_vs_params {
     mat4 light_mvp;
+    vec4 shadow_material;
 };
 @end
 
@@ -486,6 +487,68 @@ void main() {
 @end
 
 @program skinned_shadow skinned_shadow_vs shadow_fs
+
+@vs shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@vs skinned_shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+@include_block skin
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * (skin_matrix(joint_ids, joint_weights) * vec4(pos, 1.0));
+    shadow_uv = uv;
+    shadow_alpha = col.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@fs shadow_mask_fs
+layout(binding = 0) uniform texture2D base_tex;
+layout(binding = 0) uniform sampler base_smp;
+
+in vec2 shadow_uv;
+in float shadow_alpha;
+flat in float shadow_cutoff;
+
+void main() {
+    float alpha = texture(sampler2D(base_tex, base_smp), shadow_uv).a * shadow_alpha;
+    if (alpha < shadow_cutoff) {
+        discard;
+    }
+}
+@end
+
+@program shadow_mask shadow_mask_vs shadow_mask_fs
+@program skinned_shadow_mask skinned_shadow_mask_vs shadow_mask_fs
 
 @vs ui_vs
 layout(binding = 0) uniform ui_vs_params {

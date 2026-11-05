@@ -6,10 +6,11 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # faces come round to the camera, lit from the side the camera sees. Pip
 # walks a circle with a round hole in every cell of a grid, double-sided, so
 # the inside of its shell shows through. Every cutout casts the shadow of its
-# whole shape. source/make_props.py builds the meshes.
+# cutout shape. source/make_props.py builds the meshes.
 #
 # The camera circles the Scene. Space stops and starts the motion, and Left
-# and Right turn the camera by hand.
+# and Right turn the camera by hand. --far-shadows uses four cascades and
+# a narrow lens from 110 metres to inspect distant cutout shadows.
 
 import cam.Camera as Cam
 import linalg.Quat
@@ -27,19 +28,22 @@ import pf.Scene
 
 # The mesh ids are 0, the fallback mesh, until loaded gives them. time moves
 # the leaf and Pip, and angle is the camera's turn about the centre.
-Model : { meshes : Meshes, walk : U32, walk_duration : F32, time : F32, angle : F32, paused : Bool }
+Model : { meshes : Meshes, walk : U32, walk_duration : F32, time : F32, angle : F32, paused : Bool, far_shadows : Bool }
 
 Meshes : { fence : U32, fence_one_sided : U32, leaf : U32, pip : U32 }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
-launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Mask" } }
+launch = |config| {
+	cascades = if config.args.contains("--far-shadows") 4 else Launch.default.shadow_cascades
+	{ ..Launch.default, shadow_cascades: cascades, window: { ..Launch.default.window, title: "Mask" } }
+}
 
 props : List(Str)
 props = ["fence", "fence_one_sided", "leaf", "pip_holes"]
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| {
-	model = { meshes: { fence: 0, fence_one_sided: 0, leaf: 0, pip: 0 }, walk: 0, walk_duration: 0.0, time: 0.0, angle: 0.0, paused: Bool.False }
+init = |config| {
+	model = { meshes: { fence: 0, fence_one_sided: 0, leaf: 0, pip: 0 }, walk: 0, walk_duration: 0.0, time: 0.0, angle: 0.0, paused: Bool.False, far_shadows: config.args.contains("--far-shadows") }
 	{ model, commands: [Load({ pack: "props", assets: props })] }
 }
 
@@ -131,8 +135,10 @@ orbit_radius = 5.0
 view : Model -> Vocabulary.Scene
 view = |model| {
 	a = model.angle
-	eye = { x: orbit_centre.x + orbit_radius * a.sin(), y: 2.4, z: orbit_centre.z + orbit_radius * a.cos() }
-	camera = Cam.look_at(eye, orbit_centre)
+	radius = if model.far_shadows 110.0 else orbit_radius
+	eye = { x: orbit_centre.x + radius * a.sin(), y: if model.far_shadows 22.0 else 2.4, z: orbit_centre.z + radius * a.cos() }
+	base_camera = Cam.look_at(eye, orbit_centre)
+	camera = if model.far_shadows { ..base_camera, fov_y: 0.05 } else base_camera
 	m = model.meshes
 	nodes = [
 		Light(sky_light),
@@ -179,4 +185,10 @@ expect {
 expect {
 	p = pip(start)
 	p.pos.z > walk_centre.z and p.pos.x == 0.0
+}
+
+expect {
+	config = { ..Config.empty, args: ["--far-shadows"] }
+	far = init(config).model
+	launch(config).shadow_cascades == 4 and far.far_shadows and view(far).camera.fov_y == 0.05
 }

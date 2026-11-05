@@ -255,12 +255,13 @@ Glb_Material_Run :: struct {
 	part:     Mesh_Data_Part,
 }
 
-// A glTF texture decodes once per colour space. slot is nil for a texture
-// that cannot draw or is past MESH_TEXTURE_LIMIT.
+// Texture variants separate colour space and effective MASK cutoff.
+// Missing or excess textures have no slot.
 Glb_Texture_Key :: struct {
-	index: int,
-	srgb:  bool,
-	slot:  Maybe(int),
+	index:        int,
+	srgb:         bool,
+	alpha_cutoff: f32,
+	slot:         Maybe(int),
 }
 
 // Each texture is the first glTF texture with the same image and sampler,
@@ -353,7 +354,7 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 	// Textures take their slots in walk order, so the texture limit drops the
 	// last textures the walk meets, whatever their part's alpha mode.
 	for &run in l.runs {
-		run.part = glb_part(l, run.material, allocator) or_return
+		run.part = glb_part(l, &run, allocator) or_return
 		run.part.slot = run.slot
 	}
 	slice.stable_sort_by(l.runs[:], proc(a, b: Glb_Material_Run) -> bool {
@@ -371,10 +372,11 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 }
 
 // The part's material and texture slots, without its range.
-glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+glb_part :: proc(l: ^Glb_Loader, run: ^Glb_Material_Run, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+	material := run.material
 	part = {
 		material           = material.values,
-		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
+		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator, alpha_cutoff = glb_mask_texture_cutoff(l, run)) or_return,
 		metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
 		emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
 		normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
@@ -387,6 +389,20 @@ glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocato
 		part.material.occlusion_strength = 0
 	}
 	return part, .None
+}
+
+// A varying vertex alpha has no single texture threshold to preserve.
+glb_mask_texture_cutoff :: proc(l: ^Glb_Loader, run: ^Glb_Material_Run) -> f32 {
+	cutoff := run.material.values.alpha_cutoff
+	if run.material.values.alpha_mode != .Mask || cutoff <= 0 || len(run.indices) == 0 {
+		return 0
+	}
+	alpha := l.vertices[run.indices[0]].color.w
+	if alpha <= 0 || cutoff > alpha { return 0 }
+	for index in run.indices {
+		if l.vertices[index].color.w != alpha { return 0 }
+	}
+	return cutoff / alpha
 }
 
 // A primitive with no material is matte. glTF gives a material without
@@ -476,17 +492,17 @@ glb_first_texture :: proc(l: ^Glb_Loader, index: int) -> int {
 // it the first time a part names it. A texture that cannot draw takes no
 // slot. Past MESH_TEXTURE_LIMIT, a texture still decodes, so it gets the
 // same checks and notes, and then the part gets none.
-glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocator: mem.Allocator) -> (slot: Maybe(int), err: Glb_Error) {
+glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocator: mem.Allocator, alpha_cutoff: f32 = 0) -> (slot: Maybe(int), err: Glb_Error) {
 	i, named := index.?
 	if !named {
 		return nil, .None
 	}
 	for key in l.texture_keys {
-		if key.index == i && key.srgb == srgb {
+		if key.index == i && key.srgb == srgb && key.alpha_cutoff == alpha_cutoff {
 			return key.slot, .None
 		}
 	}
-	if tex, ok := (glb_texture(l, i, srgb, allocator) or_return).?; ok {
+	if tex, ok := (glb_texture(l, i, srgb, allocator, alpha_cutoff) or_return).?; ok {
 		if len(l.textures) == MESH_TEXTURE_LIMIT {
 			texture_delete(tex, allocator)
 			l.notes += {.Too_Many_Textures}
@@ -495,7 +511,7 @@ glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocato
 			append(&l.textures, tex)
 		}
 	}
-	append(&l.texture_keys, Glb_Texture_Key{index = i, srgb = srgb, slot = slot})
+	append(&l.texture_keys, Glb_Texture_Key{index = i, srgb = srgb, alpha_cutoff = alpha_cutoff, slot = slot})
 	return slot, .None
 }
 
@@ -869,7 +885,7 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 }
 
 // A texture that cannot draw gives a note and no texture. Only a bad index is an error.
-glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Allocator) -> (tex: Maybe(Texture), err: Glb_Error) {
+glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Allocator, alpha_cutoff: f32 = 0) -> (tex: Maybe(Texture), err: Glb_Error) {
 	if index < 0 || index >= len(l.gltf.textures) {
 		return nil, .Bad_Texture
 	}
@@ -917,7 +933,7 @@ glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Alloc
 			l.notes += {.Bad_Png}
 			return nil, .None
 		}
-		return texture_build(width, height, rgba, sampler, srgb, allocator), .None
+		return texture_build(width, height, rgba, sampler, srgb, allocator, alpha_cutoff), .None
 	case "image/jpeg":
 		l.notes += {.Jpeg_Skipped}
 	case:
