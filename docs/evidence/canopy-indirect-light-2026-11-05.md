@@ -132,3 +132,12 @@ The original `--check-dark` run failed with 35,549 pixels against a 5,000-pixel 
 The corrected run passed with 2,987 pixels.
 The diagnostic templates affected only temporary compiled assets.
 No diagnostic mask, constant-reflectance branch, or temporary logging remains in repository source.
+
+## Native backend verification
+
+CI run 42017935944 passed the indirect-light regression on Metal, GL, and D3D11.
+Rigid and instanced opposed-normal comparisons each changed zero channels.
+The default Surface comparison also changed zero channels on every backend.
+[Recorded evidence](canopy-indirect-backends-2026-11-05.json) includes artifact identifiers and archive checksums.
+The later village fixture failed on hosted display sizes and a long Bridge request.
+Those failures keep full-scene acceptance open.

@@ -1,0 +1,89 @@
+{
+  "run": 42017935944,
+  "head": "db97dc2fe0c9e3abe51d86648f1cf12cc3f96f1c",
+  "later_village_fixture_failures": true,
+  "backends": [
+    {
+      "platform": "macos",
+      "artifact": 13410148758,
+      "archive_sha256": "3f31909aac4180a772c7365257d6b866cc2e24587b682722832f5efddc90a867",
+      "evidence": {
+        "rigid": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "instanced": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "default_surface": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "images": {
+          "indirect-builtin-frame.png": "0972c7598214d11e176c4761c5e5e0262bcf47045ae5d1467885ce4c1572996a",
+          "indirect-default-frame.png": "0972c7598214d11e176c4761c5e5e0262bcf47045ae5d1467885ce4c1572996a",
+          "instanced-front-frame.png": "2a123f509f7a0e3639d64ce4dd7c88d410590343305d751caf4fa9fe9603a1b9",
+          "instanced-opposed-frame.png": "2a123f509f7a0e3639d64ce4dd7c88d410590343305d751caf4fa9fe9603a1b9",
+          "rigid-front-frame.png": "b0274ce990d09bb74d88fb454d5566299a0aa6743d99474033bfe0ca66d36214",
+          "rigid-opposed-frame.png": "b0274ce990d09bb74d88fb454d5566299a0aa6743d99474033bfe0ca66d36214"
+        }
+      }
+    },
+    {
+      "platform": "windows",
+      "artifact": 13410823342,
+      "archive_sha256": "1e0baa05c49428da3b7995a8d7c2dfb307fa307349c889b4a11f16283234bcae",
+      "evidence": {
+        "rigid": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "instanced": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "default_surface": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "images": {
+          "indirect-builtin-frame.png": "b672bf9928b96901969cef7f54091bd9bd082cf5303276e5bfd272ef1483105c",
+          "indirect-default-frame.png": "b672bf9928b96901969cef7f54091bd9bd082cf5303276e5bfd272ef1483105c",
+          "instanced-front-frame.png": "fd54dad7fdd8918e869dbde76f17344577409d6903846b756b7541a64d02d61e",
+          "instanced-opposed-frame.png": "fd54dad7fdd8918e869dbde76f17344577409d6903846b756b7541a64d02d61e",
+          "rigid-front-frame.png": "7e2c55d801f57bb723c8731280c4b05afac25de5eb04a673cd96a70777a6e7db",
+          "rigid-opposed-frame.png": "7e2c55d801f57bb723c8731280c4b05afac25de5eb04a673cd96a70777a6e7db"
+        }
+      }
+    },
+    {
+      "platform": "linux",
+      "artifact": 13410658810,
+      "archive_sha256": "84e2aefe5452aace783eae8a449261630ab8bb3d25f34988c5c0bdb32e91b957",
+      "evidence": {
+        "rigid": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "instanced": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "default_surface": {
+          "mean_difference": 0.0,
+          "changed_channels": 0
+        },
+        "images": {
+          "indirect-builtin-frame.png": "0dafa47013a30204a84d5521ec9f99124888a459ab0ebe95590a47b4501381cd",
+          "indirect-default-frame.png": "0dafa47013a30204a84d5521ec9f99124888a459ab0ebe95590a47b4501381cd",
+          "instanced-front-frame.png": "ee76f1086fa33d8e493b8b023adbe6c322aa22b31fb9859afa57e6f4fcfea62d",
+          "instanced-opposed-frame.png": "ee76f1086fa33d8e493b8b023adbe6c322aa22b31fb9859afa57e6f4fcfea62d",
+          "rigid-front-frame.png": "cdca8c5586d38de9ecb6395f1e79d9f557e84086de89509e72259debe805f042",
+          "rigid-opposed-frame.png": "cdca8c5586d38de9ecb6395f1e79d9f557e84086de89509e72259debe805f042"
+        }
+      }
+    }
+  ],
+  "acceptance": "Native indirect-light regression passed on all backends. Later village fixture checks failed; this is not full-scene acceptance."
+}
