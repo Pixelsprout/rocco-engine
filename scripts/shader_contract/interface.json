@@ -1,0 +1,109 @@
+{
+  "contract": 1,
+  "surface": {
+    "max_displacement": 0.25,
+    "parameters": [
+      {
+        "name": "wind",
+        "type": "F32",
+        "scope": "Scene",
+        "stage": "vertex",
+        "offset": 0,
+        "default": [
+          0.25
+        ]
+      },
+      {
+        "name": "tint",
+        "type": "Colour",
+        "scope": "Material",
+        "stage": "fragment",
+        "offset": 0,
+        "default": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "textures": [
+      {
+        "name": "wind",
+        "scope": "Scene",
+        "stage": "vertex",
+        "view": 8,
+        "sampler": 8,
+        "type": "2d",
+        "colour_space": "linear",
+        "sample_type": "float",
+        "sampler_policy": {
+          "min": "nearest",
+          "mag": "nearest",
+          "wrap": "clamp"
+        },
+        "optional": true,
+        "default": {
+          "constant": [
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "name": "detail",
+        "scope": "Material",
+        "stage": "fragment",
+        "view": 9,
+        "sampler": 9,
+        "type": "2d",
+        "colour_space": "linear",
+        "sample_type": "float",
+        "sampler_policy": {
+          "min": "nearest",
+          "mag": "nearest",
+          "wrap": "clamp"
+        },
+        "optional": true,
+        "default": {
+          "constant": [
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "post": {
+    "parameters": [
+      {
+        "name": "outline",
+        "type": "Vec4",
+        "scope": "Draw",
+        "stage": "fragment",
+        "offset": 0,
+        "default": [
+          1,
+          0.25,
+          0,
+          1
+        ]
+      }
+    ],
+    "inputs": [
+      "scene_colour",
+      "scene_depth",
+      "selection_coverage",
+      "selection_depth"
+    ],
+    "locations": [
+      "before_bloom",
+      "after_tone_map"
+    ],
+    "textures": []
+  }
+}

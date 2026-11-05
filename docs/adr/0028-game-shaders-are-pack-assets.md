@@ -72,7 +72,8 @@ The asset build emits backend code and metadata for Metal, GL, and D3D.
 CI checks each backend on its target platform.
 The engine rejects incompatible assets with a clear log.
 
-The on-disk encoding and numeric resource limits remain implementation details to validate across the three backends.
+[Shader contract version 1](../SHADER-CONTRACT.md) records the package encoding, resource limits, and reproducible backend proof.
+The contract distinguishes cross-compilation from native execution.
 
 Before full village integration, a small example must prove named slots, game-authored wind, matching shadows, and a game-authored outline.
 It must also prove successful reload, failed-reload recovery, published-platform loading, and all three desktop backends.
