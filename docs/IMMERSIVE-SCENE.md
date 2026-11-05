@@ -130,6 +130,9 @@ Record warmup, power state, build mode, settings, sample counts, and instrumenta
 Require warm-run p95 CPU frame work and p95 GPU frame work each within 16.67 ms.
 Report p99 spikes and inspect real-clock frame pacing separately.
 CPU submit time alone does not establish GPU performance.
+[Opt-in D3D11 timestamps](D3D11-GPU-TIMING.md) provide frame and actual pass intervals for the PC check.
+Native CI proves diagnostic operation only.
+The reference PC still supplies performance evidence.
 
 Human reviews cover three points:
 

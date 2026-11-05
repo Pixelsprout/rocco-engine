@@ -69,8 +69,8 @@ renderer_prepare_post :: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inp
 	if coverage_target_fit(&t.post.selection, t.size, .Selection_Coverage in inputs || .Selection_Depth in inputs) {
 		t.post.available += {.Selection_Coverage, .Selection_Depth}
 		// Selection has an empty union until selected Draw submission is enabled.
-		sg.begin_pass({action = coverage_pass_action(), attachments = t.post.selection.coverage.attachments})
-		sg.end_pass()
+		gfx_begin_pass({action = coverage_pass_action(), attachments = t.post.selection.coverage.attachments, label = "selection"})
+		gfx_end_pass()
 	}
 	return t.post.available
 }
@@ -89,9 +89,11 @@ renderer_post :: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Loca
 		if !target_layer_valid(layer) { renderer_post_log(r, "effect target could not be allocated"); continue }
 		pip, valid := post_pipeline(effect.material.shader, location)
 		if !valid { renderer_post_log(r, "pipeline creation failed"); continue }
-		if !active && location == .AfterToneMap { sg.end_pass() }
+		if !active && location == .AfterToneMap { gfx_end_pass() }
 		active = true
-		sg.begin_pass({action = t.post_action, attachments = layer.attachments, label = "game-post"})
+		label: cstring = "game-post"
+		when GPU_TIMING { label = "game-post-hdr" if location == .BeforeBloom else "game-post-ldr" }
+		gfx_begin_pass({action = t.post_action, attachments = layer.attachments, label = label})
 		sg.apply_pipeline(pip)
 		program := effect.material.shader.programs[0 if location == .BeforeBloom else 1]
 		bindings: sg.Bindings
@@ -112,7 +114,7 @@ renderer_post :: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Loca
 			if slot == 5 { sg.apply_uniforms(slot, {ptr = &effect.material.fragment, size = size_of(effect.material.fragment)}) }
 		}
 		sg.draw(0, 3, 1)
-		sg.end_pass()
+		gfx_end_pass()
 		read = layer.texture
 		output = 1-output
 	}
