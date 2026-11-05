@@ -38,6 +38,7 @@ State :: struct {
 	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
 	quit:              bool,
 	spans:             Span_Sink,
+	capture:           Capture_Sink,
 	bridge:            Bridge,
 	audio:             Audio,
 	// The pointer of the last step taken, for the hit test after the layout.
@@ -83,7 +84,13 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 host_options_from_env :: proc(bridge: bool) -> Host_Options {
 	exit_after_frames := exit_after_frames_from_env()
 	mode := run_mode_from_env(exit_after_frames, bridge)
+	capture_csv := os.get_env(CAPTURE_ENV, context.temp_allocator)
+	if problem := capture_problem(capture_csv, exit_after_frames, mode, bridge, debug_camera_from_env()); problem != "" {
+		fmt.eprintln(problem)
+		os.exit(1)
+	}
 	return {
+		capture_csv = capture_csv,
 		mode = mode,
 		exit_after_frames = exit_after_frames,
 		assets_dir = assets_dir_from_env(),
@@ -156,6 +163,9 @@ init_cb :: proc "c" () {
 		os.exit(1)
 	}
 
+	when ODIN_OS == .Darwin {
+		if g_state.capture.on { g_state.capture.label_passes = os.get_env(CAPTURE_LABELS_ENV, context.temp_allocator) == "1" }
+	}
 	gpu_timing_app_init()
 
 	err := host_open_window(&g_state, {f32(sapp.width()), f32(sapp.height())})
@@ -165,6 +175,8 @@ init_cb :: proc "c" () {
 
 frame_cb :: proc "c" () {
 	context = g_state.ctx
+	capture_start: i64
+	if g_state.capture.on { capture_start = capture_tick() }
 
 	if bridge_paused(&g_state.bridge) {
 		time.sleep(BRIDGE_PAUSE_WAIT)
@@ -185,6 +197,7 @@ frame_cb :: proc "c" () {
 		&g_state,
 		{
 			frame_duration = sapp.frame_duration(),
+			capture_start = capture_start,
 			window = {size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()},
 			mouse_locked = sapp.mouse_locked(),
 			lock_mouse = app_lock_mouse,
@@ -203,6 +216,9 @@ cleanup_cb :: proc "c" () {
 // A Headless run never set up sokol, so it must not shut it down. A bench run
 // with no Spans CSV must fail, so a failed write exits with 1 at the end.
 app_shutdown :: proc() {
+	capture_err := capture_sink_write(&g_state.capture, &g_state)
+	capture_failed := g_state.capture.failed != ""
+	if capture_err != nil || capture_failed { fmt.eprintfln("capture failed: %v %v", capture_err, g_state.capture.failed) }
 	spans_err := span_sink_write(&g_state.spans)
 	if spans_err != nil {
 		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
@@ -231,7 +247,7 @@ app_shutdown :: proc() {
 		}
 		mem.tracking_allocator_destroy(&g_track)
 	}
-	if spans_err != nil {
+	if spans_err != nil || capture_err != nil || capture_failed {
 		os.exit(1)
 	}
 }
@@ -239,6 +255,7 @@ app_shutdown :: proc() {
 event_cb :: proc "c" (event: ^sapp.Event) {
 	context = g_state.ctx
 
+	if g_state.capture.on && event.type == .ICONIFIED { g_state.capture.failed = "window minimized" }
 	input_on_event(&g_state.input, event)
 }
 

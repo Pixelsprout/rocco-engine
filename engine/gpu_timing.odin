@@ -118,6 +118,14 @@ gpu_timing_csv :: proc(rows: []Gpu_Timing_Row, allocator: mem.Allocator) -> stri
 gfx_begin_pass :: #force_inline proc(pass: sg.Pass) {
 	when GPU_TIMING { gpu_timing_native_pass_begin(&g_gpu_timing, gpu_timing_pass_kind(pass.label)) }
 	sg.begin_pass(pass)
+	if g_state.capture.on {
+		label := capture_pass_label(&g_state.capture, pass.label)
+		when ODIN_OS == .Darwin {
+			if g_state.capture.label_passes { capture_metal_label(label) }
+		} else {
+			_ = label
+		}
+	}
 }
 
 gfx_end_pass :: #force_inline proc() {

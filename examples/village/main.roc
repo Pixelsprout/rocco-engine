@@ -3,6 +3,7 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 import ui.Ui
 import Layout
 import Display
+import Capture
 import Lighting
 import Effects
 import Vegetation
@@ -28,16 +29,17 @@ NodeSettings : { lighting : Lighting.Settings, vegetation : Vegetation.Settings,
 
 NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, nodes : List(Vocabulary.Node) })]
 
-Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow, node_cache : NodeCache }
+Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow, node_cache : NodeCache, capture : Capture.State }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |config| {
+	_capture = Capture.start(config.args)
 	startup = Quality.startup(config.args)
 	{ ..Launch.default, window: Display.window(config, { ..Launch.default.window, title: "Village", samples: startup.samples }), shadow_map: startup.shadow_map, shadow_cascades: startup.shadow_cascades, capacity: { ..Launch.default.capacity, meshes: 128, draws: 32768 } }
 }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, effects: Effects.default, seed: config.seed, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args), node_cache: Empty }, commands: [] }
+init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, effects: Effects.default, seed: config.seed, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args), node_cache: Empty, capture: Capture.start(config.args) }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, pack, manifest| {
@@ -68,6 +70,8 @@ step = |model, input, results, dt| {
 			Err(_) => []
 		}
 		{ model, commands }
+	} else if model.capture.enabled {
+		if Key.pressed(input, Escape) { model, commands: [Capture.marker(model.capture, "aborted", model.route_i), Quit] } else capture_step(model, dt)
 	} else {
 		views = Port.messages(results, "view").fold(model, set_view)
 		from_view = { ..views, lighting: Port.messages(results, "lighting").fold(views.lighting, Lighting.compare), effects: Port.messages(results, "effects").fold(views.effects, Effects.compare) }
@@ -93,6 +97,88 @@ step = |model, input, results, dt| {
 		commands = if Key.pressed(input, Escape) [Quit] else []
 		{ model: cache_nodes({ ..moved, selected }), commands }
 	}
+}
+
+capture_bool : Bool -> Str
+capture_bool = |value| if value "true" else "false"
+
+capture_settings : Model -> Command
+capture_settings = |model| {
+	vegetation = model.vegetation
+	effects = model.effects
+	lighting = model.lighting
+	field_casts = model.prepared.field.any(
+		|node| match node {
+			Draw(draw) => draw.casts_shadow
+			_ => Bool.False
+		},
+	)
+	fields = [
+		("density", vegetation.density.to_str()),
+		("distance", vegetation.distance.to_str()),
+		("wind", capture_bool(vegetation.wind)),
+		("canopy", capture_bool(vegetation.canopy)),
+		("grass", capture_bool(vegetation.grass)),
+		("field", capture_bool(vegetation.field)),
+		("source_casts_shadow", capture_bool(vegetation.casts_shadow)),
+		("field_casts_shadow", capture_bool(field_casts)),
+		("outline", capture_bool(effects.outline)),
+		("visible_only", capture_bool(effects.visible_only)),
+		("width", effects.width.to_str()),
+		("pulse", capture_bool(effects.pulse)),
+		("glow", capture_bool(effects.glow)),
+		("colour", capture_bool(effects.colour)),
+		("smoke", capture_bool(effects.smoke)),
+		("dust", capture_bool(effects.dust)),
+		("controls", capture_bool(effects.controls)),
+		("sun", capture_bool(lighting.sun)),
+		("sky", capture_bool(lighting.sky)),
+		("exposure", capture_bool(lighting.exposure)),
+		("bloom", capture_bool(lighting.bloom)),
+		("haze", capture_bool(lighting.haze)),
+		("lamps", capture_bool(lighting.lamps)),
+		("ground", capture_bool(lighting.ground)),
+	]
+	Port.tell("village.capture.settings.v1", "{${Str.join_with(fields.map(|(name, value)| "\"${name}\":${value}"), ",")}}")
+}
+
+capture_step : Model, F32 -> { model : Model, commands : List(Command) }
+capture_step = |model, dt| {
+	result = capture_advance(model, dt)
+	{ model: cache_nodes(result.model), commands: result.commands }
+}
+
+capture_advance : Model, F32 -> { model : Model, commands : List(Command) }
+capture_advance = |model, dt| {
+	state = model.capture
+	transition = match state.phase {
+		Loading => {
+			capture = { ..state, phase: Warmup, count: 1 }
+			prepared = { ..set_view(model, "hero"), selected: 20, lighting: Lighting.default, vegetation: Vegetation.default, effects: Effects.default, capture }
+			{ model: prepared, commands: [Capture.marker(capture, "ready", 0), Capture.marker(capture, "warmup_start", 0), capture_settings(prepared)] }
+		}
+		Warmup => if state.count >= Capture.warmup(state) {
+			capture = { ..state, phase: Route, count: 1, cycle: 1 }
+			{ model: { ..set_view(model, "tour"), capture }, commands: [Capture.marker(state, "warmup_end", model.route_i), Capture.marker(capture, "route_start", 0)] }
+		} else { model: { ..model, capture: { ..state, count: state.count + 1 } }, commands: [] }
+		Route => if state.count >= Capture.length(state) {
+			if state.cycle == 1 {
+				capture = { ..state, count: 1, cycle: 2 }
+				{ model: { ..set_view(model, "tour"), capture }, commands: [Capture.marker(state, "route_end", model.route_i), Capture.marker(capture, "route_start", 0)] }
+			} else {
+				capture = { ..state, phase: Drain, count: 1 }
+				{ model: { ..model, capture }, commands: [Capture.marker(state, "route_end", model.route_i)] }
+			}
+		} else { model: { ..model, capture: { ..state, count: state.count + 1 } }, commands: [] }
+		Drain => if state.count >= Capture.drain(state) {
+			{ model: { ..model, capture: { ..state, phase: Done } }, commands: [Capture.marker(state, "complete", model.route_i), Quit] }
+		} else { model: { ..model, capture: { ..state, count: state.count + 1 } }, commands: [] }
+		Done => { model, commands: [] }
+	}
+	timed = { ..transition.model, time: transition.model.time + dt }
+	moved = if timed.capture.phase == Route tour(timed, dt) else timed
+	waypoint = if moved.route_i != transition.model.route_i [Capture.marker(moved.capture, "waypoint", moved.route_i)] else []
+	{ model: moved, commands: List.join([transition.commands, waypoint]) }
 }
 
 clamp : F32, F32, F32 -> F32
@@ -324,4 +410,79 @@ expect {
 		},
 	)
 	checked.matches and checked.model.route_i == 6
+}
+
+expect {
+	start = { ..ready_test_model, capture: Capture.start(["--capture-route=operation-v1"]) }
+	first = capture_step(start, 1.0 / 120.0)
+	first.model.selected == 20 and first.model.capture.count == 1 and first.commands.len() == 3
+}
+expect {
+	start = { ..ready_test_model, capture: { ..Capture.start(["--capture-route=full-v1"]), phase: Warmup, count: 1800 } }
+	first = capture_step(start, 1.0 / 120.0)
+	first.model.mode == Tour and first.model.capture.phase == Route and first.model.capture.count == 1 and first.model.capture.cycle == 1
+}
+expect {
+	start = { ..ready_test_model, capture: { ..Capture.start(["--capture-route=full-v1"]), phase: Route, count: 3600, cycle: 1 } }
+	first = capture_step(start, 1.0 / 120.0)
+	first.model.eye == { x: 0.0, y: 1.7, z: 17.0 } and first.model.capture.count == 1 and first.model.capture.cycle == 2
+}
+expect {
+	start = { ..ready_test_model, capture: { ..Capture.start(["--capture-route=full-v1"]), phase: Drain, count: 120, cycle: 2 } }
+	first = capture_step(start, 1.0 / 120.0)
+	first.model.capture.phase == Done and first.commands.last() == Ok(Quit)
+}
+
+capture_test_run : Model, U64 -> { model : Model, warmup : U64, route : U64, drain : U64, done : U64, selected : Bool, events : List({ step : U64, message : Str }) }
+capture_test_run = |model, steps| List.repeat({}, steps).map_with_index(|_, i| i + 1).fold(
+	{ model, warmup: 0, route: 0, drain: 0, done: 0, selected: Bool.True, events: [] },
+	|state, step_i| {
+		next = capture_advance(state.model, 1.0 / 120.0)
+		messages = next.commands.map(
+			|command| match command {
+				Tell(message) => if message.port == "village.capture.v1" [message.msg] else []
+				_ => []
+			},
+		).join()
+		{
+			model: next.model,
+			warmup: state.warmup + if next.model.capture.phase == Warmup 1 else 0,
+			route: state.route + if next.model.capture.phase == Route 1 else 0,
+			drain: state.drain + if next.model.capture.phase == Drain 1 else 0,
+			done: state.done + if next.model.capture.phase == Done 1 else 0,
+			selected: state.selected and next.model.selected == 20,
+			events: List.join([state.events, messages.map(|message| { step: step_i, message })]),
+		}
+	},
+)
+
+expect {
+	start = init({ ..Config.empty, args: ["--capture-route=full-v1"] }).model
+	waiting = step(start, Input.empty, QueryResults.empty, 1.0 / 120.0)
+	waiting.model.capture == start.capture
+}
+expect {
+	start = init({ ..Config.empty, args: ["--capture-route=full-v1"] }).model
+	finished = capture_test_run(start, 9121)
+	finished.warmup == 1800 and finished.route == 7200 and finished.drain == 120 and finished.done == 1 and finished.selected and finished.events.len() == 20 and [
+		{ step: 1, message: "ready|0|1|0|full" },
+		{ step: 1801, message: "route_start|1|1|0|full" },
+		{ step: 5401, message: "route_end|1|3600|6|full" },
+		{ step: 5401, message: "route_start|2|1|0|full" },
+		{ step: 9001, message: "route_end|2|3600|6|full" },
+		{ step: 9121, message: "complete|2|120|6|full" },
+	].all(|event| finished.events.contains(event))
+}
+expect {
+	start = init({ ..Config.empty, args: ["--capture-route=full-v1"] }).model
+	warmed = capture_test_run(start, 1800).model
+	compared = List.repeat({}, 3600).fold(
+		{ captured: warmed, source: set_view(warmed, "tour"), equal: Bool.True },
+		|state, _| {
+			captured = capture_advance(state.captured, 1.0 / 120.0).model
+			source = tour({ ..state.source, time: state.source.time + 1.0 / 120.0 }, 1.0 / 120.0)
+			{ captured, source, equal: state.equal and camera(captured) == camera(source) }
+		},
+	)
+	warmed.mode == Hero and warmed.capture.count == 1800 and V.length(V.sub(camera(warmed).eye, { x: 2.4, y: 1.75, z: 15.5 })) < 0.00001 and compared.equal and compared.captured.route_i == 6 and compared.captured.capture.count == 3600
 }
