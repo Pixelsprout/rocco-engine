@@ -85,6 +85,27 @@ roc scripts/build.roc -- game village
 python3 examples/village/fixtures/lighting.py /tmp/village-lighting-final --retina-1080 --require-1080
 ```
 
+## Integrated baseline checks
+
+The lighting module and village entry point are integrated.
+The village now loads the complete lighting Pack after the mesh Packs.
+Readiness checks every required asset name, including Sky, Image, and Shader assets.
+Two regressions reject mesh-only readiness and a missing shader with the correct manifest count.
+The village passed 167 Roc tests and the build script passed 146 tests.
+The required village build, Roc checks, and formatting passed.
+All eight prepared image hashes and three independently generated helpers match.
+The generated shader assets and mesh metadata match the isolated declaration build.
+
+The integrated hero and square captures use 480 steps after readiness.
+Both processes reached readiness at step 34 and exited without native diagnostics.
+Both captures are 1920 by 1080 physical pixels with `--retina-1080`.
+Their image hashes, cameras, and environments match the isolated captures exactly.
+The agent inspected both integrated images.
+The [integration report](../../docs/evidence/village-lighting/metal-integration.json) records hashes and checks.
+The raw images and logs remain at `/tmp/village-lighting-merged`.
+These checks cover the baseline subset on Metal.
+Combined foliage, full-layout, human, GL, D3D11, and performance gates remain open.
+
 ## Remaining gates
 
 Merge the lighting module with the complete layout, vegetation, effects, and combined loading state.

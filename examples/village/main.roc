@@ -1,7 +1,9 @@
 app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
 import ui.Ui
+import Display
 import Layout
+import Lighting
 import cam.Camera as Cam
 import linalg.Vec3 as V
 import linalg.Quat
@@ -14,19 +16,18 @@ import pf.Environment
 import pf.Input
 import pf.Key
 import pf.Launch
-import pf.Light
 import pf.Port
 import pf.Query
 import pf.QueryResults
 import pf.Scene
 
-Model : { manifest : Manifest, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool }
+Model : { manifest : Manifest, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, lighting : Lighting.Settings }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
-launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Village baseline", width: 1920, height: 1080, high_dpi: Bool.False }, shadow_cascades: 2 }
+launch = |config| { ..Launch.default, window: Display.window(config, { ..Launch.default.window, title: "Village baseline" }), shadow_cascades: 2 }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { manifest: [], eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False }, commands: [] }
+init = |_config| { model: { manifest: [], eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, lighting: Lighting.default }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, manifest: List.join([model.manifest, manifest]) }
@@ -47,13 +48,15 @@ set_view = |model, name| match name {
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| {
 	if !ready(model) {
-		commands = if Key.pressed(input, Escape) [Quit] else match Layout.assets.get(model.manifest.len()) {
+		missing_meshes = Layout.assets.keep_if(|asset| Mesh.resolve(model.manifest, asset) == 0)
+		commands = if Key.pressed(input, Escape) [Quit] else match missing_meshes.first() {
 			Ok(asset) => [Load({ pack: asset, assets: [asset] })]
-			Err(_) => []
+			Err(_) => [Load({ pack: "lighting", assets: Lighting.assets })]
 		}
 		{ model, commands }
 	} else {
-		from_port = Port.messages(results, "view").fold(model, set_view)
+		views = Port.messages(results, "view").fold(model, set_view)
+		from_port = { ..views, lighting: Port.messages(results, "lighting").fold(views.lighting, Lighting.compare) }
 		chosen = if Key.pressed(input, Num1) set_view(from_port, "hero") else if Key.pressed(input, Num2) set_view(from_port, "square") else if Key.pressed(input, Num3) set_view(from_port, "walk") else if Key.pressed(input, T) set_view(from_port, "tour") else if Key.pressed(input, F) set_view(from_port, "free") else if Key.pressed(input, R) { ..set_view(from_port, "hero"), selected: 0 } else from_port
 		captured = if Key.pressed(input, Tab) !chosen.captured else chosen.captured
 		looked = { ..chosen, captured, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: chosen.time + dt }
@@ -127,7 +130,7 @@ building = |model, id| {
 	children = Layout.placements.keep_if(|p| p.group == id and Mesh.resolve(model.manifest, p.asset) != 0).map(
 		|p| {
 			tint = if model.selected == id { r: 1.0, g: 0.85, b: 0.55 } else { r: 1.0, g: 1.0, b: 1.0 }
-			Draw({ ..Draw.default, id: p.id, mesh: Mesh.resolve(model.manifest, p.asset), pos: p.pos, rot: p.rot, scale: p.scale, tint })
+			Draw(Lighting.windows({ ..Draw.default, id: p.id, mesh: Mesh.resolve(model.manifest, p.asset), pos: p.pos, rot: p.rot, scale: p.scale, tint }, { asset: p.asset, settings: model.lighting }))
 		},
 	)
 	Group({ id, pos: V.zero, rot: Quat.identity, selected: Bool.False }, children)
@@ -136,13 +139,13 @@ building = |model, id| {
 view : Model -> Vocabulary.Scene
 view = |model| if !ready(model) loading_view(model) else {
 	cam_view = camera(model)
-	ground = Draw({ ..Draw.default, id: 1, mesh: Mesh.primitive(Plane), scale: { x: 200.0, y: 1.0, z: 200.0 }, tint: { r: 0.33, g: 0.52, b: 0.22 } })
+	ground = Lighting.ground(model.lighting)
 	placed = Layout.placements.keep_if(|p| p.group == 0 and Mesh.resolve(model.manifest, p.asset) != 0).map(|p| Draw({ ..Draw.default, id: p.id, mesh: Mesh.resolve(model.manifest, p.asset), pos: p.pos, rot: p.rot, scale: p.scale }))
 	boxes = [Collider(Collider.box(10, { x: -6.4, y: 3.0, z: 1.0 }, Quat.identity, { x: 2.0, y: 3.0, z: 3.0 })), Collider(Collider.box(20, { x: 6.6, y: 1.5, z: 5.0 }, Quat.identity, { x: 2.0, y: 1.5, z: 3.0 }))]
-	lights = [Light(Light.ambient({ r: 0.35, g: 0.38, b: 0.45 })), Light(Light.sun({ x: -0.65, y: -0.8, z: -0.4 }, { r: 2.5, g: 2.2, b: 1.8 }))]
+	lights = Lighting.nodes(model.lighting)
 	nodes = List.join([[ground, building(model, 10), building(model, 20)], placed, boxes, lights])
-	environment = { ..Environment.default, clear: { r: 0.32, g: 0.48, b: 0.65 }, tone_map: AgX }
-	{ ..Scene.empty, camera: cam_view, nodes, environment, cursor: if model.captured Locked else Free, queries: [Port.listen("view"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	environment = Lighting.environment(model.manifest, model.lighting)
+	{ ..Scene.empty, camera: cam_view, nodes, environment, cursor: if model.captured Locked else Free, queries: [Port.listen("view"), Port.listen("lighting"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect blocked({ x: -6.4, y: 1.7, z: 1.0 }) and blocked({ x: 6.6, y: 1.7, z: 5.0 }) and !blocked({ x: 0.0, y: 1.7, z: 5.0 })
@@ -156,14 +159,17 @@ expect {
 	camera(start).eye == { x: 3.6, y: 1.9, z: 21.5 } and V.length(V.sub(camera({ ..start, time: 14.0 }).eye, { x: 2.4, y: 1.75, z: 15.5 })) < 0.00001
 }
 
+assets : List(Str)
+assets = List.join([Layout.assets, Lighting.assets])
+
 ready : Model -> Bool
-ready = |model| model.manifest.len() == Layout.assets.len() and model.manifest.all(|entry| entry.id != 0)
+ready = |model| assets.all(|asset| Mesh.resolve(model.manifest, asset) != 0)
 
 loading_view : Model -> Vocabulary.Scene
 loading_view = |model| {
 	failed = model.manifest.any(|entry| entry.id == 0)
 	title = if failed "Village could not load" else "Loading village"
-	progress = if failed "Read the host log. Press Escape to exit." else "${model.manifest.len().to_str()} / ${Layout.assets.len().to_str()} assets"
+	progress = if failed "Read the host log. Press Escape to exit." else "${model.manifest.len().to_str()} / ${assets.len().to_str()} assets"
 	panel = { ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), direction: Col, gap: 16.0, child_align: { x: Center, y: Center } }
 	{ ..Scene.empty, environment: { ..Environment.default, clear: { r: 0.025, g: 0.04, b: 0.055 } }, ui: [Panel(panel, [Text({ ..Ui.label(title), size: 36.0 }), Text(Ui.label(progress))])] }
 }
@@ -172,13 +178,24 @@ expect view(init(Config.empty).model).nodes.is_empty()
 expect !ready(init(Config.empty).model)
 expect {
 	start = init(Config.empty).model
-	manifest = Layout.assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	manifest = assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
 	full = loaded(start, "village", manifest)
 	ready(full) and !view(full).nodes.is_empty() and view(full).ui.is_empty()
 }
 expect {
 	start = init(Config.empty).model
-	manifest = Layout.assets.map(|name| { name, id: 0, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	manifest = assets.map(|name| { name, id: 0, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
 	failed = loaded(start, "village", manifest)
 	!ready(failed) and view(failed).nodes.is_empty() and !view(failed).ui.is_empty()
+}
+
+expect {
+	start = init(Config.empty).model
+	manifest = Layout.assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	!ready(loaded(start, "meshes", manifest))
+}
+expect {
+	start = init(Config.empty).model
+	manifest = assets.map(|name| { name: if name == "shader/VillageGround" "extra" else name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	!ready(loaded(start, "village", manifest))
 }

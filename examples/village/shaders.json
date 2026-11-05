@@ -1,0 +1,59 @@
+{
+  "contract": 1,
+  "meshes": [
+    {
+      "name": "LightingWindowThin",
+      "source": "assets/meshes/Window_Thin_Round1.glb"
+    },
+    {
+      "name": "LightingWindowWide",
+      "source": "assets/meshes/Window_Wide_Round1.glb"
+    }
+  ],
+  "shaders": [
+    {
+      "name": "VillageGround",
+      "kind": "surface",
+      "max_displacement": 0,
+      "skinning": false,
+      "instancing": false,
+      "surface": "ground.glsl",
+      "textures": [
+        {
+          "name": "ground_mask",
+          "scope": "Material",
+          "stage": "fragment",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "clamp"
+          },
+          "optional": false,
+          "default": {
+            "asset": "image/ground_mask",
+            "pack": "lighting"
+          }
+        },
+        {
+          "name": "terrain_noise",
+          "scope": "Material",
+          "stage": "fragment",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "repeat"
+          },
+          "optional": false,
+          "default": {
+            "asset": "image/T_Noise_Terrain",
+            "pack": "lighting"
+          }
+        }
+      ]
+    }
+  ]
+}

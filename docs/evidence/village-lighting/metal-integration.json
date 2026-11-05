@@ -1,0 +1,179 @@
+{
+  "seed": 0,
+  "retina_1080": true,
+  "binary_sha256": "fa8911c3ed6c6ea9dcba7d00362595026f011b73725aaeedae959f664abb4a69",
+  "captures": [
+    {
+      "view": "hero",
+      "disabled": "all",
+      "ready_step": 34,
+      "steps_after_ready": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "sha256": "2e828b3fb84d89d2d5d74bf251df642f1f50e76a2dcc0666dbb5fc58420d5feb"
+    },
+    {
+      "view": "square",
+      "disabled": "all",
+      "ready_step": 34,
+      "steps_after_ready": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "camera": {
+        "eye": {
+          "x": 5.8143425,
+          "y": 8,
+          "z": 13.974774
+        },
+        "target": {
+          "x": 0,
+          "y": 2.5,
+          "z": -2
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "sha256": "8cd8d06d36042c1211efeff42c7da3a5202e20fa52cd6579abf96b410a6a39c1"
+    }
+  ],
+  "status": "baseline lighting integrated; full-layout acceptance pending",
+  "source_commit": "bc62d98b33850b7c51f01c6f636fef718bd4416a",
+  "checks": {
+    "village_roc_tests": 167,
+    "build_roc_tests": 146,
+    "required_village_build": "passed",
+    "roc_check": "passed",
+    "roc_format": "passed",
+    "image_hashes": 8,
+    "generated_helpers": 3,
+    "package_metadata_matches": "passed",
+    "isolated_pixels_and_camera_match": [
+      "hero",
+      "square"
+    ],
+    "native_exit": "passed",
+    "native_log_diagnostics": 0
+  },
+  "linked_host_sha256": "ff6429340e08d8e3493ec230005814f2241191da44b8ba8148ed02469b485c8c",
+  "native_backend": "Metal",
+  "full_layout": false,
+  "human_acceptance": false,
+  "performance_claim": false,
+  "shader_assets": [
+    {
+      "asset": "shader/VillageGround",
+      "budgets": {
+        "surface_colour": {
+          "attributes": 5,
+          "fragment_components": 152,
+          "pairs": 10,
+          "samplers": 10,
+          "storage_buffers": 3,
+          "texture_views": 10,
+          "uniform_bytes": 1024,
+          "vertex_components": 64
+        },
+        "surface_selection": {
+          "attributes": 5,
+          "fragment_components": 24,
+          "pairs": 7,
+          "samplers": 7,
+          "storage_buffers": 0,
+          "texture_views": 7,
+          "uniform_bytes": 512,
+          "vertex_components": 64
+        },
+        "surface_shadow": {
+          "attributes": 5,
+          "fragment_components": 24,
+          "pairs": 7,
+          "samplers": 7,
+          "storage_buffers": 0,
+          "texture_views": 7,
+          "uniform_bytes": 512,
+          "vertex_components": 64
+        }
+      },
+      "file": "VillageGround.shaderpack",
+      "fingerprint": "b466f11d7aba1b4af1964270dbed573bb58abf67a6200688f6d72ee4aef7f568",
+      "kind": "surface",
+      "sha256": "24d4a68c7dbc22158c5940c08fd5816c53ee441dd52bbe098a1c97210bc498c9"
+    }
+  ]
+}
