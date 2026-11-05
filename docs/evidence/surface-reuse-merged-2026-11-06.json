@@ -1,0 +1,97 @@
+{
+  "integration_commit": "bbef7d6",
+  "cache_source_commit": "dc78b788af8510f1a2cb6eb99aa93e962c0ae2ac",
+  "hosted_fixture_commit": "dd120f6",
+  "result": "passed",
+  "checks": {
+    "strict_engine_normal": 863,
+    "strict_engine_spans": 863,
+    "hosted_fixture_unit": 4,
+    "ordinary_release_host": "pinned Odin902106f",
+    "required_village_build": "5shader packages and2mesh helpers",
+    "precache_all_image_hashes_equal": true,
+    "precache_all_cameras_equal": true,
+    "replay_all_image_hashes_equal": true,
+    "replay_all_cameras_equal": true,
+    "alternate_seed_streams_differ": true,
+    "native_logs": "clean",
+    "native_exits": [
+      0,
+      0,
+      0
+    ]
+  },
+  "native_backend": "Metal",
+  "evidence_mode": "hosted-compat-960",
+  "physical": [
+    960,
+    540
+  ],
+  "logical": [
+    960,
+    540
+  ],
+  "ready_step": 96,
+  "warmup_steps": 432,
+  "source_placements": 1436,
+  "generated_field_density": 22000,
+  "images": {
+    "wind-start": "385eb0b152b8e931ec995a4e9e8d787fbac3cecbbb6ea471d977f06a378795ad",
+    "wind-moving": "ce7a09ffabe88ea6e113ea44286f3a678d5bb5277047a4c6e409cb6d99206e79",
+    "wind-off": "6c6a9c84a4379c136ba4beea75105d8cce43298c24ad6b39f5bb9ce274c9e8f5",
+    "wind-off-later": "6c6a9c84a4379c136ba4beea75105d8cce43298c24ad6b39f5bb9ce274c9e8f5",
+    "hero": "a2f3b0286201dba0afec54b15fd5e797ee260dee2a808b086904695bcac7be4b",
+    "visible": "8a52148cd8e5659ef418c3965c1b2b9a9c4fa9cf097046e21569e560cbd9e85b",
+    "through": "b9e15aaac27bada44cdd5f22bad4ed395585169adb89241a9fca4f654d31183c",
+    "outline-off": "3de5d180c2ca09b0a240bf41e46804d0f2ad90402bbe53d7ecec0a5f6478b348",
+    "ui": "c5083ff1b8c6f32ee9b02b5e256881072be7689b5549eb4a579602019224f625",
+    "ui-no-colour": "1c1aadf2f0908400d1f2c35af1826f23a748c76d804848b187e37fedfe5d9e91"
+  },
+  "cameras": {
+    "hero": {
+      "eye": {
+        "x": 3.402764,
+        "y": 1.8753455,
+        "z": 20.51382
+      },
+      "target": {
+        "x": -1.2,
+        "y": 2.6,
+        "z": -8
+      },
+      "up": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "fov_y": 1.3089969
+    },
+    "outline": {
+      "eye": {
+        "x": 5.8143425,
+        "y": 8,
+        "z": 13.974774
+      },
+      "target": {
+        "x": 0,
+        "y": 2.5,
+        "z": -2
+      },
+      "up": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "fov_y": 1.3089969
+    }
+  },
+  "host_sha256": "4a433b8c7adb338c5aa084c00c99008a1698b08b76af5e9370be7201f40b1d81",
+  "binary_sha256": "28bbf73146b70add6f95b7c78ea040753fe4192197d1e0289c1fb91649e5856d",
+  "performance_repeated": false,
+  "performance_evidence": "surface-reuse-cpu-2026-11-06.json",
+  "remaining_gates": [
+    "Hosted native GL/D3D11 results.",
+    "Strict1080 reference-machine acceptance.",
+    "Full scene human review and performance acceptance."
+  ]
+}
