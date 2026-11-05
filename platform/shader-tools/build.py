@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 
 from declarations import BuildError, Document, validate
@@ -18,6 +19,65 @@ from package import BACKENDS, canonical, compact_gl, digest, fingerprint, pack, 
 from wrappers import Composer
 
 TOOLS = Path(__file__).resolve().parent
+
+
+def declared_paths(declaration_file):
+    path = Path(declaration_file).resolve()
+    value = json.loads(path.read_text(encoding="utf-8"))
+    return hook_paths(path, value)
+
+
+def hook_paths(path, value):
+    paths = {path}
+    if isinstance(value, dict) and isinstance(value.get("shaders"), list):
+        for shader in value["shaders"]:
+            if isinstance(shader, dict):
+                for hook in ("vertex", "surface", "lighting", "post"):
+                    source = shader.get(hook)
+                    if isinstance(source, str) and source and "\0" not in source:
+                        paths.add((path.parent / source).resolve())
+    return paths
+
+
+def snapshot(paths):
+    result = {}
+    for path in sorted(paths):
+        try:
+            result[path] = path.read_bytes()
+        except OSError:
+            result[path] = None
+    return result
+
+
+def windows_sharing_error(error):
+    return sys.platform == "win32" and isinstance(error, PermissionError) and getattr(error, "winerror", None) in (32, 33)
+
+
+class Watcher:
+    def __init__(self, declarations, compile_build):
+        self.declarations = Path(declarations).resolve()
+        self.paths = {self.declarations}
+        self.previous = None
+        self.compile_build = compile_build
+
+    def poll(self):
+        try:
+            self.paths = declared_paths(self.declarations)
+        except (OSError, ValueError, UnicodeError):
+            pass
+        current = snapshot(self.paths)
+        if current == self.previous:
+            return False
+        self.previous = current
+        try:
+            result = self.compile_build()
+            print(f"Built {len(result['assets'])} shader assets and {len(result['meshes'])} mesh helpers.", flush=True)
+        except (BuildError, OSError, UnicodeError, json.JSONDecodeError) as error:
+            print(error, file=sys.stderr, flush=True)
+            # Retry a changed input without requiring another edit.
+            if snapshot(self.paths) != current or windows_sharing_error(error):
+                self.previous = None
+        return True
 
 
 def compiler_path(compiler, contract_dir, install=False):
@@ -103,14 +163,28 @@ def write_changed(path, data):
             stream.write(data)
             # Published assets must be readable across container user boundaries.
             os.chmod(temporary, 0o644)
-        os.replace(temporary, path)
+        for attempt in range(40):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError as error:
+                # Windows readers can briefly deny replacement while opening a package.
+                if not windows_sharing_error(error) or attempt == 39:
+                    raise
+                time.sleep(0.05)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
 
 
 def build(declaration_file, out, helpers, contract_dir=TOOLS / "contract-v1", compiler=None, install=False):
+    declaration_file = Path(declaration_file).resolve()
+    declaration_before = snapshot({declaration_file})
     document = Document(declaration_file)
+    inputs = hook_paths(document.path, document.value)
+    before = snapshot(inputs)
+    if before[document.path] != declaration_before[document.path]:
+        raise BuildError("shader declaration changed during compilation; retry the build")
     declarations = validate(document)
     contract_dir = Path(contract_dir).resolve()
     contract = json.loads((contract_dir / "contract.json").read_text())
@@ -138,11 +212,18 @@ def build(declaration_file, out, helpers, contract_dir=TOOLS / "contract-v1", co
             files[helpers / (mesh["name"] + ".roc")] = mesh_module(mesh["name"], mesh["source"], materials).encode()
             dependencies.add(source)
             meshes.append({"module": mesh["name"], "asset": Path(mesh["source"]).stem, "materials": materials})
-    # Publish only after every shader and helper succeeds. A failed build cannot authorize stale assets.
-    files[out / "build.json"] = canonical({"contract": 1, "compiler_commit": pins["commit"], "assets": assets, "meshes": meshes}) + b"\n"
+    if snapshot(inputs) != before or declared_paths(declaration_file) != inputs:
+        raise BuildError("shader inputs changed during compilation; retry the build")
+    input_hashes = {os.path.relpath(path, document.path.parent).replace(os.sep, "/"):
+                    hashlib.sha256(data).hexdigest() if data is not None else None
+                    for path, data in before.items()}
+    revision = hashlib.sha256(canonical(input_hashes)).hexdigest()
+    completion = canonical({"contract": 1, "compiler_commit": pins["commit"], "revision": revision, "assets": assets, "meshes": meshes}) + b"\n"
     files[out / "dependencies.json"] = canonical({"files": [os.path.relpath(path, document.path.parent).replace(os.sep, "/") for path in sorted(dependencies)]}) + b"\n"
     for path, data in files.items():
         write_changed(path, data)
+    # Readers verify package hashes against this completion record before accepting a generation.
+    write_changed(out / "build.json", completion)
     return {"assets": assets, "meshes": meshes}
 
 
@@ -155,9 +236,18 @@ def main():
     parser.add_argument("--shdc", type=Path)
     parser.add_argument("--install", action="store_true")
     parser.add_argument("--if-present", action="store_true")
+    parser.add_argument("--watch", action="store_true", help="watch the declaration and declared shader hooks by content")
     args = parser.parse_args()
-    if args.if_present and not args.declarations.exists():
+    if args.if_present and not args.watch and not args.declarations.exists():
         return
+    if args.watch:
+        watcher = Watcher(args.declarations, lambda: build(args.declarations, args.out, args.helpers, args.contract, args.shdc, args.install))
+        try:
+            while True:
+                watcher.poll()
+                time.sleep(0.25)
+        except KeyboardInterrupt:
+            return
     try:
         result = build(args.declarations, args.out, args.helpers, args.contract, args.shdc, args.install)
     except (BuildError, OSError, UnicodeError, json.JSONDecodeError) as error:

@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:slice"
 import "core:strings"
+import "core:time"
 
 // One name and id of a Manifest, before it crosses the seam.
 Manifest_Line :: struct {
@@ -43,6 +44,11 @@ Packs :: struct {
 	on_disk:        []string,
 	sound_files:    map[string]string,
 	loaded:         map[string][]Held_Asset,
+	shader_requests: map[string][]string,
+	shader_revision: [32]byte,
+	shader_revision_set: bool,
+	shader_poll_at: time.Tick,
+	shader_polled: bool,
 	mesh_refs:      []int,
 	sky_refs:       []int,
 	sound_refs:     []int,
@@ -87,6 +93,7 @@ packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 		on_disk        = slice.concatenate([][]string{mesh_names, sky_names, sound_names, image_names, shader_names}, allocator),
 		sound_files    = sound_files,
 		loaded         = make(map[string][]Held_Asset, allocator),
+		shader_requests = make(map[string][]string, allocator),
 		logged_packs   = make(map[string]struct {}, allocator),
 		logged_unloads = make(map[string]struct {}, allocator),
 		logged_assets  = make(map[string]struct {}, allocator),
@@ -112,6 +119,11 @@ packs_attach :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, images: 
 
 // Frees what the packs own. The assets stay in their tables.
 packs_destroy :: proc(p: ^Packs) {
+	for pack, names in p.shader_requests {
+		for name in names { delete(name, p.allocator) }
+		delete(names, p.allocator); delete(pack, p.allocator)
+	}
+	delete(p.shader_requests)
 	shader_table_destroy(&p.shaders)
 	delete(p.shader_dir, p.allocator)
 	for name, ids in p.loaded {
@@ -157,8 +169,10 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 	}
 
 	held := make([dynamic]Held_Asset, 0, len(assets), p.allocator)
+	requests := make([dynamic]string, 0, len(assets), p.allocator)
 	manifest = make([]Manifest_Line, len(assets), allocator)
 	for name, i in assets {
+		if pack_kind(name) == .Shader && !slice.contains(requests[:], name) { append(&requests, strings.clone(name, p.allocator)) }
 		asset := pack_asset_id(p, pack, name)
 		manifest[i] = {name = name, id = asset.id}
 		if pack_refcounted(asset) && !slice.contains(held[:], asset) {
@@ -167,6 +181,9 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 		}
 	}
 	p.loaded[strings.clone(pack, p.allocator)] = held[:]
+	if p.shader_requests == nil { p.shader_requests = make(map[string][]string, p.allocator) }
+	p.shader_requests[strings.clone(pack, p.allocator)] = requests[:]
+	if len(requests) > 0 { p.shader_revision_set = false }
 	return manifest, true
 }
 
@@ -229,6 +246,14 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 		case .Shader:
 			shader_table_remove(&p.shaders, mesh_slot(asset.id))
 		}
+	}
+	for request_pack, names in p.shader_requests {
+		if request_pack != pack { continue }
+		delete_key(&p.shader_requests, request_pack)
+		for asset_name in names { delete(asset_name, p.allocator) }
+		if len(names) > 0 { p.shader_revision_set = false }
+		delete(names, p.allocator); delete(request_pack, p.allocator)
+		break
 	}
 	delete(name, p.allocator)
 	delete(held, p.allocator)

@@ -42,6 +42,7 @@ ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game su
 RUN_PREFIX="$RUN" python3 scripts/surface_check.py build/bridge-check/surface
 ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
 RUN_PREFIX="$RUN" python3 scripts/post_check.py build/bridge-check/post
+RUN_PREFIX="$RUN" python3 scripts/shader_reload_check.py build/bridge-check/reload
 
 sh scripts/test-all.sh
 

@@ -32,7 +32,7 @@ Shader_Pipeline_Key :: struct { pass: Surface_Pass, layout: Shader_Layout, alpha
 Shader_Program :: struct { reflection: json.Object, handle: sg.Shader }
 Shader :: struct {
 	name: string,
-	live, ready, failed, retiring: bool,
+	live, staged, ready, failed, retiring, declared: bool,
 	retire_after: u64,
 	generation: u16,
 	package_data: Shader_Package,
@@ -66,7 +66,8 @@ Surface_Vertex_Params :: struct {
 Surface_Instance :: struct { model: [4][4]f32, normal: [3][3]f32, tint: [4]f32 }
 
 shader_table_init :: proc(t: ^Shader_Table, allocator: mem.Allocator) { t.allocator = allocator }
-shader_table_full :: proc(t: ^Shader_Table) -> bool { for s, i in t.assets { if i > 0 && !s.live && !s.retiring && s.generation != max(u16) { return false } }; return true }
+shader_table_full :: proc(t: ^Shader_Table) -> bool { return shader_free_slot(t) == 0 }
+shader_free_slot :: proc(t: ^Shader_Table) -> int { for s, i in t.assets { if i > 0 && !s.live && !s.staged && !s.retiring && s.generation != max(u16) { return i } }; return 0 }
 shader_id :: proc(t: ^Shader_Table, slot: int) -> u32 { return u32(t.assets[slot].generation) << MESH_SLOT_BITS | u32(slot) }
 shader_lookup :: proc(t: ^Shader_Table, id: u32) -> (^Shader, bool) { slot := mesh_slot(id); if slot > 0 && slot < len(t.assets) && t.assets[slot].live && shader_id(t, slot) == id { return &t.assets[slot], true }; return nil, false }
 shader_table_find :: proc(t: ^Shader_Table, name: string) -> (u32, bool) { for s, i in t.assets { if s.live && s.name == name { return shader_id(t, i), true } }; return 0, false }
@@ -108,7 +109,7 @@ shader_load_file_scoped :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32
 	pkg, error, parsed := shader_package_parse(bytes, t.allocator)
 	if !parsed { delete(bytes, t.allocator); return 0, error, false }
 	for &s, slot in t.assets {
-		if slot == 0 || s.live || s.retiring || s.generation == max(u16) { continue }
+		if slot == 0 || s.live || s.staged || s.retiring || s.generation == max(u16) { continue }
 		s = {name = strings.clone(name, t.allocator), live = true, generation = s.generation, package_data = pkg, pipelines = make(map[Shader_Pipeline_Key]sg.Pipeline, t.allocator)}
 		if t.uploaded && !shader_upload(t, &s) { shader_table_remove(t, slot); return 0, "Shader GPU generation failed", false }
 		return shader_id(t, slot), "", true
@@ -148,6 +149,7 @@ shader_table_frame :: proc(t: ^Shader_Table) {
 }
 shader_table_destroy :: proc(t: ^Shader_Table) {
  for &s, i in t.assets {
+  if s.staged { shader_candidate_destroy(t, i) }
   if s.live { shader_table_remove(t, i) }
   if s.retiring { shader_retire_destroy(&s) }
  }
@@ -186,7 +188,11 @@ shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
 	case:
 		s.failed = true; return false
 	}
-	defer if !s.ready { s.failed = true; shader_gpu_destroy(s); fmt.eprintfln("Shader %q failed GPU validation; affected parts are omitted", s.name) }
+	defer if !s.ready {
+		s.failed = true; shader_gpu_destroy(s)
+		if s.staged { fmt.eprintfln("Shader %q candidate failed GPU validation", s.name) }
+		else { fmt.eprintfln("Shader %q failed GPU validation; affected parts are omitted", s.name) }
+	}
  for declaration in shader_array(shader_interface(s)["textures"]) {
   d := shader_object(declaration)
   if "constant" in shader_object(d["default"]) {

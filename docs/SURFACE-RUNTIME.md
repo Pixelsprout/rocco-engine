@@ -105,9 +105,12 @@ Imported image and cube destruction uses Sokol's native retirement rules.
 Resolved material descriptions live only in the frame arena.
 They cannot retain stale GPU bindings across frames.
 
-The later reload task must reserve staging capacity before GPU creation.
-It must retain the current generation and its dependencies after any failed reload.
+Reload reserves an unpublished staging slot before GPU creation.
+It retains the current generation and its dependencies after any failed reload.
 An explicit dependency Pack unload still invalidates those dependent descriptions.
+Compatible reload preserves the public Shader ID and every holding Pack's reference count.
+The old GPU generation occupies the staging slot during retirement.
+Failed candidates release their resources immediately because no frame submitted them.
 
 ## Capacity
 
@@ -171,9 +174,9 @@ Post integration must retain non-casters in selection.
 It must generate separate scene depth when MSAA prevents portable depth sampling.
 
 Reload integration can reuse package validation, program creation, and bounded retirement.
-It must retain requested Pack membership to recover failed first loads.
-The current Pack cache retains successful held IDs and logs failed asset names.
-It must switch complete compatible generations at a frame boundary.
+The Pack cache retains requested Shader membership separately from successful held IDs.
+It recovers failed first loads after the compiler publishes a complete build.
+It switches complete compatible generations before frame material resolution.
 Instancing can reuse `Shader_Layout.Instanced` and `Surface_Instance`.
 The instance stream uses 116 bytes with scalar model and normal columns.
 Model, normal and tint begin at byte offsets 0, 64 and 100.
