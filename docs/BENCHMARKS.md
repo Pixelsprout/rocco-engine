@@ -163,7 +163,12 @@ The merged Metal fixture passed all 800 probes and exact paused replay checks.
 The merged MASK example also built and rendered at fixed step 120.
 The agent inspected both examples, and both processes exited successfully without graphics errors.
 The captures, numeric evidence, and cluster log are in `/tmp/rocco-cluster-merged/`.
-Native GL and D3D11 fixture results remain CI gates.
+[CI run 41959704344](https://github.com/Pixelsprout/rocco-engine/actions/runs/41959704344) passed the fixture on Metal, GL, and D3D11.
+Each backend passed all 800 probes, four views, paused replay, camera movement, and lamp movement.
+The processes exited successfully without graphics errors.
+Later benchmark checks failed because explicit Draw records lacked the new casting field.
+Commit `43dd7e2` repairs those records and passes all benchmark checks.
+That later failure does not change the recorded native lighting results.
 
 ### Bloom in the glow example
 

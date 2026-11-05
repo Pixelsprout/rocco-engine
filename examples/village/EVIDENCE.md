@@ -1,7 +1,16 @@
 # Source-resolution baseline evidence
 
 Date: 2026-11-05.
-Status: loader prerequisite verified; human composition review remains pending.
+Status: loader prerequisite verified; baseline composition approved on 2026-11-05.
+
+## Human baseline review
+
+The user approved the source-resolution hero view, square view, and source tour on 2026-11-05.
+The recorded response was: "Approve baseline composition".
+The reviewed artifacts are `/tmp/village-source-evidence/hero.png`, `square.png`, and `route.mp4`.
+This approval completes the baseline composition gate.
+Full village integration still requires the early shader workflow proof.
+Foliage, lighting, complete-scene, and final PC reviews remain separate.
 
 The prepared GLBs contain the original PNG payloads.
 The texture cap is zero.
@@ -181,7 +190,7 @@ The earlier GPU measurements below used diagnostic textures.
 # Earlier diagnostic evidence
 
 Date: 2026-11-05.
-Status: diagnostic only; source-resolution assets and human composition review remain pending.
+Historical diagnostic only; the source-resolution checks and review above supersede this stage.
 
 The baseline contains 155 Draws, including the source ground plane.
 All 33 prepared meshes resolved through the Bridge.
