@@ -1,12 +1,15 @@
 # Shader asset contract, version 1
 
 Date: 2026-11-05.
-Status: executable package reference; engine integration follows.
+Status: executable package reference and public compiler; engine integration follows.
 [ADR 0028](adr/0028-game-shaders-are-pack-assets.md) owns the authoring decisions.
 [The immersive scope](IMMERSIVE-SCENE.md) owns the village requirements.
 
 The compiler, Surface integration, Post integration, and reload work must use this contract.
 The reference code lives in `scripts/shader_contract/`.
+The public compiler lives in `platform/shader-tools/`.
+[The authoring guide](GAME-SHADERS.md) defines its supported declarations and hooks.
+[The loader handoff](SHADER-LOADER-HANDOFF.md) records its production layouts.
 It does not add a Shader loader to the engine.
 
 ## Reproduce the proof
@@ -274,13 +277,19 @@ Version 1 limits authoring more tightly:
 | Active sampled images | 12 across both stages |
 | Texture/sampler pairs | One per declaration; at most 12 |
 | Active storage views | Three, in fragment stage |
-| Surface attributes | Five rigid; seven skinned |
+| Surface attributes | Five rigid; seven skinned; thirteen rigid instanced |
 | Post attributes | Zero; fullscreen triangle uses vertex id |
 | Cascades | Four |
 | Joints | 64, subject to the GL uniform check below |
 
 The Surface attribute order is position, vertex colour, normal, UV, tangent, joint ids, and joint weights.
 The first five use FLOAT3, FLOAT4, FLOAT3, FLOAT2, and FLOAT4.
+The rigid instanced layout adds four FLOAT4 model columns, three FLOAT3 inverse-transpose normal columns, and one FLOAT4 tint.
+These eight additional attributes use per-instance stepping.
+Instancing adds no storage views.
+Batch keys retain identical arbitrary Draw parameters, textures, material state, and Draw data.
+Only instance model, normal transform, and tint vary within a batch.
+Skinned instancing is unavailable in version 1.
 Joint ids use unsigned bytes.
 Joint weights retain the imported normalized weights.
 The fixture uses FLOAT4 weights to exercise the same seven attribute locations.
@@ -348,8 +357,10 @@ Count a shadow submit for each cascade.
 Use checked arithmetic and reject budgets above the API's signed 32-bit arena size.
 The proof reserves 1 MiB and applies 20,480 bytes per frame.
 
-A Surface has six compiled programs: three passes times rigid or skinned layout.
-An asset can omit skinned variants when its declaration excludes skinning.
+A Surface has nine compiled programs: three passes times rigid, skinned, or rigid instanced layout.
+An asset can omit skinned or instanced variants when its declaration excludes that layout.
+The original reference fixture retains its six Surface programs and two Post programs.
+The production native fixture exercises all nine Surface programs and both Post locations.
 A Post has one program for its declared location.
 The proof includes both locations.
 
@@ -359,8 +370,8 @@ Shadow and selection use solid or cutout coverage policies.
 Blend selection uses full-shape coverage, consistent with the existing selection policy.
 The three cull states are back, front, and none.
 
-A conservative cache ceiling is `2 * (3*3 + 2*3 + 2*3) = 42` pipelines per Surface generation.
-This ceiling covers both vertex layouts, one main sample count, and fixed pass formats.
+A conservative cache ceiling is `3 * (3*3 + 2*3 + 2*3) = 63` pipelines per Surface generation.
+This ceiling covers all three vertex layouts, one main sample count, and fixed pass formats.
 Only allocate keys used by the game.
 Multiply the ceiling when retaining multiple sample counts or target format sets.
 A Post needs one pipeline per target format and sample count.

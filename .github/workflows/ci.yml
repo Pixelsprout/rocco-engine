@@ -47,13 +47,17 @@ jobs:
         run: |
           python3 scripts/shader_contract/install.py
           python3 scripts/shader_contract/contract.py --shdc build/shader-tools/sokol-shdc --check --run
+          python3 scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc
+          ROCCO_SHDC=build/shader-tools/sokol-shdc python3 -m unittest scripts/test_shader_assets.py
 
       - name: Keep the Metal shader proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: shader-contract-metal
-          path: build/shader-contract/
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
           if-no-files-found: warn
 
       - name: Build the miniaudio archive
@@ -141,7 +145,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: shader-contract-gl
-          path: build/shader-contract/
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
           if-no-files-found: warn
 
       - name: Audit the Linux stubs
@@ -199,13 +205,17 @@ jobs:
         run: |
           python scripts/shader_contract/install.py
           python scripts/shader_contract/contract.py --shdc build/shader-tools/sokol-shdc.exe --check --run
+          python scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc.exe
+          ROCCO_SHDC=build/shader-tools/sokol-shdc.exe python -m unittest scripts/test_shader_assets.py
 
       - name: Keep the D3D11 shader proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: shader-contract-d3d11
-          path: build/shader-contract/
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
           if-no-files-found: warn
 
       - name: Build
@@ -254,7 +264,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_shader_assets.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |

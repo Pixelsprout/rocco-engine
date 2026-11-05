@@ -183,7 +183,8 @@ jobs:
           mkdir -p "$out/platform"
           cd platform
           mapfile -t targets < <(find targets -type f | sort)
-          roc bundle ./*.roc "${targets[@]}" --output-dir "$out/platform"
+          mapfile -t shader_tools < <(find shader-tools -type f ! -path '*/__pycache__/*' | sort)
+          roc bundle ./*.roc "${targets[@]}" "${shader_tools[@]}" --output-dir "$out/platform"
           cd ..
           for name in $packages; do
             mkdir -p "$out/$name"

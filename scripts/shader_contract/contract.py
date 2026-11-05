@@ -282,7 +282,7 @@ def remap_gl_storage(program, source):
 
 def emit_c(manifest, payload, path):
     lines = ["/* Generated from the decoded shader package. */", "#include <string.h>",
-             "#define PROOF_PROGRAM_COUNT 8", "static const char *proof_names[] = {" +
+             f"#define PROOF_PROGRAM_COUNT {len(manifest['shaders'][0]['programs'])}", "static const char *proof_names[] = {" +
              ",".join(json.dumps(p["name"]) for p in manifest["shaders"][0]["programs"]) + "};",
              "static sg_shader_desc proof_desc(int index, sg_backend backend) {", "sg_shader_desc d = {0};"]
     backend_ids = {"glsl430": "SG_BACKEND_GLCORE", "hlsl5": "SG_BACKEND_D3D11", "metal_macos": "SG_BACKEND_METAL_MACOS"}
@@ -322,13 +322,15 @@ def emit_c(manifest, payload, path):
                     continue
                 t = v["texture"]
                 prefix = f"d.views[{t['slot']}].texture"
-                lines.extend([f"{prefix}.stage = SG_SHADERSTAGE_{t['stage'].upper()};", f"{prefix}.image_type = SG_IMAGETYPE_2D;", f"{prefix}.sample_type = SG_IMAGESAMPLETYPE_FLOAT;"])
+                image_type = {"2d": "2D", "2d_array": "ARRAY", "array": "ARRAY", "cube": "CUBE"}[t["type"]]
+                sample_type = t["sample_type"].upper()
+                lines.extend([f"{prefix}.stage = SG_SHADERSTAGE_{t['stage'].upper()};", f"{prefix}.image_type = SG_IMAGETYPE_{image_type};", f"{prefix}.sample_type = SG_IMAGESAMPLETYPE_{sample_type};"])
                 for key in ("msl_texture_n", "hlsl_register_t_n"):
                     if key in t:
                         lines.append(f"{prefix}.{key} = {t[key]};")
             for s in p.get("samplers", []):
                 prefix = f"d.samplers[{s['slot']}]"
-                lines.extend([f"{prefix}.stage = SG_SHADERSTAGE_{s['stage'].upper()};", f"{prefix}.sampler_type = SG_SAMPLERTYPE_FILTERING;"])
+                lines.extend([f"{prefix}.stage = SG_SHADERSTAGE_{s['stage'].upper()};", f"{prefix}.sampler_type = SG_SAMPLERTYPE_{s['sampler_type'].upper()};"])
                 for key in ("msl_sampler_n", "hlsl_register_s_n"):
                     if key in s:
                         lines.append(f"{prefix}.{key} = {s[key]};")
