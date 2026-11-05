@@ -148,6 +148,8 @@ Both merged engine suites passed all 786 tests with vet and strict style checks.
 The merged Metal run captured fixed step 120 at 960 by 540 physical pixels in `/tmp/mask-merged.png`.
 The agent inspected the capture, and the process exited successfully without Sokol validation failures.
 
-Linux GL and Windows D3D11 runtime checks remain PR CI gates.
-Shader translation or host cross-compilation does not satisfy those runtime gates.
-The existing CI jobs run the MASK example on their respective backends.
+[CI run 41957125811](https://github.com/Pixelsprout/rocco-engine/actions/runs/41957125811) passed all four jobs at commit `efc6872`.
+Its native Metal, Linux GL, and Windows D3D11 jobs built and ran the MASK example.
+The jobs also passed the Bridge checks and engine tests.
+These runtime results satisfy the desktop backend gates for this change.
+Custom Surface variants remain part of the later shader integration.
