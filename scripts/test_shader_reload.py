@@ -246,32 +246,42 @@ class WindowsPublicationTests(unittest.TestCase):
         kernel.CreateFileW.restype = wintypes.HANDLE
         kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
         kernel.CloseHandle.restype = wintypes.BOOL
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'build.json'
-            path.write_bytes(b'old')
-            share_read_write = 0x1 | 0x2
-            handle = kernel.CreateFileW(str(path), 0x80000000, share_read_write, None, 3, 0x80, None)
-            self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
-            closed = False
-            backoff = build.time.sleep
-            def release_reader(delay):
-                nonlocal closed
-                if not closed:
-                    self.assertTrue(kernel.CloseHandle(handle))
-                    closed = True
-                backoff(delay)
-            try:
-                with mock.patch.object(build.time, 'sleep', side_effect=release_reader) as sleep:
-                    build.write_changed(path, b'new')
-                self.assertTrue(closed)
-                self.assertGreaterEqual(sleep.call_count, 1)
-                self.assertLessEqual(sleep.call_count, 39)
-                sleep.assert_called_with(0.05)
-                self.assertEqual(path.read_bytes(), b'new')
-                self.assertEqual([p.name for p in Path(directory).iterdir()], ['build.json'])
-            finally:
-                if not closed:
-                    kernel.CloseHandle(handle)
+        kernel.ReadFile.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p)
+        kernel.ReadFile.restype = wintypes.BOOL
+        share_read_write = 0x1 | 0x2
+        share_delete = 0x4
+        for sharing in (share_read_write, share_read_write | share_delete):
+            with self.subTest(sharing=sharing), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'build.json'
+                path.write_bytes(b'old')
+                handle = kernel.CreateFileW(str(path), 0x80000000, sharing, None, 3, 0x80, None)
+                self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
+                closed = False
+                backoff = build.time.sleep
+                def release_reader(delay):
+                    nonlocal closed
+                    if not closed:
+                        previous = ctypes.create_string_buffer(3)
+                        read = wintypes.DWORD()
+                        self.assertTrue(kernel.ReadFile(handle, previous, len(previous), ctypes.byref(read), None))
+                        self.assertEqual(read.value, 3)
+                        self.assertEqual(previous.raw, b'old')
+                        self.assertEqual(path.read_bytes(), b'old')
+                        self.assertTrue(kernel.CloseHandle(handle))
+                        closed = True
+                    backoff(delay)
+                try:
+                    with mock.patch.object(build.time, 'sleep', side_effect=release_reader) as sleep:
+                        build.write_changed(path, b'new')
+                    self.assertTrue(closed)
+                    self.assertGreaterEqual(sleep.call_count, 1)
+                    self.assertLessEqual(sleep.call_count, 39)
+                    sleep.assert_called_with(0.05)
+                    self.assertEqual(path.read_bytes(), b'new')
+                    self.assertEqual([p.name for p in Path(directory).iterdir()], ['build.json'])
+                finally:
+                    if not closed:
+                        kernel.CloseHandle(handle)
 
     def test_readonly_target_fails_with_bounded_retries_and_no_watch_loop(self):
         with tempfile.TemporaryDirectory() as directory:
