@@ -20,9 +20,12 @@ Image :: struct {
 	width:      int,
 	height:     int,
 	pixels:     []byte,
+	linear_pixels: []byte,
 	live:       bool,
 	image:      sg.Image,
 	view:       sg.View,
+	linear_image: sg.Image,
+	linear_view: sg.View,
 	generation: u16,
 }
 
@@ -61,6 +64,7 @@ image_table_destroy :: proc(t: ^Image_Table) {
 		if image.live {
 			delete(image.name, t.allocator)
 			delete(image.pixels, t.allocator)
+			delete(image.linear_pixels, t.allocator)
 		}
 	}
 	delete(t.images, t.perm)
@@ -97,7 +101,7 @@ image_table_find :: proc(t: ^Image_Table, name: string) -> (id: u32, found: bool
 
 // Keeps the slot's generation, so an Image in a reused slot gets a new id.
 // name and pixels must come from t.allocator.
-image_table_add :: proc(t: ^Image_Table, name: string, width, height: int, pixels: []byte) -> (slot: int, ok: bool) {
+image_table_add :: proc(t: ^Image_Table, name: string, width, height: int, pixels: []byte, linear_pixels: []byte = nil) -> (slot: int, ok: bool) {
 	if image_table_full(t) {
 		return 0, false
 	}
@@ -108,7 +112,7 @@ image_table_add :: proc(t: ^Image_Table, name: string, width, height: int, pixel
 		slot = t.count
 		t.count += 1
 	}
-	t.images[slot] = {name = name, width = width, height = height, pixels = pixels, live = true, generation = t.images[slot].generation}
+	t.images[slot] = {name = name, width = width, height = height, pixels = pixels, linear_pixels = linear_pixels, live = true, generation = t.images[slot].generation}
 	if t.uploaded {
 		image_upload(t, &t.images[slot])
 	}
@@ -123,9 +127,12 @@ image_table_remove :: proc(t: ^Image_Table, slot: int) {
 	if image.image.id != 0 {
 		sg.destroy_view(image.view)
 		sg.destroy_image(image.image)
+		sg.destroy_view(image.linear_view)
+		sg.destroy_image(image.linear_image)
 	}
 	delete(image.name, t.allocator)
 	delete(image.pixels, t.allocator)
+	delete(image.linear_pixels, t.allocator)
 	image^ = {generation = image.generation + 1}
 	t.free[t.free_count] = slot
 	t.free_count += 1
@@ -214,8 +221,9 @@ image_load_file :: proc(t: ^Image_Table, dir, name: string) -> (id: u32, reason:
 	if !decoded {
 		return 0, strings.clone(fmt.tprintf("%v is not a PNG it can read", path), caller_temp), false
 	}
+	linear_pixels := slice.clone(rgba, t.allocator)
 	image_bleed(width, height, rgba)
-	slot, _ := image_table_add(t, strings.clone(name, t.allocator), width, height, slice.clone(rgba, t.allocator))
+	slot, _ := image_table_add(t, strings.clone(name, t.allocator), width, height, slice.clone(rgba, t.allocator), linear_pixels)
 	return image_id(t, slot), "", true
 }
 
@@ -233,6 +241,11 @@ image_upload :: proc(t: ^Image_Table, image: ^Image) {
 		},
 	)
 	image.view = sg.make_view({texture = {image = image.image}})
+ linear_pixels := image.linear_pixels if image.linear_pixels != nil else image.pixels
+ image.linear_image = sg.make_image({width = i32(image.width), height = i32(image.height), pixel_format = .RGBA8, data = {mip_levels = {0 = {ptr = raw_data(linear_pixels), size = uint(len(linear_pixels))}}}})
+ image.linear_view = sg.make_view({texture = {image = image.linear_image}})
 	delete(image.pixels, t.allocator)
 	image.pixels = nil
+	delete(image.linear_pixels, t.allocator)
+	image.linear_pixels = nil
 }

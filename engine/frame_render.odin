@@ -76,6 +76,7 @@ Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
+Submit_Surface :: #type proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame)
 Submit_Environment :: #type proc(ctx: rawptr, sky: ^Sky)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
@@ -91,6 +92,7 @@ Frame_Render_Submits :: struct {
 	submit_shadow:   Submit_Shadow,
 	submit:          Submit,
 	submit_lights:   Submit_Lights,
+	submit_surface: Submit_Surface,
 	submit_sky:      Submit_Sky,
 	submit_environment: Submit_Environment,
 	submit_bloom:    Submit_Bloom,
@@ -130,6 +132,8 @@ Light_Drop :: enum {
 // its skin block at each change of Mesh_Pipeline. The host drops the Draws
 // past either limit, because a release sokol writes past a full buffer.
 Frame_Render :: struct {
+	packs: ^Packs,
+	render_time: f32,
 	pairing:            Pairing,
 	particles:          ^Particles,
 	particles_paused:   bool,
@@ -162,7 +166,10 @@ Draw_Transform :: struct {
 // is the mesh box in the Sun's view space; only the shadow pass of 2 to 4
 // cascades fills it. A Draw with a shadow_count of 0 casts no shadow.
 Placed :: struct {
+	draw_id: u64,
 	mesh:         ^Mesh,
+	box: Box,
+	bounds_resolved: bool,
 	parts:        []Mesh_Part,
 	fallback:     bool,
 	tint:         Rgb,
@@ -203,6 +210,7 @@ Blend_Draw :: struct {
 Frame_Walk :: struct {
 	fr:           ^Frame_Render,
 	meshes:       ^Mesh_Table,
+	scene_values: []Shader_Values,
 	lights:       Light_Gather,
 	part_draws_seen:   int,
 	part_draws_placed: int,
@@ -291,11 +299,13 @@ frame_render_draw :: proc(
 	submit := true,
 ) {
 	span := span_open()
+	if submit && fr.packs != nil { shader_table_frame(&fr.packs.shaders) }
 	pairing_build(&fr.pairing, prev.nodes.elements[:prev.nodes.length])
 	clear(&fr.placed)
 	frame_walk := Frame_Walk {
 		fr = fr,
 		meshes = meshes,
+		scene_values = curr.shader_values.elements[:curr.shader_values.length],
 		lights = {
 			directionals = make([dynamic]Packed_Light, 0, 16, context.temp_allocator),
 			points = make([dynamic]Packed_Light, 0, 16, context.temp_allocator),
@@ -361,13 +371,14 @@ frame_render_draw :: proc(
 	lights.fog_color.w = shadow_filter_radius(shadow.filter)
 	lights.camera_pos.w = shadow.depth_bias
 
+	sky, has_sky := sky_resolve(skies, env.sky)
+	if fr.submits.submit_environment != nil { fr.submits.submit_environment(fr.submits.ctx, sky) }
+
 	if gathered.has_sun && placed_casts(fr.placed[:]) {
 		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span, shadow)
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
-	sky, has_sky := sky_resolve(skies, env.sky)
-	if fr.submits.submit_environment != nil { fr.submits.submit_environment(fr.submits.ctx, sky) }
 	fr.submits.submit_lights(fr.submits.ctx, lights, clusters)
 	draw_params := make([]Draw_Params, len(fr.placed), context.temp_allocator)
 	for &p, i in fr.placed {
@@ -419,18 +430,26 @@ frame_render_draw :: proc(
 
 @(private = "file")
 frame_render_draw_params :: proc(p: ^Placed, view: Frame_View) -> Draw_Params {
-	tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
-	glow := [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
-	params := Fs_Params {
-		tint = tint,
-		glow = glow,
-	}
-	vs_params := Vs_Params {
-		mvp          = view.view_proj * p.model,
-		model        = p.model,
-		normal_model = draw_normal_matrix(p.transform),
-	}
-	return {p, vs_params, params}
+ vs, fs := placed_draw_params(p, view.view_proj)
+ return {p, vs, fs}
+}
+
+placed_draw_params :: proc(p: ^Placed, view_proj: Mat4) -> (vs: Vs_Params, fs: Fs_Params) {
+ fs.tint = [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
+ fs.glow = [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
+ vs = {mvp = view_proj * p.model, model = p.model, normal_model = draw_normal_matrix(p.transform)}
+ return
+}
+
+frame_render_part_params :: proc(base: Fs_Params, part: ^Mesh_Part, resolved_alpha_policy := false) -> (params: Fs_Params) {
+ material := part.material
+ params = base
+ params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, material.alpha_cutoff}
+ params.emissive = {material.emissive.x, material.emissive.y, material.emissive.z, 0}
+ policy := f32(material.alpha_mode) if resolved_alpha_policy || part.surface != nil else 0
+ params.maps = {material.normal_scale, material.occlusion_strength, policy, 0}
+ if part.raw_colour { params.tint *= part.base_colour }
+ return
 }
 
 // Equal distances keep Draw order, then retained source slot order.
@@ -441,7 +460,7 @@ frame_render_sort_blend_draws :: proc(draw_params: []Draw_Params, eye: [3]f32, b
 		if !placed_has_blend(d.p) {
 			continue
 		}
-		box := box_transform(d.p.mesh.box, d.p.model)
+		box := box_transform(placed_box(d.p), d.p.model)
 		to_centre := (box.min + box.max) / 2 - eye
 		append(&blend, Blend_Draw{params = d, distance_sq = linalg.dot(to_centre, to_centre)})
 	}
@@ -488,13 +507,14 @@ frame_render_submit_blend_parts :: proc(fr: ^Frame_Render, d: Draw_Params) {
 
 @(private = "file")
 frame_render_submit_part :: proc(fr: ^Frame_Render, d: Draw_Params, part: ^Mesh_Part, pipeline: Mesh_Pipeline) {
-	material := part.material
-	e := material.emissive
-	params := d.fs_params
-	params.material = {material.roughness, material.metallic, 1 if material.unlit else 0, material.alpha_cutoff}
-	params.emissive = {e.x, e.y, e.z, 0}
-	params.maps = {material.normal_scale, material.occlusion_strength, 0, 0}
-	fr.submits.submit(fr.submits.ctx, d.p.mesh, part, pipeline, d.vs_params, params, d.p.skin)
+	params := frame_render_part_params(d.fs_params, part)
+	if part.surface != nil {
+		if fr.submits.submit_surface != nil {
+			fr.submits.submit_surface(fr.submits.ctx, .Colour, d.p.mesh, part, pipeline, d.vs_params, params, d.p.skin)
+		}
+	} else {
+		fr.submits.submit(fr.submits.ctx, d.p.mesh, part, pipeline, d.vs_params, params, d.p.skin)
+	}
 }
 
 // The pipeline of a part that draws before the sky. A Blend part has no
@@ -532,6 +552,7 @@ part_draws :: proc(m: Material) -> int {
 skin_blocks :: proc(parts: []Mesh_Part) -> int {
 	used: bit_set[Mesh_Pipeline]
 	runs := 0
+	for part in parts { if part.surface != nil { count := 0; for p in parts { count += part_draws(p.material) }; return count } }
 	last := Mesh_Pipeline.Opaque
 	for part in parts {
 		if p, ok := part_pipeline(part.material); ok {
@@ -569,9 +590,10 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 @(private = "file")
 frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room, fits: bool) {
 	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
+	parts := surface_resolve_parts(fw.fr.packs, d, mesh, fw.scene_values, fw.fr.render_time)
 	left := fw.fr.draw_capacity - fw.part_draws_placed
 	count, counted := 0, 0
-	for part, i in mesh.parts {
+	for part, i in parts {
 		n := part_draws(part.material)
 		fw.part_draws_seen += n
 		if count == i && counted + n <= left {
@@ -579,7 +601,7 @@ frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room
 			counted += n
 		}
 	}
-	if count < len(mesh.parts) {
+	if count < len(parts) {
 		fw.part_draws_placed = fw.fr.draw_capacity
 		counted = 0
 	}
@@ -589,7 +611,7 @@ frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room
 	skin: ^Skin_Params
 	if mesh_skinned(mesh) {
 		fw.skinned_seen += 1
-		blocks := skin_blocks(mesh.parts[:count])
+		blocks := skin_blocks(parts[:count])
 		fw.skin_blocks_seen += blocks
 		if fw.skin_blocks + blocks > len(fw.fr.skins) {
 			return {}, false
@@ -599,15 +621,22 @@ frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room
 		fw.skin_blocks += blocks
 	}
 	fw.part_draws_placed += counted
-	return {mesh = mesh, fallback = fallback, parts = mesh.parts[:count], skin = skin}, true
+	return {mesh = mesh, fallback = fallback, parts = parts[:count], skin = skin}, true
 }
 
 @(private = "file")
 frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x: Draw_Transform) {
+ box := room.mesh.box
+ displacement := f32(0)
+ for part in room.parts { if part.surface != nil { displacement = max(displacement, part.surface.shader.package_data.max_displacement) } }
+ box.min -= displacement; box.max += displacement
 	append(
 		&fw.fr.placed,
 		Placed {
 			mesh = room.mesh,
+			draw_id = d.id,
+			box = box,
+			bounds_resolved = true,
 			parts = room.parts,
 			fallback = room.fallback,
 			tint = d.tint,
@@ -648,7 +677,7 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 	light_view := light_view_of(to_light)
 	for &p in fr.placed {
 		if p.shadow_count > 0 {
-			p.light_box = light_box(light_view, p.model, p.mesh.box)
+			p.light_box = light_box(light_view, p.model, placed_box(&p))
 		}
 	}
 	splits := cascade_splits(SCENE_NEAR, distance, fr.cascades, settings.distribution)
@@ -676,7 +705,7 @@ frame_render_shadow_parts :: proc(fr: ^Frame_Render, light_view_proj: Mat4, casc
 				continue
 			}
 			params := Shadow_Vs_Params{light_mvp = light_view_proj * p.model}
-			if pipeline == .Opaque {
+			if pipeline == .Opaque && !p.parts[0].raw_colour {
 				part := Mesh_Part{count = parts_opaque_count(p.parts)}
 				if part.count > 0 {
 					fr.submits.submit_shadow(fr.submits.ctx, p.mesh, &part, pipeline, params, p.skin)
@@ -686,7 +715,18 @@ frame_render_shadow_parts :: proc(fr: ^Frame_Render, light_view_proj: Mat4, casc
 			for &part in p.parts {
 				if pp, ok := part_pipeline(part.material); ok && pp == pipeline {
 					params.shadow_material = {part.material.alpha_cutoff, 0, 0, 0}
-					fr.submits.submit_shadow(fr.submits.ctx, p.mesh, &part, pipeline, params, p.skin)
+					if part.raw_colour && part.base_colour.a != 1 {
+						params.shadow_material.x /= max(part.base_colour.a, 0.000001)
+					}
+					if part.surface != nil {
+						if fr.submits.submit_surface != nil {
+							vs, base := placed_draw_params(p, light_view_proj)
+							fs := frame_render_part_params(base, &part)
+							fr.submits.submit_surface(fr.submits.ctx, .Shadow, p.mesh, &part, pipeline, vs, fs, p.skin)
+						}
+					} else {
+						fr.submits.submit_shadow(fr.submits.ctx, p.mesh, &part, pipeline, params, p.skin)
+					}
 				}
 			}
 		}
@@ -695,7 +735,7 @@ frame_render_shadow_parts :: proc(fr: ^Frame_Render, light_view_proj: Mat4, casc
 
 @(private = "file")
 placed_casts :: proc(placed: []Placed) -> bool {
-	for p in placed {
+	for &p in placed {
 		if p.shadow_count > 0 {
 			return true
 		}
@@ -738,11 +778,11 @@ shadow_view_proj :: proc(to_light: [3]f32, placed: []Placed) -> Mat4 {
 	light_view := light_view_of(to_light)
 	lo := [3]f32{max(f32), max(f32), max(f32)}
 	hi := -lo
-	for p in placed {
+	for &p in placed {
 		if p.shadow_count == 0 {
 			continue
 		}
-		box := light_box(light_view, p.model, p.mesh.box)
+		box := light_box(light_view, p.model, placed_box(&p))
 		lo = linalg.min(lo, box.min)
 		hi = linalg.max(hi, box.max)
 	}
@@ -949,3 +989,5 @@ submits_none_submit_bloom :: proc(ctx: rawptr, step: Bloom_Step) {}
 @(private = "file")
 submits_none_submit_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {}
 
+
+placed_box :: proc(p: ^Placed) -> Box { return p.box if p.bounds_resolved else p.mesh.box }

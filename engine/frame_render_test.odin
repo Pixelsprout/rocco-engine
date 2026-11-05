@@ -70,6 +70,7 @@ Particle_Recorded :: struct {batch: Particle_Batch, before: int}
 // number of submit_ui calls before the tone map.
 Recorder :: struct {
 	particles: [dynamic]Particle_Recorded,
+	surfaces: [dynamic]Surface_Observed,
 	passes:        [dynamic]Pass_Begun,
 	pass_ends:     int,
 	shadows:       [dynamic]Shadow_Submitted,
@@ -330,6 +331,7 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 }
 
 recorder_destroy :: proc(r: ^Recorder) {
+	delete(r.surfaces)
 	delete(r.submits)
 	delete(r.passes)
 	delete(r.shadows)

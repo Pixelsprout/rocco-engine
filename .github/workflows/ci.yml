@@ -79,6 +79,8 @@ jobs:
           python3 scripts/environment_check.py build/bridge-check/environment/reference.png
           python3 scripts/shadow_check.py build/bridge-check/shadows
           python3 scripts/particle_check.py build/bridge-check/particles
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
+          python3 scripts/surface_check.py build/bridge-check/surface
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -240,6 +242,8 @@ jobs:
           python scripts/environment_check.py build/bridge-check/environment/reference.png
           python scripts/shadow_check.py build/bridge-check/shadows
           python scripts/particle_check.py build/bridge-check/particles
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game surface
+          python scripts/surface_check.py build/bridge-check/surface
 
       - name: Keep the Bridge check screenshots
         if: always()

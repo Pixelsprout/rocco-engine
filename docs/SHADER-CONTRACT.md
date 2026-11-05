@@ -479,9 +479,13 @@ The engine resolves the reference to an owned image, view, and sampler.
 The assignment must match dimension, colour space, sample type, and scope.
 Colour images sample as linear values through their declared sRGB format.
 Normal, roughness, metallic, occlusion, depth, and noise images use linear data formats.
-The engine retains referenced Pack resources for every live shader and Material generation.
-A Pack unload must remove dependent descriptions or retain those resources until GPU use ends.
-A failed reload must retain the previous shader and its texture dependencies together.
+The runtime resolves references through their named live Pack at each frame boundary.
+Explicit Pack unload invalidates dependent resolved materials and omits affected parts from every related pass.
+Shared assets remain valid for references through other live Packs.
+Retired GPU resources remain protected until in-flight use ends.
+A failed reload must retain the previous shader and its texture dependencies unless a dependency Pack was explicitly unloaded.
+Constant defaults are linear shader values, independent of file colour decoding.
+RGBA32F constant storage preserves finite negative values and HDR values.
 
 ## Post inputs, scheduling, and depth
 

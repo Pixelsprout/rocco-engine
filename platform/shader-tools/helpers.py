@@ -21,6 +21,15 @@ def literal(kind, values):
     names = ("r", "g", "b", "a") if kind == "Colour" else ("x", "y", "z", "w")
     return "{ " + ", ".join(f"{k}: {number(v)}" for k, v in zip(names, values)) + " }"
 
+def module_source(lines):
+    result = []
+    for line in lines:
+        if line.startswith("\t##") and result and result[-1] and not result[-1].startswith("\t##"):
+            result.append("")
+        result.append(line)
+    return "\n".join(result)
+
+
 def shader_module(declaration):
     name = declaration["name"]
     lines = ["import pf.Shader", "", f"{name} := [].{{", "\t## The shader asset key within the supplied Pack.", "\tasset : Str -> Shader.Asset", f'\tasset = |pack| {{ pack, asset: "shader/{name}" }}']
@@ -39,19 +48,19 @@ def shader_module(declaration):
         textures = [t for t in declaration["textures"] if t["scope"] == scope]
         if textures:
             texture_fields = ", ".join(f"{t['name']} : [Default, {'Image2D' if t['type'] == '2d' else 'Cubemap'}(Shader.Asset)]" for t in textures)
-            texture_values = []
-            for t in textures:
-                tag = "Image2D" if t["type"] == "2d" else "Cubemap"
-                texture_values.append(f'match textures.{t["name"]} {{ Default => [], {tag}(reference) => [{{ name: "{t["name"]}", texture: {tag}(reference) }}] }}')
-            lines += [f"\t## Explicit textures for {scope} scope. Numeric-only assignments retain texture defaults.", f"\t{scope}Textures : {{ {texture_fields} }}", f"\t## Keep all declared texture defaults in {scope} scope.", f"\t{key}_textures_default : {scope}Textures", f"\t{key}_textures_default = {{ " + ", ".join(t["name"] + ": Default" for t in textures) + " }", f"\t## Assign numeric values and textures together in {scope} scope.", f"\t{key}_with_textures : Str, {scope}Parameters, {scope}Textures -> Shader.Values", f"\t{key}_with_textures = |pack, values, textures| {{ ..{key}(pack, values), textures: List.join([{', '.join(texture_values)}]) }}"]
+            lines += [f"\t## Explicit textures for {scope} scope. Numeric-only assignments retain texture defaults.", f"\t{scope}Textures : {{ {texture_fields} }}", f"\t## Keep all declared texture defaults in {scope} scope.", f"\t{key}_textures_default : {scope}Textures", f"\t{key}_textures_default = {{ " + ", ".join(t["name"] + ": Default" for t in textures) + " }", f"\t## Assign numeric values and textures together in {scope} scope.", f"\t{key}_with_textures : Str, {scope}Parameters, {scope}Textures -> Shader.Values", f"\t{key}_with_textures = |pack, values, textures| {{", f"\t\t..{key}(pack, values),", "\t\ttextures: List.join(["]
+            for texture in textures:
+                tag = "Image2D" if texture["type"] == "2d" else "Cubemap"
+                lines += [f"\t\t\tmatch textures.{texture['name']} {{", "\t\t\t\tDefault => []", f"\t\t\t\t{tag}(reference) => [{{ name: \"{texture['name']}\", texture: {tag}(reference) }}]", "\t\t\t},"]
+            lines += ["\t\t]),", "\t}"]
         for texture in declaration["textures"]:
             if texture["scope"] != scope:
                 continue
             method = key + "_" + texture["name"]
             tag = "Image2D" if texture["type"] == "2d" else "Cubemap"
-            lines += [f"\t## Replace {texture['name']} in {scope} scope.", f"\t{method} : Str, [{tag}(Shader.Asset)] -> Shader.Values", f'\t{method} = |pack, texture| {{ shader: asset(pack), scope: {scope}, parameters: [], textures: [{{ name: "{texture["name"]}", texture: match texture {{ {tag}(reference) => {tag}(reference) }} }}] }}']
+            lines += [f"\t## Replace {texture['name']} in {scope} scope.", f"\t{method} : Str, [{tag}(Shader.Asset)] -> Shader.Values", f"\t{method} = |pack, texture| {{", "\t\tshader: asset(pack),", f"\t\tscope: {scope},", "\t\tparameters: [],", "\t\ttextures: [", "\t\t\t{", f"\t\t\t\tname: \"{texture['name']}\",", "\t\t\t\ttexture: match texture {", f"\t\t\t\t\t{tag}(reference) => {tag}(reference)", "\t\t\t\t},", "\t\t\t},", "\t\t],", "\t}"]
     lines += ["}", ""]
-    return "\n".join(lines)
+    return module_source(lines)
 
 
 def mesh_materials(path):
@@ -106,4 +115,4 @@ def mesh_module(name, source, materials):
     if not materials:
         lines += ["\t## This source has no named materials.", "\tnamed_count : U32", "\tnamed_count = 0"]
     lines += ["}", ""]
-    return "\n".join(lines)
+    return module_source(lines)

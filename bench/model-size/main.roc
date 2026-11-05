@@ -10,6 +10,7 @@ import pf.QueryResults
 import pf.Environment
 import pf.Shadow
 import pf.Launch
+import pf.Material
 import pf.Pose
 import "positions.golden" as golden_positions : Str
 import "model.golden" as golden_model : Str
@@ -109,6 +110,7 @@ view = |m| {
 		environment: Environment.default,
 		shadow: Shadow.default,
 		emitters: [],
+		shader_values: [],
 		ui: [],
 		queries: [],
 	}
@@ -128,7 +130,7 @@ add_draws = |nodes, m, n, i| {
 }
 
 cube_draw : U32, U64, Vec3 -> Draw
-cube_draw = |mesh, id, pos| { id, mesh, pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True }
+cube_draw = |mesh, id, pos| { id, mesh, pos, scale: { x: 0.5, y: 0.5, z: 0.5 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True, material: Material.default, materials: [], slot_materials: [], shader_values: [] }
 
 with_lights : List(Vocabulary.Node) -> List(Vocabulary.Node)
 with_lights = |nodes| nodes

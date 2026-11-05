@@ -263,6 +263,18 @@ class PublishedCompilerTests(unittest.TestCase):
                 self.assertEqual(sources[0], sources[1])
                 self.assertEqual(sources[0], sources[2])
 
+    def test_long_texture_names_preserve_compiler_reflection(self):
+        declaration = json.loads((self.game / "shaders.json").read_text())
+        name = "noise" * 64
+        declaration["shaders"][0]["textures"][0]["name"] = name
+        (self.game / "wind.glsl").write_text((self.game / "wind.glsl").read_text().replace("sample_noise", "sample_" + name))
+        (self.game / "shaders.json").write_text(json.dumps(declaration))
+        self.run_build()
+        manifest, _ = decode(self.out / "Foliage.shaderpack")
+        for backend in manifest["shaders"]:
+            names = [pair["name"] for program in backend["programs"] for pair in program.get("texture_sampler_pairs", [])]
+            self.assertTrue(any(len(resource) > 128 for resource in names))
+
     def test_defaults_rigid_only_and_single_post_location(self):
         source = json.loads((self.game / "shaders.json").read_text())
         source["shaders"][0] = {"name": "Plain", "kind": "surface", "max_displacement": 0, "skinning": False, "instancing": False}
@@ -301,6 +313,8 @@ class PublishedCompilerTests(unittest.TestCase):
         (self.game / "tree.gltf").write_text(json.dumps({"materials": [{"name": "Bark"}, {}, {"name": "Leaves"}]}))
         (self.game / "shaders.json").write_text(json.dumps(source))
         self.run_build()
+        formatting = subprocess.run([ROC, "fmt", "--check", str(self.game / "Foliage.roc"), str(self.game / "Outline.roc"), str(self.game / "Tree.roc")], cwd=self.game, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.assertEqual(formatting.returncode, 0, formatting.stdout)
         main = self.game / "main.roc"
         valid = '''app [init, launch, loaded, step, view] { pf: platform "../published-platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
 import pf.Vocabulary exposing [Command, Manifest]

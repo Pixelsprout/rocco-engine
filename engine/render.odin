@@ -21,8 +21,8 @@ BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must
 // fit one. The limit takes MAX_CASCADES for every game.
 DRAW_LIMIT ::
-	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (1 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
-	(MAIN_UNIFORM_SLOTS + max(MAX_CASCADES * SHADOW_UNIFORM_SLOTS, LIGHTS_UNIFORM_SLOTS))
+	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (2 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
+	(10 + MAX_CASCADES * 4)
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 128 && size_of(Fs_Lights) <= 512)
 // The 3 is one block each for the sky, the tone map and the UI.
@@ -69,6 +69,7 @@ Renderer :: struct {
 	has_bindings:       bool,
 	has_material:       bool,
 	meshes:             Mesh_Table,
+	shaders: ^Shader_Table,
 	skies:              Sky_Table,
 	images:             Image_Table,
 	white:              Mesh_Texture,
@@ -101,7 +102,7 @@ Shadow_Map :: struct {
 // The Images add their Linear and Nearest samplers.
 // The render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 2 + 3 * capacity.skies + 1 + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
+	return i32(2 * MESH_TEXTURE_LIMIT * capacity.meshes + 2 + 4 * capacity.skies + 1 + 2 * capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES + SHADER_ASSET_LIMIT * SHADER_TEXTURE_LIMIT)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -110,15 +111,11 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES + 3
 }
 
-// capacity.draws counts the Main-pass submits. Each applies a vertex and a
-// fragment block. Each placed Opaque range or MASK part applies one shadow
-// block per cascade. A Blend submit can change pipeline, which applies the lights
-// again, and its Draw may cast no shadow. So each submit has room for the
-// greater of the two. Each pass applies at most skinned_draw_capacity skin
-// blocks.
+// Each part reserves the parser's aligned Colour, Selection and shadow maxima.
+// Each skinned part also reserves a palette for each pass.
 uniform_buffer_size :: proc(capacity: Capacity, cascades: int) -> i32 {
-	skins := (1 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
-	slots := MAIN_UNIFORM_SLOTS + max(cascades * SHADOW_UNIFORM_SLOTS, LIGHTS_UNIFORM_SLOTS)
+	skins := (2 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
+	slots := 10 + cascades * 4
 	return i32((slots * int(capacity.draws) + UNIFORM_SPARE_SLOTS) * UNIFORM_ALIGN + skins)
 }
 
@@ -139,6 +136,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	render_target_init(&r.target, sample_count)
 	particle_gpu_init(&r.particles, sample_count)
 	mesh_table_upload(&r.meshes)
+	if r.shaders != nil { shader_table_upload(r.shaders, sample_count) }
 	sky_table_upload(&r.skies)
 	image_table_upload(&r.images)
 	texel_sampler := Texture_Sampler {
@@ -387,7 +385,7 @@ renderer_end_pass :: proc(ctx: rawptr) {
 renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.shadow_pips[pipeline], r.skinned_shadow_pips[pipeline], skin)
-	bindings := sg.Bindings{vertex_buffers = {0 = mesh.vertices}, index_buffer = mesh.indices}
+	bindings := sg.Bindings{vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices}
 	if pipeline != .Opaque {
 		tex := mesh_part_textures(part, r.white, r.flat_normal).base
 		bindings.views[VIEW_base_tex] = tex.view
@@ -454,7 +452,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	diffuse, specular := r.black_cube, r.black_cube
 	if r.environment_sky != nil { diffuse, specular = r.environment_sky.diffuse, r.environment_sky.specular }
 	bindings := sg.Bindings {
-		vertex_buffers = {0 = mesh.vertices},
+		vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices},
 		index_buffer = mesh.indices,
 		views = {
 			VIEW_engine_points = r.cluster_views[0],
@@ -539,6 +537,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit_shadow = renderer_shadow,
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
+		submit_surface = renderer_surface,
 		submit_sky = renderer_sky,
 		submit_environment = renderer_environment,
 		submit_bloom = renderer_bloom,

@@ -90,4 +90,6 @@ Each completed mip scales alpha to the closest available nonzero coverage at its
 A mip with positive base coverage retains at least one surviving texel when its averaged alpha permits it.
 Small mips can exceed target coverage because their alpha bins cannot represent every requested fraction.
 Variable vertex alpha keeps ordinary mips because interpolated alpha has no single texture threshold.
-Future Surface material overrides must select or rebuild compatible coverage mips when their alpha rules change.
+Surface overrides select owned ordinary-mip companions when alpha policy, cutoff, or base alpha changes.
+Unchanged imported rules retain their coverage mips.
+An arbitrary opacity hook has no statically known effective mip threshold.

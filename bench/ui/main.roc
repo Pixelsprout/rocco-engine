@@ -72,6 +72,7 @@ view = |m| {
 	environment: Environment.default,
 	shadow: Shadow.default,
 	emitters: [],
+	shader_values: [],
 	ui: elements(m),
 	queries: [],
 }

@@ -1,0 +1,44 @@
+{
+  "base_green": 22368,
+  "unloaded_green": 0,
+  "shadow_pixels": 2813,
+  "noncasting_shadow_pixels": 0,
+  "result": "passed",
+  "wind_hashes": [
+    "a76827113e285b8a2145fc89ad6547b09589cebda20dc9f487ceda3441026ede",
+    "891220cbb45b6a07f8baee9ff390f92f4b19fd3aa6b91a3271de078128045abc",
+    "755c461bfd5df245b94187e351b36ea761493a8790119de44878ea21412e4ea2"
+  ],
+  "default_pbr_mean_difference": 0.0,
+  "binary_sha256": "8471f82ba836539d2057b650093179447453e8deec5516151c0f9a9c787436c6",
+  "packages": {
+    "DefaultSurface.shaderpack": "9edf345a7c78953fa98e6e9d6e88777b4d271a453ae96804f2fdc10b2e26335b",
+    "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+  },
+  "backend": "metal_macos",
+  "date": "2026-11-05",
+  "engine_tests": {
+    "debug": 819,
+    "spans": 819
+  },
+  "compiler_tests": 35,
+  "checks": [
+    "deterministic Bridge replay",
+    "named leaf values preserve bark",
+    "cutout shadow casting",
+    "explicit Shader Pack unload and reload",
+    "invalid package version omission",
+    "empty-hook built-in PBR parity",
+    "combined Surface and particle capacity",
+    "particle replay and sprite orientation",
+    "combined ABI and shader regeneration"
+  ],
+  "artifacts": "/tmp/rocco-surface-particles-merged",
+  "resource_budget": {
+    "buffers": "3*meshes+6",
+    "shaders": 321,
+    "pipelines": 2082,
+    "uniform_bytes": "(10+4*cascades)*draws*256+277*256+(2+cascades)*min(draws,256)*4096",
+    "draw_limit": 321682
+  }
+}

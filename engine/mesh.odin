@@ -144,6 +144,7 @@ Material :: struct {
 // A zero id means the part has no texture and binds the white image, or the
 // flat normal image for a normal map.
 Mesh_Texture :: struct {
+	ordinary: ^Mesh_Texture,
 	image:   sg.Image,
 	view:    sg.View,
 	sampler: sg.Sampler,
@@ -152,6 +153,11 @@ Mesh_Texture :: struct {
 // A range of the mesh's index buffer that draws with its own material and
 // textures. Parts can share a texture, which Mesh.textures owns.
 Mesh_Part :: struct {
+	base_colour: [4]f32,
+	raw_colour: bool,
+	source_part: int,
+	source_material: int,
+	surface: ^Surface_Material,
 	slot:               Maybe(int),
 	first:              int,
 	count:              int,
@@ -178,6 +184,8 @@ Mesh :: struct {
 	data:             Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
 	live:             bool,
 	vertices:         sg.Buffer,
+	surface_vertices: sg.Buffer,
+	surface_parts: []Mesh_Part,
 	indices:          sg.Buffer,
 	index_count:      int,
 	parts:            []Mesh_Part,
@@ -185,6 +193,7 @@ Mesh :: struct {
 	vertex_colors:    [][4]f32,
 	vertex_materials: []int,
 	textures:         []Mesh_Texture,
+	ordinary_textures: []Mesh_Texture,
 	box:              Box,
 	skin:             Skin,
 	first_clip:       u32,
@@ -274,6 +283,7 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 			parts       = mesh_one_part(len(data.indices), MATERIAL_MATTE, allocator),
 			box         = mesh_box(data.vertices),
 		}
+		t.meshes[p].surface_parts = mesh_surface_parts(&t.meshes[p], data, allocator)
 	}
 	t.count = len(Primitive)
 }
@@ -282,6 +292,7 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 mesh_table_destroy :: proc(t: ^Mesh_Table) {
 	for &m in t.meshes[:len(Primitive)] {
 		delete(m.parts, t.allocator)
+		delete(m.surface_parts, t.allocator)
 	}
 	for &m in t.meshes[len(Primitive):t.count] {
 		if m.live {
@@ -350,6 +361,7 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		first_clip  = t.next_clip,
 		generation  = t.meshes[slot].generation,
 	}
+	t.meshes[slot].surface_parts = mesh_surface_parts(&t.meshes[slot], data, t.allocator)
 	t.meshes[slot].data.skin = {}
 	t.meshes[slot].data.material_slots = nil
 	t.meshes[slot].data.vertex_colors = nil
@@ -369,10 +381,10 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 	if m.vertices.id != 0 {
 		sg.destroy_buffer(m.vertices)
 		sg.destroy_buffer(m.indices)
+		sg.destroy_buffer(m.surface_vertices)
 	}
-	for tex in m.textures {
-		mesh_texture_destroy(tex)
-	}
+	for tex in m.textures { mesh_texture_destroy(tex) }
+	for tex in m.ordinary_textures { mesh_texture_destroy(tex) }
 	mesh_loaded_delete(t, m)
 	m^ = {generation = m.generation + 1}
 	t.free[t.free_count] = slot
@@ -397,8 +409,15 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 	mesh_upload(m, m.data)
 	m.textures = make([]Mesh_Texture, len(m.data.textures), t.allocator)
+	m.ordinary_textures = make([]Mesh_Texture, len(m.data.textures), t.allocator)
 	for tex, i in m.data.textures {
 		m.textures[i] = texture_upload(tex)
+  if tex.alpha_cutoff > 0 {
+   base := tex.levels[0]
+   ordinary := texture_build(base.width, base.height, base.pixels, tex.sampler, tex.srgb, context.temp_allocator)
+   m.ordinary_textures[i] = texture_upload(ordinary)
+   m.textures[i].ordinary = &m.ordinary_textures[i]
+  }
 	}
 	for data_part, i in m.data.parts {
 		part := &m.parts[i]
@@ -407,6 +426,14 @@ mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 		part.emissive = mesh_texture_at(m.textures, data_part.emissive)
 		part.normal = mesh_texture_at(m.textures, data_part.normal)
 		part.occlusion = mesh_texture_at(m.textures, data_part.occlusion)
+	}
+	for &part in m.surface_parts {
+		source := m.parts[part.source_part]
+		part.texture = source.texture
+		part.metallic_roughness = source.metallic_roughness
+		part.emissive = source.emissive
+		part.normal = source.normal
+		part.occlusion = source.occlusion
 	}
 	mesh_data_delete(t, m.data)
 	m.data = {}
@@ -443,7 +470,9 @@ mesh_loaded_delete :: proc(t: ^Mesh_Table, m: ^Mesh) {
 	delete(m.vertex_materials, t.allocator)
 	mesh_data_delete(t, m.data)
 	delete(m.parts, t.allocator)
+	delete(m.surface_parts, t.allocator)
 	delete(m.textures, t.allocator)
+	delete(m.ordinary_textures, t.allocator)
 	skin_delete(m.skin, t.allocator)
 }
 
@@ -485,6 +514,17 @@ mesh_upload :: proc(m: ^Mesh, data: Mesh_Data) {
 		vertices = {raw_data(skinned), uint(len(skinned) * size_of(Skinned_Vertex))}
 	}
 	m.vertices = sg.make_buffer({label = "mesh-vertices", data = vertices})
+	raw := make([]Vertex, len(data.vertices), context.temp_allocator)
+	copy(raw, data.vertices)
+	for &vertex, i in raw {
+		vertex.color = m.vertex_colors[i] if len(m.vertex_colors) == len(raw) else {1, 1, 1, 1}
+	}
+	raw_range := sg.Range{raw_data(raw), uint(len(raw) * size_of(Vertex))}
+	if len(data.influences) > 0 {
+		skinned := skinned_vertices(raw, data.influences, context.temp_allocator)
+		raw_range = {raw_data(skinned), uint(len(skinned) * size_of(Skinned_Vertex))}
+	}
+	m.surface_vertices = sg.make_buffer({label = "mesh-raw-colours", data = raw_range})
 	m.indices = sg.make_buffer(
 		{
 			label = "mesh-indices",
@@ -529,8 +569,7 @@ parts_opaque_count :: proc(parts: []Mesh_Part) -> (count: int) {
 
 parts_shadow_count :: proc(parts: []Mesh_Part) -> (count: int) {
 	for part in parts {
-		if part.material.alpha_mode == .Blend { break }
-		count += part.count
+		if part.material.alpha_mode != .Blend { count += part.count }
 	}
 	return
 }
@@ -687,4 +726,31 @@ mesh_material_slot :: proc(slots: []Mesh_Material_Slot, name: string) -> (index:
 		}
 	}
 	return index, .None if found else .Unknown_Name
+}
+
+// Unnamed materials can merge while their base factors differ.
+mesh_surface_parts :: proc(m: ^Mesh, data: Mesh_Data, allocator: mem.Allocator) -> []Mesh_Part {
+ result := make([dynamic]Mesh_Part, allocator)
+ for source, source_part in m.parts {
+  first := source.first
+  for first < source.first + source.count {
+   material := -1
+   if len(m.vertex_materials) > 0 && len(m.vertex_materials) == len(data.vertices) && first < len(data.indices) { material = m.vertex_materials[data.indices[first]] }
+   stop := first + 3
+   for stop < source.first + source.count {
+    next := -1
+    if len(m.vertex_materials) > 0 && len(m.vertex_materials) == len(data.vertices) && stop < len(data.indices) { next = m.vertex_materials[data.indices[stop]] }
+    if next != material { break }
+    stop += 3
+   }
+   part := source
+   part.first, part.count, part.source_part, part.source_material = first, stop-first, source_part, material
+   part.raw_colour = true
+   part.base_colour = m.material_slots[material].base_color_factor if material >= 0 && material < len(m.material_slots) else GREY
+   if len(m.vertex_colors) == 0 && len(data.vertices) > 0 && first < len(data.indices) { part.base_colour = data.vertices[data.indices[first]].color }
+   append(&result, part)
+   first = stop
+  }
+ }
+ return result[:]
 }

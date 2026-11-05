@@ -40,8 +40,8 @@ A shader's `name` is its Roc module name.
 Its asset key is `shader/NAME`.
 Its file is `assets/shaders/NAME.shaderpack`.
 A mesh helper uses the existing Mesh asset key: the source file stem.
-The Surface loader must add the `shader/` asset namespace to Packs.
-The compiler does not implement the runtime loader.
+The Surface loader exposes the `shader/` asset namespace through Packs.
+See [runtime Surface materials](SURFACE-RUNTIME.md) for assignments and resource ownership.
 
 A Surface requires `kind: "surface"` and finite, nonnegative `max_displacement`.
 The bound measures maximum displacement vector length in mesh-local units.
@@ -142,7 +142,10 @@ Imported defaults require Material scope and matching colour space.
 Base colour and emissive use `srgb`.
 Normal, occlusion, and metallic/roughness use `linear`.
 A missing default, failed asset, or incompatible texture must fail explicitly.
-The host must retain referenced Pack resources for the shader's lifetime.
+The host resolves references through their named live Pack each frame.
+Explicit Pack unload invalidates dependent materials before submission.
+Retired GPU resources remain protected until in-flight use ends.
+Constant defaults contain linear shader values, including negative values and HDR values.
 
 Use the combined helper to replace one texture and numeric values together:
 

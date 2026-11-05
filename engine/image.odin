@@ -30,6 +30,7 @@ Texture :: struct {
 	pixels:  []byte,
 	sampler: Texture_Sampler,
 	srgb:    bool,
+	alpha_cutoff: f32,
 }
 
 // Returns RGBA8 in context.temp_allocator. A 16-bit channel keeps its high byte.
@@ -172,6 +173,7 @@ texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler
 		pixels  = make([]byte, total, allocator),
 		sampler = sampler,
 		srgb    = srgb,
+		alpha_cutoff = alpha_cutoff if count > 1 && alpha_cutoff > 0 && alpha_cutoff <= 1 else 0,
 	}
 	copy(tex.pixels, rgba[:width * height * 4])
 	tex.levels[0] = {width = width, height = height, pixels = tex.pixels[:width * height * 4]}

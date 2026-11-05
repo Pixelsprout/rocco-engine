@@ -44,6 +44,8 @@ host_build :: proc(s: ^State, options: Host_Options, calls: Game_Calls, run_comm
 	particles_init(&s.particles, perm)
 	s.seam.particles = &s.particles
 	s.frame_render.particles = &s.particles
+	s.renderer.shaders = &s.packs.shaders
+	s.frame_render.packs = &s.packs
 	clock_init(&s.clock, s.launch.step_hz)
 	seam_init(&s.seam, run_command, host_config(s, options), &s.packs, &s.audio)
 	return

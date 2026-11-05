@@ -1,3 +1,6 @@
+import Shader
+import Material
+
 ## The types that cross the seam between your game and the engine. Nothing in
 ## them names a game. Import them with `import pf.Vocabulary`.
 Vocabulary := [].{
@@ -88,7 +91,7 @@ Vocabulary := [].{
 	## - `draws`: mesh part draws per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
 	##   materials uses up to 3. A double-sided Blend material uses 2. Above
-	##   zero and at most 1394641. The uniform buffer grows with it.
+	##   zero and at most 321682. The uniform buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
 	##   Groups.
@@ -209,7 +212,13 @@ Vocabulary := [].{
 	## - `casts_shadow`: whether this Draw adds a shadow to the Sun's map. It is
 	##   `Bool.True` by default. `Bool.False` removes it from shadow fitting and
 	##   shadow submissions, but keeps it in colour and selection rendering.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool }
+	## - `material`: partial changes for every Mesh part. Start from `Material.default`.
+	## - `materials`: generated named Surface assignments. These replace the whole-Draw Surface for that slot.
+	## - `slot_materials`: partial changes for named slots. An `Imported` Surface inherits the whole-Draw Surface.
+	##   Two named Surface assignments for one slot are invalid. Duplicate slot entries are invalid.
+	## - `shader_values`: generated Draw-scope values. Scene-scope values belong in `Scene.shader_values`.
+	##   Invalid assignments omit affected parts from every related pass and write a development log.
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool, material : Material.Override, materials : List(Shader.SlotAssignment), slot_materials : List(Material.SlotOverride), shader_values : List(Shader.Values) }
 
 	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
 	## value. The host samples both Clips and mixes them by `fade`. Start from
@@ -401,7 +410,8 @@ Vocabulary := [].{
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+	## - `shader_values`: generated Scene-scope values. Omitted parameters use their Shader defaults.
+	Scene : { shader_values : List(Shader.Values), camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
 
 	## A host-simulated billboard source. Start from `Emitter.default`.
 	## `id` identifies a source independently of Draw ids. The first duplicate wins.
