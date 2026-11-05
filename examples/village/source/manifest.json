@@ -1,0 +1,3792 @@
+{
+  "archive_sha256": "2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d",
+  "texture_max_side": 512,
+  "original_texture_sha256": {
+    "assets/nature/Bark_NormalTree.png": "e9b7764fa1ca299ce19e4444e5bb18267195e717181af30b0e752564bfda636e",
+    "assets/nature/Bark_NormalTree_Normal.png": "eb89ea37b0a823402aab2ee1a0769858840d1051151d504a4e6574fa9e07427e",
+    "assets/nature/Bark_TwistedTree.png": "77e9758c97e1f51ae8e59be097757ce564d82be248f24fd6dc925ba4635be829",
+    "assets/nature/Bark_TwistedTree_Normal.png": "71b685eb0e355dc220c717fb3b02dc57dd2c8a3e6d83b4846118032c001184ec",
+    "assets/nature/Leaf_Pine_C.png": "4cf9f4f4601e4ed73420a038978c6b5a26acf3f6b39954c1bf9cc8fdfa26abc9",
+    "assets/nature/Leaves_NormalTree_C.png": "399f0d7026cc34191377390433a2ebbc4b2e544c6ef7b01a9f46823ce4946579",
+    "assets/nature/Leaves_TwistedTree_C.png": "7bd855efbe3ed33b16caae76d3010f6dc227a2f33825d5fbcf3bb04b31ae871c",
+    "assets/nature/PathRocks_Diffuse.png": "b217994d8b5108e2572d6656ae674d7b2721f081750006b89750758e491510e8",
+    "assets/props/T_Trim_Metal_BaseColor.png": "77fa34b6bbcc0f8a7b2d77a2c20e5f9e1c07a26c48880ce2737deebaafe54005",
+    "assets/props/T_Trim_Metal_Normal.png": "366f2bc7d8ed00735ba61be5c4968988d8bd39c5bf258a3d3812c9c3b102ed96",
+    "assets/props/T_Trim_Metal_ORM.png": "8cdd11bb66fb13ea49cb1532924a7ea163b4fbd52fec63e6dd62ebbc859f2274",
+    "assets/village/T_Brick_BaseColor.png": "d242237011fa3d4f25244eee2ca1f42911c16599c72f0ffdfa2e748d15e6b795",
+    "assets/village/T_Brick_Normal.png": "d6eb87941c5573caa8d076d1972b52ab167907b77102762ef6fa4a9081e93b81",
+    "assets/village/T_Brick_Roughness.png": "70ec3df3d7665a3a2a3a0aea8aa914926b8c89e8711db24839c3af02c6f24c79",
+    "assets/village/T_MetalOrnaments_BaseColor.png": "11ab2ebaa0bfdc8e8e53a07881b1e8f6b565b3875ceed0c4248a336c431c9183",
+    "assets/village/T_MetalOrnaments_Roughness.png": "c91dcbe73310bd705b8864de7aee7d687f845239539f641e7a9f05dffc2c9c83",
+    "assets/village/T_Plaster_BaseColor.png": "c229a97dff3955ec5f7eea84d316e57f49b261675d86fbd6bafdf24a0f23dc67",
+    "assets/village/T_Plaster_Normal.png": "e33a35768b33d53ab851452863c21874b0417e6562bb7591ed65ac6640f734d2",
+    "assets/village/T_Plaster_ORM.png": "ed26087f766bf92fbad213c6e39f7244b209defc3ced7c1bfe6ed85571ae5184",
+    "assets/village/T_RockTrim_BaseColor.png": "cedbf5642e35b6ea14751654a3bc60495f9f724f72762316f74e888525efd336",
+    "assets/village/T_RockTrim_Normal.png": "26740602931c7c1ae37c055adc8978ce2eda214309156cc85889fcdd17bad5ac",
+    "assets/village/T_RockTrim_ORM.png": "8eb356672df682f6cbbff4f328746a75d7d12a50f10f533d764a4e32e00ff626",
+    "assets/village/T_RoundTiles_BaseColor.png": "9ad3273140fa6aadb075ec96eef5df01efb2364c1541dd97c67db681ee35a277",
+    "assets/village/T_RoundTiles_Normal.png": "01031d2317d9ea87d6e802df25291c4eebb48b27d57495fcf8912d738dca664d",
+    "assets/village/T_RoundTiles_Roughness.png": "f66d2266a65b671cc4a54c2cc6e346f4340fdb73a5647436cd46381d7f3881bf",
+    "assets/village/T_UnevenBrick_BaseColor.png": "0e8e2941dd12bda7270c0b95524cbad791d4233af094b5ef440ae14165d6f727",
+    "assets/village/T_UnevenBrick_Normal.png": "2ed3ad8da71f4c8b62f32d6f6d528e4eebe67696b0d1d93d612f712c4374bb45",
+    "assets/village/T_UnevenBrick_Roughness.png": "7385fa6a69c5b315ca8e582921850cff5cf9bfb23a14bed4fc81b85b14b5eb0f",
+    "assets/village/T_WoodTrim_BaseColor.png": "717c9fb7f772d60f15d37b56611b1f7f0665639be6f7b46a2036bc60e1edcf4a",
+    "assets/village/T_WoodTrim_Normal.png": "cf0c30fc6f10af016bf95b7eae034eae06763e7c9abbffcbfb9e19be741a7912",
+    "assets/village/T_WoodTrim_Roughness.png": "2e1247f647c69d3c183bc08384f7f3182bacafd20afb9d2efee6c451ee3d893c"
+  },
+  "assets": {
+    "CommonTree_1": {
+      "source": "assets/nature/CommonTree_1.gltf",
+      "sha256": "43b209019d8803d5d660578422cb135e46da576f43dd7042300946c0f275e145",
+      "bytes": 1375028,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_NormalTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "CommonTree_2": {
+      "source": "assets/nature/CommonTree_2.gltf",
+      "sha256": "b84e7c5731021fd8a3d4f1777873ff210f4f5f8b5c642cfdf2f78c9870a9d4f3",
+      "bytes": 1284856,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_NormalTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "CommonTree_3": {
+      "source": "assets/nature/CommonTree_3.gltf",
+      "sha256": "06f0b4a3ced5486258e12afde8b4aa3b6a9ebec76f018c315e227658e616c6b2",
+      "bytes": 1121084,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_NormalTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "CommonTree_4": {
+      "source": "assets/nature/CommonTree_4.gltf",
+      "sha256": "47170add6d9f98ebee9529391faca44af88045b2a5066638d41f459edbc8fb67",
+      "bytes": 1134116,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_NormalTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "CommonTree_5": {
+      "source": "assets/nature/CommonTree_5.gltf",
+      "sha256": "ceed141713dde39ecb3d82e96e93385dc6316f982ed4aa4c063e39cc943014d4",
+      "bytes": 1063076,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_NormalTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "Corner_Exterior_Brick": {
+      "source": "assets/village/Corner_Exterior_Brick.gltf",
+      "sha256": "6aca79460e1e1fabb9d31eaf6633a5815d975631451988ca5cc80ad5fc543333",
+      "bytes": 883392,
+      "material_names": [
+        "MI_RockTrim"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "Corner_Exterior_Wood": {
+      "source": "assets/village/Corner_Exterior_Wood.gltf",
+      "sha256": "c517a585cbed411813eb8e1b7a2bea141453837436c941f51117b07983f2a53f",
+      "bytes": 790040,
+      "material_names": [
+        "MI_WoodTrim"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "Door_2_Round": {
+      "source": "assets/village/Door_2_Round.gltf",
+      "sha256": "76cedda57c81e711e9aab7e86d13c9c8d04c63c2819354ab521a1628e583c9fa",
+      "bytes": 1419096,
+      "material_names": [
+        "MI_WoodTrim_Wear",
+        "MI_MetalOrnaments"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "Lantern_Wall": {
+      "source": "assets/props/Lantern_Wall.gltf",
+      "sha256": "664d05267a45b33e94b0834c7d50e36bff81f814196ead07de5403135a705e46",
+      "bytes": 928068,
+      "material_names": [
+        "MI_Trim_Metal"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "Pine_4": {
+      "source": "assets/nature/Pine_4.gltf",
+      "sha256": "6fd6da409e2cc4742518101fce26818d4a30c2414b6d5f76787e8261b85c4332",
+      "bytes": 1024116,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_Pine"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "Pine_5": {
+      "source": "assets/nature/Pine_5.gltf",
+      "sha256": "b8b0c14d92dfa5b9a54bb60597f5df3c4962b36a7df408c444135b811429205d",
+      "bytes": 849080,
+      "material_names": [
+        "Bark_NormalTree",
+        "Leaves_Pine"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "Prop_Chimney": {
+      "source": "assets/village/Prop_Chimney.gltf",
+      "sha256": "b09e965383e1dc75a3f5d257aee6c71be5ff3b31dde485e1131ca3dc3461d7ef",
+      "bytes": 1622116,
+      "material_names": [
+        "MI_RockTrim",
+        "MI_Brick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "RockPath_Round_Small_1": {
+      "source": "assets/nature/RockPath_Round_Small_1.gltf",
+      "sha256": "e7f6d54da53e54fd0b762947d905c4c0562c84b8b99dfbd7d11e29b39e16f184",
+      "bytes": 427276,
+      "material_names": [
+        "PathRocks"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "RockPath_Round_Small_2": {
+      "source": "assets/nature/RockPath_Round_Small_2.gltf",
+      "sha256": "30502d593119ee7c3a5038286d9787d3104861141d4abf56976b13920bffc57d",
+      "bytes": 438988,
+      "material_names": [
+        "PathRocks"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "RockPath_Round_Small_3": {
+      "source": "assets/nature/RockPath_Round_Small_3.gltf",
+      "sha256": "26019d38ec3ebd447c36cf4a2e0d2ca2c60c07d616d4e57ded0389bde999c7f7",
+      "bytes": 426820,
+      "material_names": [
+        "PathRocks"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "RockPath_Square_Thin": {
+      "source": "assets/nature/RockPath_Square_Thin.gltf",
+      "sha256": "76c1f885f8575ab87fb104ecadea038cd24d6b6eb5e5a567997000b0c9d6afa8",
+      "bytes": 513216,
+      "material_names": [
+        "PathRocks"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "RockPath_Square_Wide": {
+      "source": "assets/nature/RockPath_Square_Wide.gltf",
+      "sha256": "27a93b126731d9a13ddac1895ba3a66021651e6510f92b345171b1a1ce0339e5",
+      "bytes": 563272,
+      "material_names": [
+        "PathRocks"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "Roof_Front_Brick4": {
+      "source": "assets/village/Roof_Front_Brick4.gltf",
+      "sha256": "11c0f322e1dff96a64c49a21a466f9df01e532a0bcdaea2b3395e5f9f05ca7c4",
+      "bytes": 1661528,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "Roof_RoundTiles_4x6": {
+      "source": "assets/village/Roof_RoundTiles_4x6.gltf",
+      "sha256": "0cf86588cb71b4b93f3b4a1441b7026b187686442978aa25c80938601a7e7ea9",
+      "bytes": 1675528,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_RoundTiles"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "TwistedTree_2": {
+      "source": "assets/nature/TwistedTree_2.gltf",
+      "sha256": "9e87838ec5519e5dd45f7f1548aeb41452eb093811209b3d940c54c2ff3249ee",
+      "bytes": 1738900,
+      "material_names": [
+        "Bark_TwistedTree",
+        "Leaves_TwistedTree"
+      ],
+      "vertex_colour_primitives": 2,
+      "generated_tangent_primitives": 2
+    },
+    "Wall_Plaster_Door_Round": {
+      "source": "assets/village/Wall_Plaster_Door_Round.gltf",
+      "sha256": "089e0985aa553053743b3baec928f77dc91e22e25efbd16cacd27deed7839588",
+      "bytes": 2402704,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_RockTrim"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_Plaster_Straight": {
+      "source": "assets/village/Wall_Plaster_Straight.gltf",
+      "sha256": "0977fe575d89668c32a1bc966862cca84b3bbb044e71f8df692bde8bf11d34d7",
+      "bytes": 1650568,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "Wall_Plaster_Straight_Base": {
+      "source": "assets/village/Wall_Plaster_Straight_Base.gltf",
+      "sha256": "2514e8022cf2f4e9edfdc04885270e81a705121590f7070e072d8b757fe2ac1b",
+      "bytes": 2493004,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_Brick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_Plaster_Window_Thin_Round": {
+      "source": "assets/village/Wall_Plaster_Window_Thin_Round.gltf",
+      "sha256": "f2f2e04df6567d729c1b7e06b67f3ce5b9531fdaeeee988d8ac3232b02c18dee",
+      "bytes": 2500492,
+      "material_names": [
+        "MI_Plaster",
+        "MI_Brick",
+        "MI_WoodTrim"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_Plaster_Window_Wide_Round": {
+      "source": "assets/village/Wall_Plaster_Window_Wide_Round.gltf",
+      "sha256": "0d610e9c4c7e8ec21fd54d11b845c6382b95cde527dfb250725118d30e1d40f7",
+      "bytes": 2496516,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_Brick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_Plaster_WoodGrid": {
+      "source": "assets/village/Wall_Plaster_WoodGrid.gltf",
+      "sha256": "a22bec37e1001adeda39855724de91cb4b46fa67e2027b9527c871b0b3a0b84c",
+      "bytes": 1666132,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "Wall_UnevenBrick_Door_Round": {
+      "source": "assets/village/Wall_UnevenBrick_Door_Round.gltf",
+      "sha256": "069a8333d4d2e8f9cd551d2211c724a69b6d9c0298bc813365dc3f5b4a7de387",
+      "bytes": 2439608,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_UnevenBrick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_UnevenBrick_Straight": {
+      "source": "assets/village/Wall_UnevenBrick_Straight.gltf",
+      "sha256": "8c570b09471e683f621a3ea628cce3b87e01ebae3a0d512b86af5d590cb3f108",
+      "bytes": 2435932,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_UnevenBrick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_UnevenBrick_Window_Thin_Round": {
+      "source": "assets/village/Wall_UnevenBrick_Window_Thin_Round.gltf",
+      "sha256": "a9d45328698fd6cf18f0f8863e84b71734d712f447eba3de8730026047b934cc",
+      "bytes": 2442596,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_UnevenBrick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "Wall_UnevenBrick_Window_Wide_Round": {
+      "source": "assets/village/Wall_UnevenBrick_Window_Wide_Round.gltf",
+      "sha256": "1a9045f22983a22adc224e87f3c6c3094137cf262048cc6c0c6722c15f76467d",
+      "bytes": 2440384,
+      "material_names": [
+        "MI_WoodTrim",
+        "MI_Plaster",
+        "MI_UnevenBrick"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 3
+    },
+    "WindowShutters_Wide_Round_Open": {
+      "source": "assets/village/WindowShutters_Wide_Round_Open.gltf",
+      "sha256": "9493958310ff6797fdd899eb8a99ecb9b73c5e2893a4f17cf4728709898d6360",
+      "bytes": 804804,
+      "material_names": [
+        "MI_WoodTrim_Wear"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 1
+    },
+    "Window_Thin_Round1": {
+      "source": "assets/village/Window_Thin_Round1.gltf",
+      "sha256": "dd6c6ec403f29ad3fc24a42412957d145a784b32ef53a65d69a199275c35abf2",
+      "bytes": 825380,
+      "material_names": [
+        "MI_WoodTrim_Wear",
+        "MI_WindowGlass"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    },
+    "Window_Wide_Round1": {
+      "source": "assets/village/Window_Wide_Round1.gltf",
+      "sha256": "668e85b3cfd704bea2cf04a561c11f7081383ae2e9c2199ebf91d7f5c9b76866",
+      "bytes": 819896,
+      "material_names": [
+        "MI_WoodTrim_Wear",
+        "MI_WindowGlass"
+      ],
+      "vertex_colour_primitives": 0,
+      "generated_tangent_primitives": 2
+    }
+  },
+  "placements": [
+    {
+      "id": 100,
+      "name": "Lane/RockPath_Square_Thin2",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 19.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 101,
+      "name": "Lane/RockPath_Square_Wide2",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 19.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 102,
+      "name": "Lane/RockPath_Square_Thin3",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 17.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 103,
+      "name": "Lane/RockPath_Square_Thin4",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 17.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 104,
+      "name": "Lane/RockPath_Square_Wide3",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 105,
+      "name": "Lane/RockPath_Square_Wide4",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 106,
+      "name": "Lane/RockPath_Square_Thin5",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 107,
+      "name": "Lane/RockPath_Square_Wide5",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 108,
+      "name": "Lane/RockPath_Square_Thin6",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 109,
+      "name": "Lane/RockPath_Square_Thin7",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 110,
+      "name": "Lane/RockPath_Square_Thin8",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 9.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 111,
+      "name": "Lane/RockPath_Square_Wide6",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 9.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 112,
+      "name": "Lane/RockPath_Square_Wide7",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 7.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 113,
+      "name": "Lane/RockPath_Square_Wide8",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 7.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 114,
+      "name": "Lane/RockPath_Square_Wide9",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 115,
+      "name": "Lane/RockPath_Square_Thin9",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 116,
+      "name": "Lane/RockPath_Square_Wide10",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 3.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 117,
+      "name": "Lane/RockPath_Square_Wide11",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 3.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 118,
+      "name": "Lane/RockPath_Square_Wide12",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 119,
+      "name": "Lane/RockPath_Square_Wide13",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 120,
+      "name": "Lane/RockPath_Square_Wide14",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -1.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 121,
+      "name": "Lane/RockPath_Square_Wide15",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -1.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 122,
+      "name": "Lane/RockPath_Square_Wide16",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -3.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 123,
+      "name": "Lane/RockPath_Square_Thin10",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -3.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 124,
+      "name": "Lane/RockPath_Square_Wide17",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 125,
+      "name": "Lane/RockPath_Square_Thin11",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 126,
+      "name": "Lane/RockPath_Square_Thin12",
+      "asset": "RockPath_Square_Thin",
+      "pos": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -7.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 127,
+      "name": "Lane/RockPath_Square_Wide18",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": -7.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 128,
+      "name": "Lane/RockPath_Square_Wide19",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -4.0,
+        "y": 0.0,
+        "z": -11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 129,
+      "name": "Lane/RockPath_Square_Wide20",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -4.0,
+        "y": 0.0,
+        "z": -13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 130,
+      "name": "Lane/RockPath_Square_Wide21",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -4.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 131,
+      "name": "Lane/RockPath_Square_Wide22",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 132,
+      "name": "Lane/RockPath_Square_Wide23",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 133,
+      "name": "Lane/RockPath_Square_Wide24",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 134,
+      "name": "Lane/RockPath_Square_Wide25",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": -11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 135,
+      "name": "Lane/RockPath_Square_Wide26",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": -13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 136,
+      "name": "Lane/RockPath_Square_Wide27",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 137,
+      "name": "Lane/RockPath_Square_Wide28",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 138,
+      "name": "Lane/RockPath_Square_Wide29",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 139,
+      "name": "Lane/RockPath_Square_Wide30",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 140,
+      "name": "Lane/RockPath_Square_Wide31",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 4.0,
+        "y": 0.0,
+        "z": -11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999987e-08
+      },
+      "scale": {
+        "x": 1.0000000000000038,
+        "y": 1.0,
+        "z": 1.0000000000000038
+      },
+      "group": 0
+    },
+    {
+      "id": 141,
+      "name": "Lane/RockPath_Square_Wide32",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 4.0,
+        "y": 0.0,
+        "z": -13.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067769704654,
+        "z": 0.0,
+        "w": 0.7071067854026296
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 142,
+      "name": "Lane/RockPath_Square_Wide33",
+      "asset": "RockPath_Square_Wide",
+      "pos": {
+        "x": 4.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "group": 0
+    },
+    {
+      "id": 143,
+      "name": "Lane/RockPath_Round_Small_12",
+      "asset": "RockPath_Round_Small_1",
+      "pos": {
+        "x": -2.5491126,
+        "y": 0.0,
+        "z": 3.902954
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7254558256809231,
+        "z": 0.0,
+        "w": 0.6882687302105261
+      },
+      "scale": {
+        "x": 0.7988569834007453,
+        "y": 0.798857,
+        "z": 0.7988569834007453
+      },
+      "group": 0
+    },
+    {
+      "id": 144,
+      "name": "Lane/RockPath_Round_Small_22",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": 2.475166,
+        "y": 0.0,
+        "z": 13.307028
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.820651642143056,
+        "z": 0.0,
+        "w": 0.5714288076811542
+      },
+      "scale": {
+        "x": 0.7075843331111771,
+        "y": 0.7075843,
+        "z": 0.7075843331111771
+      },
+      "group": 0
+    },
+    {
+      "id": 145,
+      "name": "Lane/RockPath_Round_Small_23",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": -2.8073437,
+        "y": 0.0,
+        "z": 6.480833
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.1340486043008235,
+        "z": 0.0,
+        "w": 0.9909747583490718
+      },
+      "scale": {
+        "x": 0.8265004188576218,
+        "y": 0.8265004,
+        "z": 0.8265004188576218
+      },
+      "group": 0
+    },
+    {
+      "id": 146,
+      "name": "Lane/RockPath_Round_Small_24",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": 2.4696758,
+        "y": 0.0,
+        "z": 11.079775
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9949816049785702,
+        "z": 0.0,
+        "w": 0.10005801194441316
+      },
+      "scale": {
+        "x": 0.8416011579923094,
+        "y": 0.84160113,
+        "z": 0.8416011579923094
+      },
+      "group": 0
+    },
+    {
+      "id": 147,
+      "name": "Lane/RockPath_Round_Small_25",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": -2.4758685,
+        "y": 0.0,
+        "z": 10.450502
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.04454430889106285,
+        "z": 0.0,
+        "w": 0.9990074096549122
+      },
+      "scale": {
+        "x": 0.6682475675722251,
+        "y": 0.6682476,
+        "z": 0.6682475675722251
+      },
+      "group": 0
+    },
+    {
+      "id": 148,
+      "name": "Lane/RockPath_Round_Small_32",
+      "asset": "RockPath_Round_Small_3",
+      "pos": {
+        "x": 2.466513,
+        "y": 0.0,
+        "z": 0.8594389
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9516288678303747,
+        "z": 0.0,
+        "w": 0.30724989489319476
+      },
+      "scale": {
+        "x": 0.6656114710029595,
+        "y": 0.66561145,
+        "z": 0.6656114710029595
+      },
+      "group": 0
+    },
+    {
+      "id": 149,
+      "name": "Lane/RockPath_Round_Small_26",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": -2.317573,
+        "y": 0.0,
+        "z": -1.7978106
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.04987836871117001,
+        "z": 0.0,
+        "w": 0.9987552995277235
+      },
+      "scale": {
+        "x": 0.6602095568911004,
+        "y": 0.66020954,
+        "z": 0.6602095568911004
+      },
+      "group": 0
+    },
+    {
+      "id": 150,
+      "name": "Lane/RockPath_Round_Small_27",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": 2.780775,
+        "y": 0.0,
+        "z": 17.372211
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.6657522217821681,
+        "z": 0.0,
+        "w": 0.7461728882719519
+      },
+      "scale": {
+        "x": 0.6640147042087398,
+        "y": 0.6640147,
+        "z": 0.6640147042087398
+      },
+      "group": 0
+    },
+    {
+      "id": 151,
+      "name": "Lane/RockPath_Round_Small_33",
+      "asset": "RockPath_Round_Small_3",
+      "pos": {
+        "x": -2.4621387,
+        "y": 0.0,
+        "z": -0.11900711
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.6350539195066078,
+        "z": 0.0,
+        "w": 0.7724678111865212
+      },
+      "scale": {
+        "x": 0.6997501872296041,
+        "y": 0.6997502,
+        "z": 0.6997501872296041
+      },
+      "group": 0
+    },
+    {
+      "id": 152,
+      "name": "Lane/RockPath_Round_Small_28",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": 2.8852649,
+        "y": 0.0,
+        "z": 2.4904242
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7316118832670347,
+        "z": 0.0,
+        "w": 0.6817213890310782
+      },
+      "scale": {
+        "x": 0.7963729612097826,
+        "y": 0.796373,
+        "z": 0.7963729612097826
+      },
+      "group": 0
+    },
+    {
+      "id": 153,
+      "name": "Lane/RockPath_Round_Small_29",
+      "asset": "RockPath_Round_Small_2",
+      "pos": {
+        "x": -2.6120985,
+        "y": 0.0,
+        "z": -3.3181481
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.41593373421871493,
+        "z": 0.0,
+        "w": 0.9093949245178771
+      },
+      "scale": {
+        "x": 0.8288067954346808,
+        "y": 0.82880676,
+        "z": 0.8288067954346808
+      },
+      "group": 0
+    },
+    {
+      "id": 154,
+      "name": "Lane/RockPath_Round_Small_13",
+      "asset": "RockPath_Round_Small_1",
+      "pos": {
+        "x": 2.8222315,
+        "y": 0.0,
+        "z": 7.054163
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9626635737918391,
+        "z": 0.0,
+        "w": -0.2707006532949715
+      },
+      "scale": {
+        "x": 0.8733119848715675,
+        "y": 0.873312,
+        "z": 0.8733119848715675
+      },
+      "group": 0
+    },
+    {
+      "id": 155,
+      "name": "Lane/RockPath_Round_Small_14",
+      "asset": "RockPath_Round_Small_1",
+      "pos": {
+        "x": -2.5347147,
+        "y": 0.0,
+        "z": 14.882687
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7559122976713548,
+        "z": 0.0,
+        "w": 0.6546728940694071
+      },
+      "scale": {
+        "x": 0.809135931442938,
+        "y": 0.809136,
+        "z": 0.809135931442938
+      },
+      "group": 0
+    },
+    {
+      "id": 156,
+      "name": "Lane/RockPath_Round_Small_34",
+      "asset": "RockPath_Round_Small_3",
+      "pos": {
+        "x": 2.6730375,
+        "y": 0.0,
+        "z": 4.2949657
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9280047059489804,
+        "z": 0.0,
+        "w": -0.372568471205692
+      },
+      "scale": {
+        "x": 0.8962604983185433,
+        "y": 0.8962605,
+        "z": 0.8962604983185433
+      },
+      "group": 0
+    },
+    {
+      "id": 157,
+      "name": "HouseA/Wall_UnevenBrick_Window_Wide_Round2",
+      "asset": "Wall_UnevenBrick_Window_Wide_Round",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 0.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 158,
+      "name": "HouseA/Window_Wide_Round12",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 0.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 159,
+      "name": "HouseA/WindowShutters_Wide_Round_Open2",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 0.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 160,
+      "name": "HouseA/Wall_UnevenBrick_Door_Round2",
+      "asset": "Wall_UnevenBrick_Door_Round",
+      "pos": {
+        "x": -8.4,
+        "y": 0.0,
+        "z": 0.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 161,
+      "name": "HouseA/Door_2_Round2",
+      "asset": "Door_2_Round",
+      "pos": {
+        "x": -8.399999976832964,
+        "y": 0.0,
+        "z": 0.46999991257721996
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 162,
+      "name": "HouseA/Wall_UnevenBrick_Window_Wide_Round3",
+      "asset": "Wall_UnevenBrick_Window_Wide_Round",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 0.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 163,
+      "name": "HouseA/Window_Wide_Round13",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 0.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 164,
+      "name": "HouseA/WindowShutters_Wide_Round_Open3",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 0.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 165,
+      "name": "HouseA/Wall_UnevenBrick_Straight2",
+      "asset": "Wall_UnevenBrick_Straight",
+      "pos": {
+        "x": -4.4000000874227805,
+        "y": 0.0,
+        "z": 3.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 166,
+      "name": "HouseA/Wall_UnevenBrick_Window_Thin_Round2",
+      "asset": "Wall_UnevenBrick_Window_Thin_Round",
+      "pos": {
+        "x": -4.4,
+        "y": 0.0,
+        "z": 1.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 167,
+      "name": "HouseA/Window_Thin_Round12",
+      "asset": "Window_Thin_Round1",
+      "pos": {
+        "x": -4.4,
+        "y": 0.0,
+        "z": 1.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 168,
+      "name": "HouseA/Wall_UnevenBrick_Straight3",
+      "asset": "Wall_UnevenBrick_Straight",
+      "pos": {
+        "x": -4.39999991257722,
+        "y": 0.0,
+        "z": -0.9999999125772201
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 169,
+      "name": "HouseA/Wall_UnevenBrick_Straight4",
+      "asset": "Wall_UnevenBrick_Straight",
+      "pos": {
+        "x": -5.39999986886583,
+        "y": 0.0,
+        "z": -1.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 170,
+      "name": "HouseA/Wall_UnevenBrick_Window_Thin_Round3",
+      "asset": "Wall_UnevenBrick_Window_Thin_Round",
+      "pos": {
+        "x": -7.39999986886583,
+        "y": 0.0,
+        "z": -2.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 171,
+      "name": "HouseA/Window_Thin_Round13",
+      "asset": "Window_Thin_Round1",
+      "pos": {
+        "x": -7.39999986886583,
+        "y": 0.0,
+        "z": -2.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 172,
+      "name": "HouseA/Wall_UnevenBrick_Window_Thin_Round4",
+      "asset": "Wall_UnevenBrick_Window_Thin_Round",
+      "pos": {
+        "x": -7.4000001311341705,
+        "y": 0.0,
+        "z": 3.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 173,
+      "name": "HouseA/Window_Thin_Round14",
+      "asset": "Window_Thin_Round1",
+      "pos": {
+        "x": -7.4000001311341705,
+        "y": 0.0,
+        "z": 3.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 174,
+      "name": "HouseA/Wall_UnevenBrick_Straight5",
+      "asset": "Wall_UnevenBrick_Straight",
+      "pos": {
+        "x": -5.4000001311341705,
+        "y": 0.0,
+        "z": 4.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 175,
+      "name": "HouseA/Corner_Exterior_Brick2",
+      "asset": "Corner_Exterior_Brick",
+      "pos": {
+        "x": -8.40000013113417,
+        "y": 0.0,
+        "z": 3.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 176,
+      "name": "HouseA/Corner_Exterior_Brick3",
+      "asset": "Corner_Exterior_Brick",
+      "pos": {
+        "x": -8.39999986886583,
+        "y": 0.0,
+        "z": -2.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 177,
+      "name": "HouseA/Corner_Exterior_Brick4",
+      "asset": "Corner_Exterior_Brick",
+      "pos": {
+        "x": -4.39999986886583,
+        "y": 0.0,
+        "z": -1.9999999125772199
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 178,
+      "name": "HouseA/Corner_Exterior_Brick5",
+      "asset": "Corner_Exterior_Brick",
+      "pos": {
+        "x": -4.4000001311341705,
+        "y": 0.0,
+        "z": 4.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 179,
+      "name": "HouseA/Wall_Plaster_Window_Wide_Round2",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 3.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 180,
+      "name": "HouseA/Window_Wide_Round14",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 3.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 181,
+      "name": "HouseA/WindowShutters_Wide_Round_Open4",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -8.39999991257722,
+        "y": 3.0,
+        "z": -1.0000000874227801
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 182,
+      "name": "HouseA/Wall_Plaster_WoodGrid2",
+      "asset": "Wall_Plaster_WoodGrid",
+      "pos": {
+        "x": -8.4,
+        "y": 3.0,
+        "z": 0.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 183,
+      "name": "HouseA/Wall_Plaster_Window_Wide_Round3",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 3.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 184,
+      "name": "HouseA/Window_Wide_Round15",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 3.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 185,
+      "name": "HouseA/WindowShutters_Wide_Round_Open5",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -8.40000008742278,
+        "y": 3.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 186,
+      "name": "HouseA/Wall_Plaster_Straight2",
+      "asset": "Wall_Plaster_Straight",
+      "pos": {
+        "x": -4.4000000874227805,
+        "y": 3.0,
+        "z": 3.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 187,
+      "name": "HouseA/Wall_Plaster_Window_Wide_Round4",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": -4.4,
+        "y": 3.0,
+        "z": 1.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 188,
+      "name": "HouseA/Window_Wide_Round16",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -4.4,
+        "y": 3.0,
+        "z": 1.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 189,
+      "name": "HouseA/WindowShutters_Wide_Round_Open6",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -4.4,
+        "y": 3.0,
+        "z": 1.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 190,
+      "name": "HouseA/Wall_Plaster_Straight3",
+      "asset": "Wall_Plaster_Straight",
+      "pos": {
+        "x": -4.39999991257722,
+        "y": 3.0,
+        "z": -0.9999999125772201
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 191,
+      "name": "HouseA/Wall_Plaster_Window_Wide_Round5",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": -5.39999986886583,
+        "y": 3.0,
+        "z": -1.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 192,
+      "name": "HouseA/Window_Wide_Round17",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -5.39999986886583,
+        "y": 3.0,
+        "z": -1.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 193,
+      "name": "HouseA/WindowShutters_Wide_Round_Open7",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -5.39999986886583,
+        "y": 3.0,
+        "z": -1.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 194,
+      "name": "HouseA/Wall_Plaster_Straight4",
+      "asset": "Wall_Plaster_Straight",
+      "pos": {
+        "x": -7.39999986886583,
+        "y": 3.0,
+        "z": -2.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 195,
+      "name": "HouseA/Wall_Plaster_Straight5",
+      "asset": "Wall_Plaster_Straight",
+      "pos": {
+        "x": -7.4000001311341705,
+        "y": 3.0,
+        "z": 3.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 196,
+      "name": "HouseA/Wall_Plaster_Window_Wide_Round6",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": -5.4000001311341705,
+        "y": 3.0,
+        "z": 4.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 197,
+      "name": "HouseA/Window_Wide_Round18",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": -5.4000001311341705,
+        "y": 3.0,
+        "z": 4.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 198,
+      "name": "HouseA/WindowShutters_Wide_Round_Open8",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": -5.4000001311341705,
+        "y": 3.0,
+        "z": 4.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 199,
+      "name": "HouseA/Corner_Exterior_Wood2",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": -8.40000013113417,
+        "y": 3.0,
+        "z": 3.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 200,
+      "name": "HouseA/Corner_Exterior_Wood3",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": -8.39999986886583,
+        "y": 3.0,
+        "z": -2.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 201,
+      "name": "HouseA/Corner_Exterior_Wood4",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": -4.39999986886583,
+        "y": 3.0,
+        "z": -1.9999999125772199
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067348236157,
+        "z": 0.0,
+        "w": 0.7071068275494764
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 10
+    },
+    {
+      "id": 202,
+      "name": "HouseA/Corner_Exterior_Wood5",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": -4.4000001311341705,
+        "y": 3.0,
+        "z": 4.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 203,
+      "name": "HouseA/Roof_RoundTiles_4x62",
+      "asset": "Roof_RoundTiles_4x6",
+      "pos": {
+        "x": -6.4,
+        "y": 6.0,
+        "z": 1.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 204,
+      "name": "HouseA/Roof_Front_Brick42",
+      "asset": "Roof_Front_Brick4",
+      "pos": {
+        "x": -6.4000001311341705,
+        "y": 6.0,
+        "z": 4.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": 4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 10
+    },
+    {
+      "id": 205,
+      "name": "HouseA/Roof_Front_Brick43",
+      "asset": "Roof_Front_Brick4",
+      "pos": {
+        "x": -6.39999986886583,
+        "y": 6.0,
+        "z": -2.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 10
+    },
+    {
+      "id": 206,
+      "name": "HouseA/Prop_Chimney2",
+      "asset": "Prop_Chimney",
+      "pos": {
+        "x": -5.600000069938225,
+        "y": 5.4,
+        "z": 2.600000034969112
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 10
+    },
+    {
+      "id": 207,
+      "name": "HouseB/Wall_Plaster_Window_Wide_Round2",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": 8.60000008742278,
+        "y": 0.0,
+        "z": 6.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 208,
+      "name": "HouseB/Window_Wide_Round12",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": 8.60000008742278,
+        "y": 0.0,
+        "z": 6.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 209,
+      "name": "HouseB/WindowShutters_Wide_Round_Open2",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": 8.60000008742278,
+        "y": 0.0,
+        "z": 6.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 210,
+      "name": "HouseB/Wall_Plaster_Door_Round2",
+      "asset": "Wall_Plaster_Door_Round",
+      "pos": {
+        "x": 8.6,
+        "y": 0.0,
+        "z": 4.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 211,
+      "name": "HouseB/Door_2_Round2",
+      "asset": "Door_2_Round",
+      "pos": {
+        "x": 8.600000023167036,
+        "y": 0.0,
+        "z": 5.52999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 212,
+      "name": "HouseB/Wall_Plaster_Window_Thin_Round2",
+      "asset": "Wall_Plaster_Window_Thin_Round",
+      "pos": {
+        "x": 8.59999991257722,
+        "y": 0.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 213,
+      "name": "HouseB/Window_Thin_Round12",
+      "asset": "Window_Thin_Round1",
+      "pos": {
+        "x": 8.59999991257722,
+        "y": 0.0,
+        "z": 2.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 214,
+      "name": "HouseB/Wall_Plaster_Straight_Base2",
+      "asset": "Wall_Plaster_Straight_Base",
+      "pos": {
+        "x": 4.5999999125772195,
+        "y": 0.0,
+        "z": 3.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 20
+    },
+    {
+      "id": 215,
+      "name": "HouseB/Wall_Plaster_Straight_Base3",
+      "asset": "Wall_Plaster_Straight_Base",
+      "pos": {
+        "x": 4.6,
+        "y": 0.0,
+        "z": 5.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 20
+    },
+    {
+      "id": 216,
+      "name": "HouseB/Wall_Plaster_Straight_Base4",
+      "asset": "Wall_Plaster_Straight_Base",
+      "pos": {
+        "x": 4.60000008742278,
+        "y": 0.0,
+        "z": 7.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 20
+    },
+    {
+      "id": 217,
+      "name": "HouseB/Wall_Plaster_Window_Wide_Round3",
+      "asset": "Wall_Plaster_Window_Wide_Round",
+      "pos": {
+        "x": 5.60000013113417,
+        "y": 0.0,
+        "z": 8.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 218,
+      "name": "HouseB/Window_Wide_Round13",
+      "asset": "Window_Wide_Round1",
+      "pos": {
+        "x": 5.60000013113417,
+        "y": 0.0,
+        "z": 8.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 219,
+      "name": "HouseB/WindowShutters_Wide_Round_Open3",
+      "asset": "WindowShutters_Wide_Round_Open",
+      "pos": {
+        "x": 5.60000013113417,
+        "y": 0.0,
+        "z": 8.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 220,
+      "name": "HouseB/Wall_Plaster_Straight_Base5",
+      "asset": "Wall_Plaster_Straight_Base",
+      "pos": {
+        "x": 7.60000013113417,
+        "y": 0.0,
+        "z": 7.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 221,
+      "name": "HouseB/Wall_Plaster_Straight_Base6",
+      "asset": "Wall_Plaster_Straight_Base",
+      "pos": {
+        "x": 7.5999998688658295,
+        "y": 0.0,
+        "z": 1.99999995628861
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 222,
+      "name": "HouseB/Wall_Plaster_Window_Thin_Round3",
+      "asset": "Wall_Plaster_Window_Thin_Round",
+      "pos": {
+        "x": 5.5999998688658295,
+        "y": 0.0,
+        "z": 2.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 223,
+      "name": "HouseB/Window_Thin_Round13",
+      "asset": "Window_Thin_Round1",
+      "pos": {
+        "x": 5.5999998688658295,
+        "y": 0.0,
+        "z": 2.00000004371139
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 224,
+      "name": "HouseB/Corner_Exterior_Wood2",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": 8.59999986886583,
+        "y": 0.0,
+        "z": 1.9999999125772199
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 20
+    },
+    {
+      "id": 225,
+      "name": "HouseB/Corner_Exterior_Wood3",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": 8.60000013113417,
+        "y": 0.0,
+        "z": 7.99999991257722
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 226,
+      "name": "HouseB/Corner_Exterior_Wood4",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": 4.60000013113417,
+        "y": 0.0,
+        "z": 8.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000047,
+        "y": 1.0,
+        "z": 1.0000000000000047
+      },
+      "group": 20
+    },
+    {
+      "id": 227,
+      "name": "HouseB/Corner_Exterior_Wood5",
+      "asset": "Corner_Exterior_Wood",
+      "pos": {
+        "x": 4.5999998688658295,
+        "y": 0.0,
+        "z": 2.00000008742278
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 228,
+      "name": "HouseB/Roof_RoundTiles_4x62",
+      "asset": "Roof_RoundTiles_4x6",
+      "pos": {
+        "x": 6.6,
+        "y": 3.0,
+        "z": 5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 229,
+      "name": "HouseB/Roof_Front_Brick42",
+      "asset": "Roof_Front_Brick4",
+      "pos": {
+        "x": 6.5999998688658295,
+        "y": 3.0,
+        "z": 2.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      },
+      "scale": {
+        "x": 1.000000000000002,
+        "y": 1.0,
+        "z": 1.000000000000002
+      },
+      "group": 20
+    },
+    {
+      "id": 230,
+      "name": "HouseB/Roof_Front_Brick43",
+      "asset": "Roof_Front_Brick4",
+      "pos": {
+        "x": 6.60000013113417,
+        "y": 3.0,
+        "z": 8.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9999999999999991,
+        "z": 0.0,
+        "w": -4.371138999999996e-08
+      },
+      "scale": {
+        "x": 1.0000000000000018,
+        "y": 1.0,
+        "z": 1.0000000000000018
+      },
+      "group": 20
+    },
+    {
+      "id": 231,
+      "name": "Lantern_Wall2",
+      "asset": "Lantern_Wall",
+      "pos": {
+        "x": -4.28,
+        "y": 2.35,
+        "z": 2.0499997
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 232,
+      "name": "Lantern_Wall3",
+      "asset": "Lantern_Wall",
+      "pos": {
+        "x": -4.28,
+        "y": 2.35,
+        "z": -0.05000007
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 233,
+      "name": "Lantern_Wall6",
+      "asset": "Lantern_Wall",
+      "pos": {
+        "x": 4.48,
+        "y": 2.35,
+        "z": 3.9499998
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 234,
+      "name": "Lantern_Wall7",
+      "asset": "Lantern_Wall",
+      "pos": {
+        "x": 4.48,
+        "y": 2.35,
+        "z": 6.0499997
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.7071067966408576,
+        "z": 0.0,
+        "w": 0.7071067657322372
+      },
+      "scale": {
+        "x": 1.0000000000000009,
+        "y": 1.0,
+        "z": 1.0000000000000009
+      },
+      "group": 0
+    },
+    {
+      "id": 235,
+      "name": "Trees/CommonTree_32",
+      "asset": "CommonTree_3",
+      "pos": {
+        "x": -11.5,
+        "y": 0.0,
+        "z": -5.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.1736481787193712,
+        "z": 0.0,
+        "w": 0.9848077528266344
+      },
+      "scale": {
+        "x": 1.0999999126731679,
+        "y": 1.1,
+        "z": 1.0999999126731679
+      },
+      "group": 0
+    },
+    {
+      "id": 236,
+      "name": "Trees/CommonTree_12",
+      "asset": "CommonTree_1",
+      "pos": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": 8.5
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9396926164719572,
+        "z": 0.0,
+        "w": -0.3420201551781518
+      },
+      "scale": {
+        "x": 1.0000000170958414,
+        "y": 1.0,
+        "z": 1.0000000170958414
+      },
+      "group": 0
+    },
+    {
+      "id": 237,
+      "name": "Trees/CommonTree_22",
+      "asset": "CommonTree_2",
+      "pos": {
+        "x": 11.5,
+        "y": 0.0,
+        "z": -2.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.5735764295785585,
+        "z": 0.0,
+        "w": 0.8191520490311386
+      },
+      "scale": {
+        "x": 1.1499999921250272,
+        "y": 1.15,
+        "z": 1.1499999921250272
+      },
+      "group": 0
+    },
+    {
+      "id": 238,
+      "name": "Trees/CommonTree_42",
+      "asset": "CommonTree_4",
+      "pos": {
+        "x": 12.5,
+        "y": 0.0,
+        "z": 11.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9848077518504132,
+        "z": 0.0,
+        "w": 0.17364818425579617
+      },
+      "scale": {
+        "x": 0.9999999827503911,
+        "y": 1.0,
+        "z": 0.9999999827503911
+      },
+      "group": 0
+    },
+    {
+      "id": 239,
+      "name": "Trees/CommonTree_52",
+      "asset": "CommonTree_5",
+      "pos": {
+        "x": -6.5,
+        "y": 0.0,
+        "z": -14.5
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.5000000475059623,
+        "z": 0.0,
+        "w": 0.8660253763568568
+      },
+      "scale": {
+        "x": 0.9999999900238562,
+        "y": 1.0,
+        "z": 0.9999999900238562
+      },
+      "group": 0
+    },
+    {
+      "id": 240,
+      "name": "Trees/TwistedTree_22",
+      "asset": "TwistedTree_2",
+      "pos": {
+        "x": 8.5,
+        "y": 0.0,
+        "z": 19.5
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9659258262134237,
+        "z": 0.0,
+        "w": 0.25881904538483025
+      },
+      "scale": {
+        "x": 0.7499999392406648,
+        "y": 0.75,
+        "z": 0.7499999392406648
+      },
+      "group": 0
+    },
+    {
+      "id": 241,
+      "name": "Trees/CommonTree_34",
+      "asset": "CommonTree_3",
+      "pos": {
+        "x": 20.04061,
+        "y": 0.0,
+        "z": 6.393156
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.057188437552751874,
+        "z": 0.0,
+        "w": 0.9983634020787596
+      },
+      "scale": {
+        "x": 1.3467544678133467,
+        "y": 1.3467544,
+        "z": 1.3467544678133467
+      },
+      "group": 0
+    },
+    {
+      "id": 242,
+      "name": "Trees/CommonTree_53",
+      "asset": "CommonTree_5",
+      "pos": {
+        "x": -2.4687421,
+        "y": 0.0,
+        "z": 24.316385
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.021049379168415473,
+        "z": 0.0,
+        "w": 0.9997784372732912
+      },
+      "scale": {
+        "x": 1.3613315476629744,
+        "y": 1.3613315,
+        "z": 1.3613315476629744
+      },
+      "group": 0
+    },
+    {
+      "id": 243,
+      "name": "Trees/CommonTree_54",
+      "asset": "CommonTree_5",
+      "pos": {
+        "x": 15.02645,
+        "y": 0.0,
+        "z": 18.548439
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.3552963598286682,
+        "z": 0.0,
+        "w": 0.9347537091087136
+      },
+      "scale": {
+        "x": 1.1528477258087557,
+        "y": 1.1528478,
+        "z": 1.1528477258087557
+      },
+      "group": 0
+    },
+    {
+      "id": 244,
+      "name": "Trees/CommonTree_23",
+      "asset": "CommonTree_2",
+      "pos": {
+        "x": -12.679126,
+        "y": 0.0,
+        "z": 16.6866
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.5451163435920656,
+        "z": 0.0,
+        "w": 0.8383604069544417
+      },
+      "scale": {
+        "x": 1.0592156583704078,
+        "y": 1.0592157,
+        "z": 1.0592156583704078
+      },
+      "group": 0
+    },
+    {
+      "id": 245,
+      "name": "Trees/CommonTree_36",
+      "asset": "CommonTree_3",
+      "pos": {
+        "x": 7.647562,
+        "y": 0.0,
+        "z": 24.313107
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9697664678367124,
+        "z": 0.0,
+        "w": -0.24403482919351227
+      },
+      "scale": {
+        "x": 0.9607797259226591,
+        "y": 0.9607797,
+        "z": 0.9607797259226591
+      },
+      "group": 0
+    },
+    {
+      "id": 246,
+      "name": "Trees/Pine_65",
+      "asset": "Pine_5",
+      "pos": {
+        "x": 18.385138,
+        "y": 0.0,
+        "z": 12.214322
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.5286245023175768,
+        "z": 0.0,
+        "w": 0.8488557801826493
+      },
+      "scale": {
+        "x": 1.3325398963296895,
+        "y": 1.3325399,
+        "z": 1.3325398963296895
+      },
+      "group": 0
+    },
+    {
+      "id": 247,
+      "name": "Trees/Pine_67",
+      "asset": "Pine_4",
+      "pos": {
+        "x": 19.816021,
+        "y": 0.0,
+        "z": 10.682932
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.8462832786880291,
+        "z": 0.0,
+        "w": 0.5327331529133882
+      },
+      "scale": {
+        "x": 1.401480175416927,
+        "y": 1.4014802,
+        "z": 1.401480175416927
+      },
+      "group": 0
+    },
+    {
+      "id": 248,
+      "name": "Trees/Pine_69",
+      "asset": "Pine_5",
+      "pos": {
+        "x": -22.260664,
+        "y": 0.0,
+        "z": 2.438916
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.33698901770600415,
+        "z": 0.0,
+        "w": 0.9415085777333855
+      },
+      "scale": {
+        "x": 1.0021480345904508,
+        "y": 1.002148,
+        "z": 1.0021480345904508
+      },
+      "group": 0
+    },
+    {
+      "id": 249,
+      "name": "Trees/CommonTree_44",
+      "asset": "CommonTree_4",
+      "pos": {
+        "x": -2.1372924,
+        "y": 0.0,
+        "z": 21.321615
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.784892950394544,
+        "z": 0.0,
+        "w": 0.6196313875369356
+      },
+      "scale": {
+        "x": 1.3815252672993896,
+        "y": 1.3815253,
+        "z": 1.3815252672993896
+      },
+      "group": 0
+    },
+    {
+      "id": 250,
+      "name": "Trees/CommonTree_56",
+      "asset": "CommonTree_5",
+      "pos": {
+        "x": 20.875637,
+        "y": 0.0,
+        "z": 11.053701
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.9053521647979154,
+        "z": 0.0,
+        "w": 0.42466158019737127
+      },
+      "scale": {
+        "x": 1.403009238327036,
+        "y": 1.4030092,
+        "z": 1.403009238327036
+      },
+      "group": 0
+    },
+    {
+      "id": 251,
+      "name": "Trees/CommonTree_20",
+      "asset": "CommonTree_1",
+      "pos": {
+        "x": -18.0,
+        "y": 0.0,
+        "z": 4.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.6975529794061434,
+        "z": 0.0,
+        "w": 0.7165332099223404
+      },
+      "scale": {
+        "x": 1.1771320608248772,
+        "y": 1.177132,
+        "z": 1.1771320608248772
+      },
+      "group": 0
+    },
+    {
+      "id": 252,
+      "name": "Trees/CommonTree_57",
+      "asset": "CommonTree_5",
+      "pos": {
+        "x": -17.0,
+        "y": 0.0,
+        "z": 16.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": -0.8469227996731336,
+        "z": 0.0,
+        "w": 0.5317158746866802
+      },
+      "scale": {
+        "x": 1.1424782942700278,
+        "y": 1.1424782,
+        "z": 1.1424782942700278
+      },
+      "group": 0
+    },
+    {
+      "id": 253,
+      "name": "Trees/CommonTree_47",
+      "asset": "CommonTree_4",
+      "pos": {
+        "x": 19.0,
+        "y": 0.0,
+        "z": 3.0
+      },
+      "rot": {
+        "x": 0.0,
+        "y": 0.4852169614597795,
+        "z": 0.0,
+        "w": 0.8743937901836557
+      },
+      "scale": {
+        "x": 1.0629960356307169,
+        "y": 1.062996,
+        "z": 1.0629960356307169
+      },
+      "group": 0
+    }
+  ],
+  "layout_sha256": "36f5e109c271a4e1861086fd079fb22d78b7ae8814936b83c7db606f48ed63a9"
+}
