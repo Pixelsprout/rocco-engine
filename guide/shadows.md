@@ -108,5 +108,7 @@ Its world-input and outline readbacks also passed.
 The Bridge passed default single-map, multiple-cascade, low-startup, and high-startup cases.
 Each case checked live presets, numeric controls, changed images, graphics validation, and a clean exit.
 The local evidence is in `/tmp/rocco-shadow-merged/`.
-Native environment and shadow-control acceptance on GL and D3D remains pending CI.
+[CI run 41963156762](https://github.com/Pixelsprout/rocco-engine/actions/runs/41963156762) passed all jobs.
+Metal, GL, and D3D11 passed all four native shadow-control cases.
+The native environment checks also passed on all three backends.
 Measured village presets remain a separate acceptance gate.

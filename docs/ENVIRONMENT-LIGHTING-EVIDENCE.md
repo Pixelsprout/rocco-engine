@@ -104,7 +104,16 @@ The observed p95 difference was 0.312 ms.
 This comparison includes the background pass and surface lighting together.
 It uses one GPU capture per mode.
 The reference does not establish village performance or real-clock frame pacing.
-The PC reference run and native backend image comparisons remain separate gates.
+The PC reference run remains a separate gate.
+
+## Desktop backend validation
+
+[CI run 41963156762](https://github.com/Pixelsprout/rocco-engine/actions/runs/41963156762) passed all jobs.
+The native environment image checks passed on Metal, GL, and D3D11.
+They cover warm and cool lighting, roughness, exposure, absent resources, unload, and reload.
+The four reported roughness peaks matched across backends: 177.7, 137.3, 71.7, and 39.0.
+The agent inspected the Windows warm-lighting capture and found no rendering failure.
+These checks validate the environment feature, not final village performance.
 
 ## Reproduce the measurements
 
