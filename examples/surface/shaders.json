@@ -75,6 +75,23 @@
       "max_displacement": 0,
       "skinning": false,
       "instancing": false
+    },
+    {
+      "name": "IndirectSurface",
+      "kind": "surface",
+      "max_displacement": 0,
+      "surface": "indirect.glsl",
+      "parameters": [
+        {
+          "name": "normal_z",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "fragment",
+          "default": [
+            1
+          ]
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,458 @@
+{
+  "captures": {
+    "baseline-all": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": false,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 35549,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "f4012b548e66d841b133e18570c1e79650180018a1a1c70cb9c555253c813ce4",
+      "binary_sha256": "6a2f97a61edef947f54bd73423800f26274630754c60e60ce317f5e202968409"
+    },
+    "baseline-ibl": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": true,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 46336,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "0d88b15457e73a6332caffad49644cfe73ff5e27003a6790aaeb8760e72da0a9",
+      "binary_sha256": "6a2f97a61edef947f54bd73423800f26274630754c60e60ce317f5e202968409"
+    },
+    "negative-mask": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": true,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 0,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "e09256d1f63b808a4dbc3c0b498c12b85257b60b109a14c7b95aa3022c917654",
+      "binary_sha256": "6a2f97a61edef947f54bd73423800f26274630754c60e60ce317f5e202968409"
+    },
+    "constant-ibl": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": true,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 744,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "7168cb30269e65c10ba63907e6982896c6207e9c746d7e540c654b82e78a85cf",
+      "binary_sha256": "6a2f97a61edef947f54bd73423800f26274630754c60e60ce317f5e202968409"
+    },
+    "corrected-all": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": false,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 2987,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "2d28e07d316d94658d67d3842f34cf4d00e3ebb7b14993b797c962c5074960ea",
+      "binary_sha256": "4e86994afcc7d0bf252609b83bd7b3884f99b5f4c92e2d7c8de765a8d117a43a"
+    },
+    "corrected-ibl": {
+      "ready_step": 95,
+      "pose_steps": 243,
+      "ibl_only": true,
+      "camera": {
+        "eye": {
+          "x": -13,
+          "y": 4,
+          "z": 12
+        },
+        "target": {
+          "x": -12.399621,
+          "y": 4.389418,
+          "z": 11.301502
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "environment": {
+        "sky": 1,
+        "clear": {
+          "r": 0.32,
+          "g": 0.48,
+          "b": 0.65
+        },
+        "tone_map": "AgX",
+        "exposure": 1.12,
+        "fog": {
+          "color": {
+            "r": 0.393123,
+            "g": 0.477,
+            "b": 0.603827
+          },
+          "start": 14,
+          "end": 120,
+          "amount": 0.38
+        },
+        "bloom": {
+          "strength": 0.18,
+          "threshold": 1.2,
+          "knee": 0.5
+        }
+      },
+      "shadow": {
+        "distance": 0,
+        "normal_bias": 0.05,
+        "depth_bias": 0,
+        "distribution": 0.5,
+        "blend": 0.1,
+        "filter": "Pcf3"
+      },
+      "physical": [
+        1920,
+        1080
+      ],
+      "dark_pixels": 3671,
+      "roi": [
+        700,
+        400,
+        1250,
+        950
+      ],
+      "image_sha256": "5bddf698ef838f5e400822a48f44244bb4afbc65c3b36773326439dd1de6e971",
+      "binary_sha256": "4e86994afcc7d0bf252609b83bd7b3884f99b5f4c92e2d7c8de765a8d117a43a"
+    }
+  },
+  "correlation": {
+    "dark_pixels": 46336,
+    "negative_mask_dark_overlap": 43768,
+    "restored_dark_negative": 43755,
+    "negative_pixels": 51225,
+    "positive_pixels": 178200,
+    "negative_median_before": 9.666666666666666,
+    "negative_median_after": 51.333333333333336,
+    "positive_median_before": 45.666666666666664,
+    "positive_median_after": 49.0
+  },
+  "regression": {
+    "rigid": {
+      "mean_difference": 0.0,
+      "changed_channels": 0
+    },
+    "instanced": {
+      "mean_difference": 0.0,
+      "changed_channels": 0
+    },
+    "default_surface": {
+      "mean_difference": 0.0,
+      "changed_channels": 0
+    },
+    "images": {
+      "indirect-builtin-frame.png": "7c82c15df19e183829ea0f54fd17236d141609ddc5d9f7c4096609040e919125",
+      "indirect-default-frame.png": "7c82c15df19e183829ea0f54fd17236d141609ddc5d9f7c4096609040e919125",
+      "instanced-front-frame.png": "d558e6d19ec18baac6b1547e132137712050199667d65aa00167d0cfb3176120",
+      "instanced-opposed-frame.png": "d558e6d19ec18baac6b1547e132137712050199667d65aa00167d0cfb3176120",
+      "rigid-front-frame.png": "45ddcbe4ef86ee166252e8e748f9803460a8f16718c7b15689194e7cc7a07353",
+      "rigid-opposed-frame.png": "45ddcbe4ef86ee166252e8e748f9803460a8f16718c7b15689194e7cc7a07353"
+    }
+  },
+  "front_control": {
+    "before_opposed_mean_difference": 5.053263020833334,
+    "front_before_after_mean_difference": 0.0
+  },
+  "native_backend": "Metal",
+  "native_gl_pending": true,
+  "native_d3d_pending": true
+}

@@ -57,6 +57,10 @@ GL storage bindings remain compact at 0 through 2.
 
 The diffuse response uses the surface normal and the nonmetallic base colour.
 Schlick Fresnel removes reflected energy from the diffuse term.
+Indirect reflectance uses the magnitude of the normal-view cosine on either side of the shading normal.
+Visible geometry can have a view-opposed normal after canopy softening or normal mapping.
+The signed normal still selects diffuse irradiance direction.
+Direct lighting and geometric shadow bias retain their existing equations.
 The specular response uses `reflect(-view, normal)` and `roughness * specular_max_lod`.
 The existing split-sum BRDF fit scales that filtered radiance.
 Material occlusion scales both environment terms.

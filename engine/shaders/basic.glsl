@@ -310,15 +310,17 @@ vec4 surface_color(bool premultiplied) {
     vec3 n = surface_normal() * facing;
     vec3 v = safe_normalize(camera_pos.xyz - v_world);
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
+    // A visible two-sided surface can have a view-opposed shading normal.
+    float indirect_n_dot_v = max(abs(dot(n, v)), MIN_N_DOT_V);
 
     float ao = texture(sampler2D(occlusion_tex, occlusion_smp), v_uv).r;
     float occlusion = mix(1.0, ao, maps.y);
-    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * occlusion;
+    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, indirect_n_dot_v)) * occlusion;
     if (environment_params.x > 0.0) {
         vec3 irradiance = textureLod(samplerCube(env_diffuse_tex, env_diffuse_smp), n, 0.0).rgb;
         vec3 reflected = textureLod(samplerCube(env_specular_tex, env_specular_smp), reflect(-v, n), roughness * environment_params.y).rgb;
-        color += ((1.0 - fresnel_schlick(f0, n_dot_v)) * diffuse_color * irradiance
-            + env_brdf_approx(f0, roughness, n_dot_v) * reflected) * occlusion;
+        color += ((1.0 - fresnel_schlick(f0, indirect_n_dot_v)) * diffuse_color * irradiance
+            + env_brdf_approx(f0, roughness, indirect_n_dot_v) * reflected) * occlusion;
     }
     vec2 tile = gl_FragCoord.xy * cluster_grid.xy;
 #if !SOKOL_GLSL

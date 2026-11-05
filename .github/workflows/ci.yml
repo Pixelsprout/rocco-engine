@@ -90,6 +90,7 @@ jobs:
           python3 scripts/particle_check.py build/bridge-check/particles
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
           python3 scripts/surface_check.py build/bridge-check/surface
+          python3 scripts/indirect_surface_check.py build/bridge-check/indirect-surface
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
           python3 scripts/post_check.py build/bridge-check/post
           python3 scripts/shader_reload_check.py build/bridge-check/reload
@@ -293,6 +294,7 @@ jobs:
           python scripts/particle_check.py build/bridge-check/particles
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game surface
           python scripts/surface_check.py build/bridge-check/surface
+          python scripts/indirect_surface_check.py build/bridge-check/indirect-surface
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game post
           python scripts/post_check.py build/bridge-check/post
           python scripts/shader_reload_check.py build/bridge-check/reload
