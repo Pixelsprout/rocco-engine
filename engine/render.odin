@@ -14,8 +14,8 @@ SHADOW_UNIFORM_SLOTS :: (size_of(Shadow_Vs_Params) + UNIFORM_ALIGN - 1) / UNIFOR
 MAIN_UNIFORM_SLOTS :: (size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN + (size_of(Fs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 LIGHTS_UNIFORM_SLOTS :: (size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 // The slots outside the Draws: the lights once per pipeline before the sky,
-// the sky, the bloom, the tone map and the UI.
-UNIFORM_SPARE_SLOTS :: 21
+// the sky, the bloom, the tone map, the UI and two blocks per particle source.
+UNIFORM_SPARE_SLOTS :: 21 + 2 * EMITTER_LIMIT
 // The Prefilter and each Up apply a block. A Down applies none.
 BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must
@@ -77,6 +77,7 @@ Renderer :: struct {
 	environment_sky:    ^Sky,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
+	particles:          Particle_Gpu,
 	target:             Render_Target,
 	// Taken when the Main pass begins, where the wait for the drawable is
 	// outside the render Span. The copy pass after the Post pass reuses it.
@@ -136,6 +137,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	}
 	sample_count := msaa_sample_count(launch.window.samples)
 	render_target_init(&r.target, sample_count)
+	particle_gpu_init(&r.particles, sample_count)
 	mesh_table_upload(&r.meshes)
 	sky_table_upload(&r.skies)
 	image_table_upload(&r.images)
@@ -542,6 +544,8 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit_bloom = renderer_bloom,
 		submit_tone_map = renderer_tone_map,
 		submit_ui = renderer_ui,
+		upload_particles = renderer_upload_particles,
+		submit_particles = renderer_submit_particles,
 		ctx = r,
 	}
 }

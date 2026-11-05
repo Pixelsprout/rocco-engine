@@ -96,6 +96,8 @@ Frame_Render_Submits :: struct {
 	submit_bloom:    Submit_Bloom,
 	submit_tone_map: Submit_Tone_Map,
 	submit_ui:       Submit_Ui,
+	upload_particles: proc(ctx: rawptr, instances: []Particle_Instance, view: Frame_View),
+	submit_particles: proc(ctx: rawptr, batch: Particle_Batch),
 	ctx:             rawptr,
 }
 
@@ -129,6 +131,8 @@ Light_Drop :: enum {
 // past either limit, because a release sokol writes past a full buffer.
 Frame_Render :: struct {
 	pairing:            Pairing,
+	particles:          ^Particles,
+	particles_paused:   bool,
 	placed:             [dynamic]Placed,
 	draw_capacity:      int,
 	skins:              []Skin_Params,
@@ -191,6 +195,7 @@ Draw_Params :: struct {
 Blend_Draw :: struct {
 	params:      Draw_Params,
 	distance_sq: f32,
+	emitter: ^Particle_Batch,
 }
 
 // What the Frame's walk of the current Scene gathers.
@@ -380,8 +385,15 @@ frame_render_draw :: proc(
 	if has_sky {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
 	}
-	for b in frame_render_sort_blend_draws(draw_params, view.camera.eye) {
-		frame_render_submit_blend_parts(fr, b.params)
+	instances, batches := particles_frame(fr.particles, 1 if fr.particles_paused else alpha)
+	if fr.submits.upload_particles != nil { fr.submits.upload_particles(fr.submits.ctx, instances, view) }
+	for b in frame_render_sort_blend_draws(draw_params, view.camera.eye, batches) {
+		if b.emitter != nil {
+			if fr.submits.submit_particles != nil { fr.submits.submit_particles(fr.submits.ctx, b.emitter^) }
+		} else { frame_render_submit_blend_parts(fr, b.params) }
+	}
+	if fr.submits.submit_particles != nil {
+		for batch in batches { if batch.blend == .Add { fr.submits.submit_particles(fr.submits.ctx, batch) } }
 	}
 	fr.submits.end_pass(fr.submits.ctx)
 
@@ -421,17 +433,23 @@ frame_render_draw_params :: proc(p: ^Placed, view: Frame_View) -> Draw_Params {
 	return {p, vs_params, params}
 }
 
-// Back to front. The sort is stable, so a tie keeps its Scene order.
+// Equal distances keep Draw order, then retained source slot order.
 @(private = "file")
-frame_render_sort_blend_draws :: proc(draw_params: []Draw_Params, eye: [3]f32) -> []Blend_Draw {
-	blend := make([dynamic]Blend_Draw, 0, len(draw_params), context.temp_allocator)
+frame_render_sort_blend_draws :: proc(draw_params: []Draw_Params, eye: [3]f32, batches: []Particle_Batch = nil) -> []Blend_Draw {
+	blend := make([dynamic]Blend_Draw, 0, len(draw_params) + len(batches), context.temp_allocator)
 	for d in draw_params {
 		if !placed_has_blend(d.p) {
 			continue
 		}
 		box := box_transform(d.p.mesh.box, d.p.model)
 		to_centre := (box.min + box.max) / 2 - eye
-		append(&blend, Blend_Draw{d, linalg.dot(to_centre, to_centre)})
+		append(&blend, Blend_Draw{params = d, distance_sq = linalg.dot(to_centre, to_centre)})
+	}
+	for &batch in batches {
+		if batch.blend == .Alpha {
+			delta := batch.position - eye
+			append(&blend, Blend_Draw{emitter = &batch, distance_sq = linalg.dot(delta, delta)})
+		}
 	}
 	slice.stable_sort_by(blend[:], proc(a, b: Blend_Draw) -> bool {
 		return a.distance_sq > b.distance_sq

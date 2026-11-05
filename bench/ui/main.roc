@@ -71,6 +71,7 @@ view = |m| {
 	cursor: Free,
 	environment: Environment.default,
 	shadow: Shadow.default,
+	emitters: [],
 	ui: elements(m),
 	queries: [],
 }

@@ -63,12 +63,60 @@ host to do one thing once.
 
 | Field | Holds | Page |
 |---|---|---|
+| `emitters` | host-simulated smoke, dust and sparks | [Particles](#particles) |
 | `camera` | the [Camera] | this page |
 | `nodes` | the root [Node]s of the 3D tree: Groups, Draws, Lights, Colliders and Speakers | this page |
 | `environment` | the [Environment]: the sky id, the colour behind the 3D view, the tone map, the exposure, fog and bloom | this page and [Assets and Packs](assets.md) |
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
 | `ui` | the root [Element]s of the UI tree over the 3D view | [The UI](ui.md) |
+
+## Particles
+
+Add sources to `Scene.emitters` to draw smoke, dust or sparks.
+Start each source from `Emitter.default`.
+Use a stable `id` for each source.
+Set `rate` in particles per second.
+Call `Emitter.burst(id, count)` from `init` or `step` for a single burst.
+The host resolves bursts against the Scene from that same call.
+
+The host simulates particles at the fixed step rate.
+The source seed controls its random velocity offsets.
+`velocity_spread` sets the uniform offset range for each velocity axis.
+The host interpolates position, size and colour for each frame.
+Size uses world units; colour uses linear HDR values.
+
+Use `Alpha` for smoke and dust.
+The host sorts Alpha sources with Blend Draws by source position.
+Use `Add` for sparks.
+The host draws Add sources after that sort.
+Particles test opaque depth and write no depth.
+
+Image id `0` selects the built-in soft round sprite.
+A nonzero `image` id selects a Pack image.
+If that image is missing or unloaded, the host omits those particles and logs once.
+Particles keep no Pack reference.
+
+Removing a source stops new emission.
+Existing particles drain with its last settings.
+Reusing a draining id keeps its random sequence.
+A changed seed resets the sequence for future particles.
+After a removed source drains, its id starts a new sequence.
+Settings changes also affect particles already alive.
+
+The host accepts 128 sources, including draining sources, and 8192 particles.
+The first duplicate source id wins.
+Sources keep their host slot until they drain.
+New sources take the first free slot.
+Continuous emission fills free particle slots in source slot order.
+Bursts fill free particle slots in command order.
+Bursts run before continuous emission.
+Dropped emissions do not queue for later steps.
+The first 128 distinct burst ids per step are accepted.
+Repeated burst ids combine up to 8192 particles.
+
+Run the `particles` example for smoke, a Pack-image dust source and additive sparks.
+Press B for sparks, R to remove or restore sources, U to unload the image, and L to reload it.
 
 ## The tree of Nodes
 
@@ -411,6 +459,7 @@ with a record update, and set only the fields that you need.
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
 | Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky`, `tone_map`, `fog` or `bloom`. |
+| Emitter | [`Emitter.default`][Emitter.default] | the start of each source. Set `id` and `rate`. |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
@@ -434,6 +483,7 @@ with a record update, and set only the fields that you need.
 [Scene.empty]: https://pixelsprout.dev/projects/rocco/api/platform/Scene/#Scene.empty
 [Environment]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Environment
 [Environment.default]: https://pixelsprout.dev/projects/rocco/api/platform/Environment/#Environment.default
+[Emitter.default]: https://pixelsprout.dev/projects/rocco/api/platform/Emitter/#Emitter.default
 [Draw.default]: https://pixelsprout.dev/projects/rocco/api/platform/Draw/#Draw.default
 [Speaker.default]: https://pixelsprout.dev/projects/rocco/api/platform/Speaker/#Speaker.default
 [Launch.default]: https://pixelsprout.dev/projects/rocco/api/platform/Launch/#Launch.default

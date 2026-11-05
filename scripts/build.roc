@@ -93,7 +93,7 @@ all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, FontTable, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
 example_games : List(Str)
-example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "environment-lighting", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
+example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "particles", "environment-lighting", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
@@ -806,8 +806,8 @@ expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, S
 expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("environment-lighting"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
-expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("environment-lighting"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
 expect game_binary("tutorial/01-window") == "01-window"
 expect parse(["glue", "--release"]) == Err(Usage)

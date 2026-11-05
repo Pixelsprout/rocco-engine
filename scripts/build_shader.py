@@ -53,11 +53,15 @@ def main():
     args = parser.parse_args()
     output = Path("engine/shader_basic.odin")
     previous = output.read_bytes()
+    particles = Path("engine/shader_particles.odin")
+    previous_particles = particles.read_bytes()
     try:
         subprocess.run([args.shdc, "-i", "engine/shaders/basic.glsl", "-o", str(output), "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"], check=True)
         generated = compact_odin(output.read_text())
+        subprocess.run([args.shdc, "-i", "engine/shaders/particles.glsl", "-o", str(particles), "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"], check=True)
     except BaseException:
         output.write_bytes(previous)
+        particles.write_bytes(previous_particles)
         raise
     output.write_text(generated)
 

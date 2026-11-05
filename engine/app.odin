@@ -32,6 +32,7 @@ State :: struct {
 	steps:             u64,
 	frame_render:      Frame_Render,
 	ui:                Ui,
+	particles:         Particles,
 	exit_after_frames: int, // 0 runs forever
 	mode:              Run_Mode,
 	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
@@ -128,7 +129,9 @@ app_gfx_desc :: proc(capacity: Capacity, cascades: int) -> sg.Desc {
 	textures := texture_pool_size(capacity)
 	return {
 		logger = {func = slog.func},
-		buffer_pool_size = 2 * i32(capacity.meshes) + 5,
+		buffer_pool_size = 2 * i32(capacity.meshes) + 5 + 1,
+		shader_pool_size = 32 + 1,
+		pipeline_pool_size = 64 + 2,
 		image_pool_size = textures,
 		sampler_pool_size = textures,
 		view_pool_size = view_pool_size(capacity),

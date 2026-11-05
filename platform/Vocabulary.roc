@@ -88,7 +88,7 @@ Vocabulary := [].{
 	## - `draws`: mesh part draws per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
 	##   materials uses up to 3. A double-sided Blend material uses 2. Above
-	##   zero and at most 1394684. The uniform buffer grows with it.
+	##   zero and at most 1394641. The uniform buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
 	##   Groups.
@@ -391,6 +391,7 @@ Vocabulary := [].{
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
+	## - `emitters`: host-simulated billboard sources; `[]` stops new emission.
 	## - `nodes`: the root Nodes of the 3D tree. A root Node's Pose is in the
 	##   world.
 	## - `environment`: the look of the 3D view. `Scene.empty` has
@@ -400,7 +401,29 @@ Vocabulary := [].{
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+	Scene : { camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+
+	## A host-simulated billboard source. Start from `Emitter.default`.
+	## `id` identifies a source independently of Draw ids. The first duplicate wins.
+	## Removal stops emission; existing particles drain with the last settings.
+	## Reappearing ids retain their seed sequence until the source drains completely.
+	## A changed seed restarts the random sequence for future particles.
+	## Velocity spread gives independent uniform offsets on each axis.
+	## Size and colour interpolate across each particle's lifetime, in world units
+	## and linear HDR colour. Rate is particles per second; drag is per second.
+	## Image 0 uses a soft round sprite. Missing or unloaded Pack images omit their
+	## particles and log once per image id. Particles never retain a Pack reference.
+	## Alpha sources sort by source position with Blend Draws. Add sources draw last.
+	## The host accepts 128 sources, including draining sources, and 8192 particles.
+	## New sources take the first free host slot.
+	## Bursts fill particle slots in command order before continuous emission.
+	## Continuous emission fills remaining particle slots in source slot order.
+	## Dropped emissions do not queue for later steps.
+	## Non-finite fields use Emitter.default values. Finite values clamp to the documented limits.
+	## Position and velocity clamp to +/-1000000; spread, size and drag to 0..1000000.
+	## Rate clamps to 0..8192; lifetime to 0.001..3600; colour channels to 0..65504.
+	## Alpha clamps to 0..1. Settings changes also affect particles already alive.
+	Emitter : { id : U64, position : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, seed : U64, image : U32, blend : [Alpha, Add] }
 
 	## Live shadow appearance. The host uses the current Scene without interpolation.
 	## Invalid fields use their Shadow.default values and log once per field.
@@ -499,6 +522,9 @@ Vocabulary := [].{
 	## A thing for the host to do once. `init` and `step` return them, and the
 	## host runs them in list order.
 	##
+	## - `Burst`: emit `count` particles from the current Scene source with that id.
+	##   Unknown ids emit nothing. Each count clamps to 8192. The first 128 distinct
+	##   burst ids per step are accepted; repeated ids combine up to 8192.
 	## - `Quit`: stop the game. The host binds no key to it.
 	## - `Load`: load each named asset of the pack, then call `loaded` with the
 	##   pack name and its Manifest.
@@ -511,5 +537,5 @@ Vocabulary := [].{
 	##   `Sound.play`.
 	## - `Tell`: send a message to a port. The host does nothing with it, and a
 	##   Driver reads it in the `step` reply. Build one with `Port.tell`.
-	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
+	Command : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
 }

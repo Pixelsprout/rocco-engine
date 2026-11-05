@@ -57,22 +57,33 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
 	desc := app_gfx_desc(launch_default().capacity, 1)
 	images := MESH_TEXTURE_LIMIT * 64 + 312
-	testing.expect_value(t, desc.buffer_pool_size, 2 * 64 + 5)
+	testing.expect_value(t, desc.buffer_pool_size, 2 * 64 + 6)
 	testing.expect_value(t, desc.image_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.sampler_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.view_pool_size, i32(images + MAX_CASCADES + TARGET_VIEWS + 3))
-	testing.expect_value(t, desc.uniform_buffer_size, (4 * 16384 + 21) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, desc.uniform_buffer_size, (4 * 16384 + 21 + 2 * EMITTER_LIMIT) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
 
 	two := app_gfx_desc(launch_default().capacity, 2)
-	testing.expect_value(t, two.uniform_buffer_size, (4 * 16384 + 21) * 256 + 3 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, two.uniform_buffer_size, (4 * 16384 + 21 + 2 * EMITTER_LIMIT) * 256 + 3 * SKINNED_DRAW_LIMIT * 4096)
 
 	four := app_gfx_desc(launch_default().capacity, 4)
-	testing.expect_value(t, four.uniform_buffer_size, (6 * 16384 + 21) * 256 + 5 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, four.uniform_buffer_size, (6 * 16384 + 21 + 2 * EMITTER_LIMIT) * 256 + 5 * SKINNED_DRAW_LIMIT * 4096)
 
 	small := app_gfx_desc({meshes = 4, skies = 2, images = 2, draws = 10, ui_quads = 1}, 4)
 	testing.expect_value(t, small.image_pool_size, MESH_TEXTURE_LIMIT * 4 + 2 + 6 + 1 + 2 + 2 + 1 + 1 + 1 + TARGET_IMAGES)
-	testing.expect_value(t, small.uniform_buffer_size, (6 * 10 + 21) * 256 + 5 * 10 * 4096)
+	testing.expect_value(t, small.uniform_buffer_size, (6 * 10 + 21 + 2 * EMITTER_LIMIT) * 256 + 5 * 10 * 4096)
 
 	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1}, MAX_CASCADES)
 	testing.expect(t, largest.uniform_buffer_size > 0)
+}
+
+@(test)
+test_particle_reservations_add_to_existing_renderer_capacity :: proc(t: ^testing.T) {
+	// Zero draws isolate fixed reserves from per-Draw costs.
+	capacity := Capacity{meshes = 4, skies = 2, images = 2, ui_quads = 1}
+	desc := app_gfx_desc(capacity, MAX_CASCADES)
+	testing.expect_value(t, desc.buffer_pool_size, 2 * 4 + 5 + 1)
+	testing.expect_value(t, desc.shader_pool_size, 32 + 1)
+	testing.expect_value(t, desc.pipeline_pool_size, 64 + 2)
+	testing.expect_value(t, desc.uniform_buffer_size, (21 + 2 * EMITTER_LIMIT) * UNIFORM_ALIGN)
 }

@@ -122,6 +122,7 @@ view = |m| {
 		cursor: Free,
 		environment: Environment.default,
 		shadow: Shadow.default,
+		emitters: [],
 		ui: [],
 		queries: queries(m.half),
 	}

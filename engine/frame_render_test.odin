@@ -64,9 +64,12 @@ Bloom_Submitted :: struct {
 	after_main: bool,
 }
 
+Particle_Recorded :: struct {batch: Particle_Batch, before: int}
+
 // sky_after is the number of submits before the sky. tone_map_ui is the
 // number of submit_ui calls before the tone map.
 Recorder :: struct {
+	particles: [dynamic]Particle_Recorded,
 	passes:        [dynamic]Pass_Begun,
 	pass_ends:     int,
 	shadows:       [dynamic]Shadow_Submitted,
@@ -332,6 +335,7 @@ recorder_destroy :: proc(r: ^Recorder) {
 	delete(r.shadows)
 	delete(r.ui_quads)
 	delete(r.blooms)
+	delete(r.particles)
 }
 
 recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
