@@ -114,7 +114,9 @@ test_source_resolution_sky_exceeds_frame_scratch_without_reduction :: proc(t: ^t
 	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
 	frame: vmem.Arena
-	vmem.arena_init_static(&frame, FRAME_ARENA_RESERVE) or_else panic("cannot reserve frame arena")
+	if err := vmem.arena_init_static(&frame, FRAME_ARENA_RESERVE); err != .None {
+		panic("cannot reserve frame arena")
+	}
 	defer vmem.arena_destroy(&frame)
 	context.temp_allocator = vmem.arena_allocator(&frame)
 	skies: Sky_Table
