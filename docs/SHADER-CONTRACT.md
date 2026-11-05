@@ -550,3 +550,16 @@ The diffuse cubemap stores cosine-integrated radiance divided by pi.
 The specular mip roughness is `mip / specular_max_lod`.
 Bind black cubemaps and zero metadata when the Sky is absent or unloaded.
 The `rocco_environment(direction, lod)` hook helper samples the specular cubemap at an explicit mip.
+
+## Shadow appearance lanes
+
+The runtime and production Surface wrapper use the same shadow comparisons.
+The `fs_lights` block remains 512 bytes.
+`camera_pos.w` contains comparison depth bias.
+`fog_color.w` contains the comparison filter radius: 0, 1 or 2.
+`view_dir.w` contains effective shadow distance, or 0 for legacy single-map fitting.
+`shadow.z` contains world normal bias.
+`shadow.w` contains the cascade blend fraction.
+A blend band that rounds to zero width uses a hard step and avoids an undefined smoothstep.
+Finite distance uses camera fitting with one or multiple cascades.
+All layouts preserve these lanes across rigid, skinned and instanced colour variants.

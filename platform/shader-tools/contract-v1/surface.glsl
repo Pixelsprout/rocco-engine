@@ -6,6 +6,8 @@ layout(binding = 1) uniform fs_params {
     vec4 maps;
     vec4 environment_params;
 };
+// camera_pos.w: depth bias; fog_color.w: filter radius; view_dir.w: shadow
+// distance (0 for legacy fitting). Keep these lanes equal to the runtime.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
     vec4 camera_pos;
@@ -101,19 +103,21 @@ float sun_visibility_in(int cascade, vec3 n) {
     bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
     vec2 texel = 1.0 / vec2(textureSize(sampler2DArrayShadow(shadow_tex, shadow_smp), 0).xy);
     float sum = 0.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z));
+    int radius = int(fog_color.w);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z + camera_pos.w));
         }
     }
-    return inside ? sum / 9.0 : 1.0;
+    float width = float(radius * 2 + 1);
+    return inside ? sum / (width * width) : 1.0;
 }
 vec4 cascade_mask(int cascade) {
     return vec4(equal(ivec4(cascade), ivec4(0, 1, 2, 3)));
 }
 float sun_visibility(vec3 n) {
     int count = int(shadow.x);
-    if (count <= 1) {
+    if (count <= 1 && view_dir.w == 0.0) {
         return sun_visibility_in(0, n);
     }
     float depth = dot(v_world - camera_pos.xyz, view_dir.xyz);
@@ -122,7 +126,10 @@ float sun_visibility(vec3 n) {
     int cascade = int(dot(past, before_last));
     float far_edge = dot(cascade_far, cascade_mask(cascade));
     float near_edge = dot(cascade_far, cascade_mask(cascade - 1));
-    float blend = smoothstep(far_edge - shadow.w * (far_edge - near_edge), far_edge, depth);
+    float band_start = far_edge - shadow.w * (far_edge - near_edge);
+    float blend = band_start < far_edge
+        ? smoothstep(band_start, far_edge, depth)
+        : step(far_edge, depth);
     int next = min(cascade + 1, count - 1);
     float here = sun_visibility_in(cascade, n);
     float there = sun_visibility_in(next, n);

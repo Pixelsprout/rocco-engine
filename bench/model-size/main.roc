@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Ve
 import pf.Light
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 import pf.Pose
 import "positions.golden" as golden_positions : Str
@@ -106,6 +107,7 @@ view = |m| {
 		nodes,
 		cursor: Free,
 		environment: Environment.default,
+		shadow: Shadow.default,
 		ui: [],
 		queries: [],
 	}

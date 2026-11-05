@@ -378,7 +378,7 @@ frame_fixture_view :: proc(eye: [3]f32) -> Frame_View {
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
 scene_of :: proc(draws: []Draw) -> Scene {
-	return {nodes = roc_list_view(draw_nodes(draws)), environment = ENVIRONMENT_DEFAULT}
+	return {nodes = roc_list_view(draw_nodes(draws)), environment = ENVIRONMENT_DEFAULT, shadow = shadow_default()}
 }
 
 // One unit Cube with id 1 at at, after the Lights. Returns its submit.
@@ -412,7 +412,7 @@ scene_lit :: proc(draws: []Draw, lights: []Light, default_casting := true) -> Sc
 		}
 	}
 	append(&nodes, ..draw_nodes)
-	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT}
+	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT, shadow = shadow_default()}
 }
 
 light_point :: proc(pos: Vec3, c: Rgb, range: f32) -> Light {
@@ -1495,7 +1495,7 @@ test_frame_render_sends_the_fog_of_the_current_scene :: proc(t: ^testing.T) {
 	curr.environment.fog = {color = {r = 0.2, g = 0.3, b = 0.4}, start = 10, end = 50, amount = 0.8}
 	frame_fixture_draw(&f, prev, curr, 0.5)
 
-	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 0})
+	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 1})
 	testing.expect_value(t, f.rec.lights.fog_ramp, [4]f32{10, 1.0 / 40, 0.8, 0})
 }
 
@@ -1534,7 +1534,7 @@ test_frame_render_gives_rigid_unlit_and_skinned_draws_the_fog :: proc(t: ^testin
 	testing.expect(t, got[2].skinned)
 	testing.expect_value(t, got[1].material.z, 1)
 	for g, i in got {
-		testing.expectf(t, g.fog_color == {0, 0, 1, 0}, "submit %v: fog_color is %v", i, g.fog_color)
+		testing.expectf(t, g.fog_color == {0, 0, 1, 1}, "submit %v: fog_color is %v", i, g.fog_color)
 		testing.expectf(t, g.fog_ramp == {0, 0.25, 1, 0}, "submit %v: fog_ramp is %v", i, g.fog_ramp)
 	}
 }
@@ -1789,7 +1789,7 @@ test_frame_render_draws_one_shadow_pass_per_cascade :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.rec.pass_ends, 6)
 	testing.expect_value(t, f.rec.lights.shadow, [4]f32{4, 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND})
 	testing.expect_value(t, f.rec.lights.cascade_far, cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 4, CASCADE_SPLIT_WEIGHT))
-	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, 0})
+	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, SHADOW_DISTANCE})
 }
 
 @(test)

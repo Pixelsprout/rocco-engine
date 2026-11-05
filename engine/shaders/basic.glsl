@@ -102,9 +102,11 @@ layout(binding = 1) uniform fs_params {
 // share of each cascade that blends into the next. A count of 0 means no Sun.
 // cascade_far[i] is the far depth of cascade i along view_dir, the camera's
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
-// cascade 0. With one cascade, cascade_far is zero. view_dir always follows the camera. The array
+// cascade 0. With legacy single-map fitting, cascade_far is zero. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
-// fog_color is linear, with w spare. fog_ramp is the fog start,
+// camera_pos.w is comparison depth bias. view_dir.w is the effective shadow
+// distance, or 0 for legacy single-map fitting. fog_color.w is filter radius.
+// fog_color is linear. fog_ramp is the fog start,
 // 1 / (end - start), the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
@@ -205,7 +207,7 @@ vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
 }
 
 // The share of the Sun's light that reaches this point in one cascade, from
-// 0 to 1. Each of the 3 x 3 taps compares 2 x 2 texels in hardware.
+// 0 to 1. Each tap compares 2 x 2 texels in hardware.
 float sun_visibility_in(int cascade, vec3 n) {
     vec3 world = v_world + n * shadow.z;
     vec4 clip = light_view_proj[cascade] * vec4(world, 1.0);
@@ -219,12 +221,14 @@ float sun_visibility_in(int cascade, vec3 n) {
     bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
     vec2 texel = 1.0 / vec2(textureSize(sampler2DArrayShadow(shadow_tex, shadow_smp), 0).xy);
     float sum = 0.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z));
+    int radius = int(fog_color.w);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z + camera_pos.w));
         }
     }
-    return inside ? sum / 9.0 : 1.0;
+    float width = float(radius * 2 + 1);
+    return inside ? sum / (width * width) : 1.0;
 }
 
 // 1 in the lane of the cascade, or all zero for -1.
@@ -239,7 +243,7 @@ vec4 cascade_mask(int cascade) {
 // SampleCmp.
 float sun_visibility(vec3 n) {
     int count = int(shadow.x);
-    if (count <= 1) {
+    if (count <= 1 && view_dir.w == 0.0) {
         return sun_visibility_in(0, n);
     }
     float depth = dot(v_world - camera_pos.xyz, view_dir.xyz);
@@ -250,7 +254,10 @@ float sun_visibility(vec3 n) {
     int cascade = int(dot(past, before_last));
     float far_edge = dot(cascade_far, cascade_mask(cascade));
     float near_edge = dot(cascade_far, cascade_mask(cascade - 1));
-    float blend = smoothstep(far_edge - shadow.w * (far_edge - near_edge), far_edge, depth);
+    float band_start = far_edge - shadow.w * (far_edge - near_edge);
+    float blend = band_start < far_edge
+        ? smoothstep(band_start, far_edge, depth)
+        : step(far_edge, depth);
     int next = min(cascade + 1, count - 1);
     float here = sun_visibility_in(cascade, n);
     float there = sun_visibility_in(next, n);

@@ -687,10 +687,11 @@ Roc_View :: struct {
 	ui: Roc_List(Roc_VocabularyElement),
 	camera: Roc_View_Camera,
 	environment: Roc_View_Environment,
+	shadow: Roc_View_Shadow,
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 176)
+#assert(size_of(Roc_View) == 200)
 #assert(align_of(Roc_View) == 8)
 #assert(offset_of(Roc_View, nodes) == 0)
 #assert(size_of(type_of(Roc_View{}.nodes)) == 24)
@@ -702,7 +703,9 @@ Roc_View :: struct {
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
 #assert(offset_of(Roc_View, environment) == 112)
 #assert(size_of(type_of(Roc_View{}.environment)) == 60)
-#assert(offset_of(Roc_View, cursor) == 172)
+#assert(offset_of(Roc_View, shadow) == 172)
+#assert(size_of(type_of(Roc_View{}.shadow)) == 24)
+#assert(offset_of(Roc_View, cursor) == 196)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_VocabularyNode_Group :: struct {
@@ -1564,6 +1567,39 @@ Roc_View_Environment_ToneMap :: enum u8 {
 
 #assert(size_of(Roc_View_Environment_ToneMap) == 1)
 #assert(align_of(Roc_View_Environment_ToneMap) == 1)
+
+Roc_View_Shadow :: struct {
+	blend: f32,
+	depth_bias: f32,
+	distance: f32,
+	distribution: f32,
+	normal_bias: f32,
+	filter: Roc_View_Shadow_Filter,
+}
+
+#assert(size_of(Roc_View_Shadow) == 24)
+#assert(align_of(Roc_View_Shadow) == 4)
+#assert(offset_of(Roc_View_Shadow, blend) == 0)
+#assert(size_of(type_of(Roc_View_Shadow{}.blend)) == 4)
+#assert(offset_of(Roc_View_Shadow, depth_bias) == 4)
+#assert(size_of(type_of(Roc_View_Shadow{}.depth_bias)) == 4)
+#assert(offset_of(Roc_View_Shadow, distance) == 8)
+#assert(size_of(type_of(Roc_View_Shadow{}.distance)) == 4)
+#assert(offset_of(Roc_View_Shadow, distribution) == 12)
+#assert(size_of(type_of(Roc_View_Shadow{}.distribution)) == 4)
+#assert(offset_of(Roc_View_Shadow, normal_bias) == 16)
+#assert(size_of(type_of(Roc_View_Shadow{}.normal_bias)) == 4)
+#assert(offset_of(Roc_View_Shadow, filter) == 20)
+#assert(size_of(type_of(Roc_View_Shadow{}.filter)) == 1)
+
+Roc_View_Shadow_Filter :: enum u8 {
+	Hard = 0,
+	Pcf3 = 1,
+	Pcf5 = 2,
+}
+
+#assert(size_of(Roc_View_Shadow_Filter) == 1)
+#assert(align_of(Roc_View_Shadow_Filter) == 1)
 
 Roc_View_Cursor :: enum u8 {
 	Free = 0,

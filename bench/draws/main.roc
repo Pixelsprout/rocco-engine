@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Scene, Ve
 import pf.Light
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 import pf.Pose
 
@@ -102,6 +103,7 @@ view = |m| {
 	nodes: List.fold(m.entities, List.with_capacity(m.entities.len() + 1).append(sun), |nodes, e| nodes.append(Draw(cube_draw(m.cube, e)))),
 	cursor: Free,
 	environment: Environment.default,
+	shadow: Shadow.default,
 	ui: [],
 	queries: [],
 }

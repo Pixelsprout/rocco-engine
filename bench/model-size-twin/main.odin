@@ -179,6 +179,7 @@ view :: proc(m: ^Model) -> engine.Scene {
 		camera = {eye = {x = 0, y = 40, z = 30}, target = {}, up = {x = 0, y = 1, z = 0}, fov_y = 1.047},
 		nodes = engine.roc_list_from_slice(nodes[:]),
 		cursor = .Free,
+		shadow = engine.shadow_default(),
 	}
 }
 
@@ -186,7 +187,7 @@ cube_draw :: proc(mesh: u32, id: u64, pos: engine.Vec3) -> engine.Draw {
 	identity := engine.Quat {
 		w = 1,
 	}
-	return {id = id, mesh = mesh, pos = pos, scale = {x = 0.5, y = 0.5, z = 0.5}, rot = identity, scale_rot = identity, tint = {r = 0.8, g = 0.8, b = 0.8}}
+	return {id = id, mesh = mesh, pos = pos, scale = {x = 0.5, y = 0.5, z = 0.5}, rot = identity, scale_rot = identity, tint = {r = 0.8, g = 0.8, b = 0.8}, casts_shadow = true}
 }
 
 next_rng :: proc(s: u64) -> u64 {

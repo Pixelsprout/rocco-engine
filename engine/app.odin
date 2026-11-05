@@ -147,6 +147,12 @@ init_cb :: proc "c" () {
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
 
+	limits := sg.query_limits()
+	if field, rule, ok := launch_device_check(g_state.launch, limits.max_image_size_array, limits.max_image_array_layers); !ok {
+		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
+		os.exit(1)
+	}
+
 	err := host_open_window(&g_state, {f32(sapp.width()), f32(sapp.height())})
 	fmt.assertf(err == nil, "the UI did not allocate: %v", err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")

@@ -11,6 +11,7 @@ import pf.Query
 import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgba, Scene, Vec3]
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 import pf.Pose
 
@@ -167,6 +168,7 @@ view = |m| {
 	nodes: nodes_of(m),
 	cursor: Free,
 	environment: Environment.default,
+	shadow: Shadow.default,
 	ui: elements(m),
 	queries: queries(m.half),
 }

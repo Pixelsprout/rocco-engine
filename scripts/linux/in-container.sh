@@ -36,6 +36,7 @@ RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridg
 RUN_PREFIX="$RUN" python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
 RUN_PREFIX="$RUN" python3 scripts/cluster_check.py build/bridge-check/clustered.png
 RUN_PREFIX="$RUN" python3 scripts/environment_check.py build/bridge-check/environment/reference.png
+RUN_PREFIX="$RUN" python3 scripts/shadow_check.py build/bridge-check/shadows
 
 sh scripts/test-all.sh
 

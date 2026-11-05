@@ -81,6 +81,8 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_write_tag(b, scene.cursor)
 	json_key(b, "environment")
 	json_write_environment(b, &scene.environment)
+	json_key(b, "shadow")
+	json_write_shadow(b, &scene.shadow)
 	json_key(b, "ui")
 	json_write_list(b, scene.ui, json_write_element)
 	json_key(b, "queries")
@@ -677,4 +679,20 @@ json_key :: proc(b: ^strings.Builder, key: string, first := false) {
 	strings.write_byte(b, '"')
 	strings.write_string(b, key)
 	strings.write_string(b, `":`)
+}
+
+json_write_shadow :: proc(b: ^strings.Builder, shadow: ^Shadow) {
+	json_key(b, "distance", first = true)
+	json_write_f32(b, shadow.distance)
+	json_key(b, "normal_bias")
+	json_write_f32(b, shadow.normal_bias)
+	json_key(b, "depth_bias")
+	json_write_f32(b, shadow.depth_bias)
+	json_key(b, "distribution")
+	json_write_f32(b, shadow.distribution)
+	json_key(b, "blend")
+	json_write_f32(b, shadow.blend)
+	json_key(b, "filter")
+	json_write_tag(b, shadow.filter)
+	strings.write_byte(b, '}')
 }

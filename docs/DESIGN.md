@@ -165,7 +165,7 @@ Image    : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool }
 Pose     : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
@@ -183,7 +183,8 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+Shadow   : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
 Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }

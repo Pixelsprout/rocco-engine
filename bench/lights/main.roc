@@ -8,6 +8,7 @@ import pf.Vocabulary exposing [Command, Config, Draw, Input, Manifest, Rgb, Scen
 import pf.Light
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 import pf.Pose
 
@@ -127,6 +128,7 @@ view = |m| {
 		nodes: List.fold(m.orbs, drawn, |nodes, o| nodes.append(Light(Light.point(o.pos, orb_color, orb_range)))),
 		cursor: Free,
 		environment: Environment.default,
+		shadow: Shadow.default,
 		ui: [],
 		queries: [],
 	}

@@ -179,6 +179,7 @@ view :: proc(m: ^Model) -> engine.Scene {
 		nodes = engine.roc_list_from_slice(nodes),
 		queries = engine.roc_list_from_slice(qs[:]),
 		cursor = .Free,
+		shadow = engine.shadow_default(),
 	}
 }
 

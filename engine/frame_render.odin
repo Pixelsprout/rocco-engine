@@ -136,6 +136,7 @@ Frame_Render :: struct {
 	up_fallback_logged: bool,
 	lights_logged:      bit_set[Light_Drop],
 	environment_logged: bit_set[Environment_Clamp],
+	shadow_logged:      bit_set[Shadow_Field],
 	draws_logged:       bool,
 	skinned_logged:     bool,
 	shadow_map:         u32,
@@ -343,6 +344,7 @@ frame_render_draw :: proc(
 		span = span_close(spans, .Ui_Layout, span)
 	}
 	env := environment_clamp(curr.environment, &fr.environment_logged)
+	shadow := shadow_clamp(curr.shadow, &fr.shadow_logged)
 	if !submit {
 		return
 	}
@@ -351,9 +353,11 @@ frame_render_draw :: proc(
 	if clusters.overflow { light_drop(fr, .Cluster_Over_Limit) }
 	span = span_close(spans, .Cluster_Build, span)
 	lights.fog_color, lights.fog_ramp = fog_uniform(env.fog)
+	lights.fog_color.w = shadow_filter_radius(shadow.filter)
+	lights.camera_pos.w = shadow.depth_bias
 
 	if gathered.has_sun && placed_casts(fr.placed[:]) {
-		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span)
+		frame_render_shadow(fr, &lights, gathered.directionals[0].pos.xyz, view, &span, shadow)
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
@@ -609,14 +613,13 @@ frame_render_pose :: proc(fr: ^Frame_Render, meshes: ^Mesh_Table) {
 }
 
 // Must run before the Main pass begins, because sokol passes do not nest.
-// One cascade draws one map over every Draw. 2 to 4 cascades split the view
-// up to SHADOW_DISTANCE, and each one draws only the Draws over its square.
-frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]f32, view: Frame_View, span: ^Span_Tick) {
-	if fr.cascades <= 1 {
+// Distance 0 keeps the legacy single-map fit. A finite view range uses
+// camera slices, including with one cascade.
+frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]f32, view: Frame_View, span: ^Span_Tick, settings := SHADOW_DEFAULT) {
+	distance := shadow_distance(settings, fr.cascades)
+	if distance == 0 {
 		light_view_proj := shadow_view_proj(to_light, fr.placed[:])
-		// The shader reads x as the cascade count, y as the Sun's slot, which
-		// is always 0, and z as the normal offset.
-		lights.shadow = {1, 0, SHADOW_NORMAL_OFFSET, 0}
+		lights.shadow = {1, 0, settings.normal_bias, 0}
 		lights.light_view_proj[0] = light_view_proj
 		frame_render_begin_pass(fr, .Shadow, 0, {}, span)
 		frame_render_shadow_parts(fr, light_view_proj)
@@ -630,19 +633,19 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 			p.light_box = light_box(light_view, p.model, p.mesh.box)
 		}
 	}
-	splits := cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, fr.cascades, CASCADE_SPLIT_WEIGHT)
+	splits := cascade_splits(SCENE_NEAR, distance, fr.cascades, settings.distribution)
 	for i in 0 ..< fr.cascades {
-		sphere := cascade_sphere(view.camera, view.aspect, cascade_slice_near(splits, SCENE_NEAR, i), splits[i])
-		cascade := cascade_view(light_view, sphere, fr.shadow_map, fr.placed[:])
+		sphere := cascade_sphere(view.camera, view.aspect, cascade_slice_near(splits, SCENE_NEAR, i, settings.blend), splits[i])
+		cascade := cascade_view(light_view, sphere, fr.shadow_map, fr.placed[:], shadow_filter_radius(settings.filter))
 		lights.light_view_proj[i] = cascade.view_proj
 		frame_render_begin_pass(fr, .Shadow, i, {}, span)
 		frame_render_shadow_parts(fr, cascade.view_proj, &cascade)
 		fr.submits.end_pass(fr.submits.ctx)
 	}
 	forward := v3_normalize(view.camera.target - view.camera.eye)
-	lights.shadow = {f32(fr.cascades), 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND}
+	lights.shadow = {f32(fr.cascades), 0, settings.normal_bias, settings.blend}
 	lights.cascade_far = splits
-	lights.view_dir = {forward.x, forward.y, forward.z, 0}
+	lights.view_dir = {forward.x, forward.y, forward.z, distance}
 }
 
 // Opaque ranges precede all fragment-discard work in each cascade.

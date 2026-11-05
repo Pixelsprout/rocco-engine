@@ -136,8 +136,10 @@ The native fixture adds the check to a copy of the authored vertex hook.
 GPU readback tests outline edges over nonzero floor and wall depths.
 It checks both visible-only and through-wall policies.
 CI uploads `build/shader-assets-native/native-evidence.json` with per-package hashes and backend logs.
-Production Metal execution passed locally on 2026-11-05.
-Production GL and D3D execution remains pending CI.
+The original eleven-program proof passed Metal, GL, and D3D in [CI run 41960769876](https://github.com/Pixelsprout/rocco-engine/actions/runs/41960769876).
+The later 96-byte environment and live-shadow extensions require separate backend checks.
+Their Metal proofs passed locally on 2026-11-05.
+Native GL and D3D acceptance for these extensions remains pending CI.
 The previous eight-program reference proof passed all three backends in CI run 41955851562.
 
 Environment metadata uses `environment_params = (enabled, specular_max_lod, 0, 0)`.
@@ -146,3 +148,18 @@ The diffuse cubemap stores cosine-integrated radiance divided by pi.
 The specular mip roughness is `mip / specular_max_lod`.
 Bind black cubemaps and zero metadata when the Sky is absent or unloaded.
 The `rocco_environment(direction, lod)` hook helper samples the specular cubemap at an explicit mip.
+
+Surface uploads must preserve the [shadow appearance lanes](SHADER-CONTRACT.md#shadow-appearance-lanes) in the existing 512-byte lighting block.
+
+| Lane | Live shadow value |
+| --- | --- |
+| `camera_pos.w` | Comparison depth bias |
+| `fog_color.w` | Filter radius: 0, 1, or 2 |
+| `view_dir.w` | Effective distance; zero selects legacy single-map fitting |
+| `shadow.z` | World-space geometric normal bias |
+| `shadow.w` | Cascade blend fraction |
+
+Use the current Scene's validated values without interpolation.
+Startup map size, cascade count, and MSAA remain fixed until restart.
+Zero requested distance preserves the old caster fit with one cascade and the 150-unit range with multiple cascades.
+Blend bands that round to zero width use a hard step in every Surface layout.

@@ -7,6 +7,7 @@ import pf.Query
 import pf.Vocabulary exposing [Command, Config, Input, Manifest, Quat, Scene, Vec3]
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 import "colliders.golden" as golden_colliders : Str
 
@@ -120,6 +121,7 @@ view = |m| {
 		nodes: m.bodies.map(|b| Collider(to_collider(b))),
 		cursor: Free,
 		environment: Environment.default,
+		shadow: Shadow.default,
 		ui: [],
 		queries: queries(m.half),
 	}

@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-05",
+  "backend": "Metal",
+  "purpose": "Engine shadow controls. No measured village preset claim.",
+  "checks": {
+    "cases": [
+      {
+        "case": "single",
+        "args": [],
+        "effective_default": {
+          "distance": 0,
+          "normal_bias": 0.05,
+          "depth_bias": 0,
+          "distribution": 0.5,
+          "blend": 0.1,
+          "filter": "Pcf3"
+        },
+        "live": {
+          "distance": 207.5,
+          "normal_bias": 0.06249999,
+          "depth_bias": 0.0009999998,
+          "distribution": 0.6249999,
+          "blend": 0.14999996,
+          "filter": "Pcf5"
+        },
+        "result": "passed"
+      },
+      {
+        "case": "multiple",
+        "args": [
+          "--far-shadows"
+        ],
+        "effective_default": {
+          "distance": 0,
+          "normal_bias": 0.05,
+          "depth_bias": 0,
+          "distribution": 0.5,
+          "blend": 0.1,
+          "filter": "Pcf3"
+        },
+        "live": {
+          "distance": 207.5,
+          "normal_bias": 0.06249999,
+          "depth_bias": 0.0009999998,
+          "distribution": 0.6249999,
+          "blend": 0.14999996,
+          "filter": "Pcf5"
+        },
+        "result": "passed"
+      },
+      {
+        "case": "startup-low",
+        "args": [
+          "--shadow-low"
+        ],
+        "effective_default": {
+          "distance": 0,
+          "normal_bias": 0.05,
+          "depth_bias": 0,
+          "distribution": 0.5,
+          "blend": 0.1,
+          "filter": "Pcf3"
+        },
+        "live": {
+          "distance": 207.5,
+          "normal_bias": 0.06249999,
+          "depth_bias": 0.0009999998,
+          "distribution": 0.6249999,
+          "blend": 0.14999996,
+          "filter": "Pcf5"
+        },
+        "result": "passed"
+      },
+      {
+        "case": "startup-high",
+        "args": [
+          "--shadow-high"
+        ],
+        "effective_default": {
+          "distance": 0,
+          "normal_bias": 0.05,
+          "depth_bias": 0,
+          "distribution": 0.5,
+          "blend": 0.1,
+          "filter": "Pcf3"
+        },
+        "live": {
+          "distance": 207.5,
+          "normal_bias": 0.06249999,
+          "depth_bias": 0.0009999998,
+          "distribution": 0.6249999,
+          "blend": 0.14999996,
+          "filter": "Pcf5"
+        },
+        "result": "passed"
+      }
+    ],
+    "result": "passed"
+  },
+  "production_variants": {
+    "host": "darwin",
+    "result": "passed",
+    "variants": 11,
+    "instanced_attributes": 13,
+    "world_inputs": "GPU selection coverage for all three shared vertex layouts",
+    "frames": 3,
+    "packages": {
+      "Foliage": "907ae12a05faf6140f93e7a1c7fd5400d319810d26c5ee858e79e460b0205e08",
+      "Outline": "97cb4da2a6edd6c704c7e1a542a7b64ebcc7fb56d6f20f3f83c9bd104c0fffc0"
+    },
+    "log": "backend=4 attrs=16 textures_per_stage=32 storage_per_stage=15 vertex_uniform_components=0\nPASS: world inputs in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline visible-only edges over nonzero scene depth\nPASS: world inputs in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline through-wall edges over nonzero scene depth\nPASS: world inputs in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline visible-only edges over nonzero scene depth\nPASS: 11 production shader variants created, bound and drawn for 3 frames\n"
+  },
+  "engine_tests": 787,
+  "bench_checks": "passed",
+  "published_compiler_tests": 17,
+  "portable_shader_outputs": [
+    "metal_macos",
+    "glsl430",
+    "hlsl5"
+  ],
+  "pending": [
+    "Native OpenGL4.3 CI",
+    "Native D3D11 CI",
+    "Measured Mac and PC village presets and human acceptance under parent p7rak3ah"
+  ],
+  "release_bridge_check": "passed",
+  "cross_target_type_checks": [
+    "windows_amd64",
+    "linux_amd64"
+  ]
+}

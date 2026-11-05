@@ -35,10 +35,11 @@ Vocabulary := [].{
 	##   against `width` and `height` at dpi 1 and ignores the rest of the Window.
 	## - `step_hz`: the fixed step rate in Hz. Above zero. `step` gets a `dt` of
 	##   one over it.
-	## - `shadow_map`: the width and height of the shadow map in texels. Above zero.
+	## - `shadow_map`: shadow map width and height, from 8 to 16384 texels.
+	##   The device must support this array size. Changes require a restart.
 	## - `shadow_cascades`: how many shadow maps the Sun casts along the camera's
 	##   view, from 1 to 4. 1 casts one map over every Draw. 2 to 4 split the
-	##   first 150 metres of the view, so near shadows are sharp and far ones
+	##   view up to Scene.shadow.distance (150 by default), so near shadows are sharp and far ones
 	##   are coarse. Each cascade is one more `shadow_map` by `shadow_map` map.
 	## - `capacity`: the table sizes. No Scene field replaces them.
 	Launch : {
@@ -394,11 +395,29 @@ Vocabulary := [].{
 	##   world.
 	## - `environment`: the look of the 3D view. `Scene.empty` has
 	##   `Environment.default`.
+	## - `shadow`: live shadow appearance, with `Shadow.default` in Scene.empty.
 	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+
+	## Live shadow appearance. The host uses the current Scene without interpolation.
+	## Invalid fields use their Shadow.default values and log once per field.
+	## No field changes the map allocation, cascade count or MSAA.
+	##
+	## - `distance`: 0 preserves legacy fitting: all casters with one cascade,
+	##   or 150 units with multiple cascades. Otherwise, view depth above 0.1
+	##   and at most 1000000 units. The last cascade fades to no shadow.
+	## - `normal_bias`: world units along the geometric normal, from 0 to 10.
+	## - `depth_bias`: comparison depth offset, from 0 to 0.1. Positive values
+	##   reduce acne in reversed Z, but can detach shadows.
+	## - `distribution`: 0 gives linear splits; 1 gives logarithmic splits.
+	## - `blend`: fraction of each cascade that blends into the next, from 0
+	##   to 0.5. The last band fades out. Zero gives hard transitions.
+	## - `filter`: Hard uses one comparison sample; Pcf3 uses nine; Pcf5 uses 25.
+	##   Each comparison sample uses the hardware's linear depth filter.
+	Shadow : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
 
 	## The look of the 3D view: what is behind it, how its linear colour maps
 	## to the screen, its fog and its bloom. Start from `Environment.default`.

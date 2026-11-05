@@ -37,6 +37,8 @@ Port_Message :: Roc_Step_Arg2_Ports
 Ui_Results :: Roc_Step_Arg2_Ui
 Scroll_Size :: Roc_Step_Arg2_Ui_Scroll
 Scene :: Roc_View
+Shadow :: Roc_View_Shadow
+Shadow_Filter :: Roc_View_Shadow_Filter
 Environment :: Roc_View_Environment
 Tone_Map :: Roc_View_Environment_ToneMap
 Fog :: Roc_View_Environment_Fog

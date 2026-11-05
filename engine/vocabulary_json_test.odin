@@ -245,7 +245,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		`{"Speaker":{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here","repeat":"Once"}}],` +
 		`"cursor":"Locked","environment":{"sky":2,"clear":{"r":0.25,"g":0.5,"b":1},"tone_map":"Neutral","exposure":2,` +
 		`"fog":{"color":{"r":0.5,"g":0,"b":0},"start":1,"end":8,"amount":0.75},"bloom":{"strength":0.5,"threshold":1,"knee":0.25}},` +
-		`"ui":[],"queries":[]}`,
+		`"shadow":{"distance":0,"normal_bias":0,"depth_bias":0,"distribution":0,"blend":0,"filter":"Hard"},"ui":[],"queries":[]}`,
 	)
 }
 

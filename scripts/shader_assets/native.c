@@ -299,7 +299,10 @@ static void frame(void) {
             if (n==2) {
                 memset(values, 0, sizeof(values));
                 values[0]=values[1]=values[2]=0.3f; values[3]=1;
-                values[6]=3; values[18]=1;
+                values[6]=3; values[7]=0.0005f;
+                values[8]=frames==2 ? 4 : 1; values[10]=0.05f; values[11]=frames==0 ? 1e-12f : frames==1 ? 0 : 0.1f;
+                values[12]=1; values[13]=2; values[14]=5; values[15]=10;
+                values[18]=-1; values[19]=10; values[23]=(float)frames;
                 for (int m=0; m<4; m++) { identity(values+28+m*16); }
                 values[94]=1; values[108]=values[109]=values[110]=1;
                 values[124]=values[125]=1; values[126]=24.0f/6.907755f; values[127]=0.1f;
