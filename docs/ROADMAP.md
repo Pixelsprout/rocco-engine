@@ -1396,6 +1396,19 @@ Out of this arc: screen-space ambient occlusion, depth of field, soft
 particles and fur strands. Instancing and frustum culling (dex task
 cqz1zbne) wait until the town's Draw count measures over budget.
 
+Agreed design, 2026-11-05: [the immersive village scope](IMMERSIVE-SCENE.md)
+defines a separate lane for the supplied village, moving foliage, and game-authored shaders.
+Both the Apple M5 and the benchmark desktop must reach 60 FPS at 1080p.
+The separate dex parent, **Immersive scene lane**, owns scene work and acceptance evidence.
+Reusable engine tasks stay under **rocco roadmap**.
+Scene tasks use blockers to link to their engine prerequisites.
+The user confirmed the scope and authorized subagent implementation on 2026-11-05.
+
+The shader parent now covers asset compilation, named slots, Surface hooks, Post hooks, and reload.
+The lane also requires cutout shadows, shadow quality controls, cubemap lighting, and vegetation scaling.
+Milestone 40 supplies Selection input for game-authored Post shaders.
+The numbered milestones retain their numbers; cross-lane dependencies add prerequisites where required.
+
 ## Milestone 35: Materials per primitive (done)
 
 Results, 2026-11-02: a Mesh holds a list of parts. The loader makes one
@@ -1615,18 +1628,21 @@ Check: the lamps example in CI, and a bench run recorded in
 
 ## Milestone 40: Selection outline
 
-Done when a selected Group shows an even outline of a set pixel width that
-blooms, around the whole Group, with its front wall cut away.
+Scope revised during immersive scene design, 2026-11-05. See ADR 0028.
+Done when a game-authored Post shader outlines a selected Group using generic Selection input.
 
-1. One Vocabulary change: `Group.outline : [None, Outline { color, width }]`.
-   Every Draw under the Group draws into a mask image.
-2. A post pass finds the mask's edge, widens it to `width` pixels and
-   composites `color` in HDR, before bloom.
-3. A BLEND part writes its full shape into the mask, so glass outlines
-   too.
+1. Supply selected coverage and nearest selected depth, including geometry hidden behind other objects.
+2. Supply scene depth separately through the Post shader contract.
+3. Preserve Surface deformation and alpha rules in selection rendering.
+4. Let the game shader choose width, colour, pulse, glow, and occlusion policy.
+5. Demonstrate visible-only and through-wall outlines from the same inputs.
 
-Check: an example outlines one Group of several Draws, and a Bridge
-screenshot shows one outline around the Group, not one around each Draw.
+The example combines the Group's Draws and composites its outline in HDR before bloom.
+Preserve the existing full-shape glass use case.
+The engine no longer prescribes a `Group.outline` style field.
+
+Check: Bridge screenshots show one outline around a multi-Draw Group and both game-defined occlusion styles.
+Moving surfaces remain aligned with their selection coverage on all three backends.
 
 ## Milestone 41: Particles
 
@@ -1681,9 +1697,9 @@ repo, pulls this arc.
 - Saves, and Ports for extensions. Milestone 29 added Ports over the
   Bridge (ADR 0018), and an extension feeds the same port queue.
 - The extension ABI, with FMOD as its first proof.
-- Materials on the Draw and shading modes, then game shaders as Pack
-  assets (dex task bdathrx5). Materials per primitive and post-processing
-  moved to Milestones 35 and 37.
+- Game shader assets and material overrides moved into the shared engine work
+  required by the immersive scene lane. ADR 0028 defines their contract.
+  Materials per primitive and post-processing moved to Milestones 35 and 37.
 - The author kit: `rocco new`, `--replace-dep` in place of Kula's header
   swap, and hot reload across a Model change.
 

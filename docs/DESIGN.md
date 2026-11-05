@@ -1022,6 +1022,37 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
   platform-module alias shapes. Write wrapper signatures inline when it does.
   Minimal reproduction is recorded in the old course notes.
 
+## Planned shader authoring
+
+Agreed during immersive scene scoping, 2026-11-05. Not implemented.
+[ADR 0028](adr/0028-game-shaders-are-pack-assets.md) records the contract.
+
+The game asset build compiles GLSL Surface shaders and Post shaders.
+Published platform bundles load versioned Shader assets through Packs without an engine rebuild.
+Generated Roc helpers provide typed parameters and named Material slots.
+Only plain values cross the Seam.
+The engine owns GPU resources, pass execution, and resource lifetimes.
+
+Surface hooks inherit imported materials by default.
+Their deformation, alpha rules, and simulation-derived time stay consistent across colour, shadow, and selection passes.
+The engine expands bounds by declared vertex displacement.
+
+Post shaders run before bloom in HDR or after tone mapping before UI.
+Declared inputs include scene colour, scene depth, and Selection input.
+Selection input preserves coverage and nearest depth even behind other objects.
+Outline appearance and occlusion policy belong to a game-authored Post shader.
+This replaces Milestone 40's proposed engine-owned outline style.
+
+Interface-preserving shader edits reload together at a frame boundary.
+Interface changes initially require rebuilding the game and restarting.
+Failed reloads keep the last valid shader.
+Without a valid shader, the engine logs and omits affected Mesh parts or skips the Post effect.
+It does not substitute a shader or material.
+
+Appearance changes apply live.
+Allocation-heavy quality settings can initially require restart through Launch.
+The implementation must preserve the existing startup contract of ADR 0007.
+
 ## 10. Verified and not verified
 
 Milestone 2 verified these items on `arm64mac` and `x64glibc`, with

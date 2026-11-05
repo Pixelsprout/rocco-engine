@@ -430,6 +430,37 @@ The engine's table from mesh id to GPU resources. The game never sees it; it
 sees a Manifest.
 _Avoid_: manifest, asset store, resource cache
 
+**Shader asset** (planned):
+A Pack asset that supplies game-authored GPU programs for the Scene's appearance.
+_Avoid_: engine plugin, shader script, shader bundle
+
+**Shader reload** (planned):
+A development update to a loaded Shader asset.
+A failed update leaves the last valid shader active.
+_Avoid_: game reload, Model reload
+
+**Surface shader** (planned):
+A Shader asset that defines a surface's vertex movement, shading normal, material properties, and lighting response.
+_Avoid_: mesh shader, material script
+
+**Post shader** (planned):
+A Shader asset that changes the rendered scene image at a declared stage.
+_Avoid_: screen shader, post script, render pass
+
+**Material slot** (planned):
+A named material assignment in a mesh that a game can override independently.
+Its identity belongs to the authored mesh, rather than the order of Mesh parts.
+_Avoid_: part index, submesh index
+
+**Material override** (planned):
+A game-authored surface choice for a Draw or one of its Material slots.
+_Avoid_: replacement mesh, shader patch
+
+**Selection input** (planned):
+The selected geometry's coverage and nearest depth, including geometry hidden by other objects.
+A Post shader combines it with scene depth to choose the appearance of a selection.
+_Avoid_: outline image, outline style
+
 **Mesh part**:
 A share of a mesh's triangles that draws with one material and its own
 textures. A loaded mesh has one part per distinct material, and a Primitive
