@@ -933,3 +933,64 @@ void main() {
 @end
 
 @program tone_map blit_vs tone_map_fs
+
+@vs coverage_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a * shadow_material.y;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@vs skinned_coverage_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+@include_block skin
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * (skin_matrix(joint_ids, joint_weights) * vec4(pos, 1.0));
+    shadow_uv = uv;
+    shadow_alpha = col.a * shadow_material.y;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@fs coverage_fs
+layout(binding = 0) uniform texture2D base_tex;
+layout(binding = 0) uniform sampler base_smp;
+in vec2 shadow_uv;
+in float shadow_alpha;
+flat in float shadow_cutoff;
+layout(location=0) out float coverage;
+layout(location=1) out float device_depth;
+void main() {
+    float alpha = texture(sampler2D(base_tex, base_smp), shadow_uv).a * shadow_alpha;
+    if (shadow_cutoff >= 0.0 && alpha < shadow_cutoff) { discard; }
+    coverage = 1.0;
+    device_depth = gl_FragCoord.z;
+}
+@end
+@program coverage coverage_vs coverage_fs
+@program skinned_coverage skinned_coverage_vs coverage_fs

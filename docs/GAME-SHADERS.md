@@ -42,6 +42,7 @@ Its file is `assets/shaders/NAME.shaderpack`.
 A mesh helper uses the existing Mesh asset key: the source file stem.
 The Surface loader exposes the `shader/` asset namespace through Packs.
 See [runtime Surface materials](SURFACE-RUNTIME.md) for assignments and resource ownership.
+See [runtime Post effects](POST-RUNTIME.md) for ordered effect instances and optional inputs.
 
 A Surface requires `kind: "surface"` and finite, nonnegative `max_displacement`.
 The bound measures maximum displacement vector length in mesh-local units.

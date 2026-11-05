@@ -145,11 +145,11 @@ surface_value_encode :: proc(value: Shader_Value, kind: string) -> (out: [16]f32
 	return out, count, true
 }
 
-surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Values, scene, draw: []Shader_Values, time: f32, skinned: bool) -> (resolved: Surface_Material, reason: string) {
+surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Values, scene, draw: []Shader_Values, time: f32, skinned: bool, post := false) -> (resolved: Surface_Material, reason: string) {
 	asset, loaded := surface_asset(p, &material.shader)
 	if !loaded || asset.kind != .Shader { return {}, "Surface Shader is absent from its Pack" }
 	s, live := shader_lookup(&p.shaders, asset.id)
-	if !live || s.package_data.post || s.failed || p.shaders.uploaded && !s.ready { return {}, "Surface Shader has no valid generation" }
+	if !live || s.package_data.post != post || s.failed || p.shaders.uploaded && !s.ready { return {}, "Surface Shader has no valid generation" }
 	if skinned && !shader_bool(shader_interface(s)["skinning"]) { return {}, "Surface does not permit skinning" }
 	resolved.shader, resolved.time = s, time
 	d := shader_interface(s)
@@ -161,7 +161,7 @@ surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Va
 	parameters := make(map[string]bool, context.temp_allocator)
 	textures := make(map[string]bool, context.temp_allocator)
 	for scope in Shader_Scope {
-		assignments := scene if scope == .Scene else draw if scope == .Draw else []Shader_Values{material^}
+		assignments := scene if scope == .Scene else draw if scope == .Draw else nil if post else []Shader_Values{material^}
 		for &values in assignments {
 			if !surface_same_asset(&values.shader, &material.shader) { continue }
 			if values.scope != scope { return {}, "shader values have the wrong scope" }
@@ -222,7 +222,7 @@ surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Va
 		} else { return {}, "required shader texture has no source" }
 		resolved.textures[index].sampler = s.samplers[index]
 	}
-	if p.shaders.uploaded {
+	if p.shaders.uploaded && !post {
 		layout := Shader_Layout.Skinned if skinned else .Rigid
 		for pass in Surface_Pass {
 			cull := surface_cull(part.material, pass, .Blend if part.material.alpha_mode == .Blend else .Opaque)

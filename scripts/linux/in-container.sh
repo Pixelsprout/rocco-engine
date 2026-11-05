@@ -40,6 +40,8 @@ RUN_PREFIX="$RUN" python3 scripts/shadow_check.py build/bridge-check/shadows
 RUN_PREFIX="$RUN" python3 scripts/particle_check.py build/bridge-check/particles
 ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
 RUN_PREFIX="$RUN" python3 scripts/surface_check.py build/bridge-check/surface
+ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
+RUN_PREFIX="$RUN" python3 scripts/post_check.py build/bridge-check/post
 
 sh scripts/test-all.sh
 

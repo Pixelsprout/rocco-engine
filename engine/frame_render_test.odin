@@ -69,6 +69,12 @@ Particle_Recorded :: struct {batch: Particle_Batch, before: int}
 // sky_after is the number of submits before the sky. tone_map_ui is the
 // number of submit_ui calls before the tone map.
 Recorder :: struct {
+	post_events: [2]Post_Observed,
+	post_count: int,
+	depth_palette_count: int,
+	depth_has_pipeline: bool,
+	depth_pipeline: Mesh_Pipeline,
+	depth_skin: ^Skin_Params,
 	particles: [dynamic]Particle_Recorded,
 	surfaces: [dynamic]Surface_Observed,
 	passes:        [dynamic]Pass_Begun,
