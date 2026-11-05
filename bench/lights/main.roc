@@ -147,14 +147,14 @@ tile_draw = |mesh, id| {
 	centre = (side - 1).to_f32() / 2.0
 	x = (id % side).to_f32() - centre
 	z = (id // side).to_f32() - centre
-	{ id, mesh, pos: { x, y: 0.0, z }, scale: { x: 0.95, y: 0.05, z: 0.95 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.5, g: 0.5, b: 0.5 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0) }
+	{ id, mesh, pos: { x, y: 0.0, z }, scale: { x: 0.95, y: 0.05, z: 0.95 }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 0.5, g: 0.5, b: 0.5 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True }
 }
 
 # The primitive sphere has a diameter of 1.
 orb_draw : U32, Orb -> Draw
 orb_draw = |mesh, o| {
 	size = 2.0 * orb_radius
-	{ id: o.id, mesh, pos: o.pos, scale: { x: size, y: size, z: size }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 1.0, g: 0.6, b: 0.25 }, glow: orb_color, pose: Pose.still(0, 0.0) }
+	{ id: o.id, mesh, pos: o.pos, scale: { x: size, y: size, z: size }, rot: Quat.identity, scale_rot: Quat.identity, tint: { r: 1.0, g: 0.6, b: 0.25 }, glow: orb_color, pose: Pose.still(0, 0.0), casts_shadow: Bool.True }
 }
 
 ambient : Vocabulary.Light
