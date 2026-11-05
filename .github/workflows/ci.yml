@@ -64,6 +64,8 @@ jobs:
         run: sh scripts/macos/build-miniaudio.sh
 
       - name: Build
+        env:
+          ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc
         run: roc scripts/build.roc all --release
 
       # Capture the ordinary release host before benchmarks enable Spans.
@@ -148,7 +150,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build, run and test in the Linux image
-        run: docker run --rm -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
+        run: docker run --rm -e ROCCO_SHDC=/work/build/shader-tools/sokol-shdc -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
 
       # The container checks finish with Spans. Restore plain release targets.
       - name: Build ordinary release targets for the candidate SDK
@@ -267,6 +269,8 @@ jobs:
           if-no-files-found: warn
 
       - name: Build
+        env:
+          ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc.exe
         run: roc scripts/build.roc all --release
 
       # Capture the ordinary release host before benchmarks enable Spans.
