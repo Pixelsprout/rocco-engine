@@ -32,7 +32,7 @@ Texture :: struct {
 	srgb:    bool,
 }
 
-// Returns RGBA8 in frame memory. A 16-bit channel keeps its high byte.
+// Returns RGBA8 in context.temp_allocator. A 16-bit channel keeps its high byte.
 png_decode :: proc(bytes: []byte) -> (width, height: int, rgba: []byte, ok: bool) {
 	img, err := png.load_from_bytes(bytes, {.alpha_add_if_missing}, context.temp_allocator)
 	if err != nil {

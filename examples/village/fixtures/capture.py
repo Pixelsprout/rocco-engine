@@ -35,8 +35,18 @@ def run(out, movie):
     try:
         with Bridge.connect(port, wait=60) as bridge:
             bridge.hello()
-            bridge.step(600)
-            scene = bridge.scene()['scene']
+            start = bridge.scene()['scene']
+            assert not start['nodes'] and start['ui'], 'Startup must show loading feedback'
+            bridge.screenshot(str(out / 'loading.png'))
+            ready_steps = 0
+            for _ in range(40):
+                bridge.step(1)
+                ready_steps += 1
+                scene = bridge.scene()['scene']
+                if scene['nodes']:
+                    break
+                assert scene['ui'], 'Loading must keep its feedback'
+            observations['ready_step'] = ready_steps
             draws = []
 
             def collect(nodes):

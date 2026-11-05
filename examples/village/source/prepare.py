@@ -192,7 +192,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('archive', type=Path)
     parser.add_argument('--blender', default='/Applications/Blender.app/Contents/MacOS/Blender')
-    parser.add_argument('--max-texture-side', type=int, default=512)
+    parser.add_argument('--max-texture-side', type=int, default=0)
     args = parser.parse_args()
     assert hashlib.sha256(args.archive.read_bytes()).hexdigest() == CHECKSUM, 'Source archive checksum differs'
     with tempfile.TemporaryDirectory() as tmp:
