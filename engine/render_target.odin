@@ -171,7 +171,7 @@ target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, l
 
 // Must run outside a pass. render_target_tone_map draws first in it.
 render_target_begin_post :: proc(t: ^Render_Target) {
-	sg.begin_pass({action = t.post_action, attachments = t.color.attachments, label = "post"})
+	gfx_begin_pass({action = t.post_action, attachments = t.color.attachments, label = "post"})
 }
 
 // Must run outside a pass, because each step is a pass. Skips a step whose
@@ -202,7 +202,9 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 		action = c.add_action
 		src = c.mips[read].texture
 	}
-	sg.begin_pass({action = action, attachments = c.mips[step.mip].attachments, label = "bloom"})
+	label: cstring = "bloom"
+	when GPU_TIMING { label = "bloom-prefilter" if step.kind == .Prefilter else "bloom-down" if step.kind == .Down else "bloom-up" }
+	gfx_begin_pass({action = action, attachments = c.mips[step.mip].attachments, label = label})
 	sg.apply_pipeline(pip)
 	sg.apply_bindings({views = {VIEW_bloom_src_tex = src}, samplers = {SMP_bloom_src_smp = c.sampler}})
 	switch step.kind {
@@ -225,7 +227,7 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 		sg.apply_uniforms(UB_bloom_up_params, {ptr = &params, size = size_of(params)})
 	}
 	sg.draw(0, 3, 1)
-	sg.end_pass()
+	gfx_end_pass()
 }
 
 // Covers every pixel of the Post pass, so it must draw before the UI. With
@@ -241,11 +243,11 @@ render_target_tone_map :: proc(t: ^Render_Target, params: Tone_Map_Params) {
 
 // Must run outside a pass.
 render_target_copy :: proc(t: ^Render_Target, swapchain: sg.Swapchain) {
-	sg.begin_pass({action = t.copy_action, swapchain = swapchain, label = "blit"})
+	gfx_begin_pass({action = t.copy_action, swapchain = swapchain, label = "blit"})
 	sg.apply_pipeline(t.blit)
 	sg.apply_bindings({views = {VIEW_blit_tex = t.color.texture}, samplers = {SMP_blit_smp = t.sampler}})
 	sg.draw(0, 3, 1)
-	sg.end_pass()
+	gfx_end_pass()
 }
 
 // Destroys the images and their views. sokol skips an invalid id, so this

@@ -374,15 +374,15 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 	switch pass {
 	case .Shadow:
 		// sokol discards depth at the end of a pass unless told to store it.
-		sg.begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
+		gfx_begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
 	case .Main:
 		r.swapchain = sglue.swapchain()
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height}, sapp.dpi_scale())
-		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
+		gfx_begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
 	case .Scene_Depth:
-		sg.begin_pass({action = coverage_pass_action(), attachments = r.target.post.scene.coverage.attachments, label = "scene-depth"})
+		gfx_begin_pass({action = coverage_pass_action(), attachments = r.target.post.scene.coverage.attachments, label = "scene-depth"})
 	case .Selection:
-		sg.begin_pass({action = coverage_pass_action(), attachments = r.target.post.selection.coverage.attachments, label = "selection"})
+		gfx_begin_pass({action = coverage_pass_action(), attachments = r.target.post.selection.coverage.attachments, label = "selection"})
 	case .Post:
 		render_target_begin_post(&r.target)
 	}
@@ -398,7 +398,7 @@ main_pass_action :: proc(clear_colour: Rgb) -> sg.Pass_Action {
 
 renderer_end_pass :: proc(ctx: rawptr) {
 	r := (^Renderer)(ctx)
-	sg.end_pass()
+	gfx_end_pass()
 	if r.pass == .Post {
 		render_target_copy(&r.target, r.swapchain)
 	}

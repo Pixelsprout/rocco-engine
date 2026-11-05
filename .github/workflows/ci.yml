@@ -211,6 +211,19 @@ jobs:
           call scripts\windows\build_sokol.cmd || exit /b 1
           call scripts\windows\build_miniaudio.cmd || exit /b 1
 
+      - name: Validate D3D11 GPU timestamp ownership and native queries
+        run: |
+          odin test engine -debug -vet -strict-style -define:ROCCO_D3D_GPU_TIMING=true
+          python scripts/gpu_timing_check.py
+
+      - name: Keep the D3D11 GPU timestamp proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-timing-d3d11
+          path: build/gpu-timing-check/
+          if-no-files-found: warn
+
       - name: Validate the shader contract on D3D11
         run: |
           python scripts/shader_contract/install.py
@@ -284,7 +297,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py scripts/test_gpu_timing_summary.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |

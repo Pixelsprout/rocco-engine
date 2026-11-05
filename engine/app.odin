@@ -156,6 +156,8 @@ init_cb :: proc "c" () {
 		os.exit(1)
 	}
 
+	gpu_timing_app_init()
+
 	err := host_open_window(&g_state, {f32(sapp.width()), f32(sapp.height())})
 	fmt.assertf(err == nil, "the UI did not allocate: %v", err)
 	fmt.assertf(g_state.ui.ctx != nil, "Clay did not initialise")
@@ -178,6 +180,7 @@ frame_cb :: proc "c" () {
 	if g_state.read_gamepads {
 		gamepads_poll(&g_state.input.gamepads, &g_state.gamepad_reader)
 	}
+	gpu_timing_app_frame()
 	frame_run(
 		&g_state,
 		{
@@ -204,6 +207,7 @@ app_shutdown :: proc() {
 	if spans_err != nil {
 		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
+	gpu_timing_app_shutdown()
 	bridge_close(&g_state.bridge)
 	host_destroy(&g_state)
 	roc_heap_shutdown()
@@ -255,6 +259,7 @@ app_lock_mouse :: proc(locked: bool) {
 }
 
 app_commit :: proc() {
+	gpu_timing_app_commit()
 	sg.commit()
 }
 
