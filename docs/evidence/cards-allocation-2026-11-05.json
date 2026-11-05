@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-05",
+  "host": "macOS arm64",
+  "odin": "dev-2026-08-nightly:902106f",
+  "roc": "nightly-2026-10-11-7d256b9",
+  "cause": "The cards view allocated a temporary lights list before joining the card nodes.",
+  "fix": "Prepend Sun, then Ambient, into the card nodes without a temporary lights list.",
+  "before": {
+    "allocs": 3,
+    "deallocs": 3,
+    "reallocs": 1,
+    "live": 3,
+    "measured_steps": 34
+  },
+  "after": {
+    "allocs": 2,
+    "deallocs": 2,
+    "reallocs": 1,
+    "live": 3
+  },
+  "expectations_changed": false,
+  "checks": {
+    "cards_roc_tests": 117,
+    "allocation_script": "passed all four games in dev and speed",
+    "cards_measured_steps": {
+      "dev": 191,
+      "speed": 190
+    },
+    "scene_order": "Ambient, Sun, cards",
+    "documentation": "regenerated"
+  },
+  "logs": [
+    "/tmp/rocco-cards-alloc-before.log",
+    "/tmp/rocco-cards-headless-before.log",
+    "/tmp/rocco-cards-allocation-fixed.log"
+  ],
+  "linux_local": "Docker daemon unavailable; original CI reproduced the same before counts"
+}
