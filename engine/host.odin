@@ -41,6 +41,9 @@ host_build :: proc(s: ^State, options: Host_Options, calls: Game_Calls, run_comm
 	camera_init(&s.debug_camera)
 	asset_tables_init(&s.packs, &s.renderer.meshes, &s.renderer.skies, &s.renderer.images, &s.audio, capacity, perm, context.allocator)
 	frame_render_init(&s.frame_render, int(capacity.draws), int(capacity.groups), s.launch.shadow_map, int(s.launch.shadow_cascades), perm)
+	particles_init(&s.particles, perm)
+	s.seam.particles = &s.particles
+	s.frame_render.particles = &s.particles
 	clock_init(&s.clock, s.launch.step_hz)
 	seam_init(&s.seam, run_command, host_config(s, options), &s.packs, &s.audio)
 	return
@@ -74,6 +77,7 @@ host_destroy :: proc(s: ^State) {
 	packs_destroy(&s.packs)
 	asset_tables_destroy(&s.renderer.meshes, &s.renderer.skies, &s.renderer.images)
 	audio_shutdown(&s.audio)
+	particles_destroy(&s.particles)
 	frame_render_destroy(&s.frame_render)
 	ui_destroy(&s.ui)
 	span_sink_destroy(&s.spans)

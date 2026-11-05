@@ -199,14 +199,16 @@ Roc_Init :: struct {
 #assert(size_of(type_of(Roc_Init{}.model)) == 8)
 
 Roc_Init_Commands_Tag :: enum u8 {
-	Load = 0,
-	Play = 1,
-	Quit = 2,
-	Tell = 3,
-	Unload = 4,
+	Burst = 0,
+	Load = 1,
+	Play = 2,
+	Quit = 3,
+	Tell = 4,
+	Unload = 5,
 }
 
 Roc_Init_Commands_Payload :: struct #raw_union {
+	burst: Roc_Init_Commands_Burst,
 	load: Roc_Init_Commands_Load,
 	play: Roc_Init_Commands_Play,
 	tell: Roc_Init_Commands_Tell,
@@ -221,6 +223,18 @@ Roc_Init_Commands :: struct {
 #assert(size_of(Roc_Init_Commands) == 56)
 #assert(align_of(Roc_Init_Commands) == 8)
 #assert(offset_of(Roc_Init_Commands, tag) == 48)
+
+Roc_Init_Commands_Burst :: struct {
+	emitter: u64,
+	count: u32,
+}
+
+#assert(size_of(Roc_Init_Commands_Burst) == 16)
+#assert(align_of(Roc_Init_Commands_Burst) == 8)
+#assert(offset_of(Roc_Init_Commands_Burst, emitter) == 0)
+#assert(size_of(type_of(Roc_Init_Commands_Burst{}.emitter)) == 8)
+#assert(offset_of(Roc_Init_Commands_Burst, count) == 8)
+#assert(size_of(type_of(Roc_Init_Commands_Burst{}.count)) == 4)
 
 Roc_Init_Commands_Load :: struct {
 	assets: Roc_List(Roc_Str),
@@ -675,6 +689,7 @@ Roc_Step_Arg2_Ui_Scroll_Content :: Roc_Step_Arg1_Window
 Roc_Step_Arg2_Ui_Scroll_View :: Roc_Step_Arg1_Window
 Roc_Step :: Roc_Init
 Roc_Step_Commands :: Roc_Init_Commands
+Roc_Step_Commands_Burst :: Roc_Init_Commands_Burst
 Roc_Step_Commands_Load :: Roc_Init_Commands_Load
 Roc_Step_Commands_Play :: Roc_Init_Commands_Play
 Roc_Step_Commands_Play_At :: Roc_Init_Commands_Play_At
@@ -682,6 +697,7 @@ Roc_Step_Commands_Play_At_At :: Roc_Init_Commands_Play_At_At
 Roc_Step_Commands_Play_At_At_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_Step_Commands_Tell :: Roc_Init_Commands_Tell
 Roc_View :: struct {
+	emitters: Roc_List(Roc_View_Emitters),
 	nodes: Roc_List(Roc_VocabularyNode),
 	queries: Roc_List(Roc_View_Queries),
 	ui: Roc_List(Roc_VocabularyElement),
@@ -691,22 +707,102 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 200)
+#assert(size_of(Roc_View) == 224)
 #assert(align_of(Roc_View) == 8)
-#assert(offset_of(Roc_View, nodes) == 0)
+#assert(offset_of(Roc_View, emitters) == 0)
+#assert(size_of(type_of(Roc_View{}.emitters)) == 24)
+#assert(offset_of(Roc_View, nodes) == 24)
 #assert(size_of(type_of(Roc_View{}.nodes)) == 24)
-#assert(offset_of(Roc_View, queries) == 24)
+#assert(offset_of(Roc_View, queries) == 48)
 #assert(size_of(type_of(Roc_View{}.queries)) == 24)
-#assert(offset_of(Roc_View, ui) == 48)
+#assert(offset_of(Roc_View, ui) == 72)
 #assert(size_of(type_of(Roc_View{}.ui)) == 24)
-#assert(offset_of(Roc_View, camera) == 72)
+#assert(offset_of(Roc_View, camera) == 96)
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, environment) == 112)
+#assert(offset_of(Roc_View, environment) == 136)
 #assert(size_of(type_of(Roc_View{}.environment)) == 60)
-#assert(offset_of(Roc_View, shadow) == 172)
+#assert(offset_of(Roc_View, shadow) == 196)
 #assert(size_of(type_of(Roc_View{}.shadow)) == 24)
-#assert(offset_of(Roc_View, cursor) == 196)
+#assert(offset_of(Roc_View, cursor) == 220)
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
+
+Roc_View_Emitters :: struct {
+	id: u64,
+	seed: u64,
+	drag: f32,
+	end_colour: Roc_View_Emitters_EndColour,
+	end_size: f32,
+	image: u32,
+	lifetime: f32,
+	position: Roc_Init_Commands_Play_At_At_Pos,
+	rate: f32,
+	start_colour: Roc_View_Emitters_EndColour,
+	start_size: f32,
+	velocity: Roc_Init_Commands_Play_At_At_Pos,
+	velocity_spread: Roc_Init_Commands_Play_At_At_Pos,
+	blend: Roc_View_Emitters_Blend,
+}
+
+#assert(size_of(Roc_View_Emitters) == 112)
+#assert(align_of(Roc_View_Emitters) == 8)
+#assert(offset_of(Roc_View_Emitters, id) == 0)
+#assert(size_of(type_of(Roc_View_Emitters{}.id)) == 8)
+#assert(offset_of(Roc_View_Emitters, seed) == 8)
+#assert(size_of(type_of(Roc_View_Emitters{}.seed)) == 8)
+#assert(offset_of(Roc_View_Emitters, drag) == 16)
+#assert(size_of(type_of(Roc_View_Emitters{}.drag)) == 4)
+#assert(offset_of(Roc_View_Emitters, end_colour) == 20)
+#assert(size_of(type_of(Roc_View_Emitters{}.end_colour)) == 16)
+#assert(offset_of(Roc_View_Emitters, end_size) == 36)
+#assert(size_of(type_of(Roc_View_Emitters{}.end_size)) == 4)
+#assert(offset_of(Roc_View_Emitters, image) == 40)
+#assert(size_of(type_of(Roc_View_Emitters{}.image)) == 4)
+#assert(offset_of(Roc_View_Emitters, lifetime) == 44)
+#assert(size_of(type_of(Roc_View_Emitters{}.lifetime)) == 4)
+#assert(offset_of(Roc_View_Emitters, position) == 48)
+#assert(size_of(type_of(Roc_View_Emitters{}.position)) == 12)
+#assert(offset_of(Roc_View_Emitters, rate) == 60)
+#assert(size_of(type_of(Roc_View_Emitters{}.rate)) == 4)
+#assert(offset_of(Roc_View_Emitters, start_colour) == 64)
+#assert(size_of(type_of(Roc_View_Emitters{}.start_colour)) == 16)
+#assert(offset_of(Roc_View_Emitters, start_size) == 80)
+#assert(size_of(type_of(Roc_View_Emitters{}.start_size)) == 4)
+#assert(offset_of(Roc_View_Emitters, velocity) == 84)
+#assert(size_of(type_of(Roc_View_Emitters{}.velocity)) == 12)
+#assert(offset_of(Roc_View_Emitters, velocity_spread) == 96)
+#assert(size_of(type_of(Roc_View_Emitters{}.velocity_spread)) == 12)
+#assert(offset_of(Roc_View_Emitters, blend) == 108)
+#assert(size_of(type_of(Roc_View_Emitters{}.blend)) == 1)
+
+Roc_View_Emitters_EndColour :: struct {
+	a: f32,
+	b: f32,
+	g: f32,
+	r: f32,
+}
+
+#assert(size_of(Roc_View_Emitters_EndColour) == 16)
+#assert(align_of(Roc_View_Emitters_EndColour) == 4)
+#assert(offset_of(Roc_View_Emitters_EndColour, a) == 0)
+#assert(size_of(type_of(Roc_View_Emitters_EndColour{}.a)) == 4)
+#assert(offset_of(Roc_View_Emitters_EndColour, b) == 4)
+#assert(size_of(type_of(Roc_View_Emitters_EndColour{}.b)) == 4)
+#assert(offset_of(Roc_View_Emitters_EndColour, g) == 8)
+#assert(size_of(type_of(Roc_View_Emitters_EndColour{}.g)) == 4)
+#assert(offset_of(Roc_View_Emitters_EndColour, r) == 12)
+#assert(size_of(type_of(Roc_View_Emitters_EndColour{}.r)) == 4)
+
+Roc_View_Emitters_Position :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Emitters_StartColour :: Roc_View_Emitters_EndColour
+Roc_View_Emitters_Velocity :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Emitters_VelocitySpread :: Roc_Init_Commands_Play_At_At_Pos
+Roc_View_Emitters_Blend :: enum u8 {
+	Add = 0,
+	Alpha = 1,
+}
+
+#assert(size_of(Roc_View_Emitters_Blend) == 1)
+#assert(align_of(Roc_View_Emitters_Blend) == 1)
 
 Roc_VocabularyNode_Group :: struct {
 	_0: Roc_VocabularyNode_Group_0,
@@ -1125,7 +1221,7 @@ Roc_VocabularyElement :: struct {
 
 Roc_VocabularyElement_Panel_0 :: struct {
 	id: u64,
-	background: Roc_VocabularyElement_Panel_0_Background,
+	background: Roc_View_Emitters_EndColour,
 	floating: Roc_VocabularyElement_Panel_0_Floating,
 	gap: f32,
 	height: Roc_VocabularyElement_Panel_0_Height,
@@ -1165,24 +1261,7 @@ Roc_VocabularyElement_Panel_0 :: struct {
 #assert(offset_of(Roc_VocabularyElement_Panel_0, direction) == 154)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0{}.direction)) == 1)
 
-Roc_VocabularyElement_Panel_0_Background :: struct {
-	a: f32,
-	b: f32,
-	g: f32,
-	r: f32,
-}
-
-#assert(size_of(Roc_VocabularyElement_Panel_0_Background) == 16)
-#assert(align_of(Roc_VocabularyElement_Panel_0_Background) == 4)
-#assert(offset_of(Roc_VocabularyElement_Panel_0_Background, a) == 0)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Background{}.a)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Panel_0_Background, b) == 4)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Background{}.b)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Panel_0_Background, g) == 8)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Background{}.g)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Panel_0_Background, r) == 12)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Background{}.r)) == 4)
-
+Roc_VocabularyElement_Panel_0_Background :: Roc_View_Emitters_EndColour
 Roc_VocabularyElement_Panel_0_Floating_Tag :: enum u8 {
 	Float = 0,
 	NoFloat = 1,
@@ -1313,7 +1392,7 @@ Roc_VocabularyElement_Panel_0_Image :: struct {
 Roc_VocabularyElement_Panel_0_Image_Show_0 :: struct {
 	id: u32,
 	region: Roc_VocabularyElement_Panel_0_Image_Show_0_Region,
-	tint: Roc_VocabularyElement_Panel_0_Background,
+	tint: Roc_View_Emitters_EndColour,
 	filter: Roc_VocabularyElement_Panel_0_Image_Show_0_Filter,
 }
 
@@ -1364,7 +1443,7 @@ Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px :: struct {
 #assert(offset_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px, y) == 12)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel_0_Image_Show_0_Region_Px{}.y)) == 4)
 
-Roc_VocabularyElement_Panel_0_Image_Show_0_Tint :: Roc_VocabularyElement_Panel_0_Background
+Roc_VocabularyElement_Panel_0_Image_Show_0_Tint :: Roc_View_Emitters_EndColour
 Roc_VocabularyElement_Panel_0_Image_Show_0_Filter :: enum u8 {
 	Linear = 0,
 	Nearest = 1,
@@ -1454,7 +1533,7 @@ Roc_VocabularyElement_Panel_0_Direction :: enum u8 {
 
 Roc_VocabularyElement_Text :: struct {
 	str: Roc_Str,
-	color: Roc_VocabularyElement_Panel_0_Background,
+	color: Roc_View_Emitters_EndColour,
 	size: f32,
 	wrap: Roc_VocabularyElement_Text_Wrap,
 }
@@ -1470,7 +1549,7 @@ Roc_VocabularyElement_Text :: struct {
 #assert(offset_of(Roc_VocabularyElement_Text, wrap) == 44)
 #assert(size_of(type_of(Roc_VocabularyElement_Text{}.wrap)) == 1)
 
-Roc_VocabularyElement_Text_Color :: Roc_VocabularyElement_Panel_0_Background
+Roc_VocabularyElement_Text_Color :: Roc_View_Emitters_EndColour
 Roc_VocabularyElement_Text_Wrap :: enum u8 {
 	None = 0,
 	Words = 1,
@@ -1689,6 +1768,7 @@ roc_step_arg2_ui_decref :: proc(value: Roc_Step_Arg2_Ui) {
 }
 
 roc_view_decref :: proc(value: Roc_View) {
+	roc_list_decref_roc_view_emitters(value.emitters)
 	roc_list_decref_roc_vocabularynode(value.nodes)
 	roc_list_decref_roc_view_queries(value.queries)
 	roc_list_decref_roc_vocabularyelement(value.ui)
@@ -1837,6 +1917,14 @@ roc_list_from_slice_roc_step_arg2_ui_scroll :: proc(elems: []Roc_Step_Arg2_Ui_Sc
 	return roc_list_from_slice_with(elems, false)
 }
 
+roc_list_decref_roc_view_emitters :: proc(list: Roc_List(Roc_View_Emitters)) {
+	roc_list_decref_flat(list)
+}
+
+roc_list_from_slice_roc_view_emitters :: proc(elems: []Roc_View_Emitters) -> Roc_List(Roc_View_Emitters) {
+	return roc_list_from_slice_with(elems, false)
+}
+
 roc_list_decref_roc_vocabularynode :: proc(list: Roc_List(Roc_VocabularyNode)) {
 	roc_list_decref_elements(list, roc_vocabularynode_decref)
 }
@@ -1900,6 +1988,7 @@ roc_list_decref :: proc {
 	roc_list_decref_roc_step_arg2_rays,
 	roc_list_decref_u64,
 	roc_list_decref_roc_step_arg2_ui_scroll,
+	roc_list_decref_roc_view_emitters,
 	roc_list_decref_roc_vocabularynode,
 	roc_list_decref_roc_view_queries,
 	roc_list_decref_roc_vocabularyelement,
@@ -1919,6 +2008,7 @@ roc_list_from_slice :: proc {
 	roc_list_from_slice_roc_step_arg2_rays,
 	roc_list_from_slice_u64,
 	roc_list_from_slice_roc_step_arg2_ui_scroll,
+	roc_list_from_slice_roc_view_emitters,
 	roc_list_from_slice_roc_vocabularynode,
 	roc_list_from_slice_roc_view_queries,
 	roc_list_from_slice_roc_vocabularyelement,

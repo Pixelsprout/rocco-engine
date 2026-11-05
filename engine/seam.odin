@@ -21,6 +21,7 @@ Seam :: struct {
 	run_command: Command_Runner,
 	packs:       ^Packs,
 	audio:       ^Audio,
+	particles:   ^Particles,
 	model:       rawptr,
 	// prev is the Scene before curr. The host interpolates between them.
 	prev:     Scene,
@@ -53,6 +54,7 @@ seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: 
 	_, plays := seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
 	seam_sound(s, plays)
+	particles_step(s.particles, s.curr.emitters.elements[:s.curr.emitters.length], 0)
 }
 
 // The Spans split the work finer than step_time and view_time, which the
@@ -99,6 +101,7 @@ seam_step :: proc(s: ^Seam, step_input: Step_Input, dt: f32, spans: ^Span_Sink =
 	s.has_prev = true
 	s.curr = seam_view(s)
 	seam_sound(s, plays)
+	particles_step(s.particles, s.curr.emitters.elements[:s.curr.emitters.length], dt)
 	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
 	answers := seam_query_search(s)
@@ -183,6 +186,8 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool,
 			s.run_command(command)
 		case .Play:
 			append(&pending, command.payload.play)
+		case .Burst:
+			particles_burst(s.particles, command.payload.burst)
 		case .Tell:
 			// A Tell is for the Driver, which reads it from the step reply.
 		}

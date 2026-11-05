@@ -70,7 +70,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
         run: |
@@ -78,6 +78,7 @@ jobs:
           python3 scripts/cluster_check.py build/bridge-check/clustered.png
           python3 scripts/environment_check.py build/bridge-check/environment/reference.png
           python3 scripts/shadow_check.py build/bridge-check/shadows
+          python3 scripts/particle_check.py build/bridge-check/particles
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -230,7 +231,7 @@ jobs:
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
         run: |
@@ -238,6 +239,7 @@ jobs:
           python scripts/cluster_check.py build/bridge-check/clustered.png
           python scripts/environment_check.py build/bridge-check/environment/reference.png
           python scripts/shadow_check.py build/bridge-check/shadows
+          python scripts/particle_check.py build/bridge-check/particles
 
       - name: Keep the Bridge check screenshots
         if: always()

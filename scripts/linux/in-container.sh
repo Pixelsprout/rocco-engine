@@ -30,13 +30,14 @@ roc scripts/build.roc all "$@"
 echo "== docs check"
 roc scripts/build.roc docs --check
 
-RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridge-echo glow mask widgets clustered-lights tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
 # CI uploads the screenshots from build/bridge-check.
 RUN_PREFIX="$RUN" python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
 RUN_PREFIX="$RUN" python3 scripts/cluster_check.py build/bridge-check/clustered.png
 RUN_PREFIX="$RUN" python3 scripts/environment_check.py build/bridge-check/environment/reference.png
 RUN_PREFIX="$RUN" python3 scripts/shadow_check.py build/bridge-check/shadows
+RUN_PREFIX="$RUN" python3 scripts/particle_check.py build/bridge-check/particles
 
 sh scripts/test-all.sh
 
