@@ -1,40 +1,61 @@
-# Combined foliage and lighting evidence
+# Complete village checkpoint
 
-Status: local Metal compatibility passed; human and native GL/D3D11 acceptance remain open.
-The complete layout contains 1,436 source placements and 93 prepared meshes.
-The prepared field contains 22,000 placements with source seed 777.
-Visibility uses the source 65-metre distance and a ten-metre fade margin.
-No source content or texture resolution was reduced.
+Status: local Metal checks passed; human review, native GL/D3D11 scene acceptance, and performance gates remain open.
 
-## Integration
+The complete scene retains 1,436 source placements, 93 meshes, and 22,000 generated field placements.
+Field visibility uses the source 65-metre distance plus a ten-metre fade margin.
+The initial hero view emits 21,686 field Draws and every source placement.
+The game preserves four house Groups and all six rotated source colliders.
+Source textures, imported material maps, source casting, and field non-casting remain intact.
+No density or texture reduction establishes a preset in this checkpoint.
 
-The game requests each mesh Pack separately.
-The game requests the complete lighting and vegetation assets in separate Packs.
-Both Packs retain the shared terrain noise image.
-Readiness requires every Pack callback and every required asset name with a valid ID.
-Failed assets keep the loading error visible.
-The game prepares source and field Draws once after complete readiness.
-Prepared source Draws retain their asset names for window material overrides.
-The scene retains four house Groups and all six rotated source colliders.
-Lighting window overrides preserve imported maps and other material slots.
+## Integration and checks
 
-The required village build passed with three Surface packages and two mesh helpers.
-All 172 village Roc tests and 146 build tests passed.
-The asset validator passed all 93 GLBs, 1,436 source placements, and 22,000 field placements.
-The three shader packages and five helpers match independent lighting and foliage declarations.
-The pinned shader compiler built the actual Metal, GL 4.3, and D3D11 payloads.
-Native scene execution in this checkpoint used Metal.
-The prepared host uses ordinary release settings and pinned Odin `902106f`.
+Each mesh keeps its own complete Pack request.
+Lighting, vegetation, and effects each receive one complete Pack request.
+Lighting and vegetation retain the same terrain noise image through shared references.
+Readiness requires every Pack callback and valid IDs for every required asset name.
+The game caches prepared source and field Draws after complete readiness.
+Source Draws retain asset names for named window overrides.
+Effects use the existing Post, Selection, and particle APIs.
+Keyboard controls remain independent across foliage, lighting, and effects.
 
-## Human review package
+The indirect-light correction uses the view-cosine magnitude for indirect response only.
+It adds no resources or public fields.
+Direct lighting, coverage, deformation, material factors, and casting remain unchanged.
+The [diagnosis](../../docs/evidence/canopy-indirect-light-2026-11-05.md) records controlled comparisons.
 
-The review images and metadata remain at `/tmp/village-combined-review-final`.
-The matching replay remains at `/tmp/village-combined-review-final-replay`.
-The agent inspected hero, square, grass, and canopy images.
-All eight captured images match the replay byte for byte.
-Both native logs are clean and both processes exit successfully.
-The [review metadata](../../docs/evidence/village-combined/metal-review.json) records cameras and hashes.
-`REVIEW.md` beside the images records settings and caveats.
+| Check | Result |
+| --- | --- |
+| Strict engine, pinned Odin 902106f | 855 passed |
+| Strict Spans engine | 855 passed |
+| Python shader/package/reload/provenance suite | 78 passed; two Windows-only skips |
+| Surface Roc tests | 100 passed |
+| Village Roc tests | 175 passed |
+| Build Roc tests | 146 passed |
+| Source asset validation | 93 GLBs, 1,436 source placements, 22,000 field placements |
+| Required village build | Five shader packages and two mesh helpers |
+| Independent package/helper checks | Passed |
+| Built-in shader generation drift | Passed |
+| Village package interfaces | All five unchanged after indirect-light correction |
+| Native Surface regression | Passed |
+| Native opposite-normal regression | Rigid, instanced, and built-in/default image differences all zero |
+
+The host uses ordinary release settings and pinned Odin `902106f`.
+Native checks in this checkpoint use Metal.
+The actual shaders also compile GL 4.3 and D3D11 payloads.
+Payload compilation does not establish native backend acceptance.
+
+## Joint foliage and lighting review
+
+The corrected review package is `/tmp/village-final-joint`.
+The matching replay is `/tmp/village-final-joint-replay`.
+Both runs reach complete readiness at step 96.
+Both reproduce every captured image and camera.
+All captures verify 1920 by 1080 physical pixels.
+The Retina window requests 960 by 540 logical pixels with high DPI enabled.
+Effects are disabled for this joint lighting comparison.
+The agent inspected all four views.
 
 | View | Image | Steps after the readiness-relative hero reset |
 | --- | --- | ---: |
@@ -44,63 +65,60 @@ The [review metadata](../../docs/evidence/village-combined/metal-review.json) re
 | Canopy | `canopy.png` | 243 |
 
 Each new fixed view receives one step before capture.
-Readiness completes at step 95.
-The initial view emits 1,436 source Draws, 21,686 field Draws, and the ground.
-The remaining prepared field roots are outside the visibility envelope.
-The Bridge seed is zero.
-All captures verify 1920 by 1080 physical pixels.
-The Retina window uses 960 by 540 logical pixels with high DPI enabled.
 The approved lens remains 75 degrees.
-Startup uses 2048 shadow maps, two cascades, and X4 MSAA.
-Appearance uses legacy fitting and Pcf3 filtering.
-Wind, canopy shading, grass shading, source casting, and all lighting switches remain enabled for the four views.
-Field Draws retain their source non-casting policy.
+The Bridge seed is zero and the field seed is 777.
+The full field remains enabled with source casting and all lighting switches enabled.
+Startup uses X4 MSAA, 2048 shadow maps, and two cascades.
+Appearance preserves legacy fitting and Pcf3 filtering.
 Exposure is 1.12 with AgX.
 Bloom strength is 0.18.
 Haze spans 14 to 120 metres with amount 0.38.
 
-Reproduce the review with these commands:
+The corrected canopy has 2,994 near-black pixels in the diagnostic region.
+The original diagnostic had 35,549 pixels.
+Normal grazing-angle darkness and source shading approximations remain.
+The [joint report](../../docs/evidence/village-combined/final-joint-metal.json) records exact cameras, settings, and hashes.
 
-```sh
-roc scripts/build.roc -- game village
-python3 examples/village/fixtures/foliage.py /tmp/village-review --hero-steps 240 --replay --retina-1080
-```
+## Complete effects and route review
 
-The review binary precedes a loading-progress text correction.
-The correction changes no ready scene values or rendering settings.
-The bounded native report records the final binary separately.
+The corrected effects package is `/tmp/village-final-effects`.
+Replay and alternate-seed packages use the `-replay` and `-seed7` suffixes.
+The fixture advances 432 hero steps before effect comparisons.
+This permits smoke and dust spawning before native capture.
+It uses the full scene and actual scene shaders.
+It selects Group 20 through the existing Enter ray without changing Draw tint.
+Both outline policies, disabled outline, colour, opaque UI, wind, field, casting, smoke, and dust controls pass.
+Every repeated image and camera matches.
+The alternate game seed changes particle source streams.
+All native logs are clean and all processes exit successfully.
+The agent inspected both policy images and the route preview.
 
-## Bounded CI checks
+`route.mp4` contains eight seconds from the unchanged source tour.
+The fixture retains eight camera records and frame hashes, then removes raw frames.
+The preview establishes no pacing or performance result.
+It does not replace complete-route acceptance.
+The [effects report](../../docs/evidence/village-combined/final-effects-metal.json) records exact inputs, sources, cameras, and hashes.
 
-All three native CI jobs build the actual village shaders and run `fixtures/foliage.py --compat --replay`.
-The Metal job also passes `--retina-1080`.
+All three CI jobs run the targeted complete-scene fixture.
+Each job uses two repeat processes and one short alternate-seed check.
+The Metal job passes `--retina-1080`.
 Linux uses the existing Xvfb and Mesa prefix.
-Each pass retains full source content and the default 22,000-placement field.
-Each pass advances two hero steps after readiness.
-It then captures square, grass, and canopy after one step each.
-Two additional steps verify moving wind.
-Two steps with wind disabled verify stable pixels.
-The fixture checks source casting, field visibility, sky lighting, and a live shadow setting.
-Each replay compares every image hash, camera, and readiness step.
-The fixture verifies physical dimensions, clean native logs, and process exit.
-The [local bounded report](../../docs/evidence/village-combined/metal-compat.json) passed twice from the final binary.
-These bounded checks establish backend compatibility and deterministic controls.
-They make no performance claim.
-
+The fixture retains full density during its bounded compatibility checks.
+The UI assertion uses a region inside the opaque panel at both 1x and 2x display scales.
 Functional captures do not enable Spans automatically.
-Performance captures must explicitly select an instrumented host and set its output path.
+Performance captures must explicitly select an instrumented host and output path.
 
 ## Open gates
 
+Human joint appearance review remains open.
+Native GL and D3D11 scene checks remain open.
 The sky remains a fixed-time LDR approximation with clipped HDR values and shared sky intensity.
 Canopy normals, backlight, specular response, and tint interpolation approximate the source shaders.
-The close canopy view retains very dark underside regions for human review.
-The joint foliage and lighting human review remains open.
-Outline and particle effects remain a separate integration step.
-Native GL and D3D11 scene acceptance remains open.
-The complete route, independent effect costs, measured presets, and final PC run remain open.
+Smoke and dust receive no scene fog.
 
 The preliminary development Roc CPU diagnostic reported p95 48.89 ms under contention.
 Interpolation dominated that diagnostic.
 This checkpoint preserves that deficit and makes no frame-budget or pacing claim.
 Controlled CPU and GPU profiling must retain every slow sample.
+Independent effect costs, measured Mac and PC presets, complete-route checks, and the final desktop run remain open.
+The complete-scene human review remains open.

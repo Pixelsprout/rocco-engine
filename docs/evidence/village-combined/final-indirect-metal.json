@@ -1,0 +1,22 @@
+{
+  "rigid": {
+    "mean_difference": 0.0,
+    "changed_channels": 0
+  },
+  "instanced": {
+    "mean_difference": 0.0,
+    "changed_channels": 0
+  },
+  "default_surface": {
+    "mean_difference": 0.0,
+    "changed_channels": 0
+  },
+  "images": {
+    "indirect-builtin-frame.png": "7c82c15df19e183829ea0f54fd17236d141609ddc5d9f7c4096609040e919125",
+    "indirect-default-frame.png": "7c82c15df19e183829ea0f54fd17236d141609ddc5d9f7c4096609040e919125",
+    "instanced-front-frame.png": "d558e6d19ec18baac6b1547e132137712050199667d65aa00167d0cfb3176120",
+    "instanced-opposed-frame.png": "d558e6d19ec18baac6b1547e132137712050199667d65aa00167d0cfb3176120",
+    "rigid-front-frame.png": "45ddcbe4ef86ee166252e8e748f9803460a8f16718c7b15689194e7cc7a07353",
+    "rigid-opposed-frame.png": "45ddcbe4ef86ee166252e8e748f9803460a8f16718c7b15689194e7cc7a07353"
+  }
+}

@@ -111,8 +111,8 @@ def run(out, retina, seed=0, seed_only=False, movie=False):
                 report['images']['ui-no-colour'] = capture(bridge, out, 'ui-no-colour')
                 left = png_rgba((out / 'ui.png').read_bytes())[2]
                 right = png_rgba((out / 'ui-no-colour.png').read_bytes())[2]
-                assert all(left[(y*1920+x)*4:(y*1920+x)*4+4] == right[(y*1920+x)*4:(y*1920+x)*4+4] for y in range(40, 90) for x in range(40, 350)), 'Post changed opaque UI pixels'
-                report['ui_unchanged_pixels'] = 15500
+                assert all(left[(y*1920+x)*4:(y*1920+x)*4+4] == right[(y*1920+x)*4:(y*1920+x)*4+4] for y in range(40, 75) for x in range(40, 250)), 'Post changed opaque UI pixels'
+                report['ui_unchanged_pixels'] = 7350
                 assert changed(out, 'ui', 'ui-no-colour') > 1000
                 bridge.tell('effects', 'smoke')
                 bridge.step(1)

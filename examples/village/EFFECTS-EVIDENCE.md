@@ -142,4 +142,5 @@ It keeps full density and uses two repeat processes plus one short alternate-see
 The fixture replaces repeated isolated effect cases in native scene CI.
 Native GL and D3D11 acceptance remains pending.
 Human review and controlled performance gates remain open.
-The separate canopy correction still requires refreshed combined captures.
+The canopy correction is integrated and the complete scene captures are refreshed.
+Read the [final combined evidence](COMBINED-EVIDENCE.md) for current review artifacts.
