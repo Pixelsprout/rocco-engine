@@ -75,6 +75,7 @@ Recorder :: struct {
 	depth_has_pipeline: bool,
 	depth_pipeline: Mesh_Pipeline,
 	depth_skin: ^Skin_Params,
+	instance_calls: int,
 	particles: [dynamic]Particle_Recorded,
 	surfaces: [dynamic]Surface_Observed,
 	passes:        [dynamic]Pass_Begun,
@@ -383,9 +384,11 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	return f.rec.submits[:]
 }
 
-// An identity view_proj, with a camera at eye that looks down -z.
+// Keep placement fixtures visible across their synthetic world coordinates.
 frame_fixture_view :: proc(eye: [3]f32) -> Frame_View {
-	return {view_proj = 1, camera = {eye = eye, target = eye + {0, 0, -1}, up = UP, fov_y = 1.047}, aspect = 16.0 / 9}
+	projection := mat4_scale({1e-6, 1e-6, 1e-6})
+	projection[2, 3] = 0.5
+	return {view_proj = projection, camera = {eye = eye, target = eye + {0, 0, -1}, up = UP, fov_y = 1.047}, aspect = 16.0 / 9}
 }
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
@@ -1604,7 +1607,7 @@ test_frame_render_submits_the_sky_after_every_draw :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.rec.sky_calls, 1)
 	testing.expect_value(t, f.rec.sky_after, 2)
 	testing.expect_value(t, f.rec.sky, &f.skies.skies[sky_slot(sky)])
-	expect_mat4_near(t, f.rec.sky_view_proj, 1)
+	expect_mat4_near(t, f.rec.sky_view_proj, frame_fixture_view({}).view_proj)
 }
 
 @(test)

@@ -98,6 +98,8 @@ def main():
     out=Path(sys.argv[1] if len(sys.argv)>1 else 'build/surface-check').resolve();out.mkdir(parents=True,exist_ok=True)
     a=run('wind-a',[],out,wind);b=run('wind-b',[],out,wind)
     check(a==b,'equal Bridge steps reproduce equal Surface poses and shadows')
+    instances_a=run('instances-a',['--instances'],out,wind);instances_b=run('instances-b',['--instances'],out,wind)
+    check(instances_a==instances_b,'compatible transforms and tints repeat with separate Draw phase values')
     result=run('controls',['--no-wind'],out,controls)
     builtin=run('builtin',['--builtin','--no-wind'],out,single)
     default=run('default',['--default-shader','--no-wind'],out,single)
@@ -115,7 +117,7 @@ def main():
         check(not any(r>200 and b>200 and g<30 for r,g,b in zip(data[0::4],data[1::4],data[2::4])),'failed shaders never select a fallback material')
     finally:
         broken_path.unlink()
-    result.update(result='passed',wind_hashes=a,default_pbr_mean_difference=mean,binary_sha256=hashlib.sha256(Path('examples/surface/surface'+binary_suffix()).read_bytes()).hexdigest(),packages={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('examples/surface/assets/shaders').glob('*.shaderpack')})
+    result.update(result='passed',wind_hashes=a,instance_wind_hashes=instances_a,default_pbr_mean_difference=mean,binary_sha256=hashlib.sha256(Path('examples/surface/surface'+binary_suffix()).read_bytes()).hexdigest(),packages={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('examples/surface/assets/shaders').glob('*.shaderpack')})
     (out/'surface-evidence.json').write_text(json.dumps(result,indent=2)+'\n')
 
 

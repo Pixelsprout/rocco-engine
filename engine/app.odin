@@ -129,9 +129,9 @@ app_gfx_desc :: proc(capacity: Capacity, cascades: int) -> sg.Desc {
 	textures := texture_pool_size(capacity)
 	return {
 		logger = {func = slog.func},
-		buffer_pool_size = 3 * i32(capacity.meshes) + 5 + 1,
-		shader_pool_size = SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3,
-		pipeline_pool_size = SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7,
+		buffer_pool_size = 3 * i32(capacity.meshes) + 5 + 2,
+		shader_pool_size = SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 4,
+		pipeline_pool_size = SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 6,
 		image_pool_size = textures,
 		sampler_pool_size = textures,
 		view_pool_size = view_pool_size(capacity),

@@ -15,14 +15,17 @@ meanings in [CONTEXT.md](../CONTEXT.md).
 - Reference result directory:
   [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
   at commit `e1eb378`.
-- Headline figure: N = 8,192 on the reference machine. The p99 Frame CPU time
+- Reference headline before rigid instancing: N = 8,192 on the reference machine. The p99 Frame CPU time
   of `mixed` is 12.8 ms at N = 8,192 and 25.7 ms at N = 16,384. See
   `headline.txt` in that directory.
 
+The reference PC headline needs a new full sweep after rigid instancing.
+The local Mac comparison below tests three sizes and does not replace that reference.
+
 The first reference run, at commit `a8fd5c0`, gave N = 4,096. The grid of
 ADR 0008 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
-N = 16,384. Git history keeps that run's summaries. `render_submit` now takes
-the largest part of the `mixed` Frame.
+N = 16,384. Git history keeps that run's summaries. At that reference point,
+`render_submit` took the largest part of the `mixed` Frame.
 
 The reference run comes before Milestone 22, which made the 3D Scene a tree.
 On an Apple M5, Headless and Lockstep, the first tree walk raised the
@@ -37,6 +40,64 @@ run includes the tree.
 The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
 power with other programs running. Its numbers were noise, so it is deleted.
+
+### Rigid instancing and camera culling, 2026-11-05
+
+The paired Mac run compares commit `2502881` with rigid instancing and camera culling.
+Both hosts use pinned Odin `902106f`, `-o:speed`, `ROCCO_SPANS=true`, `-vet`, and `-strict-style`.
+The Roc compiler is `nightly-2026-10-11-7d256b9`.
+The machine is an Apple M5 with 16 GB RAM, on AC power with Low Power Mode off.
+The run uses 960 × 540 physical pixels, 4x MSAA, a 2048 shadow map, and one cascade.
+Lockstep disables vsync and uses Seed 0.
+
+Each configuration uses three processes with 120 warmup Frames and 600 measured Frames each.
+Each baseline/candidate pair alternates its order.
+Every process uses `taskpolicy -a` with the same final binary for its variant.
+The archive retains all 21,600 measured samples and 4,320 warmup Frames.
+Each table statistic pools 1,800 measured Frames per variant and configuration.
+The report also retains each process median and the spread.
+Render submission includes camera culling, batch construction, instance upload, uniforms, and native submission.
+
+| Game | N | Median submission, baseline → candidate | Median µs per Draw, baseline → candidate | Two-step CPU estimate p99, baseline → candidate |
+| --- | ---: | ---: | ---: | ---: |
+| draws | 64 | 55.08 → 40.08 µs | 0.861 → 0.626 | 0.142 → 0.127 ms |
+| draws | 1,024 | 460.23 → 181.38 µs | 0.449 → 0.177 | 0.703 → 0.404 ms |
+| draws | 16,384 | 7.89 → 3.01 ms | 0.481 → 0.184 | 12.11 → 7.28 ms |
+| mixed | 64 | 152.63 → 59.37 µs | 2.385 → 0.928 | 0.341 → 0.850 ms |
+| mixed | 1,024 | 1.96 → 0.39 ms | 1.919 → 0.386 | 2.772 → 2.987 ms |
+| mixed | 16,384 | 33.51 → 6.99 ms | 2.045 → 0.427 | 42.50 → 15.67 ms |
+
+At N = 16,384, median submission decreases by 62% for draws and 79% for mixed.
+The mixed CPU span total p95 decreases from 39.88 to 13.02 ms.
+The span total includes cluster construction.
+The two-step estimate uses the existing benchmark formula, including cluster construction once per Frame.
+The largest tested mixed size is 16,384, with a 15.67 ms p99 estimate.
+Intermediate sizes remain unmeasured in this local comparison.
+The PC reference headline remains 8,192 until its full sweep runs again.
+
+Unrelated user processes remained active.
+The final snapshot records vitest at 98% CPU, an existing engine at 33%, and stage at 20%.
+No process was stopped for these measurements.
+Small mixed workloads have worse tails in this run despite lower median submission cost.
+These results show CPU work under contention.
+They do not measure GPU work or real-clock pacing.
+They do not establish final village or PC acceptance.
+
+An earlier implementation increased submission cost at N = 1,024 and N = 16,384.
+Its 9,000 measured samples remain in the archive under `exploratory/`.
+The final implementation reuses batch scratch, caches compatible runs, and shares colour parameters.
+The scratch test peaks at 11,696,448 bytes for 32,768 Draws and four shadow cascades.
+The arena returns to zero used bytes after each of its 15 pipeline calls.
+
+The [CPU report](evidence/rigid-instancing-cpu-2026-11-05.json) includes percentiles, process medians, spread, machine data, commands, and binary hashes.
+The [raw sample archive](evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
+The [Metal report](evidence/rigid-instancing-metal-2026-11-05.json) records all 22 example/tutorial comparisons and Surface checks.
+Eighteen screenshots match exactly after 60 Bridge steps.
+Three differ by at most one byte in six channels or fewer.
+The village mean difference is 0.00124 per RGB channel, with no visible difference in the inspected comparison.
+The Surface fixture covers compatible transforms and tints, separate Draw phases, and a rigid-only shader.
+Metal passes locally.
+OpenGL and D3D11 execution remain pending CI.
 
 ### The light list per Draw
 
@@ -488,7 +549,7 @@ step runs 2. So `bench/analyse.py` computes `frame_budget_us` for each Frame:
 
 ```
 frame_budget_us = 2 * (input + step + commands + view + queries + query_results)
-                + interpolation + ui_layout + render_submit + commit
+                + interpolation + ui_layout + cluster_build + render_submit + commit
 ```
 
 The percentiles come from these per-Frame sums, not from sums of Span

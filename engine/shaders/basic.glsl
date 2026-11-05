@@ -994,3 +994,81 @@ void main() {
 @end
 @program coverage coverage_vs coverage_fs
 @program skinned_coverage skinned_coverage_vs coverage_fs
+@block instance_inputs
+layout(location = 5) in vec4 instance_model0;
+layout(location = 6) in vec4 instance_model1;
+layout(location = 7) in vec4 instance_model2;
+layout(location = 8) in vec4 instance_model3;
+layout(location = 9) in vec3 instance_normal0;
+layout(location = 10) in vec3 instance_normal1;
+layout(location = 11) in vec3 instance_normal2;
+layout(location = 12) in vec4 instance_tint;
+@end
+
+@vs instanced_vs
+@glsl_options fixup_clipspace
+@include_block vs_params
+@include_block instance_inputs
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 col;
+layout(location = 2) in vec3 nrm;
+layout(location = 3) in vec2 uv;
+layout(location = 4) in vec4 tng;
+out vec4 v_col;
+out vec3 v_nrm;
+out vec3 v_world;
+out vec2 v_uv;
+out vec4 v_tng;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    mat3 normal_placement = mat3(instance_normal0, instance_normal1, instance_normal2);
+    vec4 world = placement * vec4(pos, 1.0);
+    gl_Position = mvp * world;
+    v_col = col * instance_tint;
+    v_nrm = normal_placement * nrm;
+    v_world = world.xyz;
+    v_uv = uv;
+    v_tng = vec4((placement * vec4(tng.xyz, 0.0)).xyz, tng.w);
+}
+@end
+@program instanced instanced_vs fs
+@program instanced_mask instanced_vs mask_fs
+
+@vs instanced_shadow_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 instance_model0;
+layout(location = 2) in vec4 instance_model1;
+layout(location = 3) in vec4 instance_model2;
+layout(location = 4) in vec4 instance_model3;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    gl_Position = light_mvp * placement * vec4(pos, 1.0);
+}
+@end
+@program instanced_shadow instanced_shadow_vs shadow_fs
+
+@vs instanced_shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 col;
+layout(location = 2) in vec2 uv;
+layout(location = 3) in vec4 instance_model0;
+layout(location = 4) in vec4 instance_model1;
+layout(location = 5) in vec4 instance_model2;
+layout(location = 6) in vec4 instance_model3;
+layout(location = 7) in vec4 instance_tint;
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    gl_Position = light_mvp * placement * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a * instance_tint.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+@program instanced_shadow_mask instanced_shadow_mask_vs shadow_mask_fs

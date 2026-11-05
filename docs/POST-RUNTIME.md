@@ -71,8 +71,8 @@ The unused scene-coverage attachment permits reuse of validated Surface Selectio
 Each generation reserves nine shaders and 63 pipelines, which also cover Post's two programs and two pipelines.
 The fixed renderer adds two coverage shaders and six coverage pipelines.
 The final LDR copy adds one shader and one pipeline.
-Combined Surface, particle, and Post pools reserve 324 shaders and 2089 pipelines.
-Buffers remain `3 * meshes + 6`.
+Combined Surface, particle, Post and instancing pools reserve 328 shaders and 2095 pipelines.
+Buffers reserve `3 * meshes + 7`.
 
 For `D` accepted part draws and `C` cascades, uniform capacity reserves these bytes:
 

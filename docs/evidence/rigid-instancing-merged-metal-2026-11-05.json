@@ -1,0 +1,336 @@
+{
+  "base_commit": "ea16332f091ad5c1a0a140d74771b866e339ed8f",
+  "instancing_commit": "11ebea4f79f255b5c10e5ddc4b9c0da1c2e1d66e",
+  "compiler": "Odin 902106f",
+  "engine_suites": {
+    "strict": 834,
+    "strict_spans": 834
+  },
+  "python_tests": 51,
+  "roc_checks": "passed",
+  "bench_checks": "passed",
+  "documentation_checks": "passed",
+  "generated_abi_and_shaders": "byte-stable",
+  "release_host": "strict -o:speed passed",
+  "allocation_checks": "all four games passed in dev and speed with unchanged exact expectations",
+  "post": {
+    "supported_samples": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "unsupported_samples": [],
+    "off": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "eaba1709a60d92d8bd33581b3fc301bf1c57251434ede210baf5d62f8680d4c8"
+    },
+    "x2": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "0491ecfc4f4b9398257196cf6eee72cefd0979812401a785757b8880af347f5a"
+    },
+    "x4": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "5e3f18819ce2cf1131a040e3cff8f5ee49fc75e84c380ecdd779240fb87d81de"
+    },
+    "x8": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "139c62a7521f5b5040eff2909b79f976c4ca4e752683cbd8411e0a1220d530c8"
+    },
+    "depth_wind_hashes": [
+      "430e5e45585546f0fd42d945e705d3e5caacb381c82a9c250eab34b0977a92ba",
+      "5ec2996d64170a0f8e40929129fe7c4320cfc63d82baa5720beb75ed326dacca"
+    ],
+    "result": "passed",
+    "binary_sha256": "2613edb943ab38ec0f22ea50aac9e83f36a612ba832699ebdf6ec58eb3958914"
+  },
+  "surface": {
+    "base_green": 22368,
+    "unloaded_green": 0,
+    "shadow_pixels": 2813,
+    "noncasting_shadow_pixels": 0,
+    "result": "passed",
+    "wind_hashes": [
+      "a76827113e285b8a2145fc89ad6547b09589cebda20dc9f487ceda3441026ede",
+      "891220cbb45b6a07f8baee9ff390f92f4b19fd3aa6b91a3271de078128045abc",
+      "755c461bfd5df245b94187e351b36ea761493a8790119de44878ea21412e4ea2"
+    ],
+    "instance_wind_hashes": [
+      "cf802e338c4b79b5b2001ce4d3de551eb184355de40aef0ee424fe7b8ddbdfe3",
+      "5fabff941062c0aab1debc53560b00309ced5f775eedc3483f22ba7b9b197028",
+      "b3fb3480aaa814e23ea3cc39af7252e1a1290d2421240e2771b068c47c334ece"
+    ],
+    "default_pbr_mean_difference": 0.0,
+    "binary_sha256": "a410db7b7b7fd3983a383df69e4f37c9798a6887e3441c16eb289f235c8227ae",
+    "packages": {
+      "DefaultSurface.shaderpack": "b8f01613fa3f34ca9310390b9f321bfa1e5660888fb916745cfc204261b431a3",
+      "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+    }
+  },
+  "particles": {
+    "replay_identical": true,
+    "runs": 2,
+    "steps_before_capture": 265,
+    "checks": [
+      "smoke",
+      "dust image",
+      "additive burst",
+      "paused frame",
+      "asset unload",
+      "asset reload",
+      "removal",
+      "drain",
+      "sprite orientation"
+    ]
+  },
+  "resources": {
+    "buffers": "3*meshes+7",
+    "shaders": 328,
+    "pipelines": 2095,
+    "uniform_bytes": "(14+4*C)*D*256+341*256+(3+C)*min(D,256)*4096",
+    "instance_stream_bytes": "116*D*(C+3)",
+    "draw_limit": 278653
+  },
+  "visibility": "camera filters colour and individual grouped scene depth; retained placement keeps shadow and future Selection eligibility",
+  "scratch": {
+    "reference_draws": 32768,
+    "cascades": 4,
+    "pipeline_calls": 15,
+    "peak_bytes": 11696448,
+    "used_after_each_call": 0,
+    "arena": "reusable and growable; reference peak is not a hard cap"
+  },
+  "native_backends": {
+    "Metal": "passed",
+    "GL": "pending CI",
+    "D3D11": "pending CI"
+  },
+  "artifacts": "/tmp/rocco-instance-merged",
+  "cpu_evidence": "Original final36 and exploratory15 runs retained unchanged; no benchmark rerun",
+  "source_sha256": {
+    "engine/instances.odin": "03aeda20cb6a1165979482ae7c64af813078c369cc5465837eae30ee90982a0b",
+    "engine/instances_render.odin": "25e26b6d7f8b7742a4f934c0fdc013c5425e37ce32dd15781fd07857049b9db6",
+    "engine/frame_render.odin": "43a8c11325adef7b3786b90a9126caba4e65bd2c3df6d770de749e51c76004f6",
+    "engine/render.odin": "2fee81d36ee840e8944fdd59efc5e54a26cdade733f01fd5fbd737cb13da09d6",
+    "engine/shaders/basic.glsl": "f824a9286cc23b1c2cc2a32e312c062ca609e40a0964b87640a66f4c5124595c",
+    "engine/shader_basic.odin": "67b133b073849a4020abe3eec180b9590664e4720410f9647860406d9c8184a0"
+  },
+  "screenshots": {
+    "fixed_steps": 60,
+    "seed": 0,
+    "count": 22,
+    "exact": 18,
+    "results": {
+      "cards": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "ec930c2aac751e5ed7af2e63c587e6a3de14fddfdd253f54e2cd17a6f117bff8",
+        "candidate_sha256": "ec930c2aac751e5ed7af2e63c587e6a3de14fddfdd253f54e2cd17a6f117bff8"
+      },
+      "entity-game": {
+        "mean_rgb_difference": 6.430041152263375e-07,
+        "changed_channels": 1,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "a4960c43ac0acada905db1dc29dbc52c3e6999f92f74d373de5917fca1c8b5dc",
+        "candidate_sha256": "68a0722cc62a413e1d52c3b3116437c1516f0270e03cd173321cd685c0e5902e"
+      },
+      "pong": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "e0c24e3d751eb1ef4ec8f2b349e49927b5c4bc5fb1d332b7a771329c2ca93ed3",
+        "candidate_sha256": "e0c24e3d751eb1ef4ec8f2b349e49927b5c4bc5fb1d332b7a771329c2ca93ed3"
+      },
+      "bridge-echo": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "87a36846ff339039b59b861ab191221e746833e32d1c4e7b459b3e1c7e05e592",
+        "candidate_sha256": "87a36846ff339039b59b861ab191221e746833e32d1c4e7b459b3e1c7e05e592"
+      },
+      "glow": {
+        "mean_rgb_difference": 6.430041152263375e-07,
+        "changed_channels": 1,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "446b65927746ae2ff169d241d6706bbe9b4893067acac07665cc1def0757d4f7",
+        "candidate_sha256": "5a73f5b505060e26e6f6efba4ddb223b2172aaeac23d69d9269a70dd1bf01645"
+      },
+      "mask": {
+        "mean_rgb_difference": 3.858024691358025e-06,
+        "changed_channels": 6,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "789d75f2400ece056be02e1cc443515fd304e6328b3ebaa802a9839668e56137",
+        "candidate_sha256": "8dedb6d352fcf229f97d255b3cc939f6f2f4e9917021c44db213799826fab9bd"
+      },
+      "widgets": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "974f869ba34d331ab9dfd379050e05187e5933efdd0524d49a1c9091ed3b2f25",
+        "candidate_sha256": "974f869ba34d331ab9dfd379050e05187e5933efdd0524d49a1c9091ed3b2f25"
+      },
+      "clustered-lights": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "dd3b1cd55b928443d9ea81df217923d00ec5078c849882b0aff0b6e155831185",
+        "candidate_sha256": "dd3b1cd55b928443d9ea81df217923d00ec5078c849882b0aff0b6e155831185"
+      },
+      "particles": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "b76d95e06351b6b1731189debb131b9f03aabcc83695968797bab56ca3e44b9b",
+        "candidate_sha256": "b76d95e06351b6b1731189debb131b9f03aabcc83695968797bab56ca3e44b9b"
+      },
+      "surface": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1440000,
+        "baseline_sha256": "ad6c21bb82d3ab9896367f7a73825054af4eb2b572931f8618d1e323fbceb820",
+        "candidate_sha256": "ad6c21bb82d3ab9896367f7a73825054af4eb2b572931f8618d1e323fbceb820"
+      },
+      "village": {
+        "mean_rgb_difference": 0.0012400334362139918,
+        "changed_channels": 4982,
+        "channels_over_2": 529,
+        "channels": 6220800,
+        "baseline_sha256": "11e97dd5a1dee6dc0c764b42655d659b6c971735f7651573ea3d3de6cb05b848",
+        "candidate_sha256": "f86f482426ddf6e41940136b846fd54f094ff0bf612add5496ddb635c92e9a65"
+      },
+      "environment-lighting": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "2fa2f3437af12b3d1bed75895409a04f81ea6b74d29673fbc80828d1b20cad24",
+        "candidate_sha256": "2fa2f3437af12b3d1bed75895409a04f81ea6b74d29673fbc80828d1b20cad24"
+      },
+      "tutorial/01-window": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "95628cc53adb69171d0bbcc02039df0143d10298c7d947d7f3516e5579a2a855",
+        "candidate_sha256": "95628cc53adb69171d0bbcc02039df0143d10298c7d947d7f3516e5579a2a855"
+      },
+      "tutorial/02-character": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "0632e5600ba3d236e8e9976d374c6b48258c8809f71a56cce4f2ae41cff55dc5",
+        "candidate_sha256": "0632e5600ba3d236e8e9976d374c6b48258c8809f71a56cce4f2ae41cff55dc5"
+      },
+      "tutorial/03-moving": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "c62f93811c9405bb064af0c6e5df5b423239ecd1a07baca18cafa59735bba414",
+        "candidate_sha256": "c62f93811c9405bb064af0c6e5df5b423239ecd1a07baca18cafa59735bba414"
+      },
+      "tutorial/04-lights": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "39be1f608d5c127288f968e7af757dbe91c977d798f802f8d22e94cb7f0c2a66",
+        "candidate_sha256": "39be1f608d5c127288f968e7af757dbe91c977d798f802f8d22e94cb7f0c2a66"
+      },
+      "tutorial/05-pickups": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "3bd4d3614554721f036d247984c11d43c66e803597e6bec264df38389b9ca1a5",
+        "candidate_sha256": "3bd4d3614554721f036d247984c11d43c66e803597e6bec264df38389b9ca1a5"
+      },
+      "tutorial/06-door": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "065176a436e32c4af41c43685237fea542e4de50463a2349f45e73609124499a",
+        "candidate_sha256": "065176a436e32c4af41c43685237fea542e4de50463a2349f45e73609124499a"
+      },
+      "tutorial/07-hud": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4",
+        "candidate_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4"
+      },
+      "tutorial/08-sound": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4",
+        "candidate_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4"
+      },
+      "tutorial/09-gamepad": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4",
+        "candidate_sha256": "dfe6896838bf7250d84f6182512ee9f6fcea9f47280ade836a02efe7da784bf4"
+      },
+      "tutorial/10-animation": {
+        "mean_rgb_difference": 0.0,
+        "changed_channels": 0,
+        "channels_over_2": 0,
+        "channels": 1555200,
+        "baseline_sha256": "9d4afd18fe3f2977c641fb6d0139e73eb9c9daa03e927bd98896bc0bd541386e",
+        "candidate_sha256": "9d4afd18fe3f2977c641fb6d0139e73eb9c9daa03e927bd98896bc0bd541386e"
+      }
+    },
+    "increased_mean_difference_vs_worker": {},
+    "artifacts": "/tmp/rocco-instance-merged/visuals"
+  }
+}
