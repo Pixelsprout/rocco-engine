@@ -10,7 +10,7 @@ surface_cull :: proc(material: Material, pass: Surface_Pass, pipeline: Mesh_Pipe
 renderer_surface :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
 	surface := part.surface
-	layout := Shader_Layout.Skinned if skin != nil else .Rigid
+	layout := Shader_Layout.Skinned if skin != nil else .Instanced if r.instance_count > 0 else .Rigid
 	key := Shader_Pipeline_Key{pass, layout, part.material.alpha_mode, surface_cull(part.material, pass, pipeline)}
 	pip, ready := shader_pipeline(r.shaders, surface.shader, key)
 	if !ready { return }
@@ -46,6 +46,7 @@ renderer_surface :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Me
 		if b, has := o["storage_buffer"]; has { slot := shader_int(shader_object(b)["slot"]); bindings.views[slot] = r.cluster_views[slot-12] }
 	}
 	for sampler in shader_array(program.reflection["samplers"]) { slot := shader_int(shader_object(sampler)["slot"]); bindings.samplers[slot] = samplers[slot] if slot < 8 else surface.shader.samplers[slot-8] }
+	renderer_instance_bindings(r, &bindings)
 	sg.apply_bindings(bindings)
 	vs := Surface_Vertex_Params{mvp = vs_params.mvp, model = vs_params.model, normal_model = vs_params.normal_model, render_time = {surface.time, 0, 0, 0}, draw_info = surface.draw_info}
 	fs := fs_params; fs.environment_params = sky_lighting_params(r.environment_sky)
@@ -62,7 +63,7 @@ renderer_surface :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Me
 		}
 		sg.apply_uniforms(slot, data)
 	}
-	sg.draw(part.first, part.count, 1)
+	sg.draw(part.first, part.count, max(r.instance_count, 1))
 	// Custom blocks invalidate the built-in material and binding caches.
 	r.has_material, r.has_bindings = false, false
 }

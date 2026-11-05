@@ -41,8 +41,8 @@ def compact_odin(text):
     for name, (logical, physical) in STORAGE.items():
         pattern = rf"(desc\.views\[{logical}\]\.storage_buffer\.glsl_binding_n = ){logical}\n"
         text, count = re.subn(pattern, rf"\g<1>{physical}\n", text)
-        if count != 6:
-            raise ValueError(f"{name}: expected six reflected bindings, found {count}")
+        if count != 8:
+            raise ValueError(f"{name}: expected eight reflected bindings, found {count}")
         text = text.replace(f"layout(binding = {logical}, std430) readonly buffer {name}", f"layout(binding = {physical}, std430) readonly buffer {name}")
     return text
 

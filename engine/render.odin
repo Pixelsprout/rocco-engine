@@ -50,6 +50,9 @@ Mesh_Shaders :: struct {
 
 Renderer :: struct {
 	pips:               [Mesh_Pipeline]sg.Pipeline,
+	instanced_pips, instanced_shadow_pips: [Mesh_Pipeline]sg.Pipeline,
+	instance_buffer: sg.Buffer,
+	instance_offset, instance_count: int,
 	skinned_pips:       [Mesh_Pipeline]sg.Pipeline,
 	sky_pip:            sg.Pipeline,
 	shadow_pips:        [Mesh_Pipeline]sg.Pipeline,
@@ -135,6 +138,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	sample_count := msaa_sample_count(launch.window.samples)
 	render_target_init(&r.target, sample_count)
 	particle_gpu_init(&r.particles, sample_count)
+	r.instance_buffer = sg.make_buffer({size = uint(int(launch.capacity.draws) * (int(launch.shadow_cascades) + 3) * size_of(Surface_Instance)), usage = {vertex_buffer = true, stream_update = true}})
 	mesh_table_upload(&r.meshes)
 	if r.shaders != nil { shader_table_upload(r.shaders, sample_count) }
 	sky_table_upload(&r.skies)
@@ -176,6 +180,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	}
 	desc.label = "mesh"
+	renderer_instances_init(r, desc)
 	r.pips = mesh_pipelines(desc, {mask = sg.make_shader(mask_shader_desc(sg.query_backend())), blend = sg.make_shader(blend_shader_desc(sg.query_backend()))})
 
 	skinned := desc
@@ -384,17 +389,20 @@ renderer_end_pass :: proc(ctx: rawptr) {
 // A nil skin draws a rigid mesh.
 renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
-	renderer_apply_skin(r, r.shadow_pips[pipeline], r.skinned_shadow_pips[pipeline], skin)
+	if r.instance_count > 0 {
+		if r.applied != r.instanced_shadow_pips[pipeline] { renderer_apply_pipeline(r, r.instanced_shadow_pips[pipeline]) }
+	} else { renderer_apply_skin(r, r.shadow_pips[pipeline], r.skinned_shadow_pips[pipeline], skin) }
 	bindings := sg.Bindings{vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices}
 	if pipeline != .Opaque {
 		tex := mesh_part_textures(part, r.white, r.flat_normal).base
 		bindings.views[VIEW_base_tex] = tex.view
 		bindings.samplers[SMP_base_smp] = tex.sampler
 	}
+	renderer_instance_bindings(r, &bindings)
 	sg.apply_bindings(bindings)
 	vs := vs_params
 	sg.apply_uniforms(UB_shadow_vs_params, {ptr = &vs, size = size_of(Shadow_Vs_Params)})
-	sg.draw(part.first, part.count, 1)
+	sg.draw(part.first, part.count, max(r.instance_count, 1))
 }
 
 renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
@@ -420,7 +428,7 @@ renderer_apply_pipeline :: proc(r: ^Renderer, pip: sg.Pipeline) {
 	r.has_bindings = false
 	r.has_material = false
 	for pipeline in Mesh_Pipeline {
-		if pip == r.pips[pipeline] || pip == r.skinned_pips[pipeline] {
+		if pip == r.pips[pipeline] || pip == r.skinned_pips[pipeline] || pip == r.instanced_pips[pipeline] {
 			sg.apply_uniforms(UB_fs_lights, {ptr = &r.lights, size = size_of(Fs_Lights)})
 			return
 		}
@@ -447,7 +455,9 @@ renderer_apply_skin :: proc(r: ^Renderer, rigid, skinned: sg.Pipeline, skin: ^Sk
 // each Blend submit has room for one change.
 renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
 	r := (^Renderer)(ctx)
-	renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin)
+	if r.instance_count > 0 {
+		if r.applied != r.instanced_pips[pipeline] { renderer_apply_pipeline(r, r.instanced_pips[pipeline]) }
+	} else { renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin) }
 	tex := mesh_part_textures(part, r.white, r.flat_normal)
 	diffuse, specular := r.black_cube, r.black_cube
 	if r.environment_sky != nil { diffuse, specular = r.environment_sky.diffuse, r.environment_sky.specular }
@@ -478,6 +488,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 			SMP_env_specular_smp = specular.sampler,
 		},
 	}
+	renderer_instance_bindings(r, &bindings)
 	if !r.has_bindings || bindings != r.applied_bindings {
 		sg.apply_bindings(bindings)
 		r.applied_bindings = bindings
@@ -494,7 +505,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 		r.has_material = true
 	}
 
-	sg.draw(part.first, part.count, 1)
+	sg.draw(part.first, part.count, max(r.instance_count, 1))
 }
 
 renderer_environment :: proc(ctx: rawptr, sky: ^Sky) {
@@ -538,6 +549,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
 		submit_surface = renderer_surface,
+		submit_instances = renderer_instances,
 		submit_sky = renderer_sky,
 		submit_environment = renderer_environment,
 		submit_bloom = renderer_bloom,

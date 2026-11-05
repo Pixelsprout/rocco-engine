@@ -84,8 +84,10 @@ Unchanged imported Mask rules retain their coverage mips.
 An arbitrary opacity hook has no statically known mip threshold.
 Both passes still evaluate its identical opacity function.
 Declared maximum displacement expands local bounds before the Draw transform.
-The expanded bounds feed shadow fitting and Blend sorting.
-Later frustum culling must use `placed_box`.
+The expanded bounds feed shadow fitting, camera culling, and Blend sorting.
+Rigid camera culling uses the transformed `placed_box`.
+Skinned Draws bypass camera culling until pose-aware bounds exist.
+Camera culling preserves the separate shadow caster set.
 
 ## Pack lifetime
 
@@ -137,7 +139,7 @@ The arena includes one Selection submission per accepted part draw.
 Post integration must add its separate scene-depth submissions and effect costs.
 Additional formats or sample counts require additional pipeline credits.
 Particle reservations must remain additive to these reservations.
-The combined renderer reserves `3 * meshes + 6` buffers, 321 shaders and 2082 pipelines.
+The combined renderer reserves `3 * meshes + 7` buffers, 325 shaders and 2088 pipelines.
 With `D` part draws and `C` cascades, the uniform arena reserves these bytes:
 
 ```text
@@ -178,3 +180,16 @@ Model, normal and tint begin at byte offsets 0, 64 and 100.
 Odin matrix alignment must not add padding to this vertex stream.
 Its batch key must include all material values, game values, textures, and Draw data.
 Only model, normal transform, and tint may vary inside one batch.
+
+Rigid Opaque and Mask parts batch after interpolation and capacity admission.
+Blend parts retain their sorted individual submissions with Alpha particles.
+Batch keys compare geometry ranges, generations, resolved values, texture handles, and Draw data.
+Material allocation addresses do not define compatibility.
+Only model, normal transform, and tint vary within a batch.
+Surfaces that disable instancing retain their declared rigid variants.
+The GPU stream reserves `116 * D * (C + 3)` bytes from Launch capacities.
+Each pass appends a separate range without overwriting earlier ranges.
+The three non-shadow ranges reserve colour, scene depth, and selected coverage.
+Batch scratch uses a separate reusable arena that resets after each pipeline.
+The 32,768-Draw, four-cascade test peaks at 11,696,448 bytes.
+Empty pipelines do not reserve a full Draw-sized member array.

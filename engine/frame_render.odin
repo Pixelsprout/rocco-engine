@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:slice"
 
 SCENE_NEAR :: f32(0.1)
@@ -93,6 +94,7 @@ Frame_Render_Submits :: struct {
 	submit:          Submit,
 	submit_lights:   Submit_Lights,
 	submit_surface: Submit_Surface,
+	submit_instances: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, view_proj: Mat4, fs: Fs_Params, instances: []Surface_Instance),
 	submit_sky:      Submit_Sky,
 	submit_environment: Submit_Environment,
 	submit_bloom:    Submit_Bloom,
@@ -139,6 +141,8 @@ Frame_Render :: struct {
 	particles_paused:   bool,
 	placed:             [dynamic]Placed,
 	draw_capacity:      int,
+	instance_scratch: vmem.Arena,
+	instance_scratch_peak: uint,
 	skins:              []Skin_Params,
 	submits:            Frame_Render_Submits,
 	up_fallback_logged: bool,
@@ -170,6 +174,7 @@ Placed :: struct {
 	mesh:         ^Mesh,
 	box: Box,
 	bounds_resolved: bool,
+	camera_visible: bool,
 	parts:        []Mesh_Part,
 	fallback:     bool,
 	tint:         Rgb,
@@ -190,7 +195,6 @@ Placed_Order :: struct {
 }
 
 // A Draw's uniform blocks, made once and shared by all its parts.
-@(private = "file")
 Draw_Params :: struct {
 	p:         ^Placed,
 	vs_params: Vs_Params,
@@ -261,6 +265,7 @@ frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, shadow_map: u32
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
+	vmem.arena_destroy(&fr.instance_scratch)
 	pairing_destroy(&fr.pairing)
 	delete(fr.skins, fr.allocator)
 	delete(fr.placed)
@@ -380,14 +385,20 @@ frame_render_draw :: proc(
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
 	fr.submits.submit_lights(fr.submits.ctx, lights, clusters)
+	camera_frustum := frustum_from_matrix(view.view_proj)
 	draw_params := make([]Draw_Params, len(fr.placed), context.temp_allocator)
 	for &p, i in fr.placed {
+		p.camera_visible = p.skin != nil || frustum_contains_box(camera_frustum, box_transform(placed_box(&p), p.model))
 		draw_params[i] = frame_render_draw_params(&p, view)
 	}
 	for skinned in ([2]bool{false, true}) {
 		for pipeline in SCENE_ORDER_PIPELINES {
+			if !skinned && fr.submits.submit_instances != nil {
+				frame_render_instances(fr, .Colour, pipeline, view.view_proj, draw_params = draw_params)
+				continue
+			}
 			for d in draw_params {
-				if (d.p.skin != nil) == skinned {
+				if d.p.camera_visible && (d.p.skin != nil) == skinned {
 					frame_render_submit_parts(fr, d, pipeline)
 				}
 			}
@@ -457,7 +468,7 @@ frame_render_part_params :: proc(base: Fs_Params, part: ^Mesh_Part, resolved_alp
 frame_render_sort_blend_draws :: proc(draw_params: []Draw_Params, eye: [3]f32, batches: []Particle_Batch = nil) -> []Blend_Draw {
 	blend := make([dynamic]Blend_Draw, 0, len(draw_params) + len(batches), context.temp_allocator)
 	for d in draw_params {
-		if !placed_has_blend(d.p) {
+		if !d.p.camera_visible || !placed_has_blend(d.p) {
 			continue
 		}
 		box := box_transform(placed_box(d.p), d.p.model)
@@ -519,7 +530,6 @@ frame_render_submit_part :: proc(fr: ^Frame_Render, d: Draw_Params, part: ^Mesh_
 
 // The pipeline of a part that draws before the sky. A Blend part has no
 // such pipeline.
-@(private = "file")
 part_pipeline :: proc(m: Material) -> (pipeline: Mesh_Pipeline, ok: bool) {
 	switch m.alpha_mode {
 	case .Opaque:
@@ -699,9 +709,10 @@ frame_render_shadow :: proc(fr: ^Frame_Render, lights: ^Fs_Lights, to_light: [3]
 @(private = "file")
 frame_render_shadow_parts :: proc(fr: ^Frame_Render, light_view_proj: Mat4, cascade: ^Cascade_View = nil) {
 	for pipeline in SCENE_ORDER_PIPELINES {
+		if fr.submits.submit_instances != nil { frame_render_instances(fr, .Shadow, pipeline, light_view_proj, cascade) }
 		order := Placed_Order{placed = fr.placed[:]}
 		for p in placed_next(&order) {
-			if p.shadow_count == 0 || (cascade != nil && !cascade_covers(cascade^, p.light_box)) {
+			if (fr.submits.submit_instances != nil && p.skin == nil) || p.shadow_count == 0 || (cascade != nil && !cascade_covers(cascade^, p.light_box)) {
 				continue
 			}
 			params := Shadow_Vs_Params{light_mvp = light_view_proj * p.model}

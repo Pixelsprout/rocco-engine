@@ -22,7 +22,7 @@ class CompactShaderTests(unittest.TestCase):
     def test_generated_sources_and_reflection_use_the_same_compact_slots(self):
         text = Path('engine/shader_basic.odin').read_text()
         for slot in range(12, 15):
-            self.assertEqual(text.count(f'desc.views[{slot}].storage_buffer.glsl_binding_n = {slot - 12}\n'), 6)
+            self.assertEqual(text.count(f'desc.views[{slot}].storage_buffer.glsl_binding_n = {slot - 12}\n'), 8)
         sources = re.findall(r'\w+_source_glsl430 := \[\d+\]u8 \{\n(.*?)\n\}', text, re.S)
         clustered = []
         for values in sources:
