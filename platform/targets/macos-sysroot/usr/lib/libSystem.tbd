@@ -6,6 +6,7 @@ exports:
   - targets: [ arm64-macos ]
     symbols:
       - '__NSConcreteGlobalBlock'
+      - '__NSConcreteStackBlock'
       - '__NSGetExecutablePath'
       - '___assert_rtn'
       - '___chkstk_darwin'
@@ -16,6 +17,7 @@ exports:
       - '___memset_chk'
       - '___sincos_stret'
       - '___sincosf_stret'
+      - '___snprintf_chk'
       - '___stack_chk_fail'
       - '___stack_chk_guard'
       - '___stderrp'
@@ -54,6 +56,7 @@ exports:
       - '_fdopendir'
       - '_feof'
       - '_ferror'
+      - '_fflush'
       - '_fgetc'
       - '_fileno'
       - '_fmod'

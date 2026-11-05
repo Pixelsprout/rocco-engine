@@ -1191,6 +1191,20 @@
           ]
         },
         {
+          "name": "__NSConcreteStackBlock",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/libclosure/3668b0837f47be3cc1c404fb5e360f4ff178ca13/data.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "_NSConcreteStackBlock",
+              "line": 21,
+              "revision": "3668b0837f47be3cc1c404fb5e360f4ff178ca13",
+              "retrieved_at": "2026-11-05T22:42:38+00:00",
+              "response_sha256": "22e7218c7b27e7b7830bfe8e6aecce53658b9e48b24ad8926d0fe2488f27ec18"
+            }
+          ]
+        },
+        {
           "name": "__NSGetExecutablePath",
           "sources": [
             {
@@ -1320,6 +1334,20 @@
               "identifier": "__sincosf_stret",
               "source_license": "Apache-2.0 WITH LLVM-exception",
               "response_sha256": "14fd890c32e957a5637368a6cc3d36abe4e4da9beb66ca5b06e16fa378a6e8de"
+            }
+          ]
+        },
+        {
+          "name": "___snprintf_chk",
+          "sources": [
+            {
+              "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/secure/snprintf_chk.c",
+              "evidence_kind": "public_open_source_identifier",
+              "identifier": "__snprintf_chk",
+              "line": 31,
+              "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+              "retrieved_at": "2026-11-05T22:42:01+00:00",
+              "response_sha256": "9d9dc6da7ee8920745b3bc6b218d25e23dd6911d0c09f1c49cfce50a65cf6e9b"
             }
           ]
         },
@@ -1890,6 +1918,18 @@
               "evidence_kind": "exact_function_name_in_manpage_synopsis",
               "retrieved_at": "2026-10-22T00:27:55+00:00",
               "response_sha256": "79f6da044d4975cd817616ee818b2ce32d9a207a29e1167c1b23d0f70db3850f"
+            }
+          ]
+        },
+        {
+          "name": "_fflush",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/fflush.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-11-05T22:41:55+00:00",
+              "response_sha256": "661b5b000d6ac8e34c7957d9f0fed609853ceab74b45a99bc05162480df995ad"
             }
           ]
         },
