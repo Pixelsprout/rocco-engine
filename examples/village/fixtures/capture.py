@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shlex
 import subprocess
 import sys
 import time
@@ -18,19 +19,20 @@ def view(bridge, name):
     bridge.tell('view', name)
     bridge.step(2)
 
-def launch(out):
+def launch(out, arguments=()):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    env = dict(os.environ, ROCCO_BRIDGE=str(port), ROCCO_SEED='0', ROCCO_EXIT_AFTER_FRAMES='20000', ROCCO_SPANS_CSV=str(out / 'capture-spans.csv'))
+    env = dict(os.environ, ROCCO_BRIDGE=str(port), ROCCO_SEED='0', ROCCO_EXIT_AFTER_FRAMES='20000')
     suffix = '.exe' if os.name == 'nt' else '_linux.bin' if sys.platform.startswith('linux') else '.bin'
     log = (out / 'host.log').open('w')
-    proc = subprocess.Popen([str(GAME / f'village{suffix}')], cwd=GAME, env=env, stdout=log, stderr=subprocess.STDOUT)
+    command = shlex.split(os.environ.get('RUN_PREFIX', '')) + [str(GAME / f'village{suffix}'), *arguments]
+    proc = subprocess.Popen(command, cwd=GAME, env=env, stdout=log, stderr=subprocess.STDOUT)
     return (proc, port, log)
 
-def run(out, movie):
+def run(out, movie, arguments=()):
     out.mkdir(parents=True, exist_ok=True)
-    proc, port, log = launch(out)
+    proc, port, log = launch(out, arguments)
     observations = {}
     try:
         with Bridge.connect(port, wait=60) as bridge:
@@ -39,7 +41,7 @@ def run(out, movie):
             assert not start['nodes'] and start['ui'], 'Startup must show loading feedback'
             bridge.screenshot(str(out / 'loading.png'))
             ready_steps = 0
-            for _ in range(40):
+            for _ in range(128):
                 bridge.step(1)
                 ready_steps += 1
                 scene = bridge.scene()['scene']
@@ -56,7 +58,7 @@ def run(out, movie):
                     if 'Group' in n:
                         collect(n['Group']['children'])
             collect(scene['nodes'])
-            assert len(draws) == 155 and all((d['mesh'] != 0 for d in draws)), 'All prepared assets must load'
+            assert len([d for d in draws if 100 <= d['id'] < 100000]) == 1436 and all(d['mesh'] != 0 for d in draws), 'All source assets must load'
             observations['draw_count'] = len(draws)
             for name in ('hero', 'square', 'walk'):
                 view(bridge, name)
@@ -73,7 +75,7 @@ def run(out, movie):
             bridge.step(1, tap=['Enter'])
             selected = bridge.scene()['scene']
             group = next((n['Group'] for n in selected['nodes'] if 'Group' in n and n['Group']['id'] == 20))
-            assert all((abs(n['Draw']['tint']['g'] - 0.85) < 1e-05 for n in group['children']))
+            assert group['selected'], 'The selected house must retain Group ancestry'
             observations['selected_group'] = 20
             view(bridge, 'walk')
             bridge.step(565, held=['W', 'LeftShift'])
@@ -119,5 +121,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('out', type=Path)
     parser.add_argument('--movie', action='store_true')
+    parser.add_argument('--retina-1080', action='store_true')
     args = parser.parse_args()
-    run(args.out.resolve(), args.movie)
+    run(args.out.resolve(), args.movie, ['--retina-1080'] if args.retina_1080 else [])

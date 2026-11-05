@@ -1,0 +1,170 @@
+{
+  "retina_1080": true,
+  "motion_steps": 2,
+  "seed": 0,
+  "hero_steps": 2,
+  "field_seed": 777,
+  "generated_field_draw_count": 22000,
+  "ready_step": 95,
+  "draw_count": 23123,
+  "source_draw_count": 1436,
+  "visible_field_draw_count": 21686,
+  "groups": [
+    10,
+    20,
+    30,
+    40
+  ],
+  "environment": {
+    "sky": 1,
+    "clear": {
+      "r": 0.32,
+      "g": 0.48,
+      "b": 0.65
+    },
+    "tone_map": "AgX",
+    "exposure": 1.12,
+    "fog": {
+      "color": {
+        "r": 0.393123,
+        "g": 0.477,
+        "b": 0.603827
+      },
+      "start": 14,
+      "end": 120,
+      "amount": 0.38
+    },
+    "bloom": {
+      "strength": 0.18,
+      "threshold": 1.2,
+      "knee": 0.5
+    }
+  },
+  "shadow": {
+    "distance": 0,
+    "normal_bias": 0.05,
+    "depth_bias": 0,
+    "distribution": 0.5,
+    "blend": 0.1,
+    "filter": "Pcf3"
+  },
+  "settings": {
+    "density": 22000,
+    "visibility_distance": 65,
+    "fade_margin": 10,
+    "startup_shadow_map": 2048,
+    "startup_cascades": 2,
+    "startup_msaa": 4
+  },
+  "hero_camera": {
+    "eye": {
+      "x": 3.599995,
+      "y": 1.8999994,
+      "z": 21.499975
+    },
+    "target": {
+      "x": -1.2,
+      "y": 2.6,
+      "z": -8
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "physical": [
+    1920,
+    1080
+  ],
+  "hero_sha256": "21f9b6f9aa5cc2e7c2703c1c7cfb84e7c65c5a4a1b3ce68415d522a86469cb3a",
+  "pose_steps": {
+    "hero": 2,
+    "square": 3,
+    "foliage": 4,
+    "canopy": 5
+  },
+  "square_camera": {
+    "eye": {
+      "x": 5.8143425,
+      "y": 8,
+      "z": 13.974774
+    },
+    "target": {
+      "x": 0,
+      "y": 2.5,
+      "z": -2
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "foliage_camera": {
+    "eye": {
+      "x": 10.5,
+      "y": 1.1,
+      "z": 14.5
+    },
+    "target": {
+      "x": 9.752473,
+      "y": 1.0001667,
+      "z": 13.843314
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "canopy_camera": {
+    "eye": {
+      "x": -13,
+      "y": 4,
+      "z": 12
+    },
+    "target": {
+      "x": -12.399621,
+      "y": 4.389418,
+      "z": 11.301502
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "controls": [
+    "wind",
+    "casting",
+    "field",
+    "lighting sky",
+    "quality shadow-distance"
+  ],
+  "native_log_diagnostics": 0,
+  "image_sha256": {
+    "canopy-moving.png": "02889461e57584afd33e55b331241335d7c881db45ecc68e1df25869a72e74f8",
+    "canopy-still-later.png": "47d8b0d0f6297bdd68a003005eb34c7f7f1944b1ff02b006cb4f0eb1de40e43d",
+    "canopy-still.png": "47d8b0d0f6297bdd68a003005eb34c7f7f1944b1ff02b006cb4f0eb1de40e43d",
+    "canopy.png": "2e769eced70e519b24d3cbfdb62475dcc7025d61217cdd00b418f67624929419",
+    "foliage.png": "4389ced46124da2159f349dd200cf1451480becc9bea820c2c71674731283865",
+    "hero.png": "21f9b6f9aa5cc2e7c2703c1c7cfb84e7c65c5a4a1b3ce68415d522a86469cb3a",
+    "loading.png": "f862eda14f79a6bde019b72bb9c332e60231c7609030d2d141b91d08b8aa47f4",
+    "square.png": "1394efcfe1a649341ae1fc28abf77a9dab326725d218d5f95e3d659fd12c60ff"
+  },
+  "binary_sha256": "6a2f97a61edef947f54bd73423800f26274630754c60e60ce317f5e202968409",
+  "result": "passed",
+  "backend": "Metal",
+  "mode": "bounded compatibility; no performance claim",
+  "replay_all_images_match": true,
+  "native_frame_counts": [
+    241,
+    240
+  ],
+  "human_accepted": false
+}

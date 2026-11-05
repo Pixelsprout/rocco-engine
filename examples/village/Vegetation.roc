@@ -13,7 +13,7 @@ Vegetation := [].{
 	default : Settings
 	default = { density: 22000, distance: 65.0, wind: Bool.True, canopy: Bool.True, grass: Bool.True, field: Bool.True, casts_shadow: Bool.True }
 
-	Placement : { draw : Vocabulary.Draw, group : U64, kind : [Canopy, Plant, Static] }
+	Placement : { draw : Vocabulary.Draw, asset : Str, group : U64, kind : [Canopy, Plant, Static] }
 	Prepared : { source : List(Placement), field : List(Vocabulary.Draw) }
 	empty : Prepared
 	empty = { source: [], field: [] }
@@ -29,6 +29,7 @@ Vegetation := [].{
 				Layout.placements.keep_if(|placement| placement.asset == shape.asset).map(
 					|placement| {
 						draw: { ..base, id: placement.id, pos: placement.pos, rot: placement.rot, scale: placement.scale },
+						asset: placement.asset,
 						group: placement.group,
 						kind: shape.kind,
 					},

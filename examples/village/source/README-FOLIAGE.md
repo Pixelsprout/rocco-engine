@@ -289,3 +289,5 @@ The earlier hero push used `scripts/screenshot.sh village /tmp/village-foliage-h
 The earlier capture reached the end of the source easing.
 The final replay reset the hero view after readiness and advanced exactly 240 steps.
 The combined comparison must use equal readiness-relative steps and recorded camera poses.
+
+The [combined evidence](../COMBINED-EVIDENCE.md) records lighting integration, final readiness, native replay, and the bounded CI fixture.

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -21,10 +22,10 @@ def draws(nodes):
     return result
 
 
-def run(out, steps):
+def run(out, steps, retina=False, motion_steps=60):
     out.mkdir(parents=True, exist_ok=True)
-    proc, port, log = launch(out)
-    observations = {'seed': 0, 'hero_steps': steps, 'field_seed': 777, 'generated_field_draw_count': 22000}
+    proc, port, log = launch(out, ['--retina-1080'] if retina else [])
+    observations = {'retina_1080': retina, 'motion_steps': motion_steps, 'seed': 0, 'hero_steps': steps, 'field_seed': 777, 'generated_field_draw_count': 22000}
     try:
         with Bridge.connect(port, wait=60) as bridge:
             bridge.hello()
@@ -52,6 +53,8 @@ def run(out, steps):
             assert groups == [10, 20, 30, 40]
             assert len([node for node in scene['nodes'] if 'Collider' in node]) == 6
             observations.update(ready_step=ready_step, draw_count=len(placed), source_draw_count=len(source), visible_field_draw_count=len(field), groups=groups)
+            observations.update(environment=scene['environment'], shadow=scene['shadow'])
+            observations['settings'] = {'density': 22000, 'visibility_distance': 65, 'fade_margin': 10, 'startup_shadow_map': 2048, 'startup_cascades': 2, 'startup_msaa': 4}
             bridge.tell('view', 'hero')
             bridge.step(steps)
             observations['hero_camera'] = bridge.scene()['scene']['camera']
@@ -60,17 +63,40 @@ def run(out, steps):
             observations['physical'] = reply['physical']
             print('Captured hero', flush=True)
             observations['hero_sha256'] = hashlib.sha256((out / 'hero.png').read_bytes()).hexdigest()
+            observations['pose_steps'] = {'hero': steps}
             for name in ['square', 'foliage', 'canopy']:
                 bridge.tell('view', name)
                 bridge.step(1)
                 observations[name + '_camera'] = bridge.scene()['scene']['camera']
-                bridge.screenshot(str(out / (name + '.png')))
-            bridge.step(60)
+                assert bridge.screenshot(str(out / (name + '.png')))['physical'] == [1920, 1080]
+                observations['pose_steps'][name] = steps + ['square', 'foliage', 'canopy'].index(name) + 1
+            bridge.step(motion_steps)
             bridge.screenshot(str(out / 'canopy-moving.png'))
             assert (out / 'canopy.png').read_bytes() != (out / 'canopy-moving.png').read_bytes()
             bridge.tell('vegetation', 'wind')
             bridge.step(1)
             bridge.screenshot(str(out / 'canopy-still.png'))
+            bridge.step(motion_steps)
+            bridge.screenshot(str(out / 'canopy-still-later.png'))
+            assert (out / 'canopy-still.png').read_bytes() == (out / 'canopy-still-later.png').read_bytes(), 'Disabled wind must retain the same pixels'
+            bridge.tell('vegetation', 'casting')
+            bridge.step(1)
+            switched = draws(bridge.scene()['scene']['nodes'])
+            assert all(not draw['casts_shadow'] for draw in switched if draw['id'] >= 100)
+            bridge.tell('vegetation', 'casting')
+            bridge.tell('vegetation', 'field')
+            bridge.step(1)
+            switched = draws(bridge.scene()['scene']['nodes'])
+            assert len(switched) == 1437 and all(draw['id'] < 100000 for draw in switched)
+            bridge.tell('vegetation', 'field')
+            bridge.tell('lighting', 'sky')
+            bridge.tell('quality', 'shadow-distance=60')
+            bridge.step(1)
+            controlled = bridge.scene()['scene']
+            assert controlled['environment']['sky'] == 0
+            assert controlled['shadow']['distance'] == 60
+            assert len(draws(controlled['nodes'])) > 1437
+            observations['controls'] = ['wind', 'casting', 'field', 'lighting sky', 'quality shadow-distance']
             bridge.quit()
         assert proc.wait(timeout=30) == 0
     finally:
@@ -79,6 +105,10 @@ def run(out, steps):
             proc.wait(timeout=30)
         log.close()
     suffix = '.exe' if sys.platform == 'win32' else '_linux.bin' if sys.platform.startswith('linux') else '.bin'
+    native_log = (out / 'host.log').read_text()
+    assert not re.search(r'(?i)(panic|\[error\]|\[warn\]|not in|failed|absent|invalid|capacity|first [0-9]+)', native_log), native_log
+    observations['native_log_diagnostics'] = 0
+    observations['image_sha256'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.glob('*.png'))}
     observations['binary_sha256'] = hashlib.sha256((GAME / ('village' + suffix)).read_bytes()).hexdigest()
     (out / 'observations.json').write_text(json.dumps(observations, indent=2) + '\n')
     print(json.dumps(observations), flush=True)
@@ -90,8 +120,15 @@ if __name__ == '__main__':
     parser.add_argument('out', type=Path)
     parser.add_argument('--hero-steps', type=int, default=1680)
     parser.add_argument('--replay', action='store_true')
+    parser.add_argument('--retina-1080', action='store_true')
+    parser.add_argument('--compat', action='store_true', help='Bound rendering steps for software GPU compatibility checks')
     args = parser.parse_args()
-    first = run(args.out.resolve(), args.hero_steps)
+    steps = 2 if args.compat else args.hero_steps
+    motion_steps = 2 if args.compat else 60
+    first = run(args.out.resolve(), steps, args.retina_1080, motion_steps)
     if args.replay:
-        second = run(args.out.resolve().with_name(args.out.name + '-replay'), args.hero_steps)
-        assert first['hero_sha256'] == second['hero_sha256'], 'Equal seeds and steps must reproduce the wind pose'
+        second = run(args.out.resolve().with_name(args.out.name + '-replay'), steps, args.retina_1080, motion_steps)
+        assert first['image_sha256'] == second['image_sha256'], 'Equal seeds and steps must reproduce every captured pose and control'
+        assert first['pose_steps'] == second['pose_steps']
+        assert first['ready_step'] == second['ready_step']
+        assert all(first[name + '_camera'] == second[name + '_camera'] for name in ['hero', 'square', 'foliage', 'canopy'])

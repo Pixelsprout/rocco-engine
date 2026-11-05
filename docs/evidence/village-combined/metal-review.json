@@ -1,0 +1,148 @@
+{
+  "retina_1080": true,
+  "motion_steps": 60,
+  "seed": 0,
+  "hero_steps": 240,
+  "field_seed": 777,
+  "generated_field_draw_count": 22000,
+  "ready_step": 95,
+  "draw_count": 23123,
+  "source_draw_count": 1436,
+  "visible_field_draw_count": 21686,
+  "groups": [
+    10,
+    20,
+    30,
+    40
+  ],
+  "hero_camera": {
+    "eye": {
+      "x": 3.5335276,
+      "y": 1.891691,
+      "z": 21.167639
+    },
+    "target": {
+      "x": -1.2,
+      "y": 2.6,
+      "z": -8
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "physical": [
+    1920,
+    1080
+  ],
+  "hero_sha256": "c522a73c8ebea9f2cb3ac6feba4760f9f3bfc64294c02209446021bb37ef04d7",
+  "pose_steps": {
+    "hero": 240,
+    "square": 241,
+    "foliage": 242,
+    "canopy": 243
+  },
+  "square_camera": {
+    "eye": {
+      "x": 5.8143425,
+      "y": 8,
+      "z": 13.974774
+    },
+    "target": {
+      "x": 0,
+      "y": 2.5,
+      "z": -2
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "foliage_camera": {
+    "eye": {
+      "x": 10.5,
+      "y": 1.1,
+      "z": 14.5
+    },
+    "target": {
+      "x": 9.752473,
+      "y": 1.0001667,
+      "z": 13.843314
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "canopy_camera": {
+    "eye": {
+      "x": -13,
+      "y": 4,
+      "z": 12
+    },
+    "target": {
+      "x": -12.399621,
+      "y": 4.389418,
+      "z": 11.301502
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "controls": [
+    "wind",
+    "casting",
+    "field",
+    "lighting sky",
+    "quality shadow-distance"
+  ],
+  "native_log_diagnostics": 0,
+  "image_sha256": {
+    "canopy-moving.png": "51d1b8d65bf85379692663b3ae484a75cc5a62be4157fc616d597351bf2f7ea9",
+    "canopy-still-later.png": "47d8b0d0f6297bdd68a003005eb34c7f7f1944b1ff02b006cb4f0eb1de40e43d",
+    "canopy-still.png": "47d8b0d0f6297bdd68a003005eb34c7f7f1944b1ff02b006cb4f0eb1de40e43d",
+    "canopy.png": "f4012b548e66d841b133e18570c1e79650180018a1a1c70cb9c555253c813ce4",
+    "foliage.png": "045cc16d2d96c2f9b356d368b0bda39c804854bdf27079db52931b955c4f4fb4",
+    "hero.png": "c522a73c8ebea9f2cb3ac6feba4760f9f3bfc64294c02209446021bb37ef04d7",
+    "loading.png": "f862eda14f79a6bde019b72bb9c332e60231c7609030d2d141b91d08b8aa47f4",
+    "square.png": "fa00311564b2218d1cac17585590a338e8bcd979744d56c52c411dc61754e5a0"
+  },
+  "binary_sha256": "7d21740dfab13d37c6587d15d929cc757251bdb9b78ea46d454da4ab3433a29f",
+  "result": "passed",
+  "backend": "Metal",
+  "mode": "full-density fixed-step compatibility and review preparation",
+  "replay_all_images_match": true,
+  "human_accepted": false,
+  "performance_claim": false,
+  "host_sha256": "ff6429340e08d8e3493ec230005814f2241191da44b8ba8148ed02469b485c8c",
+  "source_commits": {
+    "foliage": "7093a975fa4995645cd74fc204a0c689d1d2b70f",
+    "lighting": "bc62d98b33850b7c51f01c6f636fef718bd4416a"
+  },
+  "checks": {
+    "roc_village": 172,
+    "roc_build": 146,
+    "validated_meshes": 93,
+    "source_placements": 1436,
+    "generated_field": 22000,
+    "independent_shader_packages": 3,
+    "independent_helpers": 5
+  },
+  "review_binary_note": "Final integration also corrects loading progress text. Ready scene values and settings remain unchanged.",
+  "performance_deficit": {
+    "preliminary_cpu_p95_ms": 48.89,
+    "development_roc": true,
+    "contended": true,
+    "interpolation_dominant": true,
+    "source": "examples/village/source/README-FOLIAGE.md"
+  }
+}
