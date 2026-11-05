@@ -30,6 +30,11 @@ A second [local archive replay](evidence/shader-authoring/local-metal/bundle-rep
 That replay uses locally bundled Mac SDK archives.
 It does not satisfy the published three-target candidate gate.
 
+The [merged SDK replay](evidence/shader-authoring/merged-metal/sdk-replay.json) passed 169 checks with Odin absent.
+The [merged checks](evidence/shader-authoring/merged-metal/summary.json) include the inverse direction input and Windows publication correction.
+The candidate uses amplitude 0.2 so fixed steps do not reach the same 0.25 local clamp.
+This replay remains unpublished.
+
 ![Visible-only outline](evidence/shader-authoring/local-metal/outline-visible.png)
 
 ![Through-wall outline](evidence/shader-authoring/local-metal/outline-through.png)

@@ -1,0 +1,91 @@
+{
+  "source_commit": "de85cd807690de934358af720e3f4a10e851f3e1",
+  "result": "passed",
+  "toolchain": {
+    "odin": "dev-2026-08-nightly:902106f",
+    "roc": "nightly-2026-10-11-7d256b9"
+  },
+  "engine": {
+    "strict_debug": 855,
+    "strict_spans": 855
+  },
+  "python": {
+    "tests_run": 78,
+    "skipped": 2,
+    "skipped_reason": "native Windows file sharing"
+  },
+  "roc": {
+    "authoring_tests": 98,
+    "check": "passed",
+    "format": "passed"
+  },
+  "native": {
+    "backend": "Metal",
+    "sdk_replay_checks": 169,
+    "production_variants": 11,
+    "production_frames": 3,
+    "instanced_attributes": 13
+  },
+  "build": "ordinary release host and inputs; no Spans or allocation tracking",
+  "wind": {
+    "normal_amplitude": 0.2,
+    "local_clamp": 0.25,
+    "declared_max_displacement": 0.35,
+    "integration_fix": "Amplitude 0.3 made steps 60 and 120 reach the same local clamp. Amplitude 0.2 preserves distinct measured poses."
+  },
+  "visual_review": [
+    "Inherited Bark and textured leaf holes remain visible.",
+    "Visible-only outline stops at the occluder.",
+    "Through-wall outline crosses the occluder.",
+    "Selection coverage includes the hidden full shape."
+  ],
+  "published_source_verified": false,
+  "published_artifact_gate": "not exercised",
+  "pending": [
+    "Actual published SDK native proof on Metal, GL, and D3D11.",
+    "Native Windows shared-delete reader and bounded publication tests."
+  ],
+  "screenshot_sha256": {
+    "first-load-empty.png": "efc8e6ed78e57f71da7aee59230b31e6578553d337edf1001647707456f2ee79",
+    "first-load-invalid.png": "efc8e6ed78e57f71da7aee59230b31e6578553d337edf1001647707456f2ee79",
+    "first-load-recovered.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "interface-restarted.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "material-inherited.png": "cae09fb1a00dceaf9d2baa7635264889e78710e58ea76715f4a27776fbcc1d85",
+    "material-noncasting.png": "9fedbeca21be6736ad9965e35f6a269e5d5103ecd7768d4a7643c0f34093d895",
+    "material-red.png": "bc20f39335f9f68fb3af8541198d9f1ec0c02eef2d369ddf0cd1cc444bd5e1d9",
+    "material-restored.png": "cae09fb1a00dceaf9d2baa7635264889e78710e58ea76715f4a27776fbcc1d85",
+    "material-solid-noncasting.png": "b8cbddddc7fbe2ca089f9d46c22f75d675f0d27e2a9e44bbee9e5cd402c576a7",
+    "material-solid.png": "93a7916a1a46c9c600df999935dc0d3f4f572a5ac8309831614d2ef727d1099d",
+    "outline-through.png": "6b8c11530825418892af7dfdbffb93f052a68aeade2f6a8b7d3931f42bc79032",
+    "outline-visible-restored.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "outline-visible.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "pack-restored.png": "cae09fb1a00dceaf9d2baa7635264889e78710e58ea76715f4a27776fbcc1d85",
+    "pack-unloaded.png": "587c56b5b45d60e271196d4bc92a1925b29aaced19669327cacb26c6271f5eaa",
+    "reload-initial.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-interface-rejected.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-package-failed.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-package-recovered.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-post-recovered.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-post.png": "6c03236cec286dc30c04ac7e254f8b454af645b31898049a15522f817559ed46",
+    "reload-source-failed.png": "f8829efefb74de75a6f285b335f3602078131234c20eadf1b6dc476fe9304b60",
+    "reload-source-recovered.png": "10a159dd3e1abfe3120d0e7505c7f0d5b5c43254bf1326d30c42ad34ccdee6df",
+    "reload-surface.png": "f8829efefb74de75a6f285b335f3602078131234c20eadf1b6dc476fe9304b60",
+    "selection-inputs.png": "987a428bba55a5850ed6134eac53608eb86962b6c2d271c45096b8b4f9d56df9",
+    "selection-no-wall.png": "bebeacc661ca232e1709f10081213b04b5632b15f35d9b8df2685ef8e82d54f6",
+    "selection-none.png": "f54254315f3cf737061476e3bc660b95305bfdec3961a95d04af3a2290fedf54",
+    "selection-solid.png": "37ff587546c16f80436f90f20d9669d2833628c893c3c036b45026adec794ef9",
+    "wind-a-1.png": "acc6426154fd4b7d567d0b1a89405396b9ed26b302c4ddfdb3e2c28544a37b74",
+    "wind-a-120.png": "411143a1f8b5ff2f661fed059668e35adc92c6b656ac3b05da875efd466746a5",
+    "wind-a-60.png": "66a599a0cf0227f4cc7c8674ffd61cc7406eccc157c24c6c56efb893a5c87db5",
+    "wind-b-1.png": "acc6426154fd4b7d567d0b1a89405396b9ed26b302c4ddfdb3e2c28544a37b74",
+    "wind-b-120.png": "411143a1f8b5ff2f661fed059668e35adc92c6b656ac3b05da875efd466746a5",
+    "wind-b-60.png": "66a599a0cf0227f4cc7c8674ffd61cc7406eccc157c24c6c56efb893a5c87db5",
+    "wind-noncasting-1.png": "1cbbfae3e3919acd09d20b8869a5c51a95e803aeb778c854d42395b5c4a50b14",
+    "wind-noncasting-120.png": "2f104269571cb04acd23d9fc48cc6c8e373ead945a7ec42c6291439616a64c4a",
+    "wind-noncasting-60.png": "7002050d263c6c248bc4d3e7b27d81a2753c67724b0f360e6acfcc2c12dbac85",
+    "wind-selection-a-1.png": "1515840127fd3fd9d763fb2801ccd5dae42d237edd227bbf466f579e788ca0ea",
+    "wind-selection-a-60.png": "31286bd2a5a67cdbe4ef652787fe77fa04b57d35e8eaadda369a75d392266ba7",
+    "wind-selection-b-1.png": "1515840127fd3fd9d763fb2801ccd5dae42d237edd227bbf466f579e788ca0ea",
+    "wind-selection-b-60.png": "31286bd2a5a67cdbe4ef652787fe77fa04b57d35e8eaadda369a75d392266ba7"
+  }
+}
