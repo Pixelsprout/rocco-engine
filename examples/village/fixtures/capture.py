@@ -29,14 +29,15 @@ def view(bridge, name):
     bridge.tell('view', name)
     bridge.step(2)
 
-def launch(out, arguments=(), seed=0):
+def launch(out, arguments=(), seed=0, run_prefix=None):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
     env = dict(os.environ, ROCCO_BRIDGE=str(port), ROCCO_SEED=str(seed), ROCCO_EXIT_AFTER_FRAMES='20000')
     suffix = '.exe' if os.name == 'nt' else '_linux.bin' if sys.platform.startswith('linux') else '.bin'
     log = (out / 'host.log').open('w')
-    command = shlex.split(os.environ.get('RUN_PREFIX', '')) + [str(GAME / f'village{suffix}'), *arguments]
+    prefix = os.environ.get('RUN_PREFIX', '') if run_prefix is None else run_prefix
+    command = shlex.split(prefix) + [str(GAME / f'village{suffix}'), *arguments]
     proc = subprocess.Popen(command, cwd=GAME, env=env, stdout=log, stderr=subprocess.STDOUT)
     return (proc, port, log)
 
