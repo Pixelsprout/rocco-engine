@@ -134,17 +134,17 @@ The parser rejects variants above these aligned limits:
 | Post location | 512 | unavailable |
 
 The arena includes one Selection submission per accepted part draw.
-Post integration must add its separate scene-depth submissions and effect costs.
+Post reserves separate scene-depth submissions and up to 32 enabled effect instances.
 Additional formats or sample counts require additional pipeline credits.
 Particle reservations must remain additive to these reservations.
-The combined renderer reserves `3 * meshes + 6` buffers, 321 shaders and 2082 pipelines.
+The combined renderer reserves `3 * meshes + 6` buffers, 324 shaders and 2089 pipelines.
 With `D` part draws and `C` cascades, the uniform arena reserves these bytes:
 
 ```text
-(10 + 4*C)*D*256 + 277*256 + (2 + C)*min(D, 256)*4096
+(14 + 4*C)*D*256 + 341*256 + (3 + C)*min(D, 256)*4096
 ```
 
-The combined Draw limit is 321682.
+The combined Draw limit is 278653.
 
 ## Checks and later integration
 

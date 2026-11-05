@@ -38,6 +38,7 @@ Shader :: struct {
 	package_data: Shader_Package,
 	programs: [9]Shader_Program,
 	pipelines: map[Shader_Pipeline_Key]sg.Pipeline,
+	post_pipelines: [2]sg.Pipeline,
 	samplers: [4]sg.Sampler,
 	constants: [4]Mesh_Texture,
 }
@@ -120,11 +121,12 @@ shader_load_file_scoped :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32
 shader_gpu_destroy :: proc(s: ^Shader) {
 	if sg.isvalid() {
 		for _, pip in s.pipelines { sg.destroy_pipeline(pip) }
+		for pip in s.post_pipelines { sg.destroy_pipeline(pip) }
 		for program in s.programs { if program.handle.id != 0 { sg.destroy_shader(program.handle) } }
 		for sampler in s.samplers { if sampler.id != 0 { sg.destroy_sampler(sampler) } }
 		for tex in s.constants { if tex.image.id != 0 { sg.destroy_view(tex.view); sg.destroy_image(tex.image) } }
 	}
-	clear(&s.pipelines); s.programs = {}; s.samplers = {}; s.constants = {}; s.ready = false
+	clear(&s.pipelines); s.post_pipelines = {}; s.programs = {}; s.samplers = {}; s.constants = {}; s.ready = false
 }
 shader_table_remove :: proc(t: ^Shader_Table, slot: int) {
  s := &t.assets[slot]

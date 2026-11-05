@@ -10,14 +10,13 @@ TARGET_COLOR_FORMAT :: sg.Pixel_Format.RGBA8
 TARGET_DEPTH_FORMAT :: sg.Pixel_Format.DEPTH_STENCIL
 // One image per bloom mip, and a black image to bind when there is no mip.
 BLOOM_IMAGES :: BLOOM_MIP_LIMIT + 1
-// The hdr and color layers have two images each, the depth image is the
-// fifth, and the bloom images follow.
-TARGET_IMAGES :: 5 + BLOOM_IMAGES
+TARGET_BASE_IMAGES :: 5 + BLOOM_IMAGES
+TARGET_IMAGES :: TARGET_BASE_IMAGES + POST_TARGET_IMAGES
 // hdr, color, and one layer per bloom image.
 TARGET_LAYERS :: 2 + BLOOM_IMAGES
 // Each image but the black one has an attachment view, and each layer adds
 // a texture view.
-TARGET_VIEWS :: TARGET_IMAGES - 1 + TARGET_LAYERS
+TARGET_VIEWS :: TARGET_BASE_IMAGES - 1 + TARGET_LAYERS + POST_TARGET_VIEWS
 
 // One pass's colour: the image it resolves into, the MSAA image it draws
 // into, a texture view of the resolved image, and the pass attachments. With
@@ -47,6 +46,9 @@ Bloom_Chain :: struct {
 // so a screenshot can read it back. The Main pass's depth image has the
 // sample count of the Launch. dpi sizes the bloom mips.
 Render_Target :: struct {
+	post: Post_Targets,
+	hdr_read: sg.View,
+	composite: sg.Pipeline,
 	size:        [2]i32,
 	dpi:         f32,
 	samples:     i32,
@@ -80,6 +82,7 @@ render_target_init :: proc(t: ^Render_Target, samples: i32) {
 			label = "tone-map",
 		},
 	)
+	t.composite = sg.make_pipeline({shader = sg.make_shader(blit_shader_desc(sg.query_backend())), sample_count = samples, colors = {0 = {pixel_format = TARGET_COLOR_FORMAT}}, depth = {pixel_format = .NONE}, cull_mode = .NONE})
 	// The swapchain has one sample. Its formats are the pipeline defaults.
 	t.blit = sg.make_pipeline(
 		{
@@ -188,7 +191,7 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 	}
 	pip := c.prefilter
 	action := c.draw_action
-	src := t.hdr.texture
+	src := t.hdr_read if t.hdr_read.id != 0 else t.hdr.texture
 	switch step.kind {
 	case .Prefilter:
 	case .Down:
@@ -230,7 +233,7 @@ render_target_bloom :: proc(t: ^Render_Target, step: Bloom_Step) {
 render_target_tone_map :: proc(t: ^Render_Target, params: Tone_Map_Params) {
 	sg.apply_pipeline(t.tone_map)
 	bloom := t.bloom.mips[0].texture if t.bloom.count > 0 else t.bloom.black.texture
-	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr.texture, VIEW_bloom_tex = bloom}, samplers = {SMP_hdr_smp = t.sampler, SMP_bloom_smp = t.bloom.sampler}})
+	sg.apply_bindings({views = {VIEW_hdr_tex = t.hdr_read if t.hdr_read.id != 0 else t.hdr.texture, VIEW_bloom_tex = bloom}, samplers = {SMP_hdr_smp = t.sampler, SMP_bloom_smp = t.bloom.sampler}})
 	p := params
 	sg.apply_uniforms(UB_tone_map_params, {ptr = &p, size = size_of(Tone_Map_Params)})
 	sg.draw(0, 3, 1)
@@ -248,6 +251,8 @@ render_target_copy :: proc(t: ^Render_Target, swapchain: sg.Swapchain) {
 // Destroys the images and their views. sokol skips an invalid id, so this
 // is safe before the first fit. sg.shutdown destroys the rest.
 render_target_destroy :: proc(t: ^Render_Target) {
+	post_targets_destroy(&t.post)
+	t.hdr_read = {}
 	target_layer_destroy(&t.hdr)
 	target_layer_destroy(&t.color)
 	for &mip in t.bloom.mips {

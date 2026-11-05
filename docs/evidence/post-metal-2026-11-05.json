@@ -1,0 +1,98 @@
+{
+  "supported_samples": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "unsupported_samples": [],
+  "off": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "eaba1709a60d92d8bd33581b3fc301bf1c57251434ede210baf5d62f8680d4c8"
+  },
+  "x2": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "0491ecfc4f4b9398257196cf6eee72cefd0979812401a785757b8880af347f5a"
+  },
+  "x4": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "5e3f18819ce2cf1131a040e3cff8f5ee49fc75e84c380ecdd779240fb87d81de"
+  },
+  "x8": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "139c62a7521f5b5040eff2909b79f976c4ca4e752683cbd8411e0a1220d530c8"
+  },
+  "depth_wind_hashes": [
+    "430e5e45585546f0fd42d945e705d3e5caacb381c82a9c250eab34b0977a92ba",
+    "5ec2996d64170a0f8e40929129fe7c4320cfc63d82baa5720beb75ed326dacca"
+  ],
+  "result": "passed",
+  "binary_sha256": "8ef6c47e462d24265707b986fe6676e20e4730c92501fef80ed4032ad50e1551",
+  "backend": "Metal",
+  "date": "2026-11-05",
+  "toolchain": {
+    "odin": "902106f",
+    "path": "/tmp/rocco-pinned-odin/odin"
+  },
+  "native_evidence": "/tmp/rocco-post-native",
+  "strict_engine_tests": 825,
+  "strict_spans_tests": 825,
+  "python_tests": 37,
+  "roc_checks": "passed",
+  "benchmark_checks": "passed",
+  "documentation_checks": "passed",
+  "abi_regeneration": "stable",
+  "shader_regeneration": "completed with pinned sokol-shdc",
+  "remaining_native_acceptance": [
+    "GL 4.3 CI",
+    "D3D11 CI"
+  ],
+  "resource_budget": {
+    "optional_images": 10,
+    "optional_views": 18,
+    "shader_handles": 324,
+    "pipeline_handles": 2089,
+    "buffers": "3 * meshes + 6",
+    "effect_instances": 32,
+    "uniform_bytes": "(14 + 4*C)*D*256 + 341*256 + (3 + C)*min(D,256)*4096",
+    "draw_limit": 278653
+  },
+  "packages": {
+    "Colour.shaderpack": "b53574f53aac5e7d2488aa95bb7d524e6c8e3b26707aca8fec3375807d527271",
+    "Selection.shaderpack": "8886f6fe2ce2e610d474fd23b274763743e7961f554145cbc3069bde91c23552",
+    "Depth.shaderpack": "e3b13c45e84697e3158b545700c4c557706607b2dfa736dc8a116d8de07f810a",
+    "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+  }
+}

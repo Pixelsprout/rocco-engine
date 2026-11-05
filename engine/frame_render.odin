@@ -47,31 +47,16 @@ BLEND_SUBMITS_DOUBLE_SIDED := [2]Mesh_Pipeline{.Blend_Back_Faces, .Blend}
 #assert(len(Fs_Lights{}.light_view_proj) == MAX_CASCADES)
 #assert(len(Fs_Lights{}.cascade_far) == MAX_CASCADES)
 
-// The Main pass draws linear HDR colour. The Post pass adds the bloom, tone
-// maps the result and then draws the UI over it, so the UI keeps its
-// authored colour.
+// World effects run before UI. Scene depth uses separate single-sample attachments.
 Pass :: enum {
 	Shadow,
 	Main,
+	Scene_Depth,
 	Post,
 }
 
-// Lets tests run without sokol. Each frame begins and ends one Shadow pass
-// per shadow view, then one Main pass, then one Post pass. submit_shadow runs
-// only in a Shadow pass, once per Opaque range and once per placed MASK part.
-// In the Main pass, submit runs once per part of each
-// Draw's mesh, and twice for a double-sided Blend part. submit_lights runs
-// before any submit. submit_sky runs at most once, after every part before
-// the sky and before every Blend part. With bloom on,
-// submit_bloom runs once per Bloom_Step between the Main pass and the Post
-// pass, outside any pass, because each step is a pass of its own.
-// submit_tone_map runs once, first in the Post pass, and submit_ui runs at
-// most once after it.
-// Before the sky, the skinned Draws follow the rigid ones. In the Main pass,
-// the parts of the rigid Draws, then of the skinned Draws, go in
-// SCENE_ORDER_PIPELINES order, because each change of mesh pipeline applies
-// the lights again. After the sky, the Draws with Blend parts go back to
-// front, rigid and skinned together. A nil skin is a rigid Draw.
+// Bloom and game-effect callbacks own their intermediate passes.
+// The AfterToneMap callback restores the final colour pass before UI submission.
 Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
@@ -93,6 +78,9 @@ Frame_Render_Submits :: struct {
 	submit:          Submit,
 	submit_lights:   Submit_Lights,
 	submit_surface: Submit_Surface,
+	submit_depth: Submit,
+	prepare_post: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inputs,
+	submit_post: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Location, time: f32),
 	submit_sky:      Submit_Sky,
 	submit_environment: Submit_Environment,
 	submit_bloom:    Submit_Bloom,
@@ -190,7 +178,6 @@ Placed_Order :: struct {
 }
 
 // A Draw's uniform blocks, made once and shared by all its parts.
-@(private = "file")
 Draw_Params :: struct {
 	p:         ^Placed,
 	vs_params: Vs_Params,
@@ -408,6 +395,13 @@ frame_render_draw :: proc(
 	}
 	fr.submits.end_pass(fr.submits.ctx)
 
+	effects := post_resolve(fr.packs, curr.post.elements[:curr.post.length], frame_walk.scene_values, fr.render_time)
+	if fr.submits.prepare_post != nil {
+		inputs := fr.submits.prepare_post(fr.submits.ctx, effects)
+		if .Scene_Depth in inputs { frame_render_depth(fr, draw_params, &span) }
+	}
+	if fr.submits.submit_post != nil { fr.submits.submit_post(fr.submits.ctx, effects, .BeforeBloom, fr.render_time) }
+
 	// A window with no mip draws no bloom, so the tone map reads none.
 	bloom_strength := f32(0)
 	if env.bloom.strength > 0 {
@@ -421,6 +415,7 @@ frame_render_draw :: proc(
 
 	frame_render_begin_pass(fr, .Post, 0, {}, &span)
 	fr.submits.submit_tone_map(fr.submits.ctx, {exposure = env.exposure, tone_map = TONE_MAP_SHADER[env.tone_map], bloom_strength = bloom_strength})
+	if fr.submits.submit_post != nil { fr.submits.submit_post(fr.submits.ctx, effects, .AfterToneMap, fr.render_time) }
 	if len(quads) > 0 {
 		fr.submits.submit_ui(fr.submits.ctx, quads, window.size)
 	}
@@ -991,3 +986,23 @@ submits_none_submit_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {}
 
 
 placed_box :: proc(p: ^Placed) -> Box { return p.box if p.bounds_resolved else p.mesh.box }
+
+frame_render_depth :: proc(fr: ^Frame_Render, draws: []Draw_Params, span: ^Span_Tick) {
+ frame_render_begin_pass(fr, .Scene_Depth, 0, {}, span)
+ for skinned in ([2]bool{false, true}) {
+  for pipeline in SCENE_ORDER_PIPELINES {
+   for d in draws {
+    if (d.p.skin != nil) != skinned { continue }
+    for &part in d.p.parts {
+     selected, writes := part_pipeline(part.material)
+     if !writes || selected != pipeline { continue }
+     fs := frame_render_part_params(d.fs_params, &part)
+     if part.surface != nil {
+      if fr.submits.submit_surface != nil { fr.submits.submit_surface(fr.submits.ctx, .Selection, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
+     } else if fr.submits.submit_depth != nil { fr.submits.submit_depth(fr.submits.ctx, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
+    }
+   }
+  }
+ }
+ fr.submits.end_pass(fr.submits.ctx)
+}

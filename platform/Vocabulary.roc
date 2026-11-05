@@ -91,7 +91,7 @@ Vocabulary := [].{
 	## - `draws`: mesh part draws per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
 	##   materials uses up to 3. A double-sided Blend material uses 2. Above
-	##   zero and at most 321682. The uniform buffer grows with it.
+	##   zero and at most 278653. The uniform buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
 	##   Groups.
@@ -397,6 +397,10 @@ Vocabulary := [].{
 			}
 	}
 
+	## One enabled effect. The host runs at most 32 valid enabled effects per Scene.
+	## Excess effects log and skip. Each location preserves list order and independent values.
+	Post : { values : Shader.Values, location : [BeforeBloom, AfterToneMap], enabled : Bool }
+
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
@@ -410,8 +414,9 @@ Vocabulary := [].{
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
+	## - `post`: ordered world effects. Disabled or invalid effects allocate no extra inputs.
 	## - `shader_values`: generated Scene-scope values. Omitted parameters use their Shader defaults.
-	Scene : { shader_values : List(Shader.Values), camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+	Scene : { post : List(Post), shader_values : List(Shader.Values), camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
 
 	## A host-simulated billboard source. Start from `Emitter.default`.
 	## `id` identifies a source independently of Draw ids. The first duplicate wins.

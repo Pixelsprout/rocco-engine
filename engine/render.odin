@@ -15,14 +15,14 @@ MAIN_UNIFORM_SLOTS :: (size_of(Vs_Params) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN +
 LIGHTS_UNIFORM_SLOTS :: (size_of(Fs_Lights) + UNIFORM_ALIGN - 1) / UNIFORM_ALIGN
 // The slots outside the Draws: the lights once per pipeline before the sky,
 // the sky, the bloom, the tone map, the UI and two blocks per particle source.
-UNIFORM_SPARE_SLOTS :: 21 + 2 * EMITTER_LIMIT
+UNIFORM_SPARE_SLOTS :: 21 + 2 * EMITTER_LIMIT + POST_UNIFORM_SLOTS
 // The Prefilter and each Up apply a block. A Down applies none.
 BLOOM_UNIFORM_SLOTS :: BLOOM_MIP_LIMIT
 // sokol takes the uniform buffer size as a C int, so uniform_buffer_size must
 // fit one. The limit takes MAX_CASCADES for every game.
 DRAW_LIMIT ::
-	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (2 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
-	(10 + MAX_CASCADES * 4)
+	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (3 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
+	(14 + MAX_CASCADES * 4)
 
 #assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 128 && size_of(Fs_Lights) <= 512)
 // The 3 is one block each for the sky, the tone map and the UI.
@@ -49,6 +49,7 @@ Mesh_Shaders :: struct {
 }
 
 Renderer :: struct {
+	depth_pips, skinned_depth_pips: [Mesh_Pipeline]sg.Pipeline,
 	pips:               [Mesh_Pipeline]sg.Pipeline,
 	skinned_pips:       [Mesh_Pipeline]sg.Pipeline,
 	sky_pip:            sg.Pipeline,
@@ -111,11 +112,11 @@ view_pool_size :: proc(capacity: Capacity) -> i32 {
 	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES + 3
 }
 
-// Each part reserves the parser's aligned Colour, Selection and shadow maxima.
+// Each part reserves Colour, scene depth, Selection, and shadow uniforms.
 // Each skinned part also reserves a palette for each pass.
 uniform_buffer_size :: proc(capacity: Capacity, cascades: int) -> i32 {
-	skins := (2 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
-	slots := 10 + cascades * 4
+	skins := (3 + cascades) * skinned_draw_capacity(int(capacity.draws)) * size_of(Skin_Params)
+	slots := 14 + cascades * 4
 	return i32((slots * int(capacity.draws) + UNIFORM_SPARE_SLOTS) * UNIFORM_ALIGN + skins)
 }
 
@@ -268,6 +269,19 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 		},
 	}
 	skinned_mask_shadow.label = "skinned-shadow-mask"
+ coverage := mask_shadow
+ coverage.shader = sg.make_shader(coverage_shader_desc(sg.query_backend()))
+ coverage.depth = {pixel_format = .DEPTH, compare = .GREATER_EQUAL, write_enabled = true}
+ coverage.color_count = 2
+ coverage.colors[0].pixel_format = .R8
+ coverage.colors[1].pixel_format = .R32F
+ skinned_coverage := coverage
+ skinned_coverage.shader = sg.make_shader(skinned_coverage_shader_desc(sg.query_backend()))
+ skinned_coverage.layout = skinned_mask_shadow.layout
+ for pipeline in SCENE_ORDER_PIPELINES {
+  r.depth_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(coverage, pipeline))
+  r.skinned_depth_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(skinned_coverage, pipeline))
+ }
 	for pipeline in SCENE_ORDER_PIPELINES {
 		if pipeline == .Opaque { continue }
 		r.shadow_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(mask_shadow, pipeline))
@@ -360,6 +374,8 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 		r.swapchain = sglue.swapchain()
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height}, sapp.dpi_scale())
 		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
+	case .Scene_Depth:
+		sg.begin_pass({action = coverage_pass_action(), attachments = r.target.post.scene.coverage.attachments, label = "scene-depth"})
 	case .Post:
 		render_target_begin_post(&r.target)
 	}
@@ -538,6 +554,9 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
 		submit_surface = renderer_surface,
+		submit_depth = renderer_depth,
+		prepare_post = renderer_prepare_post,
+		submit_post = renderer_post,
 		submit_sky = renderer_sky,
 		submit_environment = renderer_environment,
 		submit_bloom = renderer_bloom,
@@ -547,4 +566,14 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit_particles = renderer_submit_particles,
 		ctx = r,
 	}
+}
+
+renderer_depth :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+ r := (^Renderer)(ctx)
+ renderer_apply_skin(r, r.depth_pips[pipeline], r.skinned_depth_pips[pipeline], skin)
+ tex := mesh_part_textures(part, r.white, r.flat_normal).base
+ sg.apply_bindings({vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices, views = {VIEW_base_tex = tex.view}, samplers = {SMP_base_smp = tex.sampler}})
+ params := Shadow_Vs_Params{light_mvp = vs_params.mvp, shadow_material = {-1 if part.material.alpha_mode == .Opaque else fs_params.material.w, fs_params.tint.a, 0, 0}}
+ sg.apply_uniforms(UB_shadow_vs_params, {ptr = &params, size = size_of(params)})
+ sg.draw(part.first, part.count, 1)
 }
