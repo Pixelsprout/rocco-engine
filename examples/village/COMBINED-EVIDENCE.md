@@ -126,6 +126,12 @@ The Windows desktop clamped its large window to 1028 by 749 physical pixels.
 Linux passed initial 1080p captures and wind checks, then timed out during one 432-step request.
 These failures establish no complete-village native acceptance.
 The hosted correction requires new native results on all three systems.
+The [local hosted Metal report](../../docs/evidence/village-combined/hosted-metal.json) passes both full replays and the alternate-seed check.
+Every Bridge capture and decoded PNG verifies 960 by 540 physical and logical pixels.
+The opaque UI comparison preserves 7,350 pixels.
+The agent inspected the hero, selected outline, and readable opaque controls panel.
+The four fixture unit tests, 178 village Roc tests, and required game build passed.
+Native GL and D3D11 hosted results remain pending.
 Functional captures do not enable Spans automatically.
 Performance captures must explicitly select an instrumented host and output path.
 
