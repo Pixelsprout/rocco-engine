@@ -77,6 +77,7 @@ End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame)
+Submit_Environment :: #type proc(ctx: rawptr, sky: ^Sky)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 Submit_Bloom :: #type proc(ctx: rawptr, step: Bloom_Step)
 Submit_Tone_Map :: #type proc(ctx: rawptr, params: Tone_Map_Params)
@@ -91,6 +92,7 @@ Frame_Render_Submits :: struct {
 	submit:          Submit,
 	submit_lights:   Submit_Lights,
 	submit_sky:      Submit_Sky,
+	submit_environment: Submit_Environment,
 	submit_bloom:    Submit_Bloom,
 	submit_tone_map: Submit_Tone_Map,
 	submit_ui:       Submit_Ui,
@@ -355,6 +357,8 @@ frame_render_draw :: proc(
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
+	sky, has_sky := sky_resolve(skies, env.sky)
+	if fr.submits.submit_environment != nil { fr.submits.submit_environment(fr.submits.ctx, sky) }
 	fr.submits.submit_lights(fr.submits.ctx, lights, clusters)
 	draw_params := make([]Draw_Params, len(fr.placed), context.temp_allocator)
 	for &p, i in fr.placed {
@@ -369,7 +373,7 @@ frame_render_draw :: proc(
 			}
 		}
 	}
-	if sky, ok := sky_resolve(skies, env.sky); ok {
+	if has_sky {
 		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
 	}
 	for b in frame_render_sort_blend_draws(draw_params, view.camera.eye) {

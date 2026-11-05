@@ -126,7 +126,6 @@ class Composer:
         for render_pass in ("colour", "shadow", "selection"):
             self.append(f"@fs {render_pass}_fs")
             self.game_resources("fragment")
-            self.append("layout(binding=6) uniform textureCube environment_tex;\nlayout(binding=6) uniform sampler environment_smp;\nvec3 rocco_environment(vec3 direction, float lod) { return textureLod(samplerCube(environment_tex, environment_smp), direction, lod).rgb; }")
             self.template("surface.glsl", {}, {"@@SURFACE_HOOK@@": "surface", "@@LIGHTING_HOOK@@": "lighting"})
             if render_pass == "colour":
                 self.append("out vec4 frag_colour;\nvoid main() {\nvec4 c = surface_color(maps.z == 2.0);\nif (maps.z == 1.0 && c.a < material.w) { discard; }\nfrag_colour = c;\n}")

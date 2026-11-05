@@ -4,6 +4,7 @@ layout(binding = 1) uniform fs_params {
     vec4 emissive;
     vec4 glow;
     vec4 maps;
+    vec4 environment_params;
 };
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
@@ -37,6 +38,13 @@ layout(binding = 4) uniform texture2D normal_tex;
 layout(binding = 4) uniform sampler normal_smp;
 layout(binding = 5) uniform texture2D occlusion_tex;
 layout(binding = 5) uniform sampler occlusion_smp;
+layout(binding = 6) uniform textureCube env_diffuse_tex;
+layout(binding = 6) uniform sampler env_diffuse_smp;
+layout(binding = 7) uniform textureCube env_specular_tex;
+layout(binding = 7) uniform sampler env_specular_smp;
+vec3 rocco_environment(vec3 direction, float lod) {
+    return textureLod(samplerCube(env_specular_tex, env_specular_smp), direction, lod).rgb * environment_params.x;
+}
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -181,6 +189,12 @@ vec4 surface_color(bool premultiplied) {
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
 
     vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * s.occlusion;
+    if (environment_params.x > 0.0) {
+        vec3 irradiance = textureLod(samplerCube(env_diffuse_tex, env_diffuse_smp), n, 0.0).rgb;
+        vec3 reflected = textureLod(samplerCube(env_specular_tex, env_specular_smp), reflect(-v, n), roughness * environment_params.y).rgb;
+        color += ((1.0 - fresnel_schlick(f0, n_dot_v)) * diffuse_color * irradiance
+            + env_brdf_approx(f0, roughness, n_dot_v) * reflected) * s.occlusion;
+    }
     vec2 tile = gl_FragCoord.xy * cluster_grid.xy;
 #if !SOKOL_GLSL
     tile.y = 9.0 - tile.y;

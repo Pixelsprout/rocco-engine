@@ -1,0 +1,12 @@
+{
+  "host": "darwin",
+  "result": "passed",
+  "variants": 11,
+  "instanced_attributes": 13,
+  "frames": 3,
+  "packages": {
+    "Foliage": "87f0782e694c407a1ef611fbaf4bf159a63924bc30d5e7fd99c8856bc33a7bba",
+    "Outline": "97cb4da2a6edd6c704c7e1a542a7b64ebcc7fb56d6f20f3f83c9bd104c0fffc0"
+  },
+  "log": "backend=4 attrs=16 textures_per_stage=32 storage_per_stage=15 vertex_uniform_components=0\nPASS: outline visible-only edges over nonzero scene depth\nPASS: outline through-wall edges over nonzero scene depth\nPASS: outline visible-only edges over nonzero scene depth\nPASS: 11 production shader variants created, bound and drawn for 3 frames\n"
+}

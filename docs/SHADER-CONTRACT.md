@@ -227,8 +227,8 @@ The fixture's lighting multiplication tests bindings; it does not implement the 
 | 3 | Imported emissive | Selection depth |
 | 4 | Imported normal | Reserved |
 | 5 | Imported occlusion | Reserved |
-| 6 | Cubemap environment | Reserved |
-| 7 | Reserved engine texture | Reserved |
+| 6 | Diffuse cubemap environment | Reserved |
+| 7 | GGX specular cubemap environment | Reserved |
 | 8–11 | Four declared game textures and samplers | Four declared game textures and samplers |
 | 12 | Clustered Point-light storage view | Reserved |
 | 13 | Cluster range storage view | Reserved |
@@ -273,7 +273,7 @@ Every member starts at a 16-byte boundary.
 
 | Slot | Block | Members in byte order | Bytes |
 | --- | --- | --- | --- |
-| 1 | `fs_params` | `tint`, `material`, `emissive`, `glow`, `maps`, each `vec4` | 80 |
+| 1 | `fs_params` | `tint`, `material`, `emissive`, `glow`, `maps`, `environment_params`, each `vec4` | 96 |
 | 2 | `fs_lights` | Seven `vec4`: `ambient`, `camera_pos`, `shadow`, `cascade_far`, `view_dir`, `fog_color`, `fog_ramp`; `mat4 light_view_proj[4]`; `vec4 directional_pos[4]`; `vec4 directional_color[4]`; `vec4 cluster_grid` | 512 |
 
 `ambient.w` holds the Directional count, from zero through four.
@@ -543,3 +543,10 @@ The compiler evidence comes from the pinned binary.
 The upstream [shader compiler documentation](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md) explains raw output and binding metadata.
 The [OpenGL 4.3 specification](https://registry.khronos.org/OpenGL/specs/gl/glspec43.core.pdf) defines guaranteed GL limits.
 Microsoft documents [D3D11 limits](https://learn.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-resources-limits) and [constant buffer rules](https://learn.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-resources-buffers-constant-how-to).
+
+Environment metadata uses `environment_params = (enabled, specular_max_lod, 0, 0)`.
+Fragment slots 6 and 7 bind linear RGBA16F diffuse and GGX specular cubemaps.
+The diffuse cubemap stores cosine-integrated radiance divided by pi.
+The specular mip roughness is `mip / specular_max_lod`.
+Bind black cubemaps and zero metadata when the Sky is absent or unloaded.
+The `rocco_environment(direction, lod)` hook helper samples the specular cubemap at an explicit mip.

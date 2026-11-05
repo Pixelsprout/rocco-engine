@@ -95,6 +95,7 @@ layout(binding = 1) uniform fs_params {
     vec4 emissive;
     vec4 glow;
     vec4 maps;
+    vec4 environment_params;
 };
 
 // shadow is the cascade count, the Sun's slot, the normal offset and the
@@ -145,6 +146,10 @@ layout(binding = 4) uniform texture2D normal_tex;
 layout(binding = 4) uniform sampler normal_smp;
 layout(binding = 5) uniform texture2D occlusion_tex;
 layout(binding = 5) uniform sampler occlusion_smp;
+layout(binding = 6) uniform textureCube env_diffuse_tex;
+layout(binding = 6) uniform sampler env_diffuse_smp;
+layout(binding = 7) uniform textureCube env_specular_tex;
+layout(binding = 7) uniform sampler env_specular_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -189,7 +194,7 @@ vec3 fresnel_schlick(vec3 f0, float v_dot_h) {
 }
 
 // Karis (2014), Physically Based Shading on Mobile: a fit of the split-sum
-// environment BRDF that stands in for an environment map.
+// environment BRDF.
 vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
     const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
     const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
@@ -301,6 +306,12 @@ vec4 surface_color(bool premultiplied) {
     float ao = texture(sampler2D(occlusion_tex, occlusion_smp), v_uv).r;
     float occlusion = mix(1.0, ao, maps.y);
     vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * occlusion;
+    if (environment_params.x > 0.0) {
+        vec3 irradiance = textureLod(samplerCube(env_diffuse_tex, env_diffuse_smp), n, 0.0).rgb;
+        vec3 reflected = textureLod(samplerCube(env_specular_tex, env_specular_smp), reflect(-v, n), roughness * environment_params.y).rgb;
+        color += ((1.0 - fresnel_schlick(f0, n_dot_v)) * diffuse_color * irradiance
+            + env_brdf_approx(f0, roughness, n_dot_v) * reflected) * occlusion;
+    }
     vec2 tile = gl_FragCoord.xy * cluster_grid.xy;
 #if !SOKOL_GLSL
     tile.y = 9.0 - tile.y;

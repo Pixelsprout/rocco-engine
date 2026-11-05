@@ -158,7 +158,7 @@ class PublishedCompilerTests(unittest.TestCase):
                     self.assertNotIn(str(self.root).encode(), code)
                 sizes = {b["slot"]: b["size"] for b in program.get("uniform_blocks", [])}
                 self.assertEqual(sizes[0], 256)
-                self.assertEqual(sizes[1], 80)
+                self.assertEqual(sizes[1], 96)
                 self.assertEqual(sizes[4], 256)
                 if program["name"].startswith("instanced"):
                     self.assertEqual(len(program["attrs"]), 13)

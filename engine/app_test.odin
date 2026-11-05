@@ -56,7 +56,7 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 @(test)
 test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
 	desc := app_gfx_desc(launch_default().capacity, 1)
-	images := MESH_TEXTURE_LIMIT * 64 + 279
+	images := MESH_TEXTURE_LIMIT * 64 + 312
 	testing.expect_value(t, desc.buffer_pool_size, 2 * 64 + 5)
 	testing.expect_value(t, desc.image_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.sampler_pool_size, i32(images + TARGET_IMAGES))
@@ -70,7 +70,7 @@ test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: pr
 	testing.expect_value(t, four.uniform_buffer_size, (6 * 16384 + 21) * 256 + 5 * SKINNED_DRAW_LIMIT * 4096)
 
 	small := app_gfx_desc({meshes = 4, skies = 2, images = 2, draws = 10, ui_quads = 1}, 4)
-	testing.expect_value(t, small.image_pool_size, MESH_TEXTURE_LIMIT * 4 + 2 + 2 + 2 + 2 + 1 + 1 + 1 + TARGET_IMAGES)
+	testing.expect_value(t, small.image_pool_size, MESH_TEXTURE_LIMIT * 4 + 2 + 6 + 1 + 2 + 2 + 1 + 1 + 1 + TARGET_IMAGES)
 	testing.expect_value(t, small.uniform_buffer_size, (6 * 10 + 21) * 256 + 5 * 10 * 4096)
 
 	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1}, MAX_CASCADES)

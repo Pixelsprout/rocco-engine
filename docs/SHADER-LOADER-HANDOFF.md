@@ -33,7 +33,7 @@ Do not derive physical texture registers from logical slots.
 | Uniform slot | Production block | Bytes |
 | --- | --- | --- |
 | 0 | `engine_vertex`: MVP, model, inverse-transpose model, render_time, draw_info, camera, reserved_vertex | 256 |
-| 1 Surface | `fs_params`: tint, material, emissive, glow, maps | 80 |
+| 1 Surface | `fs_params`: tint, material, emissive, glow, maps, environment_params | 96 |
 | 1 Post | `engine_post`: viewport, frame, reserved_post[6] | 128 |
 | 2 | `fs_lights`: seven vectors, four cascade matrices, four Directional positions, four Directional colours, cluster_grid | 512 |
 | 3 | `engine_skin`: joints[64] | 4096 |
@@ -139,3 +139,10 @@ CI uploads `build/shader-assets-native/native-evidence.json` with per-package ha
 Production Metal execution passed locally on 2026-11-05.
 Production GL and D3D execution remains pending CI.
 The previous eight-program reference proof passed all three backends in CI run 41955851562.
+
+Environment metadata uses `environment_params = (enabled, specular_max_lod, 0, 0)`.
+Fragment slots 6 and 7 bind linear RGBA16F diffuse and GGX specular cubemaps.
+The diffuse cubemap stores cosine-integrated radiance divided by pi.
+The specular mip roughness is `mip / specular_max_lod`.
+Bind black cubemaps and zero metadata when the Sky is absent or unloaded.
+The `rocco_environment(direction, lod)` hook helper samples the specular cubemap at an explicit mip.

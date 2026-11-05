@@ -208,7 +208,7 @@ def validate_program(p, backend, declaration, contract):
             slot = t["slot"]
             integer(slot, 0, 11)
             text(t["name"])
-            if slot in textures or slot == 7 or t["multisampled"] is not False or t["stage"] not in ("vertex", "fragment"):
+            if slot in textures or t["multisampled"] is not False or t["stage"] not in ("vertex", "fragment"):
                 raise BuildError("invalid texture binding")
             if slot >= 8:
                 d = declared.get(slot)
@@ -218,7 +218,7 @@ def validate_program(p, backend, declaration, contract):
                 raise BuildError("engine textures belong to fragment stage")
             else:
                 if declaration["kind"] == "surface":
-                    semantics = {0: ("base_tex", "2d", "float"), 1: ("metallic_roughness_tex", "2d", "float"), 2: ("shadow_tex", "array", "depth"), 3: ("emissive_tex", "2d", "float"), 4: ("normal_tex", "2d", "float"), 5: ("occlusion_tex", "2d", "float"), 6: ("environment_tex", "cube", "float")}
+                    semantics = {0: ("base_tex", "2d", "float"), 1: ("metallic_roughness_tex", "2d", "float"), 2: ("shadow_tex", "array", "depth"), 3: ("emissive_tex", "2d", "float"), 4: ("normal_tex", "2d", "float"), 5: ("occlusion_tex", "2d", "float"), 6: ("env_diffuse_tex", "cube", "float"), 7: ("env_specular_tex", "cube", "float")}
                     expected = semantics.get(slot)
                 else:
                     names = ("scene_colour", "scene_depth", "selection_coverage", "selection_depth")

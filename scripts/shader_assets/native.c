@@ -28,7 +28,7 @@ static sg_shader_desc descriptors[PROOF_PROGRAM_COUNT];
 typedef struct { float model[16], normal[9], tint[4]; } instance;
 
 static sg_buffer vertices, instances;
-static sg_view shadow_texture, normal_texture, white_view, colour_view, hdr_view, depth_view, selected_views[2], post_views[4], storage_views[3];
+static sg_view shadow_texture, normal_texture, environment_texture, white_view, colour_view, hdr_view, depth_view, selected_views[2], post_views[4], storage_views[3];
 static sg_sampler sampler, comparison_sampler;
 static sg_image outline_output, selection_output;
 static int frames, errors;
@@ -133,7 +133,7 @@ static void init(void) {
     printf("fragment_uniform_components=%d vertex_textures=%d combined_textures=%d storage_bindings=%d fragment_storage=%d\n",
            fragment_uniforms, vertex_textures, combined_textures, storage_bindings, fragment_storage);
     require(limits.gl_max_vertex_uniform_components >= 1152, "64-joint variant requires 1152 vertex uniform components");
-    require(fragment_uniforms >= 212 && vertex_textures >= 4 && combined_textures >= 12,
+    require(fragment_uniforms >= 216 && vertex_textures >= 4 && combined_textures >= 12,
             "GL per-stage resources");
     require(storage_bindings >= 3 && fragment_storage >= 3, "compact clustered storage bindings");
 #endif
@@ -166,6 +166,9 @@ static void init(void) {
     sg_image image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,
                                                   .data.mip_levels[0]=SG_RANGE(white)});
     white_view = sg_make_view(&(sg_view_desc){.texture.image=image});
+    const uint16_t environment_pixels[24] = {0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00};
+    sg_image environment_image = sg_make_image(&(sg_image_desc){.type=SG_IMAGETYPE_CUBE,.num_slices=6,.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA16F,.data.mip_levels[0]=SG_RANGE(environment_pixels)});
+    environment_texture = sg_make_view(&(sg_view_desc){.texture.image=environment_image});
     const uint32_t flat_normal = 0xffff8080;
     sg_image normal_image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,.data.mip_levels[0]=SG_RANGE(flat_normal)});
     normal_texture = sg_make_view(&(sg_view_desc){.texture.image=normal_image});
@@ -274,7 +277,7 @@ static void frame(void) {
         if (!post) { bindings.vertex_buffers[0]=vertices; }
         if (strstr(proof_names[i], "instanced")) { bindings.vertex_buffers[1]=instances; }
         for (int n=0; n<SG_MAX_VIEW_BINDSLOTS; n++) {
-            if (descriptors[i].views[n].texture.stage) { bindings.views[n]=post ? post_views[n] : n==2 ? shadow_texture : n==4 ? normal_texture : white_view; }
+            if (descriptors[i].views[n].texture.stage) { bindings.views[n]=post ? post_views[n] : n==2 ? shadow_texture : n==4 ? normal_texture : (n==6 || n==7) ? environment_texture : white_view; }
             if (descriptors[i].views[n].storage_buffer.stage) { bindings.views[n]=storage_views[n-12]; }
         }
         for (int n=0; n<SG_MAX_SAMPLER_BINDSLOTS; n++) {
@@ -291,7 +294,7 @@ static void frame(void) {
             if (n==1 && !post) {
                 memset(values, 0, sizeof(values));
                 for (int v=0; v<4; v++) { values[v]=1; }
-                values[4]=0.5f; values[7]=0.5f; values[16]=values[17]=values[18]=1;
+                values[4]=0.5f; values[7]=0.5f; values[16]=values[17]=values[18]=values[20]=1;
             }
             if (n==2) {
                 memset(values, 0, sizeof(values));

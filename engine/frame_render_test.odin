@@ -75,6 +75,9 @@ Recorder :: struct {
 	clusters:      Cluster_Frame,
 	lights_calls:  int,
 	sky:           ^Sky,
+	environment:   ^Sky,
+	environment_calls: int,
+	environment_before: int,
 	sky_view_proj: Mat4,
 	sky_calls:     int,
 	sky_after:     int,
@@ -240,6 +243,13 @@ record_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r.lights_calls += 1
 }
 
+record_environment :: proc(ctx: rawptr, sky: ^Sky) {
+	r := (^Recorder)(ctx)
+	r.environment = sky
+	r.environment_calls += 1
+	r.environment_before = len(r.submits)
+}
+
 record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r := (^Recorder)(ctx)
 	r.sky = sky
@@ -332,6 +342,7 @@ recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
 		submit = record_submit,
 		submit_lights = record_lights,
 		submit_sky = record_sky,
+			submit_environment = record_environment,
 		submit_bloom = record_bloom,
 		submit_tone_map = record_tone_map,
 		submit_ui = record_ui,
@@ -660,7 +671,7 @@ test_frame_render_sends_points_once_and_keeps_material_blocks_small :: proc(t: ^
 	testing.expect_value(t, f.rec.lights_calls, 1)
 	testing.expect_value(t, len(f.rec.clusters.points), 1)
 	testing.expect_value(t, f.rec.clusters.points[0], Packed_Light{{1, 2, 3, 1}, {1, 0.5, 0, 6}})
-	testing.expect_value(t, size_of(Fs_Params), 80)
+	testing.expect_value(t, size_of(Fs_Params), 96)
 	testing.expect_value(t, size_of(Fs_Lights), 512)
 }
 
@@ -2159,4 +2170,23 @@ test_shadow_omits_parts_past_draw_capacity :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(f.rec.shadows), 1)
 	testing.expect_value(t, f.rec.shadows[0].count, 3)
 	testing.expect_value(t, f.rec.shadows[0].pipeline, Mesh_Pipeline.Opaque)
+}
+
+@(test)
+test_frame_environment_uses_the_background_sky_before_surface_submits :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	scene := scene_of(draws)
+	scene.environment.sky = sky
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.environment, f.rec.sky)
+	testing.expect_value(t, f.rec.environment_calls, 1)
+	testing.expect_value(t, f.rec.environment_before, 0)
+	sky_table_remove(&f.skies, sky_slot(sky))
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.environment, (^Sky)(nil))
+	testing.expect_value(t, len(f.skies.logged), 1)
 }

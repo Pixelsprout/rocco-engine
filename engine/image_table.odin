@@ -3,6 +3,7 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -200,14 +201,18 @@ image_load_file :: proc(t: ^Image_Table, dir, name: string) -> (id: u32, reason:
 	if image_table_full(t) {
 		return 0, image_table_full_reason(t), false
 	}
+	caller_temp := context.temp_allocator
+	scratch: vmem.Arena
+	defer vmem.arena_destroy(&scratch)
+	context.temp_allocator = vmem.arena_allocator(&scratch)
 	path := fmt.tprintf("%v/%v.png", dir, strings.trim_prefix(name, IMAGE_PREFIX))
 	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {
-		return 0, fmt.tprintf("%v: %v", path, os.error_string(read_err)), false
+		return 0, strings.clone(fmt.tprintf("%v: %v", path, os.error_string(read_err)), caller_temp), false
 	}
 	width, height, rgba, decoded := png_decode(bytes)
 	if !decoded {
-		return 0, fmt.tprintf("%v is not a PNG it can read", path), false
+		return 0, strings.clone(fmt.tprintf("%v is not a PNG it can read", path), caller_temp), false
 	}
 	image_bleed(width, height, rgba)
 	slot, _ := image_table_add(t, strings.clone(name, t.allocator), width, height, slice.clone(rgba, t.allocator))

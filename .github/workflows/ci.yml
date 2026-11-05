@@ -76,6 +76,7 @@ jobs:
         run: |
           python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
           python3 scripts/cluster_check.py build/bridge-check/clustered.png
+          python3 scripts/environment_check.py build/bridge-check/environment/reference.png
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -234,6 +235,7 @@ jobs:
         run: |
           python scripts/bridge_check.py build/bridge-check/bridge-check.png
           python scripts/cluster_check.py build/bridge-check/clustered.png
+          python scripts/environment_check.py build/bridge-check/environment/reference.png
 
       - name: Keep the Bridge check screenshots
         if: always()

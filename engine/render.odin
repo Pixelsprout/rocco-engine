@@ -73,6 +73,8 @@ Renderer :: struct {
 	images:             Image_Table,
 	white:              Mesh_Texture,
 	flat_normal:        Mesh_Texture,
+	black_cube:         Mesh_Texture,
+	environment_sky:    ^Sky,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
 	target:             Render_Target,
@@ -94,10 +96,11 @@ Shadow_Map :: struct {
 // Each loaded mesh can own MESH_TEXTURE_LIMIT textures, each with its own
 // image, view and sampler. The white image, the flat normal image, each sky,
 // each Image, the shadow map, the font atlas and the UI's checker need one
-// more. The Images add their Linear and Nearest samplers.
+// more. Each Sky adds two lighting cubes. Missing skies share one black cube.
+// The Images add their Linear and Nearest samplers.
 // The render target adds its images.
 texture_pool_size :: proc(capacity: Capacity) -> i32 {
-	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 2 + capacity.skies + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
+	return i32(MESH_TEXTURE_LIMIT * capacity.meshes + 2 + 3 * capacity.skies + 1 + capacity.images + 2 + 1 + 1 + 1 + TARGET_IMAGES)
 }
 
 // The shadow map adds one depth view per cascade to its texture view, and
@@ -145,6 +148,9 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	}
 	r.white = texture_upload({levels = {{width = 1, height = 1, pixels = WHITE_TEXEL[:]}}, sampler = texel_sampler})
 	r.flat_normal = texture_upload({levels = {{width = 1, height = 1, pixels = FLAT_NORMAL_TEXEL[:]}}, sampler = texel_sampler})
+
+	black := sky_lighting_texture(1, false, context.allocator)
+	r.black_cube = sky_lighting_upload(black, context.allocator)
 
 	r.shadow = shadow_map_make(launch.shadow_map, int(launch.shadow_cascades))
 
@@ -443,6 +449,8 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin)
 	tex := mesh_part_textures(part, r.white, r.flat_normal)
+	diffuse, specular := r.black_cube, r.black_cube
+	if r.environment_sky != nil { diffuse, specular = r.environment_sky.diffuse, r.environment_sky.specular }
 	bindings := sg.Bindings {
 		vertex_buffers = {0 = mesh.vertices},
 		index_buffer = mesh.indices,
@@ -456,6 +464,8 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 			VIEW_emissive_tex = tex.emissive.view,
 			VIEW_normal_tex = tex.normal.view,
 			VIEW_occlusion_tex = tex.occlusion.view,
+			VIEW_env_diffuse_tex = diffuse.view,
+			VIEW_env_specular_tex = specular.view,
 		},
 		samplers = {
 			SMP_base_smp = tex.base.sampler,
@@ -464,6 +474,8 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 			SMP_emissive_smp = tex.emissive.sampler,
 			SMP_normal_smp = tex.normal.sampler,
 			SMP_occlusion_smp = tex.occlusion.sampler,
+			SMP_env_diffuse_smp = diffuse.sampler,
+			SMP_env_specular_smp = specular.sampler,
 		},
 	}
 	if !r.has_bindings || bindings != r.applied_bindings {
@@ -474,6 +486,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 
 	vs := vs_params
 	fs := fs_params
+	fs.environment_params = sky_lighting_params(r.environment_sky)
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
 	if !r.has_material || fs != r.applied_material {
 		sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
@@ -484,8 +497,12 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	sg.draw(part.first, part.count, 1)
 }
 
-// Applies the sky pipeline, so it must follow every renderer_draw that writes
-// depth.
+renderer_environment :: proc(ctx: rawptr, sky: ^Sky) {
+	r := (^Renderer)(ctx)
+	r.environment_sky = sky
+}
+
+// The sky must follow every Draw that writes depth.
 renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
 	r := (^Renderer)(ctx)
 	cube := &r.meshes.meshes[Primitive.Cube]
@@ -521,6 +538,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
 		submit_sky = renderer_sky,
+		submit_environment = renderer_environment,
 		submit_bloom = renderer_bloom,
 		submit_tone_map = renderer_tone_map,
 		submit_ui = renderer_ui,

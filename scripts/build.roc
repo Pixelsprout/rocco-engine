@@ -93,7 +93,7 @@ all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, FontTable, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
 example_games : List(Str)
-example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
+example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "environment-lighting", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
