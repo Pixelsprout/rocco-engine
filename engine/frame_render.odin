@@ -292,7 +292,10 @@ frame_render_draw :: proc(
 	submit := true,
 ) {
 	span := span_open()
-	if submit && fr.packs != nil { shader_table_frame(&fr.packs.shaders) }
+	if submit && fr.packs != nil {
+		shader_table_frame(&fr.packs.shaders)
+		packs_shader_reload_poll(fr.packs)
+	}
 	pairing_build(&fr.pairing, prev.nodes.elements[:prev.nodes.length])
 	clear(&fr.placed)
 	frame_walk := Frame_Walk {

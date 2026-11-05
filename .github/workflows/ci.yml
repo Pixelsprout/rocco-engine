@@ -83,6 +83,7 @@ jobs:
           python3 scripts/surface_check.py build/bridge-check/surface
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
           python3 scripts/post_check.py build/bridge-check/post
+          python3 scripts/shader_reload_check.py build/bridge-check/reload
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -248,6 +249,7 @@ jobs:
           python scripts/surface_check.py build/bridge-check/surface
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game post
           python scripts/post_check.py build/bridge-check/post
+          python scripts/shader_reload_check.py build/bridge-check/reload
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -282,7 +284,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |

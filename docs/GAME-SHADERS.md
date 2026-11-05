@@ -36,6 +36,62 @@ Each shader produces a package, a JSON manifest, raw compiler sources, reflectio
 Repeated builds preserve equivalent package bytes and unchanged output timestamps.
 Raw reflection uses stable temporary filenames rather than game paths.
 
+## Live shader development
+
+Build the game once to regenerate packages and typed helpers.
+Start the game.
+Run this command from the game folder:
+
+```sh
+python3 /path/to/platform/shader-tools/build.py --watch --install
+```
+
+The command compiles outside the game.
+It polls `shaders.json` and declared vertex, Surface, lighting, and Post hook files every 250 milliseconds.
+It compares file contents, including missing files, rather than timestamps.
+It follows changed hook paths even when another declaration field is invalid.
+If JSON parsing fails, it retains the previous hook paths until the declaration recovers.
+It does not watch Mesh sources, platform templates, GLSL includes, or macros.
+Run a normal build after changing Mesh sources or platform templates.
+
+The compiler checks the source snapshot again before publication.
+If an input changes during compilation, the watcher retries without publishing that result.
+The compiler writes `build.json` after all other outputs.
+The game verifies every listed package hash before it accepts that completion record.
+Each Shader swaps all its variants together.
+Different Shader assets can accept or reject the same completed build independently.
+
+The game polls at most four times per second while a loaded Pack requests Shaders.
+Games without Shader requests do no reload file I/O.
+An unchanged completion record costs one bounded file read and SHA-256 calculation.
+Package reads and GPU creation occur only after the completion record changes or requested Pack membership changes.
+Staging exhaustion retains the current generation and retries on later polls.
+
+Compatible packages keep the same Shader ID and Pack references.
+The candidate must create every active Surface pipeline and Post location before the frame boundary swap.
+Existing pipelines remain lazy until a frame uses them.
+Failed compilation, package validation, program creation, or pipeline creation keeps the previous valid generation.
+Diagnostics appear in the development log.
+Missing or invalid first packages recover through retained Pack requests after a complete build appears.
+
+The first accepted package defines the running game's interface baseline.
+Interface changes, declaration removal, and declaration renaming require rebuilding the game and restarting it.
+The game logs that requirement and retains the current generation.
+Standalone packages outside the completion record do not count as removed declarations.
+Explicit dependency Pack unload still invalidates affected materials at the next frame boundary.
+
+Run the native reload checks after building `examples/post`:
+
+```sh
+python3 -m unittest scripts/test_shader_reload.py
+python3 scripts/shader_reload_check.py build/bridge-check/reload
+```
+
+The native check tests compiler failures, source correction, interface rejection, declaration correction, changed hook paths, and first-load recovery.
+It also forces native program failure and pipeline pool exhaustion for Surface and Post candidates.
+It checks GPU resource counts and CPU allocations after repeated swaps and retirement.
+Desktop CI runs these checks on Metal, GL, and D3D11.
+
 A shader's `name` is its Roc module name.
 Its asset key is `shader/NAME`.
 Its file is `assets/shaders/NAME.shaderpack`.
