@@ -152,7 +152,8 @@ Build `examples/surface` and run `python3 scripts/surface_check.py`.
 The script checks deterministic wind, named changes, cutout shadows, casting, Pack invalidation, invalid versions, and default PBR parity.
 The desktop CI jobs run the same native check on Metal, GL, and D3D11.
 A configured CI job is not native execution evidence until that job passes.
-The merged Metal fixture passed with both 819-test engine suites on 2026-11-05.
+The merged Metal fixture passed with both 820-test engine suites on 2026-11-05.
+The engine checks used CI-pinned Odin `902106f`.
 The two-run particle fixture also passed, including sprite orientation.
 The shader compiler suite passed all 35 tests.
 The ABI and built-in shaders regenerated without byte changes.
@@ -172,5 +173,8 @@ It must retain requested Pack membership to recover failed first loads.
 The current Pack cache retains successful held IDs and logs failed asset names.
 It must switch complete compatible generations at a frame boundary.
 Instancing can reuse `Shader_Layout.Instanced` and `Surface_Instance`.
+The instance stream uses 116 bytes with scalar model and normal columns.
+Model, normal and tint begin at byte offsets 0, 64 and 100.
+Odin matrix alignment must not add padding to this vertex stream.
 Its batch key must include all material values, game values, textures, and Draw data.
 Only model, normal transform, and tint may vary inside one batch.

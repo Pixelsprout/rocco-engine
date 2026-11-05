@@ -15,6 +15,8 @@ SHADER_TEXTURE_LIMIT :: 4
 
 #assert(size_of(Surface_Vertex_Params) == 256)
 #assert(size_of(Surface_Instance) == 116)
+#assert(align_of(Surface_Instance) == 4)
+#assert(offset_of(Surface_Instance, model) == 0 && offset_of(Surface_Instance, normal) == 64 && offset_of(Surface_Instance, tint) == 100)
 #assert(size_of(Fs_Params) == 96 && size_of(Fs_Lights) == 512)
 
 Shader_Asset :: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader
@@ -59,7 +61,8 @@ Surface_Vertex_Params :: struct {
 	mvp, model, normal_model: Mat4,
 	render_time, draw_info, camera, reserved_vertex: [4]f32,
 }
-Surface_Instance :: struct { model: Mat4, normal: [3][3]f32, tint: [4]f32 }
+// Vertex streams use scalar columns because matrix alignment can add trailing padding.
+Surface_Instance :: struct { model: [4][4]f32, normal: [3][3]f32, tint: [4]f32 }
 
 shader_table_init :: proc(t: ^Shader_Table, allocator: mem.Allocator) { t.allocator = allocator }
 shader_table_full :: proc(t: ^Shader_Table) -> bool { for s, i in t.assets { if i > 0 && !s.live && !s.retiring && s.generation != max(u16) { return false } }; return true }
@@ -233,7 +236,12 @@ shader_pipeline :: proc(t: ^Shader_Table, s: ^Shader, key: Shader_Pipeline_Key) 
 	offsets := [5]uintptr{offset_of(Vertex, pos), offset_of(Vertex, color), offset_of(Vertex, normal), offset_of(Vertex, uv), offset_of(Vertex, tangent)}
 	for format, i in formats { d.layout.attrs[i] = {format = format, offset = i32(offsets[i])} }
 	if key.layout == .Skinned { d.layout.attrs[5] = {format = .UBYTE4, offset = i32(offset_of(Skinned_Vertex, joints))}; d.layout.attrs[6] = {format = .UBYTE4N, offset = i32(offset_of(Skinned_Vertex, weights))} }
-	if key.layout == .Instanced { d.layout.buffers[1] = {stride = size_of(Surface_Instance), step_func = .PER_INSTANCE}; for i in 0 ..< 4 { d.layout.attrs[5+i] = {format = .FLOAT4, buffer_index = 1, offset = i32(i*16)} }; for i in 0 ..< 3 { d.layout.attrs[9+i] = {format = .FLOAT3, buffer_index = 1, offset = i32(64+i*12)} }; d.layout.attrs[12] = {format = .FLOAT4, buffer_index = 1, offset = 100} }
+	if key.layout == .Instanced {
+		d.layout.buffers[1] = {stride = size_of(Surface_Instance), step_func = .PER_INSTANCE}
+		for i in 0 ..< 4 { d.layout.attrs[5+i] = {format = .FLOAT4, buffer_index = 1, offset = i32(offset_of(Surface_Instance, model))+i32(i*16)} }
+		for i in 0 ..< 3 { d.layout.attrs[9+i] = {format = .FLOAT3, buffer_index = 1, offset = i32(offset_of(Surface_Instance, normal))+i32(i*12)} }
+		d.layout.attrs[12] = {format = .FLOAT4, buffer_index = 1, offset = i32(offset_of(Surface_Instance, tint))}
+	}
 	// Sokol rejects attributes absent from the compiled vertex stage.
 	active: [16]bool; for a in shader_array(program.reflection["attrs"]) { active[shader_int(shader_object(a)["slot"])] = true }
 	for &a, i in d.layout.attrs { if !active[i] { a = {} } }

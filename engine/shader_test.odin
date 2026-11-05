@@ -8,6 +8,28 @@ import "core:os"
 import "core:strings"
 import "core:testing"
 
+@(test)
+test_surface_instance_keeps_two_records_in_the_116_byte_vertex_contract :: proc(t: ^testing.T) {
+	instances: [2]Surface_Instance
+	for &instance, i in instances {
+		for column in 0 ..< 4 {
+			for row in 0 ..< 4 { instance.model[column][row] = f32(i*100 + column*4 + row) }
+		}
+		for column in 0 ..< 3 {
+			for row in 0 ..< 3 { instance.normal[column][row] = f32(i*100 + 16 + column*3 + row) }
+		}
+		for &component, j in instance.tint { component = f32(i*100 + 25 + j) }
+	}
+	testing.expect_value(t, size_of(instances), 232)
+	testing.expect_value(t, offset_of(Surface_Instance, model), 0)
+	testing.expect_value(t, offset_of(Surface_Instance, normal), 64)
+	testing.expect_value(t, offset_of(Surface_Instance, tint), 100)
+	stream := transmute([2][29]f32)instances
+	for record, i in stream {
+		for component, j in record { testing.expect_value(t, component, f32(i*100 + j)) }
+	}
+}
+
 shader_test_manifest :: proc() -> string {
 	programs := strings.builder_make(context.temp_allocator)
 	for name, i in SHADER_PROGRAM_NAMES[:3] {

@@ -10,7 +10,7 @@
     "755c461bfd5df245b94187e351b36ea761493a8790119de44878ea21412e4ea2"
   ],
   "default_pbr_mean_difference": 0.0,
-  "binary_sha256": "8471f82ba836539d2057b650093179447453e8deec5516151c0f9a9c787436c6",
+  "binary_sha256": "406c11b26c5c5738eff9b2a245a3ede2e89121e507ce35420e1332d345faaec5",
   "packages": {
     "DefaultSurface.shaderpack": "9edf345a7c78953fa98e6e9d6e88777b4d271a453ae96804f2fdc10b2e26335b",
     "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
@@ -18,8 +18,8 @@
   "backend": "metal_macos",
   "date": "2026-11-05",
   "engine_tests": {
-    "debug": 819,
-    "spans": 819
+    "debug": 820,
+    "spans": 820
   },
   "compiler_tests": 35,
   "checks": [
@@ -33,12 +33,29 @@
     "particle replay and sprite orientation",
     "combined ABI and shader regeneration"
   ],
-  "artifacts": "/tmp/rocco-surface-particles-merged",
+  "artifacts": "/tmp/rocco-surface-instance-fixed",
   "resource_budget": {
     "buffers": "3*meshes+6",
     "shaders": 321,
     "pipelines": 2082,
     "uniform_bytes": "(10+4*cascades)*draws*256+277*256+(2+cascades)*min(draws,256)*4096",
     "draw_limit": 321682
-  }
+  },
+  "instance_layout": {
+    "compiler": "dev-2026-08-nightly:902106f",
+    "original_matrix_bytes": 128,
+    "bytes": 116,
+    "alignment": 4,
+    "model_offset": 0,
+    "normal_offset": 64,
+    "tint_offset": 100,
+    "target_layout_checks": [
+      "darwin_arm64",
+      "linux_amd64",
+      "windows_amd64"
+    ],
+    "native_backend": "metal_macos",
+    "two_record_regression": "passed"
+  },
+  "production_variants": 11
 }
