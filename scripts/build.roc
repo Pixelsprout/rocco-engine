@@ -570,6 +570,10 @@ link_game! = |target, dir, name| {
 	if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {
 		return Err(Failed("${dir}/main.roc does not exist."))
 	}
+	if Path.utf8("${dir}/shaders.json").is_file!() ?? Bool.False {
+		root = (Env.cwd!() ? |_| Failed("The working directory is unavailable.")).display()
+		exec!({ program: target.python, args: ["${root}/platform/shader-tools/build.py"], cwd: dir })?
+	}
 	exec_allowing!(game_run(target, dir, name), [2])
 }
 
