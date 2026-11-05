@@ -193,9 +193,16 @@ The engine reserves its shadow, colour, depth, and Selection ranges from that ca
 The renderer performs separate camera and shadow culling.
 No scene content was removed to meet the capacity.
 
-`Vegetation.prepare(manifest)` creates cached source and field Draw descriptions after readiness.
+`Vegetation.prepare(manifest)` caches source Draws and field Nodes after readiness.
+It prepares both grass material modes and rebuilds them through each ready `loaded` callback.
 `Vegetation.draw(placement, settings)` applies source switches and source casting.
 `Vegetation.field_nodes(prepared, { settings, eye })` applies field density and visibility.
+`Vegetation.visibility_changed` compares exact membership between two camera positions.
+`main.roc` reuses the complete Node list while visibility and Node settings remain equal.
+Each fixed step checks the original visibility predicate at the previous and current camera positions.
+The cache key includes vegetation settings, lighting settings, and the selected Group.
+Ready `loaded` callbacks rebuild both prepared values and the Node list.
+View still computes camera, shader values, queries, environment, effects, emitters, cursor, and UI.
 `Vegetation.scene_values(settings, eye)` supplies shared wind and visibility values.
 The foliage declarations use helper names `VillageCanopy` and `VillageGrass`.
 The helper modules are generated from the combined `shaders.json`.

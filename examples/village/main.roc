@@ -24,7 +24,11 @@ import pf.Query
 import pf.QueryResults
 import pf.Scene
 
-Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow }
+NodeSettings : { lighting : Lighting.Settings, vegetation : Vegetation.Settings, selected : U64 }
+
+NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, nodes : List(Vocabulary.Node) })]
+
+Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow, node_cache : NodeCache }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |config| {
@@ -33,12 +37,12 @@ launch = |config| {
 }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, effects: Effects.default, seed: config.seed, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args) }, commands: [] }
+init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, effects: Effects.default, seed: config.seed, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args), node_cache: Empty }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, pack, manifest| {
 	combined = { ..model, manifest: List.join([model.manifest, manifest]), loaded_packs: List.join([model.loaded_packs, [pack]]) }
-	if ready(combined) { ..combined, prepared: Vegetation.prepare(combined.manifest) } else combined
+	if ready(combined) cache_nodes({ ..combined, prepared: Vegetation.prepare(combined.manifest), node_cache: Empty }) else { ..combined, node_cache: Empty }
 }
 
 route : List(Vec3)
@@ -87,7 +91,7 @@ step = |model, input, results, dt| {
 			Err(_) => 0
 		} else moved.selected
 		commands = if Key.pressed(input, Escape) [Quit] else []
-		{ model: { ..moved, selected }, commands }
+		{ model: cache_nodes({ ..moved, selected }), commands }
 	}
 }
 
@@ -151,15 +155,37 @@ building = |model, id| {
 	Group({ id, pos: V.zero, rot: Quat.identity, selected: model.selected == id }, children)
 }
 
-view : Model -> Vocabulary.Scene
-view = |model| if !ready(model) loading_view(model) else {
-	cam_view = camera(model)
+scene_nodes : Model, Vec3 -> List(Vocabulary.Node)
+scene_nodes = |model, eye| {
 	ground = Lighting.ground(model.lighting)
 	placed = model.prepared.source.keep_if(|placement| placement.group == 0).map(|placement| Draw(Lighting.windows(Vegetation.draw(placement, model.vegetation), { asset: placement.asset, settings: model.lighting })))
 	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
-	field = Vegetation.field_nodes(model.prepared, { settings: model.vegetation, eye: cam_view.eye })
+	field = Vegetation.field_nodes(model.prepared, { settings: model.vegetation, eye })
 	lights = Lighting.nodes(model.lighting)
-	nodes = List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
+	List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
+}
+
+node_settings : Model -> NodeSettings
+node_settings = |model| { lighting: model.lighting, vegetation: model.vegetation, selected: model.selected }
+
+cache_nodes : Model -> Model
+cache_nodes = |model| {
+	eye = camera(model).eye
+	settings = node_settings(model)
+	nodes = match model.node_cache {
+		Cached(cached) => if cached.settings == settings and !Vegetation.visibility_changed(model.prepared, { settings: model.vegetation, from: cached.eye, to: eye }) cached.nodes else scene_nodes(model, eye)
+		Empty => scene_nodes(model, eye)
+	}
+	{ ..model, node_cache: Cached({ settings, eye, nodes }) }
+}
+
+view : Model -> Vocabulary.Scene
+view = |model| if !ready(model) loading_view(model) else {
+	cam_view = camera(model)
+	nodes = match model.node_cache {
+		Cached(cached) => if cached.settings == node_settings(model) and cached.eye == cam_view.eye cached.nodes else scene_nodes(model, cam_view.eye)
+		Empty => scene_nodes(model, cam_view.eye)
+	}
 	environment = Lighting.environment(model.manifest, model.lighting)
 	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
@@ -229,3 +255,73 @@ effects_ui = |settings| if settings.controls {
 expect Effects.post(Effects.default, 0).len() == 1
 expect Effects.post(Effects.default, 20).len() == 2
 expect Effects.post(Effects.compare(Effects.default, "none"), 20).is_empty()
+
+reference_view : Model -> Vocabulary.Scene
+reference_view = |model| if !ready(model) loading_view(model) else {
+	cam_view = camera(model)
+	ground = Lighting.ground(model.lighting)
+	placed = model.prepared.source.keep_if(|placement| placement.group == 0).map(|placement| Draw(Lighting.windows(Vegetation.draw(placement, model.vegetation), { asset: placement.asset, settings: model.lighting })))
+	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
+	field = Vegetation.field_nodes(model.prepared, { settings: model.vegetation, eye: cam_view.eye })
+	lights = Lighting.nodes(model.lighting)
+	nodes = List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
+	environment = Lighting.environment(model.manifest, model.lighting)
+	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+}
+
+ready_test_model : Model
+ready_test_model = {
+	start = init(Config.empty).model
+	manifest = expected_assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	{ ..start, loaded_packs: requests.map(|request| request.pack), manifest, prepared: Vegetation.prepare(manifest), selected: 20 }
+}
+
+expect {
+	cached = cache_nodes(ready_test_model)
+	cameras = ["hero", "square", "walk", "tour", "free", "foliage", "canopy"].map(|name| set_view(cached, name))
+	vegetation = ["wind", "canopy", "grass", "field", "casting", "density=0", "density=1", "density=12345", "density=22000", "distance=1", "distance=65", "distance=200"].map(|message| { ..cached, vegetation: Vegetation.configure(cached.vegetation, message) })
+	lighting = ["all", "none", "sun", "sky", "exposure", "bloom", "haze", "lamps", "ground"].map(|message| { ..cached, lighting: Lighting.compare(cached.lighting, message) })
+	effects = ["all", "none", "outline", "occlusion", "colour", "smoke", "dust", "pulse", "glow", "controls"].map(|message| { ..cached, effects: Effects.compare(cached.effects, message) })
+	other = [{ ..cached, time: 14.0 }, { ..cached, selected: 0 }, { ..cached, selected: 10 }, { ..cached, selected: 30 }, { ..cached, selected: 40 }, { ..cached, captured: Bool.True }, { ..set_view(cached, "free"), eye: { x: -95.0, y: 80.0, z: 95.0 } }, { ..set_view(cached, "free"), eye: { x: 95.0, y: 0.2, z: -95.0 } }]
+	List.join([cameras, vegetation, lighting, effects, other]).all(|model| view(model) == reference_view(model) and view(cache_nodes(model)) == reference_view(model))
+}
+
+expect {
+	cached = cache_nodes(ready_test_model)
+	controls = [Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, Num0, C, M, N, P, G, H, T, F, R, Tab, Enter]
+	checked = controls.fold(
+		{ model: cached, matches: Bool.True },
+		|state, key| {
+			next = step(state.model, { ..Input.empty, pressed: [Key.code(key)] }, QueryResults.empty, 1.0 / 120.0).model
+			{ model: next, matches: state.matches and view(next) == reference_view(next) }
+		},
+	)
+	checked.matches
+}
+
+expect {
+	cached = cache_nodes(ready_test_model)
+	changed_manifest = { ..cached, manifest: cached.manifest.map(|asset| { ..asset, id: 9 }) }
+	reloaded = loaded(changed_manifest, "repeat", [])
+	failed = loaded(cached, "failed", [{ name: "failed", id: 0, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }])
+	view(reloaded) == reference_view(reloaded) and reloaded.prepared.source.all(|placement| placement.draw.mesh == 9) and !ready(failed) and failed.node_cache == Empty and view(failed) == reference_view(failed)
+}
+
+expect {
+	field = [
+		{ ..Draw.default, id: 100003, pos: { x: -74.0, y: 0.0, z: 17.0 } },
+		{ ..Draw.default, id: 100000, pos: { x: 74.0, y: 0.0, z: -5.0 } },
+		{ ..Draw.default, id: 100002, pos: { x: -74.0, y: 0.0, z: -17.0 } },
+		{ ..Draw.default, id: 100001, pos: { x: 74.0, y: 0.0, z: 5.0 } },
+	]
+	prepared = { source: ready_test_model.prepared.source.take_first(4), field: field.map(|plant| Draw(plant)), field_plain: field.map(|plant| Draw(plant)), field_visibility: field.map(|plant| { id: plant.id, pos: plant.pos }) }
+	start = cache_nodes({ ..set_view(ready_test_model, "tour"), prepared })
+	checked = List.repeat({}, 3600).fold(
+		{ model: start, matches: Bool.True },
+		|state, _| {
+			next = step(state.model, Input.empty, QueryResults.empty, 1.0 / 120.0).model
+			{ model: next, matches: state.matches and view(next) == reference_view(next) }
+		},
+	)
+	checked.matches and checked.model.route_i == 6
+}
