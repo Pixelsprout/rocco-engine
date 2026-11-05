@@ -381,6 +381,8 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 		sg.begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
 	case .Scene_Depth:
 		sg.begin_pass({action = coverage_pass_action(), attachments = r.target.post.scene.coverage.attachments, label = "scene-depth"})
+	case .Selection:
+		sg.begin_pass({action = coverage_pass_action(), attachments = r.target.post.selection.coverage.attachments, label = "selection"})
 	case .Post:
 		render_target_begin_post(&r.target)
 	}
@@ -566,6 +568,7 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit_lights = renderer_lights,
 		submit_surface = renderer_surface,
 		submit_depth = renderer_depth,
+		submit_selection = renderer_selection,
 		prepare_post = renderer_prepare_post,
 		submit_post = renderer_post,
 		submit_instances = renderer_instances,
@@ -585,7 +588,11 @@ renderer_depth :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mes
  renderer_apply_skin(r, r.depth_pips[pipeline], r.skinned_depth_pips[pipeline], skin)
  tex := mesh_part_textures(part, r.white, r.flat_normal).base
  sg.apply_bindings({vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices, views = {VIEW_base_tex = tex.view}, samplers = {SMP_base_smp = tex.sampler}})
- params := Shadow_Vs_Params{light_mvp = vs_params.mvp, shadow_material = {-1 if part.material.alpha_mode == .Opaque else fs_params.material.w, fs_params.tint.a, 0, 0}}
+ params := Shadow_Vs_Params{light_mvp = vs_params.mvp, shadow_material = {fs_params.material.w if part.material.alpha_mode == .Mask else -1, fs_params.tint.a, 0, 0}}
  sg.apply_uniforms(UB_shadow_vs_params, {ptr = &params, size = size_of(params)})
  sg.draw(part.first, part.count, 1)
+}
+
+renderer_selection :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
+	renderer_depth(ctx, mesh, part, pipeline, vs_params, fs_params, skin)
 }

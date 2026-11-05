@@ -50,12 +50,31 @@ MSAA colour can therefore contain partial edge coverage where scene depth contai
 This difference applies to Off, X2, X4, and X8 without hardware depth resolve.
 
 Selection coverage and depth remain separate from scene depth.
-Declared Selection inputs currently contain an empty union.
-The later Selection task will draw the selected Group into these targets.
+Set `Group.selected` to `Bool.True` to include every descendant Draw.
+Nested Groups inherit selection from any selected ancestor.
+All selected Groups contribute to one union.
+The current Scene supplies selection membership without interpolation.
+Colour and Selection share admitted parts, interpolated transforms, skin palettes, Surface values, and render time.
+Selection uses conservative camera culling but ignores shadow casting and scene occlusion.
+The target clears coverage and selected depth to zero each produced frame.
+Its independent reversed depth test retains the nearest selected surface.
+Opaque geometry covers its full shape.
+Mask geometry preserves the shared cutoff and alpha rules.
+Blend geometry covers its full shape, including alpha-zero glass.
+The host draws each selected part once, with double-sided culling when declared.
+It never clears between Draws, so Post edge detection sees no internal multi-Draw boundary.
 `Coverage_Target` provides R8 coverage, R32F depth, and one single-sample depth attachment.
 `renderer_surface(.Selection)` writes this attachment layout.
 `frame_render_depth` intentionally omits Blend geometry.
-Selection submission must retain full-shape Blend coverage and Draws that do not cast shadows.
+Selection uses grouped individual submissions for built-in and Surface geometry.
+These submissions reuse the existing uniform reservation and add no shaders, pipelines, or instance bytes.
+The 116-byte instance layout and its reserved third non-shadow range remain unchanged.
+
+The game owns outline width, colour, pulse, glow, and occlusion policy.
+The example uses `Outline` before bloom with HDR colour values.
+Its visible-only policy compares every sampled selected depth with the corresponding scene depth.
+Its through-wall policy uses the same inputs without that comparison.
+Selection and scene depth use single-sample polygon edges independently of colour MSAA.
 
 The host resolves values and validates pipelines before allocating optional inputs.
 Empty, disabled-only, and invalid-only lists keep the original geometry, bloom, tone-map, and UI passes.
@@ -90,6 +109,7 @@ Run `python3 scripts/post_check.py` from the repository root.
 Set `ODIN` to the pinned compiler path when necessary.
 The check records supported sample counts from native device queries.
 The native target check tests resize, DPI, optional lifetime, depth sample count, and separate colour images.
-Bridge checks test real geometry depth, Blend omission, Mask holes, deterministic deformation, effect order, failures, and UI parity.
+Bridge checks test depth, occlusion, multi-Draw unions, nested Groups, Mask holes, alpha-zero glass, and both outline policies.
+They also test deterministic foliage and skin poses, live deselection, Pack unload, bloom, failures, and UI parity.
 CI runs these checks on Metal, GL, and D3D11.
 A configured backend check remains pending until its native job passes.

@@ -187,7 +187,7 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 **Node**:
 One part of the Scene's 3D tree: a Group, which holds its children, or a
 leaf, which is a Draw, a Light, a Collider or a Speaker. The game writes
-the tags itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`.
+the tags itself, such as `Group({ id, pos, rot, selected }, [...])` and `Draw(...)`.
 "First" among Nodes means first in a depth-first, pre-order walk: a Group,
 then its children, then the Group's next sibling. That is the order the
 game wrote them, read top to bottom.
@@ -198,6 +198,8 @@ A Node that carries a Group id and a Pose, and holds a list of child Nodes.
 Its children's Poses are local to it: they inherit its position and rot,
 never a scale. It draws nothing itself. The host interpolates it and pairs
 it by its Group id, up to `Launch.capacity.groups` Groups per Scene.
+A selected Group includes all descendant Draws in one coverage and nearest-depth union.
+Post shaders choose outline style and occlusion policy from these generic inputs.
 _Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
 
 **Pose**:

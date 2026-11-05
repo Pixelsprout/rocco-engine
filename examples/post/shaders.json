@@ -125,12 +125,50 @@
       "inputs": [
         "scene_colour",
         "selection_coverage",
-        "selection_depth"
+        "selection_depth",
+        "scene_depth"
       ],
       "locations": [
         "after_tone_map"
       ],
       "parameters": []
+    },
+    {
+      "name": "Outline",
+      "kind": "post",
+      "post": "outline.glsl",
+      "inputs": [
+        "scene_colour",
+        "scene_depth",
+        "selection_coverage",
+        "selection_depth"
+      ],
+      "locations": [
+        "before_bloom"
+      ],
+      "parameters": [
+        {
+          "name": "outline",
+          "type": "Colour",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            4,
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "visible_only",
+          "type": "Bool",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            true
+          ]
+        }
+      ]
     }
   ]
 }

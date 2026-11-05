@@ -177,3 +177,23 @@ test_instance_scratch_reuses_storage_across_four_shadow_cascades :: proc(t: ^tes
 	testing.expect(t, fr.instance_scratch_peak < 16 * mem.Megabyte)
 	fmt.eprintfln("instance scratch peak for 32768 rigid Draws and four cascades: %v bytes", fr.instance_scratch_peak)
 }
+
+@(test)
+test_selection_does_not_reuse_a_colour_batch_containing_unselected_draws :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.fr.submits.submit_instances = record_instance_calls
+	f.fr.submits.submit_selection = record_submit
+	f.fr.submits.prepare_post = post_selection_inputs
+	d := Draw{id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+	other := d
+	other.id, other.pos.x = 2, 3
+	nodes := []Node{node_group(1, {}, IDENTITY, draw_nodes({d}), selected = true), node_draw(other)}
+	scene := scene_nodes(nodes)
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.instance_calls, 1)
+	testing.expect_value(t, len(f.rec.submits), 1)
+	testing.expect_value(t, f.rec.submits[0].model, f.fr.placed[0].model)
+	testing.expect(t, f.fr.placed[0].selected && !f.fr.placed[1].selected)
+}

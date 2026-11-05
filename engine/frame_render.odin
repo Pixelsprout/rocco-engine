@@ -53,6 +53,7 @@ Pass :: enum {
 	Shadow,
 	Main,
 	Scene_Depth,
+	Selection,
 	Post,
 }
 
@@ -80,6 +81,7 @@ Frame_Render_Submits :: struct {
 	submit_lights:   Submit_Lights,
 	submit_surface: Submit_Surface,
 	submit_depth: Submit,
+	submit_selection: Submit,
 	prepare_post: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inputs,
 	submit_post: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Location, time: f32),
 	submit_instances: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, view_proj: Mat4, fs: Fs_Params, instances: []Surface_Instance),
@@ -163,6 +165,7 @@ Placed :: struct {
 	box: Box,
 	bounds_resolved: bool,
 	camera_visible: bool,
+	selected: bool,
 	parts:        []Mesh_Part,
 	fallback:     bool,
 	tint:         Rgb,
@@ -414,6 +417,7 @@ frame_render_draw :: proc(
 	if fr.submits.prepare_post != nil {
 		inputs := fr.submits.prepare_post(fr.submits.ctx, effects)
 		if .Scene_Depth in inputs { frame_render_depth(fr, draw_params, &span) }
+		if .Selection_Coverage in inputs || .Selection_Depth in inputs { frame_render_selection(fr, draw_params, &span) }
 	}
 	if fr.submits.submit_post != nil { fr.submits.submit_post(fr.submits.ctx, effects, .BeforeBloom, fr.render_time) }
 
@@ -584,7 +588,7 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 	case .Draw:
 		d := &node.payload.draw
 		if room, fits := frame_room(fw, d); fits {
-			frame_place(fw, d, room, draw_place(walk.pairing, d, parent, walk.alpha))
+			frame_place(fw, d, room, draw_place(walk.pairing, d, parent, walk.alpha), parent.selected)
 		}
 	case .Light:
 		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
@@ -634,7 +638,7 @@ frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room
 }
 
 @(private = "file")
-frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x: Draw_Transform) {
+frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x: Draw_Transform, selected := false) {
  box := room.mesh.box
  displacement := f32(0)
  for part in room.parts { if part.surface != nil { displacement = max(displacement, part.surface.shader.package_data.max_displacement) } }
@@ -644,6 +648,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 		Placed {
 			mesh = room.mesh,
 			draw_id = d.id,
+			selected = selected,
 			box = box,
 			bounds_resolved = true,
 			parts = room.parts,
@@ -1020,4 +1025,29 @@ frame_render_depth :: proc(fr: ^Frame_Render, draws: []Draw_Params, span: ^Span_
   }
  }
  fr.submits.end_pass(fr.submits.ctx)
+}
+
+// Selection keeps its own depth test so occluders cannot remove selected coverage.
+frame_render_selection :: proc(fr: ^Frame_Render, draws: []Draw_Params, span: ^Span_Tick) {
+	frame_render_begin_pass(fr, .Selection, 0, {}, span)
+	for skinned in ([2]bool{false, true}) {
+		for pipeline in SCENE_ORDER_PIPELINES {
+			for d in draws {
+				if !d.p.selected || !d.p.camera_visible || (d.p.skin != nil) != skinned { continue }
+				for &part in d.p.parts {
+					if selection_pipeline(part.material) != pipeline { continue }
+					fs := frame_render_part_params(d.fs_params, &part)
+					if part.surface != nil {
+						if fr.submits.submit_surface != nil { fr.submits.submit_surface(fr.submits.ctx, .Selection, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
+					} else if fr.submits.submit_selection != nil { fr.submits.submit_selection(fr.submits.ctx, d.p.mesh, &part, pipeline, d.vs_params, fs, d.p.skin) }
+				}
+			}
+		}
+	}
+	fr.submits.end_pass(fr.submits.ctx)
+}
+
+selection_pipeline :: proc(material: Material) -> Mesh_Pipeline {
+	if material.double_sided { return .Mask_Double_Sided }
+	return .Mask if material.alpha_mode == .Mask else .Opaque
 }

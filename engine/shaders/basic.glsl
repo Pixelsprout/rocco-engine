@@ -288,6 +288,7 @@ vec3 surface_normal() {
 // and the emissive stay whole, so glass keeps its highlight and its glow.
 vec4 surface_color(bool premultiplied) {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
+    base.a *= tint.a;
     float coverage = premultiplied ? base.a : 1.0;
     vec3 albedo = base.rgb * tint.rgb;
     // Sampled before the unlit branch, so D3D keeps uniform control flow.

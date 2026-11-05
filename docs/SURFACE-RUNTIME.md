@@ -82,7 +82,7 @@ The current shadow caster policy includes Opaque and Mask parts.
 Explicit alpha-policy, cutoff, or base-alpha changes select ordinary mip companions.
 Unchanged imported Mask rules retain their coverage mips.
 An arbitrary opacity hook has no statically known mip threshold.
-Both passes still evaluate its identical opacity function.
+Colour, shadow, and Selection evaluate the same opacity function.
 Declared maximum displacement expands local bounds before the Draw transform.
 The expanded bounds feed shadow fitting, camera culling, and Blend sorting.
 Rigid camera culling uses the transformed `placed_box`.
@@ -170,8 +170,7 @@ Use `placed_draw_params` and `frame_render_part_params` to preserve colour and c
 Use `Placed.draw_id` to match selected Draws.
 That pipeline writes R8 coverage and R32F depth with a separate depth attachment.
 It needs two colour attachments and one sample.
-Post integration must retain non-casters in selection.
-It must generate separate scene depth when MSAA prevents portable depth sampling.
+Selection retains non-casters and uses independent scene depth for game-authored occlusion policy.
 
 Reload integration can reuse package validation, program creation, and bounded retirement.
 The Pack cache retains requested Shader membership separately from successful held IDs.
@@ -194,6 +193,7 @@ The GPU stream reserves `116 * D * (C + 3)` bytes from Launch capacities.
 Each pass appends a separate range without overwriting earlier ranges.
 The three non-shadow ranges reserve colour, scene depth, and selected coverage.
 Scene depth retains grouped individual submissions with the camera visibility filter.
+Selection retains grouped individual submissions for built-in and Surface parts.
 Built-in Selection needs an instanced coverage shader before batching.
 Batch scratch uses a separate reusable arena that resets after each pipeline.
 The 32,768-Draw, four-cascade test peaks at 11,696,448 bytes.

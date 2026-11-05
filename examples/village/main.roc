@@ -130,7 +130,7 @@ building = |model, id| {
 			Draw({ ..Draw.default, id: p.id, mesh: Mesh.resolve(model.manifest, p.asset), pos: p.pos, rot: p.rot, scale: p.scale, tint })
 		},
 	)
-	Group({ id, pos: V.zero, rot: Quat.identity }, children)
+	Group({ id, pos: V.zero, rot: Quat.identity, selected: Bool.False }, children)
 }
 
 view : Model -> Vocabulary.Scene
