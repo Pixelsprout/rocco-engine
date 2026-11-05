@@ -10,6 +10,20 @@ import bridge
 from bridge_check import binary_suffix, check, run_game
 
 
+def check_sprite_orientation(path):
+    width, _, pixels = bridge.png_rgba(path.read_bytes())
+    red_rows = []
+    blue_rows = []
+    for i in range(0, len(pixels), 4):
+        r, g, b, _ = pixels[i:i+4]
+        if r > 150 and r > 2 * b and r > 2 * g:
+            red_rows.append(i // 4 // width)
+        if b > 150 and b > 2 * r and b > 2 * g:
+            blue_rows.append(i // 4 // width)
+    check(len(red_rows) > 100 and len(blue_rows) > 100, 'the asymmetric Pack sprite shows both colours')
+    check(sum(red_rows) / len(red_rows) < sum(blue_rows) / len(blue_rows), 'the Pack sprite preserves its red top and blue bottom')
+
+
 def drive(b, out):
     b.hello()
     initial = Path(out).with_name(Path(out).stem + '-initial.png')
@@ -42,6 +56,10 @@ def drive(b, out):
     empty = image.with_name(image.stem + '-empty.png')
     b.screenshot(str(empty))
     check(drained.read_bytes() == empty.read_bytes(), 'removed sources drain completely')
+    b.step(1, tap=['O'])
+    orientation = image.with_name(image.stem + '-orientation.png')
+    b.screenshot(str(orientation))
+    check_sprite_orientation(orientation)
     b.quit()
 
 
@@ -57,7 +75,7 @@ def main(argv):
             check('LEAK ' not in log and 'BAD Free' not in log, 'the native allocator reports no leaks or invalid frees')
             check(log.count('Particle Image id') == 1, 'the unloaded image logs once while particles drain')
     check((out / 'run-0.png').read_bytes() == (out / 'run-1.png').read_bytes(), 'two Bridge runs reproduce the same particle pixels')
-    (out / 'evidence.json').write_text(json.dumps({'replay_identical': True, 'runs': 2, 'steps_before_capture': 265, 'checks': ['smoke', 'dust image', 'additive burst', 'paused frame', 'asset unload', 'asset reload', 'removal', 'drain']}, indent=2) + '\n')
+    (out / 'evidence.json').write_text(json.dumps({'replay_identical': True, 'runs': 2, 'steps_before_capture': 265, 'checks': ['smoke', 'dust image', 'additive burst', 'paused frame', 'asset unload', 'asset reload', 'removal', 'drain', 'sprite orientation']}, indent=2) + '\n')
     print('PASS: native particle replay check')
     return 0
 

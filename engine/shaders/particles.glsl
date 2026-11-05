@@ -18,7 +18,7 @@ void main() {
     vec2 corner = corners[gl_VertexIndex];
     vec3 position = position_size.xyz + (camera_right.xyz * corner.x + camera_up.xyz * corner.y) * position_size.w;
     gl_Position = view_proj * vec4(position, 1.0);
-    v_uv = corner + 0.5;
+    v_uv = vec2(corner.x + 0.5, 0.5 - corner.y);
     v_colour = colour;
 }
 @end
