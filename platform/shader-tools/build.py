@@ -99,6 +99,8 @@ def write_changed(path, data):
     try:
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(data)
+            # Published assets must be readable across container user boundaries.
+            os.chmod(temporary, 0o644)
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):

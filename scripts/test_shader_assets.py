@@ -10,17 +10,53 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "platform/shader-tools"
 sys.path.insert(0, str(TOOLS))
 from declarations import BuildError, Document, encode_parameter, validate
 from helpers import mesh_materials
+from build import write_changed
 from package import HEADER, canonical, digest, fingerprint, parse_reflection, validate_reflection
 
 EXAMPLE = ROOT / "scripts/shader_assets/example"
 SHDC = os.environ.get("ROCCO_SHDC") or shutil.which("sokol-shdc")
 ROC = shutil.which("roc")
+
+
+def target_input_filenames(source):
+    return {filename for inputs in re.findall(r"inputs:\s*\[([^]]*)\]", source)
+            for filename in re.findall(r'"([^"/]+)"', inputs)}
+
+
+class OutputTests(unittest.TestCase):
+    def test_target_inputs_include_every_versioned_shared_library(self):
+        source = 'targets: { a: { inputs: ["lib.a", "start.o", app] }, b: { inputs: ["libXcursor.so.1", "libc.so.6", "libextra.so.42", "host.lib", app] } }'
+        self.assertEqual(target_input_filenames(source), {"lib.a", "start.o", "libXcursor.so.1", "libc.so.6", "libextra.so.42", "host.lib"})
+        self.assertIn("libXcursor.so.1", target_input_filenames((ROOT / "platform/main.roc").read_text()))
+
+    @unittest.skipIf(os.name == "nt", "POSIX permissions")
+    def test_atomic_outputs_are_readable_with_a_restrictive_umask(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "generated.shaderpack"
+            mask = os.umask(0o077)
+            try:
+                write_changed(path, b"first")
+                self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+                before = path.stat().st_mtime_ns
+                write_changed(path, b"first")
+                self.assertEqual(path.stat().st_mtime_ns, before)
+                with mock.patch("build.os.replace", side_effect=OSError("replacement failed")):
+                    with self.assertRaises(OSError):
+                        write_changed(path, b"second")
+                self.assertEqual(path.read_bytes(), b"first")
+                self.assertEqual(list(Path(directory).iterdir()), [path])
+                write_changed(path, b"second")
+                self.assertEqual(path.read_bytes(), b"second")
+                self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+            finally:
+                os.umask(mask)
 
 
 def decode(path):
@@ -132,7 +168,7 @@ class PublishedCompilerTests(unittest.TestCase):
         for target in ("arm64mac", "x64glibc", "x64win"):
             directory = self.platform / "targets" / target
             directory.mkdir(parents=True)
-            for filename in re.findall(r'"([^"/]+\.(?:a|lib|o|so\.6))"', (self.platform / "main.roc").read_text()):
+            for filename in target_input_filenames((self.platform / "main.roc").read_text()):
                 (directory / filename).touch()
         self.out = self.game / "assets/shaders"
         self.command = [sys.executable, str(self.platform / "shader-tools/build.py"), "--shdc", str(Path(SHDC).resolve())]
