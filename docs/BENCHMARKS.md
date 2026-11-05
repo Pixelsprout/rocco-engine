@@ -73,6 +73,90 @@ ms, and their changes in either direction are mostly noise.
   median, 2,404 us, includes the fifth process at 1,534 us.
 - The selection runs in the `render_submit` Span.
 
+### Clustered Point lights
+
+[ADR 0033](adr/0033-clustered-forward-lights.md) replaces per-Draw Point selection with a CPU cluster build.
+The renderer also reuses equal Material uniforms and unchanged mesh bindings until its pipeline changes.
+The CPU target passes in three paired runs with explicit macOS application resource policies.
+Runs with inherited agent policies remain unstable.
+Both sets remain below for comparison.
+
+The run used Apple M5, Mac17,2, 16 GB RAM, macOS 26.5.1, AC power, and Low Power Mode off.
+Both binaries used release backend libraries and an Odin release host with Spans.
+Each process ran windowed Lockstep at 960 by 540 physical pixels, MSAA 4, and seed zero.
+The Sun used one 2048-pixel shadow cascade.
+Each process discarded 120 warmup Frames and measured the next 1,000 Frames.
+The runs alternated old-eight and clustered-256 processes, with one second between processes.
+The benchmark retains its fixed 1,024 floor tiles and adds one orb Draw per Point.
+Thus, the candidate also submits 248 more Draws.
+
+The table adds `cluster_build` and `render_submit` for each measured Frame before calculating percentiles.
+The old build has no `cluster_build` column.
+Each row has equal weight: exactly 1,000 measured Frames per process.
+No pooled statistic replaces the process results.
+
+| Process pair | Old 8 median | Clustered 256 median | Old 8 p95 | Clustered 256 p95 |
+| --- | --- | --- | --- | --- |
+| 1 | 403 us | 1,602 us | 2,600 us | 2,263 us |
+| 2 | 422 us | 1,823 us | 2,673 us | 2,280 us |
+| 3 | 406 us | 328 us | 419 us | 338 us |
+| 4, requested quiet window | 402 us | 338 us | 416 us | 2,226 us |
+| 5, requested quiet window | 1,768 us | 320 us | 2,676 us | 335 us |
+
+The first three pairs shared the Mac with other work.
+A requested quiet window covered the last two pairs, but long stalls remained.
+The candidate's fast processes cost less than the old eight-light process.
+Two candidate processes remain slower by their medians, and the fourth has a large p95 spike.
+These results establish neither a stable target pass nor a stable regression.
+No GPU timing or real-clock pacing claim comes from these CPU Spans.
+The final shader moves Sun comparison samples outside the varying cluster loop after these CPU measurements.
+The controlled experiment below measures that final build.
+
+The slow mode also affected interpolation, UI layout, and cluster construction.
+A requested quiet window did not remove it.
+The next experiment launched both owned processes through `taskpolicy -a`, which selects macOS application resource policies.
+It changed no global settings or unrelated processes.
+The experiment kept the same warmup, measured Frame count, release libraries, and one-second cooldown.
+The third pair reversed launch order.
+
+| Application-policy pair | Old 8 median | Clustered 256 median | Old 8 p95 | Clustered 256 p95 | Old 8 p99 | Clustered 256 p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 400 us | 317 us | 431 us | 336 us | 445 us | 349 us |
+| 2 | 397 us | 319 us | 417 us | 340 us | 433 us | 349 us |
+| 3, candidate first | 397 us | 320 us | 416 us | 337 us | 432 us | 348 us |
+
+All three candidate medians, p95s, and p99s are lower than their paired baseline.
+This satisfies the milestone's CPU comparison under the stated application-policy launch.
+It does not establish GPU performance or real-clock pacing.
+The policy result supports an inherited scheduling-policy explanation for the earlier stalls.
+It does not identify the exact operating-system mechanism.
+
+For each binary, run this command from `bench/lights`, with `N` set to 8 or 256:
+
+```sh
+ROCCO_LOCKSTEP=1 ROCCO_EXIT_AFTER_FRAMES=1120 ROCCO_SEED=0 \
+ROCCO_NO_GAMEPADS=1 ROCCO_SPANS_CSV=/absolute/path/run.csv \
+taskpolicy -a /absolute/path/lights.bin N
+```
+
+[The evidence JSON](../bench/results/2026-11-05-apple-m5/clustered-lights.json) records every process, p99, build flags, binary checksums, and machine data.
+It links every compressed raw CSV with its checksum.
+The evidence preserves five uncontrolled pairs, three application-policy pairs, and four excluded exploratory runs.
+The baseline source is the recorded `baseline_commit`; the candidate uses this change's renderer cache and clustered lighting.
+
+To repeat the standard benchmark, build the recorded baseline commit in a separate checkout.
+Run `roc scripts/build.roc bench lights 8 --windowed` there.
+Run `roc scripts/build.roc bench lights 256 --windowed` in the candidate checkout.
+The standard command measures 2,000 Frames in five processes after 120 warmup Frames.
+Use the same release libraries, window, power state, and idle machine for both runs.
+
+The native Metal check uses `python3 scripts/cluster_check.py build/bridge-check/clustered.png`.
+It checks 200 lamp contributions on one tiled floor Draw across four views, including camera and light movement.
+It also checks exact paused screenshot reproduction and a clean graphics log.
+The local check passed all 800 floor probes on 2026-11-05.
+CI runs the same check on Metal, GL, and D3D11.
+Those CI results remain separate from this local evidence.
+
 ### Bloom in the glow example
 
 These runs give one reference for the cost of bloom. They are not a gate

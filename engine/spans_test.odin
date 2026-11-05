@@ -3,7 +3,7 @@ package engine
 
 import "core:testing"
 
-SPAN_CSV_HEADER :: "frame,steps,input_us,step_us,commands_us,view_us,queries_us,query_results_us,interpolation_us,ui_layout_us,render_submit_us,commit_us,span_cost_us\n"
+SPAN_CSV_HEADER :: "frame,steps,input_us,step_us,commands_us,view_us,queries_us,query_results_us,interpolation_us,ui_layout_us,cluster_build_us,render_submit_us,commit_us,span_cost_us\n"
 
 @(test)
 test_span_csv_has_a_header_then_one_row_per_frame_in_frame_order :: proc(t: ^testing.T) {
@@ -15,8 +15,8 @@ test_span_csv_has_a_header_then_one_row_per_frame_in_frame_order :: proc(t: ^tes
 		t,
 		csv,
 		SPAN_CSV_HEADER +
-		"1,1,1.000,12.500,0.000,3.000,0.000,0.000,0.000,0.000,0.000,0.250,0.0215\n" +
-		"2,0,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.0215\n",
+		"1,1,1.000,12.500,0.000,3.000,0.000,0.000,0.000,0.000,0.000,0.000,0.250,0.0215\n" +
+		"2,0,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.0215\n",
 	)
 }
 

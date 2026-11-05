@@ -45,7 +45,7 @@ fake_host_destroy :: proc(s: ^State) {
 // Submits nothing and counts the submit_lights calls in g_fake_platform.
 fake_submits :: proc() -> Frame_Render_Submits {
 	submits := FRAME_RENDER_SUBMITS_NONE
-	submits.submit_lights = proc(ctx: rawptr, lights: Fs_Lights) {g_fake_platform.submits += 1}
+	submits.submit_lights = proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {g_fake_platform.submits += 1}
 	return submits
 }
 

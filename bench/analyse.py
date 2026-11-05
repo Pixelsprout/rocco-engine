@@ -54,7 +54,7 @@ BUDGET_STEPS = 2
 STEP_SPANS = {"input_us", "step_us", "commands_us", "view_us", "queries_us", "query_results_us"}
 
 # These Spans run once per Frame.
-FRAME_SPANS = {"interpolation_us", "ui_layout_us", "render_submit_us", "commit_us"}
+FRAME_SPANS = {"interpolation_us", "ui_layout_us", "cluster_build_us", "render_submit_us", "commit_us"}
 
 HEAP_LINE = re.compile(r"^alloc step=(\d+) allocs=(\d+) deallocs=(\d+) reallocs=(\d+) live=(\d+)")
 

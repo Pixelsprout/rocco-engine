@@ -239,9 +239,9 @@ test_a_group_moves_a_point_turns_a_directional_and_leaves_an_ambient :: proc(t: 
 	// The light travels along -x, so the direction to it is +x.
 	expect_v3_near(t, lit.light_pos[0].xyz, {1, 0, 0})
 	testing.expect_value(t, lit.light_pos[0].w, 0)
-	expect_v3_near(t, lit.light_pos[1].xyz, {1, 5, 0})
-	testing.expect_value(t, lit.light_pos[1].w, 1)
-	testing.expect_value(t, lit.light_color[1], [4]f32{0, 0, 1, 4})
+	expect_v3_near(t, f.rec.clusters.points[0].pos.xyz, {1, 5, 0})
+	testing.expect_value(t, f.rec.clusters.points[0].pos.w, 1)
+	testing.expect_value(t, f.rec.clusters.points[0].color, [4]f32{0, 0, 1, 4})
 }
 
 @(test)
@@ -253,10 +253,10 @@ test_a_light_takes_the_interpolated_pose_of_its_group :: proc(t: ^testing.T) {
 	centre := node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY})
 	prev := []Node{node_group(1, {}, IDENTITY, light_nodes({light_point({z = 9}, {r = 1}, 4)})), centre}
 	curr := []Node{node_group(1, {}, quat_yaw(math.PI / 2), light_nodes({light_point({z = 2}, {r = 1}, 4)})), centre}
-	got := frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
 
 	// The Light's own pos comes from the current Scene.
-	expect_v3_near(t, got[0].light_pos[0].xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
+	expect_v3_near(t, f.rec.clusters.points[0].pos.xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
 }
 
 @(test)
@@ -278,7 +278,7 @@ test_the_sun_follows_a_depth_first_walk_and_takes_slot_0 :: proc(t: ^testing.T) 
 	// The first Sun in walk order is inside the Group. The second lights as a plain Directional.
 	testing.expect_value(t, got[0].light_color[0], [4]f32{0, 1, 0, 0})
 	testing.expect_value(t, got[0].light_color[1], [4]f32{0, 0, 1, 0})
-	testing.expect_value(t, got[0].light_pos[2], [4]f32{0, 0, 0, 1})
+	testing.expect_value(t, f.rec.clusters.points[0].pos, [4]f32{0, 0, 0, 1})
 	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Sun})
 }
 
@@ -298,7 +298,7 @@ test_a_group_draws_its_children_after_the_draw_capacity_counts_them :: proc(t: ^
 
 	testing.expect_value(t, len(got), f.fr.draw_capacity)
 	testing.expect(t, f.fr.draws_logged)
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{1, 0, 0, 1})
+	testing.expect_value(t, f.rec.lights.ambient, [4]f32{1, 0, 0, 0})
 }
 
 @(test)

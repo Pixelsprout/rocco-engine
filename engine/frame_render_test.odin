@@ -28,8 +28,8 @@ Submitted :: struct {
 	emissive:     [4]f32,
 	glow:         [4]f32,
 	maps:         [4]f32,
-	light_pos:    [MAX_LIGHTS][4]f32,
-	light_color:  [MAX_LIGHTS][4]f32,
+	light_pos:    [MAX_DIRECTIONALS][4]f32,
+	light_color:  [MAX_DIRECTIONALS][4]f32,
 	skinned:      bool,
 	joints:       [2]Mat4,
 	fog_color:    [4]f32,
@@ -72,6 +72,7 @@ Recorder :: struct {
 	shadows:       [dynamic]Shadow_Submitted,
 	submits:       [dynamic]Submitted,
 	lights:        Fs_Lights,
+	clusters:      Cluster_Frame,
 	lights_calls:  int,
 	sky:           ^Sky,
 	sky_view_proj: Mat4,
@@ -221,8 +222,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 			emissive = fs_params.emissive,
 			glow = fs_params.glow,
 			maps = fs_params.maps,
-			light_pos = fs_params.light_pos,
-			light_color = fs_params.light_color,
+			light_pos = r.lights.directional_pos,
+			light_color = r.lights.directional_color,
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 			fog_color = r.lights.fog_color,
@@ -232,9 +233,10 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	)
 }
 
-record_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
+record_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r := (^Recorder)(ctx)
 	r.lights = lights
+	r.clusters = clusters
 	r.lights_calls += 1
 }
 
@@ -643,242 +645,104 @@ test_frame_render_camera_falls_back_to_world_up_and_logs_once :: proc(t: ^testin
 }
 
 @(test)
-test_frame_render_lights_an_empty_list_black :: proc(t: ^testing.T) {
+test_frame_render_sends_points_once_and_keeps_material_blocks_small :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	draws := []Draw{{id = 1, mesh = 1}, {id = 2, mesh = 1}}
-	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
-	testing.expect_value(t, len(got), 2)
-	for s in got {
-		testing.expect_value(t, s.light_pos, [MAX_LIGHTS][4]f32{})
-		testing.expect_value(t, s.light_color, [MAX_LIGHTS][4]f32{})
-	}
+	frame_fixture_light_list(&f, {light_point({1, 2, 3}, {r = 1, g = 0.5, b = 0}, 6)})
 	testing.expect_value(t, f.rec.lights_calls, 1)
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{})
-	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
+	testing.expect_value(t, len(f.rec.clusters.points), 1)
+	testing.expect_value(t, f.rec.clusters.points[0], Packed_Light{{1, 2, 3, 1}, {1, 0.5, 0, 6}})
+	testing.expect_value(t, size_of(Fs_Params), 80)
+	testing.expect_value(t, size_of(Fs_Lights), 512)
 }
 
 @(test)
-test_frame_render_packs_the_ambient_and_negates_a_directional_dir :: proc(t: ^testing.T) {
+test_frame_render_keeps_1024_points_and_logs_excess_once :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_ambient({r = 0.1, g = 0.2, b = 0.3}), light_directional({x = 0, y = -4, z = 0}, {r = 2, g = 1, b = 1})})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0.2, 0.3, 1})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{2, 1, 1, 0})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
+	lights: [MAX_POINT_LIGHTS + 2]Light
+	for &l, i in lights { l = light_point({x = f32(i)}, {r = 1}, 0.01) }
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, lights[:])
+		testing.expect_value(t, len(f.rec.clusters.points), MAX_POINT_LIGHTS)
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Points_Over_Limit})
+	}
 }
 
 @(test)
-test_frame_render_packs_a_point_light_with_its_range :: proc(t: ^testing.T) {
+test_frame_render_keeps_the_sun_after_the_directional_limit :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_point({x = 1, y = 2, z = 3}, {r = 1, g = 0.5, b = 0}, 6)})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{})
-	testing.expect_value(t, got.light_pos[0], [4]f32{1, 2, 3, 1})
-	testing.expect_value(t, got.light_color[0], [4]f32{1, 0.5, 0, 6})
-}
-
-@(test)
-test_frame_render_keeps_every_point_light_of_the_scene :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [20]Light
-	for &l, i in lights {
-		l = light_point({x = 10 * f32(i)}, {r = 1}, 2)
-	}
-	got := frame_fixture_light_list(&f, lights[:], at = {190, 0, 0})
-	testing.expect_value(t, got.light_pos[0], [4]f32{190, 0, 0, 1})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
-	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
-}
-
-@(test)
-test_frame_render_gives_each_draw_its_own_point_lights :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights := []Light{light_point({x = 0, y = 2, z = 0}, {r = 1}, 3), light_point({x = 20, y = 2, z = 0}, {g = 1}, 3)}
-	draws := []Draw {
-		{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
-		{id = 2, mesh = u32(Primitive.Cube), pos = {x = 20}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
-	}
-	scene := scene_lit(draws, lights)
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 2)
-	testing.expect_value(t, got[0].light_pos[0], [4]f32{0, 2, 0, 1})
-	testing.expect_value(t, got[0].light_color[1], [4]f32{})
-	testing.expect_value(t, got[1].light_pos[0], [4]f32{20, 2, 0, 1})
-	testing.expect_value(t, got[1].light_color[1], [4]f32{})
-}
-
-@(test)
-test_frame_render_draws_40_orbs_each_lit_by_its_own_light :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f, draws = 40)
-	defer frame_fixture_destroy(&f)
-
-	draws: [40]Draw
-	lights: [40]Light
-	for i in 0 ..< 8 {
-		for j in 0 ..< 5 {
-			at := Vec3{x = 4 * f32(i), z = 4 * f32(j)}
-			draws[i * 5 + j] = {id = u64(i * 5 + j), mesh = u32(Primitive.Cube), pos = at, scale = {1, 0.1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
-			lights[i * 5 + j] = light_point({at.x, 1, at.z}, {r = 1}, 3)
-		}
-	}
-	scene := scene_lit(draws[:], lights[:])
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 40)
-	for s, k in got {
-		above := draws[k].pos
-		testing.expect_value(t, s.light_pos[0], [4]f32{above.x, 1, above.z, 1})
-		testing.expect(t, s.light_color[0] != {})
-		testing.expect_value(t, s.light_color[1], [4]f32{})
-	}
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
-}
-
-@(test)
-test_frame_render_keeps_the_8_nearest_and_logs_a_draw_that_drops_once :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [MAX_LIGHTS + 2]Light
-	for &l, i in lights {
-		l = light_point({x = f32(len(lights) - i)}, {r = 1}, 20)
-	}
-	got := frame_fixture_light_list(&f, lights[:])
-	for i in 0 ..< MAX_LIGHTS {
-		testing.expect_value(t, got.light_pos[i].x, f32(i + 1))
-	}
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
+	lights: [MAX_DIRECTIONALS + 2]Light
+	for &l, i in lights { l = light_directional({x = f32(i + 1), y = -1}, {r = 1}) }
+	lights[MAX_DIRECTIONALS + 1] = light_sun({y = -1}, {g = 1})
 	frame_fixture_light_list(&f, lights[:])
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
-}
-
-@(test)
-test_frame_render_puts_the_sun_in_slot_0 :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_directional({z = -1}, {r = 1}), light_sun({y = -1}, {g = 1})})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_pos[1], [4]f32{0, 0, 1, 0})
+	testing.expect_value(t, f.rec.lights.directional_pos[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.directional_color[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.ambient.w, f32(MAX_DIRECTIONALS))
 	testing.expect_value(t, f.rec.lights.shadow.x, 1)
-	testing.expect_value(t, f.rec.lights.shadow.y, 0)
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Directional_Over_Limit})
 }
 
 @(test)
-test_frame_render_keeps_the_sun_past_8_directionals :: proc(t: ^testing.T) {
+test_frame_render_preserves_directional_order_after_the_sun :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
+	frame_fixture_light_list(&f, {light_directional({z = -1}, {r = 1}), light_sun({y = -1}, {g = 1})})
+	testing.expect_value(t, f.rec.lights.directional_pos[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.directional_pos[1], [4]f32{0, 0, 1, 0})
+	testing.expect_value(t, f.rec.lights.ambient.w, 2)
+}
 
-	lights: [MAX_LIGHTS + 1]Light
-	for &l, i in lights {
-		l = light_directional({x = f32(i + 1), y = -1}, {r = 1})
+@(test)
+test_frame_render_logs_cluster_overflow_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	lights: [65]Light
+	for &l in lights { l = light_point({}, {r = 1}, 100) }
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, lights[:])
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Cluster_Over_Limit})
 	}
-	lights[MAX_LIGHTS] = light_sun({y = -1}, {g = 1})
-	got := frame_fixture_light_list(&f, lights[:])
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
-	testing.expect_value(t, f.rec.lights.shadow.x, 1)
 }
 
 @(test)
-test_frame_render_gives_an_unlit_draw_no_lights :: proc(t: ^testing.T) {
+test_frame_render_keeps_first_ambient_and_rejects_invalid_lights :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), mesh_data_of({roughness = 1, unlit = true}))
-	draws := []Draw{{id = 1, mesh = mesh_id(&f.meshes, sign), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
-	lights := []Light{light_point({x = 1}, {r = 1}, 4)}
-	scene := scene_lit(draws, lights)
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 1)
-	testing.expect_value(t, got[0].light_pos, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, got[0].light_color, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
-}
-
-@(test)
-test_frame_render_headless_selects_no_lights :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [MAX_LIGHTS + 2]Light
-	for &l, i in lights {
-		l = light_point({x = f32(i)}, {r = 1}, 20)
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, {light_ambient({r = 0.1}), light_ambient({g = 1}), light_directional({}, {}), light_point({}, {}, 0), light_point({}, {}, math.nan_f32())})
+		testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0, 0, 0})
+		testing.expect_value(t, len(f.rec.clusters.points), 0)
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir, .Bad_Range})
 	}
-	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
-	scene := scene_lit(draws, lights[:])
+}
+
+@(test)
+test_frame_render_rejects_nonfinite_point_positions :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_light_list(&f, {light_point({x = math.nan_f32()}, {r = 1}, 1)})
+	testing.expect_value(t, len(f.rec.clusters.points), 0)
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Bad_Point})
+}
+
+@(test)
+test_frame_render_headless_builds_no_clusters :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	scene := scene_lit(nil, {light_point({}, {r = 1}, 10)})
 	frame_render_draw(&f.fr, scene, scene, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
-	testing.expect_value(t, len(f.rec.submits), 0)
-	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
-}
-
-@(test)
-test_frame_render_keeps_the_first_ambient_and_logs_once :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	frame_fixture_light_list(&f, {light_ambient({r = 0.1}), light_ambient({g = 0.1}), light_ambient({b = 0.1})})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0, 0, 1})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient})
-}
-
-@(test)
-test_frame_render_drops_a_zero_dir_without_taking_a_slot :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_directional({}, {r = 1}), light_directional({z = -1}, {g = 1})})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 0, 1, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Zero_Dir})
-}
-
-@(test)
-test_frame_render_drops_a_point_light_with_a_range_of_zero_or_less :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_point({}, {r = 1}, 0), light_point({}, {r = 1}, -1), light_point({}, {r = 1}, math.nan_f32())})
-	testing.expect_value(t, got.light_pos, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, got.light_color, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Bad_Range})
-}
-
-@(test)
-test_frame_render_logs_each_light_drop_reason_once_per_run :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	frame_fixture_light_list(&f, {light_ambient({}), light_ambient({}), light_directional({}, {})})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir})
-	frame_fixture_light_list(&f, {light_ambient({}), light_ambient({}), light_directional({}, {}), light_point({}, {}, 0)})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir, .Bad_Range})
+	testing.expect_value(t, f.rec.lights_calls, 0)
+	testing.expect_value(t, len(f.rec.clusters.ranges), 0)
 }
 
 quat_yaw :: proc(rad: f32) -> Quat {
@@ -1197,7 +1061,7 @@ test_frame_render_draws_the_blend_parts_after_the_sky_with_the_lights_of_their_d
 	testing.expect_value(t, got[2].part, &lamp_mesh.parts[1])
 	testing.expect_value(t, got[2].pipeline, Mesh_Pipeline.Blend)
 	testing.expect_value(t, got[2].model, got[0].model)
-	testing.expect_value(t, got[2].light_color[0], [4]f32{0, 1, 0, 4})
+	testing.expect_value(t, f.rec.clusters.points[0].color, [4]f32{0, 1, 0, 4})
 	testing.expect_value(t, got[2].material.x, 0.1)
 }
 

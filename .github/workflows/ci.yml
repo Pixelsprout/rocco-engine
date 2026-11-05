@@ -66,10 +66,12 @@ jobs:
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
+        run: |
+          python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
+          python3 scripts/cluster_check.py build/bridge-check/clustered.png
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -216,10 +218,12 @@ jobs:
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python scripts/bridge_check.py build/bridge-check/bridge-check.png
+        run: |
+          python scripts/bridge_check.py build/bridge-check/bridge-check.png
+          python scripts/cluster_check.py build/bridge-check/clustered.png
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -254,7 +258,7 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_shader_contract.py scripts/test_build_shader.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |

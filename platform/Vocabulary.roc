@@ -87,7 +87,7 @@ Vocabulary := [].{
 	## - `draws`: mesh part draws per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
 	##   materials uses up to 3. A double-sided Blend material uses 2. Above
-	##   zero and at most 1195443. The uniform buffer grows with it.
+	##   zero and at most 1394684. The uniform buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
 	##   Groups.
@@ -284,9 +284,10 @@ Vocabulary := [].{
 	## - `Point`: falls off to zero at `range`. A Group moves and turns `pos`.
 	##
 	## A colour carries its intensity and can exceed 1. The host uses the first
-	## Ambient. Each Draw gets at most 8 other Lights: every Directional, then
-	## the Point lights whose range reaches it, nearest first. A Scene with no
-	## Light draws black.
+	## Ambient. The host accepts four Directionals, including the Sun, and
+	## 1024 Points in Scene order. The Sun always keeps the first Directional
+	## slot. Each camera cluster keeps its nearest 64 Points when full.
+	## The host logs each limit once. A Scene with no Light draws black.
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 
 	## How a Panel sizes along one axis, in logical pixels. The names and the

@@ -53,28 +53,25 @@ test_app_desc_turns_vsync_off_in_lockstep_whatever_the_launch_says :: proc(t: ^t
 	}
 }
 
-// 279 is the image pool of the default Capacity without the meshes and the
-// render target. A mesh part takes 3 main slots, and the greater of 1 shadow
-// slot per cascade and the 2 slots of the lights. A skinned Draw adds a
-// 4096-byte skin block in the Main pass and in each cascade.
 @(test)
 test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: proc(t: ^testing.T) {
 	desc := app_gfx_desc(launch_default().capacity, 1)
 	images := MESH_TEXTURE_LIMIT * 64 + 279
+	testing.expect_value(t, desc.buffer_pool_size, 2 * 64 + 5)
 	testing.expect_value(t, desc.image_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.sampler_pool_size, i32(images + TARGET_IMAGES))
-	testing.expect_value(t, desc.view_pool_size, i32(images + MAX_CASCADES + TARGET_VIEWS))
-	testing.expect_value(t, desc.uniform_buffer_size, (5 * 16384 + 21) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, desc.view_pool_size, i32(images + MAX_CASCADES + TARGET_VIEWS + 3))
+	testing.expect_value(t, desc.uniform_buffer_size, (4 * 16384 + 21) * 256 + 2 * SKINNED_DRAW_LIMIT * 4096)
 
 	two := app_gfx_desc(launch_default().capacity, 2)
-	testing.expect_value(t, two.uniform_buffer_size, (5 * 16384 + 21) * 256 + 3 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, two.uniform_buffer_size, (4 * 16384 + 21) * 256 + 3 * SKINNED_DRAW_LIMIT * 4096)
 
 	four := app_gfx_desc(launch_default().capacity, 4)
-	testing.expect_value(t, four.uniform_buffer_size, (7 * 16384 + 21) * 256 + 5 * SKINNED_DRAW_LIMIT * 4096)
+	testing.expect_value(t, four.uniform_buffer_size, (6 * 16384 + 21) * 256 + 5 * SKINNED_DRAW_LIMIT * 4096)
 
 	small := app_gfx_desc({meshes = 4, skies = 2, images = 2, draws = 10, ui_quads = 1}, 4)
 	testing.expect_value(t, small.image_pool_size, MESH_TEXTURE_LIMIT * 4 + 2 + 2 + 2 + 2 + 1 + 1 + 1 + TARGET_IMAGES)
-	testing.expect_value(t, small.uniform_buffer_size, (7 * 10 + 21) * 256 + 5 * 10 * 4096)
+	testing.expect_value(t, small.uniform_buffer_size, (6 * 10 + 21) * 256 + 5 * 10 * 4096)
 
 	largest := app_gfx_desc({meshes = 4, skies = 2, draws = DRAW_LIMIT, ui_quads = 1}, MAX_CASCADES)
 	testing.expect(t, largest.uniform_buffer_size > 0)
