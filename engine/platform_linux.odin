@@ -17,6 +17,10 @@ GL_PACK_ALIGNMENT :: 0x0D05
 GL_RGBA :: 0x1908
 GL_UNSIGNED_BYTE :: 0x1401
 
+shader_open_file :: proc(path: string) -> (^os.File, os.Error) {
+	return os.open(path)
+}
+
 platform_command_line :: proc(allocator := context.allocator) -> []string {
 	return os.args
 }

@@ -20,7 +20,7 @@
           "scope": "Scene",
           "stage": "vertex",
           "default": [
-            0.3
+            0.2
           ]
         },
         {

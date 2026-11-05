@@ -11,7 +11,7 @@ import "core:strings"
 import "core:time"
 
 shader_read_file :: proc(path: string, allocator: mem.Allocator, limit: int) -> ([]byte, bool) {
-	file, err := os.open(path)
+	file, err := shader_open_file(path)
 	if err != nil { return nil, false }
 	defer os.close(file)
 	size, size_error := os.file_size(file)

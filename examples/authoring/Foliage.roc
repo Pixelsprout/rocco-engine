@@ -11,7 +11,7 @@ Foliage := [].{
 
 	## Declared numeric defaults for Scene scope.
 	scene_default : SceneParameters
-	scene_default = { wind: 0.3 }
+	scene_default = { wind: 0.2 }
 
 	## Assign numeric values only to Scene scope.
 	scene : Str, SceneParameters -> Shader.Values

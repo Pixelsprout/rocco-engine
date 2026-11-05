@@ -251,7 +251,7 @@ jobs:
           python scripts/shader_contract/install.py
           python scripts/shader_contract/contract.py --shdc build/shader-tools/sokol-shdc.exe --check --run
           python scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc.exe
-          ROCCO_SHDC=build/shader-tools/sokol-shdc.exe python -m unittest scripts/test_shader_assets.py
+          ROCCO_SHDC=build/shader-tools/sokol-shdc.exe python -m unittest scripts/test_shader_assets.py scripts/test_shader_reload.py
 
       - name: Keep the D3D11 shader proof
         if: always()

@@ -2,11 +2,32 @@
 package engine
 
 import "core:os"
+import "core:strings"
 import win32 "core:sys/windows"
 import sg "../sokol-odin/sokol/gfx"
 import d3d11 "vendor:directx/d3d11"
 
 EXPECTED_BACKEND :: sg.Backend.D3D11
+
+shader_open_file :: proc(path: string) -> (^os.File, os.Error) {
+	absolute, err := os.get_absolute_path(path, context.temp_allocator)
+	if err != nil { return nil, err }
+	normal, path_error := os.replace_path_separators(absolute, '\\', context.temp_allocator)
+	if path_error != nil { return nil, path_error }
+	if len(normal) >= 248 && !strings.has_prefix(normal, `\\?\`) {
+		if strings.has_prefix(normal, `\\`) {
+			normal = strings.concatenate({`\\?\UNC\`, normal[2:]}, context.temp_allocator)
+		} else {
+			normal = strings.concatenate({`\\?\`, normal}, context.temp_allocator)
+		}
+	}
+	wide := win32.utf8_to_wstring(normal, context.temp_allocator)
+	if wide == nil { return nil, .Invalid_Path }
+	// Shader publication replaces paths while readers retain the previous generation.
+	handle := win32.CreateFileW(wide, win32.FILE_GENERIC_READ, win32.FILE_SHARE_READ | win32.FILE_SHARE_WRITE | win32.FILE_SHARE_DELETE, nil, win32.OPEN_EXISTING, win32.FILE_ATTRIBUTE_NORMAL, nil)
+	if handle == win32.INVALID_HANDLE { return nil, os.Platform_Error(win32.GetLastError()) }
+	return os.new_file(uintptr(handle), path), nil
+}
 
 // The host links with -no-crt, and Odin's no-CRT entry point leaves os.args
 // empty. Windows still keeps the command line, so read the words from it.

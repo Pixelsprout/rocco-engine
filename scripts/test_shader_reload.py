@@ -1,4 +1,5 @@
 """Watch dependency, publication, and source-snapshot regression checks."""
+import ctypes
 import json
 import os
 from pathlib import Path
@@ -105,9 +106,18 @@ class WatchTests(unittest.TestCase):
             self.assertTrue(self.watcher.poll())
         self.assertEqual(self.compile.call_count, 2)
 
+    def test_windows_access_denial_does_not_repeat_without_another_edit(self):
+        error = PermissionError('access denied')
+        error.winerror = 5
+        self.compile.side_effect = error
+        with mock.patch.object(build.sys, 'platform', 'win32'):
+            self.assertTrue(self.watcher.poll())
+            self.assertFalse(self.watcher.poll())
+        self.assertEqual(self.compile.call_count, 1)
+
 
 class PublicationTests(unittest.TestCase):
-    def test_windows_permanent_access_error_fails_without_retry(self):
+    def test_windows_persistent_access_denial_is_bounded_and_keeps_old_file(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'asset'
             path.write_bytes(b'old')
@@ -117,8 +127,57 @@ class PublicationTests(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     build.write_changed(path, b'new')
             self.assertEqual(path.read_bytes(), b'old')
-            self.assertEqual(replace.call_count, 1)
+            self.assertEqual(replace.call_count, 40)
+            self.assertEqual(sleep.call_count, 39)
+            self.assertEqual([p.name for p in Path(directory).iterdir()], ['asset'])
+
+    def test_windows_transient_access_denial_retries_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'build.json'
+            path.write_bytes(b'old')
+            replace = os.replace
+            calls = []
+            def publish(source, target):
+                calls.append(target)
+                if len(calls) == 1:
+                    error = PermissionError('reader denies replacement')
+                    error.winerror = 5
+                    raise error
+                replace(source, target)
+            with mock.patch.object(build.sys, 'platform', 'win32'), mock.patch.object(build.os, 'replace', side_effect=publish), mock.patch.object(build.time, 'sleep'):
+                build.write_changed(path, b'new')
+            self.assertEqual(path.read_bytes(), b'new')
+            self.assertEqual(len(calls), 2)
+            self.assertEqual([p.name for p in Path(directory).iterdir()], ['build.json'])
+
+    def test_other_permission_failures_do_not_retry(self):
+        for code in (None, 13):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'asset'
+                path.write_bytes(b'old')
+                error = PermissionError('permission denied')
+                error.winerror = code
+                with mock.patch.object(build.sys, 'platform', 'win32'), mock.patch.object(build.os, 'replace', side_effect=error) as publish, mock.patch.object(build.time, 'sleep') as sleep:
+                    with self.assertRaises(PermissionError):
+                        build.write_changed(path, b'new')
+                self.assertEqual(publish.call_count, 1)
+                sleep.assert_not_called()
+                self.assertEqual(path.read_bytes(), b'old')
+                self.assertEqual([p.name for p in Path(directory).iterdir()], ['asset'])
+
+    def test_permission_failure_before_replace_does_not_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'asset'
+            path.write_bytes(b'old')
+            error = PermissionError('permission denied')
+            error.winerror = 5
+            with mock.patch.object(build.sys, 'platform', 'win32'), mock.patch.object(build.os, 'chmod', side_effect=error), mock.patch.object(build.os, 'replace') as publish, mock.patch.object(build.time, 'sleep') as sleep:
+                with self.assertRaises(PermissionError):
+                    build.write_changed(path, b'new')
+            publish.assert_not_called()
             sleep.assert_not_called()
+            self.assertEqual(path.read_bytes(), b'old')
+            self.assertEqual([p.name for p in Path(directory).iterdir()], ['asset'])
 
     def test_windows_reader_sharing_violation_retries_atomic_publication(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -176,6 +235,59 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(publish.call_args_list[-1].args[0].name, "build.json")
             record = json.loads(publish.call_args_list[-1].args[1])
             self.assertEqual(len(record["revision"]), 64)
+
+
+@unittest.skipUnless(sys.platform == 'win32', 'requires native Windows file sharing')
+class WindowsPublicationTests(unittest.TestCase):
+    def test_publication_recovers_after_a_native_reader_closes(self):
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.CreateFileW.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+        kernel.CreateFileW.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel.CloseHandle.restype = wintypes.BOOL
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'build.json'
+            path.write_bytes(b'old')
+            share_read_write = 0x1 | 0x2
+            handle = kernel.CreateFileW(str(path), 0x80000000, share_read_write, None, 3, 0x80, None)
+            self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
+            closed = False
+            backoff = build.time.sleep
+            def release_reader(delay):
+                nonlocal closed
+                if not closed:
+                    self.assertTrue(kernel.CloseHandle(handle))
+                    closed = True
+                backoff(delay)
+            try:
+                with mock.patch.object(build.time, 'sleep', side_effect=release_reader) as sleep:
+                    build.write_changed(path, b'new')
+                self.assertTrue(closed)
+                self.assertGreaterEqual(sleep.call_count, 1)
+                self.assertLessEqual(sleep.call_count, 39)
+                sleep.assert_called_with(0.05)
+                self.assertEqual(path.read_bytes(), b'new')
+                self.assertEqual([p.name for p in Path(directory).iterdir()], ['build.json'])
+            finally:
+                if not closed:
+                    kernel.CloseHandle(handle)
+
+    def test_readonly_target_fails_with_bounded_retries_and_no_watch_loop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'build.json'
+            path.write_bytes(b'old')
+            os.chmod(path, 0o444)
+            watcher = build.Watcher(path, lambda: build.write_changed(path, b'new'))
+            try:
+                with mock.patch.object(build.time, 'sleep') as sleep:
+                    self.assertTrue(watcher.poll())
+                    self.assertFalse(watcher.poll())
+                self.assertEqual(sleep.call_count, 39)
+                self.assertEqual(path.read_bytes(), b'old')
+                self.assertEqual([p.name for p in Path(directory).iterdir()], ['build.json'])
+            finally:
+                os.chmod(path, 0o644)
 
 
 if __name__ == "__main__":

@@ -51,7 +51,7 @@ init : Vocabulary.Config -> { model : Model, commands : List(Vocabulary.Command)
 init = |config| {
 	model: {
 		tree: 0,
-		wind: if config.args.contains("--no-wind") 0.0 else 0.3,
+		wind: if config.args.contains("--no-wind") 0.0 else 0.2,
 		selected: !config.args.contains("--no-selection"),
 		visible_only: !config.args.contains("--through-wall"),
 		casts_shadow: !config.args.contains("--no-shadow"),

@@ -92,7 +92,7 @@ shader_load_file :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32, reaso
 
 shader_load_file_scoped :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32, reason: string, ok: bool) {
 	if shader_table_full(t) { return 0, "Shader asset capacity exhausted", false }
-	file, err := os.open(fmt.tprintf("%v/%v.shaderpack", dir, strings.trim_prefix(name, SHADER_PREFIX)))
+	file, err := shader_open_file(fmt.tprintf("%v/%v.shaderpack", dir, strings.trim_prefix(name, SHADER_PREFIX)))
  if err != nil { return 0, "cannot open Shader asset", false }
  defer os.close(file)
  size, size_error := os.file_size(file)

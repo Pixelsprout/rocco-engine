@@ -53,6 +53,10 @@ def windows_sharing_error(error):
     return sys.platform == "win32" and isinstance(error, PermissionError) and getattr(error, "winerror", None) in (32, 33)
 
 
+def windows_publication_error(error):
+    return windows_sharing_error(error) or (sys.platform == "win32" and isinstance(error, PermissionError) and getattr(error, "winerror", None) == 5)
+
+
 class Watcher:
     def __init__(self, declarations, compile_build):
         self.declarations = Path(declarations).resolve()
@@ -168,8 +172,8 @@ def write_changed(path, data):
                 os.replace(temporary, path)
                 break
             except PermissionError as error:
-                # Windows readers can briefly deny replacement while opening a package.
-                if not windows_sharing_error(error) or attempt == 39:
+                # Rename can report access denial while a Windows reader holds the destination.
+                if not windows_publication_error(error) or attempt == 39:
                     raise
                 time.sleep(0.05)
     finally:
