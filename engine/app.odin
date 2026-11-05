@@ -85,7 +85,10 @@ host_options_from_env :: proc(bridge: bool) -> Host_Options {
 	exit_after_frames := exit_after_frames_from_env()
 	mode := run_mode_from_env(exit_after_frames, bridge)
 	capture_csv := os.get_env(CAPTURE_ENV, context.temp_allocator)
-	if problem := capture_problem(capture_csv, exit_after_frames, mode, bridge, debug_camera_from_env()); problem != "" {
+	debug_camera := debug_camera_from_env()
+	debug_diagnostic, valid := run_switch_parse(os.get_env(CAPTURE_DEBUG_CAMERA_ENV, context.temp_allocator))
+	if !valid { fmt.eprintfln("%v must be 0 or 1", CAPTURE_DEBUG_CAMERA_ENV); os.exit(1) }
+	if problem := capture_problem(capture_csv, exit_after_frames, mode, bridge, debug_camera, debug_diagnostic); problem != "" {
 		fmt.eprintln(problem)
 		os.exit(1)
 	}
@@ -97,7 +100,7 @@ host_options_from_env :: proc(bridge: bool) -> Host_Options {
 		seed = seed_from_env(),
 		args = args_from_env(),
 		spans_csv = spans_csv_from_env(exit_after_frames),
-		debug_camera = debug_camera_from_env(),
+		debug_camera = debug_camera,
 		alloc_report = alloc_report_from_env(),
 		read_gamepads = !no_gamepads_from_env(),
 		audio_device = mode != .Headless,

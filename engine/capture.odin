@@ -8,6 +8,7 @@ import "core:strings"
 
 CAPTURE_ENV :: "ROCCO_CAPTURE_CSV"
 CAPTURE_LABELS_ENV :: "ROCCO_CAPTURE_LABELS"
+CAPTURE_DEBUG_CAMERA_ENV :: "ROCCO_CAPTURE_DEBUG_CAMERA"
 CAPTURE_PASSES :: 64
 CAPTURE_LABEL_BYTES :: 128
 CAPTURE_COMMANDS :: 256
@@ -55,11 +56,13 @@ Capture_Sink :: struct {
 	labels: [CAPTURE_PASSES][CAPTURE_LABEL_BYTES]u8,
 }
 
-capture_problem :: proc(path: string, frames: int, mode: Run_Mode, bridge, debug_camera: bool) -> string {
-	if path == "" { return "" }
+capture_problem :: proc(path: string, frames: int, mode: Run_Mode, bridge, debug_camera, debug_diagnostic: bool) -> string {
+	if path == "" { return "debug-camera capture requires a capture path" if debug_diagnostic else "" }
 	if !os.is_absolute_path(path) { return "capture path must be absolute" }
 	if frames <= 0 || frames > CAPTURE_MAX_FRAMES { return "capture requires a frame limit from 1 through 30000" }
-	if mode != .Real_Clock || bridge || debug_camera { return "capture requires Real_Clock without Bridge or debug camera" }
+	if mode != .Real_Clock || bridge { return "capture requires Real_Clock without Bridge" }
+	if debug_camera && !debug_diagnostic { return "debug camera capture requires ROCCO_CAPTURE_DEBUG_CAMERA=1" }
+	if debug_diagnostic && !debug_camera { return "ROCCO_CAPTURE_DEBUG_CAMERA=1 requires ROCCO_DEBUG_CAMERA=1" }
 	for suffix in ([]string{"", ".commands.jsonl", ".meta.json"}) {
 		file, err := os.open(fmt.tprintf("%s%s", path, suffix), {.Read})
 		if err == nil {
@@ -140,7 +143,7 @@ capture_sink_write :: proc(c: ^Capture_Sink, s: ^State) -> os.Error {
 	if err := capture_write_new(fmt.tprintf("%s.commands.jsonl", c.path), strings.to_string(b)); err != nil { return err }
 	strings.builder_reset(&b)
 	strings.write_byte(&b, '{')
-	fmt.sbprintf(&b, `"version":1,"frequency_hz":%v,"clock":"%v","mode":"%v","spans":%v,"d3d_timestamps":%v,"step_hz":%v,"frame_limit":%v,"frames":%v,"command_records":%v,"msaa":%v,"shadow_map":%v,"shadow_cascades":%v,"pass_labels":%v,"seed":%v,"error":`, c.frequency, capture_clock_name(), s.mode, SPANS, GPU_TIMING, s.launch.step_hz, s.exit_after_frames, len(c.rows), c.command_count, msaa_sample_count(s.launch.window.samples), s.launch.shadow_map, s.launch.shadow_cascades, c.label_passes, c.seed)
+	fmt.sbprintf(&b, `"version":1,"frequency_hz":%v,"clock":"%v","mode":"%v","spans":%v,"d3d_timestamps":%v,"debug_camera":%v,"step_hz":%v,"frame_limit":%v,"frames":%v,"command_records":%v,"msaa":%v,"shadow_map":%v,"shadow_cascades":%v,"pass_labels":%v,"seed":%v,"error":`, c.frequency, capture_clock_name(), s.mode, SPANS, GPU_TIMING, s.use_debug_camera, s.launch.step_hz, s.exit_after_frames, len(c.rows), c.command_count, msaa_sample_count(s.launch.window.samples), s.launch.shadow_map, s.launch.shadow_cascades, c.label_passes, c.seed)
 	json_write_string(&b, c.failed)
 	strings.write_string(&b, `,"shadow":`)
 	json_write_shadow(&b, &s.seam.curr.shadow)

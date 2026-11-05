@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import village_capture as runner
 import village_capture_summary as capture
 import village_metal_summary as metal
+import village_debug_camera_summary as debug
 from village_bench_capture import SIZES, sweep_order
 import package_village_capture as package
 
@@ -143,6 +144,15 @@ class BoundaryTests(unittest.TestCase):
 
 
 class MeasurementTests(unittest.TestCase):
+    def test_debug_camera_intervals_follow_the_frame_that_moved(self):
+        rows = [boundary(i, i-1, i) for i in range(1, 5)]
+        for row, x in zip(rows, (0, 0, 1, 1)):
+            row.update(eye_x=str(x), eye_y='1', eye_z='0', target_x=str(x), target_y='1', target_z='-1')
+        samples = debug.frame_samples(rows, 1000)
+        self.assertEqual([sample['frame'] for sample in samples], [2, 3])
+        self.assertEqual([sample['moving'] for sample in samples], [False, True])
+        self.assertEqual([sample['interval_ms'] for sample in samples], [1000, 1000])
+
     def test_gpu_exclusions_and_absent_samples_never_become_zero(self):
         statuses = sorted(capture.GPU_STATUSES-{'Valid'})
         rows = [gpu_row(1), *[gpu_row(i+2, status) for i, status in enumerate(statuses)]]
@@ -214,6 +224,7 @@ class RunnerTests(unittest.TestCase):
         env = runner.environment('pacing', Path('/tmp/example'))
         self.assertEqual(env['ROCCO_LOCKSTEP'], '0')
         self.assertNotIn('ROCCO_BRIDGE', env)
+        self.assertNotIn('ROCCO_CAPTURE_DEBUG_CAMERA', env)
         self.assertNotIn('ROCCO_SPANS_CSV', env)
         self.assertNotIn('ROCCO_D3D_GPU_CSV', env)
         self.assertNotIn('ROCCO_CAPTURE_LABELS', env)

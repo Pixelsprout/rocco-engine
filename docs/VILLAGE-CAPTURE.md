@@ -124,7 +124,9 @@ Do not update the benchmark headline from hosted or Mac results.
 ## Boundary and exclusion contract
 
 The private `ROCCO_CAPTURE_CSV` sink requires Real_Clock and a positive limit of at most 30,000 frames.
-It rejects Bridge, Headless, debug camera, relative paths, and existing output files.
+It rejects Bridge, Headless, relative paths, and existing output files.
+It accepts the debug camera only when `ROCCO_CAPTURE_DEBUG_CAMERA=1` is set.
+The final route launcher clears that setting.
 Without the setting, ordinary launches allocate no sink and take no diagnostic clocks.
 They serialize no diagnostic commands and write no capture files.
 Ordinary Tell behavior and the public ABI remain unchanged.
@@ -228,3 +230,38 @@ The old Lockstep Metal baseline does not satisfy this requirement.
 Keep screenshots, texture readback, Bridge steps, and diagnostic GPU waits outside measured runs.
 Keep raw traces and failed captures beside the final evidence.
 Human scene approval and the user's final PC run remain separate gates.
+
+## Debug camera stutter diagnostic
+
+Prepare native libraries and build the release host with Spans:
+
+```sh
+sh scripts/macos/build-sokol.sh
+roc scripts/build.roc inputs --release
+roc scripts/build.roc host --release --spans
+cd examples/village
+roc build --no-cache --opt=speed --target=arm64mac --output=./village-debug.bin main.roc
+```
+
+Choose new absolute paths for each run.
+Move the debug camera after the village appears.
+The frame limit ends the run if the game does not quit first.
+Run the built game from `examples/village`:
+
+```sh
+ROCCO_DEBUG_CAMERA=1 ROCCO_CAPTURE_DEBUG_CAMERA=1 \
+ROCCO_CAPTURE_CSV=/tmp/village-debug-boundaries.csv \
+ROCCO_SPANS_CSV=/tmp/village-debug-cpu.csv \
+ROCCO_EXIT_AFTER_FRAMES=3600 \
+./village-debug.bin
+cd ../..
+python3 scripts/village_debug_camera_summary.py /tmp/village-debug-boundaries.csv \
+  --cpu /tmp/village-debug-cpu.csv --out /tmp/village-debug-summary.json
+```
+
+The summary starts one second after the last recorded Load command.
+It groups callback intervals by actual debug camera movement.
+It retains the 20 slowest frames with their camera positions and CPU commit times.
+Use `--first-frame`, `--last-frame`, or `--settle-steps` to inspect a narrower interval.
+The diagnostic adds CPU clocks and Spans.
+Its callback intervals do not establish displayed frame cadence or GPU work.

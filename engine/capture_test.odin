@@ -9,13 +9,18 @@ Capture_Count_Case :: struct { id: u64, kind: Capture_Draw_Kind }
 
 @(test)
 test_capture_requires_explicit_bounded_real_clock_options :: proc(t: ^testing.T) {
-	testing.expect_value(t, capture_problem("", 0, .Headless, true, true), "")
-	testing.expect(t, capture_problem("relative.csv", 10, .Real_Clock, false, false) != "")
-	testing.expect(t, capture_problem("/missing/capture.csv", 0, .Real_Clock, false, false) != "")
-	testing.expect(t, capture_problem("/missing/capture.csv", 30_001, .Real_Clock, false, false) != "")
-	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Lockstep, false, false) != "")
-	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Real_Clock, true, false) != "")
-	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Real_Clock, false, true) != "")
+	testing.expect_value(t, capture_problem("", 0, .Headless, true, true, false), "")
+	testing.expect(t, capture_problem("", 10, .Real_Clock, false, true, true) != "")
+	testing.expect(t, capture_problem("relative.csv", 10, .Real_Clock, false, false, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 0, .Real_Clock, false, false, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 30_001, .Real_Clock, false, false, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Lockstep, false, false, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Real_Clock, true, false, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Real_Clock, false, true, false) != "")
+	testing.expect(t, capture_problem("/missing/capture.csv", 10, .Real_Clock, false, false, true) != "")
+	path := "/missing/rocco-debug-camera-capture.csv"
+	when ODIN_OS == .Windows { path = "C:\\RoccoDebugCaptureMissing\\capture.csv" }
+	testing.expect_value(t, capture_problem(path, 10, .Real_Clock, false, true, true), "")
 }
 
 @(test)
