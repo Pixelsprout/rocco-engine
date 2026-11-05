@@ -33,7 +33,12 @@ The third process checks alternate particle source seeds.
 On a 2x Retina display, append `--retina-1080` to each fixture command.
 The game then requests 960 by 540 logical pixels with high DPI enabled.
 Other displays use the default 1920 by 1080 window with high DPI disabled.
-The fixtures verify actual physical dimensions of 1920 by 1080.
+The strict fixtures verify actual physical dimensions of 1920 by 1080.
+For hosted native compatibility, append `--hosted-compat` to the `scene_effects.py` command.
+This mode requires exactly 960 by 540 physical and logical pixels with high DPI disabled.
+It preserves the 16:9 camera aspect, full density, effects, and simulation schedule.
+Each capture records its actual dimensions and evidence mode.
+Hosted compatibility does not establish final 1080p appearance or performance acceptance.
 Window settings require a restart.
 
 Capture the four foliage and lighting review views with effects disabled:

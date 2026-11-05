@@ -15,6 +15,16 @@ GAME = ROOT / 'examples/village'
 sys.path.insert(0, str(ROOT / 'scripts'))
 from bridge import Bridge
 
+STEP_CHUNK = 24
+
+
+def advance(bridge, steps, held=()):
+    while steps:
+        chunk = min(steps, STEP_CHUNK)
+        bridge.step(chunk, held=held)
+        steps -= chunk
+
+
 def view(bridge, name):
     bridge.tell('view', name)
     bridge.step(2)
@@ -66,8 +76,8 @@ def run(out, movie, arguments=()):
                 capture = bridge.screenshot(str(out / f'{name}.png'))
                 assert capture['physical'] == [1920, 1080], capture
             view(bridge, 'walk')
-            bridge.step(424, held=['W', 'LeftShift'])
-            bridge.step(600, held=['D', 'LeftShift'])
+            advance(bridge, 424, held=['W', 'LeftShift'])
+            advance(bridge, 600, held=['D', 'LeftShift'])
             b = bridge.scene()['scene']['camera']['eye']
             assert 4.2 < b['x'] < 4.3 and abs(b['z'] - 5) < 0.1, b
             observations['collision_b'] = b
@@ -78,14 +88,14 @@ def run(out, movie, arguments=()):
             assert group['selected'], 'The selected house must retain Group ancestry'
             observations['selected_group'] = 20
             view(bridge, 'walk')
-            bridge.step(565, held=['W', 'LeftShift'])
-            bridge.step(600, held=['A', 'LeftShift'])
+            advance(bridge, 565, held=['W', 'LeftShift'])
+            advance(bridge, 600, held=['A', 'LeftShift'])
             a = bridge.scene()['scene']['camera']['eye']
             assert -4.1 < a['x'] < -4.0 and abs(a['z'] - 1) < 0.1, a
             observations['collision_a'] = a
             view(bridge, 'free')
             before = bridge.scene()['scene']['camera']['eye']
-            bridge.step(120, held=['Space'])
+            advance(bridge, 120, held=['Space'])
             after = bridge.scene()['scene']['camera']['eye']
             assert after['y'] > before['y'] + 5.9
             observations['free_camera'] = after

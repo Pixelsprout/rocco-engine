@@ -45,7 +45,8 @@ ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game po
 RUN_PREFIX="$RUN" python3 scripts/post_check.py build/bridge-check/post
 RUN_PREFIX="$RUN" python3 scripts/shader_reload_check.py build/bridge-check/reload
 ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
-RUN_PREFIX="$RUN" python3 examples/village/fixtures/scene_effects.py build/bridge-check/village
+python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
+RUN_PREFIX="$RUN" python3 examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat
 
 sh scripts/test-all.sh
 

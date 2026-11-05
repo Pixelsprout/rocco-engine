@@ -101,10 +101,31 @@ The [effects report](../../docs/evidence/village-combined/final-effects-metal.js
 
 All three CI jobs run the targeted complete-scene fixture.
 Each job uses two repeat processes and one short alternate-seed check.
-The Metal job passes `--retina-1080`.
+All three jobs pass `--hosted-compat` for fixed 960 by 540 physical and logical pixels.
+This mode disables high DPI and preserves the 16:9 camera aspect.
+It retains every source placement, field placement, effect, and particle source.
+Hosted compatibility does not establish final 1080p visual acceptance or performance.
 Linux uses the existing Xvfb and Mesa prefix.
 The fixture retains full density during its bounded compatibility checks.
-The UI assertion uses a region inside the opaque panel at both 1x and 2x display scales.
+The fixture records its evidence mode, expected dimensions, and actual physical and logical dimensions for every capture.
+It verifies both Bridge dimensions and decoded PNG dimensions.
+The default remains strict 1920 by 1080 with high DPI disabled.
+The local `--retina-1080` option requests 960 by 540 logical pixels for a 2x display.
+Both strict modes require exactly 1920 by 1080 physical pixels.
+The UI assertion scales an interior panel region from logical coordinates using the verified physical dimensions.
+It compares 7,350 opaque UI pixels at 1x and 29,400 at 2x.
+Outline policies and colour changes must exceed the same image-area fraction at both resolutions.
+The strict threshold remains 1,000 changed pixels; hosted compatibility requires more than 250.
+Long Bridge advances use requests of at most 24 steps without changing simulation totals or route capture times.
+The 432-step warmup, source-camera inputs, seed checks, and replay assertions remain unchanged.
+
+CI run `42017935944` passed the earlier native suites before the complete-village fixture failed.
+Those earlier native results remain separate from complete-village acceptance.
+The Mac fixture received 960 by 540 physical pixels from its Retina option on a 1x display.
+The Windows desktop clamped its large window to 1028 by 749 physical pixels.
+Linux passed initial 1080p captures and wind checks, then timed out during one 432-step request.
+These failures establish no complete-village native acceptance.
+The hosted correction requires new native results on all three systems.
 Functional captures do not enable Spans automatically.
 Performance captures must explicitly select an instrumented host and output path.
 
