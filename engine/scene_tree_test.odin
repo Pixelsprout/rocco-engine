@@ -380,8 +380,8 @@ scene_nodes :: proc(nodes: []Node) -> Scene {
 	return {nodes = roc_list_view(nodes)}
 }
 
-node_group :: proc(id: u64, pos: Vec3, rot: Quat, children: []Node) -> Node {
-	return {tag = .Group, payload = {group = {_0 = {id = id, pos = pos, rot = rot}, _1 = roc_list_view(children)}}}
+node_group :: proc(id: u64, pos: Vec3, rot: Quat, children: []Node, selected := false) -> Node {
+	return {tag = .Group, payload = {group = {_0 = {id = id, pos = pos, rot = rot, selected = selected}, _1 = roc_list_view(children)}}}
 }
 
 node_draw :: proc(d: Draw) -> Node {
@@ -415,4 +415,38 @@ light_nodes :: proc(lights: []Light) -> []Node {
 		nodes[i] = node_light(l)
 	}
 	return nodes
+}
+
+@(test)
+test_selection_uses_current_group_ancestry_and_keeps_draw_namespaces_separate :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	d := Draw{id = 7, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+	children := []Node{node_draw(d), node_group(8, {}, IDENTITY, draw_nodes({{id = 9, mesh = 1, scale = {1, 1, 1}}}))}
+	prev := []Node{node_group(7, {}, IDENTITY, children), node_draw(d)}
+	curr := []Node{node_group(7, {x = 4}, IDENTITY, children, selected = true), node_draw(d)}
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0)
+	testing.expect_value(t, len(f.fr.placed), 3)
+	testing.expect(t, f.fr.placed[0].selected && f.fr.placed[1].selected && !f.fr.placed[2].selected)
+	testing.expect_value(t, f.fr.placed[0].transform.position, [3]f32{})
+	frame_fixture_draw(&f, scene_nodes(curr), scene_nodes(prev), 0)
+	for p in f.fr.placed { testing.expect(t, !p.selected) }
+	children[1].payload.group._0.selected = true
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(prev), 1)
+	testing.expect(t, !f.fr.placed[0].selected && f.fr.placed[1].selected && !f.fr.placed[2].selected)
+}
+
+@(test)
+test_selection_reparenting_uses_current_membership_with_interpolated_world_pose :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	d := draw_nodes({{id = 1, mesh = 1, pos = {x = 1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}})
+	prev := []Node{node_group(10, {x = 4}, IDENTITY, d, selected = true), node_group(20, {x = 20}, IDENTITY, nil)}
+	curr := []Node{node_group(10, {x = 4}, IDENTITY, nil, selected = true), node_group(20, {x = 20}, IDENTITY, d)}
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+	testing.expect_value(t, len(f.fr.placed), 1)
+	testing.expect(t, !f.fr.placed[0].selected)
+	testing.expect_value(t, f.fr.placed[0].transform.position, [3]f32{13, 0, 0})
 }

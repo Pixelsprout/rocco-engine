@@ -129,7 +129,7 @@ five tags, and your game writes the tags directly:
   [Collisions and Queries](collisions.md).
 - `Speaker(speaker)`: a [Speaker], a Sound that plays while the Scene holds
   it. See [Sound](sound.md#speakers).
-- `Group({ id, pos, rot }, children)`: a Group id, a Pose and a list of
+- `Group({ id, pos, rot, selected }, children)`: a Group id, a Pose and a list of
   child Nodes. See [Groups](#groups).
 
 A game with no Groups writes a flat list of leaves, such as
@@ -146,6 +146,16 @@ sits one unit in front of its Group and turns with it. Groups can nest.
 A root Node's Pose is in the world.
 
 A Group has no scale. The `scale` of a Draw acts on that Draw only.
+
+Set `selected` to `Bool.False` for an ordinary Group.
+Set it to `Bool.True` to include every descendant Draw in one Selection union.
+Nested Groups inherit selection from any selected ancestor.
+The current Scene supplies selection membership without interpolation.
+The host supplies coverage and nearest selected depth, including geometry behind walls.
+A Post shader compares selected depth with independent scene depth to choose its occlusion policy.
+Blend materials cover their full shape, including alpha-zero glass.
+Mask materials preserve their cutoff and deformation.
+See [Runtime Post effects](../docs/POST-RUNTIME.md) for the shader inputs and example policies.
 
 Group ids and draw ids are apart. A Group pairs only with a Group, so an
 entity can use its own id for both its Group and its Draw. Keep a Group's

@@ -374,6 +374,8 @@ Vocabulary := [].{
 	## - `Group`: a Group id, a Pose and the children. The children's Poses are
 	##   local to the Group. The host pairs a Group with the first Group of the
 	##   same id in the previous Scene. Group ids and draw ids are apart.
+	##   `selected` includes all descendant Draws in one coverage and nearest-depth union.
+	##   The current Scene supplies selection membership without interpolation.
 	## - `Draw`, `Light`, `Collider`, `Speaker`: the leaves.
 	##
 	## The host interpolates a Node's local Pose and then composes it, if its
@@ -381,7 +383,7 @@ Vocabulary := [].{
 	## interpolates between the two world Poses. A game with no Groups writes a
 	## flat list of leaves. The type is nominal, because only a nominal
 	## recursive union crosses the seam.
-	Node := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
 
 		## Two Nodes are equal when their tags, payloads and children are
 		## equal. A nominal type gets no `==` of its own.

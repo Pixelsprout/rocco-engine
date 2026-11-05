@@ -1363,6 +1363,7 @@ Roc_VocabularyNode_Group_0 :: struct {
 	id: u64,
 	pos: Roc_Init_Commands_Play_At_At_Pos,
 	rot: Roc_VocabularyNode_Collider_Rot,
+	selected: bool,
 }
 
 #assert(size_of(Roc_VocabularyNode_Group_0) == 40)
@@ -1373,6 +1374,8 @@ Roc_VocabularyNode_Group_0 :: struct {
 #assert(size_of(type_of(Roc_VocabularyNode_Group_0{}.pos)) == 12)
 #assert(offset_of(Roc_VocabularyNode_Group_0, rot) == 20)
 #assert(size_of(type_of(Roc_VocabularyNode_Group_0{}.rot)) == 16)
+#assert(offset_of(Roc_VocabularyNode_Group_0, selected) == 36)
+#assert(size_of(type_of(Roc_VocabularyNode_Group_0{}.selected)) == 1)
 
 Roc_VocabularyNode_Group_0_Pos :: Roc_Init_Commands_Play_At_At_Pos
 Roc_VocabularyNode_Group_0_Rot :: Roc_VocabularyNode_Collider_Rot

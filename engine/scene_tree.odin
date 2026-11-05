@@ -32,6 +32,7 @@ Parent_Id :: struct {
 Walk_Parent :: struct {
 	id:          Parent_Id,
 	unpaired:    bool,
+	selected:    bool,
 	world:       Pose,
 	scene_world: Pose,
 }
@@ -99,6 +100,7 @@ tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 		child := Walk_Parent {
 			id          = {id = g.id, grouped = true},
 			unpaired    = walk.group_unpaired,
+			selected    = parent.selected || g.selected,
 			scene_world = pose_under(parent.id.grouped, parent.scene_world, local),
 		}
 		walk.group_unpaired = false

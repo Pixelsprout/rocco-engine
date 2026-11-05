@@ -263,7 +263,7 @@ view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: model.cube, pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
 	pip = { ..Draw.default, id: pip_id, mesh: model.pip, pos: model.pos, rot: Quat.from_yaw(model.yaw) }
 	door = { ..Draw.default, id: door_id, mesh: model.cube, scale: V.scale(door_half, 2.0), tint: { r: 0.45, g: 0.12, b: 0.05 } }
-	door_group = Group({ id: door_group_id, pos: { ..door_pos, y: door_pos.y + model.door_lift }, rot: Quat.identity }, [Draw(door)].concat(door_speakers(model)))
+	door_group = Group({ id: door_group_id, pos: { ..door_pos, y: door_pos.y + model.door_lift }, rot: Quat.identity, selected: Bool.False }, [Draw(door)].concat(door_speakers(model)))
 	pickups = model.pickups.map(|p| Draw(pickup(model.sphere, p)))
 	# The camera is the Listener, so it follows Pip to let you hear the door come closer.
 	camera = Cam.follow({ ..model.pos, z: model.pos.z + 0.3 }, camera_offset)

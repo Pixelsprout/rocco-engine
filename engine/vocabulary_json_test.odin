@@ -235,7 +235,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		t,
 		&b,
 		`{"camera":{"eye":{"x":0,"y":2,"z":5},"target":{"x":0,"y":0,"z":0},"up":{"x":0,"y":1,"z":0},"fov_y":1},` +
-		`"emitters":[],"nodes":[{"Group":{"id":4,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
+		`"emitters":[],"nodes":[{"Group":{"id":4,"selected":false,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
 		`{"Draw":{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
 		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25},"glow":{"r":3,"g":1.5,"b":0},"casts_shadow":false,` +
 		`"pose":{"clip":2,"time":0.5,"fade_clip":1,"fade_time":0.25,"fade":0.75}}},` +

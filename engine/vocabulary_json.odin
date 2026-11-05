@@ -196,6 +196,8 @@ json_write_node :: proc(b: ^strings.Builder, node: ^Node) {
 		json_key(b, "Group", first = true)
 		json_key(b, "id", first = true)
 		strings.write_u64(b, pose.id)
+		json_key(b, "selected")
+		strings.write_string(b, "true" if pose.selected else "false")
 		json_key(b, "pose")
 		json_key(b, "pos", first = true)
 		json_write_vec3(b, pose.pos)

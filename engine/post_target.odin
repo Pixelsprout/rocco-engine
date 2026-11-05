@@ -68,9 +68,6 @@ renderer_prepare_post :: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inp
 	if coverage_target_fit(&t.post.scene, t.size, .Scene_Depth in inputs) { t.post.available += {.Scene_Depth} }
 	if coverage_target_fit(&t.post.selection, t.size, .Selection_Coverage in inputs || .Selection_Depth in inputs) {
 		t.post.available += {.Selection_Coverage, .Selection_Depth}
-		// Selection has an empty union until selected Draw submission is enabled.
-		sg.begin_pass({action = coverage_pass_action(), attachments = t.post.selection.coverage.attachments})
-		sg.end_pass()
 	}
 	return t.post.available
 }

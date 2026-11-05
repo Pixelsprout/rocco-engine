@@ -39,13 +39,12 @@ check_layer :: proc(layer: engine.Target_Layer, size: [2]i32, samples: i32) {
 
 frame :: proc "c" () {
 	context = saved_context
-	fmt.print("POST_SAMPLES [")
-	first := true
+	supported_samples: [len(SAMPLES)]i32
+	supported_count := 0
 	for samples in SAMPLES {
 		if !supported(samples) { continue }
-		if !first { fmt.print(",") }
-		first = false
-		fmt.print(samples)
+		supported_samples[supported_count] = samples
+		supported_count += 1
 		r: engine.Renderer
 		engine.render_target_init(&r.target, samples)
 		for size, i in ([3][2]i32{{320, 240}, {480, 270}, {320, 240}}) {
@@ -54,6 +53,18 @@ frame :: proc "c" () {
 			check_layer(r.target.hdr, size, samples)
 			check_layer(r.target.color, size, samples)
 			assert(r.target.post.scene.test.id == 0)
+			for selection_input in ([2]engine.Post_Inputs{{.Selection_Coverage}, {.Selection_Depth}}) {
+				selection := []engine.Resolved_Post{{location = .BeforeBloom, inputs = selection_input}}
+				available := engine.renderer_prepare_post(&r, selection)
+				assert(available == {.Scene_Colour, .Selection_Coverage, .Selection_Depth})
+				assert(r.target.post.scene.test.id == 0)
+				engine.renderer_begin_pass(&r, .Selection, 0, {})
+				engine.renderer_end_pass(&r)
+				sg.commit()
+				engine.renderer_prepare_post(&r, nil)
+				assert(r.target.post.selection.test.id == 0)
+			}
+
 			effects := []engine.Resolved_Post{{location = .BeforeBloom, inputs = {.Scene_Depth}}, {location = .AfterToneMap, inputs = {.Selection_Coverage, .Selection_Depth}}}
 			inputs := engine.renderer_prepare_post(&r, effects)
 			assert(inputs == {.Scene_Colour, .Scene_Depth, .Selection_Coverage, .Selection_Depth})
@@ -71,6 +82,15 @@ frame :: proc "c" () {
 			assert(r.target.post.scene.test.id == 0 && r.target.post.selection.test.id == 0)
 			assert(r.target.post.hdr[0].image.id == 0 && r.target.post.ldr[0].image.id == 0)
 		}
+		r.target.post.selection.test = sg.alloc_image()
+		sg.fail_image(r.target.post.selection.test)
+		failed := []engine.Resolved_Post{{location = .BeforeBloom, inputs = {.Selection_Coverage, .Selection_Depth}}}
+		available := engine.renderer_prepare_post(&r, failed)
+		assert(available == {.Scene_Colour})
+		engine.renderer_post(&r, failed, .BeforeBloom, 0)
+		assert(r.target.post.failed_logged)
+		engine.renderer_prepare_post(&r, nil)
+		assert(r.target.post.selection.test.id == 0)
 		// A DPI change also replaces optional inputs when physical size stays equal.
 		effects := []engine.Resolved_Post{{location = .BeforeBloom, inputs = {.Scene_Depth}}}
 		engine.renderer_prepare_post(&r, effects)
@@ -80,6 +100,11 @@ frame :: proc "c" () {
 		assert(r.target.post.scene.depth.image != old)
 		engine.render_target_destroy(&r.target)
 		sg.commit()
+	}
+	fmt.print("POST_SAMPLES [")
+	for samples, i in supported_samples[:supported_count] {
+		if i > 0 { fmt.print(",") }
+		fmt.print(samples)
 	}
 	fmt.println("]")
 	assert(errors == 0)

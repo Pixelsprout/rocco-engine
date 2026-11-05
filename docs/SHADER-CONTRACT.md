@@ -567,3 +567,20 @@ The `fs_lights` block remains 512 bytes.
 A blend band that rounds to zero width uses a hard step and avoids an undefined smoothstep.
 Finite distance uses camera fitting with one or multiple cascades.
 All layouts preserve these lanes across rigid, skinned and instanced colour variants.
+
+## Selected Group production
+
+`Group.selected` includes all descendant Draws in one coverage and nearest-depth union.
+The current Scene supplies membership, including selected ancestors of nested Groups.
+Selection shares admitted geometry, interpolated transforms, skin poses, Surface hooks, and render time with colour.
+Its depth test stays independent of scene depth and shadow casting.
+Mask fragments use shared alpha rules; Blend fragments cover their full shape even at zero alpha.
+The host allocates and produces Selection only when a valid enabled Post effect requests either Selection input.
+Removing the last consumer releases the targets.
+The example Post shader implements visible-only and through-wall policies before bloom from the same four inputs.
+
+Selection reuses the existing coverage shaders, pipelines, target credits, and per-part uniform reservation.
+Its grouped individual submissions add no resource credits or instance bytes.
+The instance stride remains 116 bytes.
+`python3 scripts/post_check.py` runs selected-Group checks in each native backend CI job.
+Local Metal results do not establish GL or D3D11 acceptance.

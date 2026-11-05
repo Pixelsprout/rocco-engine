@@ -171,3 +171,98 @@ test_scene_depth_groups_alternating_mask_parts_within_the_admitted_palette_budge
 	testing.expect_value(t, f.rec.depth_palette_count, 256)
 	testing.expect_value(t, len(f.fr.skins), 256)
 }
+
+post_selection_inputs :: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inputs {
+	return {.Scene_Depth, .Selection_Coverage, .Selection_Depth}
+}
+
+@(test)
+test_selection_draws_one_independent_union_including_blend_and_noncasters :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	parts := []Mesh_Part{
+		{first = 0, material = {alpha_mode = .Opaque}},
+		{first = 3, material = {alpha_mode = .Mask, alpha_cutoff = 0.4}},
+		{first = 6, material = {alpha_mode = .Blend, double_sided = true}},
+	}
+	placed := []Placed{
+		{selected = true, camera_visible = true, parts = parts},
+		{selected = false, camera_visible = true, parts = parts},
+		{selected = true, camera_visible = false, parts = parts},
+	}
+	draws := make([]Draw_Params, len(placed), context.temp_allocator)
+	for &p, i in placed { draws[i] = {p = &p, vs_params = {model = mat4_translate({f32(i), 2, 3})}} }
+	f.fr.submits.submit_selection = record_submit
+	span := span_open()
+	frame_render_selection(&f.fr, draws, &span)
+	testing.expect_value(t, len(f.rec.passes), 1)
+	testing.expect_value(t, f.rec.passes[0].pass, Pass.Selection)
+	testing.expect_value(t, f.rec.pass_ends, 1)
+	testing.expect_value(t, len(f.rec.submits), 3)
+	for got, i in f.rec.submits {
+		testing.expect_value(t, got.part.first, i*3)
+		testing.expect_value(t, got.model, draws[0].vs_params.model)
+	}
+	testing.expect_value(t, f.rec.submits[2].pipeline, Mesh_Pipeline.Mask_Double_Sided)
+	testing.expect_value(t, len(f.rec.shadows), 0)
+}
+
+@(test)
+test_selection_preserves_surface_values_time_transform_and_palette :: proc(t: ^testing.T) {
+	f: Surface_Fixture
+	surface_fixture_init(t, &f)
+	defer surface_fixture_destroy(&f)
+	d := surface_test_draw(&f)
+	d.material.surface = {tag = .Surface, payload = {surface = surface_test_values()}}
+	mesh, _ := mesh_lookup(&f.frame.meshes, d.mesh)
+	parts := surface_resolve_parts(&f.packs, &d, mesh, nil, 3.5)
+	parts[0].material.alpha_mode = .Blend
+	p := Placed{mesh = mesh, parts = parts, selected = true, camera_visible = true, skin = &f.frame.fr.skins[0]}
+	vs := Vs_Params{model = mat4_translate({1, 2, 3})}
+	span := span_open()
+	frame_render_selection(&f.frame.fr, {{p = &p, vs_params = vs}}, &span)
+	testing.expect_value(t, len(f.frame.rec.surfaces), 2)
+	for got in f.frame.rec.surfaces {
+		testing.expect_value(t, got.pass, Surface_Pass.Selection)
+		testing.expect_value(t, got.time, f32(3.5))
+		testing.expect_value(t, got.model, vs.model)
+		testing.expect_value(t, got.skin, p.skin)
+	}
+}
+
+@(test)
+test_selection_follows_scene_depth_before_post_and_keeps_one_clear_without_selected_groups :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	f.fr.submits.prepare_post = post_selection_inputs
+	f.fr.submits.submit_post = post_record
+	scene := scene_of(nil)
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, len(f.rec.passes), 4)
+	testing.expect_value(t, f.rec.passes[1].pass, Pass.Scene_Depth)
+	testing.expect_value(t, f.rec.passes[2].pass, Pass.Selection)
+	testing.expect(t, f.rec.post_events[0].outside_pass)
+	testing.expect_value(t, len(f.rec.submits), 0)
+}
+
+@(test)
+test_selection_groups_alternating_parts_within_the_admitted_palette_budget :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, draws = 12800)
+	defer frame_fixture_destroy(&f)
+	parts := make([]Mesh_Part, 100, context.temp_allocator)
+	for &part, i in parts { part.material = MATERIAL_MATTE; part.material.alpha_mode = .Mask; part.material.double_sided = i % 2 == 0 }
+	placed := make([]Placed, 128, context.temp_allocator)
+	draws := make([]Draw_Params, 128, context.temp_allocator)
+	for &p, i in placed {
+		p.parts, p.skin = parts, &f.fr.skins[i]
+		p.selected, p.camera_visible = true, true
+		draws[i].p = &p
+	}
+	f.fr.submits.submit_selection = post_depth_palette_record
+	span := span_open()
+	frame_render_selection(&f.fr, draws, &span)
+	testing.expect_value(t, f.rec.depth_palette_count, 256)
+}

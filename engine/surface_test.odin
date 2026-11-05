@@ -6,7 +6,7 @@ import "core:strings"
 import "core:testing"
 
 Surface_Fixture :: struct { frame: Frame_Fixture, packs: Packs, images: Image_Table, audio: Audio, mesh: u32 }
-Surface_Observed :: struct { pass: Surface_Pass, first: int, time: f32, vertex, fragment: [64]f32, model: Mat4 }
+Surface_Observed :: struct { pass: Surface_Pass, first: int, time: f32, vertex, fragment: [64]f32, model: Mat4, skin: ^Skin_Params }
 
 surface_fixture_init :: proc(t: ^testing.T, f: ^Surface_Fixture) {
 	frame_fixture_init(&f.frame)
@@ -29,7 +29,7 @@ surface_fixture_init :: proc(t: ^testing.T, f: ^Surface_Fixture) {
 surface_fixture_destroy :: proc(f: ^Surface_Fixture) { packs_destroy(&f.packs); image_table_destroy(&f.images); frame_fixture_destroy(&f.frame) }
 surface_record :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs: Vs_Params, fs: Fs_Params, skin: ^Skin_Params) {
 	r:=(^Recorder)(ctx)
-	append(&r.surfaces,Surface_Observed{pass,part.first,part.surface.time,part.surface.vertex,part.surface.fragment,vs.model})
+	append(&r.surfaces,Surface_Observed{pass,part.first,part.surface.time,part.surface.vertex,part.surface.fragment,vs.model,skin})
 	if pass==.Colour { record_submit(ctx,mesh,part,pipeline,vs,fs,skin) }
 	if pass==.Shadow { record_shadow(ctx,mesh,part,pipeline,{light_mvp=vs.mvp,shadow_material={fs.material.w,0,0,0}},skin) }
 }
