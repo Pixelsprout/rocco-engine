@@ -76,6 +76,19 @@ import sg "../sokol-odin/sokol/gfx"
             ATTR_instanced_instance_normal1 => 10
             ATTR_instanced_instance_normal2 => 11
             ATTR_instanced_instance_tint => 12
+    Shader program: 'instanced_coverage':
+        Get shader desc: instanced_coverage_shader_desc(sg.query_backend())
+        Vertex Shader: instanced_shadow_mask_vs
+        Fragment Shader: coverage_fs
+        Attributes:
+            ATTR_instanced_coverage_pos => 0
+            ATTR_instanced_coverage_col => 1
+            ATTR_instanced_coverage_uv => 2
+            ATTR_instanced_coverage_instance_model0 => 3
+            ATTR_instanced_coverage_instance_model1 => 4
+            ATTR_instanced_coverage_instance_model2 => 5
+            ATTR_instanced_coverage_instance_model3 => 6
+            ATTR_instanced_coverage_instance_tint => 7
     Shader program: 'instanced_mask':
         Get shader desc: instanced_mask_shader_desc(sg.query_backend())
         Vertex Shader: instanced_vs
@@ -416,6 +429,14 @@ ATTR_instanced_instance_normal0 :: 9
 ATTR_instanced_instance_normal1 :: 10
 ATTR_instanced_instance_normal2 :: 11
 ATTR_instanced_instance_tint :: 12
+ATTR_instanced_coverage_pos :: 0
+ATTR_instanced_coverage_col :: 1
+ATTR_instanced_coverage_uv :: 2
+ATTR_instanced_coverage_instance_model0 :: 3
+ATTR_instanced_coverage_instance_model1 :: 4
+ATTR_instanced_coverage_instance_model2 :: 5
+ATTR_instanced_coverage_instance_model3 :: 6
+ATTR_instanced_coverage_instance_tint :: 7
 ATTR_instanced_mask_pos :: 0
 ATTR_instanced_mask_col :: 1
 ATTR_instanced_mask_nrm :: 2
@@ -22449,6 +22470,124 @@ instanced_shader_desc :: proc "c" (backend: sg.Backend) -> sg.Shader_Desc {
         desc.texture_sampler_pairs[7].stage = .FRAGMENT
         desc.texture_sampler_pairs[7].view_slot = 2
         desc.texture_sampler_pairs[7].sampler_slot = 2
+    }
+    return desc
+}
+instanced_coverage_shader_desc :: proc "c" (backend: sg.Backend) -> sg.Shader_Desc {
+    desc: sg.Shader_Desc
+    desc.label = "instanced_coverage_shader"
+    #partial switch backend {
+    case .GLCORE:
+        desc.vertex_func.source = transmute(cstring)&instanced_shadow_mask_vs_source_glsl430
+        desc.vertex_func.entry = "main"
+        desc.fragment_func.source = transmute(cstring)&coverage_fs_source_glsl430
+        desc.fragment_func.entry = "main"
+        desc.attrs[0].base_type = .FLOAT
+        desc.attrs[0].glsl_name = "pos"
+        desc.attrs[1].base_type = .FLOAT
+        desc.attrs[1].glsl_name = "col"
+        desc.attrs[2].base_type = .FLOAT
+        desc.attrs[2].glsl_name = "uv"
+        desc.attrs[3].base_type = .FLOAT
+        desc.attrs[3].glsl_name = "instance_model0"
+        desc.attrs[4].base_type = .FLOAT
+        desc.attrs[4].glsl_name = "instance_model1"
+        desc.attrs[5].base_type = .FLOAT
+        desc.attrs[5].glsl_name = "instance_model2"
+        desc.attrs[6].base_type = .FLOAT
+        desc.attrs[6].glsl_name = "instance_model3"
+        desc.attrs[7].base_type = .FLOAT
+        desc.attrs[7].glsl_name = "instance_tint"
+        desc.uniform_blocks[0].stage = .VERTEX
+        desc.uniform_blocks[0].layout = .STD140
+        desc.uniform_blocks[0].size = 80
+        desc.uniform_blocks[0].glsl_uniforms[0].type = .FLOAT4
+        desc.uniform_blocks[0].glsl_uniforms[0].array_count = 5
+        desc.uniform_blocks[0].glsl_uniforms[0].glsl_name = "shadow_vs_params"
+        desc.views[0].texture.stage = .FRAGMENT
+        desc.views[0].texture.image_type = ._2D
+        desc.views[0].texture.sample_type = .FLOAT
+        desc.views[0].texture.multisampled = false
+        desc.samplers[0].stage = .FRAGMENT
+        desc.samplers[0].sampler_type = .FILTERING
+        desc.texture_sampler_pairs[0].stage = .FRAGMENT
+        desc.texture_sampler_pairs[0].view_slot = 0
+        desc.texture_sampler_pairs[0].sampler_slot = 0
+        desc.texture_sampler_pairs[0].glsl_name = "base_tex_base_smp"
+    case .D3D11:
+        desc.vertex_func.source = transmute(cstring)&instanced_shadow_mask_vs_source_hlsl5
+        desc.vertex_func.d3d11_target = "vs_5_0"
+        desc.vertex_func.entry = "main"
+        desc.fragment_func.source = transmute(cstring)&coverage_fs_source_hlsl5
+        desc.fragment_func.d3d11_target = "ps_5_0"
+        desc.fragment_func.entry = "main"
+        desc.attrs[0].base_type = .FLOAT
+        desc.attrs[0].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[0].hlsl_sem_index = 0
+        desc.attrs[1].base_type = .FLOAT
+        desc.attrs[1].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[1].hlsl_sem_index = 1
+        desc.attrs[2].base_type = .FLOAT
+        desc.attrs[2].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[2].hlsl_sem_index = 2
+        desc.attrs[3].base_type = .FLOAT
+        desc.attrs[3].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[3].hlsl_sem_index = 3
+        desc.attrs[4].base_type = .FLOAT
+        desc.attrs[4].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[4].hlsl_sem_index = 4
+        desc.attrs[5].base_type = .FLOAT
+        desc.attrs[5].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[5].hlsl_sem_index = 5
+        desc.attrs[6].base_type = .FLOAT
+        desc.attrs[6].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[6].hlsl_sem_index = 6
+        desc.attrs[7].base_type = .FLOAT
+        desc.attrs[7].hlsl_sem_name = "TEXCOORD"
+        desc.attrs[7].hlsl_sem_index = 7
+        desc.uniform_blocks[0].stage = .VERTEX
+        desc.uniform_blocks[0].layout = .STD140
+        desc.uniform_blocks[0].size = 80
+        desc.uniform_blocks[0].hlsl_register_b_n = 0
+        desc.views[0].texture.stage = .FRAGMENT
+        desc.views[0].texture.image_type = ._2D
+        desc.views[0].texture.sample_type = .FLOAT
+        desc.views[0].texture.multisampled = false
+        desc.views[0].texture.hlsl_register_t_n = 0
+        desc.samplers[0].stage = .FRAGMENT
+        desc.samplers[0].sampler_type = .FILTERING
+        desc.samplers[0].hlsl_register_s_n = 0
+        desc.texture_sampler_pairs[0].stage = .FRAGMENT
+        desc.texture_sampler_pairs[0].view_slot = 0
+        desc.texture_sampler_pairs[0].sampler_slot = 0
+    case .METAL_MACOS:
+        desc.vertex_func.source = transmute(cstring)&instanced_shadow_mask_vs_source_metal_macos
+        desc.vertex_func.entry = "main0"
+        desc.fragment_func.source = transmute(cstring)&coverage_fs_source_metal_macos
+        desc.fragment_func.entry = "main0"
+        desc.attrs[0].base_type = .FLOAT
+        desc.attrs[1].base_type = .FLOAT
+        desc.attrs[2].base_type = .FLOAT
+        desc.attrs[3].base_type = .FLOAT
+        desc.attrs[4].base_type = .FLOAT
+        desc.attrs[5].base_type = .FLOAT
+        desc.attrs[6].base_type = .FLOAT
+        desc.attrs[7].base_type = .FLOAT
+        desc.uniform_blocks[0].stage = .VERTEX
+        desc.uniform_blocks[0].layout = .STD140
+        desc.uniform_blocks[0].size = 80
+        desc.uniform_blocks[0].msl_buffer_n = 0
+        desc.views[0].texture.stage = .FRAGMENT
+        desc.views[0].texture.image_type = ._2D
+        desc.views[0].texture.sample_type = .FLOAT
+        desc.views[0].texture.multisampled = false
+        desc.views[0].texture.msl_texture_n = 0
+        desc.samplers[0].stage = .FRAGMENT
+        desc.samplers[0].sampler_type = .FILTERING
+        desc.samplers[0].msl_sampler_n = 0
+        desc.texture_sampler_pairs[0].stage = .FRAGMENT
+        desc.texture_sampler_pairs[0].view_slot = 0
+        desc.texture_sampler_pairs[0].sampler_slot = 0
     }
     return desc
 }

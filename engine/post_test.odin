@@ -99,7 +99,7 @@ test_scene_depth_reuses_surface_coverage_and_omits_blend_and_casting_policy :: p
 	parts[0].material.alpha_mode = .Blend
 	p := Placed{mesh = mesh, parts = parts, camera_visible = true, model = mat4_identity(), tint = {1,1,1}}
 	span := span_open()
-	frame_render_depth(&f.frame.fr, {{p = &p, vs_params = {mvp = mat4_identity(), model = mat4_identity()}}}, &span)
+	frame_render_depth(&f.frame.fr, {{p = &p, vs_params = {mvp = mat4_identity(), model = mat4_identity()}}}, mat4_identity(), &span)
 	testing.expect_value(t, len(f.frame.rec.surfaces), 1)
 	testing.expect_value(t, f.frame.rec.surfaces[0].first, parts[1].first)
 	testing.expect_value(t, f.frame.rec.surfaces[0].pass, Surface_Pass.Selection)
@@ -107,7 +107,7 @@ test_scene_depth_reuses_surface_coverage_and_omits_blend_and_casting_policy :: p
 	testing.expect_value(t, f.frame.rec.passes[0].pass, Pass.Scene_Depth)
 	testing.expect_value(t, len(f.frame.rec.shadows), 0)
 	p.camera_visible = false
-	frame_render_depth(&f.frame.fr, {{p = &p}}, &span)
+	frame_render_depth(&f.frame.fr, {{p = &p}}, mat4_identity(), &span)
 	testing.expect_value(t, len(f.frame.rec.surfaces), 1)
 	testing.expect_value(t, len(p.parts), 2)
 }
@@ -167,7 +167,7 @@ test_scene_depth_groups_alternating_mask_parts_within_the_admitted_palette_budge
 	}
 	f.fr.submits.submit_depth = post_depth_palette_record
 	span := span_open()
-	frame_render_depth(&f.fr, draws, &span)
+	frame_render_depth(&f.fr, draws, mat4_identity(), &span)
 	testing.expect_value(t, f.rec.depth_palette_count, 256)
 	testing.expect_value(t, len(f.fr.skins), 256)
 }

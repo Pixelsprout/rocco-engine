@@ -51,7 +51,7 @@ Mesh_Shaders :: struct {
 Renderer :: struct {
 	depth_pips, skinned_depth_pips: [Mesh_Pipeline]sg.Pipeline,
 	pips:               [Mesh_Pipeline]sg.Pipeline,
-	instanced_pips, instanced_shadow_pips: [Mesh_Pipeline]sg.Pipeline,
+	instanced_pips, instanced_shadow_pips, instanced_depth_pips: [Mesh_Pipeline]sg.Pipeline,
 	instance_buffer: sg.Buffer,
 	instance_offset, instance_count: int,
 	skinned_pips:       [Mesh_Pipeline]sg.Pipeline,
@@ -139,7 +139,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	sample_count := msaa_sample_count(launch.window.samples)
 	render_target_init(&r.target, sample_count)
 	particle_gpu_init(&r.particles, sample_count)
-	r.instance_buffer = sg.make_buffer({size = uint(int(launch.capacity.draws) * (int(launch.shadow_cascades) + 3) * size_of(Surface_Instance)), usage = {vertex_buffer = true, stream_update = true}})
+	r.instance_buffer = sg.make_buffer({size = instance_buffer_size(int(launch.capacity.draws), int(launch.shadow_cascades)), usage = {vertex_buffer = true, stream_update = true}})
 	mesh_table_upload(&r.meshes)
 	if r.shaders != nil { shader_table_upload(r.shaders, sample_count) }
 	sky_table_upload(&r.skies)
@@ -585,12 +585,15 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 
 renderer_depth :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {
  r := (^Renderer)(ctx)
- renderer_apply_skin(r, r.depth_pips[pipeline], r.skinned_depth_pips[pipeline], skin)
+ rigid := r.instanced_depth_pips[pipeline] if r.instance_count > 0 else r.depth_pips[pipeline]
+ renderer_apply_skin(r, rigid, r.skinned_depth_pips[pipeline], skin)
  tex := mesh_part_textures(part, r.white, r.flat_normal).base
- sg.apply_bindings({vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices, views = {VIEW_base_tex = tex.view}, samplers = {SMP_base_smp = tex.sampler}})
+ bindings := sg.Bindings{vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices}, index_buffer = mesh.indices, views = {VIEW_base_tex = tex.view}, samplers = {SMP_base_smp = tex.sampler}}
+ renderer_instance_bindings(r, &bindings)
+ sg.apply_bindings(bindings)
  params := Shadow_Vs_Params{light_mvp = vs_params.mvp, shadow_material = {fs_params.material.w if part.material.alpha_mode == .Mask else -1, fs_params.tint.a, 0, 0}}
  sg.apply_uniforms(UB_shadow_vs_params, {ptr = &params, size = size_of(params)})
- sg.draw(part.first, part.count, 1)
+ sg.draw(part.first, part.count, max(r.instance_count, 1))
 }
 
 renderer_selection :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {

@@ -75,7 +75,7 @@ Recorder :: struct {
 	depth_has_pipeline: bool,
 	depth_pipeline: Mesh_Pipeline,
 	depth_skin: ^Skin_Params,
-	instance_calls: int,
+	instance_calls, instance_records: int,
 	particles: [dynamic]Particle_Recorded,
 	surfaces: [dynamic]Surface_Observed,
 	passes:        [dynamic]Pass_Begun,

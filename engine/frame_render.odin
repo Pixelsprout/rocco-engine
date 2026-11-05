@@ -417,7 +417,7 @@ frame_render_draw :: proc(
 	effects := post_resolve(fr.packs, curr.post.elements[:curr.post.length], frame_walk.scene_values, fr.render_time)
 	if fr.submits.prepare_post != nil {
 		inputs := fr.submits.prepare_post(fr.submits.ctx, effects)
-		if .Scene_Depth in inputs { frame_render_depth(fr, draw_params, &span) }
+		if .Scene_Depth in inputs { frame_render_depth(fr, draw_params, view.view_proj, &span) }
 		if .Selection_Coverage in inputs || .Selection_Depth in inputs { frame_render_selection(fr, draw_params, &span) }
 	}
 	if fr.submits.submit_post != nil { fr.submits.submit_post(fr.submits.ctx, effects, .BeforeBloom, fr.render_time) }
@@ -1008,10 +1008,14 @@ submits_none_submit_tone_map :: proc(ctx: rawptr, params: Tone_Map_Params) {}
 
 placed_box :: proc(p: ^Placed) -> Box { return p.box if p.bounds_resolved else p.mesh.box }
 
-frame_render_depth :: proc(fr: ^Frame_Render, draws: []Draw_Params, span: ^Span_Tick) {
+frame_render_depth :: proc(fr: ^Frame_Render, draws: []Draw_Params, view_proj: Mat4, span: ^Span_Tick) {
  frame_render_begin_pass(fr, .Scene_Depth, 0, {}, span)
  for skinned in ([2]bool{false, true}) {
   for pipeline in SCENE_ORDER_PIPELINES {
+   if !skinned && fr.submits.submit_instances != nil {
+    frame_render_instances(fr, .Selection, pipeline, view_proj, draw_params = draws)
+    continue
+   }
    for d in draws {
     if !d.p.camera_visible || (d.p.skin != nil) != skinned { continue }
     for &part in d.p.parts {

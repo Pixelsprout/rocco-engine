@@ -8,9 +8,18 @@ Instance_Key :: struct {
 	mesh_generation, shader_generation: u16,
 	first, count: int,
 	raw_colour, double_sided: bool,
-	fs: Fs_Params,
+	fs_bits: [size_of(Fs_Params)/size_of(f32)]u32,
 	textures: [5]Mesh_Texture,
 	surface: int,
+}
+
+Surface_Instance_Key :: struct {
+	shader: ^Shader,
+	imported: [4]int,
+	vertex, fragment: [64]u32,
+	textures: [4]Mesh_Texture,
+	draw_info: [4]u32,
+	time: u32,
 }
 
 Instance_Member :: struct {
@@ -22,6 +31,10 @@ Instance_Batch :: struct {
 	key: Instance_Key,
 	part: ^Mesh_Part,
 	first, last: int,
+}
+
+instance_buffer_size :: proc(draws, cascades: int) -> uint {
+	return uint(draws * (cascades + 3) * size_of(Surface_Instance))
 }
 
 // Homogeneous plane support keeps boxes that cross the eye plane.
@@ -68,11 +81,19 @@ instance_texture :: proc(texture: Mesh_Texture) -> Mesh_Texture {
 }
 
 instance_key :: proc(p: ^Placed, part: ^Mesh_Part, fs: Fs_Params, surface: int) -> (key: Instance_Key) {
-	key = {mesh = p.mesh, mesh_generation = p.mesh.generation, first = part.first, count = part.count, raw_colour = part.raw_colour, double_sided = part.material.double_sided, fs = fs, surface = surface}
+	key = {mesh = p.mesh, mesh_generation = p.mesh.generation, first = part.first, count = part.count, raw_colour = part.raw_colour, double_sided = part.material.double_sided, surface = surface}
 	if part.surface != nil { key.shader_generation = part.surface.shader.generation }
-	key.fs.tint = {}
+	params := fs
+	params.tint = {}
+	key.fs_bits = transmute([size_of(Fs_Params)/size_of(f32)]u32)params
 	textures := [5]Mesh_Texture{part.texture, part.metallic_roughness, part.emissive, part.normal, part.occlusion}
 	for texture, i in textures { key.textures[i] = instance_texture(texture) }
+	return
+}
+
+surface_instance_key :: proc(surface: Surface_Material) -> (key: Surface_Instance_Key) {
+	key = {shader = surface.shader, imported = surface.imported, vertex = transmute([64]u32)surface.vertex, fragment = transmute([64]u32)surface.fragment, draw_info = transmute([4]u32)surface.draw_info, time = transmute(u32)surface.time}
+	for texture, i in surface.textures { key.textures[i] = instance_texture(texture) }
 	return
 }
 
@@ -86,10 +107,12 @@ frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: 
 	batches := make([dynamic]Instance_Batch, 0, min(len(fr.placed), 64), context.temp_allocator)
 	members := make([dynamic]Instance_Member, 0, min(len(fr.placed), 64), context.temp_allocator)
 	keys := make(map[Instance_Key]int, context.temp_allocator)
-	surfaces := make(map[Surface_Material]int, context.temp_allocator)
-	last_surface: Surface_Material
+	surfaces := make(map[Surface_Instance_Key]int, context.temp_allocator)
+	last_surface: Surface_Instance_Key
 	last_surface_id := 0
-	for &p, placed_index in fr.placed {
+	placed_count := len(draw_params) if len(draw_params) > 0 else len(fr.placed)
+	for placed_index in 0 ..< placed_count {
+		p := draw_params[placed_index].p if len(draw_params) > 0 else &fr.placed[placed_index]
 		if p.skin != nil { continue }
 		if pass == .Shadow {
 			if p.shadow_count == 0 || cascade != nil && !cascade_covers(cascade^, p.light_box) { continue }
@@ -101,7 +124,7 @@ frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: 
 			pp, ok := part_pipeline(part.material)
 			if !ok || pp != pipeline { continue }
 			if !prepared {
-				if len(draw_params) > 0 { vs, base = draw_params[placed_index].vs_params, draw_params[placed_index].fs_params } else { vs, base = placed_draw_params(&p, view_proj) }
+				if len(draw_params) > 0 { vs, base = draw_params[placed_index].vs_params, draw_params[placed_index].fs_params } else { vs, base = placed_draw_params(p, view_proj) }
 				prepared = true
 			}
 			fs := frame_render_part_params(base, &part)
@@ -111,14 +134,13 @@ frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: 
 			}
 			surface := 0
 			if part.surface != nil {
-				value := part.surface^
-				for &texture in value.textures { texture = instance_texture(texture) }
+				value := surface_instance_key(part.surface^)
 				if last_surface_id > 0 && value == last_surface { surface = last_surface_id } else {
 					if id, found := surfaces[value]; found { surface = id } else { surface = len(surfaces) + 1; surfaces[value] = surface }
 					last_surface, last_surface_id = value, surface
 				}
 			}
-			key := instance_key(&p, &part, fs, surface)
+			key := instance_key(p, &part, fs, surface)
 			index := len(batches) - 1
 			found := index >= 0 && batches[index].key == key
 			if !found { index, found = keys[key] }
@@ -136,7 +158,7 @@ frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: 
 	for batch in batches {
 		start := next
 		for member := batch.first; member >= 0; member = members[member].next { instances[next] = members[member].instance; next += 1 }
-		fs := batch.key.fs; fs.tint = {1, 1, 1, 1}
+		fs := transmute(Fs_Params)batch.key.fs_bits; fs.tint = {1, 1, 1, 1}
 		fr.submits.submit_instances(fr.submits.ctx, pass, batch.key.mesh, batch.part, pipeline, view_proj, fs, instances[start:next])
 	}
 }

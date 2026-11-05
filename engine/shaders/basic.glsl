@@ -1075,3 +1075,5 @@ void main() {
 }
 @end
 @program instanced_shadow_mask instanced_shadow_mask_vs shadow_mask_fs
+
+@program instanced_coverage instanced_shadow_mask_vs coverage_fs

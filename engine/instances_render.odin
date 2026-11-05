@@ -24,6 +24,13 @@ renderer_instances_init :: proc(r: ^Renderer, colour: sg.Pipeline_Desc) {
 	for i in 0 ..< 4 { shadow.layout.attrs[3+i] = full.attrs[5+i] }
 	shadow.layout.attrs[7] = full.attrs[12]
 	for pipeline in SCENE_ORDER_PIPELINES { if pipeline != .Opaque { r.instanced_shadow_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(shadow, pipeline)) } }
+	coverage := shadow
+	coverage.shader = sg.make_shader(instanced_coverage_shader_desc(sg.query_backend()))
+	coverage.depth = {pixel_format = .DEPTH, compare = .GREATER_EQUAL, write_enabled = true}
+	coverage.color_count = 2
+	coverage.colors[0].pixel_format = .R8
+	coverage.colors[1].pixel_format = .R32F
+	for pipeline in SCENE_ORDER_PIPELINES { r.instanced_depth_pips[pipeline] = sg.make_pipeline(shadow_mask_pipeline_desc(coverage, pipeline)) }
 }
 
 instance_layout :: proc() -> (layout: sg.Vertex_Layout_State) {
@@ -58,5 +65,6 @@ renderer_instances :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^
 		renderer_surface(ctx, pass, mesh, part, pipeline, vs, fs, nil)
 	} else if pass == .Shadow {
 		renderer_shadow(ctx, mesh, part, pipeline, {light_mvp = view_proj, shadow_material = {part.material.alpha_cutoff, 0, 0, 0}}, nil)
-	} else { renderer_draw(ctx, mesh, part, pipeline, vs, fs, nil) }
+	} else if pass == .Selection { renderer_depth(ctx, mesh, part, pipeline, vs, fs, nil) }
+	else { renderer_draw(ctx, mesh, part, pipeline, vs, fs, nil) }
 }

@@ -58,8 +58,8 @@ test_app_gfx_desc_sizes_the_pools_and_the_uniform_buffer_from_the_capacity :: pr
 	desc := app_gfx_desc(launch_default().capacity, 1)
 	images := 2 * MESH_TEXTURE_LIMIT * 64 + 712
 	testing.expect_value(t, desc.buffer_pool_size, 3 * 64 + 5 + 2)
-	testing.expect_value(t, desc.shader_pool_size, SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 4)
-	testing.expect_value(t, desc.pipeline_pool_size, SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 6)
+	testing.expect_value(t, desc.shader_pool_size, SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 5)
+	testing.expect_value(t, desc.pipeline_pool_size, SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 9)
 	testing.expect_value(t, desc.image_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.sampler_pool_size, i32(images + TARGET_IMAGES))
 	testing.expect_value(t, desc.view_pool_size, i32(images + MAX_CASCADES + TARGET_VIEWS + 3))
@@ -85,7 +85,7 @@ test_particle_reservations_add_to_existing_renderer_capacity :: proc(t: ^testing
 	capacity := Capacity{meshes = 4, skies = 2, images = 2, ui_quads = 1}
 	desc := app_gfx_desc(capacity, MAX_CASCADES)
 	testing.expect_value(t, desc.buffer_pool_size, 3 * 4 + 5 + 2)
-	testing.expect_value(t, desc.shader_pool_size, SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 4)
-	testing.expect_value(t, desc.pipeline_pool_size, SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 6)
+	testing.expect_value(t, desc.shader_pool_size, SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 5)
+	testing.expect_value(t, desc.pipeline_pool_size, SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 9)
 	testing.expect_value(t, desc.uniform_buffer_size, (21 + 2 * EMITTER_LIMIT + POST_UNIFORM_SLOTS) * UNIFORM_ALIGN)
 }
