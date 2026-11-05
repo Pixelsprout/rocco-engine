@@ -1,8 +1,10 @@
 import copy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
 import struct
+import tempfile
 import unittest
 
 SPEC = importlib.util.spec_from_file_location("shader_contract", Path(__file__).parent / "shader_contract/contract.py")
@@ -119,6 +121,32 @@ class PackageTests(unittest.TestCase):
         for source in ("key: &anchor\n", "key: [1,2]\n", "key: x\nkey: y\n", "key:\n"):
             with self.assertRaises(ValueError):
                 contract.parse_reflection(source)
+
+    def test_text_evidence_hash_normalizes_crlf_and_keeps_binary_bytes(self):
+        lf = b"first line\nsecond line\n"
+        crlf = lf.replace(b"\n", b"\r\n")
+        for name in ("proof_reflection.yaml", "proof_surface_colour_glsl430_vertex.glsl",
+                     "proof_bindings.h"):
+            with self.subTest(name=name):
+                self.assertEqual(contract.evidence_digest(name, lf), contract.evidence_digest(name, crlf))
+        package = b"RCSHADER\r\n"
+        self.assertEqual(contract.evidence_digest("proof.shaderpack", package),
+                         hashlib.sha256(package).hexdigest())
+
+    def test_generated_binding_header_uses_lf(self):
+        stage = {"offset": 0, "size": 1, "entry_point": "main", "is_binary": False}
+        manifest = {"shaders": [{"slang": "glsl430", "programs": [
+            {"name": "test", "vertex_func": stage, "fragment_func": stage}]}]}
+        with tempfile.TemporaryDirectory() as directory:
+            header = Path(directory) / "proof_bindings.h"
+            contract.emit_c(manifest, b"x", header)
+            self.assertNotIn(b"\r\n", header.read_bytes())
+
+    def test_linux_native_compile_declares_posix_clock_api(self):
+        command = contract.native_compile_command(Path("sokol-odin"), Path("out"), platform="linux")
+        self.assertIn("-D_POSIX_C_SOURCE=200809L", command)
+        other = contract.native_compile_command(Path("sokol-odin"), Path("out"), platform="darwin")
+        self.assertNotIn("-D_POSIX_C_SOURCE=200809L", other)
 
 
 if __name__ == "__main__":

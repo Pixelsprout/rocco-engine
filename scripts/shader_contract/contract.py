@@ -18,6 +18,7 @@ HEADER = struct.Struct("<8sHHIIIII32s32s")
 MAGIC = b"RCSHADER"
 BACKENDS = ("glsl430", "hlsl5", "metal_macos")
 TYPES = {"F32": 1, "Vec2": 2, "Vec3": 3, "Vec4": 4, "Colour": 4, "Mat4": 16, "Bool": 1}
+TEXT_EVIDENCE_SUFFIXES = {".yaml", ".glsl", ".hlsl", ".metal", ".h"}
 
 
 def canonical(value):
@@ -26,6 +27,12 @@ def canonical(value):
 
 def digest(value):
     return hashlib.sha256(value).digest()
+
+
+def evidence_digest(name, contents):
+    if Path(name).suffix in TEXT_EVIDENCE_SUFFIXES:
+        contents = contents.replace(b"\r\n", b"\n")
+    return hashlib.sha256(contents).hexdigest()
 
 
 def parse_reflection(source):
@@ -333,7 +340,7 @@ def emit_c(manifest, payload, path):
             lines.append("break;")
         lines.append("} }")
     lines.append("return d; }")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
 
 
 def build(compiler, out):
@@ -379,7 +386,7 @@ def build(compiler, out):
     (out / "proof.shaderpack").write_bytes(blob)
     (out / "manifest.json").write_bytes(canonical(manifest) + b"\n")
     emit_c(manifest, payload, out / "proof_bindings.h")
-    hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.iterdir())
+    hashes = {p.name: evidence_digest(p.name, p.read_bytes()) for p in sorted(out.iterdir())
               if p.name.startswith("proof") and p.suffix not in (".bin", ".exe")}
     evidence = {"compiler_commit": PIN, "compiler_sha256": hashlib.sha256(Path(compiler).read_bytes()).hexdigest(),
                 "cross_compilation": list(BACKENDS), "native_execution": "not run by build", "budgets": budgets,
@@ -393,17 +400,25 @@ def build(compiler, out):
     return evidence
 
 
-def run_native(out, sokol):
-    binary = out / ("native.exe" if sys.platform == "win32" else "native.bin")
+def native_compile_command(out, sokol, platform):
+    binary = out / ("native.exe" if platform == "win32" else "native.bin")
     command = [os.environ.get("CC", "clang"), "-std=c11", "-O0", "-g", "-I" + str(sokol / "sokol/c"),
                "-I" + str(out), str(ROOT / "scripts/shader_contract/native.c"), "-o", str(binary)]
-    if sys.platform == "darwin":
+    if platform == "linux":
+        command[1:1] = ["-D_POSIX_C_SOURCE=200809L"]
+    elif platform == "darwin":
         command[1:1] = ["-x", "objective-c", "-fobjc-arc"]
         command.extend(["-framework", "Cocoa", "-framework", "QuartzCore", "-framework", "Metal", "-framework", "MetalKit"])
-    elif sys.platform == "win32":
+    elif platform == "win32":
         command.extend(["-luser32", "-lshell32", "-lgdi32", "-ld3d11", "-ldxgi"])
     else:
         command.extend(["-lX11", "-lXi", "-lXcursor", "-lGL", "-ldl", "-lpthread", "-lm"])
+    return command
+
+
+def run_native(out, sokol):
+    binary = out / ("native.exe" if sys.platform == "win32" else "native.bin")
+    command = native_compile_command(out, sokol, sys.platform)
     subprocess.run(command, cwd=ROOT, check=True)
     try:
         result = subprocess.run([str(binary)], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)

@@ -47,6 +47,9 @@ The build writes these files under `build/shader-contract/`:
 
 `expected.json` records output checksums and budgets for comparison.
 It excludes host-specific device results.
+Proof checksums normalize CRLF to LF for `.yaml`, `.glsl`, `.hlsl`, `.metal`, and `.h` evidence.
+This normalization changes hashes only; the build keeps raw compiler output bytes.
+The generated `proof_bindings.h` uses LF on every host.
 Use `--check` to compare every expected checksum.
 Use the default output path for exact reproduction.
 Changing `--out` changes raw reflection paths and its checksum.
