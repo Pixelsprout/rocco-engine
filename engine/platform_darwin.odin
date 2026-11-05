@@ -8,6 +8,10 @@ import MTL "vendor:darwin/Metal"
 
 EXPECTED_BACKEND :: sg.Backend.METAL_MACOS
 
+shader_open_file :: proc(path: string) -> (^os.File, os.Error) {
+	return os.open(path)
+}
+
 platform_command_line :: proc(allocator := context.allocator) -> []string {
 	return os.args
 }
