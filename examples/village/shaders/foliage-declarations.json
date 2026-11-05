@@ -1,0 +1,148 @@
+{
+  "contract": 1,
+  "shaders": [
+    {
+      "name": "VillageCanopy",
+      "kind": "surface",
+      "max_displacement": 0.3,
+      "skinning": false,
+      "vertex": "canopy.vert.glsl",
+      "surface": "canopy.frag.glsl",
+      "lighting": "canopy.light.glsl",
+      "parameters": [
+        {
+          "name": "wind",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "canopy_center",
+          "type": "Vec3",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0,
+            4,
+            0
+          ]
+        },
+        {
+          "name": "canopy_radius",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            2.5
+          ]
+        },
+        {
+          "name": "canopy_base",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0
+          ]
+        },
+        {
+          "name": "normal_soften",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0.85
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VillageGrass",
+      "kind": "surface",
+      "max_displacement": 2,
+      "skinning": false,
+      "vertex": "grass.vert.glsl",
+      "surface": "grass.frag.glsl",
+      "lighting": "grass.light.glsl",
+      "parameters": [
+        {
+          "name": "wind",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "plant_height",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "vertex_weights",
+          "type": "Bool",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            true
+          ]
+        },
+        {
+          "name": "field_fade",
+          "type": "Bool",
+          "scope": "Material",
+          "stage": "fragment",
+          "default": [
+            false
+          ]
+        },
+        {
+          "name": "viewer",
+          "type": "Vec3",
+          "scope": "Scene",
+          "stage": "fragment",
+          "default": [
+            0,
+            1.7,
+            17
+          ]
+        },
+        {
+          "name": "visibility_distance",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "fragment",
+          "default": [
+            65
+          ]
+        }
+      ],
+      "textures": [
+        {
+          "name": "noise",
+          "scope": "Scene",
+          "stage": "vertex",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "repeat"
+          },
+          "default": {
+            "pack": "village-vegetation",
+            "asset": "image/T_Noise_Terrain"
+          }
+        }
+      ]
+    }
+  ]
+}
