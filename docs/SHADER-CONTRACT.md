@@ -64,7 +64,7 @@ It submits each program for three frames and rejects graphics validation errors.
 The harness tests HDR and LDR attachments and separate selection coverage and depth attachments.
 It does not test visual parity, the game loader, reload, or published platform bundles.
 
-## Evidence and remaining execution
+## Execution evidence
 
 The local Metal proof passed on 2026-11-05.
 Sokol exposed 16 attributes, 32 texture bindings per stage, and 15 storage bindings per stage.
@@ -72,11 +72,26 @@ Metal does not report a GL uniform component limit.
 The package tests passed.
 All eight programs cross-compiled for each of the three targets.
 
-Cross-compilation does not establish native GL or D3D11 execution.
-CI executes this proof on native Metal, Linux GL 4.3, and Windows D3D11.
+The native proof passed on all three backends in [CI run 41955851562](https://github.com/Pixelsprout/rocco-engine/actions/runs/41955851562).
+Each backend created, bound, and drew all eight variants for three frames.
+The uploaded `native-evidence.json` files report the same package SHA-256:
+
+```text
+55b625ac3d9eb04a2269125136afe1a51ea3bc7675057a1dc199c0db93d8f4ce
+```
+
+| Backend | Attributes | Texture bindings per stage | Storage bindings per stage |
+| --- | --- | --- | --- |
+| Metal | 16 | 32 | 15 |
+| GL | 16 | 32 | 32 |
+| D3D11 | 16 | 32 | 32 |
+
+The GL host reported 16,384 vertex and fragment uniform components and 80 storage binding points.
+It reported 16 fragment storage blocks, 32 vertex textures, and 192 combined texture units.
+These measured host limits do not replace the contract's portable limits.
 The Linux job uses Mesa software rendering.
 The Windows job can use WARP through Sokol's existing device fallback.
-Read the uploaded native logs before recording those executions as passed.
+Later build-script expectation failures made that CI run fail after the native proofs passed.
 The village checks on the reference machines remain separate.
 
 ## Package header
