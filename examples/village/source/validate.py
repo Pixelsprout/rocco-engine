@@ -36,6 +36,9 @@ def validate():
             view = doc['bufferViews'][image['bufferView']]
             pos = start + view['byteOffset']
             assert data[pos:pos + 8] == b'\x89PNG\r\n\x1a\n'
+            payload = data[pos:pos + view['byteLength']]
+            if manifest['texture_max_side'] == 0:
+                assert hashlib.sha256(payload).hexdigest() in manifest['original_texture_sha256'].values(), name
             width, height = struct.unpack_from('>II', data, pos + 16)
             if manifest['texture_max_side']:
                 assert max(width, height) <= manifest['texture_max_side']

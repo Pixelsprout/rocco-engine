@@ -5,11 +5,13 @@ The baseline contains Ground, Lane, HouseA, HouseB, four lanterns, and 19 nearby
 `world.tscn` supplies all 154 asset placements.
 The ground uses the source plane size and colour.
 
-The current prepared textures are a 512-pixel diagnostic.
-The original textures exceed the host's fixed frame memory during PNG decoding.
-Source-resolution restoration and human composition review remain pending.
-Read [the diagnostic evidence](EVIDENCE.md) for measurements and loading constraints.
-The conversion preserves the original source hashes for that restoration.
+The prepared meshes contain the original PNG payloads at source resolution.
+The loader releases file, parser, and PNG scratch before the next load.
+The example shows loading progress until all 33 assets resolve.
+Then it displays the complete scene.
+A failed asset keeps the scene hidden and shows an error.
+Human composition review remains pending.
+Read [the baseline evidence](EVIDENCE.md) for checks and measurements.
 
 ## Build and capture
 
@@ -74,11 +76,14 @@ Selection uses a warm tint until the shared outline shader is available.
 | Bloom and fog | Off |
 | Lighting | Constant ambient and one shadowed directional light |
 | Dynamic vegetation | Off |
-| Prepared texture cap | 512 pixels; diagnostic only |
+| Prepared texture cap | None; original PNG payloads |
 
-The diagnostic loads one asset every 0.1 simulation seconds to limit loading work.
-The capture fixture waits 600 steps before verification.
-Every baseline asset must resolve before the fixture takes evidence.
+The example requests one asset per fixed step without a delay.
+Several fixed steps can load assets within one rendered frame.
+Each load ends its scratch lifetime before the next load.
+The fixed-step sequence controls requests only.
+The capture fixture checks loading feedback before the complete scene appears.
+Every baseline asset must resolve before the fixture takes scene evidence.
 Foliage currently has the renderer's solid shadow silhouettes.
 The baseline has no grass field, wind shader, sky lighting, haze, smoke, or dust.
 These features belong to the later integration tasks.
@@ -92,10 +97,10 @@ Keep its SHA-256 equal to `2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a
 python3 examples/village/source/prepare.py /tmp/cq-godot-3d-village-look.zip
 ```
 
-The diagnostic conversion requires Blender for texture resizing.
+The default conversion preserves original PNG payloads without Blender.
+The default `--max-texture-side` is zero.
+Optional texture resizing requires Blender.
 Set `--blender PATH` when Blender is elsewhere.
-Set `--max-texture-side 0` to preserve original PNG payloads without Blender.
-Use that setting after the PNG memory prerequisite passes.
 
 The packer preserves mesh units, node roots, material names, vertex colours, and existing tangents.
 It generates tangents where the source has none.
@@ -107,7 +112,6 @@ The packer rejects scene transforms with shear.
 Shared textures repeat in GLBs because the current loader requires embedded PNGs.
 The original 33 GLBs occupy 384,288,532 bytes.
 A temporary Git pack reduced those assets to 87,395,352 bytes.
-The 512 diagnostic occupies 46,357,612 bytes before Git compression.
 
 ## Credits and terms
 

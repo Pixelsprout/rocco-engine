@@ -1,5 +1,6 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
 
+import ui.Ui
 import Layout
 import cam.Camera as Cam
 import linalg.Vec3 as V
@@ -19,13 +20,13 @@ import pf.Query
 import pf.QueryResults
 import pf.Scene
 
-Model : { manifest : Manifest, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, load_wait : F32 }
+Model : { manifest : Manifest, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Village baseline", width: 1920, height: 1080, high_dpi: Bool.False }, shadow_cascades: 2 }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { manifest: [], eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, load_wait: 0.1 }, commands: [Load({ pack: "village", assets: ["CommonTree_1"] })] }
+init = |_config| { model: { manifest: [], eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| { ..model, manifest: List.join([model.manifest, manifest]) }
@@ -45,27 +46,30 @@ set_view = |model, name| match name {
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| {
-	from_port = Port.messages(results, "view").fold(model, set_view)
-	chosen = if Key.pressed(input, Num1) set_view(from_port, "hero") else if Key.pressed(input, Num2) set_view(from_port, "square") else if Key.pressed(input, Num3) set_view(from_port, "walk") else if Key.pressed(input, T) set_view(from_port, "tour") else if Key.pressed(input, F) set_view(from_port, "free") else if Key.pressed(input, R) { ..set_view(from_port, "hero"), selected: 0 } else from_port
-	captured = if Key.pressed(input, Tab) !chosen.captured else chosen.captured
-	looked = { ..chosen, captured, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: if chosen.manifest.len() == Layout.assets.len() chosen.time + dt else chosen.time }
-	moved = match looked.mode {
-		Walk => walk(looked, input, dt)
-		Free => walk(looked, input, dt)
-		Tour => tour(looked, dt)
-		_ => looked
+	if !ready(model) {
+		commands = if Key.pressed(input, Escape) [Quit] else match Layout.assets.get(model.manifest.len()) {
+			Ok(asset) => [Load({ pack: asset, assets: [asset] })]
+			Err(_) => []
+		}
+		{ model, commands }
+	} else {
+		from_port = Port.messages(results, "view").fold(model, set_view)
+		chosen = if Key.pressed(input, Num1) set_view(from_port, "hero") else if Key.pressed(input, Num2) set_view(from_port, "square") else if Key.pressed(input, Num3) set_view(from_port, "walk") else if Key.pressed(input, T) set_view(from_port, "tour") else if Key.pressed(input, F) set_view(from_port, "free") else if Key.pressed(input, R) { ..set_view(from_port, "hero"), selected: 0 } else from_port
+		captured = if Key.pressed(input, Tab) !chosen.captured else chosen.captured
+		looked = { ..chosen, captured, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: chosen.time + dt }
+		moved = match looked.mode {
+			Walk => walk(looked, input, dt)
+			Free => walk(looked, input, dt)
+			Tour => tour(looked, dt)
+			_ => looked
+		}
+		selected = if Key.pressed(input, Enter) match QueryResults.ray(results, 900) {
+			Ok(hit) => hit.id
+			Err(_) => 0
+		} else moved.selected
+		commands = if Key.pressed(input, Escape) [Quit] else []
+		{ model: { ..moved, selected }, commands }
 	}
-	selected = if Key.pressed(input, Enter) match QueryResults.ray(results, 900) {
-		Ok(hit) => hit.id
-		Err(_) => 0
-	} else moved.selected
-	load_next = model.load_wait <= 0.0 and model.manifest.len() < Layout.assets.len()
-	load_wait = if load_next 0.1 else F32.max(0.0, model.load_wait - dt)
-	commands = if Key.pressed(input, Escape) [Quit] else if !load_next [] else match Layout.assets.get(model.manifest.len()) {
-		Ok(asset) => [Load({ pack: asset, assets: [asset] })]
-		Err(_) => []
-	}
-	{ model: { ..moved, selected, load_wait }, commands }
 }
 
 clamp : F32, F32, F32 -> F32
@@ -130,7 +134,7 @@ building = |model, id| {
 }
 
 view : Model -> Vocabulary.Scene
-view = |model| {
+view = |model| if !ready(model) loading_view(model) else {
 	cam_view = camera(model)
 	ground = Draw({ ..Draw.default, id: 1, mesh: Mesh.primitive(Plane), scale: { x: 200.0, y: 1.0, z: 200.0 }, tint: { r: 0.33, g: 0.52, b: 0.22 } })
 	placed = Layout.placements.keep_if(|p| p.group == 0 and Mesh.resolve(model.manifest, p.asset) != 0).map(|p| Draw({ ..Draw.default, id: p.id, mesh: Mesh.resolve(model.manifest, p.asset), pos: p.pos, rot: p.rot, scale: p.scale }))
@@ -150,4 +154,31 @@ expect {
 expect {
 	start = init(Config.empty).model
 	camera(start).eye == { x: 3.6, y: 1.9, z: 21.5 } and V.length(V.sub(camera({ ..start, time: 14.0 }).eye, { x: 2.4, y: 1.75, z: 15.5 })) < 0.00001
+}
+
+ready : Model -> Bool
+ready = |model| model.manifest.len() == Layout.assets.len() and model.manifest.all(|entry| entry.id != 0)
+
+loading_view : Model -> Vocabulary.Scene
+loading_view = |model| {
+	failed = model.manifest.any(|entry| entry.id == 0)
+	title = if failed "Village could not load" else "Loading village"
+	progress = if failed "Read the host log. Press Escape to exit." else "${model.manifest.len().to_str()} / ${Layout.assets.len().to_str()} assets"
+	panel = { ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), direction: Col, gap: 16.0, child_align: { x: Center, y: Center } }
+	{ ..Scene.empty, environment: { ..Environment.default, clear: { r: 0.025, g: 0.04, b: 0.055 } }, ui: [Panel(panel, [Text({ ..Ui.label(title), size: 36.0 }), Text(Ui.label(progress))])] }
+}
+
+expect view(init(Config.empty).model).nodes.is_empty()
+expect !ready(init(Config.empty).model)
+expect {
+	start = init(Config.empty).model
+	manifest = Layout.assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	full = loaded(start, "village", manifest)
+	ready(full) and !view(full).nodes.is_empty() and view(full).ui.is_empty()
+}
+expect {
+	start = init(Config.empty).model
+	manifest = Layout.assets.map(|name| { name, id: 0, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	failed = loaded(start, "village", manifest)
+	!ready(failed) and view(failed).nodes.is_empty() and !view(failed).ui.is_empty()
 }

@@ -1,4 +1,112 @@
-# Diagnostic baseline evidence
+# Source-resolution baseline evidence
+
+Date: 2026-11-05.
+Status: loader prerequisite verified; human composition review remains pending.
+
+The prepared GLBs contain the original PNG payloads.
+The texture cap is zero.
+The 33 GLBs occupy 384,288,532 bytes.
+Two conversions from the checksum-verified archive produced identical manifests and layouts.
+The validator checks every embedded PNG against the original texture hashes.
+The archive checksum remains `2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d`.
+
+A direct source comparison checked all 154 placements against cumulative `world.tscn` transforms.
+The maximum reconstructed matrix error was `4.996e-16`, at `Trees/CommonTree_57`.
+The engine still renders 155 Draws, including the ground plane.
+
+## Loading and memory
+
+The village shows loading progress before it shows geometry.
+All 33 assets must resolve to nonzero ids before the complete scene appears.
+A failed asset keeps the scene hidden and shows an error.
+The loading screen and complete scene were captured at 1920 by 1080 physical pixels.
+
+The loader gives each file load, GLB parse, and PNG decode a separate growing arena.
+Each PNG arena survives through the copy into retained texture pixels.
+Each arena ends before the next operation at its boundary.
+Retained arrays use the caller's allocator, even when that allocator equals the caller's temporary allocator.
+File errors copy their reason into the caller's temporary allocator.
+The frame arena remains 64 MB.
+No simulation delay establishes loader memory safety.
+
+The regression failed before the change.
+Eight small two-texture loads retained 31,825,672 bytes in frame scratch.
+The fixed loader retains zero scratch bytes there after each successful load.
+Tests cover two loads within one frame, repeated unloads, retained allocator aliases, texture errors, and truncated PNGs.
+
+A temporary probe sampled arena usage before each nested arena ended.
+The arenas do not free individual allocations, so their final usage records their peak usage.
+The peak simultaneous scratch usage was 122,970,822 bytes, or 117.27 MiB.
+That total includes the active file, parser, and PNG arenas, with allocation padding.
+It excludes retained assets, virtual memory metadata, and unused reservation.
+The largest PNG arena used 99,373,400 bytes.
+The largest parser arena used 1,785,080 bytes.
+The largest file arena used 23,558,934 bytes.
+The probe was removed from the final build.
+
+The probed real-clock launch loaded 12, 12, and 9 assets across three rendered frames.
+The last load completed in CSV frame 4.
+Both the probed launch and final build completed 720 frames without loader errors.
+This verifies several loads within one frame at source resolution.
+The final launch completed its loading work in CSV frame 5.
+The warm CPU sample excludes that frame and the next 120 frames.
+The remaining 595 samples measured median 0.663 ms, p95 0.756 ms, and p99 0.788 ms of CPU work.
+CPU Spans exclude GPU duration and display wait.
+They do not establish real-clock frame pacing or final-scene performance acceptance.
+The synchronous startup can pause rendering while each frame loads its assets.
+
+## Captures and replay
+
+The fixture checked both building collisions, centre-ray selection, mouse look, and free camera movement.
+The fixture reached the complete scene at fixed step 33.
+It checked loading feedback before that step.
+The first complete scene contained all 155 Draws.
+No partial village appeared during loading.
+
+The agent inspected the loading screen, hero view, and square view.
+The textures and foliage alpha render coherently at source resolution.
+The source ground and sky still use the plain baseline colours.
+Human composition approval remains pending.
+
+Evidence remains outside the repository:
+
+- `/tmp/village-source-evidence/loading.png`
+- `/tmp/village-source-evidence/hero.png`
+- `/tmp/village-source-evidence/square.png`
+- `/tmp/village-source-evidence/walk.png`
+- `/tmp/village-source-evidence/route.mp4`
+- `/tmp/village-source-evidence/observations.json`
+- `/tmp/village-source-replay/observations.json`
+- `/tmp/village-source-scratch.json`
+- `/tmp/village-source-scratch-probe.patch`
+- `/tmp/village-source-realclock-probe.log`
+- `/tmp/village-source-realclock-probe.csv`
+- `/tmp/village-source-realclock.log`
+- `/tmp/village-source-realclock.csv`
+- `/tmp/village-source-realclock-warm.json`
+
+Both source-resolution route runs produced `89c2afa9417c08f57e3eb2963baf3bb7e2e1f885b7e0f48e050b37be0602a4dc`.
+That checksum also matches the earlier diagnostic route.
+The movie contains 150 frames at five frames per second.
+Each frame advances 24 fixed simulation steps.
+
+## Checks
+
+The release host built with CPU Spans, strict Odin style, and vet checks.
+The game used the build script's default development compilation.
+The Roc checks passed 163 tests.
+The prepared-asset validator passed.
+Both engine suites passed 769 tests, including the Spans build.
+The textured mask and skinned animation examples also built and rendered.
+The final checks used the Apple M5 machine described below.
+Other development work shared the machine during these checks.
+
+The earlier GPU measurements below used diagnostic textures.
+They do not establish source-resolution GPU performance.
+Measure warm performance from the all-assets-ready frame.
+Discard warmup frames after that point.
+
+# Earlier diagnostic evidence
 
 Date: 2026-11-05.
 Status: diagnostic only; source-resolution assets and human composition review remain pending.
@@ -84,22 +192,13 @@ xcrun xctrace export --input /tmp/village.trace \
 With diagnostic cadence enabled, discard at least 480 frames before measuring warm performance.
 Use more frames when the loading state changes.
 
-## Pending loader prerequisite
+## Diagnostic failure history
 
-Original 2048 PNGs exhausted shared frame memory during texture decoding.
+Original 2048 PNGs exhausted shared frame memory during decoding.
 A 1024 diagnostic also exhausted that memory.
-The 512 diagnostic renders through the Bridge.
-A real-clock launch also exposed several asset loads within one rendered frame.
-The diagnostic uses a 0.1-second simulation cadence to avoid that usual startup case.
-That cadence does not establish a safe memory lifetime.
-The user observed incremental mesh appearance during loading.
-
-The loader prerequisite must bound decode and file scratch lifetimes.
-Retained texture and mesh arrays must outlive that scratch.
-The follow-up must restore source-resolution textures with `--max-texture-side 0`.
-The follow-up must remove reliance on fixed-step staging.
-The follow-up must show loading feedback until every required asset is ready.
-The follow-up must show the complete scene only after that ready state.
-
-The exact reproducer is `/tmp/rocco-village-memory.md`.
-The final source-resolution run, real-clock frame pacing, and human review remain pending.
+A 512 diagnostic rendered through the Bridge.
+Its real-clock launch exposed several asset loads within one frame.
+The diagnostic then added a 0.1-second simulation delay.
+That delay did not establish memory safety.
+The source-resolution checks above replace that workaround.
+The original reproducer remains at `/tmp/rocco-village-memory.md`.

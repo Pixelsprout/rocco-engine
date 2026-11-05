@@ -5,6 +5,7 @@ import "core:encoding/endian"
 import "core:encoding/json"
 import "core:math/linalg"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:slice"
 
 GLB_MAGIC :: 0x46546C67 // "glTF"
@@ -233,7 +234,7 @@ Glb_Loader :: struct {
 	influences:   [dynamic]Glb_Influence,
 	// One per distinct material, in the order the walk first meets it.
 	runs:         [dynamic]Glb_Material_Run,
-	// The textures hold their pixels in the parse's allocator.
+	// Texture pixels use the caller's retained allocator.
 	textures:     [dynamic]Texture,
 	texture_keys: [dynamic]Glb_Texture_Key,
 	notes:        Glb_Notes,
@@ -288,6 +289,10 @@ Glb_View :: struct {
 // rejected file leaves nothing in allocator. Skinned mesh nodes merge in
 // bind-pose space with their Skin and Clips.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
+	// Keep allocator unchanged when the caller passes context.temp_allocator.
+	scratch: vmem.Arena
+	defer vmem.arena_destroy(&scratch)
+	context.temp_allocator = vmem.arena_allocator(&scratch)
 	json_chunk, bin := glb_chunks(bytes) or_return
 
 	l := Glb_Loader {
@@ -335,8 +340,8 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 }
 
 // Lays the runs out by alpha mode, each mode in walk order, so each part is
-// one range of the index buffer. The indices and parts are frame memory; the
-// textures go to allocator.
+// one range of the index buffer. Indices and parts use parse scratch;
+// textures use the retained allocator.
 glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, parts: []Mesh_Data_Part, err: Glb_Error) {
 	// Textures take their slots in walk order, so the texture limit drops the
 	// last textures the walk meets, whatever their part's alpha mode.
@@ -881,6 +886,10 @@ glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Alloc
 
 	switch img.mime_type {
 	case "image/png":
+		// Each PNG releases its decoder scratch after retained pixels are copied.
+		scratch: vmem.Arena
+		defer vmem.arena_destroy(&scratch)
+		context.temp_allocator = vmem.arena_allocator(&scratch)
 		width, height, rgba, ok := png_decode(bytes)
 		if !ok {
 			l.notes += {.Bad_Png}
