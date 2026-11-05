@@ -1,0 +1,450 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-11-05",
+  "review_result": "passed in reviewed scope",
+  "acceptance_authority": "root agent",
+  "repository": "Pixelsprout/rocco-engine",
+  "run": {
+    "id": 41994811623,
+    "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623",
+    "event": "pull_request",
+    "attempt": 1,
+    "conclusion": "success",
+    "pr_head_commit": "b0b0a26d149269154e95ebbff2225b793a444979",
+    "tested_merge_commit": "2b9f159546cbf954eb4eb995bb2ac420d0b3cf40",
+    "tested_merge_parents": [
+      "6a436bf1487d7246381d56e022c5f7f407d14d09",
+      "b0b0a26d149269154e95ebbff2225b793a444979"
+    ],
+    "all_jobs_passed": true,
+    "jobs": [
+      {
+        "id": 127135317444,
+        "name": "macos",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127135317444",
+        "conclusion": "success"
+      },
+      {
+        "id": 127135317646,
+        "name": "generated",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127135317646",
+        "conclusion": "success"
+      },
+      {
+        "id": 127135317664,
+        "name": "windows",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127135317664",
+        "conclusion": "success"
+      },
+      {
+        "id": 127135317680,
+        "name": "linux",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127135317680",
+        "conclusion": "success"
+      },
+      {
+        "id": 127144067712,
+        "name": "candidate-sdk",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144067712",
+        "conclusion": "success"
+      },
+      {
+        "id": 127144304027,
+        "name": "external-authoring (macos-15, roc_nightly-macos_apple_silicon, metal)",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304027",
+        "conclusion": "success"
+      },
+      {
+        "id": 127144304159,
+        "name": "external-authoring (ubuntu-24.04, roc_nightly-linux_x86_64, gl)",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304159",
+        "conclusion": "success"
+      },
+      {
+        "id": 127144304234,
+        "name": "external-authoring (windows-2022, roc_nightly-windows_x86_64, d3d11)",
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304234",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "sdk": {
+    "artifact": {
+      "name": "candidate-sdk",
+      "id": 13401395248,
+      "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13401395248",
+      "sha256": "f9e8a28e01ca077855abc4c778a7a19823345e6591f324bbf2e944715d151d3b",
+      "size_bytes": 4689283
+    },
+    "candidate": {
+      "kind": "draft-PR candidate; not a stable release",
+      "commit": "2b9f159546cbf954eb4eb995bb2ac420d0b3cf40",
+      "roc_nightly": "2026-10-11-7d256b9",
+      "run_id": "41994811623",
+      "run_attempt": "1",
+      "repository": "Pixelsprout/rocco-engine",
+      "run_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623",
+      "bundles": {
+        "platform": "platform-E832bc6v85MiPcuQMZyNdwa1Deb2xvYqoKjTbpvjSgM.tar.zst",
+        "linalg": "linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst",
+        "mesh": "mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst",
+        "ui": "ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst",
+        "camera": "camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst"
+      },
+      "fixture": "authoring-fixture.tar.gz",
+      "targets": "ordinary release host; no Spans"
+    },
+    "checksums": {
+      "authoring-fixture.tar.gz": "a9adb616fd4d018c4ba7b4e335b627c247af881dd5ae724c567aab062c779b17",
+      "camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst": "fc1c6e15882bbc13bd36031346d22eb268fa8717550238b5bf214c9daf79ea2b",
+      "candidate.json": "3ca2583c9c7d926dd7a847b78a3146248db0b8b0adf416438cc29acc482c551f",
+      "linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst": "f340186c0bf036126f352b2491127f2b867b7442c6f25ca4d56e6c9555d886b9",
+      "mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst": "a12f70d7fd219b10d262228f2beb7ab021c1e9a1865067a5e34663cdf8d9f04d",
+      "platform-E832bc6v85MiPcuQMZyNdwa1Deb2xvYqoKjTbpvjSgM.tar.zst": "6aa57c682562bdd233ae6f059fee5921ab17b10f7f5575fe8d1f9e083f84dfc3",
+      "ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst": "8d3718699cc47c25c00b74b77cfbac2e797cae360b203d08adb8aecfcfb9aaec"
+    },
+    "inner_checksums_verified": true,
+    "sdk_file_count": 101,
+    "no_git_or_odin_sources": true,
+    "targets": "ordinary release hosts captured before Spans; Linux rebuilt ordinary release hosts"
+  },
+  "backends": {
+    "metal": {
+      "artifact": {
+        "name": "external-authoring-metal",
+        "id": 13399874963,
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13399874963",
+        "sha256": "aece9bf8118631d1c2c332ad4a105476419b6001d8ca0cedd583c1727a2945cb",
+        "size_bytes": 10341743
+      },
+      "job_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304027",
+      "host": "darwin",
+      "backend": "Metal",
+      "system": "macOS-15.8.2-arm64-arm-64bit",
+      "result": "passed",
+      "mode": "published candidate in clean CI",
+      "published_artifact_gate": "passed",
+      "published_source_verified": true,
+      "checks_passed": 172,
+      "no_checkout_step": true,
+      "no_odin_install_step": true,
+      "odin": null,
+      "engine_checkout": false,
+      "LIB": null,
+      "isolation_checks": [
+        "Odin is absent from PATH before the external build",
+        "external game has no engine checkout",
+        "self-contained fixture has no Odin source",
+        "extracted SDK has no Odin source",
+        "extracted SDK has no engine checkout",
+        "Odin remains absent after compilation and native proof"
+      ],
+      "roc": {
+        "version": "Roc compiler version nightly-2026-10-11-7d256b9",
+        "executable": "/Users/runner/work/_temp/roc/roc",
+        "executable_sha256": "8462dd554780982fa535d9442445773dc9865726dc90f74caa6c2a864617bc67",
+        "archive_url": "https://github.com/roc-lang/nightlies/releases/download/nightly-2026-10-11-7d256b9/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9.tar.gz",
+        "archive_sha256": "ff29e96252435871464bf0154ffb28c0d40cfd9d41586cd2755efb4acd58b191"
+      },
+      "shader_compiler": {
+        "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+        "executable": "/Users/runner/.cache/rocco/shader-tools/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/sokol-shdc",
+        "sha256": "92db37975ad7ff3c3c9bc27cba1503287377cb287ebabf60d1c6b597abfa3244",
+        "url": "https://raw.githubusercontent.com/floooh/sokol-tools-bin/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/bin/osx_arm64/sokol-shdc"
+      },
+      "game_build_commands": [
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=arm64mac",
+            "--output=authoring.bin",
+            "main.roc"
+          ],
+          "cwd": "/Users/runner/work/_temp/external-game/authoring"
+        },
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=arm64mac",
+            "--output=authoring.bin",
+            "main.roc"
+          ],
+          "cwd": "/Users/runner/work/_temp/external-game/authoring"
+        }
+      ],
+      "commands_recorded": 37,
+      "original_binary_sha256": "bdf0a3bfd403f808524ae23ddae71cf4f383e4db9292ae0a27f9da75aa78bf80",
+      "published_sdk_files_match": 101,
+      "native_logs_checked": 31,
+      "critical_graphics_log_markers": [],
+      "independent_pixel_checks": {
+        "surface_edit_changed_pixels": 14289,
+        "source_failure_retains_valid_frame": true,
+        "source_correction_restores_frame": true,
+        "post_edit_changed_pixels": 1897,
+        "post_correction_restores_frame": true,
+        "invalid_package_retains_valid_frame": true,
+        "interface_change_retains_frame": true,
+        "rebuilt_restart_accepts_interface": true,
+        "outline_policy_changed_pixels": 886,
+        "outline_toggle_restores_frame": true,
+        "wind_replays_equal": true,
+        "wind_poses_distinct": true
+      },
+      "selection": {
+        "hidden_pixels": 6702,
+        "coverage_sha256": "9b1ece577309df893e3685346bf1aa87c6eaa528e9adc102ba60d933a9c89f4f",
+        "selected_depth_sha256": "0b627de82ceaa542658bdeb26ee7f994fac2d369642f7ff80631a0f4f14c25fc"
+      },
+      "materials": {
+        "cutout_shadow_pixels": 10991,
+        "solid_shadow_pixels": 16559
+      },
+      "visual_review": "Tree cutouts, foliage shadow, separate marker, wall occlusion, and both outline policies inspected across backend samples."
+    },
+    "gl": {
+      "artifact": {
+        "name": "external-authoring-gl",
+        "id": 13401365955,
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13401365955",
+        "sha256": "1f98816b2d243f0dc3377fb44c62e182a550db4cbacab3339caf73f51d2fb314",
+        "size_bytes": 10350522
+      },
+      "job_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304159",
+      "host": "linux",
+      "backend": "GL 4.3",
+      "system": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "result": "passed",
+      "mode": "published candidate in clean CI",
+      "published_artifact_gate": "passed",
+      "published_source_verified": true,
+      "checks_passed": 172,
+      "no_checkout_step": true,
+      "no_odin_install_step": true,
+      "odin": null,
+      "engine_checkout": false,
+      "LIB": null,
+      "isolation_checks": [
+        "Odin is absent from PATH before the external build",
+        "external game has no engine checkout",
+        "self-contained fixture has no Odin source",
+        "extracted SDK has no Odin source",
+        "extracted SDK has no engine checkout",
+        "Odin remains absent after compilation and native proof"
+      ],
+      "roc": {
+        "version": "Roc compiler version nightly-2026-10-11-7d256b9",
+        "executable": "/home/runner/work/_temp/roc/roc",
+        "executable_sha256": "d32420ec7e7776af6eb09ef1866fa78592b641d8c68c12952ddc2637d9689b5d",
+        "archive_url": "https://github.com/roc-lang/nightlies/releases/download/nightly-2026-10-11-7d256b9/roc_nightly-linux_x86_64-2026-10-11-7d256b9.tar.gz",
+        "archive_sha256": "cc76a2d0d06e5359628004a947f725ed77e994011a7dde147d270684d8c806ca"
+      },
+      "shader_compiler": {
+        "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+        "executable": "/home/runner/.cache/rocco/shader-tools/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/sokol-shdc",
+        "sha256": "ed35e89ef381d521a499096ed4ada85e4d135d8011e151cca6b7d893c43b21df",
+        "url": "https://raw.githubusercontent.com/floooh/sokol-tools-bin/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/bin/linux/sokol-shdc"
+      },
+      "game_build_commands": [
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=x64glibc",
+            "--output=authoring.bin",
+            "main.roc"
+          ],
+          "cwd": "/home/runner/work/_temp/external-game/authoring"
+        },
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=x64glibc",
+            "--output=authoring.bin",
+            "main.roc"
+          ],
+          "cwd": "/home/runner/work/_temp/external-game/authoring"
+        }
+      ],
+      "commands_recorded": 37,
+      "original_binary_sha256": "b0df821270a1caa7fe0d993c4a4502bf327c38d5945b891645012049fc0515b3",
+      "published_sdk_files_match": 101,
+      "native_logs_checked": 31,
+      "critical_graphics_log_markers": [],
+      "independent_pixel_checks": {
+        "surface_edit_changed_pixels": 14288,
+        "source_failure_retains_valid_frame": true,
+        "source_correction_restores_frame": true,
+        "post_edit_changed_pixels": 1895,
+        "post_correction_restores_frame": true,
+        "invalid_package_retains_valid_frame": true,
+        "interface_change_retains_frame": true,
+        "rebuilt_restart_accepts_interface": true,
+        "outline_policy_changed_pixels": 886,
+        "outline_toggle_restores_frame": true,
+        "wind_replays_equal": true,
+        "wind_poses_distinct": true
+      },
+      "selection": {
+        "hidden_pixels": 6702,
+        "coverage_sha256": "b6cc580ffe301aac42d8719385f82653a787286548835951d9d727f38d0ee56e",
+        "selected_depth_sha256": "7af9339d61ae96b938307203b5baaf3ee3f3b1f2ac57443b9b3253607059f7ec"
+      },
+      "materials": {
+        "cutout_shadow_pixels": 11002,
+        "solid_shadow_pixels": 16560
+      },
+      "visual_review": "Tree cutouts, foliage shadow, separate marker, wall occlusion, and both outline policies inspected across backend samples."
+    },
+    "d3d11": {
+      "artifact": {
+        "name": "external-authoring-d3d11",
+        "id": 13399954760,
+        "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13399954760",
+        "sha256": "22834abcb44104dbc225744fa1f67968e35c29d3c078eb5b925da05a62cf5e4a",
+        "size_bytes": 10347197
+      },
+      "job_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/job/127144304234",
+      "host": "win32",
+      "backend": "D3D11",
+      "system": "Windows-2022Server-10.0.20348-SP0",
+      "result": "passed",
+      "mode": "published candidate in clean CI",
+      "published_artifact_gate": "passed",
+      "published_source_verified": true,
+      "checks_passed": 173,
+      "no_checkout_step": true,
+      "no_odin_install_step": true,
+      "odin": null,
+      "engine_checkout": false,
+      "LIB": null,
+      "isolation_checks": [
+        "Odin is absent from PATH before the external build",
+        "external game has no engine checkout",
+        "self-contained fixture has no Odin source",
+        "extracted SDK has no Odin source",
+        "extracted SDK has no engine checkout",
+        "Windows external link has no LIB environment path",
+        "Odin remains absent after compilation and native proof"
+      ],
+      "roc": {
+        "version": "Roc compiler version nightly-2026-10-11-7d256b9",
+        "executable": "D:\\a\\_temp\\roc\\roc_nightly-windows_x86_64-2026-10-11-7d256b9\\roc.EXE",
+        "executable_sha256": "1911f749c3cf9bc9c6cac9381e4151050a94d6fd4594611d296cebb6bab76a32",
+        "archive_url": "https://github.com/roc-lang/nightlies/releases/download/nightly-2026-10-11-7d256b9/roc_nightly-windows_x86_64-2026-10-11-7d256b9.zip",
+        "archive_sha256": "a5d97df606ca17e3d541a60b8f8c739eade8ab064b7329d2e84354d1581c920c"
+      },
+      "shader_compiler": {
+        "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+        "executable": "C:\\Users\\runneradmin\\.cache\\rocco\\shader-tools\\11d0cf678105d614d675e6d9bd2aaf3eeff12f8c\\sokol-shdc.exe",
+        "sha256": "bd616287f9ea689d53c6d260e443ee733e61ae1b73a9b37adc482ead0364d561",
+        "url": "https://raw.githubusercontent.com/floooh/sokol-tools-bin/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/bin/win32/sokol-shdc.exe"
+      },
+      "game_build_commands": [
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=x64win",
+            "--output=authoring.exe",
+            "main.roc"
+          ],
+          "cwd": "D:\\a\\_temp\\external-game\\authoring"
+        },
+        {
+          "command": [
+            "roc",
+            "build",
+            "--target=x64win",
+            "--output=authoring.exe",
+            "main.roc"
+          ],
+          "cwd": "D:\\a\\_temp\\external-game\\authoring"
+        }
+      ],
+      "commands_recorded": 37,
+      "original_binary_sha256": "eb1a0c9b24016b2e15db1f40c4b34c9cca5a0c2294e5cb5bfaa71e81d379a0b0",
+      "published_sdk_files_match": 101,
+      "native_logs_checked": 31,
+      "critical_graphics_log_markers": [],
+      "independent_pixel_checks": {
+        "surface_edit_changed_pixels": 14289,
+        "source_failure_retains_valid_frame": true,
+        "source_correction_restores_frame": true,
+        "post_edit_changed_pixels": 1897,
+        "post_correction_restores_frame": true,
+        "invalid_package_retains_valid_frame": true,
+        "interface_change_retains_frame": true,
+        "rebuilt_restart_accepts_interface": true,
+        "outline_policy_changed_pixels": 886,
+        "outline_toggle_restores_frame": true,
+        "wind_replays_equal": true,
+        "wind_poses_distinct": true
+      },
+      "selection": {
+        "hidden_pixels": 6702,
+        "coverage_sha256": "9b1ece577309df893e3685346bf1aa87c6eaa528e9adc102ba60d933a9c89f4f",
+        "selected_depth_sha256": "0b627de82ceaa542658bdeb26ee7f994fac2d369642f7ff80631a0f4f14c25fc"
+      },
+      "materials": {
+        "cutout_shadow_pixels": 10991,
+        "solid_shadow_pixels": 16559
+      },
+      "visual_review": "Tree cutouts, foliage shadow, separate marker, wall occlusion, and both outline policies inspected across backend samples."
+    }
+  },
+  "windows_bridge": {
+    "artifact": {
+      "name": "bridge-check-windows",
+      "id": 13400079887,
+      "url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13400079887",
+      "sha256": "e6e1f079c9fc286065bfe3034b695cefbe5f54a022ffcb8497d5ccbf58584518",
+      "size_bytes": 12216319
+    },
+    "result": "passed",
+    "host": "win32",
+    "first_load_modes": [
+      "valid",
+      "missing",
+      "invalid"
+    ],
+    "compatible_swaps": 24,
+    "failed_pipeline_candidates": 24,
+    "failed_program_candidates": 2,
+    "surface_pipeline_keys": 63,
+    "post_locations": 2,
+    "final_resources": {
+      "shaders": 0,
+      "pipelines": 0,
+      "samplers": 0,
+      "images": 0,
+      "views": 0,
+      "cpu_bytes": 0
+    },
+    "resource_report_copies": 2,
+    "deliberate_native_sg_errors": {
+      "pipeline_pool_exhausted": 48,
+      "shader_compilation_failed": 8
+    },
+    "unexpected_panic_or_validation_markers": false,
+    "native_windows_publication_command": "ROCCO_SHDC=build/shader-tools/sokol-shdc.exe python -m unittest scripts/test_shader_assets.py scripts/test_shader_reload.py",
+    "publication_test_summary": "38 tests ran; success; one skip. Native Windows publication tests apply on win32.",
+    "live_game_logs": "No sg error, sg panic, or VALIDATION_FAILED in valid/missing/invalid reload game logs.",
+    "native_toolchain": {
+      "odin": "dev-2026-08-nightly:902106f",
+      "roc": "nightly-2026-10-11-7d256b9",
+      "zig": "0.16.0"
+    }
+  },
+  "limitations": [
+    "This record reviews published CI compatibility and authoring evidence.",
+    "Earlier local unpublished SDK replay does not satisfy the published gate.",
+    "CI runner results do not establish reference-PC GPU performance or final village acceptance.",
+    "D3D11 compiler emits X3556 integer-division and X4000 sun_visibility warnings. External game logs have no native graphics error, panic, or validation markers.",
+    "The native failure harness deliberately exhausts pipeline pools and rejects broken shader programs. These expected errors are separate from normal game logs.",
+    "Root reviewed D3D11 timing and world-direction evidence separately. This record does not repeat that review."
+  ]
+}

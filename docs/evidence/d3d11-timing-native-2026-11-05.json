@@ -1,0 +1,16 @@
+{
+  "host": "win32",
+  "result": "passed",
+  "frames": 120,
+  "status_counts": {
+    "Overflow": 1,
+    "Valid": 119
+  },
+  "ownership": "eight retained slots; no current-frame reads; DONOTFLUSH polling",
+  "cleanup": "all 1048 query objects released; repeat close verified",
+  "performance_claim": false,
+  "run": 41994811623,
+  "source_commit": "b0b0a26d149269154e95ebbff2225b793a444979",
+  "run_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623",
+  "artifact_url": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41994811623/artifacts/13399766969"
+}
