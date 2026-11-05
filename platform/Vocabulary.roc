@@ -205,7 +205,10 @@ Vocabulary := [].{
 	##   beside the Draw for that. The fallback mesh ignores it.
 	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
 	##   ignores it.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
+	## - `casts_shadow`: whether this Draw adds a shadow to the Sun's map. It is
+	##   `Bool.True` by default. `Bool.False` removes it from shadow fitting and
+	##   shadow submissions, but keeps it in colour and selection rendering.
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool }
 
 	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
 	## value. The host samples both Clips and mixes them by `fade`. Start from

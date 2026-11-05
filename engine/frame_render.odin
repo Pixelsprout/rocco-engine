@@ -584,7 +584,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 			transform = x,
 			model = draw_model_matrix(x),
 			skin = room.skin,
-			shadow_count = parts_shadow_count(room.parts),
+			shadow_count = parts_shadow_count(room.parts) if d.casts_shadow else 0,
 		},
 	)
 }

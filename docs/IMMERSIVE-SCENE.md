@@ -57,6 +57,11 @@ The loader must also preserve vertex colours for grass weights.
 Shaders declare their maximum vertex displacement.
 The engine expands culling bounds by that displacement.
 Colour, shadow, and selection passes share deformation, alpha rules, and simulation-derived render time.
+
+The built-in renderer applies per-Draw casting during shadow fitting and submission.
+Surface shader variants and selection rendering are not implemented.
+When they land, test that non-casting Draws stay in colour and selection passes.
+Also test that they stay out of shadow fitting and submission.
 Fixed Bridge steps reproduce the same wind pose.
 
 The initial sky uses a cubemap for both background and environment lighting.

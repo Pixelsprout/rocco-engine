@@ -5,8 +5,9 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # from behind only the left one shows. A leaf turns above Pip, so both of its
 # faces come round to the camera, lit from the side the camera sees. Pip
 # walks a circle with a round hole in every cell of a grid, double-sided, so
-# the inside of its shell shows through. Every cutout casts the shadow of its
-# cutout shape. source/make_props.py builds the meshes.
+# the inside of its shell shows through. The blue cube stays visible but does
+# not cast a shadow. Every cutout casts the shadow of its cutout shape.
+# source/make_props.py builds the meshes.
 #
 # The camera circles the Scene. Space stops and starts the motion, and Left
 # and Right turn the camera by hand. --far-shadows uses four cascades and
@@ -92,8 +93,8 @@ post : U64, F32 -> Vocabulary.Draw
 post = |id, x| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.75, z: 0.0 }, scale: { x: 0.08, y: 1.5, z: 0.08 }, tint: { r: 0.25, g: 0.25, b: 0.27 } }
 
 # An opaque cube behind each fence, so the holes show what is behind them.
-block : U64, F32, Vocabulary.Rgb -> Vocabulary.Draw
-block = |id, x, tint| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.35, z: -1.2 }, scale: { x: 0.7, y: 0.7, z: 0.7 }, tint }
+block : U64, F32, Vocabulary.Rgb, Bool -> Vocabulary.Draw
+block = |id, x, tint, casts_shadow| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.35, z: -1.2 }, scale: { x: 0.7, y: 0.7, z: 0.7 }, tint, casts_shadow }
 
 # Radians each second.
 leaf_spin : F32
@@ -144,8 +145,8 @@ view = |model| {
 		Light(sky_light),
 		Light(sunlight),
 		Draw(ground),
-		Draw(block(10, -fence_x, { r: 0.8, g: 0.12, b: 0.08 })),
-		Draw(block(11, fence_x, { r: 0.08, g: 0.2, b: 0.8 })),
+		Draw(block(10, -fence_x, { r: 0.8, g: 0.12, b: 0.08 }, Bool.True)),
+		Draw(block(11, fence_x, { r: 0.08, g: 0.2, b: 0.8 }, Bool.False)),
 		Draw(fence(2, m.fence, -fence_x)),
 		Draw(fence(3, m.fence_one_sided, fence_x)),
 		Draw(post(4, -fence_x - fence_half_width)),
