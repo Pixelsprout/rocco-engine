@@ -179,21 +179,9 @@ jobs:
       - name: Bundle the platform and the packages
         run: |
           out="$RUNNER_TEMP/bundles"
-          packages="linalg mesh ui camera"
-          mkdir -p "$out/platform"
-          cd platform
-          mapfile -t targets < <(find targets -type f | sort)
-          mapfile -t shader_tools < <(find shader-tools -type f ! -path '*/__pycache__/*' | sort)
-          roc bundle ./*.roc "${targets[@]}" "${shader_tools[@]}" --output-dir "$out/platform"
-          cd ..
-          for name in $packages; do
-            mkdir -p "$out/$name"
-            (cd "packages/$name" && roc bundle ./*.roc --output-dir "$out/$name")
-          done
-          for name in platform $packages; do
-            hashed=$(ls "$out/$name"/*.tar.zst)
-            file="$out/$name/$name-$(basename "$hashed")"
-            mv "$hashed" "$file"
+          python3 scripts/bundle_sdk.py "$out"
+          for name in platform linalg mesh ui camera; do
+            file=$(ls "$out/$name-"*.tar.zst)
             echo "$file" >> "$RUNNER_TEMP/assets"
             echo "--url=$name=$RELEASE_BASE/$(basename "$file")" >> "$RUNNER_TEMP/urls"
           done

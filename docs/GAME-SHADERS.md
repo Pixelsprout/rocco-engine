@@ -36,6 +36,9 @@ Each shader produces a package, a JSON manifest, raw compiler sources, reflectio
 Repeated builds preserve equivalent package bytes and unchanged output timestamps.
 Raw reflection uses stable temporary filenames rather than game paths.
 
+The [complete authoring proof](SHADER-AUTHORING-PROOF.md) combines named slots, wind, cutout shadows, Selection, outlines, and reload.
+Its clean CI jobs consume the checksummed candidate SDK without an engine checkout or Odin.
+
 ## Live shader development
 
 Build the game once to regenerate packages and typed helpers.

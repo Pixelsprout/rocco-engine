@@ -1,0 +1,125 @@
+{
+  "contract": 1,
+  "meshes": [
+    {
+      "name": "Tree",
+      "source": "assets/meshes/tree.glb"
+    }
+  ],
+  "shaders": [
+    {
+      "name": "Foliage",
+      "kind": "surface",
+      "max_displacement": 0.35,
+      "vertex": "wind.glsl",
+      "surface": "leaves.glsl",
+      "parameters": [
+        {
+          "name": "wind",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "vertex",
+          "default": [
+            0.3
+          ]
+        },
+        {
+          "name": "phase",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "vertex",
+          "default": [
+            0
+          ]
+        },
+        {
+          "name": "leaf_tint",
+          "type": "Colour",
+          "scope": "Material",
+          "stage": "fragment",
+          "default": [
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "textures": [
+        {
+          "name": "weights",
+          "scope": "Scene",
+          "stage": "vertex",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "repeat"
+          },
+          "optional": true,
+          "default": {
+            "constant": [
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Selection",
+      "kind": "post",
+      "post": "selection.glsl",
+      "inputs": [
+        "scene_colour",
+        "selection_coverage",
+        "selection_depth",
+        "scene_depth"
+      ],
+      "locations": [
+        "after_tone_map"
+      ],
+      "parameters": []
+    },
+    {
+      "name": "Outline",
+      "kind": "post",
+      "post": "outline.glsl",
+      "inputs": [
+        "scene_colour",
+        "scene_depth",
+        "selection_coverage",
+        "selection_depth"
+      ],
+      "locations": [
+        "before_bloom"
+      ],
+      "parameters": [
+        {
+          "name": "outline",
+          "type": "Colour",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            4,
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "visible_only",
+          "type": "Bool",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            true
+          ]
+        }
+      ]
+    }
+  ]
+}
