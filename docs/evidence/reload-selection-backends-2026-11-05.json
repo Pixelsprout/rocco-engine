@@ -1,0 +1,324 @@
+{
+  "run": 41980832894,
+  "commit": "cbfb1b3769ff6cad63f77c750380e3c245766688",
+  "backends": {
+    "macos": {
+      "post/post-evidence.json": {
+        "supported_samples": [
+          1,
+          2,
+          4
+        ],
+        "unsupported_samples": [
+          8
+        ],
+        "off": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "c0b46baec59fc2f89cab70616925379f79e6a324a7c2070a67475b3860b75335",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x2": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "d4ddd47b74755d3ec8e80abdf8fd9a4d3bc37409fe6e3ee13c2fe4519bda697f",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x4": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "eed9712916541ba87e76924c623891681b91198a5a7023febda1e85bf98bede8",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "depth_wind_hashes": [
+          "430e5e45585546f0fd42d945e705d3e5caacb381c82a9c250eab34b0977a92ba",
+          "5ec2996d64170a0f8e40929129fe7c4320cfc63d82baa5720beb75ed326dacca"
+        ],
+        "selection_animation_hashes": [
+          "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7",
+          "42197a5510c63400d4eb74b322c710077b24bbf2c25eeb498ea9b3de2cf3e2ad"
+        ],
+        "result": "passed",
+        "binary_sha256": "1ff9c6a7406a48830b37af863fe3f115c1ae2e9da67c936b31c2414a32a2cf50"
+      },
+      "reload/native-evidence.json": {
+        "result": "passed",
+        "host": "darwin",
+        "compatible_swaps": 24,
+        "failed_pipeline_candidates": 24,
+        "failed_program_candidates": 2,
+        "surface_pipeline_keys": 63,
+        "post_locations": 2,
+        "resource_line": "RELOAD_RESOURCES shaders=0 pipelines=0 samplers=0 images=0 views=0 cpu_bytes=0"
+      },
+      "reload/reload-evidence.json": {
+        "valid": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+        "missing": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+        "invalid": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+        "result": "passed",
+        "host": "darwin",
+        "binary_sha256": "1ff9c6a7406a48830b37af863fe3f115c1ae2e9da67c936b31c2414a32a2cf50"
+      }
+    },
+    "linux": {
+      "post/post-evidence.json": {
+        "supported_samples": [
+          1,
+          4
+        ],
+        "unsupported_samples": [
+          2,
+          8
+        ],
+        "off": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "f5f24477f337d8bff7137ccf463dbc20220153f3325177e2dc5b6bc1041baa90",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x4": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "c4c77d5a57dcd2428e6e98ae9e9294f7275b7af769cb4f63a69a0bd53ebacb13",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "depth_wind_hashes": [
+          "48f5e80e1fddfec81bf33ffdd96699488746aece167ff90cae4cefbddc19cc52",
+          "8cbc44cc32ba71f2d6ac974809633257a1841ed40d0548823fb50faca042af7a"
+        ],
+        "selection_animation_hashes": [
+          "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7",
+          "eb51a5978ad9ba50495a723c9a50833761cb1ff0730b67a0819a75831280e370"
+        ],
+        "result": "passed",
+        "binary_sha256": "8ab451beebef82d9b7c216844adea61a4848e93cef5113c5c3fc2b7e302a38ad"
+      },
+      "reload/native-evidence.json": {
+        "result": "passed",
+        "host": "linux",
+        "compatible_swaps": 24,
+        "failed_pipeline_candidates": 24,
+        "failed_program_candidates": 2,
+        "surface_pipeline_keys": 63,
+        "post_locations": 2,
+        "resource_line": "RELOAD_RESOURCES shaders=0 pipelines=0 samplers=0 images=0 views=0 cpu_bytes=0"
+      },
+      "reload/reload-evidence.json": {
+        "valid": "fe09f91dc04e84ee8c9dd47dae3e4e2f4e4c8b394faa0ec919ddbf50853937d0",
+        "missing": "fe09f91dc04e84ee8c9dd47dae3e4e2f4e4c8b394faa0ec919ddbf50853937d0",
+        "invalid": "fe09f91dc04e84ee8c9dd47dae3e4e2f4e4c8b394faa0ec919ddbf50853937d0",
+        "result": "passed",
+        "host": "linux",
+        "binary_sha256": "8ab451beebef82d9b7c216844adea61a4848e93cef5113c5c3fc2b7e302a38ad"
+      },
+      "surface/surface-evidence.json": {
+        "base_green": 22369,
+        "unloaded_green": 0,
+        "shadow_pixels": 2813,
+        "noncasting_shadow_pixels": 0,
+        "result": "passed",
+        "wind_hashes": [
+          "f1d59dc65c60273e3cea18a4079e206d9d1e9ac3c6b3c4f64d2032293d631974",
+          "f8e821f0c3e9297636a8a147d69c95ba10d84d67e40617c6e260ffe313adffaf",
+          "ba8c2dbbe0e830dd0e4e39b61704f19286b24ce12e8de00bf7210f97c813112b"
+        ],
+        "instance_wind_hashes": [
+          "1e76ea20f4f5babf449f3a7c8f7d9cd26b2ccc49f830477281247d70ff71d363",
+          "da9261a10bc5c4b0da2b3e3ea83e290a64a12d8537e9caeb57016b2c12d84825",
+          "63f12d1ddb9f7eb73e291c353a421f3286d35df248c7fb0ba14689c7ae13c7d4"
+        ],
+        "default_pbr_mean_difference": 0.0,
+        "binary_sha256": "0573a850f97059f1ae2838a1434a9bcd0fd8c63c1fc40240b25c9542598e9566",
+        "packages": {
+          "DefaultSurface.shaderpack": "b8f01613fa3f34ca9310390b9f321bfa1e5660888fb916745cfc204261b431a3",
+          "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+        }
+      }
+    },
+    "windows": {
+      "post/post-evidence.json": {
+        "supported_samples": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "unsupported_samples": [],
+        "off": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "8329a9263ce79dea87f764c641d8917d27991b76e6b5293f9764bec7dae630d1",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x2": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "8f44693f5513d09c5f9e61b9383d1f1d54a1ac55fc9280c7bbc4aa13ee44174b",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x4": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "60e357eb4e498f0862095735e903f3e065061e8221383ed8af4fe0e8605a9530",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "x8": {
+          "physical": [
+            800,
+            600
+          ],
+          "logical": [
+            800,
+            600
+          ],
+          "depth_values": 74,
+          "chain_sha256": "7046211fbced99181ec942172fe2ba809d2998bad3713405baf5f1e678051606",
+          "selection": {
+            "hidden_pixels": 6191,
+            "glass_pixels": 5187,
+            "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+          }
+        },
+        "depth_wind_hashes": [
+          "7592dbd46f6dd75785cd9ab7628738ce8a8873baee2534539cba167ff6d922ab",
+          "6176df8d51aa7168c0d533fa6a167488dde6c099bfad368808de8fbbc48aa1e0"
+        ],
+        "selection_animation_hashes": [
+          "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7",
+          "42197a5510c63400d4eb74b322c710077b24bbf2c25eeb498ea9b3de2cf3e2ad"
+        ],
+        "result": "passed",
+        "binary_sha256": "3748c6d30fa593e0f182c8f21554e25e665ebb4639e96cdbfe68a1b79969a973"
+      },
+      "reload/native-evidence.json": {
+        "result": "passed",
+        "host": "win32",
+        "compatible_swaps": 24,
+        "failed_pipeline_candidates": 24,
+        "failed_program_candidates": 2,
+        "surface_pipeline_keys": 63,
+        "post_locations": 2,
+        "resource_line": "RELOAD_RESOURCES shaders=0 pipelines=0 samplers=0 images=0 views=0 cpu_bytes=0"
+      },
+      "reload/reload-evidence.json": {
+        "valid": "937862a9953d41cbb34b1b76493e60122da955f0a5e4cfa8f884dacbd9658ebc",
+        "missing": "937862a9953d41cbb34b1b76493e60122da955f0a5e4cfa8f884dacbd9658ebc",
+        "invalid": "937862a9953d41cbb34b1b76493e60122da955f0a5e4cfa8f884dacbd9658ebc",
+        "result": "passed",
+        "host": "win32",
+        "binary_sha256": "3748c6d30fa593e0f182c8f21554e25e665ebb4639e96cdbfe68a1b79969a973"
+      },
+      "surface/surface-evidence.json": {
+        "base_green": 22368,
+        "unloaded_green": 0,
+        "shadow_pixels": 2813,
+        "noncasting_shadow_pixels": 0,
+        "result": "passed",
+        "wind_hashes": [
+          "bee7953750510554c3f5b598b8875014fa01f5bb7c68e043c1da0d597b22687c",
+          "4d3fe358ef4d9733db5925f69542c756576a70009d53fa2c2611788f3e86d683",
+          "308838c3387bad170f03ab4161acfd79a9365c42e7c15d4065a4ac8f58b3f059"
+        ],
+        "instance_wind_hashes": [
+          "0e418a8b9a3be437d6917113fdb31b5b67730898096091a04167dd853dc0d6f5",
+          "9a4343d540dc74492567219b7ef32cfa4e0552e159c4da80310a846a2299969e",
+          "f9e80c4914559f17287e7ec41270b042c955f658b70e2f1a1c547ea145c949f6"
+        ],
+        "default_pbr_mean_difference": 0.0,
+        "binary_sha256": "bce10c057cf290aee0eccd2cae18458a9072c67fd77b99789b07d7175c7e4f7c",
+        "packages": {
+          "DefaultSurface.shaderpack": "b8f01613fa3f34ca9310390b9f321bfa1e5660888fb916745cfc204261b431a3",
+          "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+        }
+      }
+    }
+  }
+}
