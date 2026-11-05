@@ -24,11 +24,12 @@ DRAW_LIMIT ::
 	((1 << 31 - 1) / UNIFORM_ALIGN - UNIFORM_SPARE_SLOTS - (1 + MAX_CASCADES) * SKINNED_DRAW_LIMIT * size_of(Skin_Params) / UNIFORM_ALIGN) /
 	(MAIN_UNIFORM_SLOTS + max(MAX_CASCADES * SHADOW_UNIFORM_SLOTS, LIGHTS_UNIFORM_SLOTS))
 
-#assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 2 * UNIFORM_ALIGN)
+#assert(size_of(Vs_Params) <= UNIFORM_ALIGN && size_of(Shadow_Vs_Params) <= UNIFORM_ALIGN && size_of(Fs_Params) <= 128 && size_of(Fs_Lights) <= 512)
 // The 3 is one block each for the sky, the tone map and the UI.
 #assert(2 * len(SCENE_ORDER_PIPELINES) * LIGHTS_UNIFORM_SLOTS + 3 + BLOOM_UNIFORM_SLOTS <= UNIFORM_SPARE_SLOTS)
 // The skin block is the one block above UNIFORM_ALIGN.
 #assert(size_of(Skin_Params) % UNIFORM_ALIGN == 0)
+#assert(sg.NUM_INFLIGHT_FRAMES == 2)
 
 SHADOW_DEPTH_BIAS :: f32(0)
 // Reversed-Z, so a negative bias pushes the stored depth away from the Sun.
@@ -61,6 +62,12 @@ Renderer :: struct {
 	// share it, so the uniform buffer holds one skin block per Draw.
 	applied_skin:       ^Skin_Params,
 	lights:             Fs_Lights,
+	cluster_buffers:    [3]sg.Buffer,
+	cluster_views:      [3]sg.View,
+	applied_bindings:   sg.Bindings,
+	applied_material:   Fs_Params,
+	has_bindings:       bool,
+	has_material:       bool,
 	meshes:             Mesh_Table,
 	skies:              Sky_Table,
 	images:             Image_Table,
@@ -96,7 +103,7 @@ texture_pool_size :: proc(capacity: Capacity) -> i32 {
 // The shadow map adds one depth view per cascade to its texture view, and
 // the render target adds its views.
 view_pool_size :: proc(capacity: Capacity) -> i32 {
-	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES
+	return texture_pool_size(capacity) + MAX_CASCADES + TARGET_VIEWS - TARGET_IMAGES + 3
 }
 
 // capacity.draws counts the Main-pass submits. Each applies a vertex and a
@@ -119,6 +126,11 @@ skinned_draw_capacity :: proc(draws: int) -> int {
 // sample count and the formats, or sokol rejects the pipelines. The sample
 // count comes from the Launch.
 renderer_init :: proc(r: ^Renderer, launch: Launch) {
+	cluster_sizes := [3]uint{MAX_POINT_LIGHTS * size_of(Packed_Light), CLUSTER_COUNT * size_of(Cluster_Range), CLUSTER_INDEX_LIMIT * size_of(u32)}
+	for size, i in cluster_sizes {
+		r.cluster_buffers[i] = sg.make_buffer({size = size, usage = {storage_buffer = true, stream_update = true}})
+		r.cluster_views[i] = sg.make_view({storage_buffer = {buffer = r.cluster_buffers[i]}})
+	}
 	sample_count := msaa_sample_count(launch.window.samples)
 	render_target_init(&r.target, sample_count)
 	mesh_table_upload(&r.meshes)
@@ -379,9 +391,15 @@ renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Me
 	sg.draw(part.first, part.count, 1)
 }
 
-renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
+renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r := (^Renderer)(ctx)
 	r.lights = lights
+	empty_point: Packed_Light
+	point_data := sg.Range{ptr = raw_data(clusters.points), size = uint(len(clusters.points) * size_of(Packed_Light))}
+	if len(clusters.points) == 0 { point_data = {ptr = &empty_point, size = size_of(Packed_Light)} }
+	sg.update_buffer(r.cluster_buffers[0], point_data)
+	sg.update_buffer(r.cluster_buffers[1], {ptr = raw_data(clusters.ranges), size = uint(len(clusters.ranges) * size_of(Cluster_Range))})
+	sg.update_buffer(r.cluster_buffers[2], {ptr = raw_data(clusters.indices), size = uint(len(clusters.indices) * size_of(u32))})
 	renderer_apply_pipeline(r, r.pips[.Opaque])
 }
 
@@ -393,6 +411,8 @@ renderer_apply_pipeline :: proc(r: ^Renderer, pip: sg.Pipeline) {
 	sg.apply_pipeline(pip)
 	r.applied = pip
 	r.applied_skin = nil
+	r.has_bindings = false
+	r.has_material = false
 	for pipeline in Mesh_Pipeline {
 		if pip == r.pips[pipeline] || pip == r.skinned_pips[pipeline] {
 			sg.apply_uniforms(UB_fs_lights, {ptr = &r.lights, size = size_of(Fs_Lights)})
@@ -423,33 +443,43 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	r := (^Renderer)(ctx)
 	renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin)
 	tex := mesh_part_textures(part, r.white, r.flat_normal)
-	sg.apply_bindings(
-		{
-			vertex_buffers = {0 = mesh.vertices},
-			index_buffer = mesh.indices,
-			views = {
-				VIEW_base_tex = tex.base.view,
-				VIEW_metallic_roughness_tex = tex.metallic_roughness.view,
-				VIEW_shadow_tex = r.shadow.texture,
-				VIEW_emissive_tex = tex.emissive.view,
-				VIEW_normal_tex = tex.normal.view,
-				VIEW_occlusion_tex = tex.occlusion.view,
-			},
-			samplers = {
-				SMP_base_smp = tex.base.sampler,
-				SMP_metallic_roughness_smp = tex.metallic_roughness.sampler,
-				SMP_shadow_smp = r.shadow.sampler,
-				SMP_emissive_smp = tex.emissive.sampler,
-				SMP_normal_smp = tex.normal.sampler,
-				SMP_occlusion_smp = tex.occlusion.sampler,
-			},
+	bindings := sg.Bindings {
+		vertex_buffers = {0 = mesh.vertices},
+		index_buffer = mesh.indices,
+		views = {
+			VIEW_engine_points = r.cluster_views[0],
+			VIEW_engine_clusters = r.cluster_views[1],
+			VIEW_engine_indices = r.cluster_views[2],
+			VIEW_base_tex = tex.base.view,
+			VIEW_metallic_roughness_tex = tex.metallic_roughness.view,
+			VIEW_shadow_tex = r.shadow.texture,
+			VIEW_emissive_tex = tex.emissive.view,
+			VIEW_normal_tex = tex.normal.view,
+			VIEW_occlusion_tex = tex.occlusion.view,
 		},
-	)
+		samplers = {
+			SMP_base_smp = tex.base.sampler,
+			SMP_metallic_roughness_smp = tex.metallic_roughness.sampler,
+			SMP_shadow_smp = r.shadow.sampler,
+			SMP_emissive_smp = tex.emissive.sampler,
+			SMP_normal_smp = tex.normal.sampler,
+			SMP_occlusion_smp = tex.occlusion.sampler,
+		},
+	}
+	if !r.has_bindings || bindings != r.applied_bindings {
+		sg.apply_bindings(bindings)
+		r.applied_bindings = bindings
+		r.has_bindings = true
+	}
 
 	vs := vs_params
 	fs := fs_params
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
-	sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
+	if !r.has_material || fs != r.applied_material {
+		sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
+		r.applied_material = fs
+		r.has_material = true
+	}
 
 	sg.draw(part.first, part.count, 1)
 }

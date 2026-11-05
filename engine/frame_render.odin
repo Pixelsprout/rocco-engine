@@ -76,7 +76,7 @@ Begin_Pass :: #type proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb)
 End_Pass :: #type proc(ctx: rawptr)
 Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params)
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
-Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights)
+Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame)
 Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
 Submit_Bloom :: #type proc(ctx: rawptr, step: Bloom_Step)
 Submit_Tone_Map :: #type proc(ctx: rawptr, params: Tone_Map_Params)
@@ -115,7 +115,10 @@ Light_Drop :: enum {
 	Second_Sun,
 	Zero_Dir,
 	Bad_Range,
-	Draw_Over_Limit,
+	Bad_Point,
+	Directional_Over_Limit,
+	Points_Over_Limit,
+	Cluster_Over_Limit,
 }
 
 // The renderer sizes its uniform buffer for draw_capacity part draws and
@@ -211,8 +214,7 @@ Frame_Room :: struct {
 	skin:     ^Skin_Params,
 }
 
-// Every Directional and Point Light of the Scene, in walk order, except the
-// Sun, which goes first in directionals. The lists live in the frame arena.
+// The bounded light lists live in the Frame arena. The Sun leads directionals.
 Light_Gather :: struct {
 	frame:                Fs_Lights,
 	directionals, points: [dynamic]Packed_Light,
@@ -321,6 +323,13 @@ frame_render_draw :: proc(
 	lights := gathered.frame
 	eye := view.camera.eye
 	lights.camera_pos = {eye.x, eye.y, eye.z, 0}
+	forward := v3_normalize(view.camera.target - eye)
+	lights.view_dir = {forward.x, forward.y, forward.z, 0}
+	lights.ambient.w = f32(len(gathered.directionals))
+	for d, i in gathered.directionals {
+		lights.directional_pos[i] = d.pos
+		lights.directional_color[i] = d.color
+	}
 	if submit {
 		frame_render_pose(fr, meshes)
 	}
@@ -335,6 +344,10 @@ frame_render_draw :: proc(
 	if !submit {
 		return
 	}
+	clusters := cluster_build(gathered.points[:], view, window.size * window.dpi)
+	lights.cluster_grid = clusters.grid
+	if clusters.overflow { light_drop(fr, .Cluster_Over_Limit) }
+	span = span_close(spans, .Cluster_Build, span)
 	lights.fog_color, lights.fog_ramp = fog_uniform(env.fog)
 
 	if gathered.has_sun && placed_casts(fr.placed[:]) {
@@ -342,10 +355,10 @@ frame_render_draw :: proc(
 	}
 
 	frame_render_begin_pass(fr, .Main, 0, env.clear, &span)
-	fr.submits.submit_lights(fr.submits.ctx, lights)
+	fr.submits.submit_lights(fr.submits.ctx, lights, clusters)
 	draw_params := make([]Draw_Params, len(fr.placed), context.temp_allocator)
 	for &p, i in fr.placed {
-		draw_params[i] = frame_render_draw_params(fr, &p, view, gathered)
+		draw_params[i] = frame_render_draw_params(&p, view)
 	}
 	for skinned in ([2]bool{false, true}) {
 		for pipeline in SCENE_ORDER_PIPELINES {
@@ -384,21 +397,13 @@ frame_render_draw :: proc(
 	span_close(spans, .Render_Submit, span)
 }
 
-// Light selection runs once per Draw, for all its parts.
 @(private = "file")
-frame_render_draw_params :: proc(fr: ^Frame_Render, p: ^Placed, view: Frame_View, gathered: ^Light_Gather) -> Draw_Params {
+frame_render_draw_params :: proc(p: ^Placed, view: Frame_View) -> Draw_Params {
 	tint := [4]f32{1, 1, 1, 1} if p.fallback else {p.tint.r, p.tint.g, p.tint.b, 1}
 	glow := [4]f32{} if p.fallback else {max(p.glow.r, 0), max(p.glow.g, 0), max(p.glow.b, 0), 0}
 	params := Fs_Params {
 		tint = tint,
 		glow = glow,
-	}
-	if !mesh_unlit(p.mesh) {
-		// Only the Point lights need the world box.
-		bounds := box_transform(p.mesh.box, p.model) if len(gathered.points) > 0 else Box{}
-		if light_select(gathered.directionals[:], gathered.points[:], bounds, &params.light_pos, &params.light_color) {
-			light_drop(fr, .Draw_Over_Limit)
-		}
 	}
 	vs_params := Vs_Params {
 		mvp          = view.view_proj * p.model,
@@ -732,7 +737,7 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 		}
 		g.has_ambient = true
 		c := l.payload.ambient
-		g.frame.ambient = {c.r, c.g, c.b, 1}
+		g.frame.ambient = {c.r, c.g, c.b, 0}
 	case .Directional:
 		d := l.payload.directional
 		to_light := -v3_normalize_or_zero(vec3_array(d.dir))
@@ -745,15 +750,31 @@ light_gather :: proc(fr: ^Frame_Render, g: ^Light_Gather, l: Light) {
 			light_drop(fr, .Second_Sun)
 		} else if d.shadow {
 			g.has_sun = true
+			if len(g.directionals) == MAX_DIRECTIONALS {
+				resize(&g.directionals, MAX_DIRECTIONALS - 1)
+				light_drop(fr, .Directional_Over_Limit)
+			}
 			inject_at(&g.directionals, 0, packed)
+			return
+		}
+		if len(g.directionals) == MAX_DIRECTIONALS {
+			light_drop(fr, .Directional_Over_Limit)
 			return
 		}
 		append(&g.directionals, packed)
 	case .Point:
 		p := l.payload.point
 		// Written this way round so a NaN range drops too.
-		if !(p.range > 0) {
+		if !(p.range > 0 && p.range < max(f32)) {
 			light_drop(fr, .Bad_Range)
+			return
+		}
+		if p.pos.x - p.pos.x != 0 || p.pos.y - p.pos.y != 0 || p.pos.z - p.pos.z != 0 {
+			light_drop(fr, .Bad_Point)
+			return
+		}
+		if len(g.points) == MAX_POINT_LIGHTS {
+			light_drop(fr, .Points_Over_Limit)
 			return
 		}
 		append(&g.points, Packed_Light{{p.pos.x, p.pos.y, p.pos.z, 1}, {p.color.r, p.color.g, p.color.b, p.range}})
@@ -773,9 +794,15 @@ light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
 	case .Zero_Dir:
 		fmt.eprintln("a directional light has a zero dir; the host drops it")
 	case .Bad_Range:
-		fmt.eprintln("a point light has a range <= 0; the host drops it")
-	case .Draw_Over_Limit:
-		fmt.eprintfln("a Draw has more than %v directional and point lights in reach; the host keeps the directionals, then the nearest point lights", MAX_LIGHTS)
+		fmt.eprintln("a point light has a nonfinite range or a range <= 0; the host drops it")
+	case .Bad_Point:
+		fmt.eprintln("a point light has a nonfinite position; the host drops it")
+	case .Directional_Over_Limit:
+		fmt.eprintfln("a Scene has more than %v directional lights; the host keeps the Sun and the first remaining lights", MAX_DIRECTIONALS)
+	case .Points_Over_Limit:
+		fmt.eprintfln("a Scene has more than %v point lights; the host keeps the first lights", MAX_POINT_LIGHTS)
+	case .Cluster_Over_Limit:
+		fmt.eprintfln("a cluster has more than %v point lights; the host keeps the nearest lights to its centre", CLUSTER_LIGHT_LIMIT)
 	}
 }
 
@@ -883,7 +910,7 @@ submits_none_submit_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, p
 submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params) {}
 
 @(private = "file")
-submits_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights) {}
+submits_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {}
 
 @(private = "file")
 submits_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}

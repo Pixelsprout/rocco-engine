@@ -24,6 +24,7 @@ SPAN_NAMES :: [Span]string {
 	.Query_Results = "query_results",
 	.Interpolation = "interpolation",
 	.Ui_Layout     = "ui_layout",
+	.Cluster_Build = "cluster_build",
 	.Render_Submit = "render_submit",
 	.Commit        = "commit",
 }
@@ -38,6 +39,7 @@ Span :: enum u8 {
 	Query_Results,
 	Interpolation,
 	Ui_Layout,
+	Cluster_Build,
 	Render_Submit,
 	Commit,
 }

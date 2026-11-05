@@ -93,7 +93,7 @@ all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, FontTable, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
 example_games : List(Str)
-example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
+example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "village", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
@@ -193,10 +193,10 @@ game_run = |target, dir, name| {
 	cwd: dir,
 }
 
-shaders_run : Run
-shaders_run = {
-	program: "sokol-shdc",
-	args: ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"],
+shaders_run : Target -> Run
+shaders_run = |target| {
+	program: target.python,
+	args: ["scripts/build_shader.py"],
 	cwd: ".",
 }
 
@@ -527,8 +527,8 @@ run_step! = |step, target| match step {
 	BenchTwin(name) => exec!(twin_run(target, name))
 	BenchRun(bench) => bench!(target, bench)
 	Shaders =>
-		if Cmd.check_available!(shaders_run.program) {
-			exec!(shaders_run)
+		if Cmd.check_available!("sokol-shdc") {
+			exec!(shaders_run(target))
 		} else {
 			Stdout.line!("== shaders: sokol-shdc is not on PATH, keeping the committed engine/shader_basic.odin")
 		}
@@ -802,8 +802,8 @@ expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, S
 expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
-expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("village"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
 expect game_binary("tutorial/01-window") == "01-window"
 expect parse(["glue", "--release"]) == Err(Usage)
@@ -927,7 +927,7 @@ expect parse(["font"]) == Ok([Font, FontTable])
 expect parse(["font-table"]) == Ok([FontTable])
 expect font_run.args == ["run", "scripts/font_bake", "-out:build/font_bake", "--", "scripts/fonts/AtkinsonHyperlegible-Regular.ttf", "engine/font_baked.odin"]
 
-expect shaders_run.args == ["-i", "engine/shaders/basic.glsl", "-o", "engine/shader_basic.odin", "-l", "metal_macos:glsl430:hlsl5", "-f", "sokol_odin"]
+expect target_for(mac).map_ok(|target| shaders_run(target).args) == Ok(["scripts/build_shader.py"])
 
 expect target_for(mac).map_ok(|target| target.extra_inputs) == Ok(MacSdk)
 expect target_for(linux).map_ok(|target| target.extra_inputs) == Ok(LinuxStubs)

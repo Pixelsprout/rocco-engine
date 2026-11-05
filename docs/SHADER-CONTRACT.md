@@ -262,6 +262,55 @@ It preserves sampled texture bindings, which use a separate GL namespace.
 Raw compiler files remain unchanged for reproducibility.
 The package fingerprint and checksum cover the transformed layout and code.
 
+## Production clustered PBR layout
+
+[ADR 0033](adr/0033-clustered-forward-lights.md) replaces the per-Draw Point list.
+The built-in shader uses the following exact engine fragment blocks.
+Every member starts at a 16-byte boundary.
+
+| Slot | Block | Members in byte order | Bytes |
+| --- | --- | --- | --- |
+| 1 | `fs_params` | `tint`, `material`, `emissive`, `glow`, `maps`, each `vec4` | 80 |
+| 2 | `fs_lights` | Seven `vec4`: `ambient`, `camera_pos`, `shadow`, `cascade_far`, `view_dir`, `fog_color`, `fog_ramp`; `mat4 light_view_proj[4]`; `vec4 directional_pos[4]`; `vec4 directional_color[4]`; `vec4 cluster_grid` | 512 |
+
+`ambient.w` holds the Directional count, from zero through four.
+The Sun occupies Directional slot zero when present.
+`view_dir.xyz` always holds the camera's unit forward vector.
+`cluster_grid` holds `16 / physical_width`, `9 / physical_height`, `24 / ln(far / near)`, and `near`.
+The near depth is 0.1 units.
+The far depth includes every accepted Point sphere and is at least 100 units.
+
+The fragment uses camera-forward world depth for the logarithmic slice.
+It uses physical fragment coordinates for the tile.
+GL tiles count upward; Metal and D3D convert their downward fragment coordinates before tile selection.
+The cluster index is `(z * 9 + y) * 16 + x`.
+Each axis clamps at the grid boundary.
+
+Storage slot 12 contains `Point { vec4 pos; vec4 color; }` records.
+`pos.xyz` is world position, and `pos.w` is one.
+`color.xyz` is linear radiance, and `color.w` is range.
+Slot 13 contains `Cluster { uvec4 range; }` records.
+`range.xy` holds the scalar index offset and count; `range.zw` is zero.
+Slot 14 contains `LightIndices { uvec4 ids; }` records.
+Scalar index `n` reads `indices[n / 4].ids[n % 4]`.
+The final vector uses zero padding.
+
+The renderer owns three storage buffers and three storage views.
+Their maximum logical allocation is 972,800 bytes.
+Metal's stream buffers retain two backing copies, totaling 1,945,600 bytes before driver overhead.
+Other backends can allocate additional driver storage.
+The host uploads 55,296 range bytes, up to 32,768 Point bytes, and up to 884,736 index bytes each Frame.
+Empty Point and index buffers receive one zero record.
+The host compacts indices in place before upload.
+The Frame arena also holds the full 884,736-byte index workspace and up to 12,288 bytes of camera-space positions.
+Growing gathered light arrays can retain earlier allocations until the Frame ends.
+
+Repeated bindings and equal Material values reuse the active pipeline state.
+Pipeline changes invalidate both caches.
+Sokol retains uploaded stream data until the corresponding in-flight Frame completes.
+The renderer budgets three additional buffer handles and three view handles.
+The default mesh buffer budget now includes every mesh slot, UI buffers, and these storage buffers.
+
 ## Portable limits and device checks
 
 The pinned Sokol header defines 8 uniform slots, 32 view slots, 12 sampler slots, 32 texture/sampler pairs, and 16 attributes.

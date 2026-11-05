@@ -220,13 +220,20 @@ one cascade, the shadow map covers each Draw of the Scene. With more
 cascades, set by `Launch.shadow_cascades`, the maps cover the first 150
 metres of the view.
 
-The host uses the first Ambient light. A Scene may hold as many
-Directional and Point lights as it needs. Each Draw gets the Sun, the other
-Directional lights, then the nearest Point lights that reach it, up to 8 in
-all. A big mesh with many lights over it can drop the far ones, so split a
-large floor into tiles. "First" is the order of a depth-first walk of the
-tree: a Group's children come right after the Group, before the Nodes that
-follow it. The first Directional light that sets `shadow` is the Sun.
+The host uses the first Ambient light.
+It accepts four Directional lights, with the Sun first, and 1,024 Point lights in Scene order.
+A late Sun replaces the last retained Directional when necessary.
+The host divides the camera view into screen tiles and depth slices, called clusters.
+Each cluster keeps up to 64 Point lights.
+A full cluster keeps lights nearest its centre, with Scene order resolving ties.
+The host logs each limit once per run.
+Large floor meshes can receive lamps across their whole surface.
+The `clustered-lights` example shows 200 moving lamps on one tiled floor Draw.
+
+“First” follows a depth-first walk of the tree.
+A Group's children come immediately after the Group, before the Nodes that follow it.
+The first Directional light that sets `shadow` is the Sun.
+Point lights cast no shadows.
 
 A few rules to know:
 
@@ -267,9 +274,9 @@ orb = |id, pos, color| {
 ```
 <!-- endregion -->
 
-Each such Light counts toward the 8 Lights of the Scene. A glTF mesh can
-also glow through its material's emissive, and its Draw's glow adds to
-that. See [Assets and Packs](assets.md).
+Each Point counts toward the Scene's 1,024 Point limit.
+A glTF mesh can also glow through its Material's emissive, and its Draw's glow adds to that.
+See [Assets and Packs](assets.md).
 
 A tint above 1 is no longer the way to make a surface glow. A tint
 multiplies the lit colour, so it shows only where a Light reaches.

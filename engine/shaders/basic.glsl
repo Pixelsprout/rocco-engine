@@ -88,32 +88,20 @@ void main() {
 @end
 
 @block surface
-// vec4 so every member is 16 bytes and flattens cleanly for GL. material is
-// roughness, metallic, unlit (0 or 1) and the alpha cutoff, which is 0
-// outside a Mask part. emissive is the mesh emissive, linear, with w spare.
-// glow is the Draw glow, linear, with w spare. maps is the normal scale and the occlusion strength, with zw spare.
-// The host picks this Draw's lights: the Sun in slot 0, the other
-// Directionals, then the nearest Point lights in range. The array size is
-// MAX_LIGHTS in engine/frame_render.odin. An unused slot has a zero colour.
-// For a directional light, xyz of light_pos is the unit vector towards the
-// light and w is 0. For a point light, xyz is the position, w is 1 and w of
-// light_color is the range. Light colours are physical: the BRDF carries the
-// 1/pi.
+// Material values keep the imported PBR response. Point lights use storage slots 12–14.
 layout(binding = 1) uniform fs_params {
     vec4 tint;
     vec4 material;
     vec4 emissive;
     vec4 glow;
     vec4 maps;
-    vec4 light_pos[8];
-    vec4 light_color[8];
 };
 
 // shadow is the cascade count, the Sun's slot, the normal offset and the
 // share of each cascade that blends into the next. A count of 0 means no Sun.
 // cascade_far[i] is the far depth of cascade i along view_dir, the camera's
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
-// cascade 0. With one cascade, cascade_far and view_dir are zero. The array
+// cascade 0. With one cascade, cascade_far is zero. view_dir always follows the camera. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
 // fog_color is linear, with w spare. fog_ramp is the fog start,
 // 1 / (end - start), the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
@@ -126,7 +114,17 @@ layout(binding = 2) uniform fs_lights {
     vec4 fog_color;
     vec4 fog_ramp;
     mat4 light_view_proj[4];
+    vec4 directional_pos[4];
+    vec4 directional_color[4];
+    vec4 cluster_grid;
 };
+
+struct Point { vec4 pos; vec4 color; };
+struct Cluster { uvec4 range; };
+struct LightIndices { uvec4 ids; };
+layout(binding = 12) readonly buffer engine_points { Point points[]; };
+layout(binding = 13) readonly buffer engine_clusters { Cluster clusters[]; };
+layout(binding = 14) readonly buffer engine_indices { LightIndices indices[]; };
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
 // linear data: G is roughness and B is metallic, as glTF puts them.
@@ -303,20 +301,43 @@ vec4 surface_color(bool premultiplied) {
     float ao = texture(sampler2D(occlusion_tex, occlusion_smp), v_uv).r;
     float occlusion = mix(1.0, ao, maps.y);
     vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * occlusion;
-    int sun = shadow.x > 0.0 ? int(shadow.y) : -1;
-    for (int i = 0; i < 8; i++) {
-        vec3 l = light_pos[i].xyz;
+    vec2 tile = gl_FragCoord.xy * cluster_grid.xy;
+#if !SOKOL_GLSL
+    tile.y = 9.0 - tile.y;
+#endif
+    ivec2 xy = clamp(ivec2(tile), ivec2(0), ivec2(15, 8));
+    float depth = max(dot(v_world - camera_pos.xyz, view_dir.xyz), cluster_grid.w);
+    int z = clamp(int(log(depth / cluster_grid.w) * cluster_grid.z), 0, 23);
+    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].range;
+    float sun_attenuation = 1.0;
+    // D3D requires uniform control flow around the comparison samples.
+    if (shadow.x > 0.0) {
+        sun_attenuation = sun_visibility(safe_normalize(v_nrm) * facing);
+    }
+    int directional_count = int(ambient.w);
+    int total = directional_count + int(cluster.y);
+    for (int i = 0; i < total; i++) {
+        vec3 l;
+        vec3 radiance;
         float attenuation = 1.0;
-        if (i == sun) {
-            // The offset follows the surface, not the bumps of the normal map.
-            attenuation = sun_visibility(safe_normalize(v_nrm) * facing);
-        } else if (light_pos[i].w != 0.0) {
-            vec3 to_light = l - v_world;
+        if (i < directional_count) {
+            l = directional_pos[i].xyz;
+            radiance = directional_color[i].rgb;
+            if (i == 0 && shadow.x > 0.0) {
+                attenuation = sun_attenuation;
+            }
+        } else {
+            uint at = cluster.x + uint(i - directional_count);
+            uvec4 ids = indices[at / 4u].ids;
+            uint id = ids[int(at % 4u)];
+            Point point = points[id];
+            vec3 to_light = point.pos.xyz - v_world;
             float d2 = dot(to_light, to_light);
-            float range = light_color[i].w;
+            float range = point.color.w;
             float k = clamp(1.0 - d2 / (range * range), 0.0, 1.0);
             attenuation = k * k / max(d2, MIN_POINT_DISTANCE_SQ);
             l = safe_normalize(to_light);
+            radiance = point.color.rgb;
         }
         float n_dot_l = clamp(dot(n, l), 0.0, 1.0);
         if (n_dot_l <= 0.0) {
@@ -329,7 +350,7 @@ vec4 surface_color(bool premultiplied) {
         vec3 specular = f * (distribution_ggx(n_dot_h, alpha) * visibility_smith(n_dot_v, n_dot_l, alpha));
         // glTF 2.0 Appendix B: the light that Fresnel reflects does not also diffuse.
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
-        color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
+        color += (diffuse + specular) * radiance * (n_dot_l * attenuation);
     }
     return vec4(apply_fog(color + emitted, coverage), base.a);
 }
