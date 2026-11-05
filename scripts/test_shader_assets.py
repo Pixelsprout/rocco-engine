@@ -243,7 +243,9 @@ class PublishedCompilerTests(unittest.TestCase):
 
     def test_world_inputs_use_resolved_models_in_shared_vertex_stages(self):
         (self.game / "wind.glsl").write_text('''void rocco_vertex(inout Vertex vertex) {
-    vertex.position.x += (vertex.world_position.x - vertex.world_origin.x) * 0.01;
+    vec3 world_offset = vec3(0.1, -0.2, 0.3) * sin(vertex.world_position.x + vertex.world_origin.z);
+    vec3 local_offset = vertex.world_to_local_direction * world_offset;
+    vertex.position += local_offset / max(1.0, length(local_offset) / 0.25);
 }''')
         self.run_build()
         source = (self.out / "Foliage.sources/input.glsl").read_text()
@@ -252,9 +254,13 @@ class PublishedCompilerTests(unittest.TestCase):
             invoke = vertex.index("rocco_vertex(vertex);")
             self.assertLess(vertex.index("vertex.world_position = (world_model * vec4(vertex.position, 1.0)).xyz;"), invoke)
             self.assertLess(vertex.index("vertex.world_origin = world_model[3].xyz;"), invoke)
+            self.assertLess(vertex.index("vertex.world_to_local_direction = transpose(mat3(world_normal));"), invoke)
+            normal = "mat4 world_normal = mat4(vec4(instance_normal_0" if layout == "instanced" else "mat4 world_normal = normal_model;"
+            self.assertIn(normal, vertex)
             model = "mat4 world_model = mat4(instance_model_0" if layout == "instanced" else "mat4 world_model = model;"
             self.assertIn(model, vertex)
         manifest, payload = decode(self.out / "Foliage.shaderpack")
+        self.assertEqual(manifest["interface"]["surface"]["max_displacement"], 0.25)
         for backend in manifest["shaders"]:
             for layout in ("surface", "skinned", "instanced"):
                 variants = [p for p in backend["programs"] if p["name"].startswith(layout + "_")]
@@ -262,6 +268,15 @@ class PublishedCompilerTests(unittest.TestCase):
                 sources = [payload[p["vertex_func"]["offset"]:p["vertex_func"]["offset"] + p["vertex_func"]["size"]] for p in variants]
                 self.assertEqual(sources[0], sources[1])
                 self.assertEqual(sources[0], sources[2])
+
+    def test_world_direction_conversion_preserves_resource_layout(self):
+        self.run_build()
+        converted, _ = decode(self.out / "Foliage.shaderpack")
+        hook = self.game / "wind.glsl"
+        hook.write_text(hook.read_text().replace("vertex.world_to_local_direction", "mat3(1.0)"))
+        self.run_build()
+        local_only, _ = decode(self.out / "Foliage.shaderpack")
+        self.assertEqual(fingerprint(converted), fingerprint(local_only))
 
     def test_long_texture_names_preserve_compiler_reflection(self):
         declaration = json.loads((self.game / "shaders.json").read_text())

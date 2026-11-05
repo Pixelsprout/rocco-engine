@@ -127,7 +127,7 @@ vec4 rocco_post(PostInput data) {
 
 | Hook input | Fields |
 | --- | --- |
-| `Vertex` | `position`, `normal`, `tangent`, raw `colour`, `uv`, simulation `time`, `draw`, `world_position`, `world_origin` |
+| `Vertex` | `position`, `normal`, `tangent`, raw `colour`, `uv`, simulation `time`, `draw`, `world_position`, `world_origin`, `world_to_local_direction` |
 | `SurfaceInput` | Raw `colour`, `uv`, `world`, `geometric_normal`, simulation `time` |
 | `Surface` | RGB `base_colour`, `opacity`, `occlusion`, `metallic`, `roughness`, `emission`, shading `normal`, `unlit` |
 | `Lighting` | `normal`, `view`, light `direction`, `radiance`, `attenuation`, PBR `diffuse`, `specular`, `base_colour`, `roughness`, `metallic` |
@@ -138,7 +138,12 @@ World transformation runs after the vertex hook.
 `world_position` snapshots the posed world position before the vertex hook changes local geometry.
 `world_origin` holds the resolved model's world origin.
 Both values use the instance model for instanced Draws and the uniform model for rigid or skinned Draws.
-They need no additional GPU resources and remain consistent across colour, shadow, and selection.
+`world_to_local_direction` is a `mat3` that converts world directions and offsets into posed mesh-local vectors.
+It equals `transpose(mat3(world_normal))`, using the resolved inverse-transpose normal basis.
+It includes model rotation and scale, excludes translation, and does not undo skinning.
+For nonsingular transforms, it is the inverse of the resolved model's linear transform.
+Zero-scale transforms retain the renderer's finite substitute; they cannot reproduce an inverse.
+These inputs need no additional GPU resources and remain consistent across colour, shadow, and Selection.
 The vertex colour input contains raw `COLOR_0`.
 It excludes the imported base factor and instance tint.
 The wrapper preserves geometric normals independently from hook shading normals.
@@ -273,14 +278,29 @@ It checks repeatable output, backend variants, defaults, source locations, and t
 Invalid assignments fail `roc build` before runtime linkage.
 The test supplies empty target files only to reach type checking without a runtime loader.
 The second command draws eleven production variants and checks outline pixels through the native graphics API.
-Its two instance records exercise the thirteen-attribute layout.
-Selection readback checks world inputs for rigid, skinned, and both instance records.
+Its two rotated instance records use unequal scales and exercise the thirteen-attribute layout.
+Selection readback checks world inputs, all inverse direction columns, and the local displacement bound for each layout and instance record.
 Each layout shares identical vertex code across colour, shadow, and selection programs.
 The native fixture adds this coverage check to a copy of the wind hook.
 It leaves the authored example files unchanged.
 The outline test checks visible selection over nonzero floor and wall depths.
 It also checks hidden selection with both occlusion policies.
-The wind example moves only x and clamps the final offset to its declared 0.25 bound.
+The wind example converts a world X offset through `world_to_local_direction`.
+It then limits the local offset length to its declared 0.25 bound.
+Rotation changes the local direction, and inverse scale changes the local offset length.
+Clamping can therefore reduce world motion on small instances.
+For exact world motion, declare a bound that covers every converted local offset across all accepted transforms.
+For scale `(0.5, 2, 1)`, a world X offset of 0.2 can require a local bound of 0.4.
+Rotation can change which inverse scale applies.
+A world-space amplitude alone does not define a safe local displacement bound.
+
+```glsl
+vec3 local_offset = vertex.world_to_local_direction * world_offset;
+vertex.position += local_offset / max(1.0, length(local_offset) / 0.25);
+```
+
+The example uses a positive bound of 0.25.
+For a zero bound, leave `vertex.position` unchanged.
 Metal passed locally on 2026-11-05.
 Production GL and D3D execution remains pending CI evidence.
 

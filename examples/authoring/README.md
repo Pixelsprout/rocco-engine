@@ -11,6 +11,10 @@ The generated `Foliage` helper supplies Scene, Material, and Draw parameters.
 The Surface hook preserves imported textures, alpha rules, and material properties.
 The unassigned `Bark` slot keeps its imported material.
 All rendering passes use the same wind deformation and cutout texture.
+The wind hook converts world displacement with `Vertex.world_to_local_direction`.
+It clamps local displacement length to 0.25, within its declared 0.35 bound.
+The clamp can reduce world amplitude at small scales.
+Exact world amplitude needs a declared local bound that covers the inverse scale.
 
 `Outline` uses scene colour, scene depth, selected coverage, and selected depth.
 Its `visible_only` parameter selects the occlusion policy.

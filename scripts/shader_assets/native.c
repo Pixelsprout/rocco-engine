@@ -108,9 +108,9 @@ static void check_outline(void) {
 static void check_world_inputs(const char *program) {
     unsigned char pixels[16*16];
     read_pixels(selection_output, pixels, 1);
-    require(pixels[8*16+2]>240 && pixels[8*16+13]>240,
-            "world position and origin match the resolved model for both instance records");
-    printf("PASS: world inputs in %s shared colour, shadow and selection vertex stage\n", program);
+    require(pixels[8*16+4]>240 && pixels[8*16+11]>240,
+            "world position, origin, inverse directions and local bound match rotated nonuniform models");
+    printf("PASS: world inputs, inverse directions and local bound in %s shared colour, shadow and selection vertex stage\n", program);
 }
 
 static void init(void) {
@@ -138,18 +138,26 @@ static void init(void) {
     require(storage_bindings >= 3 && fragment_storage >= 3, "compact clustered storage bindings");
 #endif
     require(limits.max_vertex_attrs >= 13 && limits.max_texture_bindings_per_stage >= 12, "portable resource limits");
-    const vertex triangle[] = {
-        {{-1,-1,0.5f},{1,1,1,1},{0,0,1},{0,0},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
-        {{ 3,-1,0.5f},{1,1,1,1},{0,0,1},{1,0},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
-        {{-1, 3,0.5f},{1,1,1,1},{0,0,1},{0,1},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+    const vertex quad[] = {
+        {{-1,-1,0.25f},{1,1,1,1},{0,0,1},{0,0},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+        {{ 1,-1,0.25f},{1,1,1,1},{0,0,1},{1,0},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+        {{-1, 1,0.25f},{1,1,1,1},{0,0,1},{0,1},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+        {{ 1,-1,0.25f},{1,1,1,1},{0,0,1},{1,0},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+        {{ 1, 1,0.25f},{1,1,1,1},{0,0,1},{1,1},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
+        {{-1, 1,0.25f},{1,1,1,1},{0,0,1},{0,1},{1,0,0,1},{0,0,0,0},{1,0,0,0}},
     };
-    vertices = sg_make_buffer(&(sg_buffer_desc){.data = SG_RANGE(triangle)});
+    vertices = sg_make_buffer(&(sg_buffer_desc){.data = SG_RANGE(quad)});
     instance transforms[2] = {0};
     for (int i=0; i<2; i++) {
         identity(transforms[i].model);
-        transforms[i].model[0] = transforms[i].model[5] = 0.5f;
+        transforms[i].model[0] = transforms[i].model[5] = 0;
+        transforms[i].model[1] = i == 0 ? 0.5f : -0.25f;
+        transforms[i].model[4] = i == 0 ? -0.25f : 0.5f;
+        transforms[i].model[10] = i == 0 ? 2 : 0.5f;
         transforms[i].model[12] = i == 0 ? -0.5f : 0.5f;
-        transforms[i].normal[0] = transforms[i].normal[4] = transforms[i].normal[8] = 1;
+        transforms[i].normal[1] = i == 0 ? 2 : -4;
+        transforms[i].normal[3] = i == 0 ? -4 : 2;
+        transforms[i].normal[8] = i == 0 ? 0.5f : 2;
         for (int n=0; n<4; n++) { transforms[i].tint[n] = 1; }
     }
     instances = sg_make_buffer(&(sg_buffer_desc){.data=SG_RANGE(transforms)});
@@ -290,7 +298,14 @@ static void frame(void) {
             float values[1024];
             require(size<=sizeof(values), "uniform staging capacity");
             for (int v=0; v<1024; v++) { values[v]=1; }
-            if (n==0) { for (int m=0; m<3; m++) { identity(values+m*16); } values[48]=0; values[52]=strstr(proof_names[i], "instanced") ? 1 : 0; }
+            if (n==0) {
+                for (int m=0; m<3; m++) { identity(values+m*16); }
+                values[16]=values[21]=values[32]=values[37]=0;
+                values[17]=1; values[20]=-0.75f; values[26]=2;
+                values[33]=1; values[36]=-1.0f/0.75f; values[42]=0.5f;
+                if (!strstr(proof_names[i], "instanced")) { memcpy(values, values+16, 64); }
+                values[48]=0; values[52]=strstr(proof_names[i], "instanced") ? 1 : 0;
+            }
             if (n==1 && !post) {
                 memset(values, 0, sizeof(values));
                 for (int v=0; v<4; v++) { values[v]=1; }
@@ -309,11 +324,11 @@ static void frame(void) {
             }
             if (n==1 && post) { values[0]=values[1]=16; values[2]=values[3]=1.0f/16; values[4]=0; }
             if (n==3) { for (int m=0; m<64; m++) { identity(values+m*16); } }
-            if (n==4) { values[0]=0.25f; }
+            if (n==4) { values[0]=10; }
             if (n==5 && post) { values[0]=1; values[1]=0.25f; values[2]=0; values[3]=1; values[4]=frames==1 ? 0 : 1; }
             sg_apply_uniforms(n, &(sg_range){.ptr=values,.size=size});
         }
-        sg_draw(0,3,strstr(proof_names[i], "instanced") ? 2 : 1);
+        sg_draw(0,post ? 3 : 6,strstr(proof_names[i], "instanced") ? 2 : 1);
         sg_end_pass();
         if (strstr(proof_names[i], "selection")) {
             sg_commit();

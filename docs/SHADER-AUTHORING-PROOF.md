@@ -3,6 +3,8 @@
 The small [authoring game](../examples/authoring/README.md) implements the required shader workflow.
 The game contains a two-slot tree, ground, an occluder, and a selected Group.
 The game owns the Surface hooks and both outline policies.
+The candidate wind hook converts world displacement through the resolved inverse direction basis.
+Its explicit local clamp preserves the declared displacement bound under small scales.
 
 The local ordinary-release Metal run passed.
 The clean published-candidate jobs remain the acceptance gate.

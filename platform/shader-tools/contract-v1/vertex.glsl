@@ -22,7 +22,7 @@ out vec2 v_uv;
 out vec4 v_tng;
 flat out float v_time;
 out vec4 v_instance_tint;
-struct Vertex { vec3 position; vec3 normal; vec4 tangent; vec4 colour; vec2 uv; float time; vec4 draw; vec3 world_position; vec3 world_origin; };
+struct Vertex { vec3 position; vec3 normal; vec4 tangent; vec4 colour; vec2 uv; float time; vec4 draw; vec3 world_position; vec3 world_origin; mat3 world_to_local_direction; };
 @@VERTEX_HOOK@@
 void main() {
     @@TRANSFORMS@@
@@ -33,6 +33,7 @@ void main() {
     vertex.colour = colour; vertex.uv = uv; vertex.time = render_time.x; vertex.draw = draw_info;
     vertex.world_position = (world_model * vec4(vertex.position, 1.0)).xyz;
     vertex.world_origin = world_model[3].xyz;
+    vertex.world_to_local_direction = transpose(mat3(world_normal));
     rocco_vertex(vertex);
     @@CLIP@@
     v_col = vertex.colour;

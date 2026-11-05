@@ -217,6 +217,13 @@ Every related pass receives the same render time and Draw data.
 The budgets include the current renderer's light and cascade values.
 They also reserve room for clustered-light grid and environment metadata.
 The Surface integration must publish member names and semantic helpers within these budgets.
+`Vertex.world_to_local_direction` exposes `transpose(mat3(world_normal))` from the resolved inverse-transpose normal basis.
+It converts world vectors into posed mesh-local vectors without another uniform or binding.
+Rigid and skinned Draws use the uniform basis; instanced Draws use the instance basis.
+The conversion excludes translation and does not undo skinning.
+A zero-scale transform has no exact inverse.
+`max_displacement` remains the maximum local offset length after conversion.
+Authors must cover inverse scale in that bound or limit the converted local offset.
 The fixture's lighting multiplication tests bindings; it does not implement the engine's final lighting response.
 
 | View or sampler slot | Surface role | Post role |

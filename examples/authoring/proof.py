@@ -303,7 +303,7 @@ class Proof:
                     watcher = subprocess.Popen(command, cwd=GAME, stdout=output, stderr=subprocess.STDOUT)
                     try:
                         wait_for(lambda: 'Built ' in watch_log.read_text(), 'watcher starts')
-                        wind.write_text(originals[wind].decode().replace('vertex.position.x +=', 'vertex.position.x += 0.25 * weight +'))
+                        wind.write_text(originals[wind].decode().replace('float offset =', 'float offset = 0.25 * weight +', 1))
                         wait_for(lambda: self.completed('Foliage', different=original_package), 'completed compatible Surface build')
                         modified = self.await_frame(driver, 'reload-surface', lambda frame: frame != baseline)
                         check(modified != baseline, 'compatible Surface edit reloads without restarting')
@@ -447,6 +447,10 @@ def main():
                                archive_sha256=sha(Path(archive).read_bytes()) if archive else None)
         pins = json.loads((sdk / 'shader-tools/contract-v1/compiler.json').read_text())
         proof = Proof(sdk, out)
+        wind_source = (GAME / 'wind.glsl').read_text()
+        check('vertex.world_to_local_direction * vec3(offset, 0.0, 0.0)' in wind_source and
+              'local_offset / max(1.0, length(local_offset) / 0.25)' in wind_source,
+              'candidate wind converts world displacement and enforces its local bound')
         proof.build_shaders('build-shaders')
         suffix = '.exe' if sys.platform == 'win32' else ''
         compiler = Path(os.environ.get('ROCCO_SHDC') or shutil.which('sokol-shdc') or
