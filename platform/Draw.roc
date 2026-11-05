@@ -17,10 +17,13 @@ Draw := [].{
 		tint: { r: 1.0, g: 1.0, b: 1.0 },
 		glow: { r: 0.0, g: 0.0, b: 0.0 },
 		pose: { clip: 0, time: 0.0, fade_clip: 0, fade_time: 0.0, fade: 0.0 },
+		casts_shadow: Bool.True,
 	}
 }
 
 identity : Quat
 identity = { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
 
-expect Draw.default == { id: 0, mesh: 0, pos: { x: 0.0, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.0 }, rot: identity, scale_rot: identity, tint: { r: 1.0, g: 1.0, b: 1.0 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: { clip: 0, time: 0.0, fade_clip: 0, fade_time: 0.0, fade: 0.0 } }
+expect Draw.default == { id: 0, mesh: 0, pos: { x: 0.0, y: 0.0, z: 0.0 }, scale: { x: 1.0, y: 1.0, z: 1.0 }, rot: identity, scale_rot: identity, tint: { r: 1.0, g: 1.0, b: 1.0 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: { clip: 0, time: 0.0, fade_clip: 0, fade_time: 0.0, fade: 0.0 }, casts_shadow: Bool.True }
+
+expect { ..Draw.default, casts_shadow: Bool.False }.casts_shadow == Bool.False

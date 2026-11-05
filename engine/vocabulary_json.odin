@@ -227,6 +227,8 @@ json_write_draw :: proc(b: ^strings.Builder, draw: ^Draw) {
 	json_write_rgb(b, draw.tint)
 	json_key(b, "glow")
 	json_write_rgb(b, draw.glow)
+	json_key(b, "casts_shadow")
+	strings.write_string(b, "true" if draw.casts_shadow else "false")
 	json_key(b, "pose")
 	json_key(b, "clip", first = true)
 	strings.write_u64(b, u64(draw.pose.clip))

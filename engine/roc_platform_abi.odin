@@ -738,9 +738,9 @@ Roc_VocabularyNode :: struct {
 	tag: Roc_VocabularyNode_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode) == 120)
+#assert(size_of(Roc_VocabularyNode) == 128)
 #assert(align_of(Roc_VocabularyNode) == 8)
-#assert(offset_of(Roc_VocabularyNode, tag) == 112)
+#assert(offset_of(Roc_VocabularyNode, tag) == 120)
 
 Roc_VocabularyNode_Collider :: struct {
 	id: u64,
@@ -823,9 +823,10 @@ Roc_VocabularyNode_Draw :: struct {
 	scale: Roc_Init_Commands_Play_At_At_Pos,
 	scale_rot: Roc_VocabularyNode_Collider_Rot,
 	tint: Roc_VocabularyNode_Draw_Glow,
+	casts_shadow: bool,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw) == 112)
+#assert(size_of(Roc_VocabularyNode_Draw) == 120)
 #assert(align_of(Roc_VocabularyNode_Draw) == 8)
 #assert(offset_of(Roc_VocabularyNode_Draw, id) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.id)) == 8)
@@ -845,6 +846,8 @@ Roc_VocabularyNode_Draw :: struct {
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale_rot)) == 16)
 #assert(offset_of(Roc_VocabularyNode_Draw, tint) == 100)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.tint)) == 12)
+#assert(offset_of(Roc_VocabularyNode_Draw, casts_shadow) == 112)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.casts_shadow)) == 1)
 
 Roc_VocabularyNode_Draw_Glow :: struct {
 	b: f32,

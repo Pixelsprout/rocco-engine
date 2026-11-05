@@ -378,10 +378,17 @@ light_sun :: proc(dir: Vec3, c: Rgb) -> Light {
 }
 
 // The Lights come first in the tree, as a game writes them.
-scene_lit :: proc(draws: []Draw, lights: []Light) -> Scene {
+// Odin Draw literals omit the Roc field, so fixtures keep its default unless a test opts out.
+scene_lit :: proc(draws: []Draw, lights: []Light, default_casting := true) -> Scene {
 	nodes := make([dynamic]Node, context.temp_allocator)
 	append(&nodes, ..light_nodes(lights))
-	append(&nodes, ..draw_nodes(draws))
+	draw_nodes := draw_nodes(draws)
+	if default_casting {
+		for &node in draw_nodes {
+			node.payload.draw.casts_shadow = true
+		}
+	}
+	append(&nodes, ..draw_nodes)
 	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT}
 }
 
@@ -1046,6 +1053,31 @@ test_frame_render_fits_the_shadow_map_to_the_draws_that_cast :: proc(t: ^testing
 		beside := []Draw{cube, glass}
 		frame_fixture_draw(&f, scene_lit(beside, lights), scene_lit(beside, lights), 0)
 		testing.expectf(t, f.rec.lights.light_view_proj == want, "%v cascades: a Draw with only Blend parts moved the shadow map", cascades)
+	}
+}
+
+@(test)
+test_frame_render_keeps_non_casters_in_colour_and_out_of_shadow_fit :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		caster := Draw{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY, casts_shadow = true}
+		alone := []Draw{caster}
+		frame_fixture_draw(&f, scene_lit(alone, lights), scene_lit(alone, lights), 0)
+		want_fit := f.rec.lights.light_view_proj
+		want_shadows := len(f.rec.shadows)
+
+		non_caster := Draw{id = 2, mesh = u32(Primitive.Cube), pos = {0, 80, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY, casts_shadow = false}
+		draws := []Draw{caster, non_caster}
+		got := frame_fixture_draw(&f, scene_lit(draws, lights, default_casting = false), scene_lit(draws, lights, default_casting = false), 0)
+
+		testing.expectf(t, len(got) == 2, "%v cascades: the non-caster stays in the colour pass", cascades)
+		testing.expect_value(t, f.fr.placed[1].shadow_count, 0)
+		testing.expectf(t, len(f.rec.shadows) == want_shadows, "%v cascades: the non-caster submits no shadow", cascades)
+		testing.expectf(t, f.rec.lights.light_view_proj == want_fit, "%v cascades: the non-caster does not expand shadow fitting", cascades)
 	}
 }
 
