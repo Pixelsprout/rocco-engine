@@ -1,0 +1,622 @@
+{
+  "native_backend": "Metal",
+  "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+  "linked_host_sha256": "ff6429340e08d8e3493ec230005814f2241191da44b8ba8148ed02469b485c8c",
+  "capture_root": "/tmp/village-effects-final",
+  "captures": [
+    {
+      "name": "hero-all",
+      "seed": 0,
+      "switches": [],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "85970d7cdd6e8f3c6e7a731a40d4917add334053fb254ad3dceadb01a3b6491d",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "hero-repeat",
+      "seed": 0,
+      "switches": [],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "85970d7cdd6e8f3c6e7a731a40d4917add334053fb254ad3dceadb01a3b6491d",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "hero-ui",
+      "seed": 0,
+      "switches": [],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "450453f6f2ae7c1bb1e70d6ffd9d162b151d20e7ccece8c176b724983a7ae5d7",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "hero-ui-no-colour",
+      "seed": 0,
+      "switches": [
+        "colour"
+      ],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "152432f6d86ee0b9e90ba1b1615d9dc944a85ba6be0d5a76573d066a30162416",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "occluded-visible",
+      "seed": 0,
+      "switches": [
+        "pulse",
+        "visible"
+      ],
+      "view": "occluded",
+      "selected": 20,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 17.000027,
+          "y": 2.9999988,
+          "z": -11.0000515
+        },
+        "target": {
+          "x": 16.455025,
+          "y": 2.9999988,
+          "z": -10.161617
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "39c85eadc47e55b402c55980931df64221c9ce5d86d16d29aa008cfada038b91",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "occluded-through",
+      "seed": 0,
+      "switches": [
+        "pulse",
+        "through"
+      ],
+      "view": "occluded",
+      "selected": 20,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 17.000027,
+          "y": 2.9999988,
+          "z": -11.0000515
+        },
+        "target": {
+          "x": 16.455025,
+          "y": 2.9999988,
+          "z": -10.161617
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "925f5687dfe4ad451bdaf6439e227e1301c64e197e2e1de8d5fd9b7ae74422a2",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "hero-seed7",
+      "seed": 7,
+      "switches": [],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "320564f11eccfd4133fc9afa1d2614d117b3377dd87e57ba95b1df41ed300d1f",
+      "emitter_count": 41,
+      "emitters_sha256": "fd47b4652835c56f9dc8571743dbedfc10da18f17f88ecedf36db94d24258b87"
+    },
+    {
+      "name": "hero-none",
+      "seed": 0,
+      "switches": [
+        "none"
+      ],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "2e828b3fb84d89d2d5d74bf251df642f1f50e76a2dcc0666dbb5fc58420d5feb",
+      "emitter_count": 0,
+      "emitters_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "name": "hero-no-smoke",
+      "seed": 0,
+      "switches": [
+        "smoke"
+      ],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "9a2c8582dd7aef493d13ce0e9233c6061a3c9298afb84b8d80d819bd32b02f15",
+      "emitter_count": 40,
+      "emitters_sha256": "51790a15001faf8253344abed5b51f6b91bb6f5588af42730e527fde05177f99"
+    },
+    {
+      "name": "hero-no-dust",
+      "seed": 0,
+      "switches": [
+        "dust"
+      ],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "219e41ea6ae20e27b2f673d1a9fe315399166e485c903a6fd768d0a86be57671",
+      "emitter_count": 1,
+      "emitters_sha256": "8a8b2f0f59dbf4ae4e7dec8c7fd3678d85c20fc5bdb8ed1991677f9341839989"
+    },
+    {
+      "name": "hero-no-colour",
+      "seed": 0,
+      "switches": [
+        "colour"
+      ],
+      "view": "hero",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 3.3620963,
+          "y": 1.870262,
+          "z": 20.310482
+        },
+        "target": {
+          "x": -1.2,
+          "y": 2.6,
+          "z": -8
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "f78d38367cb624a0dce521915f2a0ee1224d226945e070b20aa7bdad88202a4c",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "square-all",
+      "seed": 0,
+      "switches": [],
+      "view": "square",
+      "selected": 0,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 5.8143425,
+          "y": 8,
+          "z": 13.974774
+        },
+        "target": {
+          "x": 0,
+          "y": 2.5,
+          "z": -2
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "553a0c980b6ac18066e00f2ce8f91b4973b7ab01a1315fd2317404ce0d6dbb8c",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "outline-visible",
+      "seed": 0,
+      "switches": [
+        "pulse",
+        "visible"
+      ],
+      "view": "square",
+      "selected": 20,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 5.8143425,
+          "y": 8,
+          "z": 13.974774
+        },
+        "target": {
+          "x": 0,
+          "y": 2.5,
+          "z": -2
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "28928b2ee57b7c672078bcbad2f317dc7b90474f673e742c0db102942563e3df",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "outline-through",
+      "seed": 0,
+      "switches": [
+        "pulse",
+        "through"
+      ],
+      "view": "square",
+      "selected": 20,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 5.8143425,
+          "y": 8,
+          "z": 13.974774
+        },
+        "target": {
+          "x": 0,
+          "y": 2.5,
+          "z": -2
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "d2f5f0947a2c7703df309f2fe5a6f9094b99b6c05b890c6f7e2d35a7f228196d",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    },
+    {
+      "name": "outline-off",
+      "seed": 0,
+      "switches": [
+        "pulse",
+        "outline"
+      ],
+      "view": "square",
+      "selected": 20,
+      "ready_step": 35,
+      "steps_after_view": 480,
+      "physical": [
+        1920,
+        1080
+      ],
+      "binary_sha256": "1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998666185b26a1c4",
+      "camera": {
+        "eye": {
+          "x": 5.8143425,
+          "y": 8,
+          "z": 13.974774
+        },
+        "target": {
+          "x": 0,
+          "y": 2.5,
+          "z": -2
+        },
+        "up": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "fov_y": 1.3089969
+      },
+      "png_sha256": "d184d9098ff9730cfe8bad45eb1af7d1816371bb9ff5cd217581a4ffae82b2e9",
+      "emitter_count": 41,
+      "emitters_sha256": "fd4557c368f58460e9903ac0f6bc84d4342c48c89badaf10a38ba31cd06a5132"
+    }
+  ],
+  "capture_count": 15,
+  "deterministic_pixels": true,
+  "ui_pixel_parity": true,
+  "baseline_lighting_png_parity": true,
+  "changed_pixels": {
+    "hero-all/hero-seed7": 2123,
+    "hero-all/hero-none": 2073600,
+    "hero-all/hero-no-smoke": 3719,
+    "hero-all/hero-no-dust": 38,
+    "hero-all/hero-no-colour": 2073600,
+    "outline-visible/outline-through": 61480,
+    "outline-visible/outline-off": 521235,
+    "occluded-visible/occluded-through": 221397
+  },
+  "readiness_steps": [
+    35
+  ],
+  "checks": {
+    "village_roc_tests": 167,
+    "build_roc_tests": 146,
+    "required_build": "passed",
+    "roc_check": "passed",
+    "roc_format": "passed",
+    "python_compile": "passed",
+    "native_exit": "passed for all15recordedcaptures",
+    "native_log_diagnostics": 0,
+    "shader_languages": [
+      "glsl430",
+      "hlsl5",
+      "metal_macos"
+    ]
+  },
+  "native_gl_scene_status": "pending",
+  "native_d3d11_scene_status": "pending",
+  "complete_layout": false,
+  "human_acceptance": false,
+  "performance_claim": false,
+  "capture_retry": "One intermediate capture was retried after ENOSPC. Recorded final captures all completed successfully.",
+  "source_hashes": {
+    "examples/village/main.roc": "a43bc53c318ab7dfc35bfe5d2a5433db6bb06964574b1ddb64acffa17cd8027f",
+    "examples/village/Effects.roc": "c668fa1277a12a219a979d91e329e88e47901dc16e5125d98a3b0dd580c2bc3e",
+    "examples/village/shaders.json": "b16d7ed7357fd6079caab53d68c3cbf1f02f39028c859c3bf771664454b5db84",
+    "examples/village/outline.glsl": "815c93987c7b37f0b6736b9d6337a83c6ac6c1f6734167ad11b12692ccbd377f",
+    "examples/village/colour.glsl": "8c5042a72d92d3241e56d57942559e4ac6052ca092c2541dfe6845e88094b1d8",
+    "examples/village/Layout.roc": "36f5e109c271a4e1861086fd079fb22d78b7ae8814936b83c7db606f48ed63a9"
+  },
+  "settings": {
+    "step_hz": 120,
+    "logical_window": [
+      960,
+      540
+    ],
+    "physical_output": [
+      1920,
+      1080
+    ],
+    "retina_1080": true,
+    "msaa": "X4",
+    "shadow_map": 2048,
+    "shadow_cascades": 2,
+    "lighting": "all enabled",
+    "colour": "default enabled unless capture switches disable it",
+    "outline_width_physical_pixels": 2
+  }
+}

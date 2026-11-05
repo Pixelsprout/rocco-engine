@@ -94,7 +94,7 @@ jobs:
           python3 scripts/post_check.py build/bridge-check/post
           python3 scripts/shader_reload_check.py build/bridge-check/reload
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
-          python3 examples/village/fixtures/foliage.py build/bridge-check/village --compat --replay --retina-1080
+          python3 examples/village/fixtures/scene_effects.py build/bridge-check/village --retina-1080
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -297,7 +297,7 @@ jobs:
           python scripts/post_check.py build/bridge-check/post
           python scripts/shader_reload_check.py build/bridge-check/reload
           ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game village
-          python examples/village/fixtures/foliage.py build/bridge-check/village --compat --replay
+          python examples/village/fixtures/scene_effects.py build/bridge-check/village
 
       - name: Keep the Bridge check screenshots
         if: always()

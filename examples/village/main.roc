@@ -4,6 +4,7 @@ import ui.Ui
 import Layout
 import Display
 import Lighting
+import Effects
 import Vegetation
 import Quality
 import cam.Camera as Cam
@@ -23,7 +24,7 @@ import pf.Query
 import pf.QueryResults
 import pf.Scene
 
-Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow }
+Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |config| {
@@ -32,7 +33,7 @@ launch = |config| {
 }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args) }, commands: [] }
+init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.default, effects: Effects.default, seed: config.seed, eye: { x: 0.0, y: 1.7, z: 17.0 }, yaw: 0.0, pitch: 0.0, mode: Hero, time: 0.0, route_i: 0, selected: 0, captured: Bool.False, vegetation: config.args.fold(Vegetation.default, |settings, arg| Vegetation.configure(settings, arg.drop_prefix("--"))), prepared: Vegetation.empty, shadow: Quality.appearance(config.args) }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, pack, manifest| {
@@ -65,14 +66,16 @@ step = |model, input, results, dt| {
 		{ model, commands }
 	} else {
 		views = Port.messages(results, "view").fold(model, set_view)
-		from_view = { ..views, lighting: Port.messages(results, "lighting").fold(views.lighting, Lighting.compare) }
+		from_view = { ..views, lighting: Port.messages(results, "lighting").fold(views.lighting, Lighting.compare), effects: Port.messages(results, "effects").fold(views.effects, Effects.compare) }
 		from_vegetation = { ..from_view, vegetation: Port.messages(results, "vegetation").fold(from_view.vegetation, Vegetation.configure) }
 		from_port = { ..from_vegetation, shadow: Port.messages(results, "quality").fold(from_vegetation.shadow, Quality.configure) }
 		vegetation = if Key.pressed(input, Num4) Vegetation.configure(from_port.vegetation, "wind") else if Key.pressed(input, Num5) Vegetation.configure(from_port.vegetation, "canopy") else if Key.pressed(input, Num6) Vegetation.configure(from_port.vegetation, "grass") else if Key.pressed(input, Num7) Vegetation.configure(from_port.vegetation, "field") else if Key.pressed(input, Num8) Vegetation.configure(from_port.vegetation, "casting") else from_port.vegetation
 		controlled = { ..from_port, vegetation }
 		chosen = if Key.pressed(input, Num1) set_view(controlled, "hero") else if Key.pressed(input, Num2) set_view(controlled, "square") else if Key.pressed(input, Num3) set_view(controlled, "walk") else if Key.pressed(input, T) set_view(controlled, "tour") else if Key.pressed(input, F) set_view(controlled, "free") else if Key.pressed(input, R) { ..set_view(controlled, "hero"), selected: 0 } else controlled
+		effect_keys = [(Num9, "outline"), (Num0, "occlusion"), (C, "colour"), (M, "smoke"), (N, "dust"), (P, "pulse"), (G, "glow"), (H, "controls")]
+		controls = effect_keys.fold(chosen.effects, |settings, (key, name)| if Key.pressed(input, key) Effects.compare(settings, name) else settings)
 		captured = if Key.pressed(input, Tab) !chosen.captured else chosen.captured
-		looked = { ..chosen, captured, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: chosen.time + dt }
+		looked = { ..chosen, captured, effects: controls, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: chosen.time + dt }
 		moved = match looked.mode {
 			Walk => walk(looked, input, dt)
 			Free => walk(looked, input, dt)
@@ -158,7 +161,7 @@ view = |model| if !ready(model) loading_view(model) else {
 	lights = Lighting.nodes(model.lighting)
 	nodes = List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
 	environment = Lighting.environment(model.manifest, model.lighting)
-	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect blocked({ x: -6.4, y: 1.7, z: 1.0 }) and blocked({ x: 6.6, y: 1.7, z: 5.0 }) and !blocked({ x: 0.0, y: 1.7, z: 5.0 })
@@ -176,10 +179,10 @@ ready : Model -> Bool
 ready = |model| requests.all(|request| model.loaded_packs.contains(request.pack)) and expected_assets.all(|asset| model.manifest.any(|entry| entry.name == asset and entry.id != 0)) and model.manifest.all(|entry| entry.id != 0)
 
 requests : List({ pack : Str, assets : List(Str) })
-requests = List.join([Layout.assets.map(|asset| { pack: asset, assets: [asset] }), [{ pack: "lighting", assets: Lighting.assets }, { pack: "village-vegetation", assets: Vegetation.assets }]])
+requests = List.join([Layout.assets.map(|asset| { pack: asset, assets: [asset] }), [{ pack: "lighting", assets: Lighting.assets }, { pack: "village-vegetation", assets: Vegetation.assets }, { pack: "effects", assets: Effects.assets }]])
 
 expected_assets : List(Str)
-expected_assets = List.join([Layout.assets, Lighting.assets, Vegetation.assets.keep_if(|asset| !Lighting.assets.contains(asset))])
+expected_assets = List.join([Layout.assets, Lighting.assets, Vegetation.assets.keep_if(|asset| !Lighting.assets.contains(asset)), Effects.assets])
 
 loading_view : Model -> Vocabulary.Scene
 loading_view = |model| {
@@ -216,3 +219,13 @@ expect {
 	manifest = expected_assets.map(|name| { name: if name == "shader/VillageGround" "extra" else name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
 	!ready({ ..start, loaded_packs: requests.map(|request| request.pack), manifest })
 }
+
+effects_ui : Effects.Settings -> List(Vocabulary.Element)
+effects_ui = |settings| if settings.controls {
+	panel = { ..Ui.float_at(LeftTop, { x: 16.0, y: 16.0 }), direction: Col, gap: 5.0, pad: { left: 12.0, right: 12.0, top: 10.0, bottom: 10.0 }, background: { r: 0.02, g: 0.03, b: 0.04, a: 1.0 } }
+	[Panel(panel, [Text(Ui.label("9 Outline | 0 Visible / through walls")), Text(Ui.label("C Colour | M Smoke | N Dust")), Text(Ui.label("P Pulse | G Glow | H Hide controls"))])]
+} else []
+
+expect Effects.post(Effects.default, 0).len() == 1
+expect Effects.post(Effects.default, 20).len() == 2
+expect Effects.post(Effects.compare(Effects.default, "none"), 20).is_empty()

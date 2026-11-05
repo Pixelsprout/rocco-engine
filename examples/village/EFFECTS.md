@@ -24,13 +24,13 @@ This avoids optional depth and Selection work during ordinary walking.
 
 | Key | Effect |
 | --- | --- |
-| 4 | Toggle the outline. |
-| 5 | Switch visible-only and through-wall outlines. |
-| 6 | Toggle colour grading. |
-| 7 | Stop or restore smoke emission. |
-| 8 | Stop or restore dust emission. |
-| 9 | Toggle the outline pulse. |
-| 0 | Toggle the outline glow. |
+| 9 | Toggle the outline. |
+| 0 | Switch visible-only and through-wall outlines. |
+| C | Toggle colour grading. |
+| M | Stop or restore smoke emission. |
+| N | Stop or restore dust emission. |
+| P | Toggle the outline pulse. |
+| G | Toggle the outline glow. |
 | H | Show or hide the controls panel. |
 
 The Bridge `effects` port accepts `all`, `none`, `outline`, `colour`, `smoke`, and `dust`.

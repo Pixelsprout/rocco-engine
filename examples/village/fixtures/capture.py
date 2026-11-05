@@ -19,11 +19,11 @@ def view(bridge, name):
     bridge.tell('view', name)
     bridge.step(2)
 
-def launch(out, arguments=()):
+def launch(out, arguments=(), seed=0):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    env = dict(os.environ, ROCCO_BRIDGE=str(port), ROCCO_SEED='0', ROCCO_EXIT_AFTER_FRAMES='20000')
+    env = dict(os.environ, ROCCO_BRIDGE=str(port), ROCCO_SEED=str(seed), ROCCO_EXIT_AFTER_FRAMES='20000')
     suffix = '.exe' if os.name == 'nt' else '_linux.bin' if sys.platform.startswith('linux') else '.bin'
     log = (out / 'host.log').open('w')
     command = shlex.split(os.environ.get('RUN_PREFIX', '')) + [str(GAME / f'village{suffix}'), *arguments]

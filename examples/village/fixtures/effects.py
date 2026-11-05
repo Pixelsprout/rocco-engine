@@ -24,6 +24,7 @@ def capture(out, name, switches, seed, view, steps, selected, retina):
     command = [str(GAME / ('village' + suffix))]
     if retina:
         command.append('--retina-1080')
+    binary_hash = hashlib.sha256(Path(command[0]).read_bytes()).hexdigest()
     with (out / (name + '.log')).open('w') as log:
         process = subprocess.Popen(command, cwd=GAME, env=env, stdout=log, stderr=subprocess.STDOUT)
         try:
@@ -78,7 +79,7 @@ def capture(out, name, switches, seed, view, steps, selected, retina):
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=30)
-    return dict(name=name, seed=seed, switches=switches, view=view, selected=20 if selected else 0, ready_step=ready_step, steps_after_view=steps, physical=result['physical'], camera=scene['camera'], emitters=scene['emitters'],  png_sha256=hashlib.sha256(image.read_bytes()).hexdigest())
+    return dict(name=name, seed=seed, switches=switches, view=view, selected=20 if selected else 0, ready_step=ready_step, steps_after_view=steps, physical=result['physical'], binary_sha256=binary_hash, camera=scene['camera'], emitters=scene['emitters'], png_sha256=hashlib.sha256(image.read_bytes()).hexdigest())
 
 
 def pixels(path):
@@ -117,6 +118,7 @@ def main():
     for name, switches, seed, view, selected in cases:
         row = capture(out, name, switches, seed, view, args.steps, selected, args.retina_1080)
         report['captures'].append(row)
+        (out / 'effects.json').write_text(json.dumps(report, indent=2) + '\n')
         print(name, row['png_sha256'], flush=True)
     names = {row['name'] for row in report['captures']}
     if {'hero-all', 'hero-repeat'} <= names:
