@@ -32,6 +32,7 @@ The [gap analysis](RESEARCH-IMMERSIVE-SCENE.md) records the original renderer ev
 ## Shader authoring
 
 [ADR 0028](adr/0028-game-shaders-are-pack-assets.md) defines the planned engine contract.
+[Shader contract version 1](SHADER-CONTRACT.md) defines the package, bindings, capacities, and reproducible backend proof.
 
 | Area | Agreed behaviour |
 | --- | --- |
