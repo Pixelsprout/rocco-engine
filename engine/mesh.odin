@@ -152,6 +152,7 @@ Mesh_Texture :: struct {
 // A range of the mesh's index buffer that draws with its own material and
 // textures. Parts can share a texture, which Mesh.textures owns.
 Mesh_Part :: struct {
+	slot:               Maybe(int),
 	first:              int,
 	count:              int,
 	material:           Material,
@@ -173,18 +174,21 @@ Box :: struct {
 }
 
 Mesh :: struct {
-	name:               string,
-	data:               Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
-	live:               bool,
-	vertices:           sg.Buffer,
-	indices:            sg.Buffer,
-	index_count:        int,
-	parts:              []Mesh_Part,
-	textures:           []Mesh_Texture,
-	box:                Box,
-	skin:               Skin,
-	first_clip:         u32,
-	generation:         u16,
+	name:             string,
+	data:             Mesh_Data, // Loaded files only, until the upload. Primitives build theirs at upload.
+	live:             bool,
+	vertices:         sg.Buffer,
+	indices:          sg.Buffer,
+	index_count:      int,
+	parts:            []Mesh_Part,
+	material_slots:   []Mesh_Material_Slot,
+	vertex_colors:    [][4]f32,
+	vertex_materials: []int,
+	textures:         []Mesh_Texture,
+	box:              Box,
+	skin:             Skin,
+	first_clip:       u32,
+	generation:       u16,
 }
 
 // After mesh_table_upload, a new mesh uploads when it is added. The table
@@ -205,21 +209,26 @@ Mesh_Table :: struct {
 	perm:         mem.Allocator,
 }
 
+// vertex_colors retains raw COLOR_0 for Surface inputs after upload; Vertex.color includes the base factor.
 // A skinned mesh has one Influence per vertex. Its skin moves to the Mesh
 // at mesh_table_add, because the upload deletes the rest. Data with no parts
 // draws as one matte part.
 Mesh_Data :: struct {
-	vertices:   []Vertex,
-	influences: []Influence,
-	indices:    []u16,
-	textures:   []Texture,
-	parts:      []Mesh_Data_Part,
-	skin:       Skin,
+	vertices:         []Vertex,
+	influences:       []Influence,
+	indices:          []u16,
+	textures:         []Texture,
+	parts:            []Mesh_Data_Part,
+	material_slots:   []Mesh_Material_Slot,
+	vertex_colors:    [][4]f32,
+	vertex_materials: []int,
+	skin:             Skin,
 }
 
 // Each texture is an index into Mesh_Data.textures. nil binds white, or the
 // flat normal image for normal.
 Mesh_Data_Part :: struct {
+	slot:               Maybe(int),
 	first:              int,
 	count:              int,
 	material:           Material,
@@ -228,6 +237,20 @@ Mesh_Data_Part :: struct {
 	emissive:           Maybe(int),
 	normal:             Maybe(int),
 	occlusion:          Maybe(int),
+}
+
+// Source indices survive part sorting. Empty names have no named override.
+Mesh_Material_Slot :: struct {
+	name:              string,
+	source_material:   int,
+	base_color_factor: [4]f32,
+}
+
+Mesh_Material_Slot_Error :: enum {
+	None,
+	Unnamed,
+	Unknown_Name,
+	Duplicate_Name,
 }
 
 // Names every primitive. The GPU buffers come later, from mesh_table_upload.
@@ -319,12 +342,18 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 		live        = true,
 		index_count = len(data.indices),
 		parts       = mesh_parts(data, t.allocator),
+		material_slots = data.material_slots,
+		vertex_colors = data.vertex_colors,
+		vertex_materials = data.vertex_materials,
 		box         = box,
 		skin        = data.skin,
 		first_clip  = t.next_clip,
 		generation  = t.meshes[slot].generation,
 	}
 	t.meshes[slot].data.skin = {}
+	t.meshes[slot].data.material_slots = nil
+	t.meshes[slot].data.vertex_colors = nil
+	t.meshes[slot].data.vertex_materials = nil
 	t.next_clip += u32(len(data.skin.clips))
 	if t.uploaded {
 		mesh_upload_loaded(t, &t.meshes[slot])
@@ -401,11 +430,17 @@ mesh_data_delete :: proc(t: ^Mesh_Table, data: Mesh_Data) {
 	}
 	delete(data.textures, t.allocator)
 	delete(data.parts, t.allocator)
+	mesh_material_slots_delete(data.material_slots, t.allocator)
+	delete(data.vertex_colors, t.allocator)
+	delete(data.vertex_materials, t.allocator)
 }
 
 @(private = "file")
 mesh_loaded_delete :: proc(t: ^Mesh_Table, m: ^Mesh) {
 	delete(m.name, t.allocator)
+	mesh_material_slots_delete(m.material_slots, t.allocator)
+	delete(m.vertex_colors, t.allocator)
+	delete(m.vertex_materials, t.allocator)
 	mesh_data_delete(t, m.data)
 	delete(m.parts, t.allocator)
 	delete(m.textures, t.allocator)
@@ -420,7 +455,7 @@ mesh_parts :: proc(data: Mesh_Data, allocator: mem.Allocator) -> []Mesh_Part {
 	}
 	parts := make([]Mesh_Part, len(data.parts), allocator)
 	for p, i in data.parts {
-		parts[i] = {first = p.first, count = p.count, material = p.material}
+		parts[i] = {slot = p.slot, first = p.first, count = p.count, material = p.material}
 	}
 	return parts
 }
@@ -624,4 +659,28 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 		}
 	}
 	return {vertices = vertices, indices = indices[:]}
+}
+
+mesh_material_slots_delete :: proc(slots: []Mesh_Material_Slot, allocator: mem.Allocator) {
+	for slot in slots {
+		delete(slot.name, allocator)
+	}
+	delete(slots, allocator)
+}
+
+// Duplicate names are ambiguous; generated helpers must reject them.
+mesh_material_slot :: proc(slots: []Mesh_Material_Slot, name: string) -> (index: int, err: Mesh_Material_Slot_Error) {
+	if name == "" {
+		return 0, .Unnamed
+	}
+	found := false
+	for slot in slots {
+		if slot.name == name {
+			if found {
+				return 0, .Duplicate_Name
+			}
+			index, found = slot.source_material, true
+		}
+	}
+	return index, .None if found else .Unknown_Name
 }

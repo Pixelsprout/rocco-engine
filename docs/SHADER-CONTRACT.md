@@ -379,6 +379,7 @@ The hook cannot create render passes or access undeclared buffers.
 A resolved Material begins with its imported textures and scalar properties.
 An explicit game override replaces only the named property or texture.
 Named Material slots remain stable through import, Material merging, and Mesh part sorting.
+[The import contract](GLTF-MATERIAL-SLOTS.md) defines source identities, name errors, raw colours, and metadata lifetime.
 A whole-Draw assignment supplies the Draw's Material override.
 A named slot assignment takes precedence for that slot.
 Unspecified slots keep their imported Materials.
