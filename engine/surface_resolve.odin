@@ -16,8 +16,9 @@ surface_slot_valid :: proc(p: ^Packs, slot: ^Material_Slot, d: ^Draw, m: ^Mesh) 
 }
 surface_has_overrides :: proc(d: ^Draw) -> bool { return d.material.surface.tag != .Imported || d.material.properties.length > 0 || d.material.textures.length > 0 || d.materials.length > 0 || d.slot_materials.length > 0 }
 
-surface_resolve_parts :: proc(p: ^Packs, d: ^Draw, m: ^Mesh, scene_values: []Shader_Values, time: f32) -> []Mesh_Part {
-	if !surface_has_overrides(d) { return m.parts }
+surface_resolve_parts :: proc(p: ^Packs, d: ^Draw, m: ^Mesh, scene_values: []Shader_Values, time: f32, complete: ^bool = nil) -> []Mesh_Part {
+	if complete != nil { complete^ = false }
+	if !surface_has_overrides(d) { if complete != nil { complete^ = true }; return m.parts }
 	if p == nil { return nil }
 	if p.shaders.uploaded && (sg.query_buffer_state(m.surface_vertices) != .VALID || sg.query_buffer_state(m.indices) != .VALID) { surface_log(p,d.id,"Surface mesh buffers failed to load"); return nil }
 	shader_slots := make(map[u32]bool, context.temp_allocator)
@@ -31,11 +32,12 @@ surface_resolve_parts :: proc(p: ^Packs, d: ^Draw, m: ^Mesh, scene_values: []Sha
 		property_slots[assignment.slot.source_material] = true
 	}
 	result := make([dynamic]Mesh_Part, 0, len(m.surface_parts), context.temp_allocator)
+	all_valid := true
 	for source in m.surface_parts {
 		part := source
 		values: ^Shader_Values
 		if d.material.surface.tag == .Surface { values = &d.material.surface.payload.surface }
-		if reason := surface_material_override(p, &part, &d.material); reason != "" { surface_log(p, d.id, reason); continue }
+		if reason := surface_material_override(p, &part, &d.material); reason != "" { surface_log(p, d.id, reason); all_valid = false; continue }
 		for &assignment in d.materials.elements[:d.materials.length] { if slot, named := part.slot.?; named && u32(slot) == assignment.slot.source_material { values = &assignment.values } }
 		valid := true
 		for &assignment in d.slot_materials.elements[:d.slot_materials.length] {
@@ -44,22 +46,23 @@ surface_resolve_parts :: proc(p: ^Packs, d: ^Draw, m: ^Mesh, scene_values: []Sha
 				if reason := surface_material_override(p, &part, &assignment.material); reason != "" { surface_log(p, d.id, reason); valid = false }
 			}
 		}
-		if !valid { continue }
+		if !valid { all_valid = false; continue }
   if part.material.alpha_mode != source.material.alpha_mode || part.material.alpha_cutoff != source.material.alpha_cutoff || part.base_colour.a != source.base_colour.a {
    if part.texture.ordinary != nil { part.texture = part.texture.ordinary^ }
   }
 		if values != nil {
 			resolved, reason := surface_values_resolve(p, &part, values, scene_values, d.shader_values.elements[:d.shader_values.length], time, mesh_skinned(m))
-			if reason != "" { surface_log(p, d.id, reason); continue }
+			if reason != "" { surface_log(p, d.id, reason); all_valid = false; continue }
 			part.surface = new_clone(resolved, context.temp_allocator)
 		}
   if p.shaders.uploaded {
    ready := true
    for tex in ([5]Mesh_Texture{part.texture,part.metallic_roughness,part.emissive,part.normal,part.occlusion}) { if tex.image.id != 0 && !surface_texture_ready(p,tex) { ready = false } }
-   if !ready { surface_log(p,d.id,"Surface imported textures failed to load"); continue }
+   if !ready { surface_log(p,d.id,"Surface imported textures failed to load"); all_valid = false; continue }
   }
 		append(&result, part)
 	}
+	if complete != nil { complete^ = all_valid }
 	return result[:]
 }
 

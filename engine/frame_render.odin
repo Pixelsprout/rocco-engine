@@ -206,6 +206,7 @@ Frame_Walk :: struct {
 	fr:           ^Frame_Render,
 	meshes:       ^Mesh_Table,
 	scene_values: []Shader_Values,
+	surfaces: Surface_Reuse,
 	lights:       Light_Gather,
 	part_draws_seen:   int,
 	part_draws_placed: int,
@@ -603,7 +604,7 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 @(private = "file")
 frame_room :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw) -> (room: Frame_Room, fits: bool) {
 	mesh, fallback := mesh_resolve(fw.meshes, d.mesh, d.id)
-	parts := surface_resolve_parts(fw.fr.packs, d, mesh, fw.scene_values, fw.fr.render_time)
+	parts := surface_reuse_parts(&fw.surfaces, fw.fr.packs, d, mesh, fw.scene_values, fw.fr.render_time)
 	left := fw.fr.draw_capacity - fw.part_draws_placed
 	count, counted := 0, 0
 	for part, i in parts {

@@ -111,8 +111,10 @@ The sky is a fixed-time LDR approximation.
 Vegetation shading and dust spawning contain documented source approximations.
 Smoke and dust receive no scene fog.
 Human appearance review and native backend acceptance remain open for the combined scene.
-The preliminary development Roc CPU diagnostic reported p95 48.89 ms under contention.
-Controlled CPU, GPU, pacing, per-effect, and reference PC measurements remain open.
+Controlled optimized CPU runs reduced p95 from 48.41–51.94 ms to 27.94–29.12 ms.
+Frame-local Surface resolution reuse preserves the full scene and seven exact comparison images.
+Read the [CPU evidence](../../docs/evidence/surface-reuse-cpu-2026-11-06.json).
+Real-clock CPU, GPU, pacing, per-effect, and reference PC acceptance remain open.
 No density or texture reduction establishes a performance preset in this checkpoint.
 
 Functional fixtures do not enable Spans automatically.
