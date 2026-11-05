@@ -42,12 +42,24 @@ def main():
     wind = wind.replace("{", "{\n    vec3 undeformed = vertex.position;", 1)
     check = '''
     bool instanced = vertex.draw.x != 0.0;
-    float scale = instanced ? 0.5 : 1.0;
-    bool origin_ok = instanced ? abs(abs(vertex.world_origin.x) - 0.5) < 0.0001 : abs(vertex.world_origin.x) < 0.0001;
-    origin_ok = origin_ok && length(vertex.world_origin.yz) < 0.0001;
-    vec3 expected = vec3(undeformed.xy * scale, undeformed.z) + vertex.world_origin;
-    bool position_ok = distance(vertex.world_position, expected) < 0.0001;
-    vertex.colour.a *= origin_ok && position_ok ? 1.0 : 0.0;
+    bool left = vertex.world_origin.x < 0.0;
+    mat3 expected_model = instanced
+        ? (left ? mat3(vec3(0.0, 0.5, 0.0), vec3(-0.25, 0.0, 0.0), vec3(0.0, 0.0, 2.0))
+                : mat3(vec3(0.0, -0.25, 0.0), vec3(0.5, 0.0, 0.0), vec3(0.0, 0.0, 0.5)))
+        : mat3(vec3(0.0, 1.0, 0.0), vec3(-0.75, 0.0, 0.0), vec3(0.0, 0.0, 2.0));
+    vec3 expected_origin = vec3(instanced ? (left ? -0.5 : 0.5) : 0.0, 0.0, 0.0);
+    bool origin_ok = distance(vertex.world_origin, expected_origin) < 0.0001;
+    bool position_ok = distance(vertex.world_position, expected_model * undeformed + expected_origin) < 0.0001;
+    mat3 round_trip = expected_model * vertex.world_to_local_direction;
+    bool direction_ok = distance(round_trip[0], vec3(1.0, 0.0, 0.0)) < 0.0001
+        && distance(round_trip[1], vec3(0.0, 1.0, 0.0)) < 0.0001
+        && distance(round_trip[2], vec3(0.0, 0.0, 1.0)) < 0.0001;
+    vec3 displacement = vertex.position - undeformed;
+    vec3 world_offset = vec3(sin(vertex.time + undeformed.y + param_phase()) * param_wind(), 0.0, 0.0);
+    vec3 expected_local = vertex.world_to_local_direction * world_offset;
+    expected_local /= max(1.0, length(expected_local) / 0.25);
+    bool bound_ok = length(displacement) <= 0.2501 && distance(displacement, expected_local) < 0.0001;
+    vertex.colour.a *= origin_ok && position_ok && direction_ok && bound_ok ? 1.0 : 0.0;
 '''
     end = wind.rfind("}")
     (source / "wind.glsl").write_text(wind[:end] + check + wind[end:])
@@ -81,7 +93,7 @@ def main():
     if "PASS: 11 production shader variants" not in result.stdout:
         raise RuntimeError("production shader proof did not finish")
     (out / "native-evidence.json").write_text(json.dumps({"host": sys.platform, "result": "passed", "variants": 11,
-        "instanced_attributes": 13, "world_inputs": "GPU selection coverage for all three shared vertex layouts",
+        "instanced_attributes": 13, "world_inputs": "GPU selection coverage: position, origin, inverse direction basis, and local displacement bound for rotated nonuniform rigid, skinned, and two instanced models",
         "frames": 3, "packages": hashes, "log": result.stdout}, indent=2) + "\n")
 
 if __name__ == "__main__":
