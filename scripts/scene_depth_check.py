@@ -123,13 +123,18 @@ def build_probe_shaders(fixture, compiler, probe):
             if probe == 'zero_to_one':
                 applied['fixup'] += source.count('@glsl_options fixup_clipspace')
                 source = source.replace('@glsl_options fixup_clipspace', '')
+            if source.startswith('@fs ') and self.declaration.get('kind') != 'post':
+                if probe == 'pre_depth':
+                    source += '\nnoperspective in float probe_depth;'
+                elif probe == 'depth_fault':
+                    source += '\nflat in float probe_instanced;'
             target = 'selected_depth = gl_FragCoord.z;'
             if target in source and probe == 'pre_depth':
                 applied['depth'] += 1
-                source = 'noperspective in float probe_depth;\n' + source.replace(target, 'selected_depth = probe_depth;')
+                source = source.replace(target, 'selected_depth = probe_depth;')
             if target in source and probe == 'depth_fault':
                 applied['depth'] += 1
-                source = 'flat in float probe_instanced;\n' + source.replace(target, 'selected_depth = gl_FragCoord.z + probe_instanced * 0.00000011920928955078125;')
+                source = source.replace(target, 'selected_depth = gl_FragCoord.z + probe_instanced * 0.00000011920928955078125;')
             return super().append(source, path)
 
     try:
