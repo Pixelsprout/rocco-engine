@@ -67,16 +67,24 @@ The package pins PresentMon 2.6.0 with SHA-256:
 The launcher verifies that digest before PresentMon starts.
 It retains dropped display results and missing values.
 
-Build the package on native Windows CI with the repository's pinned tools and prepared native libraries:
+Build the package on native Windows with the pinned tools and prepared native libraries:
 
 ```powershell
 python scripts/package_village_capture.py build/village-pc
 ```
 
-CI runs short native operation checks before uploading the package.
-CI operation establishes no reference-machine performance result.
-A failed operation check prevents package publication.
-The commands and package still require their first native validation at this implementation checkpoint.
+Run the package checks on the reference PC before sharing the package:
+
+```powershell
+cd build/village-pc
+powershell -NoProfile -File .\Capture-Village.ps1 -Mode cpu -Runs 1 -Operation -Output C:\RoccoEvidence\package
+powershell -NoProfile -File .\Capture-Village.ps1 -Mode gpu -Runs 1 -Operation -Output C:\RoccoEvidence\package
+powershell -NoProfile -File .\Capture-Village.ps1 -Mode pacing -Runs 1 -Operation -Output C:\RoccoEvidence\package
+powershell -NoProfile -File .\Capture-BenchSweeps.ps1 -Operation -Output C:\RoccoEvidence\package-bench
+```
+
+Keep the operation results with the package.
+An operation check does not establish a reference-machine performance result.
 
 ## Reference PC procedure
 

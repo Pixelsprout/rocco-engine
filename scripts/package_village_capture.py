@@ -64,7 +64,7 @@ def package_files(output, presentmon, python_archive, source, builds, toolchain,
         tools=dict(presentmon_url=PRESENTMON_URL, presentmon_sha256=PRESENTMON_SHA256,
                    python_url=PYTHON_URL, python_version=PYTHON_VERSION, python_archive_sha256=digest(python_archive)),
         assets='One adjacent assets directory shared by every executable.',
-        acceptance='Native operation checks must pass before artifact upload. Hardware and human acceptance remain open.')
+        acceptance='Native operation checks must pass before sharing the package. Hardware and human acceptance remain open.')
     write_json(output/'manifest.json', manifest)
 
 
