@@ -27,7 +27,7 @@ import pf.Scene
 
 NodeSettings : { lighting : Lighting.Settings, vegetation : Vegetation.Settings, selected : U64 }
 
-NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, nodes : List(Vocabulary.Node) })]
+NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, chunks : List(Vegetation.FieldChunk), field_parts : List(List(Vocabulary.Node)), nodes : List(Vocabulary.Node) })]
 
 Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow, node_cache : NodeCache, capture : Capture.State }
 
@@ -241,12 +241,23 @@ building = |model, id| {
 	Group({ id, pos: V.zero, rot: Quat.identity, selected: model.selected == id }, children)
 }
 
-scene_nodes : Model, Vec3 -> List(Vocabulary.Node)
-scene_nodes = |model, eye| {
+field_part : Vegetation.FieldChunk, Vegetation.Settings, Vec3 -> List(Vocabulary.Node)
+field_part = |chunk, settings, eye| {
+	field = if settings.grass chunk.shaded else chunk.plain
+	Vegetation.field_nodes_from(field, { settings, eye })
+}
+
+field_parts : List(Vegetation.FieldChunk), Vegetation.Settings, Vec3 -> List(List(Vocabulary.Node))
+field_parts = |chunks, settings, eye| chunks.map(|chunk| field_part(chunk, settings, eye))
+
+flatten_field_parts : List(List(Vocabulary.Node)) -> List(Vocabulary.Node)
+flatten_field_parts = |parts| List.join(parts)
+
+scene_nodes : Model, List(Vocabulary.Node) -> List(Vocabulary.Node)
+scene_nodes = |model, field| {
 	ground = Lighting.ground(model.lighting)
 	placed = model.prepared.source.keep_if(|placement| placement.group == 0).map(|placement| Draw(Lighting.windows(Vegetation.draw(placement, model.vegetation), { asset: placement.asset, settings: model.lighting })))
 	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
-	field = Vegetation.field_nodes(model.prepared, { settings: model.vegetation, eye })
 	lights = Lighting.nodes(model.lighting)
 	List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
 }
@@ -258,19 +269,32 @@ cache_nodes : Model -> Model
 cache_nodes = |model| {
 	eye = camera(model).eye
 	settings = node_settings(model)
-	nodes = match model.node_cache {
-		Cached(cached) => if cached.settings == settings and !Vegetation.visibility_changed(model.prepared, { settings: model.vegetation, from: cached.eye, to: eye }) cached.nodes else scene_nodes(model, eye)
-		Empty => scene_nodes(model, eye)
+	{ chunks, parts, nodes } = match model.node_cache {
+		Cached(cached) => {
+			changed = cached.settings != settings or Vegetation.visibility_changed(model.prepared, { settings: model.vegetation, from: cached.eye, to: eye })
+			next_parts = if !changed cached.field_parts else if cached.settings != settings field_parts(cached.chunks, model.vegetation, eye) else cached.chunks.map_with_index(
+				|chunk, index| match cached.field_parts.get(index) {
+					Ok(part) if !Vegetation.visibility_changed_from(chunk.visibility, { settings: model.vegetation, from: cached.eye, to: eye }) => part
+					_ => field_part(chunk, model.vegetation, eye)
+				},
+			)
+			{ chunks: cached.chunks, parts: next_parts, nodes: if changed scene_nodes(model, flatten_field_parts(next_parts)) else cached.nodes }
+		}
+		Empty => {
+			prepared_chunks = Vegetation.chunks(model.prepared)
+			initial_parts = field_parts(prepared_chunks, model.vegetation, eye)
+			{ chunks: prepared_chunks, parts: initial_parts, nodes: scene_nodes(model, flatten_field_parts(initial_parts)) }
+		}
 	}
-	{ ..model, node_cache: Cached({ settings, eye, nodes }) }
+	{ ..model, node_cache: Cached({ settings, eye, chunks, field_parts: parts, nodes }) }
 }
 
 view : Model -> Vocabulary.Scene
 view = |model| if !ready(model) loading_view(model) else {
 	cam_view = camera(model)
 	nodes = match model.node_cache {
-		Cached(cached) => if cached.settings == node_settings(model) and cached.eye == cam_view.eye cached.nodes else scene_nodes(model, cam_view.eye)
-		Empty => scene_nodes(model, cam_view.eye)
+		Cached(cached) => if cached.settings == node_settings(model) and cached.eye == cam_view.eye cached.nodes else scene_nodes(model, flatten_field_parts(field_parts(cached.chunks, model.vegetation, cam_view.eye)))
+		Empty => scene_nodes(model, flatten_field_parts(field_parts(Vegetation.chunks(model.prepared), model.vegetation, cam_view.eye)))
 	}
 	environment = Lighting.environment(model.manifest, model.lighting)
 	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
@@ -360,6 +384,16 @@ ready_test_model = {
 	start = init(Config.empty).model
 	manifest = expected_assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
 	{ ..start, loaded_packs: requests.map(|request| request.pack), manifest, prepared: Vegetation.prepare(manifest), selected: 20 }
+}
+
+expect {
+	prepared = ready_test_model.prepared
+	chunks = Vegetation.chunks(prepared)
+	eyes = [{ x: 0.0, y: 1.7, z: 17.0 }, { x: 0.03, y: 1.7, z: 16.5 }, { x: -95.0, y: 80.0, z: 95.0 }]
+	settings = [Vegetation.default, { ..Vegetation.default, grass: Bool.False }, { ..Vegetation.default, density: 1000 }, { ..Vegetation.default, field: Bool.False }]
+	chunks.all(|chunk| chunk.shaded.len() <= Vegetation.field_chunk_size) and settings.all(
+		|setting| eyes.all(|eye| flatten_field_parts(field_parts(chunks, setting, eye)) == Vegetation.field_nodes(prepared, { settings: setting, eye })),
+	)
 }
 
 expect {

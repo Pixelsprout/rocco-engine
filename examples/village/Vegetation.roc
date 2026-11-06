@@ -14,9 +14,13 @@ Vegetation := [].{
 	default = { density: 22000, distance: 65.0, wind: Bool.True, canopy: Bool.True, grass: Bool.True, field: Bool.True, casts_shadow: Bool.True }
 
 	Placement : { draw : Vocabulary.Draw, asset : Str, group : U64, kind : [Canopy, Plant, Static] }
-	Prepared : { source : List(Placement), field : List(Vocabulary.Node), field_plain : List(Vocabulary.Node), field_visibility : List({ id : U64, pos : Vocabulary.Vec3 }) }
+	Visibility : { id : U64, pos : Vocabulary.Vec3 }
+	FieldChunk : { shaded : List(Vocabulary.Node), plain : List(Vocabulary.Node), visibility : List(Visibility) }
+	Prepared : { source : List(Placement), field : List(Vocabulary.Node), field_plain : List(Vocabulary.Node), field_visibility : List(Visibility) }
 	empty : Prepared
 	empty = { source: [], field: [], field_plain: [], field_visibility: [] }
+	field_chunk_size : U64
+	field_chunk_size = 128
 
 	assets : List(Str)
 	assets = ["shader/VillageCanopy", "shader/VillageGrass", "image/T_Noise_Terrain"]
@@ -48,6 +52,15 @@ Vegetation := [].{
 		{ source, field: shaded, field_plain: plain, field_visibility: field.map(|plant| { id: plant.id, pos: plant.pos }) }
 	}
 
+	chunks : Prepared -> List(FieldChunk)
+	chunks = |prepared| List.repeat({}, (prepared.field.len() + field_chunk_size - 1) // field_chunk_size).map_with_index(
+		|_, i| {
+			start = i * field_chunk_size
+			len = U64.min(field_chunk_size, prepared.field.len() - start)
+			{ shaded: prepared.field.sublist({ start, len }), plain: prepared.field_plain.sublist({ start, len }), visibility: prepared.field_visibility.sublist({ start, len }) }
+		},
+	)
+
 	draw : Placement, Settings -> Vocabulary.Draw
 	draw = |placement, settings| {
 		base = placement.draw
@@ -59,10 +72,9 @@ Vegetation := [].{
 		{ ..base, casts_shadow: settings.casts_shadow, material: if use_shader base.material else Material.default, slot_materials: if use_shader base.slot_materials else [] }
 	}
 
-	field_nodes : Prepared, { settings : Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
-	field_nodes = |prepared, { settings, eye }| if !settings.field [] else {
+	field_nodes_from : List(Vocabulary.Node), { settings : Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
+	field_nodes_from = |field, { settings, eye }| if !settings.field [] else {
 		distance_squared = (settings.distance + 10.0) * (settings.distance + 10.0)
-		field = if settings.grass prepared.field else prepared.field_plain
 		field.keep_if(
 			|node| match node {
 				Draw(plant) => plant.id - 100000 < settings.density and (plant.pos.x - eye.x) * (plant.pos.x - eye.x) + (plant.pos.z - eye.z) * (plant.pos.z - eye.z) <= distance_squared
@@ -71,10 +83,13 @@ Vegetation := [].{
 		)
 	}
 
-	visibility_changed : Prepared, { settings : Settings, from : Vocabulary.Vec3, to : Vocabulary.Vec3 } -> Bool
-	visibility_changed = |prepared, { settings, from, to }| if !settings.field or from == to Bool.False else {
+	field_nodes : Prepared, { settings : Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
+	field_nodes = |prepared, { settings, eye }| field_nodes_from(if settings.grass prepared.field else prepared.field_plain, { settings, eye })
+
+	visibility_changed_from : List(Visibility), { settings : Settings, from : Vocabulary.Vec3, to : Vocabulary.Vec3 } -> Bool
+	visibility_changed_from = |visibility, { settings, from, to }| if !settings.field or from == to Bool.False else {
 		distance_squared = (settings.distance + 10.0) * (settings.distance + 10.0)
-		prepared.field_visibility.any(
+		visibility.any(
 			|plant| {
 				before = plant.id - 100000 < settings.density and (plant.pos.x - from.x) * (plant.pos.x - from.x) + (plant.pos.z - from.z) * (plant.pos.z - from.z) <= distance_squared
 				after = plant.id - 100000 < settings.density and (plant.pos.x - to.x) * (plant.pos.x - to.x) + (plant.pos.z - to.z) * (plant.pos.z - to.z) <= distance_squared
@@ -82,6 +97,9 @@ Vegetation := [].{
 			},
 		)
 	}
+
+	visibility_changed : Prepared, { settings : Settings, from : Vocabulary.Vec3, to : Vocabulary.Vec3 } -> Bool
+	visibility_changed = |prepared, args| visibility_changed_from(prepared.field_visibility, args)
 
 	scene_values : Settings, Vocabulary.Vec3 -> List(Shader.Values)
 	scene_values = |settings, eye| {
