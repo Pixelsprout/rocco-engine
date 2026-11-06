@@ -265,3 +265,9 @@ It retains the 20 slowest frames with their camera positions and CPU commit time
 Use `--first-frame`, `--last-frame`, or `--settle-steps` to inspect a narrower interval.
 The diagnostic adds CPU clocks and Spans.
 Its callback intervals do not establish displayed frame cadence or GPU work.
+
+Set `ROCCO_DEBUG_CAMERA_SWEEP=1` for a repeatable camera stress run.
+The sweep turns 180 degrees each second and reverses direction each second.
+It changes pitch and moves 12 world units along each axis before reversing.
+The sweep replaces human camera input during the run.
+Keep sweep results separate from human input results.
