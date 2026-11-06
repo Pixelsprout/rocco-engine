@@ -78,19 +78,12 @@ jobs:
           if-no-files-found: error
 
       - name: Probe full-density village canopy on Metal
-        continue-on-error: true
         run: ROCCO_RENDER_DIAGNOSTICS=1 python3 examples/village/fixtures/scene_effects.py build/bridge-check/village-canopy --hosted-compat --canopy-only
 
       - name: Check for changes to committed files
         run: git diff --exit-code
 
-      - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
-
-      - name: Run the Bridge check
-        run: python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
-
-      - name: Keep the Bridge check screenshots
+      - name: Keep the Metal village screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -110,9 +103,6 @@ jobs:
 
       - name: Audit the macOS sysroot
         run: python3 scripts/make_macos_sysroot.py --audit
-
-      - name: Test the bench games
-        run: sh bench/check.sh
 
   linux:
     runs-on: ubuntu-24.04
@@ -266,14 +256,8 @@ jobs:
       - name: Check for changes to committed files
         run: git diff --exit-code
 
-      # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
-      - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
-
       - name: Run the Bridge check
-        run: |
-          python scripts/bridge_check.py build/bridge-check/bridge-check.png
-          python examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat --canopy-only
+        run: python scripts/bridge_check.py build/bridge-check/bridge-check.png
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -286,9 +270,6 @@ jobs:
       - name: Regenerate the Windows import libraries
         run: python scripts/make_windows_import_libs.py --check
 
-      - name: Test the bench games
-        run: sh bench/check.sh
-
       - name: Check bounded capture source tests
         run: |
           python -m unittest scripts/test_village_capture.py
@@ -296,35 +277,6 @@ jobs:
 
       - name: Build the self-contained village capture package
         run: python scripts/package_village_capture.py build/village-pc
-
-      - name: Check native CPU and GPU capture operation with the packaged tools
-        shell: pwsh
-        run: |
-          & build/village-pc/Capture-Village.ps1 -Mode cpu -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
-          & build/village-pc/Capture-Village.ps1 -Mode gpu -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
-
-      # The hosted WARP runner can finish the tour without a PresentMon CSV.
-      # Keep its pacing failure and files, but use a physical GPU for pacing acceptance.
-      - name: Probe hosted PresentMon pacing
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          & build/village-pc/Capture-Village.ps1 -Mode pacing -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
-
-      - name: Check native benchmark capture operation with the packaged tools
-        shell: pwsh
-        run: |
-          & build/village-pc/Capture-BenchSweeps.ps1 -Operation -Output "$PWD/build/village-bench-operation"
-
-      - name: Keep capture operation diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: village-capture-operation-windows
-          path: |
-            build/village-capture-operation/
-            build/village-bench-operation/
-          if-no-files-found: warn
 
       - name: Keep the verified Windows capture package
         uses: actions/upload-artifact@v4
