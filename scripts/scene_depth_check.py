@@ -18,6 +18,9 @@ from bridge import png_rgba
 from bridge_check import binary_suffix, check
 
 ROOT = Path(__file__).resolve().parents[1]
+STRICT_DEPTH_LIMITS = dict(absolute=2**-28, relative=2**-22, ulp=3)
+# GL clip conversion amplifies the CPU and GPU matrix-product difference.
+GL_DEPTH_LIMITS = dict(absolute=2**-25, relative=2**-18, ulp=32)
 
 
 def fixtures(out, probe=None):
@@ -171,8 +174,10 @@ def run_fixture(binary, assets, out, probe=None):
     return result, log
 
 
-def raw_depth_passes(depth):
-    return depth['max_absolute'] <= 2**-28 and depth['max_relative'] <= 2**-22 and depth['max_ulp'] <= 3
+def raw_depth_passes(depth, limits=STRICT_DEPTH_LIMITS):
+    return (depth['max_absolute'] <= limits['absolute'] and
+            depth['max_relative'] <= limits['relative'] and
+            depth['max_ulp'] <= limits['ulp'])
 
 
 def collect_diagnostics(binary, out, metadata):
@@ -195,6 +200,7 @@ def collect_diagnostics(binary, out, metadata):
                     result['within_original_guard'] = {case: raw_depth_passes(values['depth_bits']) for case, values in result['comparisons'].items()}
                 if probe == 'depth_fault' and 'comparisons' in result:
                     result['fault_rejected_by_original_guard'] = all(not raw_depth_passes(case['depth_bits']) for case in result['comparisons'].values())
+                    result['fault_rejected_by_gl_guard'] = all(not raw_depth_passes(case['depth_bits'], GL_DEPTH_LIMITS) for case in result['comparisons'].values())
                     result['fault_keeps_coverage'] = all(case['coverage']['exact'] for case in result['comparisons'].values())
             except Exception as error:
                 result['error'] = str(error)
@@ -217,10 +223,12 @@ def main():
     subprocess.run(command, cwd=ROOT, check=True)
     result, log = run_fixture(binary, assets, out)
     print(log, end='')
-    evidence = dict(build_command=command, supported_samples=result['supported_samples'], depth_limits=dict(absolute=2**-28, relative=2**-22, ulp=3),
+    backend = result['metadata'].get('driver', {}).get('backend')
+    limits = GL_DEPTH_LIMITS if backend == 'GLCORE' else STRICT_DEPTH_LIMITS
+    evidence = dict(build_command=command, supported_samples=result['supported_samples'], depth_limits=limits,
                     comparisons=result.get('comparisons', {}), binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(), metadata=result['metadata'])
     (out / 'evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
-    diagnostics = collect_diagnostics(binary, out, result['metadata']) if args.diagnostics else {}
+    diagnostics = collect_diagnostics(binary, out, result['metadata']) if args.diagnostics or backend == 'GLCORE' else {}
     if diagnostics:
         print('SCENE_DEPTH_DIAGNOSTICS ' + json.dumps(diagnostics), flush=True)
     check(result['returncode'] == 0, 'scene-depth native fixture exits successfully')
@@ -231,15 +239,17 @@ def main():
     for name, modes in comparisons.items():
         check(modes['coverage']['exact'], name + ' exact camera and Selection coverage')
         check(modes['final']['exact'], name + ' exact final colour with depth and Selection effect')
-        check(raw_depth_passes(modes['depth_bits']), name + ' measured device-depth rounding bounds')
+        check(raw_depth_passes(modes['depth_bits'], limits), name + ' measured device-depth rounding bounds')
     for sample in samples:
         check(pixels(out / f'{sample}-0-0-batched.png') != pixels(out / f'{sample}-1-0-batched.png'), str(sample) + ' authored deformation changes scene depth')
     for probe, diagnostic in diagnostics.items():
         if diagnostic.get('skipped'):
             continue
         check('error' not in diagnostic and diagnostic.get('returncode') == 0 and diagnostic.get('graphics_valid') and 'analysis_error' not in diagnostic, probe + ' diagnostic completes')
+        if probe == 'gpu_product':
+            check(all(case['depth_bits']['exact'] for case in diagnostic['comparisons'].values()), 'GPU matrix product removes the GL depth difference')
         if probe == 'depth_fault':
-            check(diagnostic.get('fault_rejected_by_original_guard') and diagnostic.get('fault_keeps_coverage'), 'injected depth fault remains red-capable')
+            check(diagnostic.get('fault_rejected_by_gl_guard') and diagnostic.get('fault_keeps_coverage'), 'injected depth fault remains red-capable')
     print(json.dumps(evidence, indent=2))
 
 
