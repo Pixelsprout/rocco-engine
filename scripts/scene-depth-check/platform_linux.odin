@@ -47,7 +47,7 @@ driver_info :: proc() -> Driver_Info {
 }
 
 probe_clip_control :: proc(enabled: bool) {
-	clip := transmute(Clip_Control)gl_proc("glClipControl")
+	clip := cast(Clip_Control)gl_proc("glClipControl")
 	assert(clip != nil)
 	depth := u32(0x935F) if enabled else u32(0x935E)
 	clip(0x8CA1, depth)
