@@ -133,6 +133,7 @@ exports:
       - '_strlen'
       - '_sys_icache_invalidate'
       - '_sysconf'
+      - '_sysctlbyname'
       - '_vsnprintf'
       - '_wcslen'
       - '_wcsrtombs'

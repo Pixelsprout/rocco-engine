@@ -145,6 +145,7 @@ Material :: struct {
 // flat normal image for a normal map.
 Mesh_Texture :: struct {
 	ordinary: ^Mesh_Texture,
+	shared: ^Texture_Image,
 	image:   sg.Image,
 	view:    sg.View,
 	sampler: sg.Sampler,
@@ -204,6 +205,7 @@ Mesh :: struct {
 // owns each mesh's parts and each loaded mesh's name and data. The slots
 // never grow.
 Mesh_Table :: struct {
+	texture_cache: Texture_Cache,
 	meshes:       []Mesh,
 	count:        int,
 	free:         []int,
@@ -267,6 +269,7 @@ Mesh_Material_Slot_Error :: enum {
 // which must free.
 mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allocator) {
 	fmt.assertf(capacity >= len(Primitive) && capacity <= SLOT_LIMIT, "a mesh table of %v slots cannot hold the primitives or give each slot an id", capacity)
+	texture_cache_init(&t.texture_cache, allocator)
 	t.allocator = allocator
 	t.perm = perm
 	t.meshes = make([]Mesh, capacity, perm)
@@ -288,17 +291,20 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 	t.count = len(Primitive)
 }
 
-// sg.shutdown destroys the GPU buffers and textures.
+// Mesh texture references release before the graphics device shuts down.
 mesh_table_destroy :: proc(t: ^Mesh_Table) {
+	texture_cache_report(&t.texture_cache)
 	for &m in t.meshes[:len(Primitive)] {
 		delete(m.parts, t.allocator)
 		delete(m.surface_parts, t.allocator)
 	}
 	for &m in t.meshes[len(Primitive):t.count] {
 		if m.live {
+			mesh_textures_release(t, &m)
 			mesh_loaded_delete(t, &m)
 		}
 	}
+	texture_cache_destroy(&t.texture_cache)
 	delete(t.logged)
 	delete(t.clips_logged)
 	delete(t.meshes, t.perm)
@@ -368,7 +374,10 @@ mesh_table_add :: proc(t: ^Mesh_Table, name: string, data: Mesh_Data) -> (slot: 
 	t.meshes[slot].data.vertex_materials = nil
 	t.next_clip += u32(len(data.skin.clips))
 	if t.uploaded {
-		mesh_upload_loaded(t, &t.meshes[slot])
+		if !mesh_upload_loaded(t, &t.meshes[slot]) {
+			mesh_table_remove(t, slot)
+			return 0, false
+		}
 	}
 	return slot, true
 }
@@ -383,8 +392,7 @@ mesh_table_remove :: proc(t: ^Mesh_Table, slot: int) {
 		sg.destroy_buffer(m.indices)
 		sg.destroy_buffer(m.surface_vertices)
 	}
-	for tex in m.textures { mesh_texture_destroy(tex) }
-	for tex in m.ordinary_textures { mesh_texture_destroy(tex) }
+	mesh_textures_release(t, m)
 	mesh_loaded_delete(t, m)
 	m^ = {generation = m.generation + 1}
 	t.free[t.free_count] = slot
@@ -398,26 +406,42 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 	}
 	for &m in t.meshes[len(Primitive):t.count] {
 		if m.live {
-			mesh_upload_loaded(t, &m)
+			if !mesh_upload_loaded(t, &m) {
+				fmt.eprintfln("mesh %q texture upload failed; drawing without textures", m.name)
+				mesh_upload(&m, m.data)
+				mesh_data_delete(t, m.data)
+				m.data = {}
+			}
 		}
 	}
 	t.uploaded = true
 }
 
-// The vertex data is scratch once the GPU has it.
-@(private = "file")
-mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
-	mesh_upload(m, m.data)
+mesh_textures_upload :: proc(t: ^Mesh_Table, m: ^Mesh) -> bool {
+	success := false
+	defer {
+		if !success {
+			mesh_textures_release(t, m)
+			delete(m.textures, t.allocator)
+			delete(m.ordinary_textures, t.allocator)
+			m.textures = nil
+			m.ordinary_textures = nil
+		}
+	}
 	m.textures = make([]Mesh_Texture, len(m.data.textures), t.allocator)
 	m.ordinary_textures = make([]Mesh_Texture, len(m.data.textures), t.allocator)
 	for tex, i in m.data.textures {
-		m.textures[i] = texture_upload(tex)
-  if tex.alpha_cutoff > 0 {
-   base := tex.levels[0]
-   ordinary := texture_build(base.width, base.height, base.pixels, tex.sampler, tex.srgb, context.temp_allocator)
-   m.ordinary_textures[i] = texture_upload(ordinary)
-   m.textures[i].ordinary = &m.ordinary_textures[i]
-  }
+		ok: bool
+		m.textures[i], ok = texture_cache_acquire(&t.texture_cache, tex)
+		if !ok { return false }
+		if tex.alpha_cutoff > 0 {
+			base := tex.levels[0]
+			ordinary := texture_build(base.width, base.height, base.pixels, tex.sampler, tex.srgb, context.temp_allocator)
+			ordinary_ok: bool
+			m.ordinary_textures[i], ordinary_ok = texture_cache_acquire(&t.texture_cache, ordinary)
+			if !ordinary_ok { return false }
+			m.textures[i].ordinary = &m.ordinary_textures[i]
+		}
 	}
 	for data_part, i in m.data.parts {
 		part := &m.parts[i]
@@ -435,8 +459,18 @@ mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) {
 		part.normal = source.normal
 		part.occlusion = source.occlusion
 	}
+	success = true
+	return true
+}
+
+// The vertex data is scratch once the GPU has it.
+@(private = "file")
+mesh_upload_loaded :: proc(t: ^Mesh_Table, m: ^Mesh) -> bool {
+	if !mesh_textures_upload(t, m) { return false }
+	mesh_upload(m, m.data)
 	mesh_data_delete(t, m.data)
 	m.data = {}
+	return true
 }
 
 @(private = "file")
@@ -496,13 +530,9 @@ mesh_one_part :: proc(index_count: int, material: Material, allocator: mem.Alloc
 	return parts
 }
 
-@(private = "file")
-mesh_texture_destroy :: proc(tex: Mesh_Texture) {
-	if tex.image.id != 0 {
-		sg.destroy_view(tex.view)
-		sg.destroy_image(tex.image)
-		sg.destroy_sampler(tex.sampler)
-	}
+mesh_textures_release :: proc(t: ^Mesh_Table, m: ^Mesh) {
+	for tex in m.textures { texture_cache_release(&t.texture_cache, tex) }
+	for tex in m.ordinary_textures { texture_cache_release(&t.texture_cache, tex) }
 }
 
 // A skinned mesh uploads Skinned_Vertex, for the skinned pipelines. sokol

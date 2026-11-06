@@ -124,17 +124,8 @@ image_bleed :: proc(width, height: int, rgba: []byte) {
 
 // An sRGB texture uploads as SRGB8A8, so the GPU decodes it to linear before filtering.
 texture_upload :: proc(tex: Texture) -> Mesh_Texture {
-	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
-	desc := sg.Image_Desc {
-		width        = i32(tex.levels[0].width),
-		height       = i32(tex.levels[0].height),
-		num_mipmaps  = i32(len(tex.levels)),
-		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
-		label        = label,
-	}
-	for level, i in tex.levels {
-		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
-	}
+	desc := texture_image_desc(tex)
+	label := desc.label
 	image := sg.make_image(desc)
 	s := tex.sampler
 	return {
@@ -151,6 +142,21 @@ texture_upload :: proc(tex: Texture) -> Mesh_Texture {
 			},
 		),
 	}
+}
+
+texture_image_desc :: proc(tex: Texture) -> sg.Image_Desc {
+	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
+	desc := sg.Image_Desc {
+		width        = i32(tex.levels[0].width),
+		height       = i32(tex.levels[0].height),
+		num_mipmaps  = i32(len(tex.levels)),
+		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
+		label        = label,
+	}
+	for level, i in tex.levels {
+		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
+	}
+	return desc
 }
 
 // Copies rgba into level 0. Each further level averages 2 x 2 texels of the

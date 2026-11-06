@@ -49,6 +49,7 @@ mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string) -> (id: u32, reason: s
 	for note in notes {
 		fmt.eprintfln("%v loaded, but %v", path, GLB_NOTE_REASONS[note])
 	}
-	slot, _ := mesh_table_add(t, strings.clone(name, t.allocator), data)
+	slot, added := mesh_table_add(t, strings.clone(name, t.allocator), data)
+	if !added { return 0, "GPU texture upload failed", false }
 	return mesh_id(t, slot), "", true
 }

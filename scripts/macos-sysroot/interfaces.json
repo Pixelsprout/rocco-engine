@@ -3051,6 +3051,18 @@
           ]
         },
         {
+          "name": "_sysctlbyname",
+          "sources": [
+            {
+              "url": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sysctlbyname.3.html",
+              "documented_modules": [],
+              "evidence_kind": "exact_function_name_in_manpage_synopsis",
+              "retrieved_at": "2026-11-06T02:26:29+00:00",
+              "response_sha256": "41128d07ad44c8b97b37202970fdd51540fda1665b2f15985a0497d5b8593df7"
+            }
+          ]
+        },
+        {
           "name": "_vsnprintf",
           "sources": [
             {
