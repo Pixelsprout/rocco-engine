@@ -121,7 +121,7 @@ def main():
     check(small['physical'] == [480, 360], 'physical inputs follow launch dimensions and DPI')
 
     selection_checks(out, supported, evidence)
-    subprocess.run([sys.executable, str(Path(__file__).with_name('scene_depth_check.py')), str(out / 'scene-depth')], check=True)
+    subprocess.run([sys.executable, str(Path(__file__).with_name('scene_depth_check.py')), str(out / 'scene-depth'), '--diagnostics'], check=True)
     evidence['result'] = 'passed'
     evidence['binary_sha256'] = hashlib.sha256(Path('examples/post/post' + binary_suffix()).read_bytes()).hexdigest()
     (out / 'post-evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
