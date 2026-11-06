@@ -216,6 +216,8 @@ def main():
                     comparisons=result.get('comparisons', {}), binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(), metadata=result['metadata'])
     (out / 'evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
     diagnostics = collect_diagnostics(binary, out, result['metadata']) if args.diagnostics else {}
+    if diagnostics:
+        print('SCENE_DEPTH_DIAGNOSTICS ' + json.dumps(diagnostics), flush=True)
     check(result['returncode'] == 0, 'scene-depth native fixture exits successfully')
     check(result['graphics_valid'], 'native graphics validation')
     check('analysis_error' not in result, 'scene-depth bit analysis completes')
