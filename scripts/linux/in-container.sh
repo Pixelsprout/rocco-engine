@@ -46,9 +46,9 @@ RUN_PREFIX="$RUN" python3 scripts/post_check.py build/bridge-check/post
 RUN_PREFIX="$RUN" python3 scripts/shader_reload_check.py build/bridge-check/reload
 ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
 python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
-# Software GL needs a longer process bound for the full 432-step warmup.
+# Software GL can take more than 30 minutes for the full 432-step warmup.
 # Each Bridge request still has its 300-second no-progress bound.
-VILLAGE_SEED_RUN_PREFIX="$RUN" RUN_PREFIX="timeout 1800 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1" python3 examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat
+VILLAGE_SEED_RUN_PREFIX="$RUN" RUN_PREFIX="timeout 2400 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1" python3 examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat
 
 sh scripts/test-all.sh
 

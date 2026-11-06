@@ -156,7 +156,7 @@ def capture(args, mode, run, provenance, observations):
                 if manifest['trace_exit'] != 0:
                     raise ValueError(f'xctrace exited {manifest["trace_exit"]}')
             if present:
-                manifest['presentmon_exit'] = present.wait(timeout=30)
+                manifest['presentmon_exit'] = present.wait(timeout=args.timeout+30)
                 if manifest['presentmon_exit']:
                     raise ValueError(f'PresentMon exited {manifest["presentmon_exit"]}')
         summary = summarise(out/'boundaries.csv', out/'cpu.csv' if mode in ('cpu', 'gpu') else None,
