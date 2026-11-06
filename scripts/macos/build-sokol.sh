@@ -11,7 +11,6 @@ trap 'rm -f "$o"' EXIT
 echo "== sokol Metal archives"
 for m in log gfx app glue; do
 	source="c/sokol_$m.c"
-	if [ "$m" = gfx ]; then source="../../scripts/macos/sokol-gfx-diagnostics.m"; fi
 	MACOSX_DEPLOYMENT_TARGET=10.13 clang -c -g -x objective-c -arch arm64 -DIMPL -DSOKOL_METAL "$source" -o "$o"
 	archive="$m/sokol_${m}_macos_arm64_metal_debug.a"
 	rm -f "$archive"
