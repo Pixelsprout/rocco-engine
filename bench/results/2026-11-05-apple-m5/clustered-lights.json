@@ -1,0 +1,557 @@
+{
+  "date": "2026-11-05",
+  "machine": {
+    "date": "2026-11-05",
+    "slug": "apple-m5",
+    "chip": "Apple M5",
+    "model": "Mac17,2",
+    "memory_bytes": 17179869184,
+    "os": "macOS 26.5.1 (25F80)",
+    "power": "ac",
+    "low_power_mode": false
+  },
+  "baseline_commit": "efc687259a2012a99abd6e45d239857363144985",
+  "backend": "Metal",
+  "mode": "Lockstep",
+  "window_physical": [
+    960,
+    540
+  ],
+  "msaa": 4,
+  "shadow_map": 2048,
+  "cascades": 1,
+  "warmup_frames": 120,
+  "measured_frames_per_process": 1000,
+  "processes_per_variant": 5,
+  "seed": 0,
+  "cooldown_seconds": 1,
+  "order": "old8 then cluster256, repeated in process order",
+  "quiet_retest_processes": [
+    4,
+    5
+  ],
+  "host_flags": [
+    "-o:speed",
+    "-define:ROCCO_SPANS=true",
+    "-vet",
+    "-strict-style"
+  ],
+  "game_command": "roc build --output=<binary> bench/lights/main.roc",
+  "backend_library_mode": "release, identical for both binaries",
+  "binary_sha256": {
+    "old8": "039d372bf170ce57b2f8b7edb95cbb468cbd94329fa8eaf964507b646ea7701b",
+    "cluster256": "d352a5c8eb2563dbf1a7e153b47ea3b8d2e9e164d86f38caea2af40ddbba3da1"
+  },
+  "tool_versions": {
+    "odin": "odin version dev-2026-08:251d8eb0b",
+    "roc": "Roc compiler version nightly-2026-10-11-7d256b9"
+  },
+  "result": "CPU target passes in all three paired application-policy runs; inherited-policy runs remain unstable",
+  "limitations": [
+    "Shared Mac; the first three unwrapped pairs overlap other work.",
+    "Unwrapped processes4 and5 used a requested quiet window, but stalls remained.",
+    "No GPU timing or real-clock pacing claim.",
+    "Unwrapped candidate runs precede the final uniform Sun-sampling placement.",
+    "Controlled application-policy runs use the final shader and identical release backend libraries."
+  ],
+  "runs": [
+    {
+      "process": 1,
+      "label": "old8",
+      "points": 8,
+      "raw_csv_gzip": "clustered-raw/old8-p1.csv.gz",
+      "raw_csv_sha256": "5d0a8b7587ca2bc6f1b0c27cacff79669ece66c87cdb06d25c28b00ca6bb486b",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 403.1875,
+          "p95_us": 2600.32595,
+          "p99_us": 2717.4735699999997,
+          "max_us": 2912.208
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 403.1875,
+        "p95_us": 2600.32595,
+        "p99_us": 2717.4735699999997,
+        "max_us": 2912.208
+      }
+    },
+    {
+      "process": 1,
+      "label": "cluster256",
+      "points": 256,
+      "raw_csv_gzip": "clustered-raw/cluster256-p1.csv.gz",
+      "raw_csv_sha256": "7b74efd6677883ec8e1de8c51f630ed49598d7048252c230fb7da3302f4b44a2",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 1526.187,
+          "p95_us": 2135.9473000000003,
+          "p99_us": 2192.83826,
+          "max_us": 2291.498
+        },
+        "cluster_build_us": {
+          "median_us": 78.2495,
+          "p95_us": 135.9253,
+          "p99_us": 147.14833,
+          "max_us": 189.833
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 1602.292,
+        "p95_us": 2262.9913500000002,
+        "p99_us": 2315.90333,
+        "max_us": 2445.751
+      }
+    },
+    {
+      "process": 2,
+      "label": "old8",
+      "points": 8,
+      "raw_csv_gzip": "clustered-raw/old8-p2.csv.gz",
+      "raw_csv_sha256": "2f81b30fcaa7a6525b31456e0205f4546fa99210629c659a61207c8ef8391f5a",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 421.60450000000003,
+          "p95_us": 2672.74025,
+          "p99_us": 2728.60384,
+          "max_us": 2812.707
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 421.60450000000003,
+        "p95_us": 2672.74025,
+        "p99_us": 2728.60384,
+        "max_us": 2812.707
+      }
+    },
+    {
+      "process": 2,
+      "label": "cluster256",
+      "points": 256,
+      "raw_csv_gzip": "clustered-raw/cluster256-p2.csv.gz",
+      "raw_csv_sha256": "b15f2fa60238defc202a5524845c518afa66ab253b559e519a0e49fddfc33ecb",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 1724.0825,
+          "p95_us": 2149.3813,
+          "p99_us": 2209.92225,
+          "max_us": 2240.001
+        },
+        "cluster_build_us": {
+          "median_us": 101.771,
+          "p95_us": 135.5042,
+          "p99_us": 143.52458,
+          "max_us": 217.167
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 1822.958,
+        "p95_us": 2280.195,
+        "p99_us": 2335.86184,
+        "max_us": 2365.75
+      }
+    },
+    {
+      "process": 3,
+      "label": "old8",
+      "points": 8,
+      "raw_csv_gzip": "clustered-raw/old8-p3.csv.gz",
+      "raw_csv_sha256": "d89f31780c33e840cba7d0bc23b6b2846720d0d65550ddc6500c8f1712f84dfa",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 406.209,
+          "p95_us": 418.5011,
+          "p99_us": 426.91824999999994,
+          "max_us": 450.459
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 406.209,
+        "p95_us": 418.5011,
+        "p99_us": 426.91824999999994,
+        "max_us": 450.459
+      }
+    },
+    {
+      "process": 3,
+      "label": "cluster256",
+      "points": 256,
+      "raw_csv_gzip": "clustered-raw/cluster256-p3.csv.gz",
+      "raw_csv_sha256": "b3d5c0056e1706267ea31798dfe3336a2673254d60bebbca12e17002a396edab",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 303.2085,
+          "p95_us": 312.72565,
+          "p99_us": 317.00167,
+          "max_us": 327.834
+        },
+        "cluster_build_us": {
+          "median_us": 24.5,
+          "p95_us": 26.211049999999997,
+          "p99_us": 27.54367,
+          "max_us": 36.708
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 327.6875,
+        "p95_us": 337.666,
+        "p99_us": 343.24926999999997,
+        "max_us": 354.084
+      }
+    },
+    {
+      "process": 4,
+      "label": "old8",
+      "points": 8,
+      "raw_csv_gzip": "clustered-raw/old8-p4.csv.gz",
+      "raw_csv_sha256": "4a454cb65aa3b6884744c5255bda928fe5ac1695f8f00c9d4a5a7e35651e7d0a",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 402.459,
+          "p95_us": 416.04525,
+          "p99_us": 424.083,
+          "max_us": 525.083
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 402.459,
+        "p95_us": 416.04525,
+        "p99_us": 424.083,
+        "max_us": 525.083
+      }
+    },
+    {
+      "process": 4,
+      "label": "cluster256",
+      "points": 256,
+      "raw_csv_gzip": "clustered-raw/cluster256-p4.csv.gz",
+      "raw_csv_sha256": "c3eab77019ca1639e1250f8c1b4b0429b67b041b4d1a16ef8b383513c98958d6",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 314.438,
+          "p95_us": 2104.3968,
+          "p99_us": 2162.45909,
+          "max_us": 2276.792
+        },
+        "cluster_build_us": {
+          "median_us": 24.625,
+          "p95_us": 128.97145,
+          "p99_us": 137.8875,
+          "max_us": 254.417
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 338.1875,
+        "p95_us": 2225.80865,
+        "p99_us": 2286.6776800000002,
+        "max_us": 2391.5
+      }
+    },
+    {
+      "process": 5,
+      "label": "old8",
+      "points": 8,
+      "raw_csv_gzip": "clustered-raw/old8-p5.csv.gz",
+      "raw_csv_sha256": "32b13f0645de822261a6f8e5adfaad40efa955a37e208343eff77da14df33035",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 1768.3335,
+          "p95_us": 2676.20955,
+          "p99_us": 2725.0330900000004,
+          "max_us": 2781.709
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 1768.3335,
+        "p95_us": 2676.20955,
+        "p99_us": 2725.0330900000004,
+        "max_us": 2781.709
+      }
+    },
+    {
+      "process": 5,
+      "label": "cluster256",
+      "points": 256,
+      "raw_csv_gzip": "clustered-raw/cluster256-p5.csv.gz",
+      "raw_csv_sha256": "2284c7347000e9188d61e973ccf7dfbebb1afb6b4914ef85592cd60b9eaca75f",
+      "spans": {
+        "render_submit_us": {
+          "median_us": 296.6875,
+          "p95_us": 311.0493,
+          "p99_us": 322.5025,
+          "max_us": 562.668
+        },
+        "cluster_build_us": {
+          "median_us": 23.75,
+          "p95_us": 26.04405,
+          "p99_us": 27.877499999999998,
+          "max_us": 51.666
+        }
+      },
+      "render_submit_plus_cluster_build": {
+        "median_us": 319.97900000000004,
+        "p95_us": 334.5431,
+        "p99_us": 347.75235000000004,
+        "max_us": 614.3340000000001
+      }
+    }
+  ],
+  "unwrapped_result": "inconclusive: clustered fast-path time is lower, but large process spread prevents a stable performance pass",
+  "application_policy_experiment": {
+    "command_prefix": [
+      "taskpolicy",
+      "-a"
+    ],
+    "warmup_frames": 120,
+    "measured_frames_per_process": 1000,
+    "processes_per_variant": 3,
+    "order": [
+      "old8, cluster256",
+      "old8, cluster256",
+      "cluster256, old8"
+    ],
+    "binary_sha256": {
+      "old8": "039d372bf170ce57b2f8b7edb95cbb468cbd94329fa8eaf964507b646ea7701b",
+      "cluster256": "01ceda8654312b0bc136ad4439183e7aa8b142e904f701817680cb5e977ca816"
+    },
+    "shader_odin_sha256": "2fc09473170f0939c73b8af6d2aa1dada09254b800899e550174bd4375e0e006",
+    "result": "All three candidate medians, p95s, and p99s are lower than their paired baseline.",
+    "runs": [
+      {
+        "process": 1,
+        "label": "old8",
+        "raw_csv_gzip": "clustered-raw/policy-old8-p1.csv.gz",
+        "raw_csv_sha256": "1b29faff915a1f50ee33fdf1a4eda7cab9d40a06c415825dc4e6bc38547f6589",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 399.95799999999997,
+            "p95_us": 431.0851,
+            "p99_us": 444.58634,
+            "max_us": 512.707
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 399.95799999999997,
+          "p95_us": 431.0851,
+          "p99_us": 444.58634,
+          "max_us": 512.707
+        }
+      },
+      {
+        "process": 1,
+        "label": "cluster256",
+        "raw_csv_gzip": "clustered-raw/policy-cluster256-p1.csv.gz",
+        "raw_csv_sha256": "e3e5f432176b61632647a37a180344d3566e788fe235ac3578cf7085c9eebbf3",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 294.3745,
+            "p95_us": 311.00315,
+            "p99_us": 323.14314999999993,
+            "max_us": 475.792
+          },
+          "cluster_build_us": {
+            "median_us": 23.3545,
+            "p95_us": 26.0,
+            "p99_us": 28.296159999999997,
+            "max_us": 35.625
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 317.33299999999997,
+          "p95_us": 335.8791,
+          "p99_us": 348.62549,
+          "max_us": 511.417
+        }
+      },
+      {
+        "process": 2,
+        "label": "old8",
+        "raw_csv_gzip": "clustered-raw/policy-old8-p2.csv.gz",
+        "raw_csv_sha256": "c464e781e98d088c0eb072a8e78dfb406aaab9e15b4ba73933f22f7bf618ee74",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 397.022,
+            "p95_us": 417.0902,
+            "p99_us": 432.88516999999996,
+            "max_us": 679.25
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 397.022,
+          "p95_us": 417.0902,
+          "p99_us": 432.88516999999996,
+          "max_us": 679.25
+        }
+      },
+      {
+        "process": 2,
+        "label": "cluster256",
+        "raw_csv_gzip": "clustered-raw/policy-cluster256-p2.csv.gz",
+        "raw_csv_sha256": "e425552c2d60e91ad35d35e0128d905986bd407bee44a7988b9042d76c238f8d",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 295.39599999999996,
+            "p95_us": 314.4244,
+            "p99_us": 324.83567,
+            "max_us": 428.708
+          },
+          "cluster_build_us": {
+            "median_us": 23.9585,
+            "p95_us": 26.167,
+            "p99_us": 28.41866,
+            "max_us": 42.792
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 319.0415,
+          "p95_us": 339.7624,
+          "p99_us": 349.2797499999999,
+          "max_us": 456.41700000000003
+        }
+      },
+      {
+        "process": 3,
+        "label": "old8",
+        "raw_csv_gzip": "clustered-raw/policy-old8-p3.csv.gz",
+        "raw_csv_sha256": "c9cac32dd96d82444f96ac7977551e5b85a7d41e23dd086ceee373c1fe311044",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 397.0,
+            "p95_us": 415.7646,
+            "p99_us": 432.04227,
+            "max_us": 673.416
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 397.0,
+          "p95_us": 415.7646,
+          "p99_us": 432.04227,
+          "max_us": 673.416
+        }
+      },
+      {
+        "process": 3,
+        "label": "cluster256",
+        "raw_csv_gzip": "clustered-raw/policy-cluster256-p3.csv.gz",
+        "raw_csv_sha256": "1f1aa205909dd34bc8dcdfb66e501b55f439e04e488c0e4ad7860ca0ee9cee35",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 296.792,
+            "p95_us": 312.7247,
+            "p99_us": 322.39276,
+            "max_us": 381.46
+          },
+          "cluster_build_us": {
+            "median_us": 23.833,
+            "p95_us": 26.16905,
+            "p99_us": 28.211489999999998,
+            "max_us": 38.625
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 320.333,
+          "p95_us": 337.4232,
+          "p99_us": 347.6605799999999,
+          "max_us": 420.085
+        }
+      }
+    ]
+  },
+  "exploratory_runs": {
+    "excluded_from_acceptance": "Early runs lacked established release-library parity or preceded the binding/material cache.",
+    "runs": [
+      {
+        "process": 1,
+        "label": "old8",
+        "raw_csv_gzip": "clustered-raw/exploratory-old8-p1.csv.gz",
+        "raw_csv_sha256": "85d1f2691f6056491a69ebf89c5b7564991de47951d7aa0ebc8df3e478b61942",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 1288.6255,
+            "p95_us": 1328.16815,
+            "p99_us": 1359.01484,
+            "max_us": 1835.584
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 1288.6255,
+          "p95_us": 1328.16815,
+          "p99_us": 1359.01484,
+          "max_us": 1835.584
+        }
+      },
+      {
+        "process": 2,
+        "label": "old8",
+        "raw_csv_gzip": "clustered-raw/exploratory-old8-p2.csv.gz",
+        "raw_csv_sha256": "dde5c082114869cf712ecec469534d9f5e607ca28836e216ebe73080737e938b",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 1305.499,
+            "p95_us": 1405.0576999999998,
+            "p99_us": 1589.1893299999995,
+            "max_us": 2498.375
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 1305.499,
+          "p95_us": 1405.0576999999998,
+          "p99_us": 1589.1893299999995,
+          "max_us": 2498.375
+        }
+      },
+      {
+        "process": 1,
+        "label": "cluster256-uncached",
+        "raw_csv_gzip": "clustered-raw/exploratory-cluster256-uncached-p1.csv.gz",
+        "raw_csv_sha256": "043553ecf255e7ce4f3ff42786d82e46e13292fafc797d8c3481ae617de3c6c4",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 1999.5205,
+            "p95_us": 2783.1,
+            "p99_us": 3009.10998,
+            "max_us": 3137.417
+          },
+          "cluster_build_us": {
+            "median_us": 73.7295,
+            "p95_us": 128.92854999999997,
+            "p99_us": 142.21466999999998,
+            "max_us": 206.625
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 2097.187,
+          "p95_us": 2910.58365,
+          "p99_us": 3134.99165,
+          "max_us": 3266.792
+        }
+      },
+      {
+        "process": 1,
+        "label": "cluster256-cached",
+        "raw_csv_gzip": "clustered-raw/exploratory-cluster256-cached-p1.csv.gz",
+        "raw_csv_sha256": "843f506bb5085668c11528eb6abb8935a8344cd47de2503c95143c8446d9d109",
+        "spans": {
+          "render_submit_us": {
+            "median_us": 305.2275,
+            "p95_us": 2131.77705,
+            "p99_us": 2181.54234,
+            "max_us": 2268.834
+          },
+          "cluster_build_us": {
+            "median_us": 25.4375,
+            "p95_us": 136.67645,
+            "p99_us": 146.30325,
+            "max_us": 157.834
+          }
+        },
+        "render_submit_plus_cluster_build": {
+          "median_us": 329.3535,
+          "p95_us": 2260.5130999999997,
+          "p99_us": 2314.9614300000003,
+          "max_us": 2406.2929999999997
+        }
+      }
+    ]
+  }
+}

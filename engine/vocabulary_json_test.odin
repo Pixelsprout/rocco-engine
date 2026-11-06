@@ -216,7 +216,7 @@ test_json_write_element_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 @(test)
 test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	draw := Draw{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}, tint = {r = 1, g = 0.5, b = 0.25}, glow = {r = 3, g = 1.5, b = 0}, pose = {clip = 2, time = 0.5, fade_clip = 1, fade_time = 0.25, fade = 0.75}}
+	draw := Draw{id = 7, mesh = 3, pos = {1, 2, 3}, scale = {1, 1, 1}, rot = {w = 1}, scale_rot = {w = 1}, tint = {r = 1, g = 0.5, b = 0.25}, glow = {r = 3, g = 1.5, b = 0}, pose = {clip = 2, time = 0.5, fade_clip = 1, fade_time = 0.25, fade = 0.75}, casts_shadow = false}
 	hum := Speaker{id = 10, sound = 3, gain = 1, pitch = 2, at = {tag = .At, payload = {at = {pos = {0, 1, 0}, range = 4}}}, repeat = .Loop}
 	children := []Node{node_draw(draw), node_light(light_ambient({r = 1})), node_speaker(hum)}
 	music := Speaker{id = 9, sound = 2, gain = 0.5, pitch = 1, at = {tag = .Here}, repeat = .Once}
@@ -235,9 +235,9 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		t,
 		&b,
 		`{"camera":{"eye":{"x":0,"y":2,"z":5},"target":{"x":0,"y":0,"z":0},"up":{"x":0,"y":1,"z":0},"fov_y":1},` +
-		`"nodes":[{"Group":{"id":4,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
+		`"emitters":[],"nodes":[{"Group":{"id":4,"selected":false,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
 		`{"Draw":{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
-		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25},"glow":{"r":3,"g":1.5,"b":0},` +
+		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25},"glow":{"r":3,"g":1.5,"b":0},"casts_shadow":false,` +
 		`"pose":{"clip":2,"time":0.5,"fade_clip":1,"fade_time":0.25,"fade":0.75}}},` +
 		`{"Light":{"Ambient":{"r":1,"g":0,"b":0}}},` +
 		`{"Speaker":{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}},"repeat":"Loop"}}]}},` +
@@ -245,7 +245,7 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		`{"Speaker":{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here","repeat":"Once"}}],` +
 		`"cursor":"Locked","environment":{"sky":2,"clear":{"r":0.25,"g":0.5,"b":1},"tone_map":"Neutral","exposure":2,` +
 		`"fog":{"color":{"r":0.5,"g":0,"b":0},"start":1,"end":8,"amount":0.75},"bloom":{"strength":0.5,"threshold":1,"knee":0.25}},` +
-		`"ui":[],"queries":[]}`,
+		`"shadow":{"distance":0,"normal_bias":0,"depth_bias":0,"distribution":0,"blend":0,"filter":"Hard"},"ui":[],"queries":[]}`,
 	)
 }
 

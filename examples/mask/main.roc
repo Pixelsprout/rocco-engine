@@ -5,11 +5,17 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # from behind only the left one shows. A leaf turns above Pip, so both of its
 # faces come round to the camera, lit from the side the camera sees. Pip
 # walks a circle with a round hole in every cell of a grid, double-sided, so
-# the inside of its shell shows through. Every cutout casts the shadow of its
-# whole shape. source/make_props.py builds the meshes.
+# the inside of its shell shows through. The blue cube stays visible but does
+# not cast a shadow. Every cutout casts the shadow of its cutout shape.
+# source/make_props.py builds the meshes.
 #
 # The camera circles the Scene. Space stops and starts the motion, and Left
-# and Right turn the camera by hand.
+# and Right turn the camera by hand. --far-shadows uses four cascades and
+# a narrow lens from 110 metres to inspect distant cutout shadows.
+# --shadow-low and --shadow-high select allocations and require a restart.
+# L/B/H select live appearance. Down/Up change distance; J/K change bias;
+# R/T change depth bias; U/I change split distribution; N/M change blend.
+# See guide/shadows.md.
 
 import cam.Camera as Cam
 import linalg.Quat
@@ -23,23 +29,28 @@ import pf.Launch
 import pf.Light
 import pf.Pose
 import pf.QueryResults
+import pf.Shadow
 import pf.Scene
 
 # The mesh ids are 0, the fallback mesh, until loaded gives them. time moves
 # the leaf and Pip, and angle is the camera's turn about the centre.
-Model : { meshes : Meshes, walk : U32, walk_duration : F32, time : F32, angle : F32, paused : Bool }
+Model : { meshes : Meshes, walk : U32, walk_duration : F32, time : F32, angle : F32, paused : Bool, far_shadows : Bool, shadow : Vocabulary.Shadow }
 
 Meshes : { fence : U32, fence_one_sided : U32, leaf : U32, pip : U32 }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
-launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Mask" } }
+launch = |config| {
+	startup = if config.args.contains("--shadow-low") Shadow.startup_low else if config.args.contains("--shadow-high") Shadow.startup_high else Shadow.startup_default
+	cascades = if config.args.contains("--far-shadows") 4 else startup.shadow_cascades
+	{ ..Launch.default, shadow_map: startup.shadow_map, shadow_cascades: cascades, window: { ..Launch.default.window, samples: startup.samples, title: "Mask" } }
+}
 
 props : List(Str)
 props = ["fence", "fence_one_sided", "leaf", "pip_holes"]
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| {
-	model = { meshes: { fence: 0, fence_one_sided: 0, leaf: 0, pip: 0 }, walk: 0, walk_duration: 0.0, time: 0.0, angle: 0.0, paused: Bool.False }
+init = |config| {
+	model = { meshes: { fence: 0, fence_one_sided: 0, leaf: 0, pip: 0 }, walk: 0, walk_duration: 0.0, time: 0.0, angle: 0.0, paused: Bool.False, far_shadows: config.args.contains("--far-shadows"), shadow: Shadow.default }
 	{ model, commands: [Load({ pack: "props", assets: props })] }
 }
 
@@ -62,7 +73,14 @@ step = |model, input, _results, dt| {
 	paused = if Key.pressed(input, Space) !model.paused else model.paused
 	moving = if paused 0.0 else dt
 	turn = Key.axis(input, Left, Right) * turn_speed * dt
-	{ model: { ..model, paused, time: model.time + moving, angle: model.angle + orbit_speed * moving + turn }, commands: [] }
+	shadow = if Key.pressed(input, L) Shadow.low else if Key.pressed(input, B) Shadow.balanced else if Key.pressed(input, H) Shadow.high else model.shadow
+	distance = F32.max(0.2, shadow.distance + Key.axis(input, Down, Up) * 30.0 * dt)
+	depth_bias = F32.max(0.0, F32.min(0.1, shadow.depth_bias + Key.axis(input, R, T) * 0.002 * dt))
+	normal_bias = F32.max(0.0, F32.min(10.0, shadow.normal_bias + Key.axis(input, J, K) * 0.05 * dt))
+	distribution = F32.max(0.0, F32.min(1.0, shadow.distribution + Key.axis(input, U, I) * 0.5 * dt))
+	blend = F32.max(0.0, F32.min(0.5, shadow.blend + Key.axis(input, N, M) * 0.2 * dt))
+	live = { ..shadow, distance: if Key.axis(input, Down, Up) != 0.0 distance else shadow.distance, normal_bias, depth_bias, distribution, blend }
+	{ model: { ..model, paused, shadow: live, time: model.time + moving, angle: model.angle + orbit_speed * moving + turn }, commands: [] }
 }
 
 sky_light : Vocabulary.Light
@@ -88,8 +106,8 @@ post : U64, F32 -> Vocabulary.Draw
 post = |id, x| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.75, z: 0.0 }, scale: { x: 0.08, y: 1.5, z: 0.08 }, tint: { r: 0.25, g: 0.25, b: 0.27 } }
 
 # An opaque cube behind each fence, so the holes show what is behind them.
-block : U64, F32, Vocabulary.Rgb -> Vocabulary.Draw
-block = |id, x, tint| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.35, z: -1.2 }, scale: { x: 0.7, y: 0.7, z: 0.7 }, tint }
+block : U64, F32, Vocabulary.Rgb, Bool -> Vocabulary.Draw
+block = |id, x, tint, casts_shadow| { ..Draw.default, id, mesh: Mesh.primitive(Cube), pos: { x, y: 0.35, z: -1.2 }, scale: { x: 0.7, y: 0.7, z: 0.7 }, tint, casts_shadow }
 
 # Radians each second.
 leaf_spin : F32
@@ -131,15 +149,17 @@ orbit_radius = 5.0
 view : Model -> Vocabulary.Scene
 view = |model| {
 	a = model.angle
-	eye = { x: orbit_centre.x + orbit_radius * a.sin(), y: 2.4, z: orbit_centre.z + orbit_radius * a.cos() }
-	camera = Cam.look_at(eye, orbit_centre)
+	radius = if model.far_shadows 110.0 else orbit_radius
+	eye = { x: orbit_centre.x + radius * a.sin(), y: if model.far_shadows 22.0 else 2.4, z: orbit_centre.z + radius * a.cos() }
+	base_camera = Cam.look_at(eye, orbit_centre)
+	camera = if model.far_shadows { ..base_camera, fov_y: 0.05 } else base_camera
 	m = model.meshes
 	nodes = [
 		Light(sky_light),
 		Light(sunlight),
 		Draw(ground),
-		Draw(block(10, -fence_x, { r: 0.8, g: 0.12, b: 0.08 })),
-		Draw(block(11, fence_x, { r: 0.08, g: 0.2, b: 0.8 })),
+		Draw(block(10, -fence_x, { r: 0.8, g: 0.12, b: 0.08 }, Bool.True)),
+		Draw(block(11, fence_x, { r: 0.08, g: 0.2, b: 0.8 }, Bool.False)),
 		Draw(fence(2, m.fence, -fence_x)),
 		Draw(fence(3, m.fence_one_sided, fence_x)),
 		Draw(post(4, -fence_x - fence_half_width)),
@@ -149,7 +169,7 @@ view = |model| {
 		Draw(leaf(m.leaf, model.time)),
 		Draw(pip(model)),
 	]
-	{ ..Scene.empty, camera, nodes }
+	{ ..Scene.empty, camera, nodes, shadow: model.shadow }
 }
 
 start : Model
@@ -180,3 +200,18 @@ expect {
 	p = pip(start)
 	p.pos.z > walk_centre.z and p.pos.x == 0.0
 }
+
+expect {
+	config = { ..Config.empty, args: ["--far-shadows"] }
+	far = init(config).model
+	launch(config).shadow_cascades == 4 and far.far_shadows and view(far).camera.fov_y == 0.05
+}
+
+## Live controls do not change startup allocations.
+expect {
+	changed = press(start, H)
+	view(changed).shadow == Shadow.high and launch(Config.empty).shadow_map == Shadow.startup_default.shadow_map
+}
+
+## Startup presets select allocations before the window opens.
+expect launch({ ..Config.empty, args: ["--shadow-low"] }).shadow_map == Shadow.startup_low.shadow_map

@@ -1,0 +1,91 @@
+{
+  "supported_samples": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "unsupported_samples": [],
+  "off": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "c0b46baec59fc2f89cab70616925379f79e6a324a7c2070a67475b3860b75335",
+    "selection": {
+      "hidden_pixels": 6191,
+      "glass_pixels": 5187,
+      "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+    }
+  },
+  "x2": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "d4ddd47b74755d3ec8e80abdf8fd9a4d3bc37409fe6e3ee13c2fe4519bda697f",
+    "selection": {
+      "hidden_pixels": 6191,
+      "glass_pixels": 5187,
+      "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+    }
+  },
+  "x4": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "eed9712916541ba87e76924c623891681b91198a5a7023febda1e85bf98bede8",
+    "selection": {
+      "hidden_pixels": 6191,
+      "glass_pixels": 5187,
+      "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+    }
+  },
+  "x8": {
+    "physical": [
+      800,
+      600
+    ],
+    "logical": [
+      800,
+      600
+    ],
+    "depth_values": 74,
+    "chain_sha256": "c27266f687296aec294d5ca3f4095c7a0fc254bbe4f4e110d9da2dcc30ebbe49",
+    "selection": {
+      "hidden_pixels": 6191,
+      "glass_pixels": 5187,
+      "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+    }
+  },
+  "depth_wind_hashes": [
+    "430e5e45585546f0fd42d945e705d3e5caacb381c82a9c250eab34b0977a92ba",
+    "5ec2996d64170a0f8e40929129fe7c4320cfc63d82baa5720beb75ed326dacca"
+  ],
+  "selection_animation_hashes": [
+    "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7",
+    "42197a5510c63400d4eb74b322c710077b24bbf2c25eeb498ea9b3de2cf3e2ad"
+  ],
+  "result": "passed",
+  "binary_sha256": "84d37cb78efd8b66fad5c992f571ed4429635aad7155ef084ddd9fa080779c7f",
+  "backend": "Metal",
+  "odin": "dev-2026-08-nightly:902106f",
+  "shader_compiler_sha256": "92db37975ad7ff3c3c9bc27cba1503287377cb287ebabf60d1c6b597abfa3244",
+  "native_scope": "Post and selected Group production; GL and D3D11 pending native CI"
+}

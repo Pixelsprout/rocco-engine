@@ -32,11 +32,13 @@ State :: struct {
 	steps:             u64,
 	frame_render:      Frame_Render,
 	ui:                Ui,
+	particles:         Particles,
 	exit_after_frames: int, // 0 runs forever
 	mode:              Run_Mode,
 	// Set by Quit in a Headless run. A windowed run asks sokol to quit instead.
 	quit:              bool,
 	spans:             Span_Sink,
+	capture:           Capture_Sink,
 	bridge:            Bridge,
 	audio:             Audio,
 	// The pointer of the last step taken, for the hit test after the layout.
@@ -82,14 +84,23 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 host_options_from_env :: proc(bridge: bool) -> Host_Options {
 	exit_after_frames := exit_after_frames_from_env()
 	mode := run_mode_from_env(exit_after_frames, bridge)
+	capture_csv := os.get_env(CAPTURE_ENV, context.temp_allocator)
+	debug_camera := debug_camera_from_env()
+	debug_diagnostic, valid := run_switch_parse(os.get_env(CAPTURE_DEBUG_CAMERA_ENV, context.temp_allocator))
+	if !valid { fmt.eprintfln("%v must be 0 or 1", CAPTURE_DEBUG_CAMERA_ENV); os.exit(1) }
+	if problem := capture_problem(capture_csv, exit_after_frames, mode, bridge, debug_camera, debug_diagnostic); problem != "" {
+		fmt.eprintln(problem)
+		os.exit(1)
+	}
 	return {
+		capture_csv = capture_csv,
 		mode = mode,
 		exit_after_frames = exit_after_frames,
 		assets_dir = assets_dir_from_env(),
 		seed = seed_from_env(),
 		args = args_from_env(),
 		spans_csv = spans_csv_from_env(exit_after_frames),
-		debug_camera = debug_camera_from_env(),
+		debug_camera = debug_camera,
 		alloc_report = alloc_report_from_env(),
 		read_gamepads = !no_gamepads_from_env(),
 		audio_device = mode != .Headless,
@@ -128,6 +139,9 @@ app_gfx_desc :: proc(capacity: Capacity, cascades: int) -> sg.Desc {
 	textures := texture_pool_size(capacity)
 	return {
 		logger = {func = slog.func},
+		buffer_pool_size = 3 * i32(capacity.meshes) + 5 + 2,
+		shader_pool_size = SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 5,
+		pipeline_pool_size = SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 9,
 		image_pool_size = textures,
 		sampler_pool_size = textures,
 		view_pool_size = view_pool_size(capacity),
@@ -140,11 +154,23 @@ init_cb :: proc "c" () {
 
 	gfx := app_gfx_desc(g_state.launch.capacity, int(g_state.launch.shadow_cascades))
 	gfx.environment = sglue.environment()
+	when ODIN_OS == .Darwin { g_render_diagnostics_enabled = rocco_render_diagnostics_open() }
 	sg.setup(gfx)
 
 	// The linked sokol archive picks the backend, so check it matches the build.
 	backend := sg.query_backend()
 	fmt.assertf(backend == EXPECTED_BACKEND, "sokol backend is %v, expected %v", backend, EXPECTED_BACKEND)
+
+	limits := sg.query_limits()
+	if field, rule, ok := launch_device_check(g_state.launch, limits.max_image_size_array, limits.max_image_array_layers); !ok {
+		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
+		os.exit(1)
+	}
+
+	when ODIN_OS == .Darwin {
+		if g_state.capture.on { g_state.capture.label_passes = os.get_env(CAPTURE_LABELS_ENV, context.temp_allocator) == "1" }
+	}
+	gpu_timing_app_init()
 
 	err := host_open_window(&g_state, {f32(sapp.width()), f32(sapp.height())})
 	fmt.assertf(err == nil, "the UI did not allocate: %v", err)
@@ -153,6 +179,8 @@ init_cb :: proc "c" () {
 
 frame_cb :: proc "c" () {
 	context = g_state.ctx
+	capture_start: i64
+	if g_state.capture.on { capture_start = capture_tick() }
 
 	if bridge_paused(&g_state.bridge) {
 		time.sleep(BRIDGE_PAUSE_WAIT)
@@ -168,10 +196,12 @@ frame_cb :: proc "c" () {
 	if g_state.read_gamepads {
 		gamepads_poll(&g_state.input.gamepads, &g_state.gamepad_reader)
 	}
+	gpu_timing_app_frame()
 	frame_run(
 		&g_state,
 		{
 			frame_duration = sapp.frame_duration(),
+			capture_start = capture_start,
 			window = {size = {f32(sapp.width()), f32(sapp.height())}, dpi = sapp.dpi_scale()},
 			mouse_locked = sapp.mouse_locked(),
 			lock_mouse = app_lock_mouse,
@@ -190,10 +220,14 @@ cleanup_cb :: proc "c" () {
 // A Headless run never set up sokol, so it must not shut it down. A bench run
 // with no Spans CSV must fail, so a failed write exits with 1 at the end.
 app_shutdown :: proc() {
+	capture_err := capture_sink_write(&g_state.capture, &g_state)
+	capture_failed := g_state.capture.failed != ""
+	if capture_err != nil || capture_failed { fmt.eprintfln("capture failed: %v %v", capture_err, g_state.capture.failed) }
 	spans_err := span_sink_write(&g_state.spans)
 	if spans_err != nil {
 		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
+	gpu_timing_app_shutdown()
 	bridge_close(&g_state.bridge)
 	host_destroy(&g_state)
 	roc_heap_shutdown()
@@ -203,6 +237,7 @@ app_shutdown :: proc() {
 			gamepad_reader_shutdown(&g_state.gamepad_reader)
 		}
 		sg.shutdown()
+		when ODIN_OS == .Darwin { if g_render_diagnostics_enabled { rocco_render_diagnostics_close() } }
 	}
 	memory_shutdown(&g_state.mem)
 
@@ -217,7 +252,7 @@ app_shutdown :: proc() {
 		}
 		mem.tracking_allocator_destroy(&g_track)
 	}
-	if spans_err != nil {
+	if spans_err != nil || capture_err != nil || capture_failed {
 		os.exit(1)
 	}
 }
@@ -225,6 +260,7 @@ app_shutdown :: proc() {
 event_cb :: proc "c" (event: ^sapp.Event) {
 	context = g_state.ctx
 
+	if g_state.capture.on && event.type == .ICONIFIED { g_state.capture.failed = "window minimized" }
 	input_on_event(&g_state.input, event)
 }
 
@@ -245,6 +281,7 @@ app_lock_mouse :: proc(locked: bool) {
 }
 
 app_commit :: proc() {
+	gpu_timing_app_commit()
 	sg.commit()
 }
 

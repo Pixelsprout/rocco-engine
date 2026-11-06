@@ -1,0 +1,172 @@
+{
+  "discarded_frames_per_process": 120,
+  "measured_frames_per_process": 480,
+  "processes_per_mode": 3,
+  "percentile_method": "nearest rank",
+  "cpu_policy": "taskpolicy -a",
+  "cpu_unit": "ms",
+  "gpu_policy": "xctrace direct launch; application CPU policy not forced",
+  "resolution": [
+    1920,
+    1080
+  ],
+  "msaa": 4,
+  "mode": "windowed Lockstep",
+  "host": "release -o:speed with Spans",
+  "game": "development Roc build",
+  "cpu": {
+    "on": {
+      "runs": [
+        {
+          "file": "build/environment-perf/on-0.csv",
+          "frame_work_ms": {
+            "median": 0.2956255,
+            "p95": 0.443125,
+            "p99": 0.474999,
+            "max": 0.49258300000000005
+          }
+        },
+        {
+          "file": "build/environment-perf/on-1.csv",
+          "frame_work_ms": {
+            "median": 0.057918,
+            "p95": 0.083208,
+            "p99": 0.089042,
+            "max": 0.10070799999999999
+          }
+        },
+        {
+          "file": "build/environment-perf/on-2.csv",
+          "frame_work_ms": {
+            "median": 0.1973545,
+            "p95": 0.425418,
+            "p99": 0.45996,
+            "max": 0.477582
+          }
+        }
+      ],
+      "pooled_frame_work_ms": {
+        "median": 0.095688,
+        "p95": 0.427166,
+        "p99": 0.460334,
+        "max": 0.49258300000000005
+      },
+      "pooled_render_submit_ms": {
+        "median": 0.042667000000000004,
+        "p95": 0.149375,
+        "p99": 0.166209,
+        "max": 0.222792
+      }
+    },
+    "none": {
+      "runs": [
+        {
+          "file": "build/environment-perf/none-0.csv",
+          "frame_work_ms": {
+            "median": 0.2446875,
+            "p95": 0.431458,
+            "p99": 0.45958299999999996,
+            "max": 0.480166
+          }
+        },
+        {
+          "file": "build/environment-perf/none-1.csv",
+          "frame_work_ms": {
+            "median": 0.2772705,
+            "p95": 0.435833,
+            "p99": 0.45708299999999996,
+            "max": 0.510207
+          }
+        },
+        {
+          "file": "build/environment-perf/none-2.csv",
+          "frame_work_ms": {
+            "median": 0.070146,
+            "p95": 0.08875,
+            "p99": 0.095084,
+            "max": 0.09778999999999999
+          }
+        }
+      ],
+      "pooled_frame_work_ms": {
+        "median": 0.0864795,
+        "p95": 0.428624,
+        "p99": 0.449874,
+        "max": 0.510207
+      },
+      "pooled_render_submit_ms": {
+        "median": 0.0383955,
+        "p95": 0.14166700000000002,
+        "p99": 0.157041,
+        "max": 0.226001
+      }
+    }
+  },
+  "preparation_ms": [
+    99.935,
+    95.769,
+    99.092,
+    99.589,
+    100.135
+  ],
+  "lighting_bytes": 1060848,
+  "binary_sha256": "e9b2b37a2bea219dc8f49526c33a859f670beeeba4ee4ba68a2e40d6f4afe0ee",
+  "gpu_on": {
+    "process": "environment-lighting.bin (25832)",
+    "total_gpu_frames": 600,
+    "first_gpu_frame": 1,
+    "last_gpu_frame": 600,
+    "discarded_gpu_frames": 120,
+    "measured_gpu_frames": 480,
+    "first_measured_gpu_frame": 121,
+    "gpu_frame_ms": {
+      "median": 1.5626039999999999,
+      "p95": 2.626293,
+      "p99": 3.318,
+      "max": 4.373207
+    },
+    "percentile_method": "nearest rank",
+    "interval_method": "Union of Active Metal intervals for the environment-lighting.bin process within each GPU frame",
+    "intervals": "/tmp/cubemap-on-gpu.xml"
+  },
+  "gpu_none": {
+    "process": "environment-lighting.bin (26726)",
+    "total_gpu_frames": 600,
+    "first_gpu_frame": 1,
+    "last_gpu_frame": 600,
+    "discarded_gpu_frames": 120,
+    "measured_gpu_frames": 480,
+    "first_measured_gpu_frame": 121,
+    "gpu_frame_ms": {
+      "median": 1.2470205,
+      "p95": 2.313999,
+      "p99": 2.911293,
+      "max": 5.951499
+    },
+    "percentile_method": "nearest rank",
+    "interval_method": "Union of Active Metal intervals for the environment-lighting.bin process within each GPU frame",
+    "intervals": "/tmp/cubemap-none-gpu.xml"
+  },
+  "hardware": {
+    "chip": "Apple M5",
+    "cpu_cores": 10,
+    "gpu_cores": 10,
+    "memory_gb": 16,
+    "power": "AC",
+    "low_power_mode": false,
+    "main_display_hz": 144
+  },
+  "native_backends": {
+    "metal": "passed",
+    "gl": "pending CI",
+    "d3d11": "pending CI"
+  },
+  "scope": "Eight-sphere reference with unlit square, no direct lights, no shadows; includes sky background and tone map.",
+  "limitations": [
+    "Preparation excludes PNG decode, file IO, and GPU upload.",
+    "CPU process medians vary; the pooled difference does not establish a CPU regression.",
+    "GPU has one captured process per mode.",
+    "GPU profiling uses direct launch rather than taskpolicy -a.",
+    "These checks do not establish village performance or real-clock pacing."
+  ]
+}

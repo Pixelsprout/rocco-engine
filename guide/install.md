@@ -128,7 +128,7 @@ sun = Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.
 view : Model -> Vocabulary.Scene
 view = |m| {
 	cards = List.map_with_index(m.hand, |card, i| Draw(card_draw(m, card, i)))
-	nodes = [Light(ambient), Light(sun)].concat(cards)
+	nodes = cards.prepend(Light(sun)).prepend(Light(ambient))
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes }
 }
 

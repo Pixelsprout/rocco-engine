@@ -1,0 +1,15 @@
+{
+  "cpu": "Verify the CPU model",
+  "gpu": "Verify the GPU model",
+  "ram_gb": 16,
+  "os": "Record the OS version",
+  "driver": "Record the GPU driver version",
+  "ac_power": "Record AC power or battery",
+  "power_mode": "Record the active power mode",
+  "display_refresh_hz": "Record the actual active refresh rate",
+  "display_mode": "Record physical resolution and display scaling",
+  "hags": "Record enabled, disabled, or unavailable",
+  "background_load": "Record the running background work",
+  "thermal_state": "Record any known thermal restriction",
+  "conditions_note": "Record condition changes. Use fresh paired samples when background conditions differ."
+}

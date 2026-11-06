@@ -6,6 +6,7 @@ import ui.Ui
 import pf.Vocabulary exposing [Command, Config, Element, Input, Manifest, Rgba, Scene]
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
 
 # The UI bench game. Its Scene has no Draws, and its UI holds exactly N Panel and
@@ -69,6 +70,10 @@ view = |m| {
 	nodes: [],
 	cursor: Free,
 	environment: Environment.default,
+	shadow: Shadow.default,
+	emitters: [],
+	post: [],
+	shader_values: [],
 	ui: elements(m),
 	queries: [],
 }

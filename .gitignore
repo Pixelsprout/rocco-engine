@@ -48,3 +48,6 @@ bench/*/*.exe
 bench/*/*.pdb
 bench/*/*.lib
 bench/out/
+
+# Shader packages and reflection are rebuilt from game declarations.
+examples/*/assets/shaders/

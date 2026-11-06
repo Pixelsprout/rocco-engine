@@ -1,0 +1,193 @@
+{
+  "retina_1080": true,
+  "motion_steps": 60,
+  "seed": 0,
+  "hero_steps": 240,
+  "field_seed": 777,
+  "generated_field_draw_count": 22000,
+  "ready_step": 96,
+  "draw_count": 23123,
+  "source_draw_count": 1436,
+  "visible_field_draw_count": 21686,
+  "groups": [
+    10,
+    20,
+    30,
+    40
+  ],
+  "environment": {
+    "sky": 1,
+    "clear": {
+      "r": 0.32,
+      "g": 0.48,
+      "b": 0.65
+    },
+    "tone_map": "AgX",
+    "exposure": 1.12,
+    "fog": {
+      "color": {
+        "r": 0.393123,
+        "g": 0.477,
+        "b": 0.603827
+      },
+      "start": 14,
+      "end": 120,
+      "amount": 0.38
+    },
+    "bloom": {
+      "strength": 0.18,
+      "threshold": 1.2,
+      "knee": 0.5
+    }
+  },
+  "shadow": {
+    "distance": 0,
+    "normal_bias": 0.05,
+    "depth_bias": 0,
+    "distribution": 0.5,
+    "blend": 0.1,
+    "filter": "Pcf3"
+  },
+  "settings": {
+    "density": 22000,
+    "visibility_distance": 65,
+    "fade_margin": 10,
+    "startup_shadow_map": 2048,
+    "startup_cascades": 2,
+    "startup_msaa": 4
+  },
+  "hero_camera": {
+    "eye": {
+      "x": 3.5335276,
+      "y": 1.891691,
+      "z": 21.167639
+    },
+    "target": {
+      "x": -1.2,
+      "y": 2.6,
+      "z": -8
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "physical": [
+    1920,
+    1080
+  ],
+  "hero_sha256": "b41680a8f451bd155fe4430f397983217c10279d889eb2342246d24476378525",
+  "pose_steps": {
+    "hero": 240,
+    "square": 241,
+    "foliage": 242,
+    "canopy": 243
+  },
+  "square_camera": {
+    "eye": {
+      "x": 5.8143425,
+      "y": 8,
+      "z": 13.974774
+    },
+    "target": {
+      "x": 0,
+      "y": 2.5,
+      "z": -2
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "foliage_camera": {
+    "eye": {
+      "x": 10.5,
+      "y": 1.1,
+      "z": 14.5
+    },
+    "target": {
+      "x": 9.752473,
+      "y": 1.0001667,
+      "z": 13.843314
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "canopy_camera": {
+    "eye": {
+      "x": -13,
+      "y": 4,
+      "z": 12
+    },
+    "target": {
+      "x": -12.399621,
+      "y": 4.389418,
+      "z": 11.301502
+    },
+    "up": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "fov_y": 1.3089969
+  },
+  "controls": [
+    "wind",
+    "casting",
+    "field",
+    "lighting sky",
+    "quality shadow-distance"
+  ],
+  "native_log_diagnostics": 0,
+  "image_sha256": {
+    "canopy-moving.png": "e98ff730d15d127d19c8baa0fddbb6e60ec253d7421c4d4abe47f72443c81d44",
+    "canopy-still-later.png": "2665445c23a5b8d5e6a8710d253a1a935989f3f024839bf57dc2a3ef21f6b960",
+    "canopy-still.png": "2665445c23a5b8d5e6a8710d253a1a935989f3f024839bf57dc2a3ef21f6b960",
+    "canopy.png": "4b4f8bc8862bccad18a1a22fdce1e41807c6775730272d2dc760ca55395c71f4",
+    "foliage.png": "3bfd914ba340caad4dee64856b526682d1b6dd1064ccf9f1a66f910a8d59383b",
+    "hero.png": "b41680a8f451bd155fe4430f397983217c10279d889eb2342246d24476378525",
+    "loading.png": "a7f0cfab7918d8aac1f83f1e2f66d2aa97b275d10f933a276b27e60c4c130de6",
+    "square.png": "6d47239552d5962b84302f985fd73772ffb094ec633ad445123b3edd66d4eca5"
+  },
+  "binary_sha256": "f709400b2b26a35052b3bef4709e7943436a17d2b66cd156ecb9f0b4f1d9fb57",
+  "result": "passed",
+  "backend": "Metal",
+  "source_commit": "2b68f49",
+  "effects_enabled": false,
+  "human_accepted": false,
+  "performance_claim": false,
+  "replay_all_images_match": true,
+  "canopy_near_black_roi": {
+    "x": [
+      700,
+      1250
+    ],
+    "y": [
+      400,
+      950
+    ],
+    "all_channels_below": 20,
+    "pixels": 2994,
+    "original_diagnostic_pixels": 35549
+  },
+  "checks": {
+    "strict_engine": 855,
+    "strict_engine_spans": 855,
+    "python": 78,
+    "python_windows_skips": 2,
+    "surface_roc": 100,
+    "village_roc": 175,
+    "build_roc": 146,
+    "shader_generation_drift": "passed",
+    "five_interfaces_unchanged": true
+  },
+  "host_sha256": "cd8ffc5667b4e0c830ebba8a216b429b8c7c883c2df0113e9a1ccc0f9d58c399"
+}

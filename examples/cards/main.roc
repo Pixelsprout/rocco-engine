@@ -62,7 +62,7 @@ sun = Light.directional({ x: -2.0 / 7.0, y: -3.0 / 7.0, z: -6.0 / 7.0 }, { r: 5.
 view : Model -> Vocabulary.Scene
 view = |m| {
 	cards = List.map_with_index(m.hand, |card, i| Draw(card_draw(m, card, i)))
-	nodes = [Light(ambient), Light(sun)].concat(cards)
+	nodes = cards.prepend(Light(sun)).prepend(Light(ambient))
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 8.0, z: 8.0 }, { x: 0.0, y: 0.0, z: 0.0 }), nodes }
 }
 
@@ -90,7 +90,7 @@ expect {
 	# Two Lights, then the two cards of the first hand at their slots.
 	nodes = view(init(Config.empty).model).nodes
 	match nodes {
-		[Light(_), Light(_), Draw(ace), Draw(seven)] => ace.id == 0 and seven.id == 1 and seven.pos.x == 1.2
+		[Light(first), Light(second), Draw(ace), Draw(seven)] => first == ambient and second == sun and ace.id == 0 and seven.id == 1 and seven.pos.x == 1.2
 		_ => Bool.False
 	}
 }

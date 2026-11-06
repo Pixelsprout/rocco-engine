@@ -1,0 +1,33 @@
+{
+  "archive_sha256": "2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d",
+  "time_seconds": 0.0,
+  "face_side": 256,
+  "format": "LDR sRGB RGB8",
+  "sun_disc": false,
+  "files": {
+    "assets/images/T_Noise_Terrain.png": "42667fd6c362524a1870b65294e360b97831c0fa0da9d22964a558e01e9dcb5e",
+    "assets/images/ground_mask.png": "3ea5d73a1735116c9d58885cd9f9327e680f982477672f6a517d424113a6c5d4",
+    "assets/sky/village/px.png": "e042da7d891a021ee5fe2c5d337287397e9158251d14c7a6aa836bcfd75d8b2c",
+    "assets/sky/village/nx.png": "44bdf35aec93bdd24e52957a75f1978647d18ca961e3271069c71cbff318db61",
+    "assets/sky/village/py.png": "4c63249dd9f814df38a159aec0946ac86e355e702b16a75951e798e06171ef04",
+    "assets/sky/village/ny.png": "b02ff0864621803799ddbc9a94799578ab6afa62375fa9b87eaf3b919699b5e8",
+    "assets/sky/village/pz.png": "0f09d79c636725392fd47f90daa93e6bbfa5d66cc777322d9b9cb431b0fa0cc1",
+    "assets/sky/village/nz.png": "538173254ed1c78f0fa4196a65b6b4cfa5717331d929ba6e00ce861bd50fd20f"
+  },
+  "source_sha256": {
+    "textures/T_Noise_Terrain.png": "42667fd6c362524a1870b65294e360b97831c0fa0da9d22964a558e01e9dcb5e",
+    "textures/ground_mask.png": "3ea5d73a1735116c9d58885cd9f9327e680f982477672f6a517d424113a6c5d4",
+    "shaders/sky.gdshader": "d702cbbd34297cbe3e0d55f44d0141d36869eb6217cbfe15ba574708cb421526",
+    "shaders/ground.gdshader": "c53e905f8230297b3c49facc3bd1f8ab063e77acdb8242ffe252f88b147ba06e",
+    "scripts/look.gd": "fa5a5fb86df1b11a6e0e018570e67f7c6240e17ec88d79984acdc35b822d85eb",
+    "scenes/finished.tscn": "5103dcaaf5e9d860ddca5a5ca3af4b168a756acd3bfc203c13e83a1dcbd44100"
+  },
+  "clipped_texels": {
+    "px": 0,
+    "nx": 10696,
+    "py": 4922,
+    "ny": 0,
+    "pz": 0,
+    "nz": 206
+  }
+}

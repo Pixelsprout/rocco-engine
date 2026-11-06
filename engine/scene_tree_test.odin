@@ -239,9 +239,9 @@ test_a_group_moves_a_point_turns_a_directional_and_leaves_an_ambient :: proc(t: 
 	// The light travels along -x, so the direction to it is +x.
 	expect_v3_near(t, lit.light_pos[0].xyz, {1, 0, 0})
 	testing.expect_value(t, lit.light_pos[0].w, 0)
-	expect_v3_near(t, lit.light_pos[1].xyz, {1, 5, 0})
-	testing.expect_value(t, lit.light_pos[1].w, 1)
-	testing.expect_value(t, lit.light_color[1], [4]f32{0, 0, 1, 4})
+	expect_v3_near(t, f.rec.clusters.points[0].pos.xyz, {1, 5, 0})
+	testing.expect_value(t, f.rec.clusters.points[0].pos.w, 1)
+	testing.expect_value(t, f.rec.clusters.points[0].color, [4]f32{0, 0, 1, 4})
 }
 
 @(test)
@@ -253,10 +253,10 @@ test_a_light_takes_the_interpolated_pose_of_its_group :: proc(t: ^testing.T) {
 	centre := node_draw({id = 1, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY})
 	prev := []Node{node_group(1, {}, IDENTITY, light_nodes({light_point({z = 9}, {r = 1}, 4)})), centre}
 	curr := []Node{node_group(1, {}, quat_yaw(math.PI / 2), light_nodes({light_point({z = 2}, {r = 1}, 4)})), centre}
-	got := frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
 
 	// The Light's own pos comes from the current Scene.
-	expect_v3_near(t, got[0].light_pos[0].xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
+	expect_v3_near(t, f.rec.clusters.points[0].pos.xyz, {math.SQRT_TWO, 0, math.SQRT_TWO})
 }
 
 @(test)
@@ -278,7 +278,7 @@ test_the_sun_follows_a_depth_first_walk_and_takes_slot_0 :: proc(t: ^testing.T) 
 	// The first Sun in walk order is inside the Group. The second lights as a plain Directional.
 	testing.expect_value(t, got[0].light_color[0], [4]f32{0, 1, 0, 0})
 	testing.expect_value(t, got[0].light_color[1], [4]f32{0, 0, 1, 0})
-	testing.expect_value(t, got[0].light_pos[2], [4]f32{0, 0, 0, 1})
+	testing.expect_value(t, f.rec.clusters.points[0].pos, [4]f32{0, 0, 0, 1})
 	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Sun})
 }
 
@@ -298,7 +298,7 @@ test_a_group_draws_its_children_after_the_draw_capacity_counts_them :: proc(t: ^
 
 	testing.expect_value(t, len(got), f.fr.draw_capacity)
 	testing.expect(t, f.fr.draws_logged)
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{1, 0, 0, 1})
+	testing.expect_value(t, f.rec.lights.ambient, [4]f32{1, 0, 0, 0})
 }
 
 @(test)
@@ -380,8 +380,8 @@ scene_nodes :: proc(nodes: []Node) -> Scene {
 	return {nodes = roc_list_view(nodes)}
 }
 
-node_group :: proc(id: u64, pos: Vec3, rot: Quat, children: []Node) -> Node {
-	return {tag = .Group, payload = {group = {_0 = {id = id, pos = pos, rot = rot}, _1 = roc_list_view(children)}}}
+node_group :: proc(id: u64, pos: Vec3, rot: Quat, children: []Node, selected := false) -> Node {
+	return {tag = .Group, payload = {group = {_0 = {id = id, pos = pos, rot = rot, selected = selected}, _1 = roc_list_view(children)}}}
 }
 
 node_draw :: proc(d: Draw) -> Node {
@@ -415,4 +415,38 @@ light_nodes :: proc(lights: []Light) -> []Node {
 		nodes[i] = node_light(l)
 	}
 	return nodes
+}
+
+@(test)
+test_selection_uses_current_group_ancestry_and_keeps_draw_namespaces_separate :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	d := Draw{id = 7, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
+	children := []Node{node_draw(d), node_group(8, {}, IDENTITY, draw_nodes({{id = 9, mesh = 1, scale = {1, 1, 1}}}))}
+	prev := []Node{node_group(7, {}, IDENTITY, children), node_draw(d)}
+	curr := []Node{node_group(7, {x = 4}, IDENTITY, children, selected = true), node_draw(d)}
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0)
+	testing.expect_value(t, len(f.fr.placed), 3)
+	testing.expect(t, f.fr.placed[0].selected && f.fr.placed[1].selected && !f.fr.placed[2].selected)
+	testing.expect_value(t, f.fr.placed[0].transform.position, [3]f32{})
+	frame_fixture_draw(&f, scene_nodes(curr), scene_nodes(prev), 0)
+	for p in f.fr.placed { testing.expect(t, !p.selected) }
+	children[1].payload.group._0.selected = true
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(prev), 1)
+	testing.expect(t, !f.fr.placed[0].selected && f.fr.placed[1].selected && !f.fr.placed[2].selected)
+}
+
+@(test)
+test_selection_reparenting_uses_current_membership_with_interpolated_world_pose :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	d := draw_nodes({{id = 1, mesh = 1, pos = {x = 1}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}})
+	prev := []Node{node_group(10, {x = 4}, IDENTITY, d, selected = true), node_group(20, {x = 20}, IDENTITY, nil)}
+	curr := []Node{node_group(10, {x = 4}, IDENTITY, nil, selected = true), node_group(20, {x = 20}, IDENTITY, d)}
+	frame_fixture_draw(&f, scene_nodes(prev), scene_nodes(curr), 0.5)
+	testing.expect_value(t, len(f.fr.placed), 1)
+	testing.expect(t, !f.fr.placed[0].selected)
+	testing.expect_value(t, f.fr.placed[0].transform.position, [3]f32{13, 0, 0})
 }

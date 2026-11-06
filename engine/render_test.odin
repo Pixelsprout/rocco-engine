@@ -61,3 +61,14 @@ test_mesh_pipeline_desc_gives_each_alpha_mode_its_shader_cull_depth_write_and_bl
 		testing.expectf(t, d.colors[0].blend == w.blend, "%v: blend %v", pipeline, d.colors[0].blend)
 	}
 }
+
+@(test)
+test_shadow_mask_pipeline_keeps_depth_only_and_changes_only_culling :: proc(t: ^testing.T) {
+	desc := sg.Pipeline_Desc{colors = {0 = {pixel_format = .NONE}}, depth = {pixel_format = .DEPTH, compare = .GREATER_EQUAL, write_enabled = true, bias_slope_scale = SHADOW_SLOPE_BIAS}}
+	for pipeline in SCENE_ORDER_PIPELINES {
+		d := shadow_mask_pipeline_desc(desc, pipeline)
+		testing.expect_value(t, d.cull_mode, sg.Cull_Mode.NONE if pipeline == .Mask_Double_Sided else sg.Cull_Mode.BACK)
+		testing.expect_value(t, d.depth, desc.depth)
+		testing.expect_value(t, d.colors, desc.colors)
+	}
+}

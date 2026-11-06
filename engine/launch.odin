@@ -9,12 +9,13 @@ LAUNCH_RULE_SKIES :: "must be at least 2, for the reserved slot and one sky"
 LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
 LAUNCH_RULE_IMAGES :: "must be at least 2, for the reserved slot and one Image"
 LAUNCH_RULE_SLOTS :: "must be at most 65536, so each slot gets an id"
-LAUNCH_RULE_DRAWS :: "must be at most 1195443, so the uniform buffer size fits sokol's int"
+LAUNCH_RULE_DRAWS :: "must be at most 278653, so the uniform buffer size fits sokol's int"
 LAUNCH_RULE_GROUPS :: "must be at most 1048576"
+LAUNCH_RULE_SHADOW_MAP :: "must be from 8 to 16384 texels"
 LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
-#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 1195443 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
+#assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 278653 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
 launch_default :: proc() -> Launch {
@@ -82,6 +83,8 @@ launch_check :: proc(launch: Launch) -> (field: string, rule: string, ok: bool) 
 		return "capacity.draws", LAUNCH_RULE_DRAWS, false
 	case capacity.groups > GROUP_LIMIT:
 		return "capacity.groups", LAUNCH_RULE_GROUPS, false
+	case launch.shadow_map < SHADOW_MAP_MIN || launch.shadow_map > SHADOW_MAP_MAX:
+		return "shadow_map", LAUNCH_RULE_SHADOW_MAP, false
 	case launch.shadow_cascades > MAX_CASCADES:
 		return "shadow_cascades", LAUNCH_RULE_CASCADES, false
 	}
@@ -101,4 +104,15 @@ msaa_sample_count :: proc(samples: Msaa) -> i32 {
 		return 8
 	}
 	return 1
+}
+
+// Check the array dimensions before allocating shadow resources.
+launch_device_check :: proc(launch: Launch, max_size, max_layers: i32) -> (field, rule: string, ok: bool) {
+	if i64(launch.shadow_map) > i64(max_size) {
+		return "shadow_map", "exceeds the device shadow array size", false
+	}
+	if i64(launch.shadow_cascades) > i64(max_layers) {
+		return "shadow_cascades", "exceeds the device shadow array layers", false
+	}
+	return "", "", true
 }

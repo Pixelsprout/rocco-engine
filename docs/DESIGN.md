@@ -165,7 +165,7 @@ Image    : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 
 Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
 Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
+Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool }
 Pose     : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
 Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
 Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
@@ -175,7 +175,7 @@ OverlapHit : { owner : U64, slot : U32, id : U64 }
 QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
 Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
-Node     := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
+Node     := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
@@ -183,7 +183,8 @@ AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterB
 PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
 Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+Shadow   : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
 Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
@@ -1021,6 +1022,37 @@ World once per frame. `view` is that copy, written in Roc. Elm's runtime owns
 - `roc check` on `nightly-2026-09-12-220fd47` segfaults for some
   platform-module alias shapes. Write wrapper signatures inline when it does.
   Minimal reproduction is recorded in the old course notes.
+
+## Planned shader authoring
+
+Agreed during immersive scene scoping, 2026-11-05. Not implemented.
+[ADR 0028](adr/0028-game-shaders-are-pack-assets.md) records the contract.
+
+The game asset build compiles GLSL Surface shaders and Post shaders.
+Published platform bundles load versioned Shader assets through Packs without an engine rebuild.
+Generated Roc helpers provide typed parameters and named Material slots.
+Only plain values cross the Seam.
+The engine owns GPU resources, pass execution, and resource lifetimes.
+
+Surface hooks inherit imported materials by default.
+Their deformation, alpha rules, and simulation-derived time stay consistent across colour, shadow, and selection passes.
+The engine expands bounds by declared vertex displacement.
+
+Post shaders run before bloom in HDR or after tone mapping before UI.
+Declared inputs include scene colour, scene depth, and Selection input.
+Selection input preserves coverage and nearest depth even behind other objects.
+Outline appearance and occlusion policy belong to a game-authored Post shader.
+This replaces Milestone 40's proposed engine-owned outline style.
+
+Interface-preserving shader edits reload together at a frame boundary.
+Interface changes initially require rebuilding the game and restarting.
+Failed reloads keep the last valid shader.
+Without a valid shader, the engine logs and omits affected Mesh parts or skips the Post effect.
+It does not substitute a shader or material.
+
+Appearance changes apply live.
+Allocation-heavy quality settings can initially require restart through Launch.
+The implementation must preserve the existing startup contract of ADR 0007.
 
 ## 10. Verified and not verified
 

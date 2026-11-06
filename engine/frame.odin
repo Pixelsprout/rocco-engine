@@ -7,6 +7,7 @@ import "core:time"
 // Frame runs without sokol.
 Frame_Platform :: struct {
 	frame_duration: f64,
+	capture_start: i64,
 	window:         Ui_Window,
 	mouse_locked:   bool,
 	lock_mouse:     proc(locked: bool),
@@ -26,6 +27,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	// One fixed interval leaves the accumulator at zero after the step, so
 	// Lockstep runs exactly one fixed step per Frame.
+	if s.capture.on { capture_frame_begin(&s.capture, s.frame_count+1, s.steps, platform.frame_duration, platform.window, platform.capture_start) }
 	s.input.pointer.locked = platform.mouse_locked
 	frame_time := platform.frame_duration if s.mode == .Real_Clock else s.clock.fixed_dt
 	clock_add_frame(&s.clock, bridge_clock_time(&s.bridge, frame_time))
@@ -53,6 +55,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 			step_input = input_take(&s.input, &s.input_buffers)
 			step_input.pointer = pointer
 		}
+		if s.capture.on { commands_json = &s.capture.builder }
 		step_input.window = ui_window_logical(platform.window)
 		step_input.pointer.inside &&= pointer_in_window(step_input.pointer.pos, step_input.window)
 		s.pointer = {pos = step_input.pointer.pos, inside = step_input.pointer.inside}
@@ -60,6 +63,7 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		audio_advance(&s.audio, dt)
 		steps += 1
 		s.steps += 1
+		if s.capture.on { capture_step_end(&s.capture, s.steps) }
 		alloc := roc_heap_report(s.steps, before, time.duration_microseconds(step_time), time.duration_microseconds(view_time))
 		if s.alloc_report {
 			alloc_report_print(alloc)
@@ -96,6 +100,8 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 
 	// Headless submits nothing, so its render Spans stay at zero.
 	renders := s.mode != .Headless
+	s.frame_render.particles_paused = bridge_paused(&s.bridge)
+	s.frame_render.render_time = f32(f64(s.steps) / f64(s.launch.step_hz))
 	frame_render_draw(&s.frame_render, prev, curr, alpha, view, &s.renderer.meshes, &s.renderer.skies, &s.renderer.images, &s.ui, platform.window, &s.spans, renders)
 	// The scene op replies the results that the next step gets, so they take
 	// the hit test of the layout that the window shows.
@@ -103,9 +109,12 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 	seam_set_ui(&s.seam, ui_results(&s.ui))
 	if renders {
 		span := span_open()
+		if s.capture.on { s.capture.row.commit_start = capture_tick() }
 		platform.commit()
+		if s.capture.on { s.capture.row.commit_end = capture_tick() }
 		span_close(&s.spans, .Commit, span)
 	}
+	if s.capture.on { capture_frame_end(&s.capture, s.steps, steps, alpha, view.camera, s.seam.has_prev) }
 	s.frame_count += 1
 	span_frame_end(&s.spans, s.frame_count, steps)
 

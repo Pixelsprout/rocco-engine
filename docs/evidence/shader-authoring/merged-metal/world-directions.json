@@ -1,0 +1,13 @@
+{
+  "host": "darwin",
+  "result": "passed",
+  "variants": 11,
+  "instanced_attributes": 13,
+  "world_inputs": "GPU selection coverage: position, origin, inverse direction basis, and local displacement bound for rotated nonuniform rigid, skinned, and two instanced models",
+  "frames": 3,
+  "packages": {
+    "Foliage": "ac9a728b617020712e14a7745c594eca15ae4a6e96fb1bbdf7b8ed275b2d3e82",
+    "Outline": "97cb4da2a6edd6c704c7e1a542a7b64ebcc7fb56d6f20f3f83c9bd104c0fffc0"
+  },
+  "log": "backend=4 attrs=16 textures_per_stage=32 storage_per_stage=15 vertex_uniform_components=0\nPASS: world inputs, inverse directions and local bound in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline visible-only edges over nonzero scene depth\nPASS: world inputs, inverse directions and local bound in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline through-wall edges over nonzero scene depth\nPASS: world inputs, inverse directions and local bound in instanced_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in skinned_selection shared colour, shadow and selection vertex stage\nPASS: world inputs, inverse directions and local bound in surface_selection shared colour, shadow and selection vertex stage\nPASS: outline visible-only edges over nonzero scene depth\nPASS: 11 production shader variants created, bound and drawn for 3 frames\n"
+}

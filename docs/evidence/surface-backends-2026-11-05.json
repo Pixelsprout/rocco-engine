@@ -1,0 +1,70 @@
+{
+  "commit": "825e51f4f7a34fdd4fc42d413ebfa2a39732f4b1",
+  "run": "https://github.com/Pixelsprout/rocco-engine/actions/runs/41970836953",
+  "result": "Surface native acceptance passed on all three backends; Linux later failed cards allocation checks",
+  "backends": {
+    "macos": {
+      "job": 127058448092,
+      "evidence": {
+        "base_green": 22368,
+        "unloaded_green": 0,
+        "shadow_pixels": 2813,
+        "noncasting_shadow_pixels": 0,
+        "result": "passed",
+        "wind_hashes": [
+          "a76827113e285b8a2145fc89ad6547b09589cebda20dc9f487ceda3441026ede",
+          "e520488b5e689a993f0285314642e11c1eab0634a054261f8063e3f313dfecb2",
+          "007d813a6857eee9d502decd1c761284e2b7c244d123ea6131ad704c7eb1ad22"
+        ],
+        "default_pbr_mean_difference": 0.0,
+        "binary_sha256": "49be85055b5fa92eca69b0a94953ae8016ebcdd9d357c4fdc270bb473767fc1d",
+        "packages": {
+          "DefaultSurface.shaderpack": "9edf345a7c78953fa98e6e9d6e88777b4d271a453ae96804f2fdc10b2e26335b",
+          "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+        }
+      }
+    },
+    "linux": {
+      "job": 127058448265,
+      "evidence": {
+        "base_green": 22369,
+        "unloaded_green": 0,
+        "shadow_pixels": 2813,
+        "noncasting_shadow_pixels": 0,
+        "result": "passed",
+        "wind_hashes": [
+          "fac8425c923e7804ab7b88e0c2e8b45f9e1d9ace64d5d83ff7fa0e4fc2640f4d",
+          "d560353dabec2fb795bdbe66627fabef82f1c4d8e6c18600bdee412358a13103",
+          "3dfb4b865707fec0654b1832edb778957e2c91fc8c1462ca09efcd78389571a2"
+        ],
+        "default_pbr_mean_difference": 0.0,
+        "binary_sha256": "da37dcb366e29a89ec4851136b391e5ebd5224636a752e74f7a4404198990d16",
+        "packages": {
+          "DefaultSurface.shaderpack": "9edf345a7c78953fa98e6e9d6e88777b4d271a453ae96804f2fdc10b2e26335b",
+          "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+        }
+      }
+    },
+    "windows": {
+      "job": 127058448508,
+      "evidence": {
+        "base_green": 22368,
+        "unloaded_green": 0,
+        "shadow_pixels": 2813,
+        "noncasting_shadow_pixels": 0,
+        "result": "passed",
+        "wind_hashes": [
+          "0874f6be1ad03cb1e5e9b8282f04ba17004acb934e000ed8119cd04ffa2320f1",
+          "9a5bdc0923e331e1779d9cc2f8fa7782bfd1b892ab9c17b8beec27a28e4b6ff1",
+          "620fc6cd377400d9e37b7d222a94209e5c36e34e65619327e397114431e1d834"
+        ],
+        "default_pbr_mean_difference": 0.0,
+        "binary_sha256": "cbb3b63a9ae5f84306d4e7b46738e4e67005281c78a80f68744800b3438f8428",
+        "packages": {
+          "DefaultSurface.shaderpack": "9edf345a7c78953fa98e6e9d6e88777b4d271a453ae96804f2fdc10b2e26335b",
+          "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+        }
+      }
+    }
+  }
+}

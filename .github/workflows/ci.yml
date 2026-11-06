@@ -43,20 +43,65 @@ jobs:
       - name: Build the sokol Metal archives
         run: sh scripts/macos/build-sokol.sh
 
+      - name: Validate the shader contract on Metal
+        run: |
+          python3 scripts/shader_contract/install.py
+          python3 scripts/shader_contract/contract.py --shdc build/shader-tools/sokol-shdc --check --run
+          python3 scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc
+          ROCCO_SHDC=build/shader-tools/sokol-shdc python3 -m unittest scripts/test_shader_assets.py
+
+      - name: Keep the Metal shader proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-contract-metal
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
+          if-no-files-found: warn
+
       - name: Build the miniaudio archive
         run: sh scripts/macos/build-miniaudio.sh
 
       - name: Build
+        env:
+          ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc
         run: roc scripts/build.roc all --release
+
+      # Capture the ordinary release host before benchmarks enable Spans.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-target-arm64mac
+          path: |
+            platform/targets/arm64mac/
+            !platform/targets/arm64mac/*.pdb
+          if-no-files-found: error
+
+      - name: Probe full-density village canopy on Metal
+        continue-on-error: true
+        run: ROCCO_RENDER_DIAGNOSTICS=1 python3 examples/village/fixtures/scene_effects.py build/bridge-check/village-canopy --hosted-compat --canopy-only
 
       - name: Check for changes to committed files
         run: git diff --exit-code
 
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
+        run: |
+          python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
+          python3 scripts/cluster_check.py build/bridge-check/clustered.png
+          python3 scripts/environment_check.py build/bridge-check/environment/reference.png
+          python3 scripts/shadow_check.py build/bridge-check/shadows
+          python3 scripts/particle_check.py build/bridge-check/particles
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
+          python3 scripts/surface_check.py build/bridge-check/surface
+          python3 scripts/indirect_surface_check.py build/bridge-check/indirect-surface
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
+          python3 scripts/post_check.py build/bridge-check/post
+          python3 scripts/shader_reload_check.py build/bridge-check/reload
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
+          python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -80,17 +125,9 @@ jobs:
       - name: Test the bench games
         run: sh bench/check.sh
 
-      # A smoke test only: CI runners make no timing claims. It builds a
-      # release host with Spans, so it runs last.
-      - name: Run the bench games once Headless
-        run: |
-          for game in model-size model-size-tuned empty-step model-size-twin colliders colliders-twin draws mixed ui lights; do
-            roc scripts/build.roc bench "$game" 64
-          done
-
   linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
@@ -109,7 +146,16 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build, run and test in the Linux image
-        run: docker run --rm -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
+        run: docker run --rm -e ROCCO_SHDC=/work/build/shader-tools/sokol-shdc -v "$PWD":/work rocco-linux sh scripts/linux/in-container.sh --release
+
+      # Capture the ordinary release host before benchmarks enable Spans.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-target-x64glibc
+          path: |
+            platform/targets/x64glibc/
+            !platform/targets/x64glibc/*.pdb
+          if-no-files-found: error
 
       # in-container.sh saves the Bridge check screenshots in build/bridge-check.
       - name: Keep the Bridge check screenshots
@@ -123,12 +169,22 @@ jobs:
       - name: Check for changes to committed files
         run: git diff --exit-code
 
+      - name: Keep the GL shader proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-contract-gl
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
+          if-no-files-found: warn
+
       - name: Audit the Linux stubs
         run: python3 scripts/make_linux_stubs.py --audit
 
   windows:
     runs-on: windows-2022
-    timeout-minutes: 60
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -174,18 +230,72 @@ jobs:
           call scripts\windows\build_sokol.cmd || exit /b 1
           call scripts\windows\build_miniaudio.cmd || exit /b 1
 
+      - name: Validate D3D11 GPU timestamp ownership and native queries
+        run: |
+          odin test engine -debug -vet -strict-style -define:ROCCO_D3D_GPU_TIMING=true
+          python scripts/gpu_timing_check.py
+
+      - name: Keep the D3D11 GPU timestamp proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-timing-d3d11
+          path: build/gpu-timing-check/
+          if-no-files-found: warn
+
+      - name: Validate the shader contract on D3D11
+        run: |
+          python scripts/shader_contract/install.py
+          python scripts/shader_contract/contract.py --shdc build/shader-tools/sokol-shdc.exe --check --run
+          python scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc.exe
+          ROCCO_SHDC=build/shader-tools/sokol-shdc.exe python -m unittest scripts/test_shader_assets.py scripts/test_shader_reload.py
+
+      - name: Keep the D3D11 shader proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-contract-d3d11
+          path: |
+            build/shader-contract/
+            build/shader-assets-native/
+          if-no-files-found: warn
+
       - name: Build
+        env:
+          ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc.exe
         run: roc scripts/build.roc all --release
+
+      # Capture the ordinary release host before benchmarks enable Spans.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-target-x64win
+          path: |
+            platform/targets/x64win/
+            !platform/targets/x64win/*.pdb
+          if-no-files-found: error
 
       - name: Check for changes to committed files
         run: git diff --exit-code
 
       # D3D11 falls back to the Basic Render Driver (WARP), so keep the run short.
       - name: Run the games
-        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
+        run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: python scripts/bridge_check.py build/bridge-check/bridge-check.png
+        run: |
+          python scripts/bridge_check.py build/bridge-check/bridge-check.png
+          python scripts/cluster_check.py build/bridge-check/clustered.png
+          python scripts/environment_check.py build/bridge-check/environment/reference.png
+          python scripts/shadow_check.py build/bridge-check/shadows
+          python scripts/particle_check.py build/bridge-check/particles
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game surface
+          python scripts/surface_check.py build/bridge-check/surface
+          python scripts/indirect_surface_check.py build/bridge-check/indirect-surface
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game post
+          python scripts/post_check.py build/bridge-check/post
+          python scripts/shader_reload_check.py build/bridge-check/reload
+          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game village
+          python examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat --canopy-only
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -204,10 +314,49 @@ jobs:
       - name: Test the bench games
         run: sh bench/check.sh
 
-      # A smoke test only: CI runners make no timing claims. It builds a
-      # release host with Spans, so it runs last.
-      - name: Run the bench games once Headless
-        run: roc scripts/build.roc bench model-size,model-size-twin 64
+      - name: Check bounded capture source tests
+        run: |
+          python -m unittest scripts/test_village_capture.py
+          odin test engine -debug -vet -strict-style -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=test_capture_requires_explicit_bounded_real_clock_options,test_capture_without_a_path_allocates_nothing,test_capture_copies_commands_before_builder_reuse_and_bounds_storage,test_capture_builder_detects_failed_growth_without_allocating,test_capture_records_zero_multiple_steps_and_skips_after_the_frame_limit,test_capture_frame_overflow_preserves_existing_rows,test_capture_counts_source_field_and_supplement_ranges_separately
+
+      - name: Build the self-contained village capture package
+        run: python scripts/package_village_capture.py build/village-pc
+
+      - name: Check native CPU and GPU capture operation with the packaged tools
+        shell: pwsh
+        run: |
+          & build/village-pc/Capture-Village.ps1 -Mode cpu -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
+          & build/village-pc/Capture-Village.ps1 -Mode gpu -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
+
+      # The hosted WARP runner can finish the tour without a PresentMon CSV.
+      # Keep its pacing failure and files, but use a physical GPU for pacing acceptance.
+      - name: Probe hosted PresentMon pacing
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & build/village-pc/Capture-Village.ps1 -Mode pacing -Runs 1 -Operation -Output "$PWD/build/village-capture-operation"
+
+      - name: Check native benchmark capture operation with the packaged tools
+        shell: pwsh
+        run: |
+          & build/village-pc/Capture-BenchSweeps.ps1 -Operation -Output "$PWD/build/village-bench-operation"
+
+      - name: Keep capture operation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: village-capture-operation-windows
+          path: |
+            build/village-capture-operation/
+            build/village-bench-operation/
+          if-no-files-found: warn
+
+      - name: Keep the verified Windows capture package
+        uses: actions/upload-artifact@v4
+        with:
+          name: village-capture-windows
+          path: build/village-pc/
+          if-no-files-found: error
 
   generated:
     runs-on: ubuntu-24.04
@@ -220,9 +369,164 @@ jobs:
           version: 0.16.0
 
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_ci_wait.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_candidate_sdk.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_ci_wait.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py scripts/test_gpu_timing_summary.py scripts/test_village_capture.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
 
       - name: Regenerate the Linux stubs
         run: |
           python3 scripts/make_linux_stubs.py
           git diff --exit-code
+
+  candidate-sdk:
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      roc_nightly: ${{ steps.pins.outputs.roc_nightly }}
+      artifact_url: ${{ steps.artifact.outputs.artifact-url }}
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
+      artifact_sha256: ${{ steps.artifact.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read the Roc pin
+        id: pins
+        run: |
+          nightly=$(sed -n 's/^ARG ROC_NIGHTLY=//p' scripts/linux/Dockerfile)
+          echo "ROC_NIGHTLY=$nightly" >> "$GITHUB_ENV"
+          echo "roc_nightly=$nightly" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Roc for packaging
+        run: |
+          mkdir -p "$RUNNER_TEMP/roc"
+          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-linux_x86_64-${ROC_NIGHTLY}.tar.gz" \
+            | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: candidate-target-arm64mac
+          path: platform/targets/arm64mac
+      - uses: actions/download-artifact@v5
+        with:
+          name: candidate-target-x64glibc
+          path: platform/targets/x64glibc
+      - uses: actions/download-artifact@v5
+        with:
+          name: candidate-target-x64win
+          path: platform/targets/x64win
+
+      - name: Bundle the draft-PR candidate and external fixture
+        run: python3 scripts/candidate_sdk.py "$RUNNER_TEMP/candidate-sdk"
+
+      - uses: actions/upload-artifact@v4
+        id: artifact
+        with:
+          name: candidate-sdk
+          path: ${{ runner.temp }}/candidate-sdk/
+          if-no-files-found: error
+          retention-days: 14
+
+  external-authoring:
+    needs: candidate-sdk
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            roc: roc_nightly-macos_apple_silicon
+            backend: metal
+          - os: ubuntu-24.04
+            roc: roc_nightly-linux_x86_64
+            backend: gl
+          - os: windows-2022
+            roc: roc_nightly-windows_x86_64
+            backend: d3d11
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      ROC_NIGHTLY: ${{ needs.candidate-sdk.outputs.roc_nightly }}
+      CANDIDATE_ARTIFACT_URL: ${{ needs.candidate-sdk.outputs.artifact_url }}
+      CANDIDATE_ARTIFACT_ID: ${{ needs.candidate-sdk.outputs.artifact_id }}
+      CANDIDATE_ARTIFACT_SHA256: ${{ needs.candidate-sdk.outputs.artifact_sha256 }}
+      CANDIDATE_COMMIT: ${{ github.sha }}
+    # These fresh jobs consume only Roc and the candidate artifact. Do not add checkout or Odin.
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Roc and retain its download provenance
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p "$RUNNER_TEMP/roc"
+          url="https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/${{ matrix.roc }}-${ROC_NIGHTLY}.tar.gz"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/roc.tar.gz"
+          tar xzf "$RUNNER_TEMP/roc.tar.gz" -C "$RUNNER_TEMP/roc" --strip-components=1
+          echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
+          echo "ROC_ARCHIVE_URL=$url" >> "$GITHUB_ENV"
+          echo "ROC_ARCHIVE_PATH=$RUNNER_TEMP/roc.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Install pinned Roc and retain its download provenance
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $roc = "$env:RUNNER_TEMP\roc"
+          $url = "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/${{ matrix.roc }}-$env:ROC_NIGHTLY.zip"
+          $archive = "$env:RUNNER_TEMP\roc.zip"
+          Invoke-WebRequest $url -OutFile $archive
+          Expand-Archive $archive -DestinationPath $roc
+          "$roc\${{ matrix.roc }}-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+          "ROC_ARCHIVE_URL=$url" >> $env:GITHUB_ENV
+          "ROC_ARCHIVE_PATH=$archive" >> $env:GITHUB_ENV
+
+      - name: Install Xvfb and Mesa
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb libgl1 libgl1-mesa-dri libx11-6 libxi6 libxcursor1
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: candidate-sdk
+          path: ${{ runner.temp }}/sdk-download
+
+      - name: Verify the candidate before extracting the self-contained fixture
+        working-directory: ${{ runner.temp }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import shutil
+          import tarfile
+          assert shutil.which('odin') is None, 'Odin must be absent from this fresh job'
+          sdk = Path(os.environ['RUNNER_TEMP']) / 'sdk-download'
+          for line in (sdk / 'SHA256SUMS').read_text().splitlines():
+              digest, name = line.split('  ', 1)
+              assert Path(name).name == name
+              assert hashlib.sha256((sdk / name).read_bytes()).hexdigest() == digest, name
+          external = Path(os.environ['RUNNER_TEMP']) / 'external-game'
+          external.mkdir()
+          with tarfile.open(sdk / 'authoring-fixture.tar.gz') as archive:
+              archive.extractall(external, filter='data')
+          assert not any(external.rglob('.git'))
+          assert not any(external.rglob('*.odin'))
+          PY
+
+      - name: Build and run the external game from the published candidate
+        working-directory: ${{ runner.temp }}/external-game
+        run: |
+          unset LIB
+          run=""
+          if [ "$RUNNER_OS" = Linux ]; then run="timeout 900 xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1"; fi
+          $run python authoring/proof.py --sdk "$RUNNER_TEMP/sdk-download" --out "$RUNNER_TEMP/authoring-evidence"
+
+      - name: Keep candidate provenance, commands, screenshots, and native results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-authoring-${{ matrix.backend }}
+          path: ${{ runner.temp }}/authoring-evidence/
+          if-no-files-found: error
+          retention-days: 14

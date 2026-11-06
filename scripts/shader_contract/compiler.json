@@ -1,0 +1,11 @@
+{
+  "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+  "repository": "https://github.com/floooh/sokol-tools-bin",
+  "sha256": {
+    "linux": "ed35e89ef381d521a499096ed4ada85e4d135d8011e151cca6b7d893c43b21df",
+    "linux_arm64": "446b4bcea0c81d3ae529bc0d93533ea661b017f5b9ec2b2293a4c85f5fdcb639",
+    "osx": "8b4a6ac1172ec0d90dd41d611067d5e87a51e78dc28acb216cfc341d880b1d78",
+    "osx_arm64": "92db37975ad7ff3c3c9bc27cba1503287377cb287ebabf60d1c6b597abfa3244",
+    "win32": "bd616287f9ea689d53c6d260e443ee733e61ae1b73a9b37adc482ead0364d561"
+  }
+}

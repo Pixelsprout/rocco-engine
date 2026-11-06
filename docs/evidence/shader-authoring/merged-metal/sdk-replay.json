@@ -1,0 +1,768 @@
+{
+  "result": "passed",
+  "host": "darwin",
+  "backend": "Metal",
+  "system": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "mode": "local SDK replay",
+  "published_artifact_gate": "not exercised",
+  "game": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+  "engine_checkout": false,
+  "odin": null,
+  "python": {
+    "version": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 21.0.0 (clang-2100.3.34.2)]",
+    "executable": "/opt/homebrew/opt/python@3.15/bin/python3.15"
+  },
+  "LIB": null,
+  "candidate": {
+    "kind": "local SDK replay; unpublished",
+    "commit": "de85cd807690de934358af720e3f4a10e851f3e1",
+    "repository": null,
+    "run_id": null,
+    "run_url": null,
+    "roc_nightly": "2026-10-11-7d256b9",
+    "bundles": {
+      "platform": "platform-8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst",
+      "linalg": "linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst",
+      "mesh": "mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst",
+      "ui": "ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst",
+      "camera": "camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst"
+    },
+    "targets": "ordinary release Mac host; local replay does not validate other targets",
+    "fixture": "authoring-fixture.tar.gz"
+  },
+  "archive_sha256": {
+    "authoring-fixture.tar.gz": "75b69468d8dd199791e8615718c5950ab07009d6855e022272a428d35be1235a",
+    "camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst": "fc1c6e15882bbc13bd36031346d22eb268fa8717550238b5bf214c9daf79ea2b",
+    "candidate.json": "7d8fa53fc65ab7a663436ae9e8bb5c4536e83fef22fcc35f4b83d0571c600477",
+    "linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst": "f340186c0bf036126f352b2491127f2b867b7442c6f25ca4d56e6c9555d886b9",
+    "mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst": "a12f70d7fd219b10d262228f2beb7ab021c1e9a1865067a5e34663cdf8d9f04d",
+    "platform-8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst": "75f3030e56c22075ee5ac43fde9b01083f2b028619fe5f7e29e8f2b79ed6733d",
+    "ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst": "8d3718699cc47c25c00b74b77cfbac2e797cae360b203d08adb8aecfcfb9aaec"
+  },
+  "artifact_url": null,
+  "artifact_id": null,
+  "artifact_sha256": null,
+  "sha256sums_sha256": "fa6afeef20ea79f985f5ae0a67377836a37b791a4f95025939183b0c6f722121",
+  "published_source_verified": false,
+  "roc": {
+    "version": "Roc compiler version nightly-2026-10-11-7d256b9",
+    "executable": "/Users/braedenfoster/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9/roc",
+    "executable_sha256": "8462dd554780982fa535d9442445773dc9865726dc90f74caa6c2a864617bc67",
+    "archive_url": null,
+    "archive_sha256": null
+  },
+  "shader_compiler": {
+    "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+    "executable": "/Users/braedenfoster/.cache/rocco/shader-tools/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/sokol-shdc",
+    "sha256": "92db37975ad7ff3c3c9bc27cba1503287377cb287ebabf60d1c6b597abfa3244",
+    "url": "https://raw.githubusercontent.com/floooh/sokol-tools-bin/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/bin/osx_arm64/sokol-shdc"
+  },
+  "build": {
+    "assets": [
+      {
+        "asset": "shader/Foliage",
+        "budgets": {
+          "instanced_colour": {
+            "attributes": 13,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 1536,
+            "vertex_components": 128
+          },
+          "instanced_selection": {
+            "attributes": 13,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "instanced_shadow": {
+            "attributes": 13,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "skinned_colour": {
+            "attributes": 7,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 5632,
+            "vertex_components": 1152
+          },
+          "skinned_selection": {
+            "attributes": 7,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 5120,
+            "vertex_components": 1152
+          },
+          "skinned_shadow": {
+            "attributes": 7,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 5120,
+            "vertex_components": 1152
+          },
+          "surface_colour": {
+            "attributes": 5,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 1536,
+            "vertex_components": 128
+          },
+          "surface_selection": {
+            "attributes": 5,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "surface_shadow": {
+            "attributes": 5,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          }
+        },
+        "file": "Foliage.shaderpack",
+        "fingerprint": "bfc9766299f9d04c8891d70d2b0d3ddab48aaba44b585b5d6e5cb6e90f8b272b",
+        "kind": "surface",
+        "sha256": "a773b651540f92bc7b13130fb4eb9d3d35d0c6cd12919700a375a98addae2264"
+      },
+      {
+        "asset": "shader/Selection",
+        "budgets": {
+          "post_ldr": {
+            "attributes": 0,
+            "fragment_components": 32,
+            "pairs": 3,
+            "samplers": 3,
+            "storage_buffers": 0,
+            "texture_views": 3,
+            "uniform_bytes": 256,
+            "vertex_components": 0
+          }
+        },
+        "file": "Selection.shaderpack",
+        "fingerprint": "1515188c85acd13607d527733e882a3a9899cecb0796b232cb250eb601dc1526",
+        "kind": "post",
+        "sha256": "9cde073dd7b7dc60347d36b3b2ac9a3d911b9c60a4b8fde2f4bd90c09a619a3b"
+      },
+      {
+        "asset": "shader/Outline",
+        "budgets": {
+          "post_hdr": {
+            "attributes": 0,
+            "fragment_components": 96,
+            "pairs": 4,
+            "samplers": 4,
+            "storage_buffers": 0,
+            "texture_views": 4,
+            "uniform_bytes": 512,
+            "vertex_components": 0
+          }
+        },
+        "file": "Outline.shaderpack",
+        "fingerprint": "ecedb4398a6b6cab235a204022cbaa988d8b6b038350d0d86755f9e19c504eac",
+        "kind": "post",
+        "sha256": "c25378822b5b71442e6569ce003e6745f442d1cb0b368fdd9aa484f0b55ecbf2"
+      }
+    ],
+    "compiler_commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+    "contract": 1,
+    "meshes": [
+      {
+        "asset": "tree",
+        "materials": [
+          {
+            "identifier": "bark",
+            "name": "Bark",
+            "source_material": 0
+          },
+          {
+            "identifier": "leaves",
+            "name": "Leaves",
+            "source_material": 1
+          }
+        ],
+        "module": "Tree"
+      }
+    ],
+    "revision": "1d7b441d400af43c1ebea64142bb475d16c27295fdd7b4a38450c2d683f35794"
+  },
+  "binary_sha256": "31f6c26bbf6866418afdc274e064d711194a1ab20b956a3e29e482264d3228d6",
+  "wind_hashes": {
+    "colour_and_shadow": [
+      "d259fa78a7a0c967538b510afbfb2b49dfd009071b0d7ded3c9ea4e80fc0cafc",
+      "653980036f500634071d422e0ff87c78e893a61dde3ab06ac8886f5ea7ad96c0",
+      "34db752d1e26bad7f58f6b8c991cd15f0680262b939c5fecac2add9a3e2603e1"
+    ],
+    "shadow_masks": [
+      "89481feb0deb68c9b78b5c509b684cd7a71d527adf7cefd73762c42f34236faf",
+      "94ce10ab4c90507b0ec121b862a3cd5925057bfe917ad6f8839e107ee618293b",
+      "2456ac2cd317b280c8ab00136e6bf7493dae4598aca8527cd9fa373fc7f75546"
+    ],
+    "selection": [
+      "e91337ca9ffe0e43924937f9c46d50894ca2a2864d6530bfe69e7234ae346a2e",
+      "914516187bd98571f351fcf881a122fa266c2e979c3fb108efd8d6a49ae03583"
+    ]
+  },
+  "materials": {
+    "cutout_shadow_pixels": 10991,
+    "solid_shadow_pixels": 16559
+  },
+  "selection": {
+    "hidden_pixels": 6702,
+    "coverage_sha256": "9b1ece577309df893e3685346bf1aa87c6eaa528e9adc102ba60d933a9c89f4f",
+    "selected_depth_sha256": "0b627de82ceaa542658bdeb26ee7f994fac2d369642f7ff80631a0f4f14c25fc"
+  },
+  "checks": [
+    "SDK checksum filename stays within artifact",
+    "candidate checksum authoring-fixture.tar.gz",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum candidate.json",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum platform-8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst",
+    "SDK checksum filename stays within artifact",
+    "candidate checksum ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst",
+    "candidate commit matches CI builder commit",
+    "Odin is absent from PATH before the external build",
+    "external game has no engine checkout",
+    "self-contained fixture has no Odin source",
+    "every SDK archive has a verified checksum",
+    "platform archive has the release filename form",
+    "platform unbundles in the explicit clean working directory",
+    "linalg archive has the release filename form",
+    "linalg unbundles in the explicit clean working directory",
+    "mesh archive has the release filename form",
+    "mesh unbundles in the explicit clean working directory",
+    "ui archive has the release filename form",
+    "ui unbundles in the explicit clean working directory",
+    "camera archive has the release filename form",
+    "camera unbundles in the explicit clean working directory",
+    "extracted SDK has no Odin source",
+    "extracted SDK has no engine checkout",
+    "candidate wind converts world displacement and enforces its local bound",
+    "installed shader compiler matches SDK checksum pin",
+    "SDK generates typed Bark and Leaves slot helpers",
+    "wind-a-1 physical dimensions",
+    "wind-a-60 physical dimensions",
+    "wind-a-120 physical dimensions",
+    "simulation steps change wind and shadow pose a",
+    "wind-a exits after Bridge quit",
+    "wind-a native graphics validation",
+    "wind-a assets and programs load",
+    "wind-b-1 physical dimensions",
+    "wind-b-60 physical dimensions",
+    "wind-b-120 physical dimensions",
+    "simulation steps change wind and shadow pose b",
+    "wind-b exits after Bridge quit",
+    "wind-b native graphics validation",
+    "wind-b assets and programs load",
+    "equal Bridge steps reproduce wind and shadows",
+    "wind-noncasting-1 physical dimensions",
+    "wind-noncasting-60 physical dimensions",
+    "wind-noncasting-120 physical dimensions",
+    "wind-noncasting exits after Bridge quit",
+    "wind-noncasting native graphics validation",
+    "wind-noncasting assets and programs load",
+    "each wind pose casts a foliage shadow",
+    "shadow coverage follows simulation wind steps",
+    "wind-selection-a-1 physical dimensions",
+    "wind-selection-a-60 physical dimensions",
+    "Selection coverage follows game wind a",
+    "wind-selection-a exits after Bridge quit",
+    "wind-selection-a native graphics validation",
+    "wind-selection-a assets and programs load",
+    "wind-selection-b-1 physical dimensions",
+    "wind-selection-b-60 physical dimensions",
+    "Selection coverage follows game wind b",
+    "wind-selection-b exits after Bridge quit",
+    "wind-selection-b native graphics validation",
+    "wind-selection-b assets and programs load",
+    "equal Bridge steps reproduce selected wind coverage",
+    "material-inherited physical dimensions",
+    "one selected Group contains the tree and marker Draws",
+    "two-slot tree Mesh loads",
+    "leaf helper preserves imported green material",
+    "material-red physical dimensions",
+    "typed leaf parameter changes named Leaves slot",
+    "Bark slot keeps its imported material",
+    "material-restored physical dimensions",
+    "equal material values restore the frame",
+    "material-noncasting physical dimensions",
+    "non-casting foliage keeps colour coverage",
+    "per-Draw casting removes the foliage shadow",
+    "pack-unloaded physical dimensions",
+    "Shader Pack unload omits the leaf part",
+    "Shader Pack unload preserves the separate Mesh Pack and Bark slot",
+    "pack-restored physical dimensions",
+    "Shader Pack reload restores the frame",
+    "materials exits after Bridge quit",
+    "materials native graphics validation",
+    "material-solid physical dimensions",
+    "material-solid exits after Bridge quit",
+    "material-solid native graphics validation",
+    "material-solid assets and programs load",
+    "imported alpha texture supplies colour and shadow holes",
+    "material-solid-noncasting physical dimensions",
+    "material-solid-noncasting exits after Bridge quit",
+    "material-solid-noncasting native graphics validation",
+    "material-solid-noncasting assets and programs load",
+    "solid foliage shadow covers imported cutout holes",
+    "selection-inputs physical dimensions",
+    "selection-inputs exits after Bridge quit",
+    "selection-inputs native graphics validation",
+    "selection-inputs assets and programs load",
+    "selection-no-wall physical dimensions",
+    "selection-no-wall exits after Bridge quit",
+    "selection-no-wall native graphics validation",
+    "selection-no-wall assets and programs load",
+    "occluder preserves identical selected coverage and nearest selected depth",
+    "selected Group supplies hidden coverage and depth behind the wall",
+    "selection-solid physical dimensions",
+    "selection-solid exits after Bridge quit",
+    "selection-solid native graphics validation",
+    "selection-solid assets and programs load",
+    "Selection preserves imported alpha texture holes",
+    "selection-none physical dimensions",
+    "selection-none exits after Bridge quit",
+    "selection-none native graphics validation",
+    "selection-none assets and programs load",
+    "deselected Group clears Selection inputs",
+    "outline-visible physical dimensions",
+    "outline-through physical dimensions",
+    "outline policies use the same selected Group and scene",
+    "game Post shader chooses visible-only and through-wall outlines",
+    "outline-visible-restored physical dimensions",
+    "outline policy toggle restores the frame",
+    "outline-policies exits after Bridge quit",
+    "outline-policies native graphics validation",
+    "outline-policies assets and programs load",
+    "first-load-empty physical dimensions",
+    "first-load-empty exits after Bridge quit",
+    "first-load-empty native graphics validation",
+    "first-load-invalid physical dimensions",
+    "invalid first Surface omits affected foliage",
+    "invalid first Post skips the effect and preserves scene colour",
+    "invalid first packages report contract failure",
+    "invalid first shaders never select a fallback material",
+    "first-load-recovered physical dimensions",
+    "retained Pack requests recover invalid first packages",
+    "first-load-failure exits after Bridge quit",
+    "first-load-failure native graphics validation",
+    "reload-initial physical dimensions",
+    "reload-surface physical dimensions",
+    "compatible Surface edit reloads without restarting",
+    "ordinary asset build rejects invalid shader source",
+    "invalid shader source preserves all published output files",
+    "reload-source-failed physical dimensions",
+    "failed source reload keeps the valid frame",
+    "reload-source-recovered physical dimensions",
+    "source correction restores the frame without restart",
+    "reload-post physical dimensions",
+    "compatible game Post edit reloads live",
+    "reload-post-recovered physical dimensions",
+    "Post source correction restores the frame",
+    "reload-package-failed physical dimensions",
+    "invalid asset contract keeps the valid rendered generation",
+    "reload-package-recovered physical dimensions",
+    "valid package correction recovers without restart",
+    "interface edit produces a distinct package",
+    "reload-interface-rejected physical dimensions",
+    "interface change retains the old frame before restart",
+    "reload exits after Bridge quit",
+    "reload native graphics validation",
+    "interface-restarted physical dimensions",
+    "rebuilt game accepts the changed interface after restart",
+    "restarted game defines a new interface baseline",
+    "interface-restarted exits after Bridge quit",
+    "interface-restarted native graphics validation",
+    "interface-restarted assets and programs load",
+    "Odin remains absent after compilation and native proof"
+  ],
+  "commands": [
+    {
+      "operation": "copy verified archive for roc unbundle",
+      "source": "/private/tmp/rocco-external-merged-final/sdk/platform-8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst",
+      "destination": "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst",
+      "sha256": "75f3030e56c22075ee5ac43fde9b01083f2b028619fe5f7e29e8f2b79ed6733d"
+    },
+    {
+      "command": [
+        "roc",
+        "unbundle",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL.tar.zst"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/evidence/external-sdk"
+    },
+    {
+      "operation": "copy verified archive for roc unbundle",
+      "source": "/private/tmp/rocco-external-merged-final/sdk/linalg-4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst",
+      "destination": "/private/tmp/rocco-external-merged-final/evidence/external-sdk/4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst",
+      "sha256": "f340186c0bf036126f352b2491127f2b867b7442c6f25ca4d56e6c9555d886b9"
+    },
+    {
+      "command": [
+        "roc",
+        "unbundle",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/4N62Pw77Sky6ba8RiBfvULjHuAQeQiqHbUor7qSeor7F.tar.zst"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/evidence/external-sdk"
+    },
+    {
+      "operation": "copy verified archive for roc unbundle",
+      "source": "/private/tmp/rocco-external-merged-final/sdk/mesh-CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst",
+      "destination": "/private/tmp/rocco-external-merged-final/evidence/external-sdk/CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst",
+      "sha256": "a12f70d7fd219b10d262228f2beb7ab021c1e9a1865067a5e34663cdf8d9f04d"
+    },
+    {
+      "command": [
+        "roc",
+        "unbundle",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/CdWwEzqqVE9DthN144ub9ri6e33gPWv19K5FvNbpX5Na.tar.zst"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/evidence/external-sdk"
+    },
+    {
+      "operation": "copy verified archive for roc unbundle",
+      "source": "/private/tmp/rocco-external-merged-final/sdk/ui-6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst",
+      "destination": "/private/tmp/rocco-external-merged-final/evidence/external-sdk/6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst",
+      "sha256": "8d3718699cc47c25c00b74b77cfbac2e797cae360b203d08adb8aecfcfb9aaec"
+    },
+    {
+      "command": [
+        "roc",
+        "unbundle",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/6TR19D16FSiRaVJ1A2tVsutNw2Ja4UJiHm2MCL5rheHF.tar.zst"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/evidence/external-sdk"
+    },
+    {
+      "operation": "copy verified archive for roc unbundle",
+      "source": "/private/tmp/rocco-external-merged-final/sdk/camera-5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst",
+      "destination": "/private/tmp/rocco-external-merged-final/evidence/external-sdk/5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst",
+      "sha256": "fc1c6e15882bbc13bd36031346d22eb268fa8717550238b5bf214c9daf79ea2b"
+    },
+    {
+      "command": [
+        "roc",
+        "unbundle",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/5QBbZpo1tidPXJ9PEMUCazZCeKoKdmeDwQ2Qhtz22TsR.tar.zst"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/evidence/external-sdk"
+    },
+    {
+      "command": [
+        "roc",
+        "version"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "roc",
+        "build",
+        "--target=arm64mac",
+        "--output=authoring.bin",
+        "main.roc"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54621"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54631"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder",
+        "--no-shadow"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54634"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54637"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54642"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54646"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder",
+        "--solid"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54649"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder",
+        "--solid",
+        "--no-shadow"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54653"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54656"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54659"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--solid"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54662"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--no-selection"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54665"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54668"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--no-wind",
+        "--empty"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54672"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54675"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54678"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install",
+        "--watch"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "roc",
+        "build",
+        "--target=arm64mac",
+        "--output=authoring.bin",
+        "main.roc"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-merged-final/external-game/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "54682"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-merged-final/evidence/external-sdk/8u5W9kNTTJzRBViPR1QYS7s8YvjnFGFKRLTACuTEL9UL/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-merged-final/external-game/authoring"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -19,12 +20,17 @@ SKY_FACES :: [6]string{"px", "nx", "py", "ny", "pz", "nz"}
 // The pixels are scratch until the upload: six square faces of side texels,
 // RGBA8 sRGB, in SKY_FACES order.
 Sky :: struct {
-	name:       string,
-	side:       int,
-	pixels:     []byte,
-	live:       bool,
-	texture:    Mesh_Texture,
-	generation: u16,
+	name:             string,
+	side:             int,
+	pixels:           []byte,
+	live:             bool,
+	texture:          Mesh_Texture,
+	linear_texture: Mesh_Texture,
+	diffuse:          Mesh_Texture,
+	specular:         Mesh_Texture,
+	lighting:         Sky_Lighting,
+	specular_max_lod: f32,
+	generation:       u16,
 }
 
 // Slot 0 is no sky and is never filled. After sky_table_upload, a new sky
@@ -59,6 +65,7 @@ sky_table_destroy :: proc(t: ^Sky_Table) {
 		if sky.live {
 			delete(sky.name, t.allocator)
 			delete(sky.pixels, t.allocator)
+			sky_lighting_delete(sky.lighting, t.allocator)
 		}
 	}
 	delete(t.logged)
@@ -107,6 +114,10 @@ sky_table_add :: proc(t: ^Sky_Table, name: string, side: int, pixels: []byte) ->
 		t.count += 1
 	}
 	t.skies[slot] = {name = name, side = side, pixels = pixels, live = true, generation = t.skies[slot].generation}
+	if len(pixels) > 0 {
+		t.skies[slot].lighting = sky_lighting_build(side, pixels, t.allocator)
+		t.skies[slot].specular_max_lod = f32(len(t.skies[slot].lighting.specular.levels) - 1)
+	}
 	if t.uploaded {
 		sky_upload(t, &t.skies[slot])
 	}
@@ -117,11 +128,14 @@ sky_table_add :: proc(t: ^Sky_Table, name: string, side: int, pixels: []byte) ->
 sky_table_remove :: proc(t: ^Sky_Table, slot: int) {
 	fmt.assertf(slot >= 1 && slot < t.count && t.skies[slot].live, "sky slot %v holds no sky", slot)
 	sky := &t.skies[slot]
-	if sky.texture.image.id != 0 {
-		sg.destroy_view(sky.texture.view)
-		sg.destroy_image(sky.texture.image)
-		sg.destroy_sampler(sky.texture.sampler)
+	for tex in ([4]Mesh_Texture{sky.texture, sky.linear_texture, sky.diffuse, sky.specular}) {
+		if tex.image.id != 0 {
+			sg.destroy_view(tex.view)
+			sg.destroy_image(tex.image)
+			sg.destroy_sampler(tex.sampler)
+		}
 	}
+	sky_lighting_delete(sky.lighting, t.allocator)
 	delete(sky.name, t.allocator)
 	delete(sky.pixels, t.allocator)
 	sky^ = {generation = sky.generation + 1}
@@ -185,9 +199,13 @@ sky_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
 // Loads the six faces of dir/<name without sky/> into the next free slot.
 // On failure the table does not change and reason says why.
 sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: string, ok: bool) {
+	caller_temp := context.temp_allocator
 	if sky_table_full(t) {
 		return 0, sky_table_full_reason(t), false
 	}
+	scratch: vmem.Arena
+	defer vmem.arena_destroy(&scratch)
+	context.temp_allocator = vmem.arena_allocator(&scratch)
 	stem := strings.trim_prefix(name, SKY_PREFIX)
 	side := 0
 	faces: [len(SKY_FACES)][]byte
@@ -195,17 +213,17 @@ sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: stri
 		path := fmt.tprintf("%v/%v/%v.png", dir, stem, face)
 		bytes, read_err := os.read_entire_file(path, context.temp_allocator)
 		if read_err != nil {
-			return 0, fmt.tprintf("%v: %v", path, os.error_string(read_err)), false
+			return 0, strings.clone(fmt.tprintf("%v: %v", path, os.error_string(read_err)), caller_temp), false
 		}
 		width, height, rgba, decoded := png_decode(bytes)
 		if !decoded {
-			return 0, fmt.tprintf("%v is not a PNG it can read", path), false
+			return 0, strings.clone(fmt.tprintf("%v is not a PNG it can read", path), caller_temp), false
 		}
 		if width != height {
-			return 0, fmt.tprintf("%v is %v x %v, not square", path, width, height), false
+			return 0, strings.clone(fmt.tprintf("%v is %v x %v, not square", path, width, height), caller_temp), false
 		}
 		if i > 0 && width != side {
-			return 0, fmt.tprintf("%v is %v texels wide, but %v.png is %v", path, width, SKY_FACES[0], side), false
+			return 0, strings.clone(fmt.tprintf("%v is %v texels wide, but %v.png is %v", path, width, SKY_FACES[0], side), caller_temp), false
 		}
 		side = width
 		faces[i] = rgba
@@ -220,7 +238,7 @@ sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: stri
 	return sky_id(t, slot), "", true
 }
 
-// The pixels are scratch once the GPU has them. A sky has no mipmaps.
+// The background keeps source resolution. Lighting uses separate filtered cubes.
 @(private = "file")
 sky_upload :: proc(t: ^Sky_Table, sky: ^Sky) {
 	image := sg.make_image(
@@ -240,6 +258,11 @@ sky_upload :: proc(t: ^Sky_Table, sky: ^Sky) {
 		view    = sg.make_view({texture = {image = image}}),
 		sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, wrap_w = .CLAMP_TO_EDGE, label = "sky"}),
 	}
+ linear_image := sg.make_image({type = .CUBE, width = i32(sky.side), height = i32(sky.side), num_slices = 6, pixel_format = .RGBA8, data = {mip_levels = {0 = {ptr = raw_data(sky.pixels), size = uint(len(sky.pixels))}}}})
+ sky.linear_texture = {image = linear_image, view = sg.make_view({texture = {image = linear_image}}), sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, wrap_w = .CLAMP_TO_EDGE})}
+	sky.diffuse = sky_lighting_upload(sky.lighting.diffuse, t.allocator)
+	sky.specular = sky_lighting_upload(sky.lighting.specular, t.allocator)
+	sky.lighting = {}
 	delete(sky.pixels, t.allocator)
 	sky.pixels = nil
 }

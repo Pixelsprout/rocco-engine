@@ -156,3 +156,34 @@ test_texture_build_averages_a_linear_texture_as_stored :: proc(t: ^testing.T) {
 		testing.expect_value(t, b, want[i])
 	}
 }
+
+@(test)
+test_mask_mips_keep_thin_coverage_without_changing_base_or_rgb :: proc(t: ^testing.T) {
+	rgba := make([]byte, 4 * 4 * 4, context.temp_allocator)
+	for i in 0 ..< 16 {
+		rgba[i * 4 + 0] = 80
+		rgba[i * 4 + 1] = 120
+		rgba[i * 4 + 2] = 160
+		rgba[i * 4 + 3] = 255 if i % 2 == 0 && i / 4 % 2 == 0 else 0
+	}
+	plain := texture_build(4, 4, rgba, {mipmaps = true}, false, context.temp_allocator)
+	mask := texture_build(4, 4, rgba, {mipmaps = true}, false, context.temp_allocator, alpha_cutoff = 0.6)
+	for b, i in mask.levels[0].pixels { testing.expect_value(t, b, rgba[i]) }
+	for level, mip in mask.levels[1:] {
+		for i in 0 ..< level.width * level.height {
+			testing.expect(t, f32(plain.levels[mip + 1].pixels[i * 4 + 3]) / 255 < 0.6)
+			testing.expect(t, f32(level.pixels[i * 4 + 3]) / 255 >= 0.6)
+			for c in 0 ..< 3 { testing.expect_value(t, level.pixels[i * 4 + c], rgba[c]) }
+		}
+	}
+}
+
+@(test)
+test_mask_mips_keep_empty_coverage_empty :: proc(t: ^testing.T) {
+	rgba := make([]byte, 4 * 4 * 4, context.temp_allocator)
+	for i in 0 ..< 16 { rgba[i * 4 + 3] = 64 }
+	mask := texture_build(4, 4, rgba, {mipmaps = true}, false, context.temp_allocator, alpha_cutoff = 0.5)
+	for level in mask.levels {
+		for i in 0 ..< level.width * level.height { testing.expect_value(t, level.pixels[i * 4 + 3], 64) }
+	}
+}
