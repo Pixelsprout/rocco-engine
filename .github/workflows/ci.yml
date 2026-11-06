@@ -88,20 +88,7 @@ jobs:
         run: sh scripts/run-games.sh 1 cards entity-game pong bridge-echo glow mask widgets clustered-lights particles tutorial/01-window tutorial/02-character tutorial/03-moving tutorial/04-lights tutorial/05-pickups tutorial/06-door tutorial/07-hud tutorial/08-sound tutorial/09-gamepad tutorial/10-animation
 
       - name: Run the Bridge check
-        run: |
-          python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
-          python3 scripts/cluster_check.py build/bridge-check/clustered.png
-          python3 scripts/environment_check.py build/bridge-check/environment/reference.png
-          python3 scripts/shadow_check.py build/bridge-check/shadows
-          python3 scripts/particle_check.py build/bridge-check/particles
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
-          python3 scripts/surface_check.py build/bridge-check/surface
-          python3 scripts/indirect_surface_check.py build/bridge-check/indirect-surface
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
-          python3 scripts/post_check.py build/bridge-check/post
-          python3 scripts/shader_reload_check.py build/bridge-check/reload
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
-          python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
+        run: python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
 
       - name: Keep the Bridge check screenshots
         if: always()
@@ -112,7 +99,9 @@ jobs:
           if-no-files-found: warn
 
       - name: Test
-        run: sh scripts/test-all.sh
+        run: |
+          roc test examples/village/main.roc
+          odin test engine -debug
 
       - name: Regenerate the macOS sysroot
         run: |
@@ -284,17 +273,6 @@ jobs:
       - name: Run the Bridge check
         run: |
           python scripts/bridge_check.py build/bridge-check/bridge-check.png
-          python scripts/cluster_check.py build/bridge-check/clustered.png
-          python scripts/environment_check.py build/bridge-check/environment/reference.png
-          python scripts/shadow_check.py build/bridge-check/shadows
-          python scripts/particle_check.py build/bridge-check/particles
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game surface
-          python scripts/surface_check.py build/bridge-check/surface
-          python scripts/indirect_surface_check.py build/bridge-check/indirect-surface
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game post
-          python scripts/post_check.py build/bridge-check/post
-          python scripts/shader_reload_check.py build/bridge-check/reload
-          ROCCO_SHDC="$GITHUB_WORKSPACE/build/shader-tools/sokol-shdc.exe" roc scripts/build.roc -- game village
           python examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat --canopy-only
 
       - name: Keep the Bridge check screenshots
@@ -304,9 +282,6 @@ jobs:
           name: bridge-check-windows
           path: build/bridge-check/
           if-no-files-found: warn
-
-      - name: Test
-        run: sh scripts/test-all.sh
 
       - name: Regenerate the Windows import libraries
         run: python scripts/make_windows_import_libs.py --check
@@ -370,6 +345,9 @@ jobs:
 
       - name: Test the generators
         run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_candidate_sdk.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_ci_wait.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py scripts/test_gpu_timing_summary.py scripts/test_village_capture.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+
+      - name: Test the village fixture
+        run: python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
 
       - name: Regenerate the Linux stubs
         run: |

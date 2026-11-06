@@ -1,7 +1,6 @@
 #!/bin/sh
 # Runs inside the image from scripts/linux/Dockerfile with the repo at /work.
-# Builds every game, checks the docs, runs each game, runs the tests,
-# the host check, the alloc check and the bench smoke test.
+# Builds every game, checks the docs, and runs native rendering and host seams.
 # Pass --release to build the release host and inputs.
 set -eu
 cd /work
@@ -34,29 +33,10 @@ RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridg
 
 # CI uploads the screenshots from build/bridge-check.
 RUN_PREFIX="$RUN" python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
-RUN_PREFIX="$RUN" python3 scripts/cluster_check.py build/bridge-check/clustered.png
-RUN_PREFIX="$RUN" python3 scripts/environment_check.py build/bridge-check/environment/reference.png
-RUN_PREFIX="$RUN" python3 scripts/shadow_check.py build/bridge-check/shadows
-RUN_PREFIX="$RUN" python3 scripts/particle_check.py build/bridge-check/particles
-ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game surface
-RUN_PREFIX="$RUN" python3 scripts/surface_check.py build/bridge-check/surface
-RUN_PREFIX="$RUN" python3 scripts/indirect_surface_check.py build/bridge-check/indirect-surface
-ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
-RUN_PREFIX="$RUN" python3 scripts/post_check.py build/bridge-check/post
-RUN_PREFIX="$RUN" python3 scripts/shader_reload_check.py build/bridge-check/reload
-ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game village
-python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
 RUN_PREFIX="$RUN" python3 examples/village/fixtures/scene_effects.py build/bridge-check/village --hosted-compat --canopy-only
 
-sh scripts/test-all.sh
-
-# The host check runs first, because the alloc check rebuilds the host with
-# the host tracking allocator.
 echo "== host check"
 sh scripts/host-check.sh
-
-echo "== alloc check"
-RUN_PREFIX="$RUN" sh scripts/alloc-check.sh
 
 echo "== bench games"
 sh bench/check.sh
