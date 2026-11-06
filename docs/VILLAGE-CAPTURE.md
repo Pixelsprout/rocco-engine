@@ -265,6 +265,14 @@ It retains the 20 slowest frames with their camera positions and CPU commit time
 Use `--first-frame`, `--last-frame`, or `--settle-steps` to inspect a narrower interval.
 The diagnostic adds CPU clocks and Spans.
 Its callback intervals do not establish displayed frame cadence or GPU work.
+The summary separates callback entry through commit return from the following callback gap.
+New captures record `begin_pass_ticks` around each renderer pass entry.
+These durations cover the pass entries excluded from the Render_Submit Span.
+The `drawable_ticks` field measures swapchain acquisition inside Main pass entry.
+Drawable time is a subset of pass-entry time; do not add them together.
+These wall-clock durations can include driver work, waits, and thread scheduling.
+They do not measure GPU execution or displayed frame cadence.
+Old captures omit these measurements; the summary does not replace them with zero.
 
 Set `ROCCO_DEBUG_CAMERA_SWEEP=1` for a repeatable camera stress run.
 The sweep turns 180 degrees each second and reverses direction each second.

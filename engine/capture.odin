@@ -31,6 +31,7 @@ Capture_Frame :: struct {
 	window: Ui_Window,
 	camera: Camera_Pose,
 	start, commit_start, commit_end: i64,
+	begin_pass, drawable: i64,
 	delta: f64,
 	pass_count: int,
 }
@@ -128,10 +129,10 @@ capture_write_new :: proc(path, data: string) -> os.Error {
 capture_sink_write :: proc(c: ^Capture_Sink, s: ^State) -> os.Error {
 	if !c.on { return nil }
 	b := strings.builder_make(context.temp_allocator)
-	strings.write_string(&b, "frame,steps,step_before,step_after,prev_step,alpha,width,height,dpi,start_tick,commit_start_tick,commit_end_tick,delta_seconds,applied_seconds,clamped_seconds,eye_x,eye_y,eye_z,target_x,target_y,target_z,fov_y,pass_count\n")
+	strings.write_string(&b, "frame,steps,step_before,step_after,prev_step,alpha,width,height,dpi,start_tick,commit_start_tick,commit_end_tick,delta_seconds,applied_seconds,clamped_seconds,eye_x,eye_y,eye_z,target_x,target_y,target_z,fov_y,pass_count,begin_pass_ticks,drawable_ticks\n")
 	for r in c.rows {
 		e, target := r.camera.eye, r.camera.target
-		fmt.sbprintf(&b, "%v,%v,%v,%v,%v,%.9f,%v,%v,%v,%v,%v,%v,%.9f,%.9f,%.9f,%v,%v,%v,%v,%v,%v,%v,%v\n", r.frame, r.steps, r.before, r.after, r.prev, r.alpha, r.window.size.x, r.window.size.y, r.window.dpi, r.start, r.commit_start, r.commit_end, r.delta, min(r.delta, MAX_FRAME_TIME), max(0, r.delta-MAX_FRAME_TIME), e.x, e.y, e.z, target.x, target.y, target.z, r.camera.fov_y, r.pass_count)
+		fmt.sbprintf(&b, "%v,%v,%v,%v,%v,%.9f,%v,%v,%v,%v,%v,%v,%.9f,%.9f,%.9f,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v\n", r.frame, r.steps, r.before, r.after, r.prev, r.alpha, r.window.size.x, r.window.size.y, r.window.dpi, r.start, r.commit_start, r.commit_end, r.delta, min(r.delta, MAX_FRAME_TIME), max(0, r.delta-MAX_FRAME_TIME), e.x, e.y, e.z, target.x, target.y, target.z, r.camera.fov_y, r.pass_count, r.begin_pass, r.drawable)
 	}
 	if err := capture_write_new(c.path, strings.to_string(b)); err != nil { return err }
 	strings.builder_reset(&b)

@@ -368,6 +368,9 @@ shadow_map_make :: proc(size: u32, cascades: int) -> Shadow_Map {
 }
 
 renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rgb) {
+	started: i64
+	if g_state.capture.on { started = capture_tick() }
+	defer if g_state.capture.on { g_state.capture.row.begin_pass += capture_tick() - started }
 	r := (^Renderer)(ctx)
 	r.pass = pass
 	r.applied = {}
@@ -376,7 +379,10 @@ renderer_begin_pass :: proc(ctx: rawptr, pass: Pass, view: int, clear_colour: Rg
 		// sokol discards depth at the end of a pass unless told to store it.
 		gfx_begin_pass({action = {depth = {load_action = .CLEAR, store_action = .STORE, clear_value = 0}}, attachments = {depth_stencil = r.shadow.layers[view]}, label = "shadow"})
 	case .Main:
+		drawable_started: i64
+		if g_state.capture.on { drawable_started = capture_tick() }
 		r.swapchain = sglue.swapchain()
+		if g_state.capture.on { g_state.capture.row.drawable += capture_tick() - drawable_started }
 		render_target_fit(&r.target, {r.swapchain.width, r.swapchain.height}, sapp.dpi_scale())
 		gfx_begin_pass({action = main_pass_action(clear_colour), attachments = r.target.hdr.attachments, label = "main"})
 	case .Scene_Depth:

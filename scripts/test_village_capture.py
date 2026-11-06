@@ -153,6 +153,19 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual([sample['moving'] for sample in samples], [False, True])
         self.assertEqual([sample['interval_ms'] for sample in samples], [1000, 1000])
 
+    def test_debug_camera_pass_waits_remain_optional_and_include_drawable_time(self):
+        rows = [boundary(i, i-1, i) for i in range(1, 5)]
+        for row in rows:
+            row.update(eye_x='0', eye_y='1', eye_z='0', target_x='0', target_y='1', target_z='-1')
+        rows[1].update(begin_pass_ticks='40', drawable_ticks='30', commit_end_tick='2075')
+        samples = debug.frame_samples(rows, 1000)
+        self.assertEqual(samples[0]['begin_pass_ms'], 40)
+        self.assertEqual(samples[0]['drawable_ms'], 30)
+        self.assertEqual(samples[0]['callback_to_commit_end_ms'], 75)
+        self.assertEqual(samples[0]['after_commit_ms'], 925)
+        self.assertNotIn('begin_pass_ms', samples[1])
+        self.assertNotIn('drawable_ms', samples[1])
+
     def test_gpu_exclusions_and_absent_samples_never_become_zero(self):
         statuses = sorted(capture.GPU_STATUSES-{'Valid'})
         rows = [gpu_row(1), *[gpu_row(i+2, status) for i, status in enumerate(statuses)]]

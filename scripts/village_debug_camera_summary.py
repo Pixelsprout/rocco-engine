@@ -43,6 +43,12 @@ def frame_samples(rows, frequency_hz, first_frame=1, last_frame=None, first_step
                            moving=camera_moved(before, frame), steps=int(frame['steps']),
                            clamped_ms=float(frame['clamped_seconds'])*1000,
                            eye=[float(frame[f'eye_{axis}']) for axis in 'xyz']))
+        sample = result[-1]
+        sample['callback_to_commit_end_ms'] = (int(frame['commit_end_tick'])-int(frame['start_tick']))*1000/frequency_hz
+        sample['after_commit_ms'] = elapsed-sample['callback_to_commit_end_ms']
+        for column in ('begin_pass_ticks', 'drawable_ticks'):
+            if column in frame:
+                sample[column.replace('_ticks', '_ms')] = int(frame[column])*1000/frequency_hz
     return result
 
 
@@ -72,6 +78,8 @@ def summarise(path, cpu=None, first_frame=1, last_frame=None, settle_steps=120):
                   stationary_commit_cpu_ms=distribution([sample['commit_cpu_ms'] for sample in stationary]),
                   slowest_frames=sorted(samples, key=lambda sample: sample['interval_ms'], reverse=True)[:20],
                   limits='Callback intervals do not prove display cadence. CPU commit does not measure GPU work.')
+    for field in ('callback_to_commit_end_ms', 'after_commit_ms', 'begin_pass_ms', 'drawable_ms'):
+        result[field] = distribution([sample[field] for sample in samples if field in sample])
     if cpu:
         if meta['spans'] is not True:
             raise ValueError('CPU Spans file does not match the ordinary executable')
