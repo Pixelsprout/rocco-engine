@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs scripts/pre-push.sh from the checkout that pushes.
+# Enable once per clone: git config core.hooksPath .githooks
+set -eu
+script="$(git rev-parse --show-toplevel)/scripts/pre-push.sh"
+# A branch made before the script existed has nothing to run.
+[ -f "$script" ] || exit 0
+exec sh "$script" --hook

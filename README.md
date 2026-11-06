@@ -40,8 +40,14 @@ In an existing clone, run `git submodule update --init`.
 | miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
 
-The tested macOS Odin is build `dev-2026-08:251d8eb0b`. The Docker image
-uses the `dev-2026-08` release archive, which reports `902106f`.
+CI uses the `dev-2026-08` release archive, which reports `902106f`. A source
+build of the same tag can report another commit and compile differently.
+`sh scripts/toolchain.sh install` downloads the pinned Odin and Roc into
+`~/tools`, and `sh scripts/toolchain.sh check` compares them with `PATH`.
+
+Enable the hooks once per clone with `git config core.hooksPath .githooks`.
+The pre-push hook checks every Odin package for each CI target and links a
+game on macOS. See `scripts/pre-push.sh`.
 
 The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. A different compiler warns and builds anyway. Fix the
