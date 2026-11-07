@@ -196,13 +196,12 @@ No scene content was removed to meet the capacity.
 `Vegetation.prepare(manifest)` caches source Draws and field Nodes after readiness.
 It prepares both grass material modes and rebuilds them through each ready `loaded` callback.
 `Vegetation.draw(placement, settings)` applies source switches and source casting.
-`Vegetation.field_nodes(prepared, { settings, eye })` applies field density and visibility.
-`Vegetation.visibility_changed` compares exact membership between two camera positions.
-`main.roc` reuses the complete Node list while visibility and Node settings remain equal.
-Each fixed step checks the original visibility predicate at the previous and current camera positions.
-The cache key includes vegetation settings, lighting settings, and the selected Group.
-Ready `loaded` callbacks rebuild both prepared values and the Node list.
-View still computes camera, shader values, queries, environment, effects, emitters, cursor, and UI.
+`Vegetation.field_nodes(prepared, settings)` applies the field switch, the grass mode, and field density.
+It does not read the eye. The grass shader fades each fragment beyond the visibility distance plus 10 metres.
+`main.roc` builds the Scene parts once for each lighting and vegetation setting.
+The field and the root source placements sit in Groups 1 and 2, so View joins about 20 root Nodes.
+A camera move never rebuilds the parts. Ready `loaded` callbacks rebuild the prepared values and the parts.
+View still computes camera, shader values, queries, environment, effects, emitters, cursor, UI, and the selected Group.
 `Vegetation.scene_values(settings, eye)` supplies shared wind and visibility values.
 The foliage declarations use helper names `VillageCanopy` and `VillageGrass`.
 The helper modules are generated from the combined `shaders.json`.
