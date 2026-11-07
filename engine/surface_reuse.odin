@@ -17,10 +17,25 @@ Surface_Reuse_Bucket :: struct {
 	count: int,
 }
 
-// Borrowed Roc values never survive frame_render_draw.
+// The lists and strings that decide a Draw's reused parts. Roc values do not
+// change during one Frame, so the same element pointers mean the same values.
+Surface_Reuse_Identity :: struct {
+	mesh:       ^Mesh,
+	parameters: rawptr,
+	properties: rawptr,
+	parameter_count, property_count: uint,
+	asset, pack: Roc_Str,
+	mesh_id:    u32,
+	scope:      Roc_VocabularyNode_Draw_Material_Surface_Surface_Scope,
+}
+
+// Borrowed Roc values never survive frame_render_draw. last_parts is nil
+// until a Draw reuses or adds an entry.
 Surface_Reuse :: struct {
-	buckets: map[u64]Surface_Reuse_Bucket,
-	entries: [dynamic]Surface_Reuse_Entry,
+	buckets:    map[u64]Surface_Reuse_Bucket,
+	entries:    [dynamic]Surface_Reuse_Entry,
+	last:       Surface_Reuse_Identity,
+	last_parts: []Mesh_Part,
 }
 
 surface_reuse_init :: proc(cache: ^Surface_Reuse) {
@@ -126,11 +141,18 @@ surface_reuse_find :: proc(cache: ^Surface_Reuse, hash: u64, d: ^Draw, mesh: ^Me
 	return nil, false
 }
 
+// Draws of one shape usually arrive in a run that shares its material lists,
+// so the run after its first Draw skips the hash.
 surface_reuse_parts :: proc(cache: ^Surface_Reuse, p: ^Packs, d: ^Draw, mesh: ^Mesh, scene_values: []Shader_Values, time: f32) -> []Mesh_Part {
+	identity, shaped := surface_reuse_identity(d, mesh)
+	if shaped && cache.last_parts != nil && surface_reuse_same_identity(identity, cache.last) { return cache.last_parts }
 	hash, eligible := surface_reuse_hash(d)
 	if !eligible { return surface_resolve_parts(p, d, mesh, scene_values, time) }
 	if cache.buckets == nil { surface_reuse_init(cache) }
-	if parts, found := surface_reuse_find(cache, hash, d, mesh); found { return parts }
+	if parts, found := surface_reuse_find(cache, hash, d, mesh); found {
+		cache.last, cache.last_parts = identity, parts
+		return parts
+	}
 	complete := false
 	parts := surface_resolve_parts(p, d, mesh, scene_values, time, &complete)
 	bucket := cache.buckets[hash]
@@ -139,6 +161,32 @@ surface_reuse_parts :: proc(cache: ^Surface_Reuse, p: ^Packs, d: ^Draw, mesh: ^M
 		bucket.count += 1
 		append(&cache.entries, Surface_Reuse_Entry{d.mesh, mesh, d.material, parts})
 		cache.buckets[hash] = bucket
+		cache.last, cache.last_parts = identity, parts
 	}
 	return parts
+}
+
+// shaped is false for a Draw that surface_reuse_hash rejects before it reads
+// the parameter values.
+surface_reuse_identity :: proc(d: ^Draw, mesh: ^Mesh) -> (identity: Surface_Reuse_Identity, shaped: bool) {
+	if d.material.surface.tag != .Surface || d.material.textures.length != 0 || d.materials.length != 0 || d.slot_materials.length != 0 || d.shader_values.length != 0 { return }
+	values := &d.material.surface.payload.surface
+	if values.textures.length != 0 { return }
+	return {
+		mesh = mesh,
+		parameters = values.parameters.elements,
+		properties = d.material.properties.elements,
+		parameter_count = values.parameters.length,
+		property_count = d.material.properties.length,
+		asset = values.shader.asset,
+		pack = values.shader.pack,
+		mesh_id = d.mesh,
+		scope = values.scope,
+	}, true
+}
+
+// Equal Roc_Str words hold equal text. Different words can too, and those
+// Draws take the hash path.
+surface_reuse_same_identity :: proc(a, b: Surface_Reuse_Identity) -> bool {
+	return a.mesh == b.mesh && a.mesh_id == b.mesh_id && a.scope == b.scope && a.parameters == b.parameters && a.parameter_count == b.parameter_count && a.properties == b.properties && a.property_count == b.property_count && a.asset == b.asset && a.pack == b.pack
 }

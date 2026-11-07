@@ -105,7 +105,9 @@ test_surface_reuse_distinguishes_defaults_parameters_and_draw_scope :: proc(t: ^
 	d.material.surface.payload.surface.parameters = roc_list_view(equal_parameters)
 	equal := surface_reuse_parts(&cache, &f.packs, &d, mesh, nil, 0)
 	testing.expect(t, equal[0].surface == explicit[0].surface)
-	equal_parameters[0].value.payload.linear_colour.r = 0.2
+	changed_parameters := []Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters{parameters[0]}
+	changed_parameters[0].value.payload.linear_colour.r = 0.2
+	d.material.surface.payload.surface.parameters = roc_list_view(changed_parameters)
 	changed := surface_reuse_parts(&cache, &f.packs, &d, mesh, nil, 0)
 	testing.expect_value(t, changed[0].surface.fragment[0], f32(0.2))
 	testing.expect_value(t, explicit[0].surface.fragment[0], f32(1))
@@ -115,6 +117,33 @@ test_surface_reuse_distinguishes_defaults_parameters_and_draw_scope :: proc(t: ^
 	per_draw := surface_reuse_parts(&cache, &f.packs, &d, mesh, nil, 0)
 	testing.expect_value(t, per_draw[0].surface.vertex[4], f32(0.75))
 	testing.expect_value(t, len(cache.entries), 3)
+}
+
+@(test)
+test_surface_reuse_shared_lists_reuse_only_matching_draws :: proc(t: ^testing.T) {
+	f: Surface_Fixture; surface_fixture_init(t, &f); defer surface_fixture_destroy(&f)
+	a := surface_test_draw(&f); a.material.surface = {tag = .Surface, payload = {surface = surface_test_values()}}
+	shared := []Roc_VocabularyNode_Draw_Material_Properties{{tag = .Roughness, payload = {roughness = 0.25}}}
+	a.material.properties = roc_list_view(shared)
+	mesh, _ := mesh_lookup(&f.frame.meshes, f.mesh)
+	cache: Surface_Reuse
+	first := surface_reuse_parts(&cache, &f.packs, &a, mesh, nil, 0)
+	b := a; b.id = 11
+	testing.expect(t, raw_data(surface_reuse_parts(&cache, &f.packs, &b, mesh, nil, 0)) == raw_data(first))
+
+	other := []Roc_VocabularyNode_Draw_Material_Properties{{tag = .Roughness, payload = {roughness = 0.75}}}
+	c := a; c.material.properties = roc_list_view(other)
+	testing.expect_value(t, surface_reuse_parts(&cache, &f.packs, &c, mesh, nil, 0)[0].material.roughness, f32(0.75))
+
+	slots := []Roc_VocabularyNode_Draw_SlotMaterials{{slot = surface_test_slot(1)}}
+	s := a; s.slot_materials = roc_list_view(slots)
+	testing.expect(t, raw_data(surface_reuse_parts(&cache, &f.packs, &s, mesh, nil, 0)) != raw_data(first))
+
+	missing := a; missing.material.surface.payload.surface.shader.asset = roc_str_from_slice("shader/Missing")
+	unresolved := surface_reuse_parts(&cache, &f.packs, &missing, mesh, nil, 0)
+	testing.expect(t, raw_data(unresolved) != raw_data(first))
+	testing.expect(t, raw_data(surface_reuse_parts(&cache, &f.packs, &missing, mesh, nil, 0)) != raw_data(first))
+	testing.expect(t, raw_data(surface_reuse_parts(&cache, &f.packs, &a, mesh, nil, 0)) == raw_data(first))
 }
 
 @(test)

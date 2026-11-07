@@ -50,7 +50,7 @@ def run(out, steps, retina=False, motion_steps=60):
             assert field and all(not draw['casts_shadow'] for draw in field)
             assert all(draw['casts_shadow'] for draw in source)
             groups = [node['Group']['id'] for node in scene['nodes'] if 'Group' in node]
-            assert groups == [10, 20, 30, 40]
+            assert groups == [10, 20, 30, 40, 1, 2]
             assert len([node for node in scene['nodes'] if 'Collider' in node]) == 6
             observations.update(ready_step=ready_step, draw_count=len(placed), source_draw_count=len(source), visible_field_draw_count=len(field), groups=groups)
             observations.update(environment=scene['environment'], shadow=scene['shadow'])

@@ -14,13 +14,9 @@ Vegetation := [].{
 	default = { density: 22000, distance: 65.0, wind: Bool.True, canopy: Bool.True, grass: Bool.True, field: Bool.True, casts_shadow: Bool.True }
 
 	Placement : { draw : Vocabulary.Draw, asset : Str, group : U64, kind : [Canopy, Plant, Static] }
-	Visibility : { id : U64, pos : Vocabulary.Vec3 }
-	FieldChunk : { shaded : List(Vocabulary.Node), plain : List(Vocabulary.Node), visibility : List(Visibility) }
-	Prepared : { source : List(Placement), field : List(Vocabulary.Node), field_plain : List(Vocabulary.Node), field_visibility : List(Visibility) }
+	Prepared : { source : List(Placement), field : List(Vocabulary.Node), field_plain : List(Vocabulary.Node) }
 	empty : Prepared
-	empty = { source: [], field: [], field_plain: [], field_visibility: [] }
-	field_chunk_size : U64
-	field_chunk_size = 128
+	empty = { source: [], field: [], field_plain: [] }
 
 	assets : List(Str)
 	assets = ["shader/VillageCanopy", "shader/VillageGrass", "image/T_Noise_Terrain"]
@@ -49,17 +45,8 @@ Vegetation := [].{
 			},
 		).join()
 		{ shaded, plain } = prepare_field(field)
-		{ source, field: shaded, field_plain: plain, field_visibility: field.map(|plant| { id: plant.id, pos: plant.pos }) }
+		{ source, field: shaded, field_plain: plain }
 	}
-
-	chunks : Prepared -> List(FieldChunk)
-	chunks = |prepared| List.repeat({}, (prepared.field.len() + field_chunk_size - 1) // field_chunk_size).map_with_index(
-		|_, i| {
-			start = i * field_chunk_size
-			len = U64.min(field_chunk_size, prepared.field.len() - start)
-			{ shaded: prepared.field.sublist({ start, len }), plain: prepared.field_plain.sublist({ start, len }), visibility: prepared.field_visibility.sublist({ start, len }) }
-		},
-	)
 
 	draw : Placement, Settings -> Vocabulary.Draw
 	draw = |placement, settings| {
@@ -72,34 +59,17 @@ Vegetation := [].{
 		{ ..base, casts_shadow: settings.casts_shadow, material: if use_shader base.material else Material.default, slot_materials: if use_shader base.slot_materials else [] }
 	}
 
-	field_nodes_from : List(Vocabulary.Node), { settings : Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
-	field_nodes_from = |field, { settings, eye }| if !settings.field [] else {
-		distance_squared = (settings.distance + 10.0) * (settings.distance + 10.0)
+	## The field ignores the eye. The grass shader fades plants beyond `distance` plus 10 metres.
+	field_nodes : Prepared, Settings -> List(Vocabulary.Node)
+	field_nodes = |prepared, settings| if !settings.field [] else {
+		field = if settings.grass prepared.field else prepared.field_plain
 		field.keep_if(
 			|node| match node {
-				Draw(plant) => plant.id - 100000 < settings.density and (plant.pos.x - eye.x) * (plant.pos.x - eye.x) + (plant.pos.z - eye.z) * (plant.pos.z - eye.z) <= distance_squared
+				Draw(plant) => plant.id - 100000 < settings.density
 				_ => Bool.False
 			},
 		)
 	}
-
-	field_nodes : Prepared, { settings : Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
-	field_nodes = |prepared, { settings, eye }| field_nodes_from(if settings.grass prepared.field else prepared.field_plain, { settings, eye })
-
-	visibility_changed_from : List(Visibility), { settings : Settings, from : Vocabulary.Vec3, to : Vocabulary.Vec3 } -> Bool
-	visibility_changed_from = |visibility, { settings, from, to }| if !settings.field or from == to Bool.False else {
-		distance_squared = (settings.distance + 10.0) * (settings.distance + 10.0)
-		visibility.any(
-			|plant| {
-				before = plant.id - 100000 < settings.density and (plant.pos.x - from.x) * (plant.pos.x - from.x) + (plant.pos.z - from.z) * (plant.pos.z - from.z) <= distance_squared
-				after = plant.id - 100000 < settings.density and (plant.pos.x - to.x) * (plant.pos.x - to.x) + (plant.pos.z - to.z) * (plant.pos.z - to.z) <= distance_squared
-				before != after
-			},
-		)
-	}
-
-	visibility_changed : Prepared, { settings : Settings, from : Vocabulary.Vec3, to : Vocabulary.Vec3 } -> Bool
-	visibility_changed = |prepared, args| visibility_changed_from(prepared.field_visibility, args)
 
 	scene_values : Settings, Vocabulary.Vec3 -> List(Shader.Values)
 	scene_values = |settings, eye| {
@@ -160,11 +130,8 @@ expect Vegetation.default.density == 22000
 ## Field casting stays disabled when source casting changes.
 expect Vegetation.configure(Vegetation.default, "casting").casts_shadow == Bool.False
 
-field_reference : List(Vocabulary.Draw), { settings : Vegetation.Settings, eye : Vocabulary.Vec3 } -> List(Vocabulary.Node)
-field_reference = |field, { settings, eye }| if !settings.field [] else {
-	distance_squared = (settings.distance + 10.0) * (settings.distance + 10.0)
-	field.keep_if(|plant| plant.id - 100000 < settings.density and (plant.pos.x - eye.x) * (plant.pos.x - eye.x) + (plant.pos.z - eye.z) * (plant.pos.z - eye.z) <= distance_squared).map(|plant| Draw({ ..plant, material: if settings.grass plant.material else Material.default }))
-}
+field_reference : List(Vocabulary.Draw), Vegetation.Settings -> List(Vocabulary.Node)
+field_reference = |field, settings| if !settings.field [] else field.keep_if(|plant| plant.id - 100000 < settings.density).map(|plant| Draw({ ..plant, material: if settings.grass plant.material else Material.default }))
 
 expect {
 	material = { ..Material.default, properties: [DoubleSided(Bool.True), Alpha(Mask(0.2))] }
@@ -181,19 +148,17 @@ expect {
 		|density| [Bool.True, Bool.False].all(
 			|grass| [Bool.True, Bool.False].all(
 				|enabled| [1.0, 65.0, 200.0].all(
-					|distance| [{ x: 0.0, y: 0.0, z: 0.0 }, { x: -95.0, y: 80.0, z: 95.0 }, { x: 11.0, y: -9.0, z: 0.0 }].all(
-						|eye| {
-							settings = { ..Vegetation.default, density, grass, field: enabled, distance }
-							Vegetation.field_nodes(prepared, { settings, eye }) == field_reference(field, { settings, eye })
-						},
-					),
+					|distance| {
+						settings = { ..Vegetation.default, density, grass, field: enabled, distance }
+						Vegetation.field_nodes(prepared, settings) == field_reference(field, settings)
+					},
 				),
 			),
 		),
 	)
 }
 
-expect Vegetation.field_nodes(Vegetation.empty, { settings: Vegetation.default, eye: { x: 0.0, y: 0.0, z: 0.0 } }).is_empty()
+expect Vegetation.field_nodes(Vegetation.empty, Vegetation.default).is_empty()
 
 expect {
 	manifest = Layout.assets.map(|name| { name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
@@ -206,32 +171,12 @@ expect {
 			Field.placements.keep_if(|placement| placement.asset == shape.asset).map(|placement| { ..field_base, id: placement.id, pos: placement.pos, rot: placement.rot, scale: placement.scale, casts_shadow: Bool.False })
 		},
 	).join()
-	eyes = [
-		{ x: 3.6, y: 1.9, z: 21.5 },
-		{ x: 2.4, y: 1.75, z: 15.5 },
-		{ x: 5.8143424, y: 8.0, z: 13.974774 },
-		{ x: 10.5, y: 1.1, z: 14.5 },
-		{ x: -13.0, y: 4.0, z: 12.0 },
-		{ x: 0.0, y: 1.7, z: 17.0 },
-		{ x: 0.3, y: 1.7, z: 12.0 },
-		{ x: -0.5, y: 1.7, z: 6.0 },
-		{ x: 0.4, y: 1.7, z: 0.0 },
-		{ x: -0.2, y: 1.7, z: -5.0 },
-		{ x: -1.2, y: 1.7, z: -9.5 },
-		{ x: -2.4, y: 1.7, z: -12.6 },
-		{ x: -95.0, y: 80.0, z: 95.0 },
-		{ x: 95.0, y: 0.2, z: -95.0 },
-	]
-	field.len() == 22000 and prepared.field.len() == 22000 and prepared.field_plain.len() == 22000 and prepared.field_visibility == field.map(|plant| { id: plant.id, pos: plant.pos }) and eyes.all(
-		|eye| [0, 1, 12345, 22000].all(
-			|density| [1.0, 65.0, 200.0].all(
-				|distance| [Bool.True, Bool.False].all(
-					|grass| {
-						settings = { ..Vegetation.default, density, distance, grass }
-						Vegetation.field_nodes(prepared, { settings, eye }) == field_reference(field, { settings, eye })
-					},
-				),
-			),
+	field.len() == 22000 and prepared.field.len() == 22000 and prepared.field_plain.len() == 22000 and [0, 1, 12345, 22000].all(
+		|density| [Bool.True, Bool.False].all(
+			|grass| {
+				settings = { ..Vegetation.default, density, grass }
+				Vegetation.field_nodes(prepared, settings) == field_reference(field, settings)
+			},
 		),
 	)
 }
@@ -253,30 +198,6 @@ expect {
 				Draw(plant) => plant.mesh == 9
 				_ => Bool.False
 			},
-		),
-	)
-}
-
-expect {
-	field = [
-		{ ..Draw.default, id: 100001, pos: { x: -11.0, y: 0.0, z: 0.0 } },
-		{ ..Draw.default, id: 100000, pos: { x: 11.0, y: 0.0, z: 0.0 } },
-	]
-	{ shaded, plain } = prepare_field(field)
-	prepared = { ..Vegetation.empty, field: shaded, field_plain: plain, field_visibility: field.map(|plant| { id: plant.id, pos: plant.pos }) }
-	from = { x: -1.0, y: 0.0, z: 0.0 }
-	to = { x: 1.0, y: 80.0, z: 0.0 }
-	settings = { ..Vegetation.default, distance: 1.0 }
-	before = field_reference(field, { settings, eye: from })
-	after = field_reference(field, { settings, eye: to })
-	before.len() == after.len() and before != after and Vegetation.visibility_changed(prepared, { settings, from, to }) and !Vegetation.visibility_changed(prepared, { settings, from, to: { ..from, y: 80.0 } }) and [0, 1, 2, 22000].all(
-		|density| [1.0, 65.0].all(
-			|distance| [Bool.True, Bool.False].all(
-				|enabled| {
-					changed_settings = { ..settings, density, distance, field: enabled }
-					Vegetation.visibility_changed(prepared, { settings: changed_settings, from, to }) == (field_reference(field, { settings: changed_settings, eye: from }) != field_reference(field, { settings: changed_settings, eye: to }))
-				},
-			),
 		),
 	)
 }
