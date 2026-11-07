@@ -3,7 +3,7 @@
 # scripts/linux/check.sh does. On Apple silicon Docker runs it under emulation.
 FROM ubuntu:24.04
 
-ARG ODIN_RELEASE=dev-2026-08
+ARG ODIN_RELEASE=dev-2026-11
 ARG ROC_NIGHTLY=2026-10-11-7d256b9
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \

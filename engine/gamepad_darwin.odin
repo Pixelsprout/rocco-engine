@@ -4,6 +4,7 @@ package engine
 import "base:intrinsics"
 import "core:fmt"
 import NS "core:sys/darwin/Foundation"
+import ObjC "core:sys/darwin/ObjectiveC"
 import "core:sys/posix"
 
 GC_FRAMEWORK :: "/System/Library/Frameworks/GameController.framework/GameController"
@@ -53,7 +54,7 @@ gamepad_reader_init :: proc(reader: ^Gamepad_Reader) {
 		fmt.eprintln("the GameController framework did not load. The run reads only wired Xbox One pads.")
 		return
 	}
-	reader.controller_class = NS.objc_lookUpClass("GCController")
+	reader.controller_class = ObjC.objc_lookUpClass("GCController")
 	if reader.controller_class == nil {
 		fmt.eprintln("GameController has no GCController class. The run reads only wired Xbox One pads.")
 	}

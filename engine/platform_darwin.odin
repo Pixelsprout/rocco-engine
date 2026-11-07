@@ -22,7 +22,7 @@ platform_command_line :: proc(allocator := context.allocator) -> []string {
 platform_readable_color_texture :: proc(width, height: i32) -> rawptr {
 	desc := MTL.TextureDescriptor.alloc()->init()
 	defer desc->release()
-	desc->setTextureType(.Type2D)
+	desc->setTextureType(._2D)
 	desc->setPixelFormat(.RGBA8Unorm)
 	desc->setWidth(NS.UInteger(width))
 	desc->setHeight(NS.UInteger(height))
@@ -47,7 +47,7 @@ platform_read_target :: proc(color: sg.Image, size: [2]i32, rgba: []byte) -> (er
 	fence->waitUntilCompleted()
 	region := MTL.Region {
 		origin = {0, 0, 0},
-		size   = {NS.Integer(size.x), NS.Integer(size.y), 1},
+		size   = {NS.UInteger(size.x), NS.UInteger(size.y), 1},
 	}
 	texture->getBytes(raw_data(rgba), NS.UInteger(size.x * 4), region, 0)
 	return ""

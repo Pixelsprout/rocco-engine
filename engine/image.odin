@@ -45,7 +45,7 @@ png_decode :: proc(bytes: []byte) -> (width, height: int, rgba: []byte, ok: bool
 	if img.depth != 8 && img.depth != 16 {
 		return 0, 0, nil, false
 	}
-	src := img.pixels.buf[:]
+	src := img.pixels[:]
 	stride := img.depth / 8
 	channels := img.channels
 	count := img.width * img.height
