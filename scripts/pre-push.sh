@@ -46,20 +46,27 @@ if touches '\.odin$'; then
 	# A file such as platform_linux.odin compiles only for its own OS, so check
 	# every package for every CI target.
 	for package in $(git ls-files '*.odin' | sed 's|/[^/]*$||' | sort -u); do
+		targets="darwin_arm64 linux_amd64 windows_amd64"
+		defines=
 		case "$package" in
 		# font_bake is a local tool. It links vendor:stb, which the Odin
 		# release ships prebuilt only for the OS it runs on.
 		scripts/font_bake) targets=native ;;
-		*) targets="darwin_arm64 linux_amd64 windows_amd64" ;;
+		# The fixture is Windows only, and engine.g_gpu_timing exists only with
+		# this define. CI builds it the same way.
+		scripts/gpu-timing-check)
+			targets=windows_amd64
+			defines=-define:ROCCO_D3D_GPU_TIMING=true
+			;;
 		esac
 		for target in $targets; do
 			if [ "$target" = native ]; then
 				echo "== odin check $package"
-				odin check "$package" -no-entry-point -vet -strict-style
+				odin check "$package" -no-entry-point -vet -strict-style $defines
 				continue
 			fi
-			echo "== odin check $package -target:$target"
-			odin check "$package" -no-entry-point -vet -strict-style -target:"$target"
+			echo "== odin check $package -target:$target${defines:+ $defines}"
+			odin check "$package" -no-entry-point -vet -strict-style $defines -target:"$target"
 		done
 	done
 fi
