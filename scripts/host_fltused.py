@@ -69,7 +69,7 @@ def find_lib_exe():
     vswhere = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Microsoft Visual Studio', 'Installer', 'vswhere.exe')
     if vswhere.is_file():
         out = subprocess.run([str(vswhere), '-latest', '-products', '*', '-find', r'VC\Tools\MSVC\**\bin\Hostx64\x64\lib.exe'],
-                             check=True, capture_output=True, text=True).stdout.split()
+                             check=True, capture_output=True, text=True).stdout.splitlines()
         if out:
             return sorted(out)[-1]
     raise RuntimeError('lib.exe is missing. Install Visual Studio Build Tools with the C++ workload.')
