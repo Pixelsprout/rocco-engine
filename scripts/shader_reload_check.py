@@ -11,7 +11,7 @@ import sys
 import time
 
 import bridge
-from bridge_check import binary_suffix, check
+from bridge_check import binary_suffix, check, odin_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "platform/shader-tools"))
@@ -49,7 +49,7 @@ def native(out, compiler):
     corrupt_native_source(assets / 'Foliage.shaderpack', assets / 'Bad.shaderpack')
     corrupt_native_source(assets / 'Outline.shaderpack', assets / 'BadPost.shaderpack')
     binary = out / ('native' + binary_suffix())
-    subprocess.run([os.environ.get('ODIN', 'odin'), 'build', 'scripts/shader-reload-check', '-debug', '-strict-style', '-vet', '-out:' + str(binary)], check=True)
+    subprocess.run([os.environ.get('ODIN', 'odin'), 'build', 'scripts/shader-reload-check', '-debug', '-strict-style', '-vet', '-out:' + str(binary)] + odin_link_flags(), check=True)
     result = subprocess.run(shlex.split(os.environ.get('RUN_PREFIX', '')) + [str(binary), str(assets)], capture_output=True, text=True, timeout=120)
     (out / 'native.log').write_text(result.stdout + result.stderr)
     result.check_returncode()

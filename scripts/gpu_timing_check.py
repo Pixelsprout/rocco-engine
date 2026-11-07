@@ -8,6 +8,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+from bridge_check import odin_link_flags
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -19,7 +21,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     binary = out / 'gpu-timing-check.exe'
     command = [os.environ.get('ODIN', 'odin'), 'build', 'scripts/gpu-timing-check',
-               '-define:ROCCO_D3D_GPU_TIMING=true', '-vet', '-strict-style', '-out:' + str(binary)]
+               '-define:ROCCO_D3D_GPU_TIMING=true', '-vet', '-strict-style', '-out:' + str(binary)] + odin_link_flags()
     subprocess.run(command, check=True)
     csv_path = out / 'gpu.csv'
     try:

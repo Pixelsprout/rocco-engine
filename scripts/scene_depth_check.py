@@ -15,7 +15,7 @@ import sys
 import zlib
 
 from bridge import png_rgba
-from bridge_check import binary_suffix, check
+from bridge_check import binary_suffix, check, odin_link_flags
 
 ROOT = Path(__file__).resolve().parents[1]
 STRICT_DEPTH_LIMITS = dict(absolute=2**-28, relative=2**-22, ulp=3)
@@ -219,7 +219,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     assets = fixtures(out)
     binary = out / ('scene-depth-check' + binary_suffix())
-    command = [os.environ.get('ODIN', 'odin'), 'build', 'scripts/scene-depth-check', '-o:speed', '-strict-style', '-vet', '-out:' + str(binary)]
+    command = [os.environ.get('ODIN', 'odin'), 'build', 'scripts/scene-depth-check', '-o:speed', '-strict-style', '-vet', '-out:' + str(binary)] + odin_link_flags()
     subprocess.run(command, cwd=ROOT, check=True)
     result, log = run_fixture(binary, assets, out)
     print(log, end='')

@@ -109,6 +109,7 @@ mode_name = |mode| match mode {
 
 # extra_inputs names what inputs copies besides the sokol, Clay and miniaudio archives.
 # host_flags are the Odin flags that only this target's host build takes.
+# odin_linker names the -linker for an Odin executable, or is empty for Odin's default.
 Target : {
 	roc_target : Str,
 	dir : Str,
@@ -119,6 +120,7 @@ Target : {
 	exe : Str,
 	extra_inputs : [MacSdk, WindowsImportLibs, LinuxStubs],
 	python : Str,
+	odin_linker : Str,
 }
 
 Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WINDOWS, OTHER(Str)] }
@@ -149,11 +151,16 @@ make_target = |roc_target, host_lib, host_flags, sokol_platform, lib_ext, exe, e
 		WindowsImportLibs => "python"
 		_ => "python3"
 	},
+	# radlink, Odin's default Windows linker since dev-2026-09, crashes on CI.
+	odin_linker: match extra_inputs {
+		WindowsImportLibs => "msvc"
+		_ => ""
+	},
 }
 
 # The check scripts eval these lines, so they must stay shell-safe.
 target_lines : Target -> Str
-target_lines = |target| "target=${target.roc_target}\nsuffix=${target.exe}\nhost_lib=${target.dir}/${target.host_lib}"
+target_lines = |target| "target=${target.roc_target}\nsuffix=${target.exe}\nhost_lib=${target.dir}/${target.host_lib}\nodin_linker=${target.odin_linker}"
 
 Run : { program : Str, args : List(Str), cwd : Str }
 
@@ -242,9 +249,12 @@ is_twin = |game| Str.ends_with(game, "-twin")
 twin_run : Target, Str -> Run
 twin_run = |target, name| {
 	program: "odin",
-	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"],
+	args: ["build", "bench/${name}", "-out:bench/${name}/${name}${target.exe}", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"].concat(linker_flags(target)),
 	cwd: ".",
 }
+
+linker_flags : Target -> List(Str)
+linker_flags = |target| if target.odin_linker == "" [] else ["-linker:${target.odin_linker}"]
 
 bench_warmup_frames : U64
 bench_warmup_frames = 120
@@ -951,9 +961,9 @@ expect {
 expect parse(["keys"]) == Ok([Keys])
 
 expect parse(["target"]) == Ok([Target])
-expect target_for(mac).map_ok(target_lines) == Ok("target=arm64mac\nsuffix=.bin\nhost_lib=platform/targets/arm64mac/libhost.a")
-expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_linux.bin\nhost_lib=platform/targets/x64glibc/libhost.a")
-expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib")
+expect target_for(mac).map_ok(target_lines) == Ok("target=arm64mac\nsuffix=.bin\nhost_lib=platform/targets/arm64mac/libhost.a\nodin_linker=")
+expect target_for(linux).map_ok(target_lines) == Ok("target=x64glibc\nsuffix=_linux.bin\nhost_lib=platform/targets/x64glibc/libhost.a\nodin_linker=")
+expect target_for(windows).map_ok(target_lines) == Ok("target=x64win\nsuffix=.exe\nhost_lib=platform/targets/x64win/host.lib\nodin_linker=msvc")
 
 expect {
 	planned = target_for(mac).map_ok(|target| bench_run(target, "model-size", Headless, 64, "model-size-64-p2.csv", "/repo"))
@@ -1077,7 +1087,7 @@ expect parse(["bench", "model-size", "--windowed", "64"]) == Err(Usage)
 
 expect {
 	run = target_for(windows).map_ok(|target| twin_run(target, "model-size-twin"))
-	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.exe", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style"])
+	run.map_ok(|r| r.args) == Ok(["build", "bench/model-size-twin", "-out:bench/model-size-twin/model-size-twin.exe", "-o:speed", "-define:ROCCO_SPANS=true", "-vet", "-strict-style", "-linker:msvc"])
 }
 
 expect {

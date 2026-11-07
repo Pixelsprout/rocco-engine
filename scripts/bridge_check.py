@@ -209,12 +209,22 @@ FLANK_YS = [y / 20 for y in range(-4, 5)]
 MIN_FLANK_RATIO = 1.5
 
 
-def binary_suffix():
+def target_value(key):
     lines = subprocess.run(["roc", "scripts/build.roc", "--", "target"], check=True, capture_output=True, text=True).stdout
     for line in lines.splitlines():
-        if line.startswith("suffix="):
-            return line[len("suffix=") :]
-    raise RuntimeError("roc scripts/build.roc -- target printed no suffix")
+        if line.startswith(key + "="):
+            return line[len(key) + 1 :]
+    raise RuntimeError(f"roc scripts/build.roc -- target printed no {key}")
+
+
+def binary_suffix():
+    return target_value("suffix")
+
+
+# Add these to every odin build of an executable.
+def odin_link_flags():
+    linker = target_value("odin_linker")
+    return ["-linker:" + linker] if linker else []
 
 
 # Pip is a root Node of the tutorial's Scene, so its pos is in the world.
