@@ -48,7 +48,7 @@ class SceneEffectsTests(unittest.TestCase):
             out = Path(directory)
             bridge = MagicMock()
             bridge.hello.return_value = dict(protocol=10, steps=0)
-            nodes = [{'Group': {'id': n}} for n in (10, 20, 30, 40)] + [{'Collider': {}} for _ in range(6)]
+            nodes = [{'Group': {'id': n}} for n in (10, 20, 30, 40, 1, 2)] + [{'Collider': {}} for _ in range(6)]
             scene = dict(nodes=nodes, emitters=[dict(image=1, blend='Alpha')] * 40 + [dict(image=1, blend='Add')],
                          environment={}, shadow={}, camera={})
             bridge.scene.side_effect = [dict(scene=dict(nodes=[], ui=[{}])), dict(scene=scene), dict(steps=1, scene=scene)]

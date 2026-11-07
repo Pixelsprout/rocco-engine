@@ -92,7 +92,7 @@ def run(out, retina=False, seed=0, seed_only=False, movie=False, hosted=False, c
             assert len([d for d in placed if 100 <= d['id'] < 100000]) == 1436
             assert len([d for d in placed if d['id'] >= 100000]) > 20000
             assert all(d['mesh'] for d in placed)
-            assert [n['Group']['id'] for n in scene['nodes'] if 'Group' in n] == [10, 20, 30, 40]
+            assert [n['Group']['id'] for n in scene['nodes'] if 'Group' in n] == [10, 20, 30, 40, 1, 2]
             assert len([n for n in scene['nodes'] if 'Collider' in n]) == 6
             assert len(scene['emitters']) == 41
             assert all(e['image'] > 0 for e in scene['emitters'])
