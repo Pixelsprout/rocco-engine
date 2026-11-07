@@ -3,9 +3,10 @@
 
 Odin's -no-crt runtime defines a global _fltused in procs_windows_amd64.asm.
 A Roc object built with --opt=speed for x64 MSVC defines one too, so lld-link
-rejects the pair. This script makes the runtime's copy local and adds a member
-that defines only _fltused. lld-link loads that member only when no other
-object defines the symbol, as in a dev backend build.
+rejects the pair. This script renames the runtime's definition and adds
+_fltused as a weak external that falls back to it. The linker takes the Roc
+definition when there is one, in either link order. In a dev backend build,
+where the Roc object defines none, it takes the runtime's.
 
     python scripts/host_fltused.py platform/targets/x64win/host.lib
 """
@@ -18,9 +19,11 @@ import subprocess
 import tempfile
 
 EXTERNAL = 2
-STATIC = 3
+WEAK_EXTERNAL = 105
+SEARCH_ALIAS = 3
 SYMBOL_SIZE = 18
 RUNTIME_MEMBER = 'procs_windows_amd64.asm'
+DEFAULT_NAME = b'__rocco_host_fltused'
 
 
 def symbol_name(data, offset, string_table):
@@ -32,34 +35,51 @@ def symbol_name(data, offset, string_table):
     return bytes(data[start:data.index(b'\0', start)])
 
 
-def localize(obj, name):
-    """Return the COFF object with its one defined external `name` made static."""
-    data = bytearray(obj)
-    symbol_table, count = struct.unpack_from('<II', data, 8)
+def name_field(name, strings):
+    """The 8-byte name field for `name`, adding a long name to `strings`."""
+    if len(name) <= 8:
+        return struct.pack('<8s', name)
+    field = struct.pack('<II', 0, len(strings))
+    strings += name + b'\0'
+    return field
+
+
+def weaken(obj, name, default):
+    """Rename the one defined external `name` to `default`, and add `name` as a
+    weak external whose default is that definition."""
+    data = bytes(obj)
+    sections, = struct.unpack_from('<H', data, 2)
+    symbol_table, count, optional = struct.unpack_from('<IIH', data, 8)
     string_table = symbol_table + count * SYMBOL_SIZE
-    found = 0
+    strings_size, = struct.unpack_from('<I', data, string_table)
+    # New symbols go between the two tables, so nothing may sit after them.
+    if string_table + strings_size != len(data):
+        raise ValueError('the string table does not end the object')
+    for section in range(sections):
+        size, raw, relocations, lines, relocation_count, line_count = struct.unpack_from('<IIIIHH', data, 20 + optional + 40 * section + 16)
+        ends = [raw + size if size else 0, relocations + 10 * relocation_count if relocation_count else 0, lines + 6 * line_count if line_count else 0]
+        if max(ends) > symbol_table:
+            raise ValueError('a section has data after the symbol table')
+    found = []
     index = 0
     while index < count:
         offset = symbol_table + index * SYMBOL_SIZE
         section, _, storage, aux = struct.unpack_from('<hHBB', data, offset + 12)
         if storage == EXTERNAL and section > 0 and symbol_name(data, offset, string_table) == name:
-            data[offset + 16] = STATIC
-            found += 1
+            found.append(index)
         index += 1 + aux
-    if found != 1:
-        raise ValueError(f'expected one defined external {name.decode()}, found {found}')
-    return bytes(data)
-
-
-def fltused_object():
-    """An x64 COFF object whose .data holds the one global _fltused."""
-    raw_data = 20 + 40
-    symbol_table = raw_data + 4
-    header = struct.pack('<HHIIIHH', 0x8664, 1, 0, symbol_table, 1, 0, 0)
-    # Initialized data, 4-byte aligned, read and write.
-    section = struct.pack('<8sIIIIIIHHI', b'.data', 0, 0, 4, raw_data, 0, 0, 0, 0, 0xC0300040)
-    symbol = struct.pack('<8sIhHBB', b'_fltused', 0, 1, 0, EXTERNAL, 0)
-    return header + section + struct.pack('<I', 0x9875) + symbol + struct.pack('<I', 4)
+    if len(found) != 1:
+        raise ValueError(f'expected one defined external {name.decode()}, found {len(found)}')
+    target = found[0]
+    symbols = bytearray(data[symbol_table:string_table])
+    strings = bytearray(data[string_table:])
+    symbols[target * SYMBOL_SIZE:target * SYMBOL_SIZE + 8] = name_field(default, strings)
+    weak = name_field(name, strings) + struct.pack('<IhHBB', 0, 0, 0, WEAK_EXTERNAL, 1)
+    aux = struct.pack('<II10x', target, SEARCH_ALIAS)
+    struct.pack_into('<I', strings, 0, len(strings))
+    header = bytearray(data[:symbol_table])
+    struct.pack_into('<I', header, 12, count + 2)
+    return bytes(header + symbols + weak + aux + strings)
 
 
 def find_lib_exe():
@@ -91,11 +111,11 @@ def main():
             raise RuntimeError(f'{host} has {len(runtime)} {RUNTIME_MEMBER} members, expected 1')
         extracted = Path(temporary, 'runtime.obj')
         lib(f'/EXTRACT:{runtime[0]}', f'/OUT:{extracted}', str(host), cwd=temporary)
-        Path(temporary, 'procs_windows_amd64_local.obj').write_bytes(localize(extracted.read_bytes(), b'_fltused'))
-        Path(temporary, 'fltused.obj').write_bytes(fltused_object())
+        weak = Path(temporary, 'procs_windows_amd64_weak_fltused.obj')
+        weak.write_bytes(weaken(extracted.read_bytes(), b'_fltused', DEFAULT_NAME))
         lib(f'/REMOVE:{runtime[0]}', f'/OUT:{host}', str(host), cwd=temporary)
-        lib(f'/OUT:{host}', str(host), 'procs_windows_amd64_local.obj', 'fltused.obj', cwd=temporary)
-    print(f'== {host.name}: _fltused is local to the Odin runtime member and defined in fltused.obj')
+        lib(f'/OUT:{host}', str(host), weak.name, cwd=temporary)
+    print(f'== {host.name}: _fltused is a weak external with the Odin runtime definition as its default')
 
 
 if __name__ == '__main__':

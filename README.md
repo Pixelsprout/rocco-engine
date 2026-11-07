@@ -524,7 +524,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/linux-stubs/` | The CRT assembly sources, the catalog `stubs.json`, and a `README.md` that says how to change a stub. |
 | `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. `--check` fails if a committed library differs. |
 | `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
-| `scripts/host_fltused.py` | Runs after each x64win host build. It makes the `_fltused` of Odin's `-no-crt` runtime local and adds a member that defines only `_fltused`, so the host links with a Roc `--opt=speed` object, which defines its own. |
+| `scripts/host_fltused.py` | Runs after each x64win host build. It turns the `_fltused` of Odin's `-no-crt` runtime into a weak external, so a Roc `--opt=speed` object, which defines its own, links in either order. A dev backend build falls back to the runtime's. |
 | `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
 | `scripts/miniaudio/rocco_miniaudio.c` | The one C file of the miniaudio archive: its defines, miniaudio and stb_vorbis. |
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
