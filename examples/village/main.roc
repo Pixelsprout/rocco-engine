@@ -27,7 +27,9 @@ import pf.Scene
 
 NodeSettings : { lighting : Lighting.Settings, vegetation : Vegetation.Settings, selected : U64 }
 
-NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, chunks : List(Vegetation.FieldChunk), field_parts : List(List(Vocabulary.Node)), nodes : List(Vocabulary.Node) })]
+FixedNodes : { before_field : List(Vocabulary.Node), after_field : List(Vocabulary.Node) }
+
+NodeCache : [Empty, Cached({ settings : NodeSettings, eye : Vec3, chunks : List(Vegetation.FieldChunk), field_parts : List(List(Vocabulary.Node)), fixed : FixedNodes, nodes : List(Vocabulary.Node) })]
 
 Model : { manifest : Manifest, loaded_packs : List(Str), lighting : Lighting.Settings, effects : Effects.Settings, seed : U64, eye : Vec3, yaw : F32, pitch : F32, mode : [Walk, Free, Hero, Tour, Square], time : F32, route_i : U64, selected : U64, captured : Bool, vegetation : Vegetation.Settings, prepared : Vegetation.Prepared, shadow : Vocabulary.Shadow, node_cache : NodeCache, capture : Capture.State }
 
@@ -253,14 +255,17 @@ field_parts = |chunks, settings, eye| chunks.map(|chunk| field_part(chunk, setti
 flatten_field_parts : List(List(Vocabulary.Node)) -> List(Vocabulary.Node)
 flatten_field_parts = |parts| List.join(parts)
 
-scene_nodes : Model, List(Vocabulary.Node) -> List(Vocabulary.Node)
-scene_nodes = |model, field| {
+fixed_nodes : Model -> FixedNodes
+fixed_nodes = |model| {
 	ground = Lighting.ground(model.lighting)
 	placed = model.prepared.source.keep_if(|placement| placement.group == 0).map(|placement| Draw(Lighting.windows(Vegetation.draw(placement, model.vegetation), { asset: placement.asset, settings: model.lighting })))
 	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
 	lights = Lighting.nodes(model.lighting)
-	List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed, field, boxes, lights])
+	{ before_field: List.join([[ground, building(model, 10), building(model, 20), building(model, 30), building(model, 40)], placed]), after_field: List.join([boxes, lights]) }
 }
+
+scene_nodes : FixedNodes, List(Vocabulary.Node) -> List(Vocabulary.Node)
+scene_nodes = |fixed, field| List.join([fixed.before_field, field, fixed.after_field])
 
 node_settings : Model -> NodeSettings
 node_settings = |model| { lighting: model.lighting, vegetation: model.vegetation, selected: model.selected }
@@ -269,32 +274,36 @@ cache_nodes : Model -> Model
 cache_nodes = |model| {
 	eye = camera(model).eye
 	settings = node_settings(model)
-	{ chunks, parts, nodes } = match model.node_cache {
+	{ chunks, parts, fixed, nodes } = match model.node_cache {
 		Cached(cached) => {
-			changed = cached.settings != settings or Vegetation.visibility_changed(model.prepared, { settings: model.vegetation, from: cached.eye, to: eye })
-			next_parts = if !changed cached.field_parts else if cached.settings != settings field_parts(cached.chunks, model.vegetation, eye) else cached.chunks.map_with_index(
+			same_settings = cached.settings == settings
+			changed = !same_settings or Vegetation.visibility_changed(model.prepared, { settings: model.vegetation, from: cached.eye, to: eye })
+			next_parts = if !changed cached.field_parts else if !same_settings field_parts(cached.chunks, model.vegetation, eye) else cached.chunks.map_with_index(
 				|chunk, index| match cached.field_parts.get(index) {
 					Ok(part) if !Vegetation.visibility_changed_from(chunk.visibility, { settings: model.vegetation, from: cached.eye, to: eye }) => part
 					_ => field_part(chunk, model.vegetation, eye)
 				},
 			)
-			{ chunks: cached.chunks, parts: next_parts, nodes: if changed scene_nodes(model, flatten_field_parts(next_parts)) else cached.nodes }
+			# The fixed nodes ignore the eye, so a field visibility change keeps them.
+			next_fixed = if same_settings cached.fixed else fixed_nodes(model)
+			{ chunks: cached.chunks, parts: next_parts, fixed: next_fixed, nodes: if changed scene_nodes(next_fixed, flatten_field_parts(next_parts)) else cached.nodes }
 		}
 		Empty => {
 			prepared_chunks = Vegetation.chunks(model.prepared)
 			initial_parts = field_parts(prepared_chunks, model.vegetation, eye)
-			{ chunks: prepared_chunks, parts: initial_parts, nodes: scene_nodes(model, flatten_field_parts(initial_parts)) }
+			initial_fixed = fixed_nodes(model)
+			{ chunks: prepared_chunks, parts: initial_parts, fixed: initial_fixed, nodes: scene_nodes(initial_fixed, flatten_field_parts(initial_parts)) }
 		}
 	}
-	{ ..model, node_cache: Cached({ settings, eye, chunks, field_parts: parts, nodes }) }
+	{ ..model, node_cache: Cached({ settings, eye, chunks, field_parts: parts, fixed, nodes }) }
 }
 
 view : Model -> Vocabulary.Scene
 view = |model| if !ready(model) loading_view(model) else {
 	cam_view = camera(model)
 	nodes = match model.node_cache {
-		Cached(cached) => if cached.settings == node_settings(model) and cached.eye == cam_view.eye cached.nodes else scene_nodes(model, flatten_field_parts(field_parts(cached.chunks, model.vegetation, cam_view.eye)))
-		Empty => scene_nodes(model, flatten_field_parts(field_parts(Vegetation.chunks(model.prepared), model.vegetation, cam_view.eye)))
+		Cached(cached) => if cached.settings == node_settings(model) and cached.eye == cam_view.eye cached.nodes else scene_nodes(fixed_nodes(model), flatten_field_parts(field_parts(cached.chunks, model.vegetation, cam_view.eye)))
+		Empty => scene_nodes(fixed_nodes(model), flatten_field_parts(field_parts(Vegetation.chunks(model.prepared), model.vegetation, cam_view.eye)))
 	}
 	environment = Lighting.environment(model.manifest, model.lighting)
 	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
