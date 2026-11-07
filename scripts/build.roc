@@ -109,7 +109,7 @@ mode_name = |mode| match mode {
 
 # extra_inputs names what inputs copies besides the sokol, Clay and miniaudio archives.
 # host_flags are the Odin flags that only this target's host build takes.
-# odin_linker names the -linker for an Odin executable, or is empty for Odin's default.
+# odin_linker names the -linker for every Odin build, or is empty for Odin's default.
 Target : {
 	roc_target : Str,
 	dir : Str,
@@ -151,7 +151,7 @@ make_target = |roc_target, host_lib, host_flags, sokol_platform, lib_ext, exe, e
 		WindowsImportLibs => "python"
 		_ => "python3"
 	},
-	# radlink, Odin's default Windows linker since dev-2026-09, crashes on CI.
+	# radlink, Odin's default Windows linker and archiver since dev-2026-09, crashes on CI.
 	odin_linker: match extra_inputs {
 		WindowsImportLibs => "msvc"
 		_ => ""
@@ -184,7 +184,7 @@ host_run = |target, mode, alloc, spans| {
 	}
 	{
 		program: "odin",
-		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(track).concat(span_defines).concat(["-vet", "-strict-style"]),
+		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(track).concat(span_defines).concat(["-vet", "-strict-style"]).concat(linker_flags(target)),
 		cwd: ".",
 	}
 }
@@ -882,7 +882,7 @@ expect {
 
 expect {
 	run = target_for(windows).map_ok(|target| host_run(target, Release, Untracked, NoSpans))
-	run.map_ok(|r| r.args) == Ok(["build", "engine", "-build-mode:static", "-out:platform/targets/x64win/host.lib", "-no-crt", "-no-thread-local", "-o:speed", "-vet", "-strict-style"])
+	run.map_ok(|r| r.args) == Ok(["build", "engine", "-build-mode:static", "-out:platform/targets/x64win/host.lib", "-no-crt", "-no-thread-local", "-o:speed", "-vet", "-strict-style", "-linker:msvc"])
 }
 
 expect target_for(linux).map_ok(|target| target.host_flags) == Ok([])
