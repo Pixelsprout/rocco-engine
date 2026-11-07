@@ -201,6 +201,13 @@ host_run = |target, mode, alloc, spans| {
 	}
 }
 
+# Odin's -no-crt runtime and a Roc --opt=speed object both define _fltused on x64win.
+host_fixups : Target -> List(Run)
+host_fixups = |target| match target.extra_inputs {
+	WindowsImportLibs => [{ program: target.python, args: ["scripts/host_fltused.py", "${target.dir}/${target.host_lib}"], cwd: "." }]
+	_ => []
+}
+
 # The binary takes the name of the last folder, so tutorial/01-window builds 01-window.bin.
 game_binary : Str -> Str
 game_binary = |name| Str.split_on(name, "/").last() ?? name
@@ -582,7 +589,11 @@ host! = |target, run| {
 		Err(PathErr(NotFound, _)) => {}
 		Err(err) => return Err(err)
 	}
-	exec!(run)
+	exec!(run)?
+	for fixup in host_fixups(target) {
+		exec!(fixup)?
+	}
+	Ok({})
 }
 
 # roc build exits 2 when it wrote the binary with warnings and no errors.
@@ -902,6 +913,9 @@ expect {
 }
 
 expect target_for(linux).map_ok(|target| target.host_flags) == Ok([])
+
+expect target_for(mac).map_ok(host_fixups) == Ok([])
+expect target_for(windows).map_ok(host_fixups) == Ok([{ program: "python", args: ["scripts/host_fltused.py", "platform/targets/x64win/host.lib"], cwd: "." }])
 
 expect {
 	run = target_for(mac).map_ok(|target| game_run(target, "examples/cards", "cards"))

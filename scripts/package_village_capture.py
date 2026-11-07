@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.request
 import zipfile
@@ -88,14 +89,17 @@ def main():
         run(command, cwd)
     source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     build(['git', 'diff', '--exit-code'])
-    build([args.roc, 'scripts/build.roc', '--', 'inputs', '--release'])
+    build([args.roc, 'scripts/build.roc', 'inputs', '--release'])
     builds = {}
     with tempfile.TemporaryDirectory(prefix='village-capture-package-') as temporary:
         temporary = Path(temporary)
         for name, flags in [('ordinary', []), ('cpu', ['-define:ROCCO_SPANS=true']),
                             ('gpu', ['-define:ROCCO_SPANS=true', '-define:ROCCO_D3D_GPU_TIMING=true'])]:
+            # odin adds members to an existing archive, and host_fltused.py expects one runtime member.
+            (ROOT/'platform/targets/x64win/host.lib').unlink(missing_ok=True)
             build([args.odin, 'build', 'engine', '-build-mode:static', '-out:platform/targets/x64win/host.lib',
                  '-no-crt', '-no-thread-local', '-o:speed', *flags, '-vet', '-strict-style', '-linker:msvc'])
+            build([sys.executable, 'scripts/host_fltused.py', 'platform/targets/x64win/host.lib'])
             build([args.roc, 'build', '--no-cache', '--opt=speed', '--target=x64win', '--output=./village.exe', 'main.roc'], ROOT/'examples/village')
             destination = temporary/f'village-{name}.exe'
             shutil.copy2(ROOT/'examples/village/village.exe', destination)

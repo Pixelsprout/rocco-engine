@@ -206,15 +206,15 @@ The other variables the engine reads:
 10: the game's expected allocs and as many deallocs, the game's expected
 reallocs and a constant live block count. cards expects 2 allocs and 1
 realloc: the box shell and the cards list, which the concat after the Lights
-grows. entity-game expects 33 allocs and 4 reallocs under `--opt=speed`, and
-42 under `--opt=dev`. Its `view` makes one list for the leaves of each
+grows. entity-game expects 33 allocs and no reallocs under `--opt=speed`, and
+42 allocs under `--opt=dev`. Its `view` makes one list for the leaves of each
 entity, and `List.keep_if` makes one list for each root it keeps. Under
 `--opt=dev`, `List.map` copies the entity list in each of the 9 stages that
 map it. With no input the player carries no drops, so the Scene has no
 Group. pong expects 6 allocs and 1 realloc: the box shell, the nodes list,
 the ui list, the scoreboard's children and its two cells' children. The
 realloc is the concat that joins the scoreboard, the banner and the hints.
-Tutorial chapter 10 expects 14 allocs and 6 reallocs: its `view` builds the
+Tutorial chapter 10 expects 10 allocs and 4 reallocs: its `view` builds the
 Nodes, the pickup Draws and Colliders, the HUD with its count text and the
 Speakers, and each concat grows a list. It is the one skinned game in the
 check. Each count records what the game makes today. None is a target. The games
@@ -524,6 +524,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/linux-stubs/` | The CRT assembly sources, the catalog `stubs.json`, and a `README.md` that says how to change a stub. |
 | `scripts/make_windows_import_libs.py` | Writes the import libraries in `platform/targets/x64win/` from the `.def` files with Zig. `--check` fails if a committed library differs. |
 | `scripts/windows-import-libs/` | The `.def` files, one per DLL, and a `README.md` that says how to change one. |
+| `scripts/host_fltused.py` | Runs after each x64win host build. It makes the `_fltused` of Odin's `-no-crt` runtime local and adds a member that defines only `_fltused`, so the host links with a Roc `--opt=speed` object, which defines its own. |
 | `scripts/windows/build_sokol.cmd` | Builds the sokol D3D11 libraries with no CRT library names. |
 | `scripts/miniaudio/rocco_miniaudio.c` | The one C file of the miniaudio archive: its defines, miniaudio and stb_vorbis. |
 | `scripts/macos/build-miniaudio.sh`, `scripts/linux/build-miniaudio.sh`, `scripts/windows/build_miniaudio.cmd` | Build the debug and release miniaudio archive for each OS into `build/miniaudio/`. |
