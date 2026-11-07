@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 import bridge
-from bridge_check import binary_suffix, check
+from bridge_check import binary_suffix, check, odin_link_flags
 
 
 def frame(path):
@@ -65,7 +65,7 @@ def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else 'build/post-check').resolve()
     out.mkdir(parents=True, exist_ok=True)
     probe = Path('build/post-target-check' + binary_suffix()).resolve()
-    subprocess.run([os.environ.get('ODIN', 'odin'), 'build', 'scripts/post-target-check', '-strict-style', '-vet', '-out:' + str(probe)], check=True)
+    subprocess.run([os.environ.get('ODIN', 'odin'), 'build', 'scripts/post-target-check', '-strict-style', '-vet', '-out:' + str(probe)] + odin_link_flags(), check=True)
     native = subprocess.run(shlex.split(os.environ.get('RUN_PREFIX', '')) + [str(probe)], capture_output=True, text=True, check=True)
     (out / 'targets.log').write_text(native.stdout + native.stderr)
     match = re.search(r'POST_SAMPLES (\[[0-9,]+\])', native.stdout)

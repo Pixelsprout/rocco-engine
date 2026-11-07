@@ -211,7 +211,7 @@ jobs:
 
       - name: Validate D3D11 GPU timestamp ownership and native queries
         run: |
-          odin test engine -debug -vet -strict-style -define:ROCCO_D3D_GPU_TIMING=true
+          odin test engine -debug -vet -strict-style -linker:msvc -define:ROCCO_D3D_GPU_TIMING=true
           python scripts/gpu_timing_check.py
 
       - name: Keep the D3D11 GPU timestamp proof
@@ -271,7 +271,7 @@ jobs:
         run: python scripts/make_windows_import_libs.py --check
 
       - name: Check bounded capture storage
-        run: odin test engine -debug -vet -strict-style -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=test_capture_requires_explicit_bounded_real_clock_options,test_capture_without_a_path_allocates_nothing,test_capture_copies_commands_before_builder_reuse_and_bounds_storage,test_capture_builder_detects_failed_growth_without_allocating,test_capture_records_zero_multiple_steps_and_skips_after_the_frame_limit,test_capture_frame_overflow_preserves_existing_rows,test_capture_counts_source_field_and_supplement_ranges_separately
+        run: odin test engine -debug -vet -strict-style -linker:msvc -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=test_capture_requires_explicit_bounded_real_clock_options,test_capture_without_a_path_allocates_nothing,test_capture_copies_commands_before_builder_reuse_and_bounds_storage,test_capture_builder_detects_failed_growth_without_allocating,test_capture_records_zero_multiple_steps_and_skips_after_the_frame_limit,test_capture_frame_overflow_preserves_existing_rows,test_capture_counts_source_field_and_supplement_ranges_separately
 
   generated:
     runs-on: ubuntu-24.04

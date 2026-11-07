@@ -16,9 +16,14 @@ done
 ext=
 [ "${OS:-}" = Windows_NT ] && ext=.exe
 
+target_lines=$(roc scripts/build.roc -- target)
+eval "$target_lines"
+link=
+[ -z "$odin_linker" ] || link=-linker:$odin_linker
+
 for file in bench/*/main.odin; do
 	dir=$(dirname "$file")
 	echo "== odin test $dir"
 	mkdir -p build
-	odin test "$dir" -debug -vet -strict-style "-out:build/$(basename "$dir")-test$ext"
+	odin test "$dir" -debug -vet -strict-style $link "-out:build/$(basename "$dir")-test$ext"
 done

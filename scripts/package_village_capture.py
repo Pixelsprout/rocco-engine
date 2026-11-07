@@ -80,8 +80,8 @@ def main():
         parser.error('output already exists')
     toolchain = {name: subprocess.check_output([program, 'version'], cwd=ROOT, text=True).strip()
                  for name, program in [('odin', args.odin), ('roc', args.roc)]}
-    if '902106f' not in toolchain['odin'] or '7d256b9' not in toolchain['roc']:
-        raise ValueError('capture package requires the pinned Odin 902106f and Roc 7d256b9')
+    if '9a69916' not in toolchain['odin'] or '7d256b9' not in toolchain['roc']:
+        raise ValueError('capture package requires the pinned Odin 9a69916 and Roc 7d256b9')
     commands = []
     def build(command, cwd=ROOT):
         commands.append(dict(command=command, cwd=str(cwd)))
@@ -95,7 +95,7 @@ def main():
         for name, flags in [('ordinary', []), ('cpu', ['-define:ROCCO_SPANS=true']),
                             ('gpu', ['-define:ROCCO_SPANS=true', '-define:ROCCO_D3D_GPU_TIMING=true'])]:
             build([args.odin, 'build', 'engine', '-build-mode:static', '-out:platform/targets/x64win/host.lib',
-                 '-no-crt', '-no-thread-local', '-o:speed', *flags, '-vet', '-strict-style'])
+                 '-no-crt', '-no-thread-local', '-o:speed', *flags, '-vet', '-strict-style', '-linker:msvc'])
             build([args.roc, 'build', '--no-cache', '--opt=speed', '--target=x64win', '--output=./village.exe', 'main.roc'], ROOT/'examples/village')
             destination = temporary/f'village-{name}.exe'
             shutil.copy2(ROOT/'examples/village/village.exe', destination)

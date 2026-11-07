@@ -33,14 +33,14 @@ In an existing clone, run `git submodule update --init`.
 
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
-| Odin | `dev-2026-08`, on `PATH` | In the Docker image | `dev-2026-08` windows-amd64 release, on `PATH` |
+| Odin | `dev-2026-11`, on `PATH` | In the Docker image | `dev-2026-11` windows-amd64 release, on `PATH` |
 | Roc | `nightly-2026-10-11-7d256b9`, on `PATH` | In the Docker image | `nightly-2026-10-11-7d256b9` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
 | sokol-shdc, dev-only | `bin/osx_arm64` from sokol-tools-bin | Not tested | Not tested |
 
-CI uses the `dev-2026-08` release archive, which reports `902106f`. A source
+CI uses the `dev-2026-11` release archive, which reports `9a69916`. A source
 build of the same tag can report another commit and compile differently.
 `sh scripts/toolchain.sh install` downloads the pinned Odin and Roc into
 `~/tools`, and `sh scripts/toolchain.sh check` compares them with `PATH`.

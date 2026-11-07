@@ -106,9 +106,9 @@ bridge_reply_error :: proc(reply: ^strings.Builder, message: string) {
 // Writes ,"key":value. value is any type that json.marshal takes.
 bridge_reply_field :: proc(reply: ^strings.Builder, key: string, value: any) {
 	strings.write_byte(reply, ',')
-	_ = json.marshal_to_builder(reply, key, &{})
+	_ = json.marshal_to_builder(reply, key, {})
 	strings.write_byte(reply, ':')
-	_ = json.marshal_to_builder(reply, value, &{})
+	_ = json.marshal_to_builder(reply, value, {})
 }
 
 // Port 0 asks the OS for a free port. Only tests use it.

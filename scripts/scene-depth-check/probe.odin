@@ -52,7 +52,7 @@ write_json :: proc(path: string, value: any) {
 	b: strings.Builder
 	strings.builder_init(&b, context.temp_allocator)
 	defer strings.builder_destroy(&b)
-	assert(json.marshal_to_builder(&b, value, &{}) == nil)
+	assert(json.marshal_to_builder(&b, value, {}) == nil)
 	assert(os.write_entire_file(path, transmute([]byte)strings.to_string(b)) == nil)
 }
 

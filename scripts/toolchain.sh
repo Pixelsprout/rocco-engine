@@ -7,7 +7,7 @@
 #   sh scripts/toolchain.sh path           Print the two pinned directories, PATH style.
 #   sh scripts/toolchain.sh run <cmd...>   Run a command with the pinned compilers first on PATH.
 #
-# A local source build of Odin can carry the same dev-2026-08 tag and still
+# A local source build of Odin can carry the same dev-2026-11 tag and still
 # differ from the release archive CI downloads. check compares the commit.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -72,8 +72,9 @@ check() {
 	fi
 	want_odin=$(odin_commit)
 	have_odin=$(odin version 2>/dev/null || echo "odin: not on PATH")
+	# A source build prints a longer hash than the release archive.
 	case "$have_odin" in
-	*"$want_odin") echo "odin ok: $have_odin" ;;
+	*":$want_odin"*) echo "odin ok: $have_odin" ;;
 	*)
 		echo "odin MISMATCH: PATH has '$have_odin', CI uses $odin_release ($want_odin)" >&2
 		status=1

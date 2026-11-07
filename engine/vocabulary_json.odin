@@ -11,7 +11,7 @@ import "core:strings"
 // {"Unload":"pip"}. A tag with no payload is a string, such as "Quit".
 
 json_write_string :: proc(b: ^strings.Builder, s: string) {
-	_ = json.marshal_to_builder(b, s, &{})
+	_ = json.marshal_to_builder(b, s, {})
 }
 
 json_write_roc_str :: proc(b: ^strings.Builder, s: ^Roc_Str) {
