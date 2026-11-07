@@ -16,7 +16,7 @@ frames=$1
 shift
 
 # eval "$(...)" would hide a build.roc failure from set -e.
-target_lines=$(roc scripts/build.roc -- target)
+target_lines=$(roc scripts/build.roc target)
 eval "$target_lines"
 
 log=$(mktemp)

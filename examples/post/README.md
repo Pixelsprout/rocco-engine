@@ -1,6 +1,6 @@
 # Post fixture
 
-Build with `roc scripts/build.roc -- game post`.
+Build with `roc scripts/build.roc game post`.
 Run `python3 scripts/post_check.py` from the repository root.
 
 The default scene applies two LDR effects with independent values.

@@ -5,12 +5,12 @@ import pf.Launch
 Display := [].{
 
 	window : Vocabulary.Config, Vocabulary.Window -> Vocabulary.Window
-	window = |config, window| if config.args.contains("--hosted-compat") {
+	window = |config, window| if (config.args.contains("--hosted-compat")) {
 		..window,
 		width: 960,
 		height: 540,
 		high_dpi: Bool.False,
-	} else if config.args.contains("--retina-1080") {
+	} else if (config.args.contains("--retina-1080")) {
 		..window,
 		width: 960,
 		height: 540,

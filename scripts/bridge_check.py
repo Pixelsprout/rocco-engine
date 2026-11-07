@@ -210,11 +210,11 @@ MIN_FLANK_RATIO = 1.5
 
 
 def target_value(key):
-    lines = subprocess.run(["roc", "scripts/build.roc", "--", "target"], check=True, capture_output=True, text=True).stdout
+    lines = subprocess.run(["roc", "scripts/build.roc", "target"], check=True, capture_output=True, text=True).stdout
     for line in lines.splitlines():
         if line.startswith(key + "="):
             return line[len(key) + 1 :]
-    raise RuntimeError(f"roc scripts/build.roc -- target printed no {key}")
+    raise RuntimeError(f"roc scripts/build.roc target printed no {key}")
 
 
 def binary_suffix():

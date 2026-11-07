@@ -1,7 +1,7 @@
 # Particles
 
-Build the host with `roc scripts/build.roc -- host`.
-Build the example with `roc scripts/build.roc -- game particles`.
+Build the host with `roc scripts/build.roc host`.
+Build the example with `roc scripts/build.roc game particles`.
 Start `particles.bin` from this folder.
 
 The left source emits Alpha smoke with the built-in round sprite.

@@ -331,7 +331,7 @@ class PublishedCompilerTests(unittest.TestCase):
         formatting = subprocess.run([ROC, "fmt", "--check", str(self.game / "Foliage.roc"), str(self.game / "Outline.roc"), str(self.game / "Tree.roc")], cwd=self.game, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.assertEqual(formatting.returncode, 0, formatting.stdout)
         main = self.game / "main.roc"
-        valid = '''app [init, launch, loaded, step, view] { pf: platform "../published-platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+        valid = '''app [init, launch, loaded, step, view] { pf: platform "../published-platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 import pf.Vocabulary exposing [Command, Manifest]
 import pf.Scene
 import pf.Launch

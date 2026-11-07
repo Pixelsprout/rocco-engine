@@ -102,7 +102,7 @@ step = |model, input, results, dt| {
 }
 
 quit_on_escape : Vocabulary.Input -> List(Command)
-quit_on_escape = |input| if Key.pressed(input, Escape) [Quit] else []
+quit_on_escape = |input| if (Key.pressed(input, Escape)) [Quit] else []
 ```
 <!-- endregion -->
 

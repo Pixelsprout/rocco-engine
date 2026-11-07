@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "nightly-2026-11-04-2622062", ui: "../../../packages/ui/main.roc" }
 
 # guide/tutorial/10-animation.md copies the regions in this file. Run roc scripts/build.roc docs after a change.
 
@@ -123,7 +123,7 @@ blip = |before, after|
 
 # Escape on the keyboard or Start on any pad quits.
 quit : Vocabulary.Input -> List(Command)
-quit = |input| if Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start) [Quit] else []
+quit = |input| if (Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start)) [Quit] else []
 
 # The ids of the Colliders that Pip touched in the previous step.
 touched : List(Contact) -> List(U64)
@@ -246,7 +246,7 @@ animate = |model, walking_speed, dt| {
 	c = model.clips
 	a = model.animation
 	step_fade = dt / fade_seconds
-	fade = if walking_speed > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
+	fade = if (walking_speed > 0.0) F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
 	idle_time = Pose.loop(a.idle_time + dt, c.idle_duration)
 	walk_time = Pose.loop(a.walk_time + dt * walking_speed / walk_speed, c.walk_duration)
 	{ ..model, animation: { idle_time, walk_time, fade } }

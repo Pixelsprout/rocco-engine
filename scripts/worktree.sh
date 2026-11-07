@@ -21,10 +21,10 @@ setup() {
 	git submodule update --init
 	sh scripts/macos/build-sokol.sh
 	sh scripts/macos/build-miniaudio.sh
-	sh scripts/toolchain.sh run roc scripts/build.roc -- inputs
+	sh scripts/toolchain.sh run roc scripts/build.roc inputs
 	sh scripts/toolchain.sh check || true
 	echo "== ready: $1"
-	echo "Next: sh scripts/toolchain.sh run roc scripts/build.roc -- host"
+	echo "Next: sh scripts/toolchain.sh run roc scripts/build.roc host"
 }
 
 [ "$(uname -s)" = Darwin ] || {

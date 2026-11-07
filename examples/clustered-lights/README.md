@@ -1,6 +1,6 @@
 # 200 clustered lamps
 
-Run `roc scripts/build.roc -- game clustered-lights` after building the host and inputs.
+Run `roc scripts/build.roc game clustered-lights` after building the host and inputs.
 Start `clustered-lights.bin` from this folder.
 
 - Hold A or D to move the camera.

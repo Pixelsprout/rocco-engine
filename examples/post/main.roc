@@ -7,7 +7,7 @@ app [
 ] {
 	mesh: "../../packages/mesh/main.roc",
 	pf: platform "../../platform/main.roc",
-	roc: "nightly-2026-10-11-7d256b9",
+	roc: "nightly-2026-11-04-2622062",
 	ui: "../../packages/ui/main.roc",
 }
 
@@ -61,9 +61,9 @@ Model : {
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |config| {
-	samples = if config.args.contains("--x2") X2 else if config.args.contains("--x4") X4 else if config.args.contains("--x8") X8 else Off
-	width = if config.args.contains("--small") 480 else 800
-	height = if config.args.contains("--small") 360 else 600
+	samples = if (config.args.contains("--x2")) X2 else if (config.args.contains("--x4")) X4 else if (config.args.contains("--x8")) X8 else Off
+	width = if (config.args.contains("--small")) 480 else 800
+	height = if (config.args.contains("--small")) 360 else 600
 	{
 		..Launch.default,
 		window: {
@@ -80,14 +80,14 @@ launch = |config| {
 
 init : Vocabulary.Config -> { model : Model, commands : List(Vocabulary.Command) }
 init = |config| {
-	mode = if config.args.contains("--outline") "outline" else if config.args.contains("--depth") "depth" else if config.args.contains("--empty") "empty" else if config.args.contains("--failed-only") "failed-only" else if config.args.contains("--failed") "failed" else if config.args.contains("--selection") "selection" else if config.args.contains("--hdr") "hdr" else "chain"
+	mode = if (config.args.contains("--outline")) "outline" else if (config.args.contains("--depth")) "depth" else if (config.args.contains("--empty")) "empty" else if (config.args.contains("--failed-only")) "failed-only" else if (config.args.contains("--failed")) "failed" else if (config.args.contains("--selection")) "selection" else if (config.args.contains("--hdr")) "hdr" else "chain"
 	{
 		model: {
 			tree: 0,
 			mode,
 			enabled: !config.args.contains("--disabled"),
 			reverse: config.args.contains("--reverse"),
-			wind: if config.args.contains("--wind") 0.3 else 0.0,
+			wind: if (config.args.contains("--wind")) 0.3 else 0.0,
 			blend: !config.args.contains("--no-blend"),
 			solid: config.args.contains("--solid"),
 			fixture: config.args.contains("--fixture") or config.args.contains("--selection") or config.args.contains("--outline"),
@@ -99,7 +99,7 @@ init = |config| {
 			clip: 0,
 			time: 0.0,
 			skin: !config.args.contains("--no-skin"),
-			subset: if config.args.contains("--left-only") LeftOnly else if config.args.contains("--right-only") RightOnly else if config.args.contains("--boxes") Boxes else All,
+			subset: if (config.args.contains("--left-only")) LeftOnly else if (config.args.contains("--right-only")) RightOnly else if (config.args.contains("--boxes")) Boxes else All,
 			bloom: !config.args.contains("--no-bloom"),
 			override_glass: config.args.contains("--override-glass"),
 			mask_zero: config.args.contains("--mask-zero"),
@@ -136,12 +136,12 @@ step = |model, input, _results, dt| {
 	model: {
 		..model,
 		time: model.time + dt,
-		selected: if Key.pressed(input, S) !model.selected else model.selected,
-		visible_only: if Key.pressed(input, V) !model.visible_only else model.visible_only,
-		enabled: if Key.pressed(input, E) !model.enabled else model.enabled,
-		reverse: if Key.pressed(input, R) !model.reverse else model.reverse,
+		selected: if (Key.pressed(input, S)) !model.selected else model.selected,
+		visible_only: if (Key.pressed(input, V)) !model.visible_only else model.visible_only,
+		enabled: if (Key.pressed(input, E)) !model.enabled else model.enabled,
+		reverse: if (Key.pressed(input, R)) !model.reverse else model.reverse,
 	},
-	commands: if Key.pressed(input, U) [Unload("post")] else [],
+	commands: if (Key.pressed(input, U)) [Unload("post")] else [],
 }
 
 colour : F32, F32 -> Vocabulary.Post
@@ -168,7 +168,7 @@ effects = |model| {
 	missing = Post.after_tone_map({ ..Colour.draw("post", Colour.draw_default), shader: { pack: "post", asset: "shader/Missing" } })
 	a = colour(0.5, 0.0)
 	b = colour(1.0, 0.15)
-	chain = if model.reverse [b, a] else [a, b]
+	chain = if (model.reverse) [b, a] else [a, b]
 	list = match model.mode {
 		"depth" => [Post.after_tone_map(Depth.draw("post", Depth.draw_default))]
 		"empty" => []
@@ -236,7 +236,7 @@ view = |model| {
 		id: 10,
 		mesh: model.tree,
 		casts_shadow: Bool.False,
-		material: { ..Material.default, properties: if model.solid [Alpha(Opaque)] else [] },
+		material: { ..Material.default, properties: if (model.solid) [Alpha(Opaque)] else [] },
 		materials: [Tree.leaves("post", Foliage.material("post", Foliage.material_default))],
 		shader_values: [Foliage.draw("post", Foliage.draw_default)],
 	}
@@ -300,12 +300,12 @@ view = |model| {
 			Draw(tree),
 			Draw(wall),
 		],
-		if model.blend [Draw(glass)] else [],
+		if (model.blend) [Draw(glass)] else [],
 	])
 	{
 		..Scene.empty,
 		camera: {
-			eye: if model.fixture {
+			eye: if (model.fixture) {
 				x: 0.0,
 				y: 2.0,
 				z: 10.0,
@@ -336,12 +336,12 @@ view = |model| {
 				b: 0.08,
 			},
 			bloom: {
-				strength: if model.bloom and (model.mode == "hdr" or model.mode == "outline") 0.3 else 0.0,
+				strength: if (model.bloom and (model.mode == "hdr" or model.mode == "outline")) 0.3 else 0.0,
 				threshold: 0.6,
 				knee: 0.2,
 			},
 		},
-		nodes: if model.fixture selection_nodes(model) else nodes,
+		nodes: if (model.fixture) selection_nodes(model) else nodes,
 		ui: [
 			Panel(
 				{
@@ -413,8 +413,8 @@ selection_nodes = |model| {
 	glass = {
 		..cube,
 		id: 22,
-		mesh: if model.override_glass Mesh.primitive(Cube) else model.glass,
-		material: if model.override_glass {
+		mesh: if (model.override_glass) Mesh.primitive(Cube) else model.glass,
+		material: if (model.override_glass) {
 			..Material.default,
 			properties: [
 				Alpha(Blend),
@@ -452,7 +452,7 @@ selection_nodes = |model| {
 			y: 0.8,
 			z: 0.8,
 		},
-		material: { ..Material.default, properties: if model.solid [Alpha(Opaque)] else [] },
+		material: { ..Material.default, properties: if (model.solid) [Alpha(Opaque)] else [] },
 		materials: [Tree.leaves("post", Foliage.material("post", Foliage.material_default))],
 		shader_values: [Foliage.draw("post", Foliage.draw_default)],
 	}
@@ -465,7 +465,7 @@ selection_nodes = |model| {
 			y: 0.0,
 			z: 0.0,
 		},
-		material: if model.mask_zero {
+		material: if (model.mask_zero) {
 			..Material.default,
 			properties: [
 				Alpha(Mask(0.5)),
@@ -545,8 +545,8 @@ selection_nodes = |model| {
 			),
 			Draw(tree),
 		],
-		if model.blend [Draw(glass)] else [],
-		if model.skin [Draw(pip)] else [],
+		if (model.blend) [Draw(glass)] else [],
+		if (model.skin) [Draw(pip)] else [],
 	])
 	children = match model.subset {
 		LeftOnly => [Draw(left)]
@@ -596,6 +596,6 @@ selection_nodes = |model| {
 				children,
 			),
 		],
-		if model.occluder [Draw(wall)] else [],
+		if (model.occluder) [Draw(wall)] else [],
 	])
 }

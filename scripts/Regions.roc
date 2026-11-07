@@ -208,7 +208,7 @@ expect {
 	text = Regions.message(err)
 	Regions.fill("guide/install.md", page, game_sources) == Err(err)
 		and Str.contains(text, "guide/install.md")
-			and Str.contains(text, "examples/game/main.roc#start")
+		and Str.contains(text, "examples/game/main.roc#start")
 }
 
 expect {
@@ -217,8 +217,8 @@ expect {
 	text = Regions.message(err)
 	Regions.fill("guide/install.md", page, game_sources) == Err(err)
 		and Str.contains(text, "guide/install.md")
-			and Str.contains(text, "examples/gone/main.roc#launch")
-				and Str.contains(text, "does not exist")
+		and Str.contains(text, "examples/gone/main.roc#launch")
+		and Str.contains(text, "does not exist")
 }
 
 expect {
@@ -227,8 +227,8 @@ expect {
 	text = Regions.message(err)
 	Regions.fill("guide/install.md", page, game_sources) == Err(err)
 		and Str.contains(text, "guide/install.md")
-			and Str.contains(text, "examples/game/main.roc#launch")
-				and Str.contains(text, "<!-- endregion -->")
+		and Str.contains(text, "examples/game/main.roc#launch")
+		and Str.contains(text, "<!-- endregion -->")
 }
 
 expect {
@@ -237,8 +237,8 @@ expect {
 	text = Regions.message(err)
 	Regions.fill("guide/install.md", page, [("a.roc", "# region: open\nx = 1\n")]) == Err(err)
 		and Str.contains(text, "guide/install.md")
-			and Str.contains(text, "a.roc#open")
-				and Str.contains(text, "# endregion")
+		and Str.contains(text, "a.roc#open")
+		and Str.contains(text, "# endregion")
 }
 
 expect {
@@ -247,7 +247,7 @@ expect {
 	text = Regions.message(err)
 	Regions.fill("guide/install.md", page, [("a.roc", "")]) == Err(err)
 		and Str.contains(text, "guide/install.md")
-			and Str.contains(text, "a.roc")
+		and Str.contains(text, "a.roc")
 }
 
 # A second region opened before the first is closed leaves the first unclosed.

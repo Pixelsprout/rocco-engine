@@ -18,7 +18,7 @@ Pose := [].{
 			0.0
 		} else {
 			wrapped = time - duration * time.div_floor_by(duration)
-			if wrapped < 0.0 or wrapped >= duration 0.0 else wrapped
+			if (wrapped < 0.0 or wrapped >= duration) 0.0 else wrapped
 		}
 }
 

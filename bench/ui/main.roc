@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -43,7 +43,7 @@ init = |config| match Bench.n_arg(config.args) {
 spawn : U64 -> Model
 spawn = |n| {
 	labels = add_labels(List.with_capacity(n // 2 + 1), n // 2)
-	{ labels: if n % 2 == 1 labels.append("") else labels, lit: 0 }
+	{ labels: if (n % 2 == 1) labels.append("") else labels, lit: 0 }
 }
 
 add_labels : List(Str), U64 -> List(Str)
@@ -87,8 +87,8 @@ elements = |m| {
 # The empty label marks the lone Panel of an odd N.
 cell : Str, Bool -> Element
 cell = |text, lit| {
-	config = if lit { ..cell_panel, background: lit_background } else cell_panel
-	children = if text == "" [] else [Text(label(text))]
+	config = if (lit) { ..cell_panel, background: lit_background } else cell_panel
+	children = if (text == "") [] else [Text(label(text))]
 	Panel(config, children)
 }
 

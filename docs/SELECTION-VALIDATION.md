@@ -25,10 +25,10 @@ Glass retains its complete Selection shape at zero alpha.
 Run these commands from the repository root:
 
 ```sh
-roc scripts/build.roc -- glue
-roc scripts/build.roc -- host
-roc scripts/build.roc -- inputs
-ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc -- game post
+roc scripts/build.roc glue
+roc scripts/build.roc host
+roc scripts/build.roc inputs
+ROCCO_SHDC="$PWD/build/shader-tools/sokol-shdc" roc scripts/build.roc game post
 python3 scripts/post_check.py
 ```
 

@@ -113,8 +113,8 @@ Run these commands from the repository root:
 
 ```sh
 python3 scripts/build_shader.py --shdc build/shader-tools/sokol-shdc
-roc scripts/build.roc -- host --release
-roc scripts/build.roc -- game environment-lighting
+roc scripts/build.roc host --release
+roc scripts/build.roc game environment-lighting
 python3 scripts/environment_check.py
 python3 scripts/shader_assets/native.py --shdc build/shader-tools/sokol-shdc
 ROCCO_SHDC=build/shader-tools/sokol-shdc python3 -m unittest scripts/test_shader_assets.py scripts/test_build_shader.py

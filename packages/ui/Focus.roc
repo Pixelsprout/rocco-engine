@@ -33,9 +33,9 @@ Focus :: [Focused(U64), Unfocused].{
 			Unfocused => []
 		}
 		next =
-			if (order.is_empty()) {
+			if order.is_empty() {
 				Unfocused
-			} else if (Seam.is_key_pressed(input, Tab)) {
+			} else if Seam.is_key_pressed(input, Tab) {
 				is_back = Seam.is_key_held(input, LeftShift) or Seam.is_key_held(input, RightShift)
 				move(in_order, { order, way: if (is_back) Back else Forward })
 			} else {

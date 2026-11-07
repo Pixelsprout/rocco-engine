@@ -35,7 +35,7 @@ ceil
 2. Add it to the `.def` file in sorted order.
 3. Run `python3 scripts/make_windows_import_libs.py` with Zig 0.16.0. Another
    Zig version can write other bytes.
-4. Run `roc scripts/build.roc -- all` and check that every game links.
+4. Run `roc scripts/build.roc all` and check that every game links.
 5. Commit the `.def` file and the `.lib`. `python3
    scripts/make_windows_import_libs.py --check` fails if they disagree.
 

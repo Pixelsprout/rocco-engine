@@ -80,8 +80,8 @@ def main():
         parser.error('output already exists')
     toolchain = {name: subprocess.check_output([program, 'version'], cwd=ROOT, text=True).strip()
                  for name, program in [('odin', args.odin), ('roc', args.roc)]}
-    if '9a69916' not in toolchain['odin'] or '7d256b9' not in toolchain['roc']:
-        raise ValueError('capture package requires the pinned Odin 9a69916 and Roc 7d256b9')
+    if '9a69916' not in toolchain['odin'] or '2622062' not in toolchain['roc']:
+        raise ValueError('capture package requires the pinned Odin 9a69916 and Roc 2622062')
     commands = []
     def build(command, cwd=ROOT):
         commands.append(dict(command=command, cwd=str(cwd)))

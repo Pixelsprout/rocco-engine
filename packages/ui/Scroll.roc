@@ -49,7 +49,7 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 		is_held = Seam.is_button_held(input, Left)
 		dragged = match sized.drag {
 			Dragging({ y, offset: start }) =>
-				if (is_held and travel > 0.0) {
+				if is_held and travel > 0.0 {
 					start + (input.pointer.y - y) * max / travel
 				} else {
 					stuck
@@ -57,9 +57,9 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 			Idle => stuck
 		}
 		drag =
-			if (Seam.is_button_pressed(input, Left) and Widget.hit(results) == Over(sized.thumb)) {
+			if Seam.is_button_pressed(input, Left) and Widget.hit(results) == Over(sized.thumb) {
 				Dragging({ y: input.pointer.y, offset: dragged })
-			} else if (is_held) {
+			} else if is_held {
 				sized.drag
 			} else {
 				Idle
@@ -67,15 +67,15 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 		under = results.ui.over.find_first(|id| results.ui.scroll.any(|row| row.id == id))
 		wheeled = if (under == Ok(sized.id)) dragged - input.pointer.wheel.dy * sized.line else dragged
 		keyed =
-			if (!focus.is_on(sized.id)) {
+			if !focus.is_on(sized.id) {
 				wheeled
-			} else if (Seam.is_key_pressed(input, Home)) {
+			} else if Seam.is_key_pressed(input, Home) {
 				0.0
-			} else if (Seam.is_key_pressed(input, End)) {
+			} else if Seam.is_key_pressed(input, End) {
 				max
-			} else if (Seam.is_key_pressed(input, PageUp)) {
+			} else if Seam.is_key_pressed(input, PageUp) {
 				wheeled - sized.seen
-			} else if (Seam.is_key_pressed(input, PageDown)) {
+			} else if Seam.is_key_pressed(input, PageDown) {
 				wheeled + sized.seen
 			} else {
 				wheeled
