@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
@@ -1569,7 +1569,7 @@ expect {
 	var $i = 0
 	while $i < 120 {
 		y = height_of($m)
-		contacts = if y < top [{ a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: top - y }] else []
+		contacts = if (y < top) [{ a: 0, b: 5, normal: { x: 0.0, y: -1.0, z: 0.0 }, depth: top - y }] else []
 		$m = update($m, Input.empty, contacts, dt)
 		$steady = $steady and grounded($m) and (height_of($m) - top).abs() < 0.01
 		$i = $i + 1

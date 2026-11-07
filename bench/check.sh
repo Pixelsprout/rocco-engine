@@ -16,7 +16,7 @@ done
 ext=
 [ "${OS:-}" = Windows_NT ] && ext=.exe
 
-target_lines=$(roc scripts/build.roc -- target)
+target_lines=$(roc scripts/build.roc target)
 eval "$target_lines"
 link=
 [ -z "$odin_linker" ] || link=-linker:$odin_linker

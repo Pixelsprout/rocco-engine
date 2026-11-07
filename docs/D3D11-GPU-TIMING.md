@@ -15,10 +15,10 @@ The following PowerShell commands build a release host with both GPU timestamps 
 Run these commands from the repository root.
 
 ```powershell
-roc scripts/build.roc -- inputs --release
+roc scripts/build.roc inputs --release
 Remove-Item platform/targets/x64win/host.lib -ErrorAction SilentlyContinue
 odin build engine -build-mode:static -out:platform/targets/x64win/host.lib -no-crt -no-thread-local -o:speed -define:ROCCO_D3D_GPU_TIMING=true -define:ROCCO_SPANS=true -vet -strict-style
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 $env:ROCCO_D3D_GPU_CSV = "$PWD/build/village-gpu-run1.csv"
 $env:ROCCO_SPANS_CSV = "$PWD/build/village-cpu-run1.csv"
 $env:ROCCO_EXIT_AFTER_FRAMES = '10000'
@@ -59,9 +59,9 @@ To restore the ordinary host, clear the capture variables and rebuild:
 Remove-Item Env:ROCCO_D3D_GPU_CSV -ErrorAction SilentlyContinue
 Remove-Item Env:ROCCO_SPANS_CSV -ErrorAction SilentlyContinue
 Remove-Item Env:ROCCO_EXIT_AFTER_FRAMES -ErrorAction SilentlyContinue
-roc scripts/build.roc -- host --release
-roc scripts/build.roc -- inputs --release
-roc scripts/build.roc -- game village
+roc scripts/build.roc host --release
+roc scripts/build.roc inputs --release
+roc scripts/build.roc game village
 ```
 
 ## Output contract

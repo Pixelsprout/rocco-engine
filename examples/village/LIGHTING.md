@@ -49,7 +49,7 @@ No additive Ambient light compensates for the disabled sky.
 Run the required game build before captures:
 
 ```sh
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 python3 examples/village/fixtures/lighting.py /tmp/village-lighting --require-1080
 ```
 

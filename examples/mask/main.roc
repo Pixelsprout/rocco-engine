@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 
 # Cutout parts under a Sun. Two chain-link fences stand in front of a red and
 # a blue cube: the left fence is double-sided and the right one is not, so
@@ -40,8 +40,8 @@ Meshes : { fence : U32, fence_one_sided : U32, leaf : U32, pip : U32 }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |config| {
-	startup = if config.args.contains("--shadow-low") Shadow.startup_low else if config.args.contains("--shadow-high") Shadow.startup_high else Shadow.startup_default
-	cascades = if config.args.contains("--far-shadows") 4 else startup.shadow_cascades
+	startup = if (config.args.contains("--shadow-low")) Shadow.startup_low else if (config.args.contains("--shadow-high")) Shadow.startup_high else Shadow.startup_default
+	cascades = if (config.args.contains("--far-shadows")) 4 else startup.shadow_cascades
 	{ ..Launch.default, shadow_map: startup.shadow_map, shadow_cascades: cascades, window: { ..Launch.default.window, samples: startup.samples, title: "Mask" } }
 }
 
@@ -70,16 +70,16 @@ turn_speed = 1.2
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
-	paused = if Key.pressed(input, Space) !model.paused else model.paused
-	moving = if paused 0.0 else dt
+	paused = if (Key.pressed(input, Space)) !model.paused else model.paused
+	moving = if (paused) 0.0 else dt
 	turn = Key.axis(input, Left, Right) * turn_speed * dt
-	shadow = if Key.pressed(input, L) Shadow.low else if Key.pressed(input, B) Shadow.balanced else if Key.pressed(input, H) Shadow.high else model.shadow
+	shadow = if (Key.pressed(input, L)) Shadow.low else if (Key.pressed(input, B)) Shadow.balanced else if (Key.pressed(input, H)) Shadow.high else model.shadow
 	distance = F32.max(0.2, shadow.distance + Key.axis(input, Down, Up) * 30.0 * dt)
 	depth_bias = F32.max(0.0, F32.min(0.1, shadow.depth_bias + Key.axis(input, R, T) * 0.002 * dt))
 	normal_bias = F32.max(0.0, F32.min(10.0, shadow.normal_bias + Key.axis(input, J, K) * 0.05 * dt))
 	distribution = F32.max(0.0, F32.min(1.0, shadow.distribution + Key.axis(input, U, I) * 0.5 * dt))
 	blend = F32.max(0.0, F32.min(0.5, shadow.blend + Key.axis(input, N, M) * 0.2 * dt))
-	live = { ..shadow, distance: if Key.axis(input, Down, Up) != 0.0 distance else shadow.distance, normal_bias, depth_bias, distribution, blend }
+	live = { ..shadow, distance: if (Key.axis(input, Down, Up) != 0.0) distance else shadow.distance, normal_bias, depth_bias, distribution, blend }
 	{ model: { ..model, paused, shadow: live, time: model.time + moving, angle: model.angle + orbit_speed * moving + turn }, commands: [] }
 }
 
@@ -149,10 +149,10 @@ orbit_radius = 5.0
 view : Model -> Vocabulary.Scene
 view = |model| {
 	a = model.angle
-	radius = if model.far_shadows 110.0 else orbit_radius
-	eye = { x: orbit_centre.x + radius * a.sin(), y: if model.far_shadows 22.0 else 2.4, z: orbit_centre.z + radius * a.cos() }
+	radius = if (model.far_shadows) 110.0 else orbit_radius
+	eye = { x: orbit_centre.x + radius * a.sin(), y: if (model.far_shadows) 22.0 else 2.4, z: orbit_centre.z + radius * a.cos() }
 	base_camera = Cam.look_at(eye, orbit_centre)
-	camera = if model.far_shadows { ..base_camera, fov_y: 0.05 } else base_camera
+	camera = if (model.far_shadows) { ..base_camera, fov_y: 0.05 } else base_camera
 	m = model.meshes
 	nodes = [
 		Light(sky_light),

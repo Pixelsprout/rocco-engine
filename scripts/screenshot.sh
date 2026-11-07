@@ -22,14 +22,14 @@ python=${PYTHON:-python3}
 cd "$(dirname "$0")/.."
 
 # eval "$(...)" would hide a build.roc failure from set -e.
-target_lines=$(roc scripts/build.roc -- target)
+target_lines=$(roc scripts/build.roc target)
 eval "$target_lines"
 
 dir=examples/$game
 # tutorial/01-window builds 01-window.bin.
 name=${game##*/}$suffix
 if [ ! -x "$dir/$name" ]; then
-	echo "screenshot: $dir/$name is missing. Run roc scripts/build.roc -- game $game first." >&2
+	echo "screenshot: $dir/$name is missing. Run roc scripts/build.roc game $game first." >&2
 	exit 2
 fi
 

@@ -18,7 +18,7 @@ Run each command in the folder that holds `main.roc`:
 | Command | Does |
 |---|---|
 | `roc main.roc` | Builds the game with the dev backend and runs it. |
-| `roc run main.roc -- <args>` | The same, and gives the words after `--` to the game as `args` in the [Config]. |
+| `roc run main.roc <args>` | The same, and gives the words after `main.roc` to the game as `args` in the [Config]. |
 | `roc check main.roc` | Finds type errors without building. |
 | `roc test main.roc` | Runs each `expect` in the game. |
 

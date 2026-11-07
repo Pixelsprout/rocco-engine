@@ -91,7 +91,7 @@ banner = |state, score| match state {
 	Running => []
 	Paused => [banner_panel("Paused", white_text, "Space to resume")]
 	EndGame => {
-		winner = if score.left > score.right "Left" else "Right"
+		winner = if (score.left > score.right) "Left" else "Right"
 		[banner_panel("${winner} wins", green_text, "Space to play again")]
 	}
 }

@@ -56,13 +56,13 @@ Vegetation := [].{
 			Plant => settings.grass
 			Static => Bool.True
 		}
-		{ ..base, casts_shadow: settings.casts_shadow, material: if use_shader base.material else Material.default, slot_materials: if use_shader base.slot_materials else [] }
+		{ ..base, casts_shadow: settings.casts_shadow, material: if (use_shader) base.material else Material.default, slot_materials: if (use_shader) base.slot_materials else [] }
 	}
 
 	## The field ignores the eye. The grass shader fades plants beyond `distance` plus 10 metres.
 	field_nodes : Prepared, Settings -> List(Vocabulary.Node)
-	field_nodes = |prepared, settings| if !settings.field [] else {
-		field = if settings.grass prepared.field else prepared.field_plain
+	field_nodes = |prepared, settings| if (!settings.field) [] else {
+		field = if (settings.grass) prepared.field else prepared.field_plain
 		field.keep_if(
 			|node| match node {
 				Draw(plant) => plant.id - 100000 < settings.density
@@ -73,7 +73,7 @@ Vegetation := [].{
 
 	scene_values : Settings, Vocabulary.Vec3 -> List(Shader.Values)
 	scene_values = |settings, eye| {
-		wind = if settings.wind 1.0 else 0.0
+		wind = if (settings.wind) 1.0 else 0.0
 		[VillageCanopy.scene("village-vegetation", { wind: wind }), VillageGrass.scene("village-vegetation", { wind: wind, viewer: eye, visibility_distance: settings.distance })]
 	}
 
@@ -90,7 +90,7 @@ Vegetation := [].{
 				Err(_) => settings
 			}
 			["distance", number] => match F32.from_str(number) {
-				Ok(distance) => if distance >= 0.0 and distance < 1000000.0 { ..settings, distance: F32.max(1.0, F32.min(200.0, distance)) } else settings
+				Ok(distance) => if (distance >= 0.0 and distance < 1000000.0) { ..settings, distance: F32.max(1.0, F32.min(200.0, distance)) } else settings
 				Err(_) => settings
 			}
 			_ => settings
@@ -115,7 +115,7 @@ mesh_draw = |manifest, shape| {
 			{ ..base, material: { ..Material.surface(values), properties: [DoubleSided(Bool.True)] } }
 		}
 		Canopy => {
-			values = VillageCanopy.material("village-vegetation", { canopy_center: shape.canopy_center, canopy_radius: shape.canopy_radius, canopy_base: shape.canopy_base, normal_soften: if shape.asset.starts_with("Pine_") 0.6 else 0.85 })
+			values = VillageCanopy.material("village-vegetation", { canopy_center: shape.canopy_center, canopy_radius: shape.canopy_radius, canopy_base: shape.canopy_base, normal_soften: if (shape.asset.starts_with("Pine_")) 0.6 else 0.85 })
 			{ ..base, slot_materials: shape.leaves.map(|slot| { slot: { mesh: { pack: shape.asset, asset: shape.asset }, source_material: slot.index }, material: { ..Material.surface(values), properties: [DoubleSided(Bool.True)] } }) }
 		}
 	}
@@ -131,7 +131,7 @@ expect Vegetation.default.density == 22000
 expect Vegetation.configure(Vegetation.default, "casting").casts_shadow == Bool.False
 
 field_reference : List(Vocabulary.Draw), Vegetation.Settings -> List(Vocabulary.Node)
-field_reference = |field, settings| if !settings.field [] else field.keep_if(|plant| plant.id - 100000 < settings.density).map(|plant| Draw({ ..plant, material: if settings.grass plant.material else Material.default }))
+field_reference = |field, settings| if (!settings.field) [] else field.keep_if(|plant| plant.id - 100000 < settings.density).map(|plant| Draw({ ..plant, material: if (settings.grass) plant.material else Material.default }))
 
 expect {
 	material = { ..Material.default, properties: [DoubleSided(Bool.True), Alpha(Mask(0.2))] }

@@ -117,8 +117,8 @@ These checks validate the environment feature, not final village performance.
 
 ## Reproduce the measurements
 
-Build the host with `roc scripts/build.roc -- host --release --spans`.
-Build the reference with `roc scripts/build.roc -- game environment-lighting`.
+Build the host with `roc scripts/build.roc host --release --spans`.
+Build the reference with `roc scripts/build.roc game environment-lighting`.
 Run each CPU process from `examples/environment-lighting`:
 
 ```sh

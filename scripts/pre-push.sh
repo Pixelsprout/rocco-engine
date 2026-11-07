@@ -73,9 +73,9 @@ if [ "$(uname -s)" = Darwin ] &&
 		sh scripts/macos/build-sokol.sh
 		sh scripts/macos/build-miniaudio.sh
 	fi
-	roc scripts/build.roc -- host
-	roc scripts/build.roc -- inputs
-	roc scripts/build.roc -- game tutorial/01-window || {
+	roc scripts/build.roc host
+	roc scripts/build.roc inputs
+	roc scripts/build.roc game tutorial/01-window || {
 		echo "pre-push: the game link failed. CI's macOS job fails the same way." >&2
 		exit 1
 	}

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", ui: "../../packages/ui/main.roc" }
 
 import ui.Ui
 import Layout
@@ -44,7 +44,7 @@ init = |config| { model: { manifest: [], loaded_packs: [], lighting: Lighting.de
 loaded : Model, Str, Manifest -> Model
 loaded = |model, pack, manifest| {
 	combined = { ..model, manifest: List.join([model.manifest, manifest]), loaded_packs: List.join([model.loaded_packs, [pack]]) }
-	if ready(combined) refresh_parts({ ..combined, prepared: Vegetation.prepare(combined.manifest), parts: Unbuilt }) else { ..combined, parts: Unbuilt }
+	if (ready(combined)) refresh_parts({ ..combined, prepared: Vegetation.prepare(combined.manifest), parts: Unbuilt }) else { ..combined, parts: Unbuilt }
 }
 
 route : List(Vec3)
@@ -65,24 +65,24 @@ set_view = |model, name| match name {
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, dt| {
 	if !ready(model) {
-		commands = if Key.pressed(input, Escape) [Quit] else match requests.keep_if(|request| !model.loaded_packs.contains(request.pack)).first() {
+		commands = if (Key.pressed(input, Escape)) [Quit] else match requests.keep_if(|request| !model.loaded_packs.contains(request.pack)).first() {
 			Ok(request) => [Load({ pack: request.pack, assets: request.assets })]
 			Err(_) => []
 		}
 		{ model, commands }
 	} else if model.capture.enabled {
-		if Key.pressed(input, Escape) { model, commands: [Capture.marker(model.capture, "aborted", model.route_i), Quit] } else capture_step(model, dt)
+		if (Key.pressed(input, Escape)) { model, commands: [Capture.marker(model.capture, "aborted", model.route_i), Quit] } else capture_step(model, dt)
 	} else {
 		views = Port.messages(results, "view").fold(model, set_view)
 		from_view = { ..views, lighting: Port.messages(results, "lighting").fold(views.lighting, Lighting.compare), effects: Port.messages(results, "effects").fold(views.effects, Effects.compare) }
 		from_vegetation = { ..from_view, vegetation: Port.messages(results, "vegetation").fold(from_view.vegetation, Vegetation.configure) }
 		from_port = { ..from_vegetation, shadow: Port.messages(results, "quality").fold(from_vegetation.shadow, Quality.configure) }
-		vegetation = if Key.pressed(input, Num4) Vegetation.configure(from_port.vegetation, "wind") else if Key.pressed(input, Num5) Vegetation.configure(from_port.vegetation, "canopy") else if Key.pressed(input, Num6) Vegetation.configure(from_port.vegetation, "grass") else if Key.pressed(input, Num7) Vegetation.configure(from_port.vegetation, "field") else if Key.pressed(input, Num8) Vegetation.configure(from_port.vegetation, "casting") else from_port.vegetation
+		vegetation = if (Key.pressed(input, Num4)) Vegetation.configure(from_port.vegetation, "wind") else if (Key.pressed(input, Num5)) Vegetation.configure(from_port.vegetation, "canopy") else if (Key.pressed(input, Num6)) Vegetation.configure(from_port.vegetation, "grass") else if (Key.pressed(input, Num7)) Vegetation.configure(from_port.vegetation, "field") else if (Key.pressed(input, Num8)) Vegetation.configure(from_port.vegetation, "casting") else from_port.vegetation
 		controlled = { ..from_port, vegetation }
-		chosen = if Key.pressed(input, Num1) set_view(controlled, "hero") else if Key.pressed(input, Num2) set_view(controlled, "square") else if Key.pressed(input, Num3) set_view(controlled, "walk") else if Key.pressed(input, T) set_view(controlled, "tour") else if Key.pressed(input, F) set_view(controlled, "free") else if Key.pressed(input, R) { ..set_view(controlled, "hero"), selected: 0 } else controlled
+		chosen = if (Key.pressed(input, Num1)) set_view(controlled, "hero") else if (Key.pressed(input, Num2)) set_view(controlled, "square") else if (Key.pressed(input, Num3)) set_view(controlled, "walk") else if (Key.pressed(input, T)) set_view(controlled, "tour") else if (Key.pressed(input, F)) set_view(controlled, "free") else if (Key.pressed(input, R)) { ..set_view(controlled, "hero"), selected: 0 } else controlled
 		effect_keys = [(Num9, "outline"), (Num0, "occlusion"), (C, "colour"), (M, "smoke"), (N, "dust"), (P, "pulse"), (G, "glow"), (H, "controls")]
-		controls = effect_keys.fold(chosen.effects, |settings, (key, name)| if Key.pressed(input, key) Effects.compare(settings, name) else settings)
-		captured = if Key.pressed(input, Tab) !chosen.captured else chosen.captured
+		controls = effect_keys.fold(chosen.effects, |settings, (key, name)| if (Key.pressed(input, key)) Effects.compare(settings, name) else settings)
+		captured = if (Key.pressed(input, Tab)) !chosen.captured else chosen.captured
 		looked = { ..chosen, captured, effects: controls, yaw: chosen.yaw - input.mouse.dx * 0.004 + Key.axis(input, E, Q) * dt * 1.6, pitch: clamp(chosen.pitch - input.mouse.dy * 0.003, -1.4, 1.4), time: chosen.time + dt }
 		moved = match looked.mode {
 			Walk => walk(looked, input, dt)
@@ -90,17 +90,17 @@ step = |model, input, results, dt| {
 			Tour => tour(looked, dt)
 			_ => looked
 		}
-		selected = if Key.pressed(input, Enter) match QueryResults.ray(results, 900) {
+		selected = if (Key.pressed(input, Enter)) match QueryResults.ray(results, 900) {
 			Ok(hit) => hit.id
 			Err(_) => 0
 		} else moved.selected
-		commands = if Key.pressed(input, Escape) [Quit] else []
+		commands = if (Key.pressed(input, Escape)) [Quit] else []
 		{ model: refresh_parts({ ..moved, selected }), commands }
 	}
 }
 
 capture_bool : Bool -> Str
-capture_bool = |value| if value "true" else "false"
+capture_bool = |value| if (value) "true" else "false"
 
 capture_settings : Model -> Command
 capture_settings = |model| {
@@ -176,8 +176,8 @@ capture_advance = |model, dt| {
 		Done => { model, commands: [] }
 	}
 	timed = { ..transition.model, time: transition.model.time + dt }
-	moved = if timed.capture.phase == Route tour(timed, dt) else timed
-	waypoint = if moved.route_i != transition.model.route_i [Capture.marker(moved.capture, "waypoint", moved.route_i)] else []
+	moved = if (timed.capture.phase == Route) tour(timed, dt) else timed
+	waypoint = if (moved.route_i != transition.model.route_i) [Capture.marker(moved.capture, "waypoint", moved.route_i)] else []
 	{ model: moved, commands: List.join([transition.commands, waypoint]) }
 }
 
@@ -196,26 +196,26 @@ walk : Model, Vocabulary.Input, F32 -> Model
 walk = |model, input, dt| {
 	forward = Key.axis(input, S, W)
 	right = Key.axis(input, A, D)
-	vertical = if model.mode == Free Key.axis(input, LeftControl, Space) else 0.0
+	vertical = if (model.mode == Free) Key.axis(input, LeftControl, Space) else 0.0
 	dir = V.normalize({ x: right * model.yaw.cos() - forward * model.yaw.sin(), y: vertical, z: -forward * model.yaw.cos() - right * model.yaw.sin() })
-	speed = if model.mode == Free 6.0 else if Key.held(input, LeftShift) 3.4 else 1.45
+	speed = if (model.mode == Free) 6.0 else if (Key.held(input, LeftShift)) 3.4 else 1.45
 	candidate = V.add(model.eye, V.scale(dir, speed * dt))
 	x_only = { ..model.eye, x: clamp(candidate.x, -95.0, 95.0) }
-	x = if model.mode == Walk and blocked(x_only) model.eye.x else x_only.x
+	x = if (model.mode == Walk and blocked(x_only)) model.eye.x else x_only.x
 	z_only = { ..model.eye, x, z: clamp(candidate.z, -95.0, 95.0) }
-	z = if model.mode == Walk and blocked(z_only) model.eye.z else z_only.z
-	y = if model.mode == Walk 1.7 else clamp(candidate.y, 0.2, 80.0)
+	z = if (model.mode == Walk and blocked(z_only)) model.eye.z else z_only.z
+	y = if (model.mode == Walk) 1.7 else clamp(candidate.y, 0.2, 80.0)
 	{ ..model, eye: { x, y, z } }
 }
 
 tour : Model, F32 -> Model
 tour = |model, dt| {
-	if model.time < 1.5 model else match route.get(model.route_i) {
+	if (model.time < 1.5) model else match route.get(model.route_i) {
 		Err(_) => model
 		Ok(target) => {
 			delta = V.sub(target, model.eye)
 			distance = V.length(delta)
-			if distance <= 1.45 * dt { ..model, eye: target, route_i: model.route_i + 1 } else { ..model, eye: V.add(model.eye, V.scale(V.normalize(delta), 1.45 * dt)) }
+			if (distance <= 1.45 * dt) { ..model, eye: target, route_i: model.route_i + 1 } else { ..model, eye: V.add(model.eye, V.scale(V.normalize(delta), 1.45 * dt)) }
 		}
 	}
 }
@@ -265,14 +265,14 @@ build_parts = |model| {
 refresh_parts : Model -> Model
 refresh_parts = |model| match model.parts {
 	Built(parts) if parts.settings == scene_settings(model) => model
-	_ => if ready(model) { ..model, parts: Built(build_parts(model)) } else { ..model, parts: Unbuilt }
+	_ => if (ready(model)) { ..model, parts: Built(build_parts(model)) } else { ..model, parts: Unbuilt }
 }
 
 scene_nodes : Model, SceneParts -> List(Vocabulary.Node)
 scene_nodes = |model, parts| List.join([[parts.ground], parts.buildings.map(|building| Group(group(building.id, model.selected == building.id), building.children)), [parts.source, parts.field], parts.after])
 
 view : Model -> Vocabulary.Scene
-view = |model| if !ready(model) loading_view(model) else {
+view = |model| if (!ready(model)) loading_view(model) else {
 	cam_view = camera(model)
 	parts = match model.parts {
 		Built(built) if built.settings == scene_settings(model) => built
@@ -280,7 +280,7 @@ view = |model| if !ready(model) loading_view(model) else {
 	}
 	nodes = scene_nodes(model, parts)
 	environment = Lighting.environment(model.manifest, model.lighting)
-	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect blocked({ x: -6.4, y: 1.7, z: 1.0 }) and blocked({ x: 6.6, y: 1.7, z: 5.0 }) and !blocked({ x: 0.0, y: 1.7, z: 5.0 })
@@ -306,8 +306,8 @@ expected_assets = List.join([Layout.assets, Lighting.assets, Vegetation.assets.k
 loading_view : Model -> Vocabulary.Scene
 loading_view = |model| {
 	failed = model.manifest.any(|entry| entry.id == 0)
-	title = if failed "Village could not load" else "Loading village"
-	progress = if failed "Read the host log. Press Escape to exit." else "${expected_assets.keep_if(|asset| model.manifest.any(|entry| entry.name == asset and entry.id != 0)).len().to_str()} / ${expected_assets.len().to_str()} assets"
+	title = if (failed) "Village could not load" else "Loading village"
+	progress = if (failed) "Read the host log. Press Escape to exit." else "${expected_assets.keep_if(|asset| model.manifest.any(|entry| entry.name == asset and entry.id != 0)).len().to_str()} / ${expected_assets.len().to_str()} assets"
 	panel = { ..Ui.panel(CenterCenter, { x: 0.0, y: 0.0 }), direction: Col, gap: 16.0, child_align: { x: Center, y: Center } }
 	{ ..Scene.empty, environment: { ..Environment.default, clear: { r: 0.025, g: 0.04, b: 0.055 } }, ui: [Panel(panel, [Text({ ..Ui.label(title), size: 36.0 }), Text(Ui.label(progress))])] }
 }
@@ -335,7 +335,7 @@ expect {
 }
 expect {
 	start = init(Config.empty).model
-	manifest = expected_assets.map(|name| { name: if name == "shader/VillageGround" "extra" else name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
+	manifest = expected_assets.map(|name| { name: if (name == "shader/VillageGround") "extra" else name, id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] })
 	!ready({ ..start, loaded_packs: requests.map(|request| request.pack), manifest })
 }
 
@@ -357,7 +357,7 @@ ready_test_model = {
 }
 
 reference_view : Model -> Vocabulary.Scene
-reference_view = |model| if !ready(model) loading_view(model) else {
+reference_view = |model| if (!ready(model)) loading_view(model) else {
 	cam_view = camera(model)
 	source = |id| model.prepared.source.keep_if(|placement| placement.group == id).map(|placement| Draw(Lighting.windows(Vegetation.draw(placement, model.vegetation), { asset: placement.asset, settings: model.lighting })))
 	identity = |id| { id, pos: V.zero, rot: Quat.identity, selected: model.selected == id }
@@ -365,7 +365,7 @@ reference_view = |model| if !ready(model) loading_view(model) else {
 	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
 	nodes = List.join([[Lighting.ground(model.lighting)], buildings, [Group(identity(1), source(0)), Group(identity(2), Vegetation.field_nodes(model.prepared, model.vegetation))], boxes, Lighting.nodes(model.lighting)])
 	environment = Lighting.environment(model.manifest, model.lighting)
-	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if model.captured Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect {
@@ -453,16 +453,16 @@ capture_test_run = |model, steps| List.repeat({}, steps).map_with_index(|_, i| i
 		next = capture_advance(state.model, 1.0 / 120.0)
 		messages = next.commands.map(
 			|command| match command {
-				Tell(message) => if message.port == "village.capture.v1" [message.msg] else []
+				Tell(message) => if (message.port == "village.capture.v1") [message.msg] else []
 				_ => []
 			},
 		).join()
 		{
 			model: next.model,
-			warmup: state.warmup + if next.model.capture.phase == Warmup 1 else 0,
-			route: state.route + if next.model.capture.phase == Route 1 else 0,
-			drain: state.drain + if next.model.capture.phase == Drain 1 else 0,
-			done: state.done + if next.model.capture.phase == Done 1 else 0,
+			warmup: state.warmup + if (next.model.capture.phase == Warmup) 1 else 0,
+			route: state.route + if (next.model.capture.phase == Route) 1 else 0,
+			drain: state.drain + if (next.model.capture.phase == Drain) 1 else 0,
+			done: state.done + if (next.model.capture.phase == Done) 1 else 0,
 			selected: state.selected and next.model.selected == 20,
 			events: List.join([state.events, messages.map(|message| { step: step_i, message })]),
 		}

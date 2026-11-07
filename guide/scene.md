@@ -363,7 +363,7 @@ bloom_strength = 0.2
 
 environment : Model -> Vocabulary.Environment
 environment = |model| {
-	strength = if model.bloom bloom_strength else 0.0
+	strength = if (model.bloom) bloom_strength else 0.0
 	{ ..Environment.default, tone_map: model.tone_map, bloom: { ..Environment.default.bloom, strength } }
 }
 ```

@@ -1101,6 +1101,11 @@ The measurement found these costs in game code. Section 9 lists them.
   they fold with `List.concat(acc, [item])`. `[x].concat(list)` allocates
   twice. entity-game skips the fold of `sweep` on a quiet step, and
   otherwise accepts these costs.
+- From `nightly-2026-11-04-2622062`, `List.keep_if` and `List.drop_if`
+  filter a unique list in place and copy a shared list into one buffer.
+  `List.keep_oks` fills one buffer. tutorial/10-animation then makes 10
+  allocs and 4 reallocs a step, down from 15 and 7. entity-game makes no
+  reallocs, down from 4.
 
 Milestone 6 timed the contact search on `arm64mac`.
 `test_contact_search_timing_at_1000_colliders` in `engine/collision_test.odin`

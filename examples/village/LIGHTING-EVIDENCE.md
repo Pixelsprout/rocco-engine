@@ -11,7 +11,7 @@ No complete-layout or foliage result is claimed by these captures.
 
 ## Verification
 
-The required `roc scripts/build.roc -- game village` command passed.
+The required `roc scripts/build.roc game village` command passed.
 The isolated village passed all 165 Roc tests.
 The ground declaration compiled Metal, GL 4.3, and D3D11 payloads through the pinned shader compiler.
 The generated helper files match a separate build from `lighting-shaders.json`.
@@ -81,7 +81,7 @@ This build includes the final record argument for window overrides.
 Reproduce the comparisons after connecting the documented integration seam:
 
 ```sh
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 python3 examples/village/fixtures/lighting.py /tmp/village-lighting-final --retina-1080 --require-1080
 ```
 

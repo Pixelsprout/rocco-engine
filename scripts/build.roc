@@ -1,4 +1,4 @@
-app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.26.0-rc1/GMezHWvmUP42Leqg8YkABvEk27cMUSVM6p7oz3XPj11N.tar.zst", roc: "nightly-2026-10-11-7d256b9" }
+app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.26.0/GddgvsGjiNXrHFW6au5i5dUDbTs8FinQdrgE2Gqmw53t.tar.zst", roc: "nightly-2026-11-04-2622062" }
 
 import pf.Cmd
 import pf.Env
@@ -8,6 +8,7 @@ import pf.Random
 import pf.Sleep
 import pf.Stderr
 import pf.Stdout
+import pf.System
 import DocCheck
 import FontTable
 import Keys
@@ -61,12 +62,12 @@ parse = |args| match args {
 # an optional --windowed.
 bench_parse : Str, List(Str) -> Try(List(Step), [Usage])
 bench_parse = |names, rest| {
-	(mode, n_words) = if rest.last() == Ok("--windowed") (Windowed, rest.drop_last(1)) else (Headless, rest)
+	(mode, n_words) = if (rest.last() == Ok("--windowed")) (Windowed, rest.drop_last(1)) else (Headless, rest)
 	games = Str.split_on(names, ",")
 	if games.any(|game| game == "") or !all_unique(games) {
 		return Err(Usage)
 	}
-	ns = if n_words.is_empty() sweep_ns else n_words.map(|word| U64.from_str(word) ?? 0)
+	ns = if (n_words.is_empty()) sweep_ns else n_words.map(|word| U64.from_str(word) ?? 0)
 	if ns.contains(0) or !all_unique(ns) {
 		return Err(Usage)
 	}
@@ -84,8 +85,8 @@ all_unique = |items| match items.first() {
 
 bench_steps : Bench -> List(Step)
 bench_steps = |bench| {
-	builds = bench.games.map(|game| if is_twin(game) BenchTwin(game) else BenchGame(game))
-	prepare = if bench.games.any(|game| !is_twin(game)) [bench_host, Inputs(Release)] else []
+	builds = bench.games.map(|game| if (is_twin(game)) BenchTwin(game) else BenchGame(game))
+	prepare = if (bench.games.any(|game| !is_twin(game))) [bench_host, Inputs(Release)] else []
 	prepare.concat(builds).append(BenchRun(bench))
 }
 
@@ -123,16 +124,27 @@ Target : {
 	odin_linker : Str,
 }
 
-Machine : { arch : [X86, X64, ARM, AARCH64, OTHER(Str)], os : [LINUX, MACOS, WINDOWS, OTHER(Str)] }
+Machine : { arch : [X64, Arm64], os : [Linux, MacOS, Windows] }
+
+# Machine drops System.Target's OS witnesses, which tests cannot construct.
+native_machine : System.Target -> Machine
+native_machine = |native| {
+	os = match native.os() {
+		Linux(_) => Linux
+		MacOS(_) => MacOS
+		Windows(_) => Windows
+	}
+	{ arch: native.arch(), os }
+}
 
 target_for : Machine -> Try(Target, [UnsupportedMachine])
 target_for = |machine| match (machine.os, machine.arch) {
-	(MACOS, AARCH64) => Ok(make_target("arm64mac", "libhost.a", [], "macos_arm64_metal", ".a", ".bin", MacSdk))
-	(LINUX, X64) => Ok(make_target("x64glibc", "libhost.a", [], "linux_x64_gl", ".a", "_linux.bin", LinuxStubs))
+	(MacOS, Arm64) => Ok(make_target("arm64mac", "libhost.a", [], "macos_arm64_metal", ".a", ".bin", MacSdk))
+	(Linux, X64) => Ok(make_target("x64glibc", "libhost.a", [], "linux_x64_gl", ".a", "_linux.bin", LinuxStubs))
 	# Roc links x64win with /nodefaultlib, so the host takes no CRT either. With
 	# no CRT, nothing writes the TLS directory, so Odin's thread_local variables
 	# must be plain globals.
-	(WINDOWS, X64) => Ok(make_target("x64win", "host.lib", ["-no-crt", "-no-thread-local"], "windows_x64_d3d11", ".lib", ".exe", WindowsImportLibs))
+	(Windows, X64) => Ok(make_target("x64win", "host.lib", ["-no-crt", "-no-thread-local"], "windows_x64_d3d11", ".lib", ".exe", WindowsImportLibs))
 	_ => Err(UnsupportedMachine)
 }
 
@@ -187,6 +199,13 @@ host_run = |target, mode, alloc, spans| {
 		args: ["build", "engine", "-build-mode:static", "-out:${target.dir}/${target.host_lib}"].concat(target.host_flags).concat(opt).concat(track).concat(span_defines).concat(["-vet", "-strict-style"]).concat(linker_flags(target)),
 		cwd: ".",
 	}
+}
+
+# Odin's -no-crt runtime and a Roc --opt=speed object both define _fltused on x64win.
+host_fixups : Target -> List(Run)
+host_fixups = |target| match target.extra_inputs {
+	WindowsImportLibs => [{ program: target.python, args: ["scripts/host_fltused.py", "${target.dir}/${target.host_lib}"], cwd: "." }]
+	_ => []
 }
 
 # The binary takes the name of the last folder, so tutorial/01-window builds 01-window.bin.
@@ -254,7 +273,7 @@ twin_run = |target, name| {
 }
 
 linker_flags : Target -> List(Str)
-linker_flags = |target| if target.odin_linker == "" [] else ["-linker:${target.odin_linker}"]
+linker_flags = |target| if (target.odin_linker == "") [] else ["-linker:${target.odin_linker}"]
 
 bench_warmup_frames : U64
 bench_warmup_frames = 120
@@ -369,7 +388,7 @@ bench_meta = |target, meta| {
 		} else {
 			(host_run(target, Release, Untracked, Spans).args, game_run(target, "bench/${meta.game}", meta.game).args)
 		}
-	odin_debug = if host_flags.contains("-debug") "true" else "false"
+	odin_debug = if (host_flags.contains("-debug")) "true" else "false"
 	json_list = |words| "[${Str.join_with(words.map(|w| "\"${w}\""), ", ")}]"
 	csvs = bench_processes.map(|process| bench_csv({ game: meta.game, n: meta.n, process }))
 	lines = [
@@ -447,7 +466,7 @@ compiler_rt_copy = |resource_dir, target| {
 
 usage : Str
 usage =
-	\\Usage: roc scripts/build.roc -- <command>
+	\\Usage: roc scripts/build.roc <command>
 	\\
 	\\  inputs          copy sokol, Clay, miniaudio and compiler-rt libraries into platform/targets/<target>/
 	\\  glue            regenerate engine/roc_platform_abi.odin
@@ -504,7 +523,7 @@ main! = |args| {
 			return Err(Exit(2))
 		}
 	}
-	target = match target_for(Env.platform!()) {
+	target = match target_for(native_machine(System.target!())) {
 		Ok(found) => found
 		Err(UnsupportedMachine) => fail!("This machine has no rocco target. Use macOS arm64, Linux x64 or Windows x64.")?
 	}
@@ -570,7 +589,11 @@ host! = |target, run| {
 		Err(PathErr(NotFound, _)) => {}
 		Err(err) => return Err(err)
 	}
-	exec!(run)
+	exec!(run)?
+	for fixup in host_fixups(target) {
+		exec!(fixup)?
+	}
+	Ok({})
 }
 
 # roc build exits 2 when it wrote the binary with warnings and no errors.
@@ -590,31 +613,30 @@ link_game! = |target, dir, name| {
 bench! : Target, Bench => Try({}, _)
 bench! = |target, bench| {
 	root = (Env.cwd!() ? |_| Failed("The working directory is unavailable.")).display()
-	git = Cmd.new("git").args(["rev-parse", "HEAD"]).exec_output!() ? |_| Failed("git rev-parse HEAD failed.")
+	git = Cmd.new("git").args(["rev-parse", "HEAD"]).capture!() ? |_| Failed("git rev-parse HEAD failed.")
 	# A reference run replaces bench/results/, so a change there is not dirty.
-	status = Cmd.new("git").args(["status", "--porcelain", "--", ".", ":(exclude)bench/results"]).exec_output!() ? |_| Failed("git status failed.")
-	dirty = if Str.trim(status.stdout_utf8) == "" "" else "-dirty"
-	git_hash = "${Str.trim(git.stdout_utf8)}${dirty}"
+	status = Cmd.new("git").args(["status", "--porcelain", "--", ".", ":(exclude)bench/results"]).capture!() ? |_| Failed("git status failed.")
+	dirty = if (status.trim() == "") "" else "-dirty"
+	git_hash = "${git.trim()}${dirty}"
 	for game in bench.games {
 		Path.utf8(bench_dir(game)).create_all!()?
 	}
-	machine = Cmd.new_str(target.python).args_str(["bench/machine.py"]).exec_output!() ? |_| Failed("${target.python} bench/machine.py failed. The bench needs Python 3 on PATH.")
+	machine = Cmd.new(OsStr.from_str(target.python)).args(["bench/machine.py"]).capture!() ? |_| Failed("${target.python} bench/machine.py failed. The bench needs Python 3 on PATH.")
 	shuffle_seed = Random.seed_u64!() ? |_| Failed("The OS gave no random seed.")
 	Stdout.line!("== shuffle seed ${shuffle_seed.to_str()}")?
 	for p in sweep_order(bench.games, bench.ns, shuffle_seed) {
 		planned = bench_run(target, p.game, bench.mode, p.n, bench_csv(p), root)
 		exec_env_allowing!(planned.run, planned.env, [])?
-		Sleep.millis!(bench_cooldown_ms)
+		Sleep.millis!(bench_cooldown_ms)?
 	}
 	configs = bench.games.join_map(|game| bench.ns.map(|n| { game, n }))
 	for config in configs {
 		stem = "${bench_dir(config.game)}/${bench_stem(config.game, config.n)}"
 		heap = bench_heap_run(target, config.game, config.n, root)
 		Stdout.line!("== Roc heap counters: ${heap.run.program} ${config.n.to_str()}")?
-		cmd = Cmd.new_str(heap.run.program).args_str(heap.run.args).envs_str(heap.env).cwd(Path.utf8(heap.run.cwd))
-		out = cmd.exec_output!() ? |_| Failed("The Roc heap counter run of ${config.game} at N=${config.n.to_str()} failed.")
-		Path.utf8("${stem}.heap.log").write_utf8!(out.stdout_utf8)?
-		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: config.game, mode: bench.mode, n: config.n, git_hash, shuffle_seed, machine: machine.stdout_utf8 }))?
+		out = command(heap.run, heap.env).capture!() ? |_| Failed("The Roc heap counter run of ${config.game} at N=${config.n.to_str()} failed.")
+		Path.utf8("${stem}.heap.log").write_utf8!(out)?
+		Path.utf8("${stem}.run.json").write_utf8!(bench_meta(target, { game: config.game, mode: bench.mode, n: config.n, git_hash, shuffle_seed, machine }))?
 	}
 	runs = configs.map(|config| "${bench_dir(config.game)}/${bench_stem(config.game, config.n)}.run.json")
 	exec!({ program: target.python, args: ["bench/analyse.py"].concat(runs), cwd: "." })
@@ -630,17 +652,22 @@ exec_env_allowing! : Run, List((Str, Str)), List(I32) => Try({}, _)
 exec_env_allowing! = |run, env, ok_codes| {
 	env_words = env.map(|(name, value)| "${name}=${value} ")
 	Stdout.line!("== ${Str.join_with(env_words, "")}${run.program} ${Str.join_with(run.args, " ")}")?
-	cmd = Cmd.new_str(run.program).args(run.args.map(OsStr.from_str)).envs_str(env).cwd(Path.utf8(run.cwd))
-	match cmd.exec_cmd!() {
+	match command(run, env).call!() {
 		Ok({}) => Ok({})
-		Err(ExecCmdFailed({ exit_code, .. })) =>
-			if List.contains(ok_codes, exit_code) {
-				Ok({})
-			} else {
-				Err(Failed("${run.program} exited with ${exit_code.to_str()}"))
+		Err(BadExitStatus(output)) =>
+			match output.status {
+				Exited(code) if ok_codes.contains(code) => Ok({})
+				Exited(code) => Err(Failed("${run.program} exited with ${code.to_str()}"))
+				Signaled(signal) => Err(Failed("${run.program} was stopped by signal ${signal.to_str()}"))
 			}
 		Err(other) => Err(other)
 	}
+}
+
+command : Run, List((Str, Str)) -> Cmd.Command
+command = |run, env| {
+	os_env = env.map(|(name, value)| (OsStr.from_str(name), OsStr.from_str(value)))
+	Cmd.new(OsStr.from_str(run.program)).args(run.args.map(OsStr.from_str)).envs(os_env).cwd(Path.utf8(run.cwd))
 }
 
 docs! : DocsMode => Try({}, _)
@@ -663,8 +690,8 @@ docs! = |mode| {
 			}
 		}
 	}
-	undocumented_lines = if undocumented.is_empty() [] else undocumented.append("Write a ## comment directly above each one.")
-	stale_lines = if $stale.is_empty() [] else $stale.append("Run roc scripts/build.roc docs to copy the regions.")
+	undocumented_lines = if (undocumented.is_empty()) [] else undocumented.append("Write a ## comment directly above each one.")
+	stale_lines = if ($stale.is_empty()) [] else $stale.append("Run roc scripts/build.roc docs to copy the regions.")
 	problems = undocumented_lines.concat(stale_lines)
 	if problems.is_empty() {
 		Ok({})
@@ -796,8 +823,8 @@ inputs! = |target, mode| {
 	copy!(audio) ? |_| Failed("${audio.from} is missing. Build it with the build-miniaudio script in scripts/ for this OS.")
 	match target.extra_inputs {
 		MacSdk => {
-			out = Cmd.new("xcrun").args(["clang", "-print-resource-dir"]).exec_output!()?
-			copy!(compiler_rt_copy(Str.trim(out.stdout_utf8), target))
+			out = Cmd.new("xcrun").args(["clang", "-print-resource-dir"]).capture!()?
+			copy!(compiler_rt_copy(out.trim(), target))
 		}
 		# scripts/make_windows_import_libs.py writes these inputs, and they are committed.
 		WindowsImportLibs => Ok({})
@@ -840,17 +867,17 @@ expect parse(["bench", "model-size", "0"]) == Err(Usage)
 expect parse(["bench", "model-size", "many"]) == Err(Usage)
 expect parse(["bench"]) == Err(Usage)
 
-mac = { arch: AARCH64, os: MACOS }
+mac = { arch: Arm64, os: MacOS }
 
-linux = { arch: X64, os: LINUX }
+linux = { arch: X64, os: Linux }
 
-windows = { arch: X64, os: WINDOWS }
+windows = { arch: X64, os: Windows }
 
 expect target_for(mac).map_ok(|target| target.roc_target) == Ok("arm64mac")
 expect target_for(linux).map_ok(|target| target.roc_target) == Ok("x64glibc")
 expect target_for(windows).map_ok(|target| target.roc_target) == Ok("x64win")
-expect target_for({ arch: X64, os: MACOS }) == Err(UnsupportedMachine)
-expect target_for({ arch: X64, os: OTHER("freebsd") }) == Err(UnsupportedMachine)
+expect target_for({ arch: X64, os: MacOS }) == Err(UnsupportedMachine)
+expect target_for({ arch: Arm64, os: Linux }) == Err(UnsupportedMachine)
 
 expect glue_run == { program: "roc", args: ["glue", "--no-cache", "glue/OdinGlue.roc", "./engine", "platform/main.roc"], cwd: "." }
 
@@ -886,6 +913,9 @@ expect {
 }
 
 expect target_for(linux).map_ok(|target| target.host_flags) == Ok([])
+
+expect target_for(mac).map_ok(host_fixups) == Ok([])
+expect target_for(windows).map_ok(host_fixups) == Ok([{ program: "python", args: ["scripts/host_fltused.py", "platform/targets/x64win/host.lib"], cwd: "." }])
 
 expect {
 	run = target_for(mac).map_ok(|target| game_run(target, "examples/cards", "cards"))
@@ -994,15 +1024,15 @@ expect {
 		Ok(text) =>
 			Str.contains(text, "\"n\": 64,")
 				and Str.contains(text, "\"git_hash\": \"abc123\",")
-					and Str.contains(text, "\"odin_debug\": false,")
-						and Str.contains(text, "\"roc_heap\": \"header\",")
-							and Str.contains(text, "\"processes\": 5,")
-								and Str.contains(text, "\"csvs\": [\"model-size-64-p1.csv\", \"model-size-64-p2.csv\", \"model-size-64-p3.csv\", \"model-size-64-p4.csv\", \"model-size-64-p5.csv\"],")
-									and Str.contains(text, "\"heap_log\": \"model-size-64.heap.log\",")
-										and Str.contains(text, "\"shuffle_seed\": 7,")
-											and Str.contains(text, "\"machine\": {\"slug\": \"apple-m5\"}\n}")
-												and Str.contains(text, "\"mode\": \"headless\",")
-													and Str.contains(text, "\"-define:ROCCO_SPANS=true\"")
+				and Str.contains(text, "\"odin_debug\": false,")
+				and Str.contains(text, "\"roc_heap\": \"header\",")
+				and Str.contains(text, "\"processes\": 5,")
+				and Str.contains(text, "\"csvs\": [\"model-size-64-p1.csv\", \"model-size-64-p2.csv\", \"model-size-64-p3.csv\", \"model-size-64-p4.csv\", \"model-size-64-p5.csv\"],")
+				and Str.contains(text, "\"heap_log\": \"model-size-64.heap.log\",")
+				and Str.contains(text, "\"shuffle_seed\": 7,")
+				and Str.contains(text, "\"machine\": {\"slug\": \"apple-m5\"}\n}")
+				and Str.contains(text, "\"mode\": \"headless\",")
+				and Str.contains(text, "\"-define:ROCCO_SPANS=true\"")
 		Err(_) => Bool.False
 	}
 }
@@ -1013,7 +1043,7 @@ expect {
 		Ok(text) =>
 			Str.contains(text, "\"host\": [\"build\", \"bench/model-size-twin\"")
 				and Str.contains(text, "\"game\": []")
-					and Str.contains(text, "\"odin_debug\": false,")
+				and Str.contains(text, "\"odin_debug\": false,")
 		Err(_) => Bool.False
 	}
 }

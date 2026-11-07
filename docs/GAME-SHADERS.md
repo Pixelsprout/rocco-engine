@@ -21,7 +21,7 @@ Use `--shdc PATH` or `ROCCO_SHDC` to select an installed binary.
 Use `--contract PATH` to select the contract folder from the pinned platform bundle.
 Keep the build tool and contract folder from the same bundle.
 
-`roc scripts/build.roc -- game NAME` runs this tool when the game has `shaders.json`.
+`roc scripts/build.roc game NAME` runs this tool when the game has `shaders.json`.
 The tool always compiles declared sources.
 An invalid source stops the build, even when a previous package exists.
 A failed build preserves previous output files.
