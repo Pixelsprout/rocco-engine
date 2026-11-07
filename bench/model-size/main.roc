@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", shared: "../shared/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -200,7 +200,7 @@ expect draws_of(view(init(Bench.with_n(1000)).model)).first().map_ok(|d| d.mesh)
 # bench/model-size-twin checks its positions against the same file, so the
 # twin and this game agree for one Seed and N after the same steps.
 run_steps : Model, U64 -> Model
-run_steps = |m, count| if count == 0 m else run_steps(update(m, 1.0 / 120.0), count - 1)
+run_steps = |m, count| if (count == 0) m else run_steps(update(m, 1.0 / 120.0), count - 1)
 
 positions_text : List(Draw) -> Str
 positions_text = |draws| Str.join_with(draws.map(|d| "${d.pos.x.to_bits().to_str()} ${d.pos.z.to_bits().to_str()}\n"), "")

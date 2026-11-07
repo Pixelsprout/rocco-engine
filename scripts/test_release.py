@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import release
 
 HEADER = (
-    'app [init] { pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", '
+    'app [init] { pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", '
     'tools: "../../packages/tools/main.roc", linalg: "../../packages/linalg/main.roc" }\n'
     "\n"
     "import linalg.Quat\n"
@@ -30,7 +30,7 @@ BUNDLE_URLS = {
     "ui": f"{BASE}/ui-DDD.tar.zst",
     "camera": f"{BASE}/camera-EEE.tar.zst",
 }
-NIGHTLY = "nightly-2026-10-11-7d256b9"
+NIGHTLY = "nightly-2026-11-04-2622062"
 
 
 def write_api_docs(api_dir, names=release.DOCS_BUNDLES):
@@ -67,7 +67,7 @@ class PointHeaderTest(unittest.TestCase):
 
     def test_keeps_the_roc_pin_and_the_body(self):
         source, _ = release.point_header(HEADER, URLS)
-        self.assertIn('roc: "nightly-2026-10-11-7d256b9"', source)
+        self.assertIn('roc: "nightly-2026-11-04-2622062"', source)
         self.assertTrue(source.endswith("\n\nimport linalg.Quat\n"))
         self.assertNotIn("../", source)
 
@@ -101,8 +101,8 @@ class PrepareAppTest(unittest.TestCase):
 
 class NotesTest(unittest.TestCase):
     def test_names_the_roc_nightly_and_every_bundle_url(self):
-        notes = release.notes("v0.1.0", "nightly-2026-10-11-7d256b9", URLS)
-        self.assertIn("nightly-2026-10-11-7d256b9", notes)
+        notes = release.notes("v0.1.0", "nightly-2026-11-04-2622062", URLS)
+        self.assertIn("nightly-2026-11-04-2622062", notes)
         self.assertIn("https://example.com/p.tar.zst", notes)
         self.assertIn("https://example.com/l.tar.zst", notes)
         self.assertLess(notes.index("platform"), notes.index("linalg"))
@@ -131,7 +131,7 @@ class PackDocsTest(unittest.TestCase):
                     "mesh_url": f"{BASE}/mesh-CCC.tar.zst",
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
                     "camera_url": f"{BASE}/camera-EEE.tar.zst",
-                    "roc_nightly": "nightly-2026-10-11-7d256b9",
+                    "roc_nightly": "nightly-2026-11-04-2622062",
                 },
             )
 

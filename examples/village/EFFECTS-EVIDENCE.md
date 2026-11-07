@@ -103,7 +103,7 @@ The final binary SHA-256 is `1e10127e463cbe36c590cdfa090656d96efe79a931c8ba12998
 Reproduce the complete fixed-input comparison set:
 
 ```sh
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 python3 examples/village/fixtures/effects.py /tmp/village-effects --retina-1080 --steps 480
 ```
 

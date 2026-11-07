@@ -9,11 +9,11 @@ set -eu
 cd "$(dirname "$0")/.."
 
 # eval "$(...)" would hide a build.roc failure from set -e.
-target_lines=$(roc scripts/build.roc -- target)
+target_lines=$(roc scripts/build.roc target)
 eval "$target_lines"
 lib=$host_lib
 if [ ! -f "$lib" ]; then
-	echo "host-check: $lib is missing. Run roc scripts/build.roc -- host first." >&2
+	echo "host-check: $lib is missing. Run roc scripts/build.roc host first." >&2
 	exit 2
 fi
 
@@ -26,12 +26,12 @@ glue_hash=$(hash engine/roc_platform_abi.odin)
 key_hash=$(hash platform/Key.roc)
 key_table_hash=$(hash engine/key_tags.odin)
 
-roc scripts/build.roc -- glue > /dev/null
-roc scripts/build.roc -- keys > /dev/null
+roc scripts/build.roc glue > /dev/null
+roc scripts/build.roc keys > /dev/null
 roc test platform/Key.roc > /dev/null
-roc scripts/build.roc -- game cards > /dev/null
-roc scripts/build.roc -- game entity-game > /dev/null
-roc scripts/build.roc -- game pong > /dev/null
+roc scripts/build.roc game cards > /dev/null
+roc scripts/build.roc game entity-game > /dev/null
+roc scripts/build.roc game pong > /dev/null
 
 failed=0
 if [ "$(hash engine/roc_platform_abi.odin)" != "$glue_hash" ]; then
@@ -39,11 +39,11 @@ if [ "$(hash engine/roc_platform_abi.odin)" != "$glue_hash" ]; then
 	failed=1
 fi
 if [ "$(hash platform/Key.roc)" != "$key_hash" ]; then
-	echo "FAIL: platform/Key.roc was stale. Commit the file that roc scripts/build.roc -- keys wrote." >&2
+	echo "FAIL: platform/Key.roc was stale. Commit the file that roc scripts/build.roc keys wrote." >&2
 	failed=1
 fi
 if [ "$(hash engine/key_tags.odin)" != "$key_table_hash" ]; then
-	echo "FAIL: engine/key_tags.odin was stale. Commit the file that roc scripts/build.roc -- keys wrote." >&2
+	echo "FAIL: engine/key_tags.odin was stale. Commit the file that roc scripts/build.roc keys wrote." >&2
 	failed=1
 fi
 if [ "$(hash "$lib")" != "$lib_hash" ] || [ "$(mtime "$lib")" != "$lib_mtime" ]; then

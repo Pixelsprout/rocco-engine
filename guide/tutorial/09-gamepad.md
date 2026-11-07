@@ -132,7 +132,7 @@ Escape quits from the keyboard. Make Start quit from a pad:
 ```roc
 # Escape on the keyboard or Start on any pad quits.
 quit : Vocabulary.Input -> List(Command)
-quit = |input| if Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start) [Quit] else []
+quit = |input| if (Key.pressed(input, Escape) or GamepadButton.pressed_any(input, Start)) [Quit] else []
 ```
 <!-- endregion -->
 

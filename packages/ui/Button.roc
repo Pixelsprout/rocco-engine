@@ -23,7 +23,7 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 		is_pressed = Seam.is_button_pressed(input, Left)
 		press = if (is_pressed) Down(hit) else buttons.press
 		pressed = if (is_pressed) [Pressed(hit)] else []
-		if (Seam.is_button_released(input, Left)) {
+		if Seam.is_button_released(input, Left) {
 			clicked = match (press, hit) {
 				(Down(Over(down)), Over(up)) => if (down == up) [Clicked(up)] else []
 				_ => []
@@ -42,11 +42,11 @@ Button :: { hover : Widget.Target, press : [Up, Down(Widget.Target)] }.{
 	panel = |buttons, { id, width, look, focus }| {
 		is_hovered = buttons.hover == Over(id)
 		background =
-			if (is_hovered and buttons.press == Down(Over(id))) {
+			if is_hovered and buttons.press == Down(Over(id)) {
 				look.down
-			} else if (is_hovered) {
+			} else if is_hovered {
 				look.hover
-			} else if (focus.is_on(id)) {
+			} else if focus.is_on(id) {
 				look.focus
 			} else {
 				look.idle

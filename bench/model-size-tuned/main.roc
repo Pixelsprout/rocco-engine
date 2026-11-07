@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", shared: "../shared/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -171,7 +171,7 @@ expect {
 # bench/model-size checks its Model against the same file, so both versions
 # give the same Model for one Seed and N after the same steps.
 run_steps : Model, U64 -> Model
-run_steps = |m, count| if count == 0 m else run_steps(update(m, 1.0 / 120.0), count - 1)
+run_steps = |m, count| if (count == 0) m else run_steps(update(m, 1.0 / 120.0), count - 1)
 
 f32_text : F32 -> Str
 f32_text = |f| f.to_bits().to_str()

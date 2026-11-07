@@ -7,7 +7,7 @@
 # Each entry is game:dev allocs:speed allocs:reallocs.
 # cards expects 2 allocs and 1 realloc: the box shell and the cards list.
 # Prepending the Lights grows that list without a separate Lights allocation.
-# entity-game expects 33 allocs and 4 reallocs under --opt=speed. view makes
+# entity-game expects 33 allocs and no reallocs under --opt=speed. view makes
 # one list for the leaves of each entity, and List.keep_if makes one list for
 # each root it keeps. Under --opt=dev, List.map copies the entity list in each
 # of the 9 stages that map it, so it expects 42. With no input the player
@@ -15,7 +15,7 @@
 # pong expects 6 allocs and 1 realloc: the box shell, the nodes list, the ui
 # list, the scoreboard's children and its two cells' children. The realloc
 # is the concat that joins the scoreboard, the banner and the hints.
-# tutorial/10-animation expects 15 allocs and 7 reallocs: its view builds the
+# tutorial/10-animation expects 10 allocs and 4 reallocs: its view builds the
 # Nodes, the pickup Draws and Colliders, the HUD with its count text, the door
 # Group's children and the door's Speakers, and each concat grows a list.
 # The script rebuilds the host library with the host tracking allocator, and
@@ -31,16 +31,16 @@ cd "$(dirname "$0")/.."
 FRAMES=240
 SKIP=10
 # eval "$(...)" would hide a build.roc failure from set -e.
-target_lines=$(roc scripts/build.roc -- target)
+target_lines=$(roc scripts/build.roc target)
 eval "$target_lines"
 
-roc scripts/build.roc -- host --release --track-alloc
+roc scripts/build.roc host --release --track-alloc
 
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:2:1 entity-game:42:33:4 pong:6:6:1 tutorial/10-animation:15:15:7; do
+for entry in cards:2:2:1 entity-game:42:33:0 pong:6:6:1 tutorial/10-animation:10:10:4; do
 	game=${entry%%:*}
 	rest=${entry#*:}
 	want_dev=${rest%%:*}

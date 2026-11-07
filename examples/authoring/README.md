@@ -93,7 +93,7 @@ From an engine checkout, build the game and run the local proof:
 ```sh
 roc scripts/build.roc host --release
 roc scripts/build.roc inputs --release
-roc scripts/build.roc -- game authoring
+roc scripts/build.roc game authoring
 python3 examples/authoring/proof.py --platform platform --out /tmp/authoring-evidence
 ```
 

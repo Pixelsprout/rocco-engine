@@ -1,7 +1,7 @@
 app [init, launch, loaded, step, view] {
 	mesh: "../../packages/mesh/main.roc",
 	pf: platform "../../platform/main.roc",
-	roc: "nightly-2026-10-11-7d256b9",
+	roc: "nightly-2026-11-04-2622062",
 }
 
 import Foliage
@@ -51,7 +51,7 @@ init : Vocabulary.Config -> { model : Model, commands : List(Vocabulary.Command)
 init = |config| {
 	model: {
 		tree: 0,
-		wind: if config.args.contains("--no-wind") 0.0 else 0.2,
+		wind: if (config.args.contains("--no-wind")) 0.0 else 0.2,
 		selected: !config.args.contains("--no-selection"),
 		visible_only: !config.args.contains("--through-wall"),
 		casts_shadow: !config.args.contains("--no-shadow"),
@@ -59,7 +59,7 @@ init = |config| {
 		solid: config.args.contains("--solid"),
 		occluder: !config.args.contains("--no-occluder"),
 		shader_loaded: Bool.True,
-		effect: if config.args.contains("--selection") SelectionInputs else if config.args.contains("--empty") NoEffect else OutlineEffect,
+		effect: if (config.args.contains("--selection")) SelectionInputs else if (config.args.contains("--empty")) NoEffect else OutlineEffect,
 	},
 	commands: [
 		Load({ pack: "trees", assets: ["tree"] }),
@@ -68,20 +68,20 @@ init = |config| {
 }
 
 loaded : Model, Str, Vocabulary.Manifest -> Model
-loaded = |model, pack, manifest| if pack == "trees" { ..model, tree: Mesh.resolve(manifest, "tree") } else model
+loaded = |model, pack, manifest| if (pack == "trees") { ..model, tree: Mesh.resolve(manifest, "tree") } else model
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Vocabulary.Command) }
 step = |model, input, _results, _dt| {
-	shader_loaded = if Key.pressed(input, U) !model.shader_loaded else model.shader_loaded
-	commands = if shader_loaded == model.shader_loaded [] else if shader_loaded [Load({ pack: "shaders", assets: ["shader/Foliage", "shader/Outline", "shader/Selection"] })] else [Unload("shaders")]
+	shader_loaded = if (Key.pressed(input, U)) !model.shader_loaded else model.shader_loaded
+	commands = if (shader_loaded == model.shader_loaded) [] else if (shader_loaded) [Load({ pack: "shaders", assets: ["shader/Foliage", "shader/Outline", "shader/Selection"] })] else [Unload("shaders")]
 	{
 		model: {
 			..model,
 			shader_loaded,
-			red: if Key.pressed(input, C) !model.red else model.red,
-			casts_shadow: if Key.pressed(input, N) !model.casts_shadow else model.casts_shadow,
-			selected: if Key.pressed(input, S) !model.selected else model.selected,
-			visible_only: if Key.pressed(input, V) !model.visible_only else model.visible_only,
+			red: if (Key.pressed(input, C)) !model.red else model.red,
+			casts_shadow: if (Key.pressed(input, N)) !model.casts_shadow else model.casts_shadow,
+			selected: if (Key.pressed(input, S)) !model.selected else model.selected,
+			visible_only: if (Key.pressed(input, V)) !model.visible_only else model.visible_only,
 		},
 		commands,
 	}
@@ -89,13 +89,13 @@ step = |model, input, _results, _dt| {
 
 view : Model -> Vocabulary.Scene
 view = |model| {
-	leaf_tint = if model.red { r: 4.0, g: 0.15, b: 0.1, a: 1.0 } else Foliage.material_default.leaf_tint
+	leaf_tint = if (model.red) { r: 4.0, g: 0.15, b: 0.1, a: 1.0 } else Foliage.material_default.leaf_tint
 	tree = {
 		..Draw.default,
 		id: 10,
 		mesh: model.tree,
 		casts_shadow: model.casts_shadow,
-		material: { ..Material.default, properties: if model.solid [Alpha(Opaque)] else [] },
+		material: { ..Material.default, properties: if (model.solid) [Alpha(Opaque)] else [] },
 		materials: [Tree.leaves("trees", Foliage.material("shaders", { ..Foliage.material_default, leaf_tint }))],
 		shader_values: [Foliage.draw("shaders", Foliage.draw_default)],
 	}
@@ -151,7 +151,7 @@ view = |model| {
 					[Draw(tree), Draw(marker)],
 				),
 			],
-			if model.occluder [Draw(wall)] else [],
+			if (model.occluder) [Draw(wall)] else [],
 		]),
 	}
 }

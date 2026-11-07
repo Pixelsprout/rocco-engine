@@ -18,7 +18,7 @@ We use matt-pocock skills to work through tasks:
 - After a push, run `python3 scripts/ci_wait.py`. It waits for CI and prints the output of each failed step.
 
 # Seeing a frame
-To check a visual change yourself, build the game with `roc scripts/build.roc -- game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
+To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
 
 To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the ops and the Input rules.
 1. Get a port with `python3 scripts/bridge.py free-port`.

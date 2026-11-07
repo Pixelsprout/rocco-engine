@@ -20,7 +20,7 @@ They require neither Blender, Godot, Pillow, nor the source archive.
 
 ```sh
 python3 examples/village/source/validate.py
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 python3 examples/village/fixtures/scene_effects.py /tmp/village-native
 ```
 

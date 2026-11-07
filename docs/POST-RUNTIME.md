@@ -104,7 +104,7 @@ The separate scene-depth pass adds four aligned blocks and one skin palette per 
 Selection retains its separate existing reservation.
 The combined Draw limit is 278653.
 
-Build `examples/post` with `roc scripts/build.roc -- game post`.
+Build `examples/post` with `roc scripts/build.roc game post`.
 Run `python3 scripts/post_check.py` from the repository root.
 Set `ODIN` to the pinned compiler path when necessary.
 The check records supported sample counts from native device queries.

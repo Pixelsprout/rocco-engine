@@ -14,7 +14,7 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 	## that the button shows. It crashes when `selected` is past the last item.
 	new : { button : U64, menu : U64, items : List({ id : U64, label : Str }), selected : U64 } -> Dropdown
 	new = |{ button, menu, items, selected }|
-		if (selected >= items.len()) {
+		if selected >= items.len() {
 			crash "Dropdown.new: selected is past the last item"
 		} else {
 			{ button, menu, items, selected, shown: Closed }
@@ -82,7 +82,7 @@ act = |{ dropdown, selection }, event| {
 	match (event, dropdown.shown) {
 		(Clicked(id), Closed) => if (id == dropdown.button) { dropdown: { ..dropdown, shown: Open }, selection } else { dropdown, selection }
 		(Clicked(id), Open) =>
-			if (id == dropdown.button) {
+			if id == dropdown.button {
 				{ dropdown: closed, selection }
 			} else {
 				match dropdown.items.find_first_index(|item| item.id == id) {

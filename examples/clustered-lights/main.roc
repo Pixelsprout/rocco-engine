@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -24,10 +24,10 @@ loaded = |model, _pack, manifest| { ..model, floor: Mesh.resolve(manifest, "floo
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
-	paused = if Key.pressed(input, P) !model.paused else model.paused
-	lights = if Key.pressed(input, L) !model.lights else model.lights
-	direction = (if Key.held(input, D) 1.0 else 0.0) - (if Key.held(input, A) 1.0 else 0.0)
-	time = if paused model.time else model.time + dt
+	paused = if (Key.pressed(input, P)) !model.paused else model.paused
+	lights = if (Key.pressed(input, L)) !model.lights else model.lights
+	direction = (if (Key.held(input, D)) 1.0 else 0.0) - (if (Key.held(input, A)) 1.0 else 0.0)
+	time = if (paused) model.time else model.time + dt
 	camera_x = model.camera_x + direction * dt * 8.0
 	{ model: { ..model, time, camera_x, paused, lights }, commands: [] }
 }
@@ -47,7 +47,7 @@ lamps = |model, id| {
 		pos = lamp_pos(id, model.time)
 		colour = { r: 7.0, g: 3.5, b: 0.7 }
 		ball = { ..Draw.default, id: id + 1, mesh: Mesh.primitive(Sphere), pos, scale: { x: 0.16, y: 0.16, z: 0.16 }, glow: colour }
-		point = if model.lights [Light(Light.point(pos, colour, 2.4))] else []
+		point = if (model.lights) [Light(Light.point(pos, colour, 2.4))] else []
 		List.join([[Draw(ball)], point, lamps(model, id + 1)])
 	}
 }

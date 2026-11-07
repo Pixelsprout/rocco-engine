@@ -91,7 +91,7 @@ Additive dust draws after that ordering.
 
 ## Reproduction
 
-Build the village with `roc scripts/build.roc -- game village`.
+Build the village with `roc scripts/build.roc game village`.
 Run the fixture from the repository root:
 
 ```sh

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", ui: "../../packages/ui/main.roc" }
 
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 
@@ -142,7 +142,7 @@ banner = |state, score| match state {
 	Running => []
 	Paused => [banner_panel("Paused", white_text, "Space to resume")]
 	EndGame => {
-		winner = if score.left > score.right "Left" else "Right"
+		winner = if (score.left > score.right) "Left" else "Right"
 		[banner_panel("${winner} wins", green_text, "Space to play again")]
 	}
 }

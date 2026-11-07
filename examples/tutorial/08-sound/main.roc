@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", ui: "../../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "nightly-2026-11-04-2622062", ui: "../../../packages/ui/main.roc" }
 
 # guide/tutorial/08-sound.md copies the regions in this file. Run roc scripts/build.roc docs after a change.
 
@@ -104,7 +104,7 @@ blip = |before, after|
 # endregion
 
 quit_on_escape : Vocabulary.Input -> List(Command)
-quit_on_escape = |input| if Key.pressed(input, Escape) [Quit] else []
+quit_on_escape = |input| if (Key.pressed(input, Escape)) [Quit] else []
 
 # The ids of the Colliders that Pip touched in the previous step.
 touched : List(Contact) -> List(U64)

@@ -243,7 +243,7 @@ Failed IDs keep the loading error visible.
 Run the native verification with these commands:
 
 ```sh
-roc scripts/build.roc -- game village
+roc scripts/build.roc game village
 python3 examples/village/fixtures/foliage.py /tmp/village-foliage --hero-steps 1680 --replay
 ```
 

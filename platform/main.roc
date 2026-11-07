@@ -7,7 +7,7 @@ platform ""
 		view : Model -> Vocabulary.Scene
 	}
 	exposes [Collider, Config, Draw, Emitter, Environment, GamepadButton, Image, Input, Key, Launch, Light, Material, MouseButton, Port, Pose, Post, Query, QueryResults, Scene, Shader, Shadow, Sound, Speaker, Vocabulary]
-	packages { roc: "nightly-2026-10-11-7d256b9" }
+	packages { roc: "nightly-2026-11-04-2622062" }
 	provides {
 		"roc_drop_model": drop_model_for_host,
 		"roc_init": init_for_host,

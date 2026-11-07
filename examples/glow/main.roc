@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 
 # A dark Scene with a glowing window and two orbs. The window glows with no
 # Light of its own. Each orb lights the floor around it. Between the orbs
@@ -42,9 +42,9 @@ loaded = |model, _pack, manifest| { ..model, salvage: Mesh.resolve(manifest, "sa
 
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
-	tone_map = if Key.pressed(input, T) next_tone_map(model.tone_map) else model.tone_map
-	bloom = if Key.pressed(input, B) !model.bloom else model.bloom
-	show_tube = if Key.pressed(input, G) !model.show_tube else model.show_tube
+	tone_map = if (Key.pressed(input, T)) next_tone_map(model.tone_map) else model.tone_map
+	bloom = if (Key.pressed(input, B)) !model.bloom else model.bloom
+	show_tube = if (Key.pressed(input, G)) !model.show_tube else model.show_tube
 	{ model: { ..model, time: model.time + dt, tone_map, bloom, show_tube }, commands: [] }
 }
 
@@ -135,7 +135,7 @@ view = |model| {
 	camera = Cam.look_at({ x: 0.0, y: 2.4, z: 5.0 }, { x: 0.0, y: 0.8, z: 0.0 })
 	orb_left = orb(10, { x: -1.6, y: 0.5, z: 0.4 }, { r: 1.0, g: 0.55, b: 0.05 })
 	orb_right = orb(11, tube_orb_pos(model.time), { r: 0.15, g: 0.35, b: 1.0 })
-	tube_nodes = if model.show_tube [Draw(tube(model.tube))] else []
+	tube_nodes = if (model.show_tube) [Draw(tube(model.tube))] else []
 	nodes = List.join([[Light(night), Light(sun), Draw(floor), Draw(wall), Draw(window), Draw(salvage(model.salvage)), Draw(panel(model.panel)), Light(lamp)], orb_left, orb_right, tube_nodes, spark(model.time)])
 	{ ..Scene.empty, camera, nodes, environment: environment(model) }
 }
@@ -146,7 +146,7 @@ bloom_strength = 0.2
 
 environment : Model -> Vocabulary.Environment
 environment = |model| {
-	strength = if model.bloom bloom_strength else 0.0
+	strength = if (model.bloom) bloom_strength else 0.0
 	{ ..Environment.default, tone_map: model.tone_map, bloom: { ..Environment.default.bloom, strength } }
 }
 

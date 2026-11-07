@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-10-11-7d256b9", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
@@ -120,7 +120,7 @@ spawn_help = |m, n| {
 ui_labels : U64 -> List(Str)
 ui_labels = |count| {
 	labels = add_labels(List.with_capacity(count // 2 + 1), count // 2)
-	if count % 2 == 1 labels.append("") else labels
+	if (count % 2 == 1) labels.append("") else labels
 }
 
 add_labels : List(Str), U64 -> List(Str)
@@ -161,7 +161,7 @@ turn_back = |pos, vel, half| {
 }
 
 move_light : Model -> Model
-move_light = |m| if m.labels.is_empty() m else { ..m, lit: (m.lit + 1) % m.labels.len() }
+move_light = |m| if (m.labels.is_empty()) m else { ..m, lit: (m.lit + 1) % m.labels.len() }
 
 view : Model -> Scene
 view = |m| {
@@ -190,7 +190,7 @@ is_sphere = |e| e.id % 2 == 0
 
 to_draw : Model, Entity -> Draw
 to_draw = |m, e| {
-	(mesh, rot) = if is_sphere(e) (m.sphere, Quat.identity) else (m.cube, Quat.from_yaw(e.yaw))
+	(mesh, rot) = if (is_sphere(e)) (m.sphere, Quat.identity) else (m.cube, Quat.from_yaw(e.yaw))
 	{ id: e.id, mesh, pos: e.pos, scale: { x: radius, y: radius, z: radius }, rot, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True, material: Material.default, materials: [], slot_materials: [], shader_values: [] }
 }
 
@@ -235,8 +235,8 @@ elements = |m| {
 
 cell : Str, Bool -> Element
 cell = |text, lit| {
-	config = if lit { ..cell_panel, background: lit_background } else cell_panel
-	children = if text == "" [] else [Text(label(text))]
+	config = if (lit) { ..cell_panel, background: lit_background } else cell_panel
+	children = if (text == "") [] else [Text(label(text))]
 	Panel(config, children)
 }
 

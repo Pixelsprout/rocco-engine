@@ -44,7 +44,7 @@ Camera := [].{
 	project : View, { width : F32, height : F32 }, Vec3 -> Try({ x : F32, y : F32 }, [Behind])
 	project = |view, size, point| {
 		view_dir = sub(view.target, view.eye)
-		up = if length(cross(view_dir, view.up)) < up_epsilon world_up else view.up
+		up = if (length(cross(view_dir, view.up)) < up_epsilon) world_up else view.up
 		forward = normalize(view_dir)
 		right = normalize(cross(forward, up))
 		true_up = cross(right, forward)

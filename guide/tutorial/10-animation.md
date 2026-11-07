@@ -206,7 +206,7 @@ animate = |model, walking_speed, dt| {
 	c = model.clips
 	a = model.animation
 	step_fade = dt / fade_seconds
-	fade = if walking_speed > 0.0 F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
+	fade = if (walking_speed > 0.0) F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
 	idle_time = Pose.loop(a.idle_time + dt, c.idle_duration)
 	walk_time = Pose.loop(a.walk_time + dt * walking_speed / walk_speed, c.walk_duration)
 	{ ..model, animation: { idle_time, walk_time, fade } }

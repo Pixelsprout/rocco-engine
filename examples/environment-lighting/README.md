@@ -1,6 +1,6 @@
 # Environment lighting reference
 
-Build the game with `roc scripts/build.roc -- game environment-lighting`.
+Build the game with `roc scripts/build.roc game environment-lighting`.
 Run the game from this folder.
 
 The top row contains dielectric spheres.
