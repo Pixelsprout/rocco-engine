@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-05",
+  "base_commit": "6fd4d24",
+  "source_commit": "f45d890c8c4a29ba0193f99c89045c5ee9ee2094",
+  "compiler": "Odin 902106f",
+  "engine_suites": {
+    "strict": 855,
+    "strict_spans": 855
+  },
+  "python_tests": 66,
+  "public_roc_benchmark_documentation_checks": "passed",
+  "abi_and_shader_regeneration": "byte-stable",
+  "release_archive": {
+    "strict_build": "passed",
+    "gpu_timing_or_wrapper_symbols": 0,
+    "diagnostic_environment_key_present": false,
+    "timing_only_post_labels_present": false
+  },
+  "semantic_checks": {
+    "ordinary": [
+      "darwin_arm64",
+      "linux_amd64",
+      "windows_amd64"
+    ],
+    "opt_in_windows": [
+      "engine",
+      "native fixture"
+    ],
+    "windows_com_tests": "semantic compilation passed; macOS cross-link unsupported; native execution pending"
+  },
+  "local_native": {
+    "post_selection": "all four sample modes and pixel hashes match the source checkpoint",
+    "surface_instances": "passed",
+    "particles": "two replay runs and orientation passed",
+    "allocation_checks": "all four games passed dev and speed with unchanged exact expectations"
+  },
+  "query_contract": {
+    "slots": 8,
+    "passes_per_frame": 64,
+    "timestamps_per_slot": 130,
+    "query_objects": 1048,
+    "reads": "later frame; DONOTFLUSH",
+    "unusable_durations": "blank"
+  },
+  "selection_pass": "real Selection pass uses gfx_begin_pass; obsolete empty clear remains removed",
+  "native_windows": "pending CI ownership tests and ready-query fixture",
+  "reference_pc_measurements": false,
+  "artifacts": "/tmp/rocco-d3d-merged",
+  "test_logs_prefix": "/tmp/rocco-d3d-merged"
+}

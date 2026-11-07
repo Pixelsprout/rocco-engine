@@ -187,7 +187,7 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 **Node**:
 One part of the Scene's 3D tree: a Group, which holds its children, or a
 leaf, which is a Draw, a Light, a Collider or a Speaker. The game writes
-the tags itself, such as `Group({ id, pos, rot }, [...])` and `Draw(...)`.
+the tags itself, such as `Group({ id, pos, rot, selected }, [...])` and `Draw(...)`.
 "First" among Nodes means first in a depth-first, pre-order walk: a Group,
 then its children, then the Group's next sibling. That is the order the
 game wrote them, read top to bottom.
@@ -198,6 +198,8 @@ A Node that carries a Group id and a Pose, and holds a list of child Nodes.
 Its children's Poses are local to it: they inherit its position and rot,
 never a scale. It draws nothing itself. The host interpolates it and pairs
 it by its Group id, up to `Launch.capacity.groups` Groups per Scene.
+A selected Group includes all descendant Draws in one coverage and nearest-depth union.
+Post shaders choose outline style and occlusion policy from these generic inputs.
 _Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
 
 **Pose**:
@@ -430,6 +432,37 @@ The engine's table from mesh id to GPU resources. The game never sees it; it
 sees a Manifest.
 _Avoid_: manifest, asset store, resource cache
 
+**Shader asset** (planned):
+A Pack asset that supplies game-authored GPU programs for the Scene's appearance.
+_Avoid_: engine plugin, shader script, shader bundle
+
+**Shader reload** (planned):
+A development update to a loaded Shader asset.
+A failed update leaves the last valid shader active.
+_Avoid_: game reload, Model reload
+
+**Surface shader** (planned):
+A Shader asset that defines a surface's vertex movement, shading normal, material properties, and lighting response.
+_Avoid_: mesh shader, material script
+
+**Post shader** (planned):
+A Shader asset that changes the rendered scene image at a declared stage.
+_Avoid_: screen shader, post script, render pass
+
+**Material slot** (planned):
+A named material assignment in a mesh that a game can override independently.
+Its identity belongs to the authored mesh, rather than the order of Mesh parts.
+_Avoid_: part index, submesh index
+
+**Material override** (planned):
+A game-authored surface choice for a Draw or one of its Material slots.
+_Avoid_: replacement mesh, shader patch
+
+**Selection input** (planned):
+The selected geometry's coverage and nearest depth, including geometry hidden by other objects.
+A Post shader combines it with scene depth to choose the appearance of a selection.
+_Avoid_: outline image, outline style
+
 **Mesh part**:
 A share of a mesh's triangles that draws with one material and its own
 textures. A loaded mesh has one part per distinct material, and a Primitive
@@ -440,8 +473,8 @@ _Avoid_: submesh, glTF primitive (a unit of the file), material slot
 **Alpha mode**:
 How a Mesh part's material treats the alpha of its base colour, from glTF's
 `alphaMode`: Opaque, Mask (a cutout) or Blend (see-through, such as glass).
-A Mask part keeps depth writes and casts the whole shape of its triangles
-from faces that point at the Sun. A Blend part draws after the sky, writes
+A Mask part keeps depth writes and casts shadows through the same alpha cutoff.
+A double-sided Mask part casts from both faces. A Blend part draws after the sky, writes
 no depth and casts no shadow. A double-sided Blend part draws its back faces
 before its front faces and counts twice against `Launch.capacity.draws`.
 Not the Frame's Alpha.

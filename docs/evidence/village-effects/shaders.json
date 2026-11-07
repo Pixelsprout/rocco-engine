@@ -1,0 +1,62 @@
+{
+  "contract": 1,
+  "compiler_commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+  "assets": [
+    {
+      "asset": "shader/VillageOutline",
+      "budgets": {
+        "post_hdr": {
+          "attributes": 0,
+          "fragment_components": 96,
+          "pairs": 4,
+          "samplers": 4,
+          "storage_buffers": 0,
+          "texture_views": 4,
+          "uniform_bytes": 512,
+          "vertex_components": 0
+        }
+      },
+      "file": "VillageOutline.shaderpack",
+      "fingerprint": "2d4ec60647f992b3c5b4914eee2a46666a23afa164b47a31a051f345d084986c",
+      "kind": "post",
+      "sha256": "892ef652d2a958527c1b07d05894b5844c245aea67ad0d0c25c19ccacc975586"
+    },
+    {
+      "asset": "shader/VillageColour",
+      "budgets": {
+        "post_ldr": {
+          "attributes": 0,
+          "fragment_components": 96,
+          "pairs": 1,
+          "samplers": 1,
+          "storage_buffers": 0,
+          "texture_views": 1,
+          "uniform_bytes": 512,
+          "vertex_components": 0
+        }
+      },
+      "file": "VillageColour.shaderpack",
+      "fingerprint": "abf1e25d8755aea3805e739d0ec49b31119949a6ced6fab93216dd2b642bec22",
+      "kind": "post",
+      "sha256": "f5ab2b71a740cb5d755fae91f1c96b656963fd67c4b76a5c23629fedb97ca065"
+    }
+  ],
+  "backends": {
+    "VillageOutline": [
+      "glsl430",
+      "hlsl5",
+      "metal_macos"
+    ],
+    "VillageColour": [
+      "glsl430",
+      "hlsl5",
+      "metal_macos"
+    ]
+  },
+  "isolated_helpers_and_packages_match": true,
+  "ground_sha256_unchanged": "24d4a68c7dbc22158c5940c08fd5816c53ee441dd52bbe098a1c97210bc498c9",
+  "native_backend": "Metal",
+  "native_gl_scene_status": "pending",
+  "native_d3d11_scene_status": "pending",
+  "engine_changes": false
+}

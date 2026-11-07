@@ -11,7 +11,9 @@ import pf.Query
 import pf.Vocabulary exposing [Command, Config, Draw, Element, Input, Manifest, Rgba, Scene, Vec3]
 import pf.QueryResults
 import pf.Environment
+import pf.Shadow
 import pf.Launch
+import pf.Material
 import pf.Pose
 
 # The mixed bench game. One N scales every axis together: each entity has one
@@ -167,6 +169,10 @@ view = |m| {
 	nodes: nodes_of(m),
 	cursor: Free,
 	environment: Environment.default,
+	shadow: Shadow.default,
+	emitters: [],
+	post: [],
+	shader_values: [],
 	ui: elements(m),
 	queries: queries(m.half),
 }
@@ -185,7 +191,7 @@ is_sphere = |e| e.id % 2 == 0
 to_draw : Model, Entity -> Draw
 to_draw = |m, e| {
 	(mesh, rot) = if is_sphere(e) (m.sphere, Quat.identity) else (m.cube, Quat.from_yaw(e.yaw))
-	{ id: e.id, mesh, pos: e.pos, scale: { x: radius, y: radius, z: radius }, rot, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0) }
+	{ id: e.id, mesh, pos: e.pos, scale: { x: radius, y: radius, z: radius }, rot, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True, material: Material.default, materials: [], slot_materials: [], shader_values: [] }
 }
 
 to_collider : Entity -> Vocabulary.Collider

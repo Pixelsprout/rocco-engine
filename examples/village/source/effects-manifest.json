@@ -1,0 +1,71 @@
+{
+  "generator": "source/prepare_effects.py",
+  "archive_sha256": "2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d",
+  "chimney": {
+    "source": "assets/village/Prop_Chimney.gltf",
+    "placement": "HouseA/Prop_Chimney2",
+    "world_transform": [
+      -4.371139e-08,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      0.0,
+      -1.0,
+      0.0,
+      -4.371139e-08,
+      -5.600000069938225,
+      5.4,
+      2.600000034969112
+    ],
+    "brick_mouth_corners": [
+      [
+        -0.36536863446235657,
+        3.0,
+        0.3653686046600342
+      ],
+      [
+        -0.3653685748577118,
+        3.0,
+        -0.3653686046600342
+      ],
+      [
+        0.3653685450553894,
+        3.0,
+        0.3653686046600342
+      ],
+      [
+        0.3653686046600342,
+        3.0,
+        -0.3653686046600342
+      ]
+    ],
+    "rim_max_local_y": 3.177875280380249,
+    "emitter_local": [
+      0,
+      3.2,
+      0
+    ],
+    "emitter_world": [
+      -5.600000069938225,
+      8.600000000000001,
+      2.600000034969112
+    ]
+  },
+  "assets": {
+    "image/village_smoke": {
+      "sha256": "f19d4066013296a9a9cfb4fa000b6e330aac9e59bfd907a7d7f8ad97aac8766a",
+      "size": [
+        128,
+        128
+      ]
+    },
+    "image/village_dust": {
+      "sha256": "4c1e486c0e6e7ab4fbd7519ec856fafac9bfb77d32233cabf42ad4bcbfd2f962",
+      "size": [
+        16,
+        16
+      ]
+    }
+  }
+}

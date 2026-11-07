@@ -30,9 +30,10 @@ Texture :: struct {
 	pixels:  []byte,
 	sampler: Texture_Sampler,
 	srgb:    bool,
+	alpha_cutoff: f32,
 }
 
-// Returns RGBA8 in frame memory. A 16-bit channel keeps its high byte.
+// Returns RGBA8 in context.temp_allocator. A 16-bit channel keeps its high byte.
 png_decode :: proc(bytes: []byte) -> (width, height: int, rgba: []byte, ok: bool) {
 	img, err := png.load_from_bytes(bytes, {.alpha_add_if_missing}, context.temp_allocator)
 	if err != nil {
@@ -123,17 +124,8 @@ image_bleed :: proc(width, height: int, rgba: []byte) {
 
 // An sRGB texture uploads as SRGB8A8, so the GPU decodes it to linear before filtering.
 texture_upload :: proc(tex: Texture) -> Mesh_Texture {
-	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
-	desc := sg.Image_Desc {
-		width        = i32(tex.levels[0].width),
-		height       = i32(tex.levels[0].height),
-		num_mipmaps  = i32(len(tex.levels)),
-		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
-		label        = label,
-	}
-	for level, i in tex.levels {
-		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
-	}
+	desc := texture_image_desc(tex)
+	label := desc.label
 	image := sg.make_image(desc)
 	s := tex.sampler
 	return {
@@ -152,10 +144,25 @@ texture_upload :: proc(tex: Texture) -> Mesh_Texture {
 	}
 }
 
+texture_image_desc :: proc(tex: Texture) -> sg.Image_Desc {
+	label: cstring = "mesh-base-colour" if tex.srgb else "mesh-linear"
+	desc := sg.Image_Desc {
+		width        = i32(tex.levels[0].width),
+		height       = i32(tex.levels[0].height),
+		num_mipmaps  = i32(len(tex.levels)),
+		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
+		label        = label,
+	}
+	for level, i in tex.levels {
+		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
+	}
+	return desc
+}
+
 // Copies rgba into level 0. Each further level averages 2 x 2 texels of the
 // one before, down to 1 x 1. An sRGB texture averages its colour in linear
 // light. An odd side drops its last texel.
-texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler, srgb: bool, allocator: mem.Allocator) -> Texture {
+texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler, srgb: bool, allocator: mem.Allocator, alpha_cutoff: f32 = 0) -> Texture {
 	count := 1
 	total := width * height * 4
 	if sampler.mipmaps {
@@ -172,6 +179,7 @@ texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler
 		pixels  = make([]byte, total, allocator),
 		sampler = sampler,
 		srgb    = srgb,
+		alpha_cutoff = alpha_cutoff if count > 1 && alpha_cutoff > 0 && alpha_cutoff <= 1 else 0,
 	}
 	copy(tex.pixels, rgba[:width * height * 4])
 	tex.levels[0] = {width = width, height = height, pixels = tex.pixels[:width * height * 4]}
@@ -205,6 +213,9 @@ texture_build :: proc(width, height: int, rgba: []byte, sampler: Texture_Sampler
 			}
 		}
 		tex.levels[i] = dst
+	}
+	if alpha_cutoff > 0 && alpha_cutoff <= 1 {
+		texture_preserve_alpha(tex, alpha_cutoff)
 	}
 	return tex
 }
@@ -252,4 +263,37 @@ linear_to_srgb :: proc(c: f32) -> f32 {
 
 unorm8 :: proc(c: f32) -> byte {
 	return byte(math.round(clamp(c, 0, 1) * 255))
+}
+
+// Adjust only completed mips, so each box filter reads unscaled alpha.
+texture_preserve_alpha :: proc(tex: Texture, cutoff: f32) {
+	base := tex.levels[0].pixels
+	visible := 0
+	for i := 3; i < len(base); i += 4 {
+		if f32(base[i]) / 255 >= cutoff { visible += 1 }
+	}
+	if visible == 0 { return }
+	coverage := f32(visible) / f32(len(base) / 4)
+	for level in tex.levels[1:] {
+		histogram: [256]int
+		for i := 3; i < len(level.pixels); i += 4 { histogram[level.pixels[i]] += 1 }
+		desired := max(1, int(math.round(coverage * f32(level.width * level.height))))
+		best := int(math.ceil(cutoff * 255))
+		current := 0
+		for n in histogram[best:] { current += n }
+		error := abs(current - desired) if current > 0 else max(int)
+		above := 0
+		for threshold := 255; threshold > 0; threshold -= 1 {
+			above += histogram[threshold]
+			if above > 0 && abs(above - desired) < error {
+				best, error = threshold, abs(above - desired)
+			}
+		}
+		if error == max(int) { continue }
+		// Quantization must leave the selected alpha bin above the shader cutoff.
+		scale := math.ceil(cutoff * 255) / f32(best)
+		for i := 3; i < len(level.pixels); i += 4 {
+			level.pixels[i] = byte(clamp(math.round(f32(level.pixels[i]) * scale), 0, 255))
+		}
+	}
 }

@@ -5,7 +5,9 @@ import "core:encoding/endian"
 import "core:encoding/json"
 import "core:math/linalg"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:slice"
+import "core:strings"
 
 GLB_MAGIC :: 0x46546C67 // "glTF"
 GLB_CHUNK_JSON :: 0x4E4F534A // "JSON"
@@ -119,6 +121,7 @@ Gltf :: struct {
 		primitives: []Gltf_Primitive,
 	},
 	materials:    []struct {
+		name: string,
 		pbr:        struct {
 			base_color_factor:          Maybe([4]f32) `json:"baseColorFactor"`,
 			base_color_texture:         Maybe(Gltf_Texture_Ref) `json:"baseColorTexture"`,
@@ -192,6 +195,7 @@ Gltf_Accessor :: struct {
 	buffer_view:    Maybe(int) `json:"bufferView"`,
 	byte_offset:    int `json:"byteOffset"`,
 	component_type: int `json:"componentType"`,
+	normalized:     bool,
 	count:          int,
 	type:           string,
 	sparse:         json.Value,
@@ -226,36 +230,38 @@ Gltf_Buffer_View :: struct {
 }
 
 Glb_Loader :: struct {
-	gltf:         Gltf,
-	bin:          []byte,
-	vertices:     [dynamic]Vertex,
+	gltf:             Gltf,
+	bin:              []byte,
+	vertices:         [dynamic]Vertex,
+	vertex_colors:    [dynamic][4]f32,
+	vertex_materials: [dynamic]int,
 	// One per vertex when the mesh nodes are skinned.
-	influences:   [dynamic]Glb_Influence,
+	influences:       [dynamic]Glb_Influence,
 	// One per distinct material, in the order the walk first meets it.
-	runs:         [dynamic]Glb_Material_Run,
-	// The textures hold their pixels in the parse's allocator.
-	textures:     [dynamic]Texture,
-	texture_keys: [dynamic]Glb_Texture_Key,
-	notes:        Glb_Notes,
-	skinned:      bool,
-	rigid:        bool,
+	runs:             [dynamic]Glb_Material_Run,
+	// Texture pixels use the caller's retained allocator.
+	textures:         [dynamic]Texture,
+	texture_keys:     [dynamic]Glb_Texture_Key,
+	notes:            Glb_Notes,
+	skinned:          bool,
+	rigid:            bool,
 }
 
-// The indices of every primitive that draws with this material. glTF
-// materials that differ only in base colour factor share a run, because
-// that factor goes in the vertex colour. part is empty until glb_parts.
+// Named source materials cannot merge, even when their values match.
 Glb_Material_Run :: struct {
+	slot:     Maybe(int),
 	material: Glb_Material,
 	indices:  [dynamic]u16,
 	part:     Mesh_Data_Part,
 }
 
-// A glTF texture decodes once per colour space. slot is nil for a texture
-// that cannot draw or is past MESH_TEXTURE_LIMIT.
+// Texture variants separate colour space and effective MASK cutoff.
+// Missing or excess textures have no slot.
 Glb_Texture_Key :: struct {
-	index: int,
-	srgb:  bool,
-	slot:  Maybe(int),
+	index:        int,
+	srgb:         bool,
+	alpha_cutoff: f32,
+	slot:         Maybe(int),
 }
 
 // Each texture is the first glTF texture with the same image and sampler,
@@ -283,16 +289,20 @@ Glb_View :: struct {
 	component_type: int,
 }
 
-// Merges every triangle primitive of every mesh node in the glTF scene into
-// one mesh with one part per glTF material. Scratch is frame memory, so a
-// rejected file leaves nothing in allocator. Skinned mesh nodes merge in
-// bind-pose space with their Skin and Clips.
+// Returned data must outlive parse scratch. Failed parses leave no retained allocations.
+// Skinned mesh nodes merge in bind-pose space with their Skin and Clips.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
+	// Keep allocator unchanged when the caller passes context.temp_allocator.
+	scratch: vmem.Arena
+	defer vmem.arena_destroy(&scratch)
+	context.temp_allocator = vmem.arena_allocator(&scratch)
 	json_chunk, bin := glb_chunks(bytes) or_return
 
 	l := Glb_Loader {
 		bin          = bin,
 		vertices     = make([dynamic]Vertex, context.temp_allocator),
+		vertex_colors = make([dynamic][4]f32, context.temp_allocator),
+		vertex_materials = make([dynamic]int, context.temp_allocator),
 		influences   = make([dynamic]Glb_Influence, context.temp_allocator),
 		runs         = make([dynamic]Glb_Material_Run, context.temp_allocator),
 		textures     = make([dynamic]Texture, context.temp_allocator),
@@ -330,18 +340,22 @@ glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, 
 		textures   = slice.clone(l.textures[:], allocator),
 		parts      = slice.clone(parts, allocator),
 		skin       = skin_clone(skin, allocator),
+		material_slots = glb_material_slots(&l, allocator),
+		vertex_colors = slice.clone(l.vertex_colors[:], allocator),
+		vertex_materials = slice.clone(l.vertex_materials[:], allocator),
 	}
 	return data, l.notes, .None
 }
 
 // Lays the runs out by alpha mode, each mode in walk order, so each part is
-// one range of the index buffer. The indices and parts are frame memory; the
-// textures go to allocator.
+// one range of the index buffer. Indices and parts use parse scratch;
+// textures use the retained allocator.
 glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, parts: []Mesh_Data_Part, err: Glb_Error) {
 	// Textures take their slots in walk order, so the texture limit drops the
 	// last textures the walk meets, whatever their part's alpha mode.
 	for &run in l.runs {
-		run.part = glb_part(l, run.material, allocator) or_return
+		run.part = glb_part(l, &run, allocator) or_return
+		run.part.slot = run.slot
 	}
 	slice.stable_sort_by(l.runs[:], proc(a, b: Glb_Material_Run) -> bool {
 		return a.material.values.alpha_mode < b.material.values.alpha_mode
@@ -358,10 +372,11 @@ glb_parts :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> (indices: []u16, 
 }
 
 // The part's material and texture slots, without its range.
-glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+glb_part :: proc(l: ^Glb_Loader, run: ^Glb_Material_Run, allocator: mem.Allocator) -> (part: Mesh_Data_Part, err: Glb_Error) {
+	material := run.material
 	part = {
 		material           = material.values,
-		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator) or_return,
+		texture            = glb_texture_slot(l, material.texture, srgb = true, allocator = allocator, alpha_cutoff = glb_mask_texture_cutoff(l, run)) or_return,
 		metallic_roughness = glb_texture_slot(l, material.metallic_roughness, srgb = false, allocator = allocator) or_return,
 		emissive           = glb_texture_slot(l, material.emissive, srgb = true, allocator = allocator) or_return,
 		normal             = glb_texture_slot(l, material.normal, srgb = false, allocator = allocator) or_return,
@@ -374,6 +389,20 @@ glb_part :: proc(l: ^Glb_Loader, material: Glb_Material, allocator: mem.Allocato
 		part.material.occlusion_strength = 0
 	}
 	return part, .None
+}
+
+// A varying vertex alpha has no single texture threshold to preserve.
+glb_mask_texture_cutoff :: proc(l: ^Glb_Loader, run: ^Glb_Material_Run) -> f32 {
+	cutoff := run.material.values.alpha_cutoff
+	if run.material.values.alpha_mode != .Mask || cutoff <= 0 || len(run.indices) == 0 {
+		return 0
+	}
+	alpha := l.vertices[run.indices[0]].color.w
+	if alpha <= 0 || cutoff > alpha { return 0 }
+	for index in run.indices {
+		if l.vertices[index].color.w != alpha { return 0 }
+	}
+	return cutoff / alpha
 }
 
 // A primitive with no material is matte. glTF gives a material without
@@ -463,17 +492,17 @@ glb_first_texture :: proc(l: ^Glb_Loader, index: int) -> int {
 // it the first time a part names it. A texture that cannot draw takes no
 // slot. Past MESH_TEXTURE_LIMIT, a texture still decodes, so it gets the
 // same checks and notes, and then the part gets none.
-glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocator: mem.Allocator) -> (slot: Maybe(int), err: Glb_Error) {
+glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocator: mem.Allocator, alpha_cutoff: f32 = 0) -> (slot: Maybe(int), err: Glb_Error) {
 	i, named := index.?
 	if !named {
 		return nil, .None
 	}
 	for key in l.texture_keys {
-		if key.index == i && key.srgb == srgb {
+		if key.index == i && key.srgb == srgb && key.alpha_cutoff == alpha_cutoff {
 			return key.slot, .None
 		}
 	}
-	if tex, ok := (glb_texture(l, i, srgb, allocator) or_return).?; ok {
+	if tex, ok := (glb_texture(l, i, srgb, allocator, alpha_cutoff) or_return).?; ok {
 		if len(l.textures) == MESH_TEXTURE_LIMIT {
 			texture_delete(tex, allocator)
 			l.notes += {.Too_Many_Textures}
@@ -482,18 +511,22 @@ glb_texture_slot :: proc(l: ^Glb_Loader, index: Maybe(int), srgb: bool, allocato
 			append(&l.textures, tex)
 		}
 	}
-	append(&l.texture_keys, Glb_Texture_Key{index = i, srgb = srgb, slot = slot})
+	append(&l.texture_keys, Glb_Texture_Key{index = i, srgb = srgb, alpha_cutoff = alpha_cutoff, slot = slot})
 	return slot, .None
 }
 
 // The primitives with this material so far, or a new empty run.
-glb_material_run :: proc(l: ^Glb_Loader, material: Glb_Material) -> ^Glb_Material_Run {
+glb_material_run :: proc(l: ^Glb_Loader, material: Glb_Material, source: Maybe(int)) -> ^Glb_Material_Run {
+	slot: Maybe(int)
+	if index, ok := source.?; ok && l.gltf.materials[index].name != "" {
+		slot = index
+	}
 	for &run in l.runs {
-		if run.material == material {
+		if run.material == material && run.slot == slot {
 			return &run
 		}
 	}
-	append(&l.runs, Glb_Material_Run{material = material, indices = make([dynamic]u16, context.temp_allocator)})
+	append(&l.runs, Glb_Material_Run{slot = slot, material = material, indices = make([dynamic]u16, context.temp_allocator)})
 	return &l.runs[len(l.runs) - 1]
 }
 
@@ -651,6 +684,12 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 			return .Bad_Accessor
 		}
 	}
+	colors: Glb_View
+	color_index, has_color := p.attributes["COLOR_0"]
+	if has_color {
+		colors = glb_color_accessor(l, color_index) or_return
+		if colors.count != count { return .Bad_Accessor }
+	}
 	if skinned {
 		glb_add_influences(l, p, count) or_return
 	}
@@ -664,7 +703,7 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 		color = l.gltf.materials[m].pbr.base_color_factor.? or_else {1, 1, 1, 1}
 		normal_mapped = l.gltf.materials[m].normal_texture != nil
 	}
-	run := glb_material_run(l, glb_material(l, p.material))
+	run := glb_material_run(l, glb_material(l, p.material), p.material)
 
 	basis := linalg.matrix3_from_matrix4_f32(world)
 	normal_matrix := linalg.matrix3_inverse_transpose_f32(basis)
@@ -686,11 +725,15 @@ glb_add_primitive :: proc(l: ^Glb_Loader, p: ^Gltf_Primitive, world: Mat4, skinn
 				tangent.w = -tangent.w
 			}
 		}
+		vertex_color := [4]f32{1, 1, 1, 1}
+		if has_color { vertex_color = glb_read_color(l, color_index, colors, i) }
+		append(&l.vertex_colors, vertex_color)
+		append(&l.vertex_materials, p.material.? or_else -1)
 		append(
 			&l.vertices,
 			Vertex {
 				pos = (world * [4]f32{pos.x, pos.y, pos.z, 1}).xyz,
-				color = color,
+				color = color * vertex_color,
 				normal = linalg.normalize0(normal_matrix * nrm),
 				uv = uv,
 				tangent = tangent,
@@ -842,7 +885,7 @@ glb_accessor :: proc(l: ^Glb_Loader, index: int, type: string) -> (view: Glb_Vie
 }
 
 // A texture that cannot draw gives a note and no texture. Only a bad index is an error.
-glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Allocator) -> (tex: Maybe(Texture), err: Glb_Error) {
+glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Allocator, alpha_cutoff: f32 = 0) -> (tex: Maybe(Texture), err: Glb_Error) {
 	if index < 0 || index >= len(l.gltf.textures) {
 		return nil, .Bad_Texture
 	}
@@ -881,12 +924,16 @@ glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Alloc
 
 	switch img.mime_type {
 	case "image/png":
+		// Each PNG releases its decoder scratch after retained pixels are copied.
+		scratch: vmem.Arena
+		defer vmem.arena_destroy(&scratch)
+		context.temp_allocator = vmem.arena_allocator(&scratch)
 		width, height, rgba, ok := png_decode(bytes)
 		if !ok {
 			l.notes += {.Bad_Png}
 			return nil, .None
 		}
-		return texture_build(width, height, rgba, sampler, srgb, allocator), .None
+		return texture_build(width, height, rgba, sampler, srgb, allocator, alpha_cutoff), .None
 	case "image/jpeg":
 		l.notes += {.Jpeg_Skipped}
 	case:
@@ -957,4 +1004,48 @@ glb_read_index :: proc(v: Glb_View, i: int) -> int {
 		n, _ := endian.get_u32(b, .Little)
 		return int(n)
 	}
+}
+
+// Source indices identify slots independently of walk order and alpha sorting.
+glb_material_slots :: proc(l: ^Glb_Loader, allocator: mem.Allocator) -> []Mesh_Material_Slot {
+	slots := make([]Mesh_Material_Slot, len(l.gltf.materials), allocator)
+	for material, i in l.gltf.materials {
+		slots[i] = {name = strings.clone(material.name, allocator), source_material = i,
+			base_color_factor = material.pbr.base_color_factor.? or_else {1, 1, 1, 1}}
+	}
+	return slots
+}
+
+glb_color_accessor :: proc(l: ^Glb_Loader, index: int) -> (view: Glb_View, err: Glb_Error) {
+	if index < 0 || index >= len(l.gltf.accessors) { return {}, .Bad_Accessor }
+	a := &l.gltf.accessors[index]
+	if a.type != "VEC3" && a.type != "VEC4" { return {}, .Bad_Accessor }
+	view = glb_accessor(l, index, a.type) or_return
+	switch view.component_type {
+	case GLTF_F32:
+		if a.normalized { return {}, .Bad_Accessor }
+	case GLTF_U8, GLTF_U16:
+		if !a.normalized { return {}, .Bad_Accessor }
+	case:
+		return {}, .Bad_Accessor
+	}
+	return view, .None
+}
+
+glb_read_color :: proc(l: ^Glb_Loader, index: int, view: Glb_View, vertex: int) -> [4]f32 {
+	color := [4]f32{1, 1, 1, 1}
+	components := 3 if l.gltf.accessors[index].type == "VEC3" else 4
+	bytes := view.data[vertex * view.stride:]
+	for i in 0 ..< components {
+		switch view.component_type {
+		case GLTF_F32:
+			color[i], _ = endian.get_f32(bytes[i * 4:], .Little)
+		case GLTF_U8:
+			color[i] = f32(bytes[i]) / 255
+		case GLTF_U16:
+			value, _ := endian.get_u16(bytes[i * 2:], .Little)
+			color[i] = f32(value) / 65535
+		}
+	}
+	return color
 }

@@ -1,0 +1,42 @@
+{
+  "compiler": "Odin 902106f",
+  "command": "/tmp/rocco-pinned-odin/odin run /tmp/village-effects-particle-count",
+  "source": "engine/particles.odin",
+  "source_sha256": "fe7fbb678e3da215006eb45f1d13daaebe6edf5a79b97020391f71376af2910a",
+  "method": "Temporary standalone harness compiles the unchanged engine particle implementation with only its package name changed. The harness uses the village emitter rates, lifetimes, IDs, and seeds at120Hz. No engine repository files changed.",
+  "samples": [
+    {
+      "step": 480,
+      "sources": 41,
+      "smoke": 20,
+      "dust": 40,
+      "total": 60
+    },
+    {
+      "step": 1800,
+      "sources": 41,
+      "smoke": 36,
+      "dust": 160,
+      "total": 196
+    },
+    {
+      "step": 3600,
+      "sources": 41,
+      "smoke": 36,
+      "dust": 160,
+      "total": 196
+    }
+  ],
+  "after_removal": {
+    "steps": 1800,
+    "sources": 0,
+    "particles": 0
+  },
+  "capacity": {
+    "sources": 128,
+    "particles": 8192
+  },
+  "steady_particle_batches": 41,
+  "conservative_particle_bound": 236,
+  "gpu_timing_claim": false
+}

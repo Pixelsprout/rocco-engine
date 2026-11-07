@@ -1,0 +1,24 @@
+{
+  "base_green": 89582,
+  "unloaded_green": 0,
+  "shadow_pixels": 11253,
+  "noncasting_shadow_pixels": 0,
+  "result": "passed",
+  "wind_hashes": [
+    "b55ddd8e5e3edf4ccee6de0000b97bb924ab65770169ff589bfdd89234acdd68",
+    "437bb4d1c7b05be23bdcf697ddc48ab673fe1921478469774ef195cfa06e9c00",
+    "136a7933f92e91d46946a89c8b2ed93efe5b823076f833b3da15b92d78be500a"
+  ],
+  "instance_wind_hashes": [
+    "01fccf49d03ea0b0cb19ca55a16620d6365fc14dcac6f5715e8e4b51004151f4",
+    "d4391ef6a779720b1aa5b5792ecdc7abfb998aefb2fd49aa90c254a03afff6ca",
+    "0fb4e9b73459e016e931d7b1b63cd921efabaa9714cb8eaa1c22ef7dc44d2d12"
+  ],
+  "default_pbr_mean_difference": 1.7361111111111112e-07,
+  "binary_sha256": "d03ac3796cd9f37ccccd4aa18a81e05022b3567136aa1b53fe8960df75799ee3",
+  "packages": {
+    "IndirectSurface.shaderpack": "aa52210ada1a8d92a18a07819c9ad793140f9950891b0ef374306ca97925ceca",
+    "DefaultSurface.shaderpack": "c1e1d768e4ec4c28fdb8c34b47152ebd20b0fd22d2898ed477dcce398ed8c28d",
+    "Foliage.shaderpack": "1d9a5b92ba22da89b50cd2ba9c8f9fc48dcd539adf7de693ff720f96c354392e"
+  }
+}

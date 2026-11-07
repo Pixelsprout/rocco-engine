@@ -690,7 +690,7 @@ entity_nodes = |m, slots, slot| {
 		leaves(m.meshes, e, pose)
 	} else {
 		inner = leaves(m.meshes, e, Pose.identity).concat(List.join_map(children, |c| entity_nodes(m, slots, c)))
-		[Group({ id: e.id, pos: pose.pos, rot: pose.rot }, inner)]
+		[Group({ id: e.id, pos: pose.pos, rot: pose.rot, selected: Bool.False }, inner)]
 	}
 }
 

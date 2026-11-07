@@ -10,6 +10,7 @@ Host_Options :: struct {
 	seed:              u64,
 	args:              []string,
 	spans_csv:         string,
+	capture_csv:       string,
 	debug_camera:      bool,
 	alloc_report:      bool,
 	read_gamepads:     bool,
@@ -37,10 +38,17 @@ host_build :: proc(s: ^State, options: Host_Options, calls: Game_Calls, run_comm
 	perm := s.mem.perm_allocator
 	capacity := s.launch.capacity
 	span_sink_init(&s.spans, options.spans_csv, options.exit_after_frames, context.allocator)
+	capture_sink_init(&s.capture, options.capture_csv, options.exit_after_frames, context.allocator)
+	if s.capture.on { s.capture.seed = options.seed }
 	audio_init(&s.audio, device = options.audio_device)
 	camera_init(&s.debug_camera)
 	asset_tables_init(&s.packs, &s.renderer.meshes, &s.renderer.skies, &s.renderer.images, &s.audio, capacity, perm, context.allocator)
 	frame_render_init(&s.frame_render, int(capacity.draws), int(capacity.groups), s.launch.shadow_map, int(s.launch.shadow_cascades), perm)
+	particles_init(&s.particles, perm)
+	s.seam.particles = &s.particles
+	s.frame_render.particles = &s.particles
+	s.renderer.shaders = &s.packs.shaders
+	s.frame_render.packs = &s.packs
 	clock_init(&s.clock, s.launch.step_hz)
 	seam_init(&s.seam, run_command, host_config(s, options), &s.packs, &s.audio)
 	return
@@ -74,9 +82,11 @@ host_destroy :: proc(s: ^State) {
 	packs_destroy(&s.packs)
 	asset_tables_destroy(&s.renderer.meshes, &s.renderer.skies, &s.renderer.images)
 	audio_shutdown(&s.audio)
+	particles_destroy(&s.particles)
 	frame_render_destroy(&s.frame_render)
 	ui_destroy(&s.ui)
 	span_sink_destroy(&s.spans)
+	capture_sink_destroy(&s.capture)
 }
 
 // The audio tables need the sample rate, so audio_init runs first.

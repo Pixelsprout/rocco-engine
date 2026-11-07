@@ -28,8 +28,8 @@ Submitted :: struct {
 	emissive:     [4]f32,
 	glow:         [4]f32,
 	maps:         [4]f32,
-	light_pos:    [MAX_LIGHTS][4]f32,
-	light_color:  [MAX_LIGHTS][4]f32,
+	light_pos:    [MAX_DIRECTIONALS][4]f32,
+	light_color:  [MAX_DIRECTIONALS][4]f32,
 	skinned:      bool,
 	joints:       [2]Mat4,
 	fog_color:    [4]f32,
@@ -41,6 +41,11 @@ Submitted :: struct {
 Shadow_Submitted :: struct {
 	mesh:        ^Mesh,
 	count:       int,
+	first:       int,
+	pipeline:    Mesh_Pipeline,
+	cutoff:      f32,
+	texture:     Mesh_Texture,
+	slot:        Maybe(int),
 	light_mvp:   Mat4,
 	view:        int,
 	main_before: int,
@@ -59,16 +64,31 @@ Bloom_Submitted :: struct {
 	after_main: bool,
 }
 
+Particle_Recorded :: struct {batch: Particle_Batch, before: int}
+
 // sky_after is the number of submits before the sky. tone_map_ui is the
 // number of submit_ui calls before the tone map.
 Recorder :: struct {
+	post_events: [2]Post_Observed,
+	post_count: int,
+	depth_palette_count: int,
+	depth_has_pipeline: bool,
+	depth_pipeline: Mesh_Pipeline,
+	depth_skin: ^Skin_Params,
+	instance_calls, instance_records: int,
+	particles: [dynamic]Particle_Recorded,
+	surfaces: [dynamic]Surface_Observed,
 	passes:        [dynamic]Pass_Begun,
 	pass_ends:     int,
 	shadows:       [dynamic]Shadow_Submitted,
 	submits:       [dynamic]Submitted,
 	lights:        Fs_Lights,
+	clusters:      Cluster_Frame,
 	lights_calls:  int,
 	sky:           ^Sky,
+	environment:   ^Sky,
+	environment_calls: int,
+	environment_before: int,
 	sky_view_proj: Mat4,
 	sky_calls:     int,
 	sky_after:     int,
@@ -216,8 +236,8 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 			emissive = fs_params.emissive,
 			glow = fs_params.glow,
 			maps = fs_params.maps,
-			light_pos = fs_params.light_pos,
-			light_color = fs_params.light_color,
+			light_pos = r.lights.directional_pos,
+			light_color = r.lights.directional_color,
 			skinned = skin != nil,
 			joints = {skin.joints[0], skin.joints[1]} if skin != nil else {},
 			fog_color = r.lights.fog_color,
@@ -227,10 +247,18 @@ record_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	)
 }
 
-record_lights :: proc(ctx: rawptr, lights: Fs_Lights) {
+record_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r := (^Recorder)(ctx)
 	r.lights = lights
+	r.clusters = clusters
 	r.lights_calls += 1
+}
+
+record_environment :: proc(ctx: rawptr, sky: ^Sky) {
+	r := (^Recorder)(ctx)
+	r.environment = sky
+	r.environment_calls += 1
+	r.environment_before = len(r.submits)
 }
 
 record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
@@ -276,13 +304,18 @@ record_end_pass :: proc(ctx: rawptr) {
 	r.pass_ends += 1
 }
 
-record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, count: int, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
+record_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Shadow_Vs_Params, skin: ^Skin_Params) {
 	r := (^Recorder)(ctx)
 	append(
 		&r.shadows,
 		Shadow_Submitted {
 			mesh = mesh,
-			count = count,
+			count = part.count,
+			first = part.first,
+			pipeline = pipeline,
+			cutoff = vs_params.shadow_material.x,
+			texture = part.texture,
+			slot = part.slot,
 			light_mvp = vs_params.light_mvp,
 			view = r.passes[len(r.passes) - 1].view,
 			main_before = len(r.submits),
@@ -305,11 +338,13 @@ frame_fixture_init :: proc(f: ^Frame_Fixture, draws := SMALL_DRAWS, cascades := 
 }
 
 recorder_destroy :: proc(r: ^Recorder) {
+	delete(r.surfaces)
 	delete(r.submits)
 	delete(r.passes)
 	delete(r.shadows)
 	delete(r.ui_quads)
 	delete(r.blooms)
+	delete(r.particles)
 }
 
 recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
@@ -320,6 +355,7 @@ recorder_submits :: proc(r: ^Recorder) -> Frame_Render_Submits {
 		submit = record_submit,
 		submit_lights = record_lights,
 		submit_sky = record_sky,
+			submit_environment = record_environment,
 		submit_bloom = record_bloom,
 		submit_tone_map = record_tone_map,
 		submit_ui = record_ui,
@@ -348,14 +384,16 @@ frame_fixture_draw :: proc(f: ^Frame_Fixture, prev, curr: Scene, alpha: f32, eye
 	return f.rec.submits[:]
 }
 
-// An identity view_proj, with a camera at eye that looks down -z.
+// Keep placement fixtures visible across their synthetic world coordinates.
 frame_fixture_view :: proc(eye: [3]f32) -> Frame_View {
-	return {view_proj = 1, camera = {eye = eye, target = eye + {0, 0, -1}, up = UP, fov_y = 1.047}, aspect = 16.0 / 9}
+	projection := mat4_scale({1e-6, 1e-6, 1e-6})
+	projection[2, 3] = 0.5
+	return {view_proj = projection, camera = {eye = eye, target = eye + {0, 0, -1}, up = UP, fov_y = 1.047}, aspect = 16.0 / 9}
 }
 
 // The Frame render only reads, so a Scene may point at a slice roc_alloc never saw.
 scene_of :: proc(draws: []Draw) -> Scene {
-	return {nodes = roc_list_view(draw_nodes(draws)), environment = ENVIRONMENT_DEFAULT}
+	return {nodes = roc_list_view(draw_nodes(draws)), environment = ENVIRONMENT_DEFAULT, shadow = shadow_default()}
 }
 
 // One unit Cube with id 1 at at, after the Lights. Returns its submit.
@@ -378,11 +416,18 @@ light_sun :: proc(dir: Vec3, c: Rgb) -> Light {
 }
 
 // The Lights come first in the tree, as a game writes them.
-scene_lit :: proc(draws: []Draw, lights: []Light) -> Scene {
+// Odin Draw literals omit the Roc field, so fixtures keep its default unless a test opts out.
+scene_lit :: proc(draws: []Draw, lights: []Light, default_casting := true) -> Scene {
 	nodes := make([dynamic]Node, context.temp_allocator)
 	append(&nodes, ..light_nodes(lights))
-	append(&nodes, ..draw_nodes(draws))
-	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT}
+	draw_nodes := draw_nodes(draws)
+	if default_casting {
+		for &node in draw_nodes {
+			node.payload.draw.casts_shadow = true
+		}
+	}
+	append(&nodes, ..draw_nodes)
+	return {nodes = roc_list_view(nodes[:]), environment = ENVIRONMENT_DEFAULT, shadow = shadow_default()}
 }
 
 light_point :: proc(pos: Vec3, c: Rgb, range: f32) -> Light {
@@ -633,242 +678,104 @@ test_frame_render_camera_falls_back_to_world_up_and_logs_once :: proc(t: ^testin
 }
 
 @(test)
-test_frame_render_lights_an_empty_list_black :: proc(t: ^testing.T) {
+test_frame_render_sends_points_once_and_keeps_material_blocks_small :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	draws := []Draw{{id = 1, mesh = 1}, {id = 2, mesh = 1}}
-	got := frame_fixture_draw(&f, scene_of(draws), scene_of(draws), 0)
-	testing.expect_value(t, len(got), 2)
-	for s in got {
-		testing.expect_value(t, s.light_pos, [MAX_LIGHTS][4]f32{})
-		testing.expect_value(t, s.light_color, [MAX_LIGHTS][4]f32{})
-	}
+	frame_fixture_light_list(&f, {light_point({1, 2, 3}, {r = 1, g = 0.5, b = 0}, 6)})
 	testing.expect_value(t, f.rec.lights_calls, 1)
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{})
-	testing.expect_value(t, f.rec.lights.shadow, [4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
+	testing.expect_value(t, len(f.rec.clusters.points), 1)
+	testing.expect_value(t, f.rec.clusters.points[0], Packed_Light{{1, 2, 3, 1}, {1, 0.5, 0, 6}})
+	testing.expect_value(t, size_of(Fs_Params), 96)
+	testing.expect_value(t, size_of(Fs_Lights), 512)
 }
 
 @(test)
-test_frame_render_packs_the_ambient_and_negates_a_directional_dir :: proc(t: ^testing.T) {
+test_frame_render_keeps_1024_points_and_logs_excess_once :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_ambient({r = 0.1, g = 0.2, b = 0.3}), light_directional({x = 0, y = -4, z = 0}, {r = 2, g = 1, b = 1})})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0.2, 0.3, 1})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{2, 1, 1, 0})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
+	lights: [MAX_POINT_LIGHTS + 2]Light
+	for &l, i in lights { l = light_point({x = f32(i)}, {r = 1}, 0.01) }
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, lights[:])
+		testing.expect_value(t, len(f.rec.clusters.points), MAX_POINT_LIGHTS)
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Points_Over_Limit})
+	}
 }
 
 @(test)
-test_frame_render_packs_a_point_light_with_its_range :: proc(t: ^testing.T) {
+test_frame_render_keeps_the_sun_after_the_directional_limit :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_point({x = 1, y = 2, z = 3}, {r = 1, g = 0.5, b = 0}, 6)})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{})
-	testing.expect_value(t, got.light_pos[0], [4]f32{1, 2, 3, 1})
-	testing.expect_value(t, got.light_color[0], [4]f32{1, 0.5, 0, 6})
-}
-
-@(test)
-test_frame_render_keeps_every_point_light_of_the_scene :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [20]Light
-	for &l, i in lights {
-		l = light_point({x = 10 * f32(i)}, {r = 1}, 2)
-	}
-	got := frame_fixture_light_list(&f, lights[:], at = {190, 0, 0})
-	testing.expect_value(t, got.light_pos[0], [4]f32{190, 0, 0, 1})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
-	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
-}
-
-@(test)
-test_frame_render_gives_each_draw_its_own_point_lights :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights := []Light{light_point({x = 0, y = 2, z = 0}, {r = 1}, 3), light_point({x = 20, y = 2, z = 0}, {g = 1}, 3)}
-	draws := []Draw {
-		{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
-		{id = 2, mesh = u32(Primitive.Cube), pos = {x = 20}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY},
-	}
-	scene := scene_lit(draws, lights)
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 2)
-	testing.expect_value(t, got[0].light_pos[0], [4]f32{0, 2, 0, 1})
-	testing.expect_value(t, got[0].light_color[1], [4]f32{})
-	testing.expect_value(t, got[1].light_pos[0], [4]f32{20, 2, 0, 1})
-	testing.expect_value(t, got[1].light_color[1], [4]f32{})
-}
-
-@(test)
-test_frame_render_draws_40_orbs_each_lit_by_its_own_light :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f, draws = 40)
-	defer frame_fixture_destroy(&f)
-
-	draws: [40]Draw
-	lights: [40]Light
-	for i in 0 ..< 8 {
-		for j in 0 ..< 5 {
-			at := Vec3{x = 4 * f32(i), z = 4 * f32(j)}
-			draws[i * 5 + j] = {id = u64(i * 5 + j), mesh = u32(Primitive.Cube), pos = at, scale = {1, 0.1, 1}, rot = IDENTITY, scale_rot = IDENTITY}
-			lights[i * 5 + j] = light_point({at.x, 1, at.z}, {r = 1}, 3)
-		}
-	}
-	scene := scene_lit(draws[:], lights[:])
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 40)
-	for s, k in got {
-		above := draws[k].pos
-		testing.expect_value(t, s.light_pos[0], [4]f32{above.x, 1, above.z, 1})
-		testing.expect(t, s.light_color[0] != {})
-		testing.expect_value(t, s.light_color[1], [4]f32{})
-	}
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
-}
-
-@(test)
-test_frame_render_keeps_the_8_nearest_and_logs_a_draw_that_drops_once :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [MAX_LIGHTS + 2]Light
-	for &l, i in lights {
-		l = light_point({x = f32(len(lights) - i)}, {r = 1}, 20)
-	}
-	got := frame_fixture_light_list(&f, lights[:])
-	for i in 0 ..< MAX_LIGHTS {
-		testing.expect_value(t, got.light_pos[i].x, f32(i + 1))
-	}
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
+	lights: [MAX_DIRECTIONALS + 2]Light
+	for &l, i in lights { l = light_directional({x = f32(i + 1), y = -1}, {r = 1}) }
+	lights[MAX_DIRECTIONALS + 1] = light_sun({y = -1}, {g = 1})
 	frame_fixture_light_list(&f, lights[:])
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
-}
-
-@(test)
-test_frame_render_puts_the_sun_in_slot_0 :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_directional({z = -1}, {r = 1}), light_sun({y = -1}, {g = 1})})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_pos[1], [4]f32{0, 0, 1, 0})
+	testing.expect_value(t, f.rec.lights.directional_pos[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.directional_color[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.ambient.w, f32(MAX_DIRECTIONALS))
 	testing.expect_value(t, f.rec.lights.shadow.x, 1)
-	testing.expect_value(t, f.rec.lights.shadow.y, 0)
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Directional_Over_Limit})
 }
 
 @(test)
-test_frame_render_keeps_the_sun_past_8_directionals :: proc(t: ^testing.T) {
+test_frame_render_preserves_directional_order_after_the_sun :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
+	frame_fixture_light_list(&f, {light_directional({z = -1}, {r = 1}), light_sun({y = -1}, {g = 1})})
+	testing.expect_value(t, f.rec.lights.directional_pos[0], [4]f32{0, 1, 0, 0})
+	testing.expect_value(t, f.rec.lights.directional_pos[1], [4]f32{0, 0, 1, 0})
+	testing.expect_value(t, f.rec.lights.ambient.w, 2)
+}
 
-	lights: [MAX_LIGHTS + 1]Light
-	for &l, i in lights {
-		l = light_directional({x = f32(i + 1), y = -1}, {r = 1})
+@(test)
+test_frame_render_logs_cluster_overflow_once :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	lights: [65]Light
+	for &l in lights { l = light_point({}, {r = 1}, 100) }
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, lights[:])
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Cluster_Over_Limit})
 	}
-	lights[MAX_LIGHTS] = light_sun({y = -1}, {g = 1})
-	got := frame_fixture_light_list(&f, lights[:])
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Draw_Over_Limit})
-	testing.expect_value(t, f.rec.lights.shadow.x, 1)
 }
 
 @(test)
-test_frame_render_gives_an_unlit_draw_no_lights :: proc(t: ^testing.T) {
+test_frame_render_keeps_first_ambient_and_rejects_invalid_lights :: proc(t: ^testing.T) {
 	f: Frame_Fixture
 	frame_fixture_init(&f)
 	defer frame_fixture_destroy(&f)
-
-	sign, _ := mesh_table_add(&f.meshes, strings.clone("sign"), mesh_data_of({roughness = 1, unlit = true}))
-	draws := []Draw{{id = 1, mesh = mesh_id(&f.meshes, sign), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
-	lights := []Light{light_point({x = 1}, {r = 1}, 4)}
-	scene := scene_lit(draws, lights)
-	got := frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, len(got), 1)
-	testing.expect_value(t, got[0].light_pos, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, got[0].light_color, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{})
-}
-
-@(test)
-test_frame_render_headless_selects_no_lights :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	lights: [MAX_LIGHTS + 2]Light
-	for &l, i in lights {
-		l = light_point({x = f32(i)}, {r = 1}, 20)
+	for _ in 0 ..< 2 {
+		frame_fixture_light_list(&f, {light_ambient({r = 0.1}), light_ambient({g = 1}), light_directional({}, {}), light_point({}, {}, 0), light_point({}, {}, math.nan_f32())})
+		testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0, 0, 0})
+		testing.expect_value(t, len(f.rec.clusters.points), 0)
+		testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir, .Bad_Range})
 	}
-	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
-	scene := scene_lit(draws, lights[:])
+}
+
+@(test)
+test_frame_render_rejects_nonfinite_point_positions :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	frame_fixture_light_list(&f, {light_point({x = math.nan_f32()}, {r = 1}, 1)})
+	testing.expect_value(t, len(f.rec.clusters.points), 0)
+	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Bad_Point})
+}
+
+@(test)
+test_frame_render_headless_builds_no_clusters :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	scene := scene_lit(nil, {light_point({}, {r = 1}, 10)})
 	frame_render_draw(&f.fr, scene, scene, 0, frame_fixture_view({}), &f.meshes, &f.skies, nil, nil, f.window, submit = false)
-	testing.expect_value(t, len(f.rec.submits), 0)
-	testing.expect(t, .Draw_Over_Limit not_in f.fr.lights_logged)
-}
-
-@(test)
-test_frame_render_keeps_the_first_ambient_and_logs_once :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	frame_fixture_light_list(&f, {light_ambient({r = 0.1}), light_ambient({g = 0.1}), light_ambient({b = 0.1})})
-	testing.expect_value(t, f.rec.lights.ambient, [4]f32{0.1, 0, 0, 1})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient})
-}
-
-@(test)
-test_frame_render_drops_a_zero_dir_without_taking_a_slot :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_directional({}, {r = 1}), light_directional({z = -1}, {g = 1})})
-	testing.expect_value(t, got.light_pos[0], [4]f32{0, 0, 1, 0})
-	testing.expect_value(t, got.light_color[0], [4]f32{0, 1, 0, 0})
-	testing.expect_value(t, got.light_color[1], [4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Zero_Dir})
-}
-
-@(test)
-test_frame_render_drops_a_point_light_with_a_range_of_zero_or_less :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	got := frame_fixture_light_list(&f, {light_point({}, {r = 1}, 0), light_point({}, {r = 1}, -1), light_point({}, {r = 1}, math.nan_f32())})
-	testing.expect_value(t, got.light_pos, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, got.light_color, [MAX_LIGHTS][4]f32{})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Bad_Range})
-}
-
-@(test)
-test_frame_render_logs_each_light_drop_reason_once_per_run :: proc(t: ^testing.T) {
-	f: Frame_Fixture
-	frame_fixture_init(&f)
-	defer frame_fixture_destroy(&f)
-
-	frame_fixture_light_list(&f, {light_ambient({}), light_ambient({}), light_directional({}, {})})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir})
-	frame_fixture_light_list(&f, {light_ambient({}), light_ambient({}), light_directional({}, {}), light_point({}, {}, 0)})
-	testing.expect_value(t, f.fr.lights_logged, bit_set[Light_Drop]{.Second_Ambient, .Zero_Dir, .Bad_Range})
+	testing.expect_value(t, f.rec.lights_calls, 0)
+	testing.expect_value(t, len(f.rec.clusters.ranges), 0)
 }
 
 quat_yaw :: proc(rad: f32) -> Quat {
@@ -983,7 +890,7 @@ test_frame_render_draws_a_two_part_mesh_once_in_each_cascade :: proc(t: ^testing
 }
 
 @(test)
-test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: proc(t: ^testing.T) {
+test_frame_render_shadow_separates_opaque_and_mask_and_skips_blend :: proc(t: ^testing.T) {
 	for cascades in ([]int{1, 4}) {
 		f: Frame_Fixture
 		frame_fixture_init(&f, cascades = cascades)
@@ -1018,7 +925,15 @@ test_frame_render_shadow_draws_only_the_opaque_and_mask_range_of_each_draw :: pr
 				testing.expect_value(t, s.count, len(CUBE_INDICES))
 			case lantern_mesh:
 				lantern_shadows += 1
-				testing.expect_value(t, s.count, 36)
+				if s.pipeline == .Opaque {
+					testing.expect_value(t, s.count, 30)
+					testing.expect_value(t, s.first, 0)
+				} else {
+					testing.expect_value(t, s.pipeline, Mesh_Pipeline.Mask)
+					testing.expect_value(t, s.count, 6)
+					testing.expect_value(t, s.first, 30)
+					testing.expect_value(t, s.cutoff, 0.5)
+				}
 			case:
 				testing.expectf(t, false, "%v cascades: a shadow draws a mesh with only Blend parts", cascades)
 			}
@@ -1046,6 +961,31 @@ test_frame_render_fits_the_shadow_map_to_the_draws_that_cast :: proc(t: ^testing
 		beside := []Draw{cube, glass}
 		frame_fixture_draw(&f, scene_lit(beside, lights), scene_lit(beside, lights), 0)
 		testing.expectf(t, f.rec.lights.light_view_proj == want, "%v cascades: a Draw with only Blend parts moved the shadow map", cascades)
+	}
+}
+
+@(test)
+test_frame_render_keeps_non_casters_in_colour_and_out_of_shadow_fit :: proc(t: ^testing.T) {
+	for cascades in ([]int{1, 4}) {
+		f: Frame_Fixture
+		frame_fixture_init(&f, cascades = cascades)
+		defer frame_fixture_destroy(&f)
+
+		lights := []Light{light_sun({x = 0, y = -1, z = 0}, {r = 1})}
+		caster := Draw{id = 1, mesh = u32(Primitive.Cube), pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY, casts_shadow = true}
+		alone := []Draw{caster}
+		frame_fixture_draw(&f, scene_lit(alone, lights), scene_lit(alone, lights), 0)
+		want_fit := f.rec.lights.light_view_proj
+		want_shadows := len(f.rec.shadows)
+
+		non_caster := Draw{id = 2, mesh = u32(Primitive.Cube), pos = {0, 80, -5}, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY, casts_shadow = false}
+		draws := []Draw{caster, non_caster}
+		got := frame_fixture_draw(&f, scene_lit(draws, lights, default_casting = false), scene_lit(draws, lights, default_casting = false), 0)
+
+		testing.expectf(t, len(got) == 2, "%v cascades: the non-caster stays in the colour pass", cascades)
+		testing.expect_value(t, f.fr.placed[1].shadow_count, 0)
+		testing.expectf(t, len(f.rec.shadows) == want_shadows, "%v cascades: the non-caster submits no shadow", cascades)
+		testing.expectf(t, f.rec.lights.light_view_proj == want_fit, "%v cascades: the non-caster does not expand shadow fitting", cascades)
 	}
 }
 
@@ -1179,7 +1119,7 @@ test_frame_render_draws_the_blend_parts_after_the_sky_with_the_lights_of_their_d
 	testing.expect_value(t, got[2].part, &lamp_mesh.parts[1])
 	testing.expect_value(t, got[2].pipeline, Mesh_Pipeline.Blend)
 	testing.expect_value(t, got[2].model, got[0].model)
-	testing.expect_value(t, got[2].light_color[0], [4]f32{0, 1, 0, 4})
+	testing.expect_value(t, f.rec.clusters.points[0].color, [4]f32{0, 1, 0, 4})
 	testing.expect_value(t, got[2].material.x, 0.1)
 }
 
@@ -1570,7 +1510,7 @@ test_frame_render_sends_the_fog_of_the_current_scene :: proc(t: ^testing.T) {
 	curr.environment.fog = {color = {r = 0.2, g = 0.3, b = 0.4}, start = 10, end = 50, amount = 0.8}
 	frame_fixture_draw(&f, prev, curr, 0.5)
 
-	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 0})
+	testing.expect_value(t, f.rec.lights.fog_color, [4]f32{0.2, 0.3, 0.4, 1})
 	testing.expect_value(t, f.rec.lights.fog_ramp, [4]f32{10, 1.0 / 40, 0.8, 0})
 }
 
@@ -1609,7 +1549,7 @@ test_frame_render_gives_rigid_unlit_and_skinned_draws_the_fog :: proc(t: ^testin
 	testing.expect(t, got[2].skinned)
 	testing.expect_value(t, got[1].material.z, 1)
 	for g, i in got {
-		testing.expectf(t, g.fog_color == {0, 0, 1, 0}, "submit %v: fog_color is %v", i, g.fog_color)
+		testing.expectf(t, g.fog_color == {0, 0, 1, 1}, "submit %v: fog_color is %v", i, g.fog_color)
 		testing.expectf(t, g.fog_ramp == {0, 0.25, 1, 0}, "submit %v: fog_ramp is %v", i, g.fog_ramp)
 	}
 }
@@ -1667,7 +1607,7 @@ test_frame_render_submits_the_sky_after_every_draw :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.rec.sky_calls, 1)
 	testing.expect_value(t, f.rec.sky_after, 2)
 	testing.expect_value(t, f.rec.sky, &f.skies.skies[sky_slot(sky)])
-	expect_mat4_near(t, f.rec.sky_view_proj, 1)
+	expect_mat4_near(t, f.rec.sky_view_proj, frame_fixture_view({}).view_proj)
 }
 
 @(test)
@@ -1864,7 +1804,7 @@ test_frame_render_draws_one_shadow_pass_per_cascade :: proc(t: ^testing.T) {
 	testing.expect_value(t, f.rec.pass_ends, 6)
 	testing.expect_value(t, f.rec.lights.shadow, [4]f32{4, 0, SHADOW_NORMAL_OFFSET, CASCADE_BLEND})
 	testing.expect_value(t, f.rec.lights.cascade_far, cascade_splits(SCENE_NEAR, SHADOW_DISTANCE, 4, CASCADE_SPLIT_WEIGHT))
-	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, 0})
+	testing.expect_value(t, f.rec.lights.view_dir, [4]f32{0, 0, -1, SHADOW_DISTANCE})
 }
 
 @(test)
@@ -2189,4 +2129,79 @@ test_frame_render_skips_the_skin_with_submit_off :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(f.fr.placed), 1)
 	testing.expect(t, f.fr.placed[0].skin != nil)
 	expect_mat4_near(t, f.fr.placed[0].skin.joints[0], 0)
+}
+
+@(test)
+test_shadow_keeps_mask_slots_textures_cutoffs_and_skin_in_every_cascade :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, cascades = 4)
+	defer frame_fixture_destroy(&f)
+	parts := []Mesh_Data_Part {
+		{first = 0, count = 3},
+		{first = 3, count = 3},
+		{first = 6, count = 6, slot = 1, material = {alpha_mode = .Mask, alpha_cutoff = 0.3}},
+		{first = 12, count = 6, slot = 2, material = {alpha_mode = .Mask, alpha_cutoff = 0.7, double_sided = true}},
+	}
+	vine := frame_fixture_skinned_mesh(&f, "vine", parts)
+	mesh, _ := mesh_lookup(&f.meshes, vine)
+	mesh.parts[2].texture = {image = {id = 11}, view = {id = 12}, sampler = {id = 13}}
+	mesh.parts[3].texture = {image = {id = 21}, view = {id = 22}, sampler = {id = 23}}
+	draws := []Draw{{id = 1, mesh = vine, pos = {0, 0, -5}, scale = {1, 1, 1}, rot = IDENTITY, pose = {clip = LIFT, time = 0.5}}}
+	lights := []Light{light_sun({y = -1}, {r = 1})}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+	testing.expect_value(t, len(f.rec.shadows), 12)
+	for s, i in f.rec.shadows {
+		testing.expect_value(t, s.view, i / 3)
+		order := SCENE_ORDER_PIPELINES
+		testing.expect_value(t, s.pipeline, order[i % 3])
+		testing.expect(t, s.skinned)
+		expect_mat4_near(t, s.joints[0], mat4_translate({0, 1, 0}))
+		if i % 3 == 0 {
+			testing.expect_value(t, s.first, 0)
+			testing.expect_value(t, s.count, 6)
+		} else {
+			part := mesh.parts[i % 3 + 1]
+			testing.expect_value(t, s.first, part.first)
+			testing.expect_value(t, s.texture, part.texture)
+			testing.expect_value(t, s.slot, part.slot)
+			testing.expect_value(t, s.cutoff, part.material.alpha_cutoff)
+		}
+	}
+	testing.expect_value(t, SHADOW_UNIFORM_SLOTS, 1)
+}
+
+@(test)
+test_shadow_omits_parts_past_draw_capacity :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f, draws = 1)
+	defer frame_fixture_destroy(&f)
+	id := frame_fixture_mesh(&f, "fence", {
+		{first = 0, count = 3},
+		{first = 3, count = 6, material = {alpha_mode = .Mask, alpha_cutoff = 0.5}},
+	})
+	draws := []Draw{{id = 1, mesh = id, scale = {1, 1, 1}, rot = IDENTITY}}
+	lights := []Light{light_sun({y = -1}, {r = 1})}
+	frame_fixture_draw(&f, scene_lit(draws, lights), scene_lit(draws, lights), 0)
+	testing.expect_value(t, len(f.rec.shadows), 1)
+	testing.expect_value(t, f.rec.shadows[0].count, 3)
+	testing.expect_value(t, f.rec.shadows[0].pipeline, Mesh_Pipeline.Opaque)
+}
+
+@(test)
+test_frame_environment_uses_the_background_sky_before_surface_submits :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	sky := frame_fixture_sky(&f)
+	draws := []Draw{{id = 1, mesh = u32(Primitive.Cube), scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}}
+	scene := scene_of(draws)
+	scene.environment.sky = sky
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.environment, f.rec.sky)
+	testing.expect_value(t, f.rec.environment_calls, 1)
+	testing.expect_value(t, f.rec.environment_before, 0)
+	sky_table_remove(&f.skies, sky_slot(sky))
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.environment, (^Sky)(nil))
+	testing.expect_value(t, len(f.skies.logged), 1)
 }

@@ -15,14 +15,17 @@ meanings in [CONTEXT.md](../CONTEXT.md).
 - Reference result directory:
   [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
   at commit `e1eb378`.
-- Headline figure: N = 8,192 on the reference machine. The p99 Frame CPU time
+- Reference headline before rigid instancing: N = 8,192 on the reference machine. The p99 Frame CPU time
   of `mixed` is 12.8 ms at N = 8,192 and 25.7 ms at N = 16,384. See
   `headline.txt` in that directory.
 
+The reference PC headline needs a new full sweep after rigid instancing.
+The local Mac comparison below tests three sizes and does not replace that reference.
+
 The first reference run, at commit `a8fd5c0`, gave N = 4,096. The grid of
 ADR 0008 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
-N = 16,384. Git history keeps that run's summaries. `render_submit` now takes
-the largest part of the `mixed` Frame.
+N = 16,384. Git history keeps that run's summaries. At that reference point,
+`render_submit` took the largest part of the `mixed` Frame.
 
 The reference run comes before Milestone 22, which made the 3D Scene a tree.
 On an Apple M5, Headless and Lockstep, the first tree walk raised the
@@ -37,6 +40,64 @@ run includes the tree.
 The section "Reference run" tells how to make these results. An earlier
 directory, `bench/results/2026-10-19-apple-m5/`, held a sweep made on battery
 power with other programs running. Its numbers were noise, so it is deleted.
+
+### Rigid instancing and camera culling, 2026-11-05
+
+The paired Mac run compares commit `2502881` with rigid instancing and camera culling.
+Both hosts use pinned Odin `902106f`, `-o:speed`, `ROCCO_SPANS=true`, `-vet`, and `-strict-style`.
+The Roc compiler is `nightly-2026-10-11-7d256b9`.
+The machine is an Apple M5 with 16 GB RAM, on AC power with Low Power Mode off.
+The run uses 960 × 540 physical pixels, 4x MSAA, a 2048 shadow map, and one cascade.
+Lockstep disables vsync and uses Seed 0.
+
+Each configuration uses three processes with 120 warmup Frames and 600 measured Frames each.
+Each baseline/candidate pair alternates its order.
+Every process uses `taskpolicy -a` with the same final binary for its variant.
+The archive retains all 21,600 measured samples and 4,320 warmup Frames.
+Each table statistic pools 1,800 measured Frames per variant and configuration.
+The report also retains each process median and the spread.
+Render submission includes camera culling, batch construction, instance upload, uniforms, and native submission.
+
+| Game | N | Median submission, baseline → candidate | Median µs per Draw, baseline → candidate | Two-step CPU estimate p99, baseline → candidate |
+| --- | ---: | ---: | ---: | ---: |
+| draws | 64 | 55.08 → 40.08 µs | 0.861 → 0.626 | 0.142 → 0.127 ms |
+| draws | 1,024 | 460.23 → 181.38 µs | 0.449 → 0.177 | 0.703 → 0.404 ms |
+| draws | 16,384 | 7.89 → 3.01 ms | 0.481 → 0.184 | 12.11 → 7.28 ms |
+| mixed | 64 | 152.63 → 59.37 µs | 2.385 → 0.928 | 0.341 → 0.850 ms |
+| mixed | 1,024 | 1.96 → 0.39 ms | 1.919 → 0.386 | 2.772 → 2.987 ms |
+| mixed | 16,384 | 33.51 → 6.99 ms | 2.045 → 0.427 | 42.50 → 15.67 ms |
+
+At N = 16,384, median submission decreases by 62% for draws and 79% for mixed.
+The mixed CPU span total p95 decreases from 39.88 to 13.02 ms.
+The span total includes cluster construction.
+The two-step estimate uses the existing benchmark formula, including cluster construction once per Frame.
+The largest tested mixed size is 16,384, with a 15.67 ms p99 estimate.
+Intermediate sizes remain unmeasured in this local comparison.
+The PC reference headline remains 8,192 until its full sweep runs again.
+
+Unrelated user processes remained active.
+The final snapshot records vitest at 98% CPU, an existing engine at 33%, and stage at 20%.
+No process was stopped for these measurements.
+Small mixed workloads have worse tails in this run despite lower median submission cost.
+These results show CPU work under contention.
+They do not measure GPU work or real-clock pacing.
+They do not establish final village or PC acceptance.
+
+An earlier implementation increased submission cost at N = 1,024 and N = 16,384.
+Its 9,000 measured samples remain in the archive under `exploratory/`.
+The final implementation reuses batch scratch, caches compatible runs, and shares colour parameters.
+The scratch test peaks at 11,696,448 bytes for 32,768 Draws and four shadow cascades.
+The arena returns to zero used bytes after each of its 15 pipeline calls.
+
+The [CPU report](evidence/rigid-instancing-cpu-2026-11-05.json) includes percentiles, process medians, spread, machine data, commands, and binary hashes.
+The [raw sample archive](evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
+The [Metal report](evidence/rigid-instancing-metal-2026-11-05.json) records all 22 example/tutorial comparisons and Surface checks.
+Eighteen screenshots match exactly after 60 Bridge steps.
+Three differ by at most one byte in six channels or fewer.
+The village mean difference is 0.00124 per RGB channel, with no visible difference in the inspected comparison.
+The Surface fixture covers compatible transforms and tints, separate Draw phases, and a rigid-only shader.
+Metal passes locally.
+OpenGL and D3D11 execution remain pending CI.
 
 ### The light list per Draw
 
@@ -72,6 +133,103 @@ ms, and their changes in either direction are mostly noise.
   2,560 us. That is about 1 ns per Draw per Point light. The table's
   median, 2,404 us, includes the fifth process at 1,534 us.
 - The selection runs in the `render_submit` Span.
+
+### Clustered Point lights
+
+[ADR 0033](adr/0033-clustered-forward-lights.md) replaces per-Draw Point selection with a CPU cluster build.
+The renderer also reuses equal Material uniforms and unchanged mesh bindings until its pipeline changes.
+The CPU target passes in three paired runs with explicit macOS application resource policies.
+Runs with inherited agent policies remain unstable.
+Both sets remain below for comparison.
+
+The run used Apple M5, Mac17,2, 16 GB RAM, macOS 26.5.1, AC power, and Low Power Mode off.
+Both binaries used release backend libraries and an Odin release host with Spans.
+Each process ran windowed Lockstep at 960 by 540 physical pixels, MSAA 4, and seed zero.
+The Sun used one 2048-pixel shadow cascade.
+Each process discarded 120 warmup Frames and measured the next 1,000 Frames.
+The runs alternated old-eight and clustered-256 processes, with one second between processes.
+The benchmark retains its fixed 1,024 floor tiles and adds one orb Draw per Point.
+Thus, the candidate also submits 248 more Draws.
+
+The table adds `cluster_build` and `render_submit` for each measured Frame before calculating percentiles.
+The old build has no `cluster_build` column.
+Each row has equal weight: exactly 1,000 measured Frames per process.
+No pooled statistic replaces the process results.
+
+| Process pair | Old 8 median | Clustered 256 median | Old 8 p95 | Clustered 256 p95 |
+| --- | --- | --- | --- | --- |
+| 1 | 403 us | 1,602 us | 2,600 us | 2,263 us |
+| 2 | 422 us | 1,823 us | 2,673 us | 2,280 us |
+| 3 | 406 us | 328 us | 419 us | 338 us |
+| 4, requested quiet window | 402 us | 338 us | 416 us | 2,226 us |
+| 5, requested quiet window | 1,768 us | 320 us | 2,676 us | 335 us |
+
+The first three pairs shared the Mac with other work.
+A requested quiet window covered the last two pairs, but long stalls remained.
+The candidate's fast processes cost less than the old eight-light process.
+Two candidate processes remain slower by their medians, and the fourth has a large p95 spike.
+These results establish neither a stable target pass nor a stable regression.
+No GPU timing or real-clock pacing claim comes from these CPU Spans.
+The final shader moves Sun comparison samples outside the varying cluster loop after these CPU measurements.
+The controlled experiment below measures that final build.
+
+The slow mode also affected interpolation, UI layout, and cluster construction.
+A requested quiet window did not remove it.
+The next experiment launched both owned processes through `taskpolicy -a`, which selects macOS application resource policies.
+It changed no global settings or unrelated processes.
+The experiment kept the same warmup, measured Frame count, release libraries, and one-second cooldown.
+The third pair reversed launch order.
+
+| Application-policy pair | Old 8 median | Clustered 256 median | Old 8 p95 | Clustered 256 p95 | Old 8 p99 | Clustered 256 p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 400 us | 317 us | 431 us | 336 us | 445 us | 349 us |
+| 2 | 397 us | 319 us | 417 us | 340 us | 433 us | 349 us |
+| 3, candidate first | 397 us | 320 us | 416 us | 337 us | 432 us | 348 us |
+
+All three candidate medians, p95s, and p99s are lower than their paired baseline.
+This satisfies the milestone's CPU comparison under the stated application-policy launch.
+It does not establish GPU performance or real-clock pacing.
+The policy result supports an inherited scheduling-policy explanation for the earlier stalls.
+It does not identify the exact operating-system mechanism.
+
+For each binary, run this command from `bench/lights`, with `N` set to 8 or 256:
+
+```sh
+ROCCO_LOCKSTEP=1 ROCCO_EXIT_AFTER_FRAMES=1120 ROCCO_SEED=0 \
+ROCCO_NO_GAMEPADS=1 ROCCO_SPANS_CSV=/absolute/path/run.csv \
+taskpolicy -a /absolute/path/lights.bin N
+```
+
+[The evidence JSON](../bench/results/2026-11-05-apple-m5/clustered-lights.json) records every process, p99, build flags, binary checksums, and machine data.
+It links every compressed raw CSV with its checksum.
+The evidence preserves five uncontrolled pairs, three application-policy pairs, and four excluded exploratory runs.
+The baseline source is the recorded `baseline_commit`; the candidate uses this change's renderer cache and clustered lighting.
+
+To repeat the standard benchmark, build the recorded baseline commit in a separate checkout.
+Run `roc scripts/build.roc bench lights 8 --windowed` there.
+Run `roc scripts/build.roc bench lights 256 --windowed` in the candidate checkout.
+The standard command measures 2,000 Frames in five processes after 120 warmup Frames.
+Use the same release libraries, window, power state, and idle machine for both runs.
+
+The native Metal check uses `python3 scripts/cluster_check.py build/bridge-check/clustered.png`.
+It checks 200 lamp contributions on one tiled floor Draw across four views, including camera and light movement.
+It also checks exact paused screenshot reproduction and a clean graphics log.
+The local check passed all 800 floor probes on 2026-11-05.
+CI runs the same check on Metal, GL, and D3D11.
+Those CI results remain separate from this local evidence.
+
+The integration merge retains the per-Draw casting gate and placed MASK part counts.
+Both merged engine suites passed 774 tests, including Spans, vet, and strict style checks.
+The merged Metal fixture passed all 800 probes and exact paused replay checks.
+The merged MASK example also built and rendered at fixed step 120.
+The agent inspected both examples, and both processes exited successfully without graphics errors.
+The captures, numeric evidence, and cluster log are in `/tmp/rocco-cluster-merged/`.
+[CI run 41959704344](https://github.com/Pixelsprout/rocco-engine/actions/runs/41959704344) passed the fixture on Metal, GL, and D3D11.
+Each backend passed all 800 probes, four views, paused replay, camera movement, and lamp movement.
+The processes exited successfully without graphics errors.
+Later benchmark checks failed because explicit Draw records lacked the new casting field.
+Commit `43dd7e2` repairs those records and passes all benchmark checks.
+That later failure does not change the recorded native lighting results.
 
 ### Bloom in the glow example
 
@@ -391,7 +549,7 @@ step runs 2. So `bench/analyse.py` computes `frame_budget_us` for each Frame:
 
 ```
 frame_budget_us = 2 * (input + step + commands + view + queries + query_results)
-                + interpolation + ui_layout + render_submit + commit
+                + interpolation + ui_layout + cluster_build + render_submit + commit
 ```
 
 The percentiles come from these per-Frame sums, not from sums of Span

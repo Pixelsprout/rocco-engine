@@ -1,0 +1,119 @@
+{
+  "integration_commit": "138b76a",
+  "source_commits": {
+    "depth": "0ae32e4da8f501d42be248111557d86e0ca2ad4d",
+    "diagnostic": "f690f3246cad2a9c14f9d9ff795a40efab02c062",
+    "view": "91da4b99d2160be0d366dea2e55b266541344796",
+    "view_evidence": "38c78db3a1dabd767cac4ad5ab9b911ebed9031f"
+  },
+  "integration_commits": {
+    "depth": "ecb91cb",
+    "diagnostic_with_final_success_gate": "1d54ab8",
+    "view": "40dc7a3",
+    "view_evidence": "138b76a"
+  },
+  "result": "passed",
+  "toolchain": {
+    "odin": "dev-2026-08-nightly:902106f",
+    "host": "ordinary release",
+    "roc": "nightly-2026-10-11-7d256b9"
+  },
+  "checks": {
+    "strict_engine_normal": 866,
+    "strict_engine_spans": 866,
+    "village_roc": 187,
+    "diagnostic_unit": 9,
+    "village_format": "passed",
+    "python_syntax": "passed",
+    "linux_shell_syntax": "passed",
+    "required_host_village_post_builds": "passed"
+  },
+  "native_post": {
+    "result": "passed",
+    "backend": "Metal",
+    "supported_samples": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "coverage_exact": true,
+    "final_pixels_exact": true,
+    "raw_depth_max_ulp": 3,
+    "raw_depth_max_absolute": 2.7939677238464355e-09,
+    "limits": {
+      "absolute": 3.725290298461914e-09,
+      "relative": 2.384185791015625e-07,
+      "ulp": 3
+    },
+    "raw_evidence": "/tmp/village-depth-view-post"
+  },
+  "hosted": {
+    "backend": "Metal",
+    "mode": "hosted-compat-960",
+    "physical": [
+      960,
+      540
+    ],
+    "logical": [
+      960,
+      540
+    ],
+    "ready_step": 96,
+    "source_placements": 1436,
+    "generated_field": 22000,
+    "warmup_steps": 432,
+    "early_result": "passed",
+    "full_result": "passed",
+    "early_complete": true,
+    "early_later_wind_match": true,
+    "replay_images_match": true,
+    "replay_cameras_match": true,
+    "alternate_source_seed_differs": true,
+    "pre_depth_view_images_unchanged": true,
+    "ui_unchanged_pixels": 7350,
+    "policy_changed_pixels": 25769,
+    "native_logs": "clean",
+    "process_exits": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "raw_early": "/tmp/village-depth-view-early",
+    "raw_full": "/tmp/village-depth-view-hosted",
+    "hashed_source_assets": 103,
+    "preserved_executable": {
+      "bytes": 4197072,
+      "name": "village.bin",
+      "sha256": "3aaf2bc64905b7ea5a7dedb4e2d6a3ebffc62681b5f1bd59e05a881d8d489a98"
+    },
+    "preserved_shader_packages": 5,
+    "scene_evidence": "ready/wind-start/wind-moving compact JSON and full JSON.gz",
+    "images": {
+      "wind-start": "385eb0b152b8e931ec995a4e9e8d787fbac3cecbbb6ea471d977f06a378795ad",
+      "wind-moving": "ce7a09ffabe88ea6e113ea44286f3a678d5bb5277047a4c6e409cb6d99206e79",
+      "wind-off": "6c6a9c84a4379c136ba4beea75105d8cce43298c24ad6b39f5bb9ce274c9e8f5",
+      "wind-off-later": "6c6a9c84a4379c136ba4beea75105d8cce43298c24ad6b39f5bb9ce274c9e8f5",
+      "hero": "a2f3b0286201dba0afec54b15fd5e797ee260dee2a808b086904695bcac7be4b",
+      "visible": "8a52148cd8e5659ef418c3965c1b2b9a9c4fa9cf097046e21569e560cbd9e85b",
+      "through": "b9e15aaac27bada44cdd5f22bad4ed395585169adb89241a9fca4f654d31183c",
+      "outline-off": "3de5d180c2ca09b0a240bf41e46804d0f2ad90402bbe53d7ecec0a5f6478b348",
+      "ui": "c5083ff1b8c6f32ee9b02b5e256881072be7689b5549eb4a579602019224f625",
+      "ui-no-colour": "1c1aadf2f0908400d1f2c35af1826f23a748c76d804848b187e37fedfe5d9e91"
+    }
+  },
+  "acceptance_gate": "An early probe requires its matching final passed report and zero native-log diagnostics. Partial failure cannot pass through differing image hashes.",
+  "visual_review": [
+    "Native depth final image contains visible cutout geometry.",
+    "Hosted canopy contains visible full-scene geometry and wind.",
+    "Hosted controls panel remains opaque and readable."
+  ],
+  "performance_repeated": false,
+  "system_state_note": "The user closed background processes after these verification runs. Future performance comparisons must disclose this change.",
+  "remaining_gates": [
+    "Remote Mac sky-only failure still requires actual CI executable, package, asset, and Scene evidence.",
+    "Native GL and D3D11 depth-rounding and hosted diagnostics checks.",
+    "Strict1080 reference-machine, human, GPU, real-clock pacing, and performance acceptance."
+  ]
+}

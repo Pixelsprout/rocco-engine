@@ -43,7 +43,7 @@ game can open fullscreen when its Args hold `--fullscreen`.
 ## The checks at startup
 
 The host checks the Launch before it opens the window. No number field can
-be zero, `shadow_cascades` must be at most 4, and each capacity must be
+be zero, `shadow_map` must be from 8 to 16384 texels, `shadow_cascades` must be at most 4, and each capacity must be
 inside its limits. For example,
 `capacity.groups` must be above zero and at most 1048576. If a field fails, the
 host prints the name of the field and the rule, then exits with code 1. For
@@ -110,13 +110,14 @@ The [Launch], [Window] and [Capacity] types describe each field.
 | `capacity.voices` | 64 | No |
 
 `shadow_cascades` goes from 1 to 4. One cascade fits one shadow map around
-every Draw. More cascades split the first 150 metres of the view, so shadows
+every Draw. More cascades split the view through `Scene.shadow.distance` (150 units by default), so shadows
 near the camera are sharper, and each one costs another shadow map and
 another shadow pass.
 
 [Running and debugging](running.md) explains the run modes. A field changes
 only when the game starts again. No [Scene] field changes a field of the
-Launch today.
+Launch. Live shadow appearance belongs to `Scene.shadow`.
+See [Shadow quality](shadows.md) for presets, effective settings and restart requirements.
 
 [Config]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Config
 [Scene]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Scene

@@ -88,34 +88,25 @@ void main() {
 @end
 
 @block surface
-// vec4 so every member is 16 bytes and flattens cleanly for GL. material is
-// roughness, metallic, unlit (0 or 1) and the alpha cutoff, which is 0
-// outside a Mask part. emissive is the mesh emissive, linear, with w spare.
-// glow is the Draw glow, linear, with w spare. maps is the normal scale and the occlusion strength, with zw spare.
-// The host picks this Draw's lights: the Sun in slot 0, the other
-// Directionals, then the nearest Point lights in range. The array size is
-// MAX_LIGHTS in engine/frame_render.odin. An unused slot has a zero colour.
-// For a directional light, xyz of light_pos is the unit vector towards the
-// light and w is 0. For a point light, xyz is the position, w is 1 and w of
-// light_color is the range. Light colours are physical: the BRDF carries the
-// 1/pi.
+// Material values keep the imported PBR response. Point lights use storage slots 12–14.
 layout(binding = 1) uniform fs_params {
     vec4 tint;
     vec4 material;
     vec4 emissive;
     vec4 glow;
     vec4 maps;
-    vec4 light_pos[8];
-    vec4 light_color[8];
+    vec4 environment_params;
 };
 
 // shadow is the cascade count, the Sun's slot, the normal offset and the
 // share of each cascade that blends into the next. A count of 0 means no Sun.
 // cascade_far[i] is the far depth of cascade i along view_dir, the camera's
 // unit view direction; its near depth is cascade_far[i - 1], or 0 for
-// cascade 0. With one cascade, cascade_far and view_dir are zero. The array
+// cascade 0. With legacy single-map fitting, cascade_far is zero. The array
 // sizes are MAX_CASCADES in engine/frame_render.odin.
-// fog_color is linear, with w spare. fog_ramp is the fog start,
+// camera_pos.w is comparison depth bias. view_dir.w is the effective shadow
+// distance, or 0 for legacy single-map fitting. fog_color.w is filter radius.
+// fog_color is linear. fog_ramp is the fog start,
 // 1 / (end - start), the amount and a spare. Fog with amount 0 is all zero, so its factor is 0.
 layout(binding = 2) uniform fs_lights {
     vec4 ambient;
@@ -126,7 +117,17 @@ layout(binding = 2) uniform fs_lights {
     vec4 fog_color;
     vec4 fog_ramp;
     mat4 light_view_proj[4];
+    vec4 directional_pos[4];
+    vec4 directional_color[4];
+    vec4 cluster_grid;
 };
+
+struct Point { vec4 pos; vec4 color; };
+struct Cluster { uvec4 range; };
+struct LightIndices { uvec4 ids; };
+layout(binding = 12) readonly buffer engine_points { Point points[]; };
+layout(binding = 13) readonly buffer engine_clusters { Cluster clusters[]; };
+layout(binding = 14) readonly buffer engine_indices { LightIndices indices[]; };
 
 // base_tex is SRGB8A8, so a sample is linear. metallic_roughness_tex is
 // linear data: G is roughness and B is metallic, as glTF puts them.
@@ -147,6 +148,10 @@ layout(binding = 4) uniform texture2D normal_tex;
 layout(binding = 4) uniform sampler normal_smp;
 layout(binding = 5) uniform texture2D occlusion_tex;
 layout(binding = 5) uniform sampler occlusion_smp;
+layout(binding = 6) uniform textureCube env_diffuse_tex;
+layout(binding = 6) uniform sampler env_diffuse_smp;
+layout(binding = 7) uniform textureCube env_specular_tex;
+layout(binding = 7) uniform sampler env_specular_smp;
 
 in vec4 v_col;
 in vec3 v_nrm;
@@ -191,7 +196,7 @@ vec3 fresnel_schlick(vec3 f0, float v_dot_h) {
 }
 
 // Karis (2014), Physically Based Shading on Mobile: a fit of the split-sum
-// environment BRDF that stands in for an environment map.
+// environment BRDF.
 vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
     const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
     const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
@@ -202,7 +207,7 @@ vec3 env_brdf_approx(vec3 f0, float roughness, float n_dot_v) {
 }
 
 // The share of the Sun's light that reaches this point in one cascade, from
-// 0 to 1. Each of the 3 x 3 taps compares 2 x 2 texels in hardware.
+// 0 to 1. Each tap compares 2 x 2 texels in hardware.
 float sun_visibility_in(int cascade, vec3 n) {
     vec3 world = v_world + n * shadow.z;
     vec4 clip = light_view_proj[cascade] * vec4(world, 1.0);
@@ -216,12 +221,14 @@ float sun_visibility_in(int cascade, vec3 n) {
     bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
     vec2 texel = 1.0 / vec2(textureSize(sampler2DArrayShadow(shadow_tex, shadow_smp), 0).xy);
     float sum = 0.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z));
+    int radius = int(fog_color.w);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            sum += texture(sampler2DArrayShadow(shadow_tex, shadow_smp), vec4(uv + vec2(x, y) * texel, float(cascade), ndc.z + camera_pos.w));
         }
     }
-    return inside ? sum / 9.0 : 1.0;
+    float width = float(radius * 2 + 1);
+    return inside ? sum / (width * width) : 1.0;
 }
 
 // 1 in the lane of the cascade, or all zero for -1.
@@ -236,7 +243,7 @@ vec4 cascade_mask(int cascade) {
 // SampleCmp.
 float sun_visibility(vec3 n) {
     int count = int(shadow.x);
-    if (count <= 1) {
+    if (count <= 1 && view_dir.w == 0.0) {
         return sun_visibility_in(0, n);
     }
     float depth = dot(v_world - camera_pos.xyz, view_dir.xyz);
@@ -247,7 +254,10 @@ float sun_visibility(vec3 n) {
     int cascade = int(dot(past, before_last));
     float far_edge = dot(cascade_far, cascade_mask(cascade));
     float near_edge = dot(cascade_far, cascade_mask(cascade - 1));
-    float blend = smoothstep(far_edge - shadow.w * (far_edge - near_edge), far_edge, depth);
+    float band_start = far_edge - shadow.w * (far_edge - near_edge);
+    float blend = band_start < far_edge
+        ? smoothstep(band_start, far_edge, depth)
+        : step(far_edge, depth);
     int next = min(cascade + 1, count - 1);
     float here = sun_visibility_in(cascade, n);
     float there = sun_visibility_in(next, n);
@@ -278,6 +288,7 @@ vec3 surface_normal() {
 // and the emissive stay whole, so glass keeps its highlight and its glow.
 vec4 surface_color(bool premultiplied) {
     vec4 base = v_col * texture(sampler2D(base_tex, base_smp), v_uv);
+    base.a *= tint.a;
     float coverage = premultiplied ? base.a : 1.0;
     vec3 albedo = base.rgb * tint.rgb;
     // Sampled before the unlit branch, so D3D keeps uniform control flow.
@@ -299,24 +310,55 @@ vec4 surface_color(bool premultiplied) {
     vec3 n = surface_normal() * facing;
     vec3 v = safe_normalize(camera_pos.xyz - v_world);
     float n_dot_v = max(dot(n, v), MIN_N_DOT_V);
+    // A visible two-sided surface can have a view-opposed shading normal.
+    float indirect_n_dot_v = max(abs(dot(n, v)), MIN_N_DOT_V);
 
     float ao = texture(sampler2D(occlusion_tex, occlusion_smp), v_uv).r;
     float occlusion = mix(1.0, ao, maps.y);
-    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, n_dot_v)) * occlusion;
-    int sun = shadow.x > 0.0 ? int(shadow.y) : -1;
-    for (int i = 0; i < 8; i++) {
-        vec3 l = light_pos[i].xyz;
+    vec3 color = ambient.rgb * (diffuse_color + env_brdf_approx(f0, roughness, indirect_n_dot_v)) * occlusion;
+    if (environment_params.x > 0.0) {
+        vec3 irradiance = textureLod(samplerCube(env_diffuse_tex, env_diffuse_smp), n, 0.0).rgb;
+        vec3 reflected = textureLod(samplerCube(env_specular_tex, env_specular_smp), reflect(-v, n), roughness * environment_params.y).rgb;
+        color += ((1.0 - fresnel_schlick(f0, indirect_n_dot_v)) * diffuse_color * irradiance
+            + env_brdf_approx(f0, roughness, indirect_n_dot_v) * reflected) * occlusion;
+    }
+    vec2 tile = gl_FragCoord.xy * cluster_grid.xy;
+#if !SOKOL_GLSL
+    tile.y = 9.0 - tile.y;
+#endif
+    ivec2 xy = clamp(ivec2(tile), ivec2(0), ivec2(15, 8));
+    float depth = max(dot(v_world - camera_pos.xyz, view_dir.xyz), cluster_grid.w);
+    int z = clamp(int(log(depth / cluster_grid.w) * cluster_grid.z), 0, 23);
+    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].range;
+    float sun_attenuation = 1.0;
+    // D3D requires uniform control flow around the comparison samples.
+    if (shadow.x > 0.0) {
+        sun_attenuation = sun_visibility(safe_normalize(v_nrm) * facing);
+    }
+    int directional_count = int(ambient.w);
+    int total = directional_count + int(cluster.y);
+    for (int i = 0; i < total; i++) {
+        vec3 l;
+        vec3 radiance;
         float attenuation = 1.0;
-        if (i == sun) {
-            // The offset follows the surface, not the bumps of the normal map.
-            attenuation = sun_visibility(safe_normalize(v_nrm) * facing);
-        } else if (light_pos[i].w != 0.0) {
-            vec3 to_light = l - v_world;
+        if (i < directional_count) {
+            l = directional_pos[i].xyz;
+            radiance = directional_color[i].rgb;
+            if (i == 0 && shadow.x > 0.0) {
+                attenuation = sun_attenuation;
+            }
+        } else {
+            uint at = cluster.x + uint(i - directional_count);
+            uvec4 ids = indices[at / 4u].ids;
+            uint id = ids[int(at % 4u)];
+            Point point = points[id];
+            vec3 to_light = point.pos.xyz - v_world;
             float d2 = dot(to_light, to_light);
-            float range = light_color[i].w;
+            float range = point.color.w;
             float k = clamp(1.0 - d2 / (range * range), 0.0, 1.0);
             attenuation = k * k / max(d2, MIN_POINT_DISTANCE_SQ);
             l = safe_normalize(to_light);
+            radiance = point.color.rgb;
         }
         float n_dot_l = clamp(dot(n, l), 0.0, 1.0);
         if (n_dot_l <= 0.0) {
@@ -329,7 +371,7 @@ vec4 surface_color(bool premultiplied) {
         vec3 specular = f * (distribution_ggx(n_dot_h, alpha) * visibility_smith(n_dot_v, n_dot_l, alpha));
         // glTF 2.0 Appendix B: the light that Fresnel reflects does not also diffuse.
         vec3 diffuse = (1.0 - f) * diffuse_color / PI;
-        color += (diffuse + specular) * light_color[i].rgb * (n_dot_l * attenuation);
+        color += (diffuse + specular) * radiance * (n_dot_l * attenuation);
     }
     return vec4(apply_fog(color + emitted, coverage), base.a);
 }
@@ -450,6 +492,7 @@ void main() {
 @block shadow_vs_params
 layout(binding = 0) uniform shadow_vs_params {
     mat4 light_mvp;
+    vec4 shadow_material;
 };
 @end
 
@@ -486,6 +529,68 @@ void main() {
 @end
 
 @program skinned_shadow skinned_shadow_vs shadow_fs
+
+@vs shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@vs skinned_shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+@include_block skin
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * (skin_matrix(joint_ids, joint_weights) * vec4(pos, 1.0));
+    shadow_uv = uv;
+    shadow_alpha = col.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@fs shadow_mask_fs
+layout(binding = 0) uniform texture2D base_tex;
+layout(binding = 0) uniform sampler base_smp;
+
+in vec2 shadow_uv;
+in float shadow_alpha;
+flat in float shadow_cutoff;
+
+void main() {
+    float alpha = texture(sampler2D(base_tex, base_smp), shadow_uv).a * shadow_alpha;
+    if (alpha < shadow_cutoff) {
+        discard;
+    }
+}
+@end
+
+@program shadow_mask shadow_mask_vs shadow_mask_fs
+@program skinned_shadow_mask skinned_shadow_mask_vs shadow_mask_fs
 
 @vs ui_vs
 layout(binding = 0) uniform ui_vs_params {
@@ -831,3 +936,144 @@ void main() {
 @end
 
 @program tone_map blit_vs tone_map_fs
+
+@vs coverage_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a * shadow_material.y;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@vs skinned_coverage_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+@include_block skin
+
+in vec3 pos;
+in vec4 col;
+in vec2 uv;
+in uvec4 joint_ids;
+in vec4 joint_weights;
+
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+
+void main() {
+    gl_Position = light_mvp * (skin_matrix(joint_ids, joint_weights) * vec4(pos, 1.0));
+    shadow_uv = uv;
+    shadow_alpha = col.a * shadow_material.y;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+
+@fs coverage_fs
+layout(binding = 0) uniform texture2D base_tex;
+layout(binding = 0) uniform sampler base_smp;
+in vec2 shadow_uv;
+in float shadow_alpha;
+flat in float shadow_cutoff;
+layout(location=0) out float coverage;
+layout(location=1) out float device_depth;
+void main() {
+    float alpha = texture(sampler2D(base_tex, base_smp), shadow_uv).a * shadow_alpha;
+    if (shadow_cutoff >= 0.0 && alpha < shadow_cutoff) { discard; }
+    coverage = 1.0;
+    device_depth = gl_FragCoord.z;
+}
+@end
+@program coverage coverage_vs coverage_fs
+@program skinned_coverage skinned_coverage_vs coverage_fs
+@block instance_inputs
+layout(location = 5) in vec4 instance_model0;
+layout(location = 6) in vec4 instance_model1;
+layout(location = 7) in vec4 instance_model2;
+layout(location = 8) in vec4 instance_model3;
+layout(location = 9) in vec3 instance_normal0;
+layout(location = 10) in vec3 instance_normal1;
+layout(location = 11) in vec3 instance_normal2;
+layout(location = 12) in vec4 instance_tint;
+@end
+
+@vs instanced_vs
+@glsl_options fixup_clipspace
+@include_block vs_params
+@include_block instance_inputs
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 col;
+layout(location = 2) in vec3 nrm;
+layout(location = 3) in vec2 uv;
+layout(location = 4) in vec4 tng;
+out vec4 v_col;
+out vec3 v_nrm;
+out vec3 v_world;
+out vec2 v_uv;
+out vec4 v_tng;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    mat3 normal_placement = mat3(instance_normal0, instance_normal1, instance_normal2);
+    vec4 world = placement * vec4(pos, 1.0);
+    gl_Position = mvp * world;
+    v_col = col * instance_tint;
+    v_nrm = normal_placement * nrm;
+    v_world = world.xyz;
+    v_uv = uv;
+    v_tng = vec4((placement * vec4(tng.xyz, 0.0)).xyz, tng.w);
+}
+@end
+@program instanced instanced_vs fs
+@program instanced_mask instanced_vs mask_fs
+
+@vs instanced_shadow_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 instance_model0;
+layout(location = 2) in vec4 instance_model1;
+layout(location = 3) in vec4 instance_model2;
+layout(location = 4) in vec4 instance_model3;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    gl_Position = light_mvp * placement * vec4(pos, 1.0);
+}
+@end
+@program instanced_shadow instanced_shadow_vs shadow_fs
+
+@vs instanced_shadow_mask_vs
+@glsl_options fixup_clipspace
+@include_block shadow_vs_params
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec4 col;
+layout(location = 2) in vec2 uv;
+layout(location = 3) in vec4 instance_model0;
+layout(location = 4) in vec4 instance_model1;
+layout(location = 5) in vec4 instance_model2;
+layout(location = 6) in vec4 instance_model3;
+layout(location = 7) in vec4 instance_tint;
+out vec2 shadow_uv;
+out float shadow_alpha;
+flat out float shadow_cutoff;
+void main() {
+    mat4 placement = mat4(instance_model0, instance_model1, instance_model2, instance_model3);
+    gl_Position = light_mvp * placement * vec4(pos, 1.0);
+    shadow_uv = uv;
+    shadow_alpha = col.a * instance_tint.a;
+    shadow_cutoff = shadow_material.x;
+}
+@end
+@program instanced_shadow_mask instanced_shadow_mask_vs shadow_mask_fs
+
+@program instanced_coverage instanced_shadow_mask_vs coverage_fs

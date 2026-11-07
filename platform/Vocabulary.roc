@@ -1,3 +1,6 @@
+import Shader
+import Material
+
 ## The types that cross the seam between your game and the engine. Nothing in
 ## them names a game. Import them with `import pf.Vocabulary`.
 Vocabulary := [].{
@@ -35,10 +38,11 @@ Vocabulary := [].{
 	##   against `width` and `height` at dpi 1 and ignores the rest of the Window.
 	## - `step_hz`: the fixed step rate in Hz. Above zero. `step` gets a `dt` of
 	##   one over it.
-	## - `shadow_map`: the width and height of the shadow map in texels. Above zero.
+	## - `shadow_map`: shadow map width and height, from 8 to 16384 texels.
+	##   The device must support this array size. Changes require a restart.
 	## - `shadow_cascades`: how many shadow maps the Sun casts along the camera's
 	##   view, from 1 to 4. 1 casts one map over every Draw. 2 to 4 split the
-	##   first 150 metres of the view, so near shadows are sharp and far ones
+	##   view up to Scene.shadow.distance (150 by default), so near shadows are sharp and far ones
 	##   are coarse. Each cascade is one more `shadow_map` by `shadow_map` map.
 	## - `capacity`: the table sizes. No Scene field replaces them.
 	Launch : {
@@ -87,7 +91,7 @@ Vocabulary := [].{
 	## - `draws`: mesh part draws per Frame. A Draw uses one for each distinct
 	##   material of its mesh, so a primitive uses 1 and a mesh with three
 	##   materials uses up to 3. A double-sided Blend material uses 2. Above
-	##   zero and at most 1195443. The uniform buffer grows with it.
+	##   zero and at most 278653. The uniform buffer grows with it.
 	## - `groups`: the Groups per Scene that the host pairs to interpolate.
 	##   Above zero and at most 1048576. Past it, the host pairs the first
 	##   Groups.
@@ -205,7 +209,16 @@ Vocabulary := [].{
 	##   beside the Draw for that. The fallback mesh ignores it.
 	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
 	##   ignores it.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose }
+	## - `casts_shadow`: whether this Draw adds a shadow to the Sun's map. It is
+	##   `Bool.True` by default. `Bool.False` removes it from shadow fitting and
+	##   shadow submissions, but keeps it in colour and selection rendering.
+	## - `material`: partial changes for every Mesh part. Start from `Material.default`.
+	## - `materials`: generated named Surface assignments. These replace the whole-Draw Surface for that slot.
+	## - `slot_materials`: partial changes for named slots. An `Imported` Surface inherits the whole-Draw Surface.
+	##   Two named Surface assignments for one slot are invalid. Duplicate slot entries are invalid.
+	## - `shader_values`: generated Draw-scope values. Scene-scope values belong in `Scene.shader_values`.
+	##   Invalid assignments omit affected parts from every related pass and write a development log.
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool, material : Material.Override, materials : List(Shader.SlotAssignment), slot_materials : List(Material.SlotOverride), shader_values : List(Shader.Values) }
 
 	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
 	## value. The host samples both Clips and mixes them by `fade`. Start from
@@ -284,9 +297,10 @@ Vocabulary := [].{
 	## - `Point`: falls off to zero at `range`. A Group moves and turns `pos`.
 	##
 	## A colour carries its intensity and can exceed 1. The host uses the first
-	## Ambient. Each Draw gets at most 8 other Lights: every Directional, then
-	## the Point lights whose range reaches it, nearest first. A Scene with no
-	## Light draws black.
+	## Ambient. The host accepts four Directionals, including the Sun, and
+	## 1024 Points in Scene order. The Sun always keeps the first Directional
+	## slot. Each camera cluster keeps its nearest 64 Points when full.
+	## The host logs each limit once. A Scene with no Light draws black.
 	Light : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
 
 	## How a Panel sizes along one axis, in logical pixels. The names and the
@@ -360,6 +374,8 @@ Vocabulary := [].{
 	## - `Group`: a Group id, a Pose and the children. The children's Poses are
 	##   local to the Group. The host pairs a Group with the first Group of the
 	##   same id in the previous Scene. Group ids and draw ids are apart.
+	##   `selected` includes all descendant Draws in one coverage and nearest-depth union.
+	##   The current Scene supplies selection membership without interpolation.
 	## - `Draw`, `Light`, `Collider`, `Speaker`: the leaves.
 	##
 	## The host interpolates a Node's local Pose and then composes it, if its
@@ -367,7 +383,7 @@ Vocabulary := [].{
 	## interpolates between the two world Poses. A game with no Groups writes a
 	## flat list of leaves. The type is nominal, because only a nominal
 	## recursive union crosses the seam.
-	Node := [Group({ id : U64, pos : Vec3, rot : Quat }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
 
 		## Two Nodes are equal when their tags, payloads and children are
 		## equal. A nominal type gets no `==` of its own.
@@ -383,18 +399,65 @@ Vocabulary := [].{
 			}
 	}
 
+	## One enabled effect. The host runs at most 32 valid enabled effects per Scene.
+	## Excess effects log and skip. Each location preserves list order and independent values.
+	Post : { values : Shader.Values, location : [BeforeBloom, AfterToneMap], enabled : Bool }
+
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
+	## - `emitters`: host-simulated billboard sources; `[]` stops new emission.
 	## - `nodes`: the root Nodes of the 3D tree. A root Node's Pose is in the
 	##   world.
 	## - `environment`: the look of the 3D view. `Scene.empty` has
 	##   `Environment.default`.
+	## - `shadow`: live shadow appearance, with `Shadow.default` in Scene.empty.
 	## - `ui`: the root Elements of the UI tree, drawn flat over the 3D view.
 	##   The layout reads them in list order. `[]` draws no UI.
 	## - `queries`: the Queries that the host runs against this Scene. The next
 	##   `step` gets their QueryResults.
-	Scene : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, ui : List(Element), queries : List(Query) }
+	## - `post`: ordered world effects. Disabled or invalid effects allocate no extra inputs.
+	## - `shader_values`: generated Scene-scope values. Omitted parameters use their Shader defaults.
+	Scene : { post : List(Post), shader_values : List(Shader.Values), camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+
+	## A host-simulated billboard source. Start from `Emitter.default`.
+	## `id` identifies a source independently of Draw ids. The first duplicate wins.
+	## Removal stops emission; existing particles drain with the last settings.
+	## Reappearing ids retain their seed sequence until the source drains completely.
+	## A changed seed restarts the random sequence for future particles.
+	## Velocity spread gives independent uniform offsets on each axis.
+	## Size and colour interpolate across each particle's lifetime, in world units
+	## and linear HDR colour. Rate is particles per second; drag is per second.
+	## Image 0 uses a soft round sprite. Missing or unloaded Pack images omit their
+	## particles and log once per image id. Particles never retain a Pack reference.
+	## Alpha sources sort by source position with Blend Draws. Add sources draw last.
+	## The host accepts 128 sources, including draining sources, and 8192 particles.
+	## New sources take the first free host slot.
+	## Bursts fill particle slots in command order before continuous emission.
+	## Continuous emission fills remaining particle slots in source slot order.
+	## Dropped emissions do not queue for later steps.
+	## Non-finite fields use Emitter.default values. Finite values clamp to the documented limits.
+	## Position and velocity clamp to +/-1000000; spread, size and drag to 0..1000000.
+	## Rate clamps to 0..8192; lifetime to 0.001..3600; colour channels to 0..65504.
+	## Alpha clamps to 0..1. Settings changes also affect particles already alive.
+	Emitter : { id : U64, position : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, seed : U64, image : U32, blend : [Alpha, Add] }
+
+	## Live shadow appearance. The host uses the current Scene without interpolation.
+	## Invalid fields use their Shadow.default values and log once per field.
+	## No field changes the map allocation, cascade count or MSAA.
+	##
+	## - `distance`: 0 preserves legacy fitting: all casters with one cascade,
+	##   or 150 units with multiple cascades. Otherwise, view depth above 0.1
+	##   and at most 1000000 units. The last cascade fades to no shadow.
+	## - `normal_bias`: world units along the geometric normal, from 0 to 10.
+	## - `depth_bias`: comparison depth offset, from 0 to 0.1. Positive values
+	##   reduce acne in reversed Z, but can detach shadows.
+	## - `distribution`: 0 gives linear splits; 1 gives logarithmic splits.
+	## - `blend`: fraction of each cascade that blends into the next, from 0
+	##   to 0.5. The last band fades out. Zero gives hard transitions.
+	## - `filter`: Hard uses one comparison sample; Pcf3 uses nine; Pcf5 uses 25.
+	##   Each comparison sample uses the hardware's linear depth filter.
+	Shadow : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
 
 	## The look of the 3D view: what is behind it, how its linear colour maps
 	## to the screen, its fog and its bloom. Start from `Environment.default`.
@@ -476,6 +539,9 @@ Vocabulary := [].{
 	## A thing for the host to do once. `init` and `step` return them, and the
 	## host runs them in list order.
 	##
+	## - `Burst`: emit `count` particles from the current Scene source with that id.
+	##   Unknown ids emit nothing. Each count clamps to 8192. The first 128 distinct
+	##   burst ids per step are accepted; repeated ids combine up to 8192.
 	## - `Quit`: stop the game. The host binds no key to it.
 	## - `Load`: load each named asset of the pack, then call `loaded` with the
 	##   pack name and its Manifest.
@@ -488,5 +554,5 @@ Vocabulary := [].{
 	##   `Sound.play`.
 	## - `Tell`: send a message to a port. The host does nothing with it, and a
 	##   Driver reads it in the `step` reply. Build one with `Port.tell`.
-	Command : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
+	Command : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
 }

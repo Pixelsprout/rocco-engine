@@ -1,0 +1,27 @@
+mesh=Grass_Common_Short loader_notes=bit_set[Glb_Note]{} textures=1 base_slot=0
+mesh=Grass_Common_Tall loader_notes=bit_set[Glb_Note]{} textures=1 base_slot=0
+decoded_mips_equal=true width=512 height=512 mip_count=10 payload_bytes=1398100 srgb=true cutoff=0 sampler=Texture_Sampler{min_filter = "LINEAR", mag_filter = "LINEAR", mipmap_filter = "LINEAR", wrap_u = "REPEAT", wrap_v = "REPEAT", mipmaps = true}
+mesh=Grass_Common_Short kind=base image_id=65537 native=0x104CC3ED0 allocated_bytes=1425408
+mesh=Grass_Common_Tall kind=base image_id=65537 native=0x104CC3ED0 allocated_bytes=1425408
+shared_base_image=true unique_native_bytes=1425408 avoided_native_bytes=1425408 cache_hits=1 references=2 live_images=1
+mesh=Grass_Common_Tall kind=after-first-unload image_id=65537 native=0x104CC3ED0 allocated_bytes=1425408
+mesh=Grass_Common_Short kind=after-reverse-unload image_id=131073 native=0x104CA1040 allocated_bytes=1425408
+both_unload_orders=true final_live_images=0 final_references=0
+        0.04 real         0.01 user         0.00 sys
+            27770880  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                2745  page reclaims
+                  14  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   8  voluntary context switches
+                 168  involuntary context switches
+           479813156  instructions retired
+           110757781  cycles elapsed
+            15860240  peak memory footprint

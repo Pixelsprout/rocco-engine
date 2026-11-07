@@ -5,8 +5,8 @@
 # constant live block count. Each count records what the game makes today.
 # None is a target: a change that moves a count updates it here.
 # Each entry is game:dev allocs:speed allocs:reallocs.
-# cards expects 2 allocs and 1 realloc: the box shell and the cards list,
-# which the concat after the Lights grows.
+# cards expects 2 allocs and 1 realloc: the box shell and the cards list.
+# Prepending the Lights grows that list without a separate Lights allocation.
 # entity-game expects 33 allocs and 4 reallocs under --opt=speed. view makes
 # one list for the leaves of each entity, and List.keep_if makes one list for
 # each root it keeps. Under --opt=dev, List.map copies the entity list in each

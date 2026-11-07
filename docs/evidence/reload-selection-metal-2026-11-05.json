@@ -1,0 +1,180 @@
+{
+  "date": "2026-11-05",
+  "base_commit": "f383ee6",
+  "reload_merge": "3110113",
+  "reload_source": "bfc8ddc420951cd8549e840c49a5268003b8dfd9",
+  "selection_source": "6527349297f298cf4f21a7129cfccb0d6753e527",
+  "compiler": "Odin 902106f",
+  "engine_suites": {
+    "strict": 851,
+    "strict_spans": 851
+  },
+  "python_tests": 64,
+  "roc_checks": "all examples,packages and build modules passed",
+  "benchmark_checks": "passed",
+  "docs_checks": "passed",
+  "generated_abi_and_shaders": "byte-stable",
+  "release_host": "strict -o:speed passed",
+  "allocation_checks": "all four games passed in dev and speed with unchanged exact expectations",
+  "reload": {
+    "valid": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+    "missing": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+    "invalid": "719f68acde3ac3a05c1076302cdc362bc1ad33429b6f977737f4da39a724482f",
+    "result": "passed",
+    "host": "darwin",
+    "binary_sha256": "80cc5509f00011e1196a5a25de3f0480f0c4e831b0db25b1e7fc6a4c4c815f3e"
+  },
+  "native_reload": {
+    "result": "passed",
+    "host": "darwin",
+    "compatible_swaps": 24,
+    "failed_pipeline_candidates": 24,
+    "failed_program_candidates": 2,
+    "surface_pipeline_keys": 63,
+    "post_locations": 2
+  },
+  "native_reload_resources": [
+    "RELOAD_RESOURCES shaders=0 pipelines=0 samplers=0 images=0 views=0 cpu_bytes=0"
+  ],
+  "post_selection": {
+    "supported_samples": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "unsupported_samples": [],
+    "off": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "c0b46baec59fc2f89cab70616925379f79e6a324a7c2070a67475b3860b75335",
+      "selection": {
+        "hidden_pixels": 6191,
+        "glass_pixels": 5187,
+        "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+      }
+    },
+    "x2": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "d4ddd47b74755d3ec8e80abdf8fd9a4d3bc37409fe6e3ee13c2fe4519bda697f",
+      "selection": {
+        "hidden_pixels": 6191,
+        "glass_pixels": 5187,
+        "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+      }
+    },
+    "x4": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "eed9712916541ba87e76924c623891681b91198a5a7023febda1e85bf98bede8",
+      "selection": {
+        "hidden_pixels": 6191,
+        "glass_pixels": 5187,
+        "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+      }
+    },
+    "x8": {
+      "physical": [
+        800,
+        600
+      ],
+      "logical": [
+        800,
+        600
+      ],
+      "depth_values": 74,
+      "chain_sha256": "c27266f687296aec294d5ca3f4095c7a0fc254bbe4f4e110d9da2dcc30ebbe49",
+      "selection": {
+        "hidden_pixels": 6191,
+        "glass_pixels": 5187,
+        "coverage_sha256": "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7"
+      }
+    },
+    "depth_wind_hashes": [
+      "430e5e45585546f0fd42d945e705d3e5caacb381c82a9c250eab34b0977a92ba",
+      "5ec2996d64170a0f8e40929129fe7c4320cfc63d82baa5720beb75ed326dacca"
+    ],
+    "selection_animation_hashes": [
+      "dff7b5fc47510fdfedba93f15b9c537e3d5a371905cd2c57339b6b35f0ae75d7",
+      "42197a5510c63400d4eb74b322c710077b24bbf2c25eeb498ea9b3de2cf3e2ad"
+    ],
+    "result": "passed",
+    "binary_sha256": "80cc5509f00011e1196a5a25de3f0480f0c4e831b0db25b1e7fc6a4c4c815f3e"
+  },
+  "surface": {
+    "base_green": 22368,
+    "unloaded_green": 0,
+    "shadow_pixels": 2813,
+    "noncasting_shadow_pixels": 0,
+    "result": "passed",
+    "wind_hashes": [
+      "a76827113e285b8a2145fc89ad6547b09589cebda20dc9f487ceda3441026ede",
+      "891220cbb45b6a07f8baee9ff390f92f4b19fd3aa6b91a3271de078128045abc",
+      "755c461bfd5df245b94187e351b36ea761493a8790119de44878ea21412e4ea2"
+    ],
+    "instance_wind_hashes": [
+      "cf802e338c4b79b5b2001ce4d3de551eb184355de40aef0ee424fe7b8ddbdfe3",
+      "5fabff941062c0aab1debc53560b00309ced5f775eedc3483f22ba7b9b197028",
+      "b3fb3480aaa814e23ea3cc39af7252e1a1290d2421240e2771b068c47c334ece"
+    ],
+    "default_pbr_mean_difference": 0.0,
+    "binary_sha256": "4b6948face0422bbe415d7f0de493dd1128e5df44f4b5efe8f4c9812519a2376",
+    "packages": {
+      "DefaultSurface.shaderpack": "b8f01613fa3f34ca9310390b9f321bfa1e5660888fb916745cfc204261b431a3",
+      "Foliage.shaderpack": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+    }
+  },
+  "particles": {
+    "replay_identical": true,
+    "runs": 2,
+    "steps_before_capture": 265,
+    "checks": [
+      "smoke",
+      "dust image",
+      "additive burst",
+      "paused frame",
+      "asset unload",
+      "asset reload",
+      "removal",
+      "drain",
+      "sprite orientation"
+    ]
+  },
+  "resources": {
+    "buffers": "3*meshes+7",
+    "shaders": 328,
+    "pipelines": 2095,
+    "uniform_bytes": "(14+4*C)*D*256+341*256+(3+C)*min(D,256)*4096",
+    "instance_stream_bytes": "116*D*(C+3)",
+    "draw_limit": 278653
+  },
+  "integration_fix": "Village Group sets selected=False for the new ABI.",
+  "artifacts": "/tmp/rocco-reload-selection-merged",
+  "native_acceptance": {
+    "Metal": "passed",
+    "GL": "pending CI",
+    "D3D11": "pending CI"
+  }
+}

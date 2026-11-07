@@ -40,12 +40,12 @@ cascade_splits :: proc(near, far: f32, count: int, weight: f32) -> (splits: [MAX
 // Cascade index starts before the split of the cascade before it, so it also
 // covers that cascade's whole blend band. The shader measures cascade 0 from
 // depth 0, so its band does too.
-cascade_slice_near :: proc(splits: [MAX_CASCADES]f32, near: f32, index: int) -> f32 {
+cascade_slice_near :: proc(splits: [MAX_CASCADES]f32, near: f32, index: int, blend := CASCADE_BLEND) -> f32 {
 	if index == 0 {
 		return near
 	}
 	prev := splits[index - 2] if index > 1 else 0
-	return splits[index - 1] - CASCADE_BLEND * (splits[index - 1] - prev)
+	return splits[index - 1] - blend * (splits[index - 1] - prev)
 }
 
 // The smallest sphere on the view axis around the view between the depths
@@ -89,14 +89,12 @@ light_box :: proc(light_view: Mat4, model: Mat4, box: Box) -> Box {
 	return {lo, hi}
 }
 
-// The centre snaps to whole texels in the Sun's view, so the map moves in
-// whole texels and the shadow does not shimmer. The map is two texels wider
-// than the sphere on each side, so after the snap the shader's 3 x 3 taps
-// stay inside it. The depth range reaches every caster over the map's square, so
-// a caster toward the Sun still casts. A Draw that casts no shadow is not a caster.
-cascade_view :: proc(light_view: Mat4, sphere: Cascade_Sphere, map_size: u32, placed: []Placed) -> Cascade_View {
+// Keep filter taps inside the slice after snapping to whole texels.
+// Include casters toward the Sun when their light-space boxes cover the slice.
+cascade_view :: proc(light_view: Mat4, sphere: Cascade_Sphere, map_size: u32, placed: []Placed, filter_radius := f32(1)) -> Cascade_View {
 	size := f32(map_size)
-	half := sphere.radius * size / (size - 4)
+	padding := 2 * (filter_radius + 1)
+	half := sphere.radius * size / (size - padding)
 	texel := 2 * half / size
 	c := (light_view * [4]f32{sphere.center.x, sphere.center.y, sphere.center.z, 1}).xyz
 	c.xy = linalg.floor(c.xy / texel) * texel

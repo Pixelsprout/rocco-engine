@@ -1,0 +1,640 @@
+{
+  "result": "passed",
+  "host": "darwin",
+  "backend": "Metal",
+  "system": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "mode": "local preparation",
+  "game": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+  "engine_checkout": "local preparation",
+  "odin": "/Users/braedenfoster/tools/Odin/odin",
+  "python": {
+    "version": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 21.0.0 (clang-2100.3.34.2)]",
+    "executable": "/opt/homebrew/opt/python@3.15/bin/python3.15"
+  },
+  "roc": {
+    "version": "Roc compiler version nightly-2026-10-11-7d256b9",
+    "executable": "/Users/braedenfoster/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9/roc",
+    "executable_sha256": "8462dd554780982fa535d9442445773dc9865726dc90f74caa6c2a864617bc67",
+    "archive_url": null,
+    "archive_sha256": null
+  },
+  "shader_compiler": {
+    "commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+    "executable": "/Users/braedenfoster/playground/rocco-engine/build/shader-tools/sokol-shdc",
+    "sha256": "92db37975ad7ff3c3c9bc27cba1503287377cb287ebabf60d1c6b597abfa3244",
+    "url": "https://raw.githubusercontent.com/floooh/sokol-tools-bin/11d0cf678105d614d675e6d9bd2aaf3eeff12f8c/bin/osx_arm64/sokol-shdc"
+  },
+  "build": {
+    "assets": [
+      {
+        "asset": "shader/Foliage",
+        "budgets": {
+          "instanced_colour": {
+            "attributes": 13,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 1536,
+            "vertex_components": 128
+          },
+          "instanced_selection": {
+            "attributes": 13,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "instanced_shadow": {
+            "attributes": 13,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "skinned_colour": {
+            "attributes": 7,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 5632,
+            "vertex_components": 1152
+          },
+          "skinned_selection": {
+            "attributes": 7,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 5120,
+            "vertex_components": 1152
+          },
+          "skinned_shadow": {
+            "attributes": 7,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 5120,
+            "vertex_components": 1152
+          },
+          "surface_colour": {
+            "attributes": 5,
+            "fragment_components": 216,
+            "pairs": 9,
+            "samplers": 9,
+            "storage_buffers": 3,
+            "texture_views": 9,
+            "uniform_bytes": 1536,
+            "vertex_components": 128
+          },
+          "surface_selection": {
+            "attributes": 5,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          },
+          "surface_shadow": {
+            "attributes": 5,
+            "fragment_components": 88,
+            "pairs": 6,
+            "samplers": 6,
+            "storage_buffers": 0,
+            "texture_views": 6,
+            "uniform_bytes": 1024,
+            "vertex_components": 128
+          }
+        },
+        "file": "Foliage.shaderpack",
+        "fingerprint": "a37eea2bed1f90ea75494780a1b5d685ea04a7ce1f236ff48b3fb86edbe04f1c",
+        "kind": "surface",
+        "sha256": "8294873255b69ca359d2b58fbb03e6ff91306778911f7d4e4ca41d95e5a24e09"
+      },
+      {
+        "asset": "shader/Selection",
+        "budgets": {
+          "post_ldr": {
+            "attributes": 0,
+            "fragment_components": 32,
+            "pairs": 3,
+            "samplers": 3,
+            "storage_buffers": 0,
+            "texture_views": 3,
+            "uniform_bytes": 256,
+            "vertex_components": 0
+          }
+        },
+        "file": "Selection.shaderpack",
+        "fingerprint": "1515188c85acd13607d527733e882a3a9899cecb0796b232cb250eb601dc1526",
+        "kind": "post",
+        "sha256": "9cde073dd7b7dc60347d36b3b2ac9a3d911b9c60a4b8fde2f4bd90c09a619a3b"
+      },
+      {
+        "asset": "shader/Outline",
+        "budgets": {
+          "post_hdr": {
+            "attributes": 0,
+            "fragment_components": 96,
+            "pairs": 4,
+            "samplers": 4,
+            "storage_buffers": 0,
+            "texture_views": 4,
+            "uniform_bytes": 512,
+            "vertex_components": 0
+          }
+        },
+        "file": "Outline.shaderpack",
+        "fingerprint": "ecedb4398a6b6cab235a204022cbaa988d8b6b038350d0d86755f9e19c504eac",
+        "kind": "post",
+        "sha256": "c25378822b5b71442e6569ce003e6745f442d1cb0b368fdd9aa484f0b55ecbf2"
+      }
+    ],
+    "compiler_commit": "11d0cf678105d614d675e6d9bd2aaf3eeff12f8c",
+    "contract": 1,
+    "meshes": [
+      {
+        "asset": "tree",
+        "materials": [
+          {
+            "identifier": "bark",
+            "name": "Bark",
+            "source_material": 0
+          },
+          {
+            "identifier": "leaves",
+            "name": "Leaves",
+            "source_material": 1
+          }
+        ],
+        "module": "Tree"
+      }
+    ],
+    "revision": "bb7f37cae69c75c3e2fc394dcca7b13da7f6d5e7556a9da83d8c48eef95e5269"
+  },
+  "binary_sha256": "c2f9a3c6efcfdf727ba0ba2e196cbdb0fca4e37d211a30f0d418eae7b2484a77",
+  "wind_hashes": {
+    "colour_and_shadow": [
+      "6bf3a1f4067ca48f4c9e0dae236bbcd7dd9cfc35f24ef9aefd3904a77887f591",
+      "7227e9aa1c2f77d673af2104b6239c7cfaab81ed3ce50d08d3dc3bdaccb9fcbc",
+      "00aa1b764c8e60cfce386694b918579add52c3b9914f3d96d8868aa065c3b0dd"
+    ],
+    "shadow_masks": [
+      "15de0f58ad8811948ab2c0820d66e7094dfe19b21e04c0ee5bb0087c798f1c00",
+      "d7afaa76e93187b3a14347467596626af129bc0c5f19ae66a8850688dc17a776",
+      "0add5032b1da6bc25b114f785ea275cfa517e64fd72fe96beff1a1f41e2e0f8b"
+    ],
+    "selection": [
+      "a923ebdafc2f6f7c0e64de1ec5553aeb4fc6ded9fff3630aaa4af34f490e981f",
+      "8b71b56a111bb61f0914f3f8b0715c6ec22e33526548aab87bfbb4236d028688"
+    ]
+  },
+  "materials": {
+    "cutout_shadow_pixels": 10991,
+    "solid_shadow_pixels": 16559
+  },
+  "selection": {
+    "hidden_pixels": 6702,
+    "coverage_sha256": "9b1ece577309df893e3685346bf1aa87c6eaa528e9adc102ba60d933a9c89f4f",
+    "selected_depth_sha256": "0b627de82ceaa542658bdeb26ee7f994fac2d369642f7ff80631a0f4f14c25fc"
+  },
+  "checks": [
+    "installed shader compiler matches SDK checksum pin",
+    "SDK generates typed Bark and Leaves slot helpers",
+    "wind-a-1 physical dimensions",
+    "wind-a-60 physical dimensions",
+    "wind-a-120 physical dimensions",
+    "simulation steps change wind and shadow pose a",
+    "wind-a exits after Bridge quit",
+    "wind-a native graphics validation",
+    "wind-a assets and programs load",
+    "wind-b-1 physical dimensions",
+    "wind-b-60 physical dimensions",
+    "wind-b-120 physical dimensions",
+    "simulation steps change wind and shadow pose b",
+    "wind-b exits after Bridge quit",
+    "wind-b native graphics validation",
+    "wind-b assets and programs load",
+    "equal Bridge steps reproduce wind and shadows",
+    "wind-noncasting-1 physical dimensions",
+    "wind-noncasting-60 physical dimensions",
+    "wind-noncasting-120 physical dimensions",
+    "wind-noncasting exits after Bridge quit",
+    "wind-noncasting native graphics validation",
+    "wind-noncasting assets and programs load",
+    "each wind pose casts a foliage shadow",
+    "shadow coverage follows simulation wind steps",
+    "wind-selection-a-1 physical dimensions",
+    "wind-selection-a-60 physical dimensions",
+    "Selection coverage follows game wind a",
+    "wind-selection-a exits after Bridge quit",
+    "wind-selection-a native graphics validation",
+    "wind-selection-a assets and programs load",
+    "wind-selection-b-1 physical dimensions",
+    "wind-selection-b-60 physical dimensions",
+    "Selection coverage follows game wind b",
+    "wind-selection-b exits after Bridge quit",
+    "wind-selection-b native graphics validation",
+    "wind-selection-b assets and programs load",
+    "equal Bridge steps reproduce selected wind coverage",
+    "material-inherited physical dimensions",
+    "one selected Group contains the tree and marker Draws",
+    "two-slot tree Mesh loads",
+    "leaf helper preserves imported green material",
+    "material-red physical dimensions",
+    "typed leaf parameter changes named Leaves slot",
+    "Bark slot keeps its imported material",
+    "material-restored physical dimensions",
+    "equal material values restore the frame",
+    "material-noncasting physical dimensions",
+    "non-casting foliage keeps colour coverage",
+    "per-Draw casting removes the foliage shadow",
+    "pack-unloaded physical dimensions",
+    "Shader Pack unload omits the leaf part",
+    "Shader Pack unload preserves the separate Mesh Pack and Bark slot",
+    "pack-restored physical dimensions",
+    "Shader Pack reload restores the frame",
+    "materials exits after Bridge quit",
+    "materials native graphics validation",
+    "material-solid physical dimensions",
+    "material-solid exits after Bridge quit",
+    "material-solid native graphics validation",
+    "material-solid assets and programs load",
+    "imported alpha texture supplies colour and shadow holes",
+    "material-solid-noncasting physical dimensions",
+    "material-solid-noncasting exits after Bridge quit",
+    "material-solid-noncasting native graphics validation",
+    "material-solid-noncasting assets and programs load",
+    "solid foliage shadow covers imported cutout holes",
+    "selection-inputs physical dimensions",
+    "selection-inputs exits after Bridge quit",
+    "selection-inputs native graphics validation",
+    "selection-inputs assets and programs load",
+    "selection-no-wall physical dimensions",
+    "selection-no-wall exits after Bridge quit",
+    "selection-no-wall native graphics validation",
+    "selection-no-wall assets and programs load",
+    "occluder preserves identical selected coverage and nearest selected depth",
+    "selected Group supplies hidden coverage and depth behind the wall",
+    "selection-solid physical dimensions",
+    "selection-solid exits after Bridge quit",
+    "selection-solid native graphics validation",
+    "selection-solid assets and programs load",
+    "Selection preserves imported alpha texture holes",
+    "selection-none physical dimensions",
+    "selection-none exits after Bridge quit",
+    "selection-none native graphics validation",
+    "selection-none assets and programs load",
+    "deselected Group clears Selection inputs",
+    "outline-visible physical dimensions",
+    "outline-through physical dimensions",
+    "outline policies use the same selected Group and scene",
+    "game Post shader chooses visible-only and through-wall outlines",
+    "outline-visible-restored physical dimensions",
+    "outline policy toggle restores the frame",
+    "outline-policies exits after Bridge quit",
+    "outline-policies native graphics validation",
+    "outline-policies assets and programs load",
+    "first-load-empty physical dimensions",
+    "first-load-empty exits after Bridge quit",
+    "first-load-empty native graphics validation",
+    "first-load-invalid physical dimensions",
+    "invalid first Surface omits affected foliage",
+    "invalid first Post skips the effect and preserves scene colour",
+    "invalid first packages report contract failure",
+    "invalid first shaders never select a fallback material",
+    "first-load-recovered physical dimensions",
+    "retained Pack requests recover invalid first packages",
+    "first-load-failure exits after Bridge quit",
+    "first-load-failure native graphics validation",
+    "reload-initial physical dimensions",
+    "reload-surface physical dimensions",
+    "compatible Surface edit reloads without restarting",
+    "ordinary asset build rejects invalid shader source",
+    "invalid shader source preserves all published output files",
+    "reload-source-failed physical dimensions",
+    "failed source reload keeps the valid frame",
+    "reload-source-recovered physical dimensions",
+    "source correction restores the frame without restart",
+    "reload-post physical dimensions",
+    "compatible game Post edit reloads live",
+    "reload-post-recovered physical dimensions",
+    "Post source correction restores the frame",
+    "reload-package-failed physical dimensions",
+    "invalid asset contract keeps the valid rendered generation",
+    "reload-package-recovered physical dimensions",
+    "valid package correction recovers without restart",
+    "interface edit produces a distinct package",
+    "reload-interface-rejected physical dimensions",
+    "interface change retains the old frame before restart",
+    "reload exits after Bridge quit",
+    "reload native graphics validation",
+    "interface-restarted physical dimensions",
+    "rebuilt game accepts the changed interface after restart",
+    "restarted game defines a new interface baseline",
+    "interface-restarted exits after Bridge quit",
+    "interface-restarted native graphics validation",
+    "interface-restarted assets and programs load"
+  ],
+  "commands": [
+    {
+      "command": [
+        "roc",
+        "version"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "roc",
+        "build",
+        "--target=arm64mac",
+        "--output=authoring.bin",
+        "main.roc"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53534"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53539"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-occluder",
+        "--no-shadow"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53543"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53546"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53549"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53553"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder",
+        "--solid"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53558"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--empty",
+        "--no-wind",
+        "--no-occluder",
+        "--solid",
+        "--no-shadow"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53561"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53564"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--no-occluder"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53568"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--solid"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53571"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--selection",
+        "--no-wind",
+        "--no-selection"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53574"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53577"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--no-wind",
+        "--empty"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53580"
+      }
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53583"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53586"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install",
+        "--watch"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "roc",
+        "build",
+        "--target=arm64mac",
+        "--output=authoring.bin",
+        "main.roc"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    },
+    {
+      "command": [
+        "/private/tmp/rocco-external-shader-proof/examples/authoring/authoring.bin",
+        "--no-wind"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring",
+      "env": {
+        "ROCCO_BRIDGE": "53591"
+      }
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/private/tmp/rocco-external-shader-proof/platform/shader-tools/build.py",
+        "--install"
+      ],
+      "cwd": "/private/tmp/rocco-external-shader-proof/examples/authoring"
+    }
+  ],
+  "host_build": {
+    "odin": "dev-2026-08-nightly:902106f",
+    "executable": "/tmp/rocco-pinned-odin/odin",
+    "command": "PATH=\"/tmp/rocco-pinned-odin:$PATH\" roc scripts/build.roc host --release",
+    "spans": false
+  },
+  "published_artifact_gate": "not exercised",
+  "published_source_verified": false
+}

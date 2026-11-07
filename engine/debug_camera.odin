@@ -1,9 +1,11 @@
 package engine
 
 import "core:math"
+import "core:os"
 
 CAMERA_SPEED :: f32(4.0)
 CAMERA_SENSITIVITY :: f32(0.0025)
+CAMERA_SWEEP_ENV :: "ROCCO_DEBUG_CAMERA_SWEEP"
 
 PITCH_LIMIT :: f32(math.PI / 2 - 0.001)
 
@@ -12,6 +14,8 @@ Debug_Camera :: struct {
 	eye, up:    [3]f32,
 	yaw, pitch: f32,
 	fovy, near: f32,
+	sweep:      bool,
+	sweep_time: f32,
 }
 
 camera_init :: proc(c: ^Debug_Camera) {
@@ -21,6 +25,7 @@ camera_init :: proc(c: ^Debug_Camera) {
 	c.near = 0.001
 	c.yaw = 0
 	c.pitch = 0
+	c.sweep = os.get_env(CAMERA_SWEEP_ENV, context.temp_allocator) == "1"
 }
 
 camera_basis :: proc(c: ^Debug_Camera) -> (forward, right, up: [3]f32) {
@@ -60,6 +65,10 @@ camera_move :: proc(c: ^Debug_Camera, delta: [3]f32) {
 }
 
 camera_fly :: proc(c: ^Debug_Camera, latch: ^Input_Latch, dt: f32) {
+	if c.sweep {
+		camera_sweep(c, dt)
+		return
+	}
 	forward, right, up := camera_basis(c)
 
 	if (forward != [3]f32{0, 0, 0}) {
@@ -84,4 +93,18 @@ camera_fly :: proc(c: ^Debug_Camera, latch: ^Input_Latch, dt: f32) {
 	if latch.held[.D] {
 		camera_move(c, right * dt)
 	}
+}
+
+camera_sweep :: proc(c: ^Debug_Camera, dt: f32) {
+	c.sweep_time += dt
+	cycle := c.sweep_time - f32(int(c.sweep_time / 2)) * 2
+	c.yaw = f32(math.PI) * (cycle if cycle <= 1 else 2 - cycle)
+	c.pitch = 0.35 * math.sin(c.sweep_time * f32(math.PI))
+	direction := [3]f32{1, 0, 0}
+	switch int(c.sweep_time / 3) % 4 {
+	case 1: direction = [3]f32{-1, 0, 0}
+	case 2: direction = [3]f32{0, 0, -1}
+	case 3: direction = [3]f32{0, 0, 1}
+	}
+	camera_move(c, direction * dt)
 }

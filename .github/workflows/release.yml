@@ -173,26 +173,15 @@ jobs:
           name: target-x64win
           path: platform/targets/x64win
 
-      # roc bundle packs only the files it is given, so the platform bundle
-      # names every file under targets/. Roc takes URLs that differ only in
+      # roc bundle does not discover dependencies, so include target files
+      # and shader tools. Roc takes URLs that differ only in
       # the hash as one package, so each bundle is renamed <name>-<hash>.
       - name: Bundle the platform and the packages
         run: |
           out="$RUNNER_TEMP/bundles"
-          packages="linalg mesh ui camera"
-          mkdir -p "$out/platform"
-          cd platform
-          mapfile -t targets < <(find targets -type f | sort)
-          roc bundle ./*.roc "${targets[@]}" --output-dir "$out/platform"
-          cd ..
-          for name in $packages; do
-            mkdir -p "$out/$name"
-            (cd "packages/$name" && roc bundle ./*.roc --output-dir "$out/$name")
-          done
-          for name in platform $packages; do
-            hashed=$(ls "$out/$name"/*.tar.zst)
-            file="$out/$name/$name-$(basename "$hashed")"
-            mv "$hashed" "$file"
+          python3 scripts/bundle_sdk.py "$out"
+          for name in platform linalg mesh ui camera; do
+            file=$(ls "$out/$name-"*.tar.zst)
             echo "$file" >> "$RUNNER_TEMP/assets"
             echo "--url=$name=$RELEASE_BASE/$(basename "$file")" >> "$RUNNER_TEMP/urls"
           done

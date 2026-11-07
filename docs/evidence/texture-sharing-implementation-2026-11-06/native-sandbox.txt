@@ -1,0 +1,7 @@
+mesh=Grass_Common_Short loader_notes=bit_set[Glb_Note]{} textures=1 base_slot=0
+mesh=Grass_Common_Tall loader_notes=bit_set[Glb_Note]{} textures=1 base_slot=0
+decoded_mips_equal=true width=512 height=512 mip_count=10 payload_bytes=1398100 srgb=true cutoff=0 sampler=Texture_Sampler{min_filter = "LINEAR", mag_filter = "LINEAR", mipmap_filter = "LINEAR", wrap_u = "REPEAT", wrap_v = "REPEAT", mipmaps = true}
+/Users/braedenfoster/playground/rocco-engine/scripts/texture-sharing-check/main.odin(45:2) runtime assertion: device != nil
+time: command terminated abnormally
+        3.47 real         0.01 user         0.00 sys
+time: sysctl kern.clockrate: Operation not permitted

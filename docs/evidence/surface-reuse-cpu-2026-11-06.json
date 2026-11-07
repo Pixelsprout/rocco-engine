@@ -1,0 +1,1839 @@
+{
+  "title": "Frame-local Surface resolution reuse",
+  "source_base_commit": "2b68f493300d812361ac3cc950fe18930b8088eb",
+  "source_files_sha256": {
+    "engine/frame_render.odin": "2f63735c3b969ffe353cc4c7827f3631fc4143fd2ed73a0cbb5a12a916faf4c8",
+    "engine/surface_resolve.odin": "146d87beeaaa73a2bc58e623eef1413a5b1298173fa82dd431630b147de7e1af",
+    "engine/surface_reuse.odin": "ccbb674630d5ad2bc0fdcd3f40aba7439a8bb7324b1e9ccdf0779472d09f0174",
+    "engine/surface_reuse_test.odin": "ecbd9bdb026ed6a8938e3809e7ae8e7f6cfef9fd95eab3ef52c4d5165d7ca99c"
+  },
+  "build": {
+    "binary_sha256": "7848c12a73960f7f53f0cb2cd9fdcd921fc5dd59a011e16fe567905fbf2380d2",
+    "host_sha256": "3a961182fe073fcacd5a26cfb3ab03d16cad27a187eb1d92ce34888c40d6809e",
+    "host_command": "/tmp/rocco-pinned-odin/odin build engine -build-mode:static -out:platform/targets/arm64mac/libhost.a -o:speed -define:ROCCO_SPANS=true -vet -strict-style",
+    "game_command": "/Users/braedenfoster/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9/roc build --no-cache --opt=speed --target=arm64mac --output=./village.bin main.roc",
+    "native_tests": 863
+  },
+  "baseline_build": {
+    "base_commit": "2b68f493300d812361ac3cc950fe18930b8088eb",
+    "host_command": "/tmp/rocco-pinned-odin/odin build engine -build-mode:static -out:platform/targets/arm64mac/libhost.a -o:speed -define:ROCCO_SPANS=true -vet -strict-style",
+    "game_command": "/Users/braedenfoster/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9/roc build --opt=speed --target=arm64mac --output=./village.bin main.roc",
+    "roc_default": "speed; verified with roc build --help",
+    "odin_version": "/tmp/rocco-pinned-odin/odin version dev-2026-08-nightly:902106f",
+    "roc_version": "Roc compiler version nightly-2026-10-11-7d256b9",
+    "sha256": {
+      "/tmp/rocco-village-cpu/examples/village/village.bin": "ba2a54d4240bdb80dcce4558668ef9daa9382532eb96dda574c5fde8ee3f9ead",
+      "/tmp/rocco-village-cpu/platform/targets/arm64mac/libhost.a": "aeb56115d645e4d8abded68b2b469c29cec14de75a76141e882b95eb5c838f86",
+      "/tmp/rocco-pinned-odin/odin": "5baf1357026c5eab3e6a729f951e9caeacd192df2bf7a5be58107cb830f9110b",
+      "/Users/braedenfoster/tools/roc_nightly-macos_apple_silicon-2026-10-11-7d256b9/roc": "8462dd554780982fa535d9442445773dc9865726dc90f74caa6c2a864617bc67"
+    },
+    "native_inputs": "release Sokol and miniaudio; source paths match scripts/build.roc inputs --release",
+    "submodules": "read-only source symlinks to the original checkout",
+    "build_note": "Sandboxed Roc failed PermissionDenied. The approved normal build completed without errors or warnings."
+  },
+  "submodule_sources": [
+    {
+      "path": "glue",
+      "build_source": "/Users/braedenfoster/playground/rocco-engine/glue",
+      "build_commit": "12b321ddd8cbdadc89b7ffc1e6417b7e936edfd8",
+      "expected_gitlink": "160000 commit 12b321ddd8cbdadc89b7ffc1e6417b7e936edfd8\tglue"
+    },
+    {
+      "path": "sokol-odin",
+      "build_source": "/Users/braedenfoster/playground/rocco-engine/sokol-odin",
+      "build_commit": "b13d03cf534c36bb1afb766eef6e3445061d786a",
+      "expected_gitlink": "160000 commit b13d03cf534c36bb1afb766eef6e3445061d786a\tsokol-odin"
+    },
+    {
+      "path": "clay",
+      "build_source": "/Users/braedenfoster/playground/rocco-engine/clay",
+      "build_commit": "e6cc36941ab2af5d81107617039d6f527a1c660b",
+      "expected_gitlink": "160000 commit e6cc36941ab2af5d81107617039d6f527a1c660b\tclay"
+    },
+    {
+      "path": "miniaudio",
+      "build_source": "/Users/braedenfoster/playground/rocco-engine/miniaudio",
+      "build_commit": "347321b27c58d42567e905c715de60ad43a6cb8e",
+      "expected_gitlink": "160000 commit 347321b27c58d42567e905c715de60ad43a6cb8e\tminiaudio"
+    }
+  ],
+  "method": {
+    "mode": "controlled windowed Bridge Lockstep CPU diagnostic",
+    "process_policy": "taskpolicy -a",
+    "seed": 0,
+    "physical_pixels": [
+      1920,
+      1080
+    ],
+    "logical_pixels": [
+      960,
+      540
+    ],
+    "window_argument": "--retina-1080",
+    "step_hz": 120,
+    "warmup_steps": 1800,
+    "warmup_simulation_seconds": 15,
+    "route_steps": 3600,
+    "route_simulation_seconds": 30,
+    "measured_active_frames_per_run": 3600,
+    "percentiles": "nearest rank",
+    "cpu_total": "Sum the legacy Spans. Attribution fields overlap those Spans and do not enter the total.",
+    "derived_60hz": "2 * (input + step + commands + view + queries + query_results) + interpolation + ui_layout + cluster_build + render_submit + commit",
+    "derived_60hz_status": "Derived two-step diagnostic; not observed real-clock work.",
+    "settings": {
+      "source_placements": 1436,
+      "generated_field_placements": 22000,
+      "field_density": 22000,
+      "field_visibility_distance": 65,
+      "fade_margin": 10,
+      "wind": true,
+      "canopy": true,
+      "grass": true,
+      "source_casting": true,
+      "field_casting": false,
+      "selected_group": 20,
+      "effects": "all",
+      "emitter_sources": 41,
+      "msaa": "X4",
+      "shadow_map": 2048,
+      "shadow_cascades": 2
+    },
+    "density_note": "The original distance culling remains active. The initial selected view contains 21,973 field Draws; the tour end contains 22,000. No placement or visibility rule changed.",
+    "contention": "Agent-owned heavy workloads stopped during measurement. Unrelated user processes remained running. Every run preserves its pre-launch process snapshot. The first baseline snapshot includes a seven-day-old engine process and other user applications.",
+    "sample_retention": "Every CSV row is preserved, including loading, warmup, paused frames, and slow measured frames. Only explicit route boundaries and actual step counts select the controlled distribution.",
+    "gpu_status": "No GPU-work measurement is claimed. CPU submission and Bridge Lockstep do not establish GPU work or pacing.",
+    "earlier_compiler_label": "The earlier preliminary development-Roc label is unverified. The verified local compiler defaults to speed; all comparison binaries explicitly use --opt=speed."
+  },
+  "baseline": [
+    {
+      "run": "baseline-p1b",
+      "binary_sha256": "ba2a54d4240bdb80dcce4558668ef9daa9382532eb96dda574c5fde8ee3f9ead",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5638,
+      "paused_route_frames": 18,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 42.573749,
+        "p95_ms": 51.94012600000001,
+        "p99_ms": 58.360085,
+        "max_ms": 100.732164
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 49.08821,
+        "p95_ms": 60.661375,
+        "p99_ms": 68.186584,
+        "max_ms": 120.256747
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.00020899999999999998,
+          "p95_ms": 0.00075,
+          "p99_ms": 0.001167,
+          "max_ms": 0.001833
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.103,
+          "p95_ms": 0.113916,
+          "p99_ms": 0.122875,
+          "max_ms": 0.27145800000000003
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.00025,
+          "p95_ms": 0.00075,
+          "p99_ms": 0.001167,
+          "max_ms": 0.0025830000000000002
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.368667,
+          "p95_ms": 8.671875,
+          "p99_ms": 10.214833,
+          "max_ms": 19.278333999999997
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.016707999999999997,
+          "p95_ms": 0.021042,
+          "p99_ms": 0.024792,
+          "max_ms": 0.149375
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.000375,
+          "p99_ms": 0.000583,
+          "max_ms": 0.002791
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 25.469375,
+          "p95_ms": 29.075375,
+          "p99_ms": 33.317958,
+          "max_ms": 55.563207999999996
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.033458,
+          "p95_ms": 0.039041,
+          "p99_ms": 0.046917,
+          "max_ms": 0.118583
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.023,
+          "p95_ms": 0.038916,
+          "p99_ms": 0.044459000000000005,
+          "max_ms": 0.076875
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 10.251417,
+          "p95_ms": 14.29275,
+          "p99_ms": 16.241791,
+          "max_ms": 31.479002
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.008958,
+          "p95_ms": 0.013833,
+          "p99_ms": 0.016917,
+          "max_ms": 0.069125
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "baseline-p1b/cpu.csv",
+      "raw_csv_sha256": "b4ad1e31a1c067bb5bc738cc15b489871fa6ca3a299ceba935aee94bfaa0e268"
+    },
+    {
+      "run": "baseline-p2",
+      "binary_sha256": "ba2a54d4240bdb80dcce4558668ef9daa9382532eb96dda574c5fde8ee3f9ead",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5635,
+      "paused_route_frames": 17,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 42.67329,
+        "p95_ms": 48.405748,
+        "p99_ms": 50.45175,
+        "max_ms": 66.87295999999999
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 49.180834000000004,
+        "p95_ms": 55.964003000000005,
+        "p99_ms": 59.046001000000004,
+        "max_ms": 86.88912699999999
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.000208,
+          "p95_ms": 0.000708,
+          "p99_ms": 0.001083,
+          "max_ms": 0.010792
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.103625,
+          "p95_ms": 0.110125,
+          "p99_ms": 0.113666,
+          "max_ms": 0.224
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.00029099999999999997,
+          "p95_ms": 0.00075,
+          "p99_ms": 0.0010840000000000001,
+          "max_ms": 0.001417
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.297334,
+          "p95_ms": 7.70425,
+          "p99_ms": 9.304084000000001,
+          "max_ms": 19.892583
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.016582999999999997,
+          "p95_ms": 0.019625,
+          "p99_ms": 0.02225,
+          "max_ms": 0.055625
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.00033400000000000004,
+          "p99_ms": 0.0005,
+          "max_ms": 0.00475
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 26.004,
+          "p95_ms": 27.323541000000002,
+          "p99_ms": 28.52075,
+          "max_ms": 30.986166
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.03375,
+          "p95_ms": 0.03675,
+          "p99_ms": 0.041208,
+          "max_ms": 0.077709
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.02375,
+          "p95_ms": 0.034457999999999996,
+          "p99_ms": 0.03675,
+          "max_ms": 0.08575
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 10.129794,
+          "p95_ms": 13.830998,
+          "p99_ms": 14.540916,
+          "max_ms": 20.849459
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.009458,
+          "p95_ms": 0.011917,
+          "p99_ms": 0.013459,
+          "max_ms": 0.020125
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "baseline-p2/cpu.csv",
+      "raw_csv_sha256": "13a285e6fa9b2e6419f92a205fa5b3aaf3222503c4876ce22ff44281d73a423a"
+    },
+    {
+      "run": "baseline-p3",
+      "binary_sha256": "ba2a54d4240bdb80dcce4558668ef9daa9382532eb96dda574c5fde8ee3f9ead",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5635,
+      "paused_route_frames": 17,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 43.565209,
+        "p95_ms": 49.542083,
+        "p99_ms": 51.769833999999996,
+        "max_ms": 66.866792
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 50.281,
+        "p95_ms": 57.283709,
+        "p99_ms": 60.804207999999996,
+        "max_ms": 86.971667
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.000208,
+          "p95_ms": 0.000708,
+          "p99_ms": 0.001083,
+          "max_ms": 0.001792
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.104292,
+          "p95_ms": 0.111333,
+          "p99_ms": 0.11566599999999999,
+          "max_ms": 0.173708
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.00025,
+          "p95_ms": 0.000708,
+          "p99_ms": 0.0010840000000000001,
+          "max_ms": 0.003125
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.500416,
+          "p95_ms": 8.214542,
+          "p99_ms": 9.639415999999999,
+          "max_ms": 19.974167
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.016917,
+          "p95_ms": 0.019292,
+          "p99_ms": 0.021167000000000002,
+          "max_ms": 0.128417
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.000333,
+          "p99_ms": 0.000458,
+          "max_ms": 0.001292
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 26.117207999999998,
+          "p95_ms": 28.293791000000002,
+          "p99_ms": 29.120209,
+          "max_ms": 31.266333
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.033959,
+          "p95_ms": 0.03875,
+          "p99_ms": 0.04525,
+          "max_ms": 0.08758400000000001
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.024125,
+          "p95_ms": 0.036291,
+          "p99_ms": 0.041290999999999994,
+          "max_ms": 0.072625
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 10.500376000000001,
+          "p95_ms": 14.217751,
+          "p99_ms": 14.826043,
+          "max_ms": 17.513915
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.009417,
+          "p95_ms": 0.011667,
+          "p99_ms": 0.01375,
+          "max_ms": 0.255542
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "baseline-p3/cpu.csv",
+      "raw_csv_sha256": "02d696c25bfccb35fae588ffdb065de0313cfe20cdf7a732eb892c675ee4a1fc"
+    }
+  ],
+  "final": [
+    {
+      "run": "final-p1",
+      "binary_sha256": "7848c12a73960f7f53f0cb2cd9fdcd921fc5dd59a011e16fe567905fbf2380d2",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5654,
+      "paused_route_frames": 28,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 23.443375,
+        "p95_ms": 27.936788999999997,
+        "p99_ms": 29.927833999999997,
+        "max_ms": 36.189249000000004
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 30.161793000000003,
+        "p95_ms": 35.522707,
+        "p99_ms": 38.313084,
+        "max_ms": 45.08621
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.00016700000000000002,
+          "p95_ms": 0.000375,
+          "p99_ms": 0.0006670000000000001,
+          "max_ms": 0.0014579999999999999
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.10625,
+          "p95_ms": 0.120542,
+          "p99_ms": 0.134125,
+          "max_ms": 0.203542
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.00025,
+          "p95_ms": 0.000625,
+          "p99_ms": 0.001,
+          "max_ms": 0.001833
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.4874160000000005,
+          "p95_ms": 7.8575420000000005,
+          "p99_ms": 8.960375,
+          "max_ms": 14.14125
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.017042,
+          "p95_ms": 0.019667,
+          "p99_ms": 0.022,
+          "max_ms": 0.047167
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.000333,
+          "p99_ms": 0.0005,
+          "max_ms": 0.0010840000000000001
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 6.618542000000001,
+          "p95_ms": 7.128,
+          "p99_ms": 7.430292000000001,
+          "max_ms": 7.802207999999999
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.033417,
+          "p95_ms": 0.037208,
+          "p99_ms": 0.040625,
+          "max_ms": 0.054542
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.024832999999999997,
+          "p95_ms": 0.036792,
+          "p99_ms": 0.040125,
+          "max_ms": 0.067417
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 9.908667,
+          "p95_ms": 13.542457,
+          "p99_ms": 14.720584,
+          "max_ms": 20.235666000000002
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.008167,
+          "p95_ms": 0.010875,
+          "p99_ms": 0.012792,
+          "max_ms": 0.025167000000000002
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "final-p1/cpu.csv",
+      "raw_csv_sha256": "4d04f1d6779d57e4b81f7559600890ffe7a8c0a4d60f7cdbb0f06b43cce28509"
+    },
+    {
+      "run": "final-p2",
+      "binary_sha256": "7848c12a73960f7f53f0cb2cd9fdcd921fc5dd59a011e16fe567905fbf2380d2",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5653,
+      "paused_route_frames": 28,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 24.563626,
+        "p95_ms": 29.120330999999997,
+        "p99_ms": 30.712042,
+        "max_ms": 35.936709
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 31.6655,
+        "p95_ms": 37.500709,
+        "p99_ms": 40.088837,
+        "max_ms": 48.609626000000006
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.00016700000000000002,
+          "p95_ms": 0.000375,
+          "p99_ms": 0.00075,
+          "max_ms": 0.001375
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.109167,
+          "p95_ms": 0.123583,
+          "p99_ms": 0.136,
+          "max_ms": 0.317083
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.00025,
+          "p95_ms": 0.000625,
+          "p99_ms": 0.001,
+          "max_ms": 0.001709
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.882167000000001,
+          "p95_ms": 8.726790999999999,
+          "p99_ms": 10.331125,
+          "max_ms": 14.380042
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.017459,
+          "p95_ms": 0.020082999999999997,
+          "p99_ms": 0.022709,
+          "max_ms": 0.0885
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.000292,
+          "p99_ms": 0.000417,
+          "max_ms": 0.000875
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 6.705292,
+          "p95_ms": 7.296375,
+          "p99_ms": 7.562417,
+          "max_ms": 8.7725
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.03425,
+          "p95_ms": 0.038666,
+          "p99_ms": 0.042917000000000004,
+          "max_ms": 0.062375
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.024957999999999998,
+          "p95_ms": 0.038833,
+          "p99_ms": 0.04475,
+          "max_ms": 0.066125
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 10.444581,
+          "p95_ms": 14.042374,
+          "p99_ms": 14.937207,
+          "max_ms": 17.301831999999997
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.008583,
+          "p95_ms": 0.01125,
+          "p99_ms": 0.013,
+          "max_ms": 0.029457999999999998
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "final-p2/cpu.csv",
+      "raw_csv_sha256": "5ffc3cfcd9c5972ed0d6abdbc3ad7b6ec6e5d5c7fd670ca059f0025a63f695c4"
+    },
+    {
+      "run": "final-p3",
+      "binary_sha256": "7848c12a73960f7f53f0cb2cd9fdcd921fc5dd59a011e16fe567905fbf2380d2",
+      "readiness_steps": 96,
+      "warmup_steps": 1800,
+      "warmup_simulation_seconds": 15.0,
+      "route_steps": 3600,
+      "route_simulation_seconds": 30.0,
+      "step_hz": 120,
+      "measurement_start_after_steps": 1900,
+      "measurement_end_at_steps": 5500,
+      "measured_active_step_counts": {
+        "1": 3600
+      },
+      "raw_rows": 5657,
+      "paused_route_frames": 28,
+      "controlled_one_step_cpu": {
+        "samples": 3600,
+        "p50_ms": 23.943376,
+        "p95_ms": 28.6875,
+        "p99_ms": 30.750667,
+        "max_ms": 44.030043
+      },
+      "derived_two_step_60hz_cpu": {
+        "samples": 3600,
+        "p50_ms": 30.863375,
+        "p95_ms": 36.506792000000004,
+        "p99_ms": 40.07274699999999,
+        "max_ms": 71.95112599999999
+      },
+      "spans": {
+        "input_us": {
+          "samples": 3600,
+          "p50_ms": 0.000166,
+          "p95_ms": 0.00033400000000000004,
+          "p99_ms": 0.0006670000000000001,
+          "max_ms": 0.0015409999999999998
+        },
+        "step_us": {
+          "samples": 3600,
+          "p50_ms": 0.106583,
+          "p95_ms": 0.122,
+          "p99_ms": 0.134833,
+          "max_ms": 0.184917
+        },
+        "commands_us": {
+          "samples": 3600,
+          "p50_ms": 0.000208,
+          "p95_ms": 0.000625,
+          "p99_ms": 0.001042,
+          "max_ms": 0.00175
+        },
+        "view_us": {
+          "samples": 3600,
+          "p50_ms": 6.6722079999999995,
+          "p95_ms": 8.168833,
+          "p99_ms": 9.7055,
+          "max_ms": 27.798375
+        },
+        "queries_us": {
+          "samples": 3600,
+          "p50_ms": 0.017,
+          "p95_ms": 0.019416,
+          "p99_ms": 0.021291,
+          "max_ms": 0.037042
+        },
+        "query_results_us": {
+          "samples": 3600,
+          "p50_ms": 0.000125,
+          "p95_ms": 0.000333,
+          "p99_ms": 0.00045900000000000004,
+          "max_ms": 0.0012079999999999999
+        },
+        "interpolation_us": {
+          "samples": 3600,
+          "p50_ms": 6.621292,
+          "p95_ms": 7.222791,
+          "p99_ms": 7.523333,
+          "max_ms": 9.459042
+        },
+        "ui_layout_us": {
+          "samples": 3600,
+          "p50_ms": 0.033583,
+          "p95_ms": 0.037542,
+          "p99_ms": 0.041375,
+          "max_ms": 0.06025
+        },
+        "cluster_build_us": {
+          "samples": 3600,
+          "p50_ms": 0.024916,
+          "p95_ms": 0.037542,
+          "p99_ms": 0.042334000000000004,
+          "max_ms": 0.0645
+        },
+        "render_submit_us": {
+          "samples": 3600,
+          "p50_ms": 10.205165000000001,
+          "p95_ms": 13.979208,
+          "p99_ms": 14.958540999999999,
+          "max_ms": 19.581958999999998
+        },
+        "commit_us": {
+          "samples": 3600,
+          "p50_ms": 0.008167,
+          "p95_ms": 0.010542,
+          "p99_ms": 0.011833,
+          "max_ms": 0.024916
+        }
+      },
+      "span_cost_us": 0.0106,
+      "machine": {
+        "date": "2026-11-06",
+        "slug": "apple-m5",
+        "chip": "Apple M5",
+        "model": "Mac17,2",
+        "memory_bytes": 17179869184,
+        "os": "macOS 26.5.1 (25F80)",
+        "power": "ac",
+        "low_power_mode": false
+      },
+      "native_diagnostics": [],
+      "raw_csv": "final-p3/cpu.csv",
+      "raw_csv_sha256": "30cb82bbdf9116514f759cc672086141d4d69a77f4404c2f4067d78807536310"
+    }
+  ],
+  "attribution": {
+    "run": "attribution-p1",
+    "binary_sha256": "8c41b2f5e45f1628a019e921c813e5e6eac1dbae03a8386083071805761ed850",
+    "readiness_steps": 96,
+    "warmup_steps": 1800,
+    "warmup_simulation_seconds": 15.0,
+    "route_steps": 3600,
+    "route_simulation_seconds": 30.0,
+    "step_hz": 120,
+    "measurement_start_after_steps": 1900,
+    "measurement_end_at_steps": 5500,
+    "measured_active_step_counts": {
+      "1": 3600
+    },
+    "raw_rows": 5635,
+    "paused_route_frames": 17,
+    "controlled_one_step_cpu": {
+      "samples": 3600,
+      "p50_ms": 43.767918,
+      "p95_ms": 49.439334,
+      "p99_ms": 51.33937400000001,
+      "max_ms": 55.177833
+    },
+    "derived_two_step_60hz_cpu": {
+      "samples": 3600,
+      "p50_ms": 50.109584000000005,
+      "p95_ms": 56.716291,
+      "p99_ms": 59.638584,
+      "max_ms": 69.01166599999999
+    },
+    "spans": {
+      "input_us": {
+        "samples": 3600,
+        "p50_ms": 0.00020899999999999998,
+        "p95_ms": 0.000709,
+        "p99_ms": 0.001125,
+        "max_ms": 0.001709
+      },
+      "step_us": {
+        "samples": 3600,
+        "p50_ms": 0.10204200000000001,
+        "p95_ms": 0.108083,
+        "p99_ms": 0.11125,
+        "max_ms": 0.511959
+      },
+      "commands_us": {
+        "samples": 3600,
+        "p50_ms": 0.00025,
+        "p95_ms": 0.000709,
+        "p99_ms": 0.0010840000000000001,
+        "max_ms": 0.002
+      },
+      "view_us": {
+        "samples": 3600,
+        "p50_ms": 6.179166,
+        "p95_ms": 7.51725,
+        "p99_ms": 8.738166,
+        "max_ms": 14.514708
+      },
+      "queries_us": {
+        "samples": 3600,
+        "p50_ms": 0.016417,
+        "p95_ms": 0.019167,
+        "p99_ms": 0.021167000000000002,
+        "max_ms": 0.041875
+      },
+      "query_results_us": {
+        "samples": 3600,
+        "p50_ms": 0.000125,
+        "p95_ms": 0.000375,
+        "p99_ms": 0.0005420000000000001,
+        "max_ms": 0.001333
+      },
+      "interpolation_us": {
+        "samples": 3600,
+        "p50_ms": 26.679667000000002,
+        "p95_ms": 28.351833,
+        "p99_ms": 29.192083999999998,
+        "max_ms": 30.835125
+      },
+      "ui_layout_us": {
+        "samples": 3600,
+        "p50_ms": 0.034334,
+        "p95_ms": 0.037458,
+        "p99_ms": 0.042582999999999996,
+        "max_ms": 0.060208
+      },
+      "cluster_build_us": {
+        "samples": 3600,
+        "p50_ms": 0.025082999999999998,
+        "p95_ms": 0.037625,
+        "p99_ms": 0.039709,
+        "max_ms": 0.0655
+      },
+      "render_submit_us": {
+        "samples": 3600,
+        "p50_ms": 10.52375,
+        "p95_ms": 14.044291,
+        "p99_ms": 14.7265,
+        "max_ms": 17.380625
+      },
+      "commit_us": {
+        "samples": 3600,
+        "p50_ms": 0.009083,
+        "p95_ms": 0.011167,
+        "p99_ms": 0.012792,
+        "max_ms": 0.018666000000000002
+      },
+      "attribution_selection_us": {
+        "samples": 3600,
+        "p50_ms": 0.818625,
+        "p95_ms": 0.866917,
+        "p99_ms": 0.886875,
+        "max_ms": 0.971417
+      },
+      "attribution_scene_depth_us": {
+        "samples": 3600,
+        "p50_ms": 5.095292000000001,
+        "p95_ms": 7.5944579999999995,
+        "p99_ms": 7.920833,
+        "max_ms": 9.135042
+      },
+      "attribution_skin_pose_us": {
+        "samples": 3600,
+        "p50_ms": 0.078333,
+        "p95_ms": 0.088125,
+        "p99_ms": 0.102791,
+        "max_ms": 0.294875
+      },
+      "attribution_placement_us": {
+        "samples": 3600,
+        "p50_ms": 1.254631,
+        "p95_ms": 1.7544860000000002,
+        "p99_ms": 1.97058,
+        "max_ms": 2.282837
+      },
+      "attribution_surface_us": {
+        "samples": 3600,
+        "p50_ms": 22.914514999999998,
+        "p95_ms": 24.226651999999998,
+        "p99_ms": 24.90841,
+        "max_ms": 26.757127
+      },
+      "attribution_pairing_us": {
+        "samples": 3600,
+        "p50_ms": 1.277125,
+        "p95_ms": 1.64525,
+        "p99_ms": 1.8406669999999998,
+        "max_ms": 2.338292
+      },
+      "attribution_shader_poll_us": {
+        "samples": 3600,
+        "p50_ms": 0.0007920000000000001,
+        "p95_ms": 0.177291,
+        "p99_ms": 0.217292,
+        "max_ms": 0.288417
+      }
+    },
+    "span_cost_us": 0.0163,
+    "machine": {
+      "date": "2026-11-06",
+      "slug": "apple-m5",
+      "chip": "Apple M5",
+      "model": "Mac17,2",
+      "memory_bytes": 17179869184,
+      "os": "macOS 26.5.1 (25F80)",
+      "power": "ac",
+      "low_power_mode": false
+    },
+    "native_diagnostics": [],
+    "raw_csv": "attribution-p1/cpu.csv",
+    "raw_csv_sha256": "e7595399b3ec94ac9fd2884c56d84f779239c9e31cf2f224bc9714a66a4b233a"
+  },
+  "attribution_note": "Surface resolution measured p50 22.915 ms and p95 24.227 ms. Its median is about 86% of the original Interpolation median. The temporary diagnostic patch and raw samples are archived.",
+  "implementation": {
+    "lifetime": "One frame_render_draw call, after reload polling. No Roc pointer or key survives the call.",
+    "eligible": "Whole-Draw Surface materials without named slots, explicit material or shader textures, or Draw-scope values.",
+    "key": "Mesh ID and pointer, shader Pack and asset, scope, ordered parameters and properties, tags, and complete active payload bits.",
+    "capacity": {
+      "entries": 128,
+      "collision_probes": 8
+    },
+    "overflow": "Resolve through the original path.",
+    "failure": "Cache only explicit complete success. Every failed Draw retains its original diagnostics.",
+    "per_draw": "Capacity admission, skin accounting, transforms, bounds, tint, glow, selection and casting remain independent."
+  },
+  "validation": {
+    "native_engine_tests": 863,
+    "native_tests": "All tests passed. The signed-zero collision test first failed against the initial key and then passed after the bit-preserving correction.",
+    "native_test_log": "test-final-green.log",
+    "linux_type_check": "passed with pinned Odin -vet -strict-style",
+    "windows_type_check": "passed with pinned Odin -no-thread-local -vet -strict-style",
+    "pixel_parity": {
+      "initial_pixels_equal": true,
+      "route_samples": 6,
+      "route_equal": true,
+      "baseline_samples": [
+        {
+          "name": "route-600",
+          "steps": 2500,
+          "camera": {
+            "eye": {
+              "x": 0.29201508,
+              "y": 1.7,
+              "z": 11.940114
+            },
+            "target": {
+              "x": 0.29201508,
+              "y": 1.7,
+              "z": 10.940114
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "bd3483ee359c766fb7c68106e3cfa1533a0a531c8113dcf47c37ab7ea91c004d"
+        },
+        {
+          "name": "route-1200",
+          "steps": 3100,
+          "camera": {
+            "eye": {
+              "x": -0.31358647,
+              "y": 1.7,
+              "z": 4.757248
+            },
+            "target": {
+              "x": -0.31358647,
+              "y": 1.7,
+              "z": 3.757248
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "4892597f12ba94be4bc72775faa557e41a506803089a4a8b0753d5a46e73ea42"
+        },
+        {
+          "name": "route-1800",
+          "steps": 3700,
+          "camera": {
+            "eye": {
+              "x": 0.11062674,
+              "y": 1.7,
+              "z": -2.4114459
+            },
+            "target": {
+              "x": 0.11062674,
+              "y": 1.7,
+              "z": -3.4114459
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "36a6669547571cfbc53b8e7b1162b9e73a66ddb53c67eac354ef628c4b9b0124"
+        },
+        {
+          "name": "route-2400",
+          "steps": 4300,
+          "camera": {
+            "eye": {
+              "x": -1.208724,
+              "y": 1.7,
+              "z": -9.522537
+            },
+            "target": {
+              "x": -1.208724,
+              "y": 1.7,
+              "z": -10.522537
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "17f22f54036f31ddf1d1c4efc3b6800764fa242f9d5eb8a658732d45cc3fa1fa"
+        },
+        {
+          "name": "route-3000",
+          "steps": 4900,
+          "camera": {
+            "eye": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -12.6
+            },
+            "target": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -13.6
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "f0975191eb6ebec1b98c06be18586642677825383d366125a2c874f3372344ec"
+        },
+        {
+          "name": "route-3600",
+          "steps": 5500,
+          "camera": {
+            "eye": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -12.6
+            },
+            "target": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -13.6
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "21b9897cbea68506e52fe39014e7cd802507b21908ba698822151b4885442705"
+        }
+      ],
+      "final_samples": [
+        {
+          "name": "route-600",
+          "steps": 2500,
+          "camera": {
+            "eye": {
+              "x": 0.29201508,
+              "y": 1.7,
+              "z": 11.940114
+            },
+            "target": {
+              "x": 0.29201508,
+              "y": 1.7,
+              "z": 10.940114
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "bd3483ee359c766fb7c68106e3cfa1533a0a531c8113dcf47c37ab7ea91c004d"
+        },
+        {
+          "name": "route-1200",
+          "steps": 3100,
+          "camera": {
+            "eye": {
+              "x": -0.31358647,
+              "y": 1.7,
+              "z": 4.757248
+            },
+            "target": {
+              "x": -0.31358647,
+              "y": 1.7,
+              "z": 3.757248
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "4892597f12ba94be4bc72775faa557e41a506803089a4a8b0753d5a46e73ea42"
+        },
+        {
+          "name": "route-1800",
+          "steps": 3700,
+          "camera": {
+            "eye": {
+              "x": 0.11062674,
+              "y": 1.7,
+              "z": -2.4114459
+            },
+            "target": {
+              "x": 0.11062674,
+              "y": 1.7,
+              "z": -3.4114459
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "36a6669547571cfbc53b8e7b1162b9e73a66ddb53c67eac354ef628c4b9b0124"
+        },
+        {
+          "name": "route-2400",
+          "steps": 4300,
+          "camera": {
+            "eye": {
+              "x": -1.208724,
+              "y": 1.7,
+              "z": -9.522537
+            },
+            "target": {
+              "x": -1.208724,
+              "y": 1.7,
+              "z": -10.522537
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "17f22f54036f31ddf1d1c4efc3b6800764fa242f9d5eb8a658732d45cc3fa1fa"
+        },
+        {
+          "name": "route-3000",
+          "steps": 4900,
+          "camera": {
+            "eye": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -12.6
+            },
+            "target": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -13.6
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "f0975191eb6ebec1b98c06be18586642677825383d366125a2c874f3372344ec"
+        },
+        {
+          "name": "route-3600",
+          "steps": 5500,
+          "camera": {
+            "eye": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -12.6
+            },
+            "target": {
+              "x": -2.4,
+              "y": 1.7,
+              "z": -13.6
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "fov_y": 1.3089969
+          },
+          "source_draws": 1436,
+          "field_draws": 22000,
+          "selected": [
+            20
+          ],
+          "emitters": 41,
+          "shadow": {
+            "distance": 0,
+            "normal_bias": 0.05,
+            "depth_bias": 0,
+            "distribution": 0.5,
+            "blend": 0.1,
+            "filter": "Pcf3"
+          },
+          "environment": {
+            "sky": 1,
+            "clear": {
+              "r": 0.32,
+              "g": 0.48,
+              "b": 0.65
+            },
+            "tone_map": "AgX",
+            "exposure": 1.12,
+            "fog": {
+              "color": {
+                "r": 0.393123,
+                "g": 0.477,
+                "b": 0.603827
+              },
+              "start": 14,
+              "end": 120,
+              "amount": 0.38
+            },
+            "bloom": {
+              "strength": 0.18,
+              "threshold": 1.2,
+              "knee": 0.5
+            }
+          },
+          "sha256": "21b9897cbea68506e52fe39014e7cd802507b21908ba698822151b4885442705"
+        }
+      ],
+      "baseline_ready_steps": 96,
+      "final_ready_steps": 96
+    },
+    "independent_review": "Read-only review found no blocker in the final concrete diff."
+  },
+  "acceptance": {
+    "cpu_budget_ms": 16.67,
+    "controlled_cpu_budget_met": false,
+    "real_clock_cpu": "open",
+    "gpu_work": "open",
+    "real_clock_pacing": "open",
+    "reference_pc": "open",
+    "human_appearance": "open"
+  },
+  "excluded_runs": {
+    "exploratory": [
+      "reuse-p1",
+      "reuse-p2"
+    ],
+    "reason": "These use the initial key before its signed-zero correction. All rows remain archived.",
+    "pixel_validation": [
+      "pixels-baseline-b",
+      "pixels-reuse",
+      "pixels-final"
+    ],
+    "pixel_reason": "Native readback runs establish pixel parity. Their timings do not enter the controlled performance comparison.",
+    "setup_failures": [
+      "baseline-p1",
+      "baseline-p1a",
+      "pixels-baseline",
+      "pixels-baseline-a"
+    ],
+    "setup_reason": "Sandbox socket access, missing Bridge Post serialization, retained execute mode, or executable-relative asset lookup stopped setup before any accepted measured range."
+  },
+  "raw_archive": "surface-reuse-cpu-2026-11-06.tar.gz",
+  "additional_raw_artifacts": "PNG images, gzipped Bridge scenes, and retained binaries remain under /tmp/rocco-village-cpu-evidence. artifact-manifest.json records their hashes. The archive contains every CPU CSV and run metadata file, plus logs, Driver, diagnostic patch, and source snapshots.",
+  "raw_archive_sha256": "1c83275fec810270563af235a20bcbbadd1468cde271bb5602f61b3c4c1b4ac6",
+  "raw_archive_bytes": 2332478,
+  "archived_raw_csv_files": 12,
+  "archived_raw_csv_rows": 68145
+}

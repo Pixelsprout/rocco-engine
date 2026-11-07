@@ -1,0 +1,317 @@
+{
+  "contract": 1,
+  "meshes": [
+    {
+      "name": "LightingWindowThin",
+      "source": "assets/meshes/Window_Thin_Round1.glb"
+    },
+    {
+      "name": "LightingWindowWide",
+      "source": "assets/meshes/Window_Wide_Round1.glb"
+    }
+  ],
+  "shaders": [
+    {
+      "name": "VillageGround",
+      "kind": "surface",
+      "max_displacement": 0,
+      "skinning": false,
+      "instancing": false,
+      "surface": "ground.glsl",
+      "textures": [
+        {
+          "name": "ground_mask",
+          "scope": "Material",
+          "stage": "fragment",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "clamp"
+          },
+          "optional": false,
+          "default": {
+            "asset": "image/ground_mask",
+            "pack": "lighting"
+          }
+        },
+        {
+          "name": "terrain_noise",
+          "scope": "Material",
+          "stage": "fragment",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "repeat"
+          },
+          "optional": false,
+          "default": {
+            "asset": "image/T_Noise_Terrain",
+            "pack": "lighting"
+          }
+        }
+      ]
+    },
+    {
+      "name": "VillageCanopy",
+      "kind": "surface",
+      "max_displacement": 0.3,
+      "skinning": false,
+      "vertex": "shaders/canopy.vert.glsl",
+      "surface": "shaders/canopy.frag.glsl",
+      "lighting": "shaders/canopy.light.glsl",
+      "parameters": [
+        {
+          "name": "wind",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "canopy_center",
+          "type": "Vec3",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0,
+            4,
+            0
+          ]
+        },
+        {
+          "name": "canopy_radius",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            2.5
+          ]
+        },
+        {
+          "name": "canopy_base",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0
+          ]
+        },
+        {
+          "name": "normal_soften",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            0.85
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VillageGrass",
+      "kind": "surface",
+      "max_displacement": 2,
+      "skinning": false,
+      "vertex": "shaders/grass.vert.glsl",
+      "surface": "shaders/grass.frag.glsl",
+      "lighting": "shaders/grass.light.glsl",
+      "parameters": [
+        {
+          "name": "wind",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "plant_height",
+          "type": "F32",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            1
+          ]
+        },
+        {
+          "name": "vertex_weights",
+          "type": "Bool",
+          "scope": "Material",
+          "stage": "vertex",
+          "default": [
+            true
+          ]
+        },
+        {
+          "name": "field_fade",
+          "type": "Bool",
+          "scope": "Material",
+          "stage": "fragment",
+          "default": [
+            false
+          ]
+        },
+        {
+          "name": "viewer",
+          "type": "Vec3",
+          "scope": "Scene",
+          "stage": "fragment",
+          "default": [
+            0,
+            1.7,
+            17
+          ]
+        },
+        {
+          "name": "visibility_distance",
+          "type": "F32",
+          "scope": "Scene",
+          "stage": "fragment",
+          "default": [
+            65
+          ]
+        }
+      ],
+      "textures": [
+        {
+          "name": "noise",
+          "scope": "Scene",
+          "stage": "vertex",
+          "type": "2d",
+          "colour_space": "linear",
+          "sampler_policy": {
+            "min": "linear",
+            "mag": "linear",
+            "wrap": "repeat"
+          },
+          "default": {
+            "pack": "village-vegetation",
+            "asset": "image/T_Noise_Terrain"
+          }
+        }
+      ]
+    },
+    {
+      "name": "VillageOutline",
+      "kind": "post",
+      "post": "outline.glsl",
+      "inputs": [
+        "scene_colour",
+        "scene_depth",
+        "selection_coverage",
+        "selection_depth"
+      ],
+      "locations": [
+        "before_bloom"
+      ],
+      "parameters": [
+        {
+          "name": "outline",
+          "type": "Colour",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            3.6,
+            1.3,
+            0.22,
+            1
+          ]
+        },
+        {
+          "name": "visible_only",
+          "type": "Bool",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            true
+          ]
+        },
+        {
+          "name": "width",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            2
+          ]
+        },
+        {
+          "name": "pulse",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            0.18
+          ]
+        },
+        {
+          "name": "glow",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            0.2
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VillageColour",
+      "kind": "post",
+      "post": "colour.glsl",
+      "inputs": [
+        "scene_colour"
+      ],
+      "locations": [
+        "after_tone_map"
+      ],
+      "parameters": [
+        {
+          "name": "gain",
+          "type": "Vec3",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            1.015,
+            1.0,
+            0.985
+          ]
+        },
+        {
+          "name": "saturation",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            1.03
+          ]
+        },
+        {
+          "name": "contrast",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            1.025
+          ]
+        },
+        {
+          "name": "vignette",
+          "type": "F32",
+          "scope": "Draw",
+          "stage": "fragment",
+          "default": [
+            0.07
+          ]
+        }
+      ]
+    }
+  ]
+}

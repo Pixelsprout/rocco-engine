@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:slice"
 import "core:strings"
+import "core:time"
 
 // One name and id of a Manifest, before it crosses the seam.
 Manifest_Line :: struct {
@@ -16,6 +17,7 @@ Asset_Kind :: enum {
 	Sky,
 	Sound,
 	Image,
+	Shader,
 }
 
 Held_Asset :: struct {
@@ -37,9 +39,16 @@ Packs :: struct {
 	sky_dir:        string,
 	sound_dir:      string,
 	image_dir:      string,
+	shader_dir: string,
+	shaders: Shader_Table,
 	on_disk:        []string,
 	sound_files:    map[string]string,
 	loaded:         map[string][]Held_Asset,
+	shader_requests: map[string][]string,
+	shader_revision: [32]byte,
+	shader_revision_set: bool,
+	shader_poll_at: time.Tick,
+	shader_polled: bool,
 	mesh_refs:      []int,
 	sky_refs:       []int,
 	sound_refs:     []int,
@@ -61,6 +70,9 @@ packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 	sky_dir := fmt.aprintf("%v/sky", assets_dir, allocator = allocator)
 	sound_dir := fmt.aprintf("%v/sound", assets_dir, allocator = allocator)
 	image_dir := fmt.aprintf("%v/images", assets_dir, allocator = allocator)
+	shader_dir := fmt.aprintf("%v/shaders", assets_dir, allocator = allocator)
+	shader_names := shader_names_on_disk(shader_dir, allocator)
+	defer delete(shader_names, allocator)
 	mesh_names := mesh_names_on_disk(mesh_dir, allocator)
 	defer delete(mesh_names, allocator)
 	sky_names := sky_names_on_disk(sky_dir, allocator)
@@ -76,9 +88,12 @@ packs_init :: proc(p: ^Packs, assets_dir: string, allocator: mem.Allocator) {
 		sky_dir        = sky_dir,
 		sound_dir      = sound_dir,
 		image_dir      = image_dir,
-		on_disk        = slice.concatenate([][]string{mesh_names, sky_names, sound_names, image_names}, allocator),
+		shader_dir = shader_dir,
+		shaders = {allocator = allocator},
+		on_disk        = slice.concatenate([][]string{mesh_names, sky_names, sound_names, image_names, shader_names}, allocator),
 		sound_files    = sound_files,
 		loaded         = make(map[string][]Held_Asset, allocator),
+		shader_requests = make(map[string][]string, allocator),
 		logged_packs   = make(map[string]struct {}, allocator),
 		logged_unloads = make(map[string]struct {}, allocator),
 		logged_assets  = make(map[string]struct {}, allocator),
@@ -104,6 +119,13 @@ packs_attach :: proc(p: ^Packs, meshes: ^Mesh_Table, skies: ^Sky_Table, images: 
 
 // Frees what the packs own. The assets stay in their tables.
 packs_destroy :: proc(p: ^Packs) {
+	for pack, names in p.shader_requests {
+		for name in names { delete(name, p.allocator) }
+		delete(names, p.allocator); delete(pack, p.allocator)
+	}
+	delete(p.shader_requests)
+	shader_table_destroy(&p.shaders)
+	delete(p.shader_dir, p.allocator)
 	for name, ids in p.loaded {
 		delete(name, p.allocator)
 		delete(ids, p.allocator)
@@ -147,8 +169,10 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 	}
 
 	held := make([dynamic]Held_Asset, 0, len(assets), p.allocator)
+	requests := make([dynamic]string, 0, len(assets), p.allocator)
 	manifest = make([]Manifest_Line, len(assets), allocator)
 	for name, i in assets {
+		if pack_kind(name) == .Shader && !slice.contains(requests[:], name) { append(&requests, strings.clone(name, p.allocator)) }
 		asset := pack_asset_id(p, pack, name)
 		manifest[i] = {name = name, id = asset.id}
 		if pack_refcounted(asset) && !slice.contains(held[:], asset) {
@@ -157,6 +181,9 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 		}
 	}
 	p.loaded[strings.clone(pack, p.allocator)] = held[:]
+	if p.shader_requests == nil { p.shader_requests = make(map[string][]string, p.allocator) }
+	p.shader_requests[strings.clone(pack, p.allocator)] = requests[:]
+	if len(requests) > 0 { p.shader_revision_set = false }
 	return manifest, true
 }
 
@@ -216,7 +243,17 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 			audio_sound_remove(p.audio, sound_slot(asset.id))
 		case .Image:
 			image_table_remove(p.images, image_slot(asset.id))
+		case .Shader:
+			shader_table_remove(&p.shaders, mesh_slot(asset.id))
 		}
+	}
+	for request_pack, names in p.shader_requests {
+		if request_pack != pack { continue }
+		delete_key(&p.shader_requests, request_pack)
+		for asset_name in names { delete(asset_name, p.allocator) }
+		if len(names) > 0 { p.shader_revision_set = false }
+		delete(names, p.allocator); delete(request_pack, p.allocator)
+		break
 	}
 	delete(name, p.allocator)
 	delete(held, p.allocator)
@@ -239,7 +276,7 @@ pack_refcounted :: proc(asset: Held_Asset) -> bool {
 	switch asset.kind {
 	case .Mesh:
 		return mesh_slot(asset.id) >= len(Primitive)
-	case .Sky, .Sound, .Image:
+	case .Sky, .Sound, .Image, .Shader:
 		return asset.id != 0
 	}
 	unreachable()
@@ -256,6 +293,8 @@ pack_refs :: proc(p: ^Packs, asset: Held_Asset) -> ^int {
 		return &p.sound_refs[sound_slot(asset.id)]
 	case .Image:
 		return &p.image_refs[image_slot(asset.id)]
+	case .Shader:
+		return &p.shaders.refs[mesh_slot(asset.id)]
 	}
 	unreachable()
 }
@@ -284,6 +323,9 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 	case .Image:
 		found_id, found = image_table_find(p.images, name)
 		dir, full = p.image_dir, image_table_full(p.images)
+	case .Shader:
+		found_id, found = shader_table_find(&p.shaders, name)
+		dir, full = p.shader_dir, shader_table_full(&p.shaders)
 	}
 	if found {
 		return {kind, found_id}
@@ -307,6 +349,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 				full_reason = sound_table_full_reason(&p.audio.sounds)
 			case .Image:
 				full_reason = image_table_full_reason(p.images)
+			case .Shader:
+				full_reason = "the Shader asset table is full"
 			}
 			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, full_reason)
 		}
@@ -324,6 +368,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 		id, reason, ok = sound_load_file(&p.audio.sounds, p.sound_dir, name, p.sound_files[name])
 	case .Image:
 		id, reason, ok = image_load_file(p.images, p.image_dir, name)
+	case .Shader:
+		id, reason, ok = shader_load_file(&p.shaders, p.shader_dir, name)
 	}
 	if !ok {
 		pack_log_asset(p, name, fmt.tprintf("pack %q names %q, which did not load: %v", pack, name, reason))
@@ -336,6 +382,8 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 @(private = "file")
 pack_kind :: proc(name: string) -> Asset_Kind {
 	switch {
+	case strings.has_prefix(name, SHADER_PREFIX):
+		return .Shader
 	case strings.has_prefix(name, SKY_PREFIX):
 		return .Sky
 	case strings.has_prefix(name, SOUND_PREFIX):
@@ -350,4 +398,22 @@ pack_kind :: proc(name: string) -> Asset_Kind {
 pack_log_asset :: proc(p: ^Packs, name, message: string) {
 	p.logged_assets[strings.clone(name, p.allocator)] = {}
 	fmt.eprintfln("%v; its id is 0", message)
+}
+
+// Asset references resolve only through the named live Pack.
+pack_asset_lookup :: proc(p: ^Packs, pack, name: string) -> (Held_Asset, bool) {
+ held, loaded := p.loaded[pack]
+ if !loaded { return {}, false }
+ kind := pack_kind(name)
+ id: u32
+ found: bool
+ switch kind {
+ case .Mesh: id, found = mesh_table_find(p.meshes, name)
+ case .Sky: id, found = sky_table_find(p.skies, name)
+ case .Image: id, found = image_table_find(p.images, name)
+ case .Sound: id, found = sound_table_find(&p.audio.sounds, name)
+ case .Shader: id, found = shader_table_find(&p.shaders, name)
+ }
+ asset := Held_Asset{kind, id}
+ return asset, found && slice.contains(held, asset)
 }

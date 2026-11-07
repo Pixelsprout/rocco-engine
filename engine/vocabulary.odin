@@ -4,7 +4,7 @@ package engine
 // by the path that reaches it from a provided function. A record shared by
 // several paths takes the name of the first, so Vec3 is the pos of a Play's
 // Place, Quat is a Collider's rot, Rgb is a Draw's glow, a step result is a
-// Roc_Init and Rgba is a Panel background. A nominal type keeps its own name,
+// Roc_Init and Rgba is an Emitter end colour. A nominal type keeps its own name,
 // so Element is Roc_VocabularyElement and Node is Roc_VocabularyNode. The
 // glue names the fields of a Panel and a Group _0 (the config, or the Group's
 // id and Pose) and _1 (the children). A Draw's pose is a Draw_Pose, because the host's
@@ -37,6 +37,8 @@ Port_Message :: Roc_Step_Arg2_Ports
 Ui_Results :: Roc_Step_Arg2_Ui
 Scroll_Size :: Roc_Step_Arg2_Ui_Scroll
 Scene :: Roc_View
+Shadow :: Roc_View_Shadow
+Shadow_Filter :: Roc_View_Shadow_Filter
 Environment :: Roc_View_Environment
 Tone_Map :: Roc_View_Environment_ToneMap
 Fog :: Roc_View_Environment_Fog
@@ -61,7 +63,7 @@ Quat :: Roc_VocabularyNode_Collider_Rot
 Rgb :: Roc_VocabularyNode_Draw_Glow
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor
-Rgba :: Roc_VocabularyElement_Panel_0_Background
+Rgba :: Roc_View_Emitters_EndColour
 Element :: Roc_VocabularyElement
 Element_Tag :: Roc_VocabularyElement_Tag
 Panel_Config :: Roc_VocabularyElement_Panel_0
@@ -91,3 +93,7 @@ Image_Filter :: Roc_VocabularyElement_Panel_0_Image_Show_0_Filter
 Image_Fit :: Roc_VocabularyElement_Panel_0_Image_Show_1
 Text :: Roc_VocabularyElement_Text
 Text_Wrap :: Roc_VocabularyElement_Text_Wrap
+
+Emitter :: Roc_View_Emitters
+Particle_Blend :: Roc_View_Emitters_Blend
+Burst_Command :: Roc_Init_Commands_Burst

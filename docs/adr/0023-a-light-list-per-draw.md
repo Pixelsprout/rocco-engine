@@ -1,6 +1,7 @@
 # 0023: A light list per Draw
 
-Status: accepted, 2026-10-31. It replaces the cap of 8 Directional and
+Status: superseded by [ADR 0033](0033-clustered-forward-lights.md), 2026-11-05.
+Originally accepted, 2026-10-31. It replaces the cap of 8 Directional and
 Point lights per Scene. Cascaded sun shadows later lowered `DRAW_LIMIT` to
 1,195,444, and the Mask pipelines to 1,195,443.
 
