@@ -188,7 +188,7 @@ Shadow   : { distance : F32, normal_bias : F32, depth_bias : F32, distribution :
 Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
-Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
+Command  : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str }), Log(Str)]
 ```
 
 | Type | Carries | Does not carry |
@@ -199,7 +199,7 @@ Command  : [Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ 
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels; the Pointer: position, inside, buttons, wheel | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order. `ui` holds the tagged Panels under the Pointer and the Scroll sizes, with no Query | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
-| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`; and `Tell`, which only a Driver reads | anything that should exist every step |
+| `List(Command)` | what the host does once after this step: `Quit`, `Load`, `Unload`, `Play`, `Burst`; `Tell`, which only a Driver reads; and `Log`, which goes to stderr and the step reply | anything that should exist every step |
 
 Key codes are sokol's: `SPACE = 32`, `A = 65`, `W = 87`. Games name them with
 `pf.Key`, for example `Key.held(input, W)`. `Input` still carries `U16` codes.

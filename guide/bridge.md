@@ -390,6 +390,13 @@ order the host got them. To send a message back, return
 `Port.tell("echo", msg)` as a Command. The host does not act on a `Tell`.
 It writes it in `commands` in the `step` reply, as it writes every Command.
 
+A `Log("text")` Command arrives in `commands` the same way, as
+`{"Log":"text"}`, and the host also prints it to stderr as `game: text`.
+The reply carries every Log. Only stderr stops at 32 lines per step. A Log
+that `init` returns goes to stderr only, because no step reply holds it.
+bridge-echo Logs each pick, so a click on its cube gives
+`{"Log":"picked 1"}` next to the pick Tell.
+
 The host moves the queued messages into the QueryResults of the next step
 that runs. It checks them against the Queries of the Scene that the window
 shows, the one that `scene` returns. If no Query there Listens on a
@@ -725,7 +732,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `held` (pointer) | In the pointer: a list of MouseButton names, held for every step. |
 | `tap` (pointer) | In the pointer: a list of MouseButton names, Pressed and Released in the first step only. |
 | `wheel` | In the pointer: `[dx, dy]`, the wheel scroll in the first step only. |
-| `commands` | The Commands the game returned in the steps, in order. |
+| `commands` | The Commands the game returned in the steps, in order, such as `{"Tell":{...}}` and `{"Log":"text"}`. |
 | `alloc` | `step`, `allocs`, `deallocs`, `reallocs`, `live`, `step_us` and `view_us` of the last step. |
 | `scene` | The Scene of the last step: `camera`, `nodes`, `cursor`, `environment`, `ui` and `queries`. `nodes` mirrors the tree with local Poses. `environment` holds `sky`, `clear`, `tone_map`, `exposure`, `fog` and `bloom`. |
 | `results` | The QueryResults that the next step gets: `contacts`, `rays`, `overlaps`, `ports` and `ui`. `ports` is empty here, because the host fills it when the step runs. `ui` holds `over` and `scroll`. |

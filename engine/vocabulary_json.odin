@@ -38,6 +38,10 @@ json_write_command :: proc(b: ^strings.Builder, command: ^Command) {
 		strings.write_string(b, `{"Unload":`)
 		json_write_roc_str(b, &command.payload.unload)
 		strings.write_byte(b, '}')
+	case .Log:
+		strings.write_string(b, `{"Log":`)
+		json_write_roc_str(b, &command.payload.log)
+		strings.write_byte(b, '}')
 	case .Play:
 		play := &command.payload.play
 		json_key(b, "Play", first = true)

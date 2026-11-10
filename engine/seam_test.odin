@@ -198,6 +198,10 @@ fake_unload :: proc(pack: string) -> Command {
 	return command
 }
 
+fake_log :: proc(msg: string) -> Command {
+	return {tag = .Log, payload = {log = roc_str_from_slice(msg)}}
+}
+
 fake_play :: proc(sound: u32, gain, pitch: f32, at: Place) -> Command {
 	command := Command {
 		tag = .Play,

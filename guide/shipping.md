@@ -65,7 +65,8 @@ A few things to watch for:
 - `roc build` uses `--opt=speed` by default. The binary is fast, but the
   build is slower than a `roc run`.
 - If your game has a `dbg`, `roc build` warns about it. Roc then exits with
-  code 2, but it still writes the binary.
+  code 2, but it still writes the binary. Use a `Log` Command for lines you
+  want to keep.
 - On Windows, run `roc` in a shell where `LIB` is not set.
 
 ## What to ship
