@@ -328,3 +328,15 @@ expect_json_text :: proc(t: ^testing.T, b: ^strings.Builder, want: string, loc :
 	_, err := json.parse_string(strings.concatenate({"[", got, "]"}, context.temp_allocator), allocator = context.temp_allocator)
 	testing.expectf(t, err == nil, "%q is not JSON: %v", got, err, loc = loc)
 }
+
+@(test)
+test_json_write_node_writes_an_attach_with_its_draw_joint_and_children :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	children := []Node{node_light(light_ambient({r = 1}))}
+	node := node_attach(1, "head", children)
+	b := strings.builder_make(context.temp_allocator)
+
+	json_write_node(&b, &node)
+
+	expect_json_text(t, &b, `{"Attach":{"draw":1,"joint":"head","children":[{"Light":{"Ambient":{"r":1,"g":0,"b":0}}}]}}`)
+}

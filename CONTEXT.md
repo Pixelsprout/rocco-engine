@@ -206,7 +206,7 @@ _Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
 A Node that names a Draw and one Joint of its Skin, and holds a list of
 child Nodes. Its children's Poses are local to that Joint: they follow the
 Joint's position and rot in the same Frame, never its scale. Where the
-Attach sits in the tree does not move it. Planned: dex r3c96iyu, ADR 0034.
+Attach sits in the tree does not move it. See ADR 0034.
 _Avoid_: socket, bone attachment, mount, parent
 
 **Pose**:

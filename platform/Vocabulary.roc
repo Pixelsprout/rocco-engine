@@ -376,6 +376,12 @@ Vocabulary := [].{
 	##   same id in the previous Scene. Group ids and draw ids are apart.
 	##   `selected` includes all descendant Draws in one coverage and nearest-depth union.
 	##   The current Scene supplies selection membership without interpolation.
+	## - `Attach`: a draw id, a joint name and the children. The children's
+	##   Poses are local to that Joint of the Draw's Skin. They take the
+	##   Joint's position and rot, never its scale. The parent of the Attach
+	##   does not move it. The joint is the node name in the .glb. If the Draw,
+	##   its Skin or the Joint is missing, the host logs once and omits the
+	##   children.
 	## - `Draw`, `Light`, `Collider`, `Speaker`: the leaves.
 	##
 	## The host interpolates a Node's local Pose and then composes it, if its
@@ -383,7 +389,7 @@ Vocabulary := [].{
 	## interpolates between the two world Poses. A game with no Groups writes a
 	## flat list of leaves. The type is nominal, because only a nominal
 	## recursive union crosses the seam.
-	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Attach({ draw : U64, joint : Str }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
 
 		## Two Nodes are equal when their tags, payloads and children are
 		## equal. A nominal type gets no `==` of its own.
@@ -391,6 +397,7 @@ Vocabulary := [].{
 		is_eq = |a, b|
 			match (a, b) {
 				(Group(group_a, children_a), Group(group_b, children_b)) => group_a == group_b and children_a == children_b
+				(Attach(attach_a, children_a), Attach(attach_b, children_b)) => attach_a == attach_b and children_a == children_b
 				(Draw(draw_a), Draw(draw_b)) => draw_a == draw_b
 				(Light(light_a), Light(light_b)) => light_a == light_b
 				(Collider(collider_a), Collider(collider_b)) => collider_a == collider_b

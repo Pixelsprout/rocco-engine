@@ -812,6 +812,18 @@ Roc_View_Emitters_Blend :: enum u8 {
 #assert(size_of(Roc_View_Emitters_Blend) == 1)
 #assert(align_of(Roc_View_Emitters_Blend) == 1)
 
+Roc_VocabularyNode_Attach :: struct {
+	_0: Roc_VocabularyNode_Attach_0,
+	_1: Roc_List(Roc_VocabularyNode),
+}
+
+#assert(size_of(Roc_VocabularyNode_Attach) == 56)
+#assert(align_of(Roc_VocabularyNode_Attach) == 8)
+#assert(offset_of(Roc_VocabularyNode_Attach, _0) == 0)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._0)) == 32)
+#assert(offset_of(Roc_VocabularyNode_Attach, _1) == 32)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._1)) == 24)
+
 Roc_VocabularyNode_Group :: struct {
 	_0: Roc_VocabularyNode_Group_0,
 	_1: Roc_List(Roc_VocabularyNode),
@@ -825,14 +837,16 @@ Roc_VocabularyNode_Group :: struct {
 #assert(size_of(type_of(Roc_VocabularyNode_Group{}._1)) == 24)
 
 Roc_VocabularyNode_Tag :: enum u8 {
-	Collider = 0,
-	Draw = 1,
-	Group = 2,
-	Light = 3,
-	Speaker = 4,
+	Attach = 0,
+	Collider = 1,
+	Draw = 2,
+	Group = 3,
+	Light = 4,
+	Speaker = 5,
 }
 
 Roc_VocabularyNode_Payload :: struct #raw_union {
+	attach: Roc_VocabularyNode_Attach,
 	collider: Roc_VocabularyNode_Collider,
 	draw: Roc_VocabularyNode_Draw,
 	group: Roc_VocabularyNode_Group,
@@ -848,6 +862,18 @@ Roc_VocabularyNode :: struct {
 #assert(size_of(Roc_VocabularyNode) == 360)
 #assert(align_of(Roc_VocabularyNode) == 8)
 #assert(offset_of(Roc_VocabularyNode, tag) == 352)
+
+Roc_VocabularyNode_Attach_0 :: struct {
+	draw: u64,
+	joint: Roc_Str,
+}
+
+#assert(size_of(Roc_VocabularyNode_Attach_0) == 32)
+#assert(align_of(Roc_VocabularyNode_Attach_0) == 8)
+#assert(offset_of(Roc_VocabularyNode_Attach_0, draw) == 0)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach_0{}.draw)) == 8)
+#assert(offset_of(Roc_VocabularyNode_Attach_0, joint) == 8)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach_0{}.joint)) == 24)
 
 Roc_VocabularyNode_Collider :: struct {
 	id: u64,
@@ -2214,11 +2240,18 @@ roc_view_decref :: proc(value: Roc_View) {
 
 roc_vocabularynode_decref :: proc(value: Roc_VocabularyNode) {
 	#partial switch value.tag {
+	case .Attach:
+		roc_vocabularynode_attach_0_decref(value.payload.attach._0)
+		roc_list_decref_roc_vocabularynode(value.payload.attach._1)
 	case .Draw:
 		roc_vocabularynode_draw_decref(value.payload.draw)
 	case .Group:
 		roc_list_decref_roc_vocabularynode(value.payload.group._1)
 	}
+}
+
+roc_vocabularynode_attach_0_decref :: proc(value: Roc_VocabularyNode_Attach_0) {
+	roc_str_decref(value.joint)
 }
 
 roc_vocabularynode_draw_decref :: proc(value: Roc_VocabularyNode_Draw) {
@@ -2542,6 +2575,7 @@ roc_decref :: proc {
 	roc_step_arg2_ui_decref,
 	roc_view_decref,
 	roc_vocabularynode_decref,
+	roc_vocabularynode_attach_0_decref,
 	roc_vocabularynode_draw_decref,
 	roc_vocabularynode_draw_material_decref,
 	roc_vocabularynode_draw_material_surface_decref,

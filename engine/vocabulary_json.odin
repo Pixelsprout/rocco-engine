@@ -211,6 +211,16 @@ json_write_node :: proc(b: ^strings.Builder, node: ^Node) {
 		json_key(b, "children")
 		json_write_list(b, children, json_write_node)
 		strings.write_byte(b, '}')
+	case .Attach:
+		config, children := &node.payload.attach._0, node.payload.attach._1
+		json_key(b, "Attach", first = true)
+		json_key(b, "draw", first = true)
+		strings.write_u64(b, config.draw)
+		json_key(b, "joint")
+		json_write_roc_str(b, &config.joint)
+		json_key(b, "children")
+		json_write_list(b, children, json_write_node)
+		strings.write_byte(b, '}')
 	case .Draw:
 		json_key(b, "Draw", first = true)
 		json_write_draw(b, &node.payload.draw)
