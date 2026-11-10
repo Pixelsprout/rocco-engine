@@ -1,7 +1,7 @@
 app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "nightly-2026-11-04-2622062" }
 
 # Pip walks on the spot. An orb with a Point Light rides above Pip's head,
-# and a lantern swings in Pip's right hand. Each is an Attach to a Joint of
+# and a round lantern swings in Pip's right hand. Each is an Attach to a Joint of
 # Pip's Skin, so it follows the Walk Clip in the same Frame.
 
 import cam.Camera as Cam
@@ -55,7 +55,6 @@ step = |model, input, _results, dt| {
 orb_glow : Rgb
 orb_glow = { r: 0.6, g: 1.2, b: 2.4 }
 
-# The orb floats above the head Joint, and its Light rides with it.
 orb : Vocabulary.Node
 orb = Attach(
 	{ draw: pip_id, joint: "head" },
@@ -65,14 +64,14 @@ orb = Attach(
 	],
 )
 
-# The lantern is a bright yellow, so scripts/bridge_check.py can find it.
+# scripts/bridge_check.py finds the lantern by its yellow.
 lantern_glow : Rgb
 lantern_glow = { r: 2.0, g: 1.8, b: 0.0 }
 
 lantern : Vocabulary.Node
 lantern = Attach(
 	{ draw: pip_id, joint: "lower_arm.R" },
-	[Draw({ ..Draw.default, id: lantern_id, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: 0.14, z: 0.0 }, scale: { x: 0.08, y: 0.08, z: 0.08 }, tint: { r: 1.0, g: 0.9, b: 0.1 }, glow: lantern_glow })],
+	[Draw({ ..Draw.default, id: lantern_id, mesh: Mesh.primitive(Sphere), pos: { x: 0.0, y: 0.14, z: 0.0 }, scale: { x: 0.08, y: 0.08, z: 0.08 }, tint: { r: 1.0, g: 0.9, b: 0.1 }, glow: lantern_glow })],
 )
 
 view : Model -> Vocabulary.Scene

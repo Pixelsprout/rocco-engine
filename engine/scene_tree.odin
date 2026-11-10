@@ -23,8 +23,8 @@ Pose :: struct {
 // An Attach has the draw id and its joint hash, and a Group has joint 0.
 Parent_Id :: struct {
 	id:      u64,
-	grouped: bool,
-	joint:   u64,
+	grouped:    bool,
+	joint_hash: u64,
 }
 
 // The parent Group of the Nodes that a walk visits. world is its world Pose
@@ -43,11 +43,13 @@ Walk_Parent :: struct {
 }
 
 // A Node of the previous Scene to interpolate from: its parent Group id, its
-// local Pose and its world Pose in that Scene.
+// local Pose and its world Pose in that Scene. Under an Attach the world Pose
+// is not known, so no_world is set.
 Prev_Pose :: struct {
-	parent: Parent_Id,
-	local:  Pose,
-	world:  Pose,
+	parent:   Parent_Id,
+	local:    Pose,
+	world:    Pose,
+	no_world: bool,
 }
 
 // Runs for every Node in depth-first pre-order, before a Group's children.
@@ -66,8 +68,8 @@ Tree_Walk :: struct {
 	alpha:          f32,
 	data:           rawptr,
 	group_unpaired: bool,
-	joint:          Attach_Joint,
-	joint_data:     rawptr,
+	joint_pose:      Attach_Joint,
+	joint_pose_data: rawptr,
 	attaches:       [dynamic]Attach_Pending,
 }
 
@@ -147,6 +149,8 @@ node_world :: #force_inline proc(prev: ^Prev_Pose, parent: ^Walk_Parent, local: 
 		return pose_under(grouped, parent.world, local)
 	case prev.parent == parent.id:
 		return pose_under(grouped, parent.world, pose_lerp(prev.local, local, alpha))
+	case prev.no_world:
+		return pose_under(grouped, parent.world, local)
 	case:
 		return pose_lerp(prev.world, pose_under(grouped, parent.scene_world, local), alpha)
 	}
@@ -200,8 +204,8 @@ scene_colliders :: proc(nodes: []Node, meshes: ^Mesh_Table, allocator: mem.Alloc
 	walk := Tree_Walk {
 		visit      = collider_visit,
 		data       = &colliders,
-		joint      = scene_attach_joint,
-		joint_data = &joints,
+		joint_pose      = scene_attach_joint,
+		joint_pose_data = &joints,
 	}
 	root := WALK_ROOT
 	// A root Collider is at its world Pose already. It goes straight into the
@@ -292,13 +296,9 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 	p := (^Pairing)(walk.data)
 	switch node.tag {
 	case .Draw:
-		pairing_add(p, &node.payload.draw, parent.id, parent.unpaired)
+		pairing_add(p, &node.payload.draw, parent.id, parent.unpaired || parent.no_world)
 	case .Group:
 		g := node.payload.group._0
-		if parent.no_world {
-			walk.group_unpaired = true
-			return
-		}
 		if g.id in p.groups {
 			if !p.group_duplicate_logged {
 				p.group_duplicate_logged = true
@@ -316,7 +316,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 			return
 		}
 		local := pose_of(g.pos, g.rot)
-		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
+		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local), no_world = parent.no_world}
 	case .Attach, .Light, .Collider, .Speaker:
 	}
 }

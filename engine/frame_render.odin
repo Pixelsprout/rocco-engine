@@ -319,7 +319,7 @@ frame_render_draw :: proc(
 		pairing = &fr.pairing,
 		alpha   = alpha,
 		data    = &frame_walk,
-		joint   = frame_attach_joint,
+		joint_pose = frame_attach_joint,
 	}
 	root := WALK_ROOT
 	nodes := curr.nodes.elements[:curr.nodes.length]

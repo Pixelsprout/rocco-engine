@@ -39,17 +39,15 @@ attach_children :: #force_inline proc(a: ^Attach) -> []Node {
 
 // The joint hash is never 0, so an Attach never has the id of a Group.
 attach_parent_id :: proc(config: ^Attach_Config) -> Parent_Id {
-	return {id = config.draw, grouped = true, joint = attach_joint_hash(roc_str_string(&config.joint))}
+	return {id = config.draw, grouped = true, joint_hash = attach_joint_hash(roc_str_string(&config.joint))}
 }
 
 attach_joint_hash :: proc(name: string) -> u64 {
 	return hash.fnv64a(transmute([]u8)name) | 1
 }
 
-// Walks the children of each Attach the walk met, in the order met. An
-// Attach among those children joins the end of the list. With no joint
-// proc, as in the pairing of the previous Scene, the children are walked
-// under an unpaired parent at the identity Pose.
+// With no joint_pose, as in the pairing of the previous Scene, the children
+// have no known world Pose.
 tree_walk_attached :: proc(walk: ^Tree_Walk) {
 	for i := 0; i < len(walk.attaches); i += 1 {
 		pending := walk.attaches[i]
@@ -59,11 +57,11 @@ tree_walk_attached :: proc(walk: ^Tree_Walk) {
 			selected = pending.selected,
 			world    = POSE_IDENTITY,
 		}
-		if walk.joint == nil {
+		if walk.joint_pose == nil {
 			parent.unpaired = true
 			parent.no_world = true
 		} else {
-			world, ok := walk.joint(walk, config)
+			world, ok := walk.joint_pose(walk, config)
 			if !ok {
 				continue
 			}
@@ -99,15 +97,15 @@ attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, model:
 	return pose_of_matrix(model * skin[j] * linalg.inverse(m.skin.joints[j].inverse_bind)), .None
 }
 
-// The translation and the rotation of an affine matrix. Each axis loses its
-// scale before the rotation is read.
+// The translation and the rotation of an affine matrix. The axes are made
+// orthonormal first, so a non-uniform scale under a rotation adds no shear.
 pose_of_matrix :: proc(m: Mat4) -> Pose {
+	x := v3_normalize_or_zero({m[0, 0], m[1, 0], m[2, 0]})
+	y := v3_normalize_or_zero([3]f32{m[0, 1], m[1, 1], m[2, 1]} - v3_dot({m[0, 1], m[1, 1], m[2, 1]}, x) * x)
+	z := v3_cross(x, y)
 	axes: matrix[3, 3]f32
-	for col in 0 ..< 3 {
-		axis := v3_normalize_or_zero({m[0, col], m[1, col], m[2, col]})
-		for row in 0 ..< 3 {
-			axes[row, col] = axis[row]
-		}
+	for row in 0 ..< 3 {
+		axes[row, 0], axes[row, 1], axes[row, 2] = x[row], y[row], z[row]
 	}
 	return {pos = {m[0, 3], m[1, 3], m[2, 3]}, rot = quat_normalize(linalg.quaternion_from_matrix3_f32(axes))}
 }
@@ -128,7 +126,7 @@ attach_message :: proc(config: ^Attach_Config, m: ^Mesh, miss: Attach_Miss) -> s
 	switch miss {
 	case .None:
 	case .No_Draw:
-		return fmt.tprintf("an Attach names draw id %v, which is not in the Scene; joint %q places no children", config.draw, name)
+		return fmt.tprintf("an Attach names draw id %v, which the Frame did not place; joint %q places no children", config.draw, name)
 	case .No_Skin:
 		return fmt.tprintf("an Attach names draw id %v, whose mesh %q has no Skin; joint %q places no children", config.draw, m.name, name)
 	case .No_Joint:
@@ -152,15 +150,15 @@ skin_joint_names :: proc(s: ^Skin) -> string {
 // as the Collider and Speaker walks. It does not log, because the Frame's
 // walk logs the same miss.
 scene_attach_joint :: proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: Pose, ok: bool) {
-	joints := (^Scene_Joints)(walk.joint_data)
+	joints := (^Scene_Joints)(walk.joint_pose_data)
 	if joints.meshes == nil {
 		return
 	}
 	d, draw_world := scene_draw(joints.nodes, config.draw, POSE_IDENTITY, false) or_return
 	m := mesh_lookup(joints.meshes, d.mesh) or_return
-	x := draw_transform(d, d, draw_world, 1)
+	transform := draw_transform(d, d, draw_world, 1)
 	miss: Attach_Miss
-	world, miss = attach_joint_pose(joints.meshes, m, x.pose, draw_model_matrix(x), roc_str_string(&config.joint))
+	world, miss = attach_joint_pose(joints.meshes, m, transform.pose, draw_model_matrix(transform), roc_str_string(&config.joint))
 	return world, miss == .None
 }
 

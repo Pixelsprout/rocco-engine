@@ -35,7 +35,7 @@ holds D until Pip is mid-walk, checks the Pose, saves a "-walk" screenshot
 and checks that the two screenshots differ.
 
 Then it runs attach, saves an "-attach-a" and an "-attach-b" screenshot half a
-Walk Clip apart, and checks that the yellow lantern attached to Pip's hand
+Walk Clip apart, and checks that the yellow sphere attached to Pip's hand
 moved between them.
 
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
@@ -135,13 +135,11 @@ WALK_TOLERANCE = 1e-3
 # more pixels than this change.
 MIN_CHANGED_PIXELS = 1000
 
-# examples/attach/main.roc: the Walk Clip lasts 1 s, 120 steps. The lantern
-# on Pip's right forearm is furthest back at step 30 and furthest forward at
-# step 90, about 27 pixels apart in a 960 by 540 screenshot.
+# examples/attach/main.roc: the sphere lantern on Pip's right forearm is
+# furthest back at step 30 of the 1 s Walk Clip and furthest forward half a
+# Clip later.
 ATTACH_FIRST_STEPS = 30
 ATTACH_HALF_CLIP_STEPS = 60
-# Pip's white body has as much blue as red, and the lantern's yellow has far
-# less.
 MIN_LANTERN_PIXELS = 20
 MIN_LANTERN_MOVE = 15
 
@@ -473,6 +471,7 @@ def drive_animation(b, out):
 def lantern_centre(path):
     with open(path, "rb") as f:
         width, _height, pixels = bridge.png_rgba(f.read())
+    # Pip's white body has as much blue as red, and the lantern's yellow has far less.
     found = [(i // 4 % width, i // 4 // width) for i in range(0, len(pixels), 4) if pixels[i] > 200 and pixels[i + 1] > 200 and pixels[i + 2] < pixels[i] - 60]
     check(len(found) >= MIN_LANTERN_PIXELS, f"{path} shows {len(found)} lantern pixels")
     return sum(x for x, _ in found) / len(found), sum(y for _, y in found) / len(found)

@@ -43,7 +43,6 @@ test_attach_places_its_children_at_the_joint_of_the_interpolated_clip_time :: pr
 
 	got := attach_placed(&f, 2)
 	testing.expect(t, got != nil)
-	// Lift at 0.5 s raises the root 1 up +y, and the tip is 1 above it.
 	expect_v3_near(t, got.transform.position, {5, 2, 0})
 }
 
@@ -61,8 +60,7 @@ test_attach_children_take_the_joint_position_and_rot_but_not_its_scale :: proc(t
 
 	got := attach_placed(&f, 2)
 	testing.expect(t, got != nil)
-	// The scaled root moves the tip to 2 up +y, but the orb's offset of 1
-	// along +x and its own scale stay as the game wrote them.
+	// The orb keeps its own offset and scale.
 	expect_v3_near(t, got.transform.position, {1, 2, 0})
 	testing.expect_value(t, got.transform.scale, [3]f32{0.5, 0.5, 0.5})
 	expect_quat_near(t, got.transform.rotation, 1)
@@ -135,4 +133,27 @@ test_attach_moves_its_colliders_with_the_joint :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(got), 1)
 	expect_v3_near(t, vec3_array(got[0].pos), {1, 1, 3})
 	testing.expect_value(t, len(scene_colliders(nodes, nil, context.temp_allocator)), 0)
+}
+
+@(test)
+test_attach_interpolates_the_local_pose_of_a_group_under_it :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	chain := attach_fixture_chain(&f)
+
+	scene :: proc(chain: u32, x: f32) -> Scene {
+		orb := draw_nodes({{id = 2, mesh = 1, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY}})
+		group := make([]Node, 1, context.temp_allocator)
+		group[0] = node_group(9, {x = x}, IDENTITY, orb)
+		nodes := make([]Node, 2, context.temp_allocator)
+		nodes[0] = node_draw({id = 1, mesh = chain, scale = {1, 1, 1}, rot = IDENTITY, scale_rot = IDENTITY})
+		nodes[1] = node_attach(1, "tip", group)
+		return scene_nodes(nodes)
+	}
+	frame_fixture_draw(&f, scene(chain, 0), scene(chain, 2), 0.5)
+
+	got := attach_placed(&f, 2)
+	testing.expect(t, got != nil)
+	expect_v3_near(t, got.transform.position, {1, 1, 0})
 }

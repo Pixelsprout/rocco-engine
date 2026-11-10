@@ -57,7 +57,7 @@ speaker_pairing_destroy :: proc(p: ^Speaker_Pairing) {
 // Sound id restarts at once with no fade. A Once that ended frees its voice
 // at once. Any other Speaker with no voice tries again on each call while it
 // stays in the Scene.
-audio_speakers :: proc(audio: ^Audio, nodes: []Node, meshes: ^Mesh_Table = nil) {
+audio_speakers :: proc(audio: ^Audio, nodes: []Node, meshes: ^Mesh_Table) {
 	p := &audio.speakers
 	pool := &audio.voices
 	clear(&p.curr)
@@ -135,8 +135,8 @@ speakers_gather :: proc(p: ^Speaker_Pairing, nodes: []Node, meshes: ^Mesh_Table)
 	walk := Tree_Walk {
 		visit      = speaker_visit,
 		data       = p,
-		joint      = scene_attach_joint,
-		joint_data = &joints,
+		joint_pose      = scene_attach_joint,
+		joint_pose_data = &joints,
 	}
 	root := WALK_ROOT
 	for &node, i in nodes {
