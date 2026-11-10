@@ -150,7 +150,11 @@ surface_value_encode :: proc(value: Shader_Value, kind: string) -> (out: [16]f32
 
 surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Values, scene, draw: []Shader_Values, time: f32, skinned: bool, post := false) -> (resolved: Surface_Material, reason: string) {
 	asset, loaded := surface_asset(p, &material.shader)
-	if !loaded || asset.kind != .Shader { return {}, "Surface Shader is absent from its Pack" }
+	if !loaded || asset.kind != .Shader {
+		pack, name := roc_str_string(&material.shader.pack), roc_str_string(&material.shader.asset)
+		if loaded { return {}, fmt.tprintf("%v in Pack %v is not a Shader", name, pack) }
+		return {}, fmt.tprintf("Shader %v is absent from Pack %v; add %v to the Load of Pack %v", name, pack, name, pack)
+	}
 	s, live := shader_lookup(&p.shaders, asset.id)
 	if !live || s.package_data.post != post || s.failed || p.shaders.uploaded && !s.ready { return {}, "Surface Shader has no valid generation" }
 	if skinned && !shader_bool(shader_interface(s)["skinning"]) { return {}, "Surface does not permit skinning" }

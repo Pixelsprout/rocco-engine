@@ -146,6 +146,18 @@ test_surface_scope_values_validate_types_defaults_and_finiteness :: proc(t: ^tes
 }
 
 @(test)
+test_surface_shader_absent_from_its_pack_names_the_shader_the_pack_and_the_load :: proc(t: ^testing.T) {
+	f:Surface_Fixture; surface_fixture_init(t,&f); defer surface_fixture_destroy(&f)
+	mesh,_:=mesh_lookup(&f.frame.meshes,f.mesh);part:=mesh.surface_parts[1]
+	values:=surface_test_values();values.shader.asset=roc_str_from_slice("shader/TownGround")
+	_,reason:=surface_values_resolve(&f.packs,&part,&values,nil,nil,0,false)
+	testing.expect_value(t,reason,"Shader shader/TownGround is absent from Pack trees; add shader/TownGround to the Load of Pack trees")
+	values.shader.asset=roc_str_from_slice("tree")
+	_,reason=surface_values_resolve(&f.packs,&part,&values,nil,nil,0,false)
+	testing.expect_value(t,reason,"tree in Pack trees is not a Shader")
+}
+
+@(test)
 test_surface_failures_omit_only_the_affected_named_part_and_reject_conflicts :: proc(t: ^testing.T) {
 	f:Surface_Fixture; surface_fixture_init(t,&f); defer surface_fixture_destroy(&f)
 	d:=surface_test_draw(&f);values:=surface_test_values();values.shader.asset=roc_str_from_slice("shader/Missing")
