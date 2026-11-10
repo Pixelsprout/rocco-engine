@@ -281,8 +281,22 @@ def drive_echo(b, _out):
     over = b.scene()["results"]["ui"]["over"]
     check(over == [], f"with no pointer, nothing is under it: {over}")
 
+    check(pick_at(b, (480, 270)) == "1", "a click on the cube in the middle of the window picks it")
+    check(pick_at(b, (900, 300)) == "none", "a click on empty sky picks nothing")
+
     drive_echo_devices(b)
     b.quit()
+
+
+# bridge-echo casts its Raycast in the Scene of the click step, so the pick
+# Tell arrives one step later.
+def pick_at(b, point):
+    b.step(1, pointer={"x": point[0], "y": point[1]})
+    commands = b.step(1, pointer={"x": point[0], "y": point[1], "tap": ["Left"]})["commands"]
+    check(commands == [], f"the click step Tells nothing yet: {commands}")
+    picks = [c["Tell"]["msg"] for c in b.step(1)["commands"] if "Tell" in c and c["Tell"]["port"] == "pick"]
+    check(len(picks) == 1, f"one pick Tell after the click: {picks}")
+    return picks[0]
 
 
 # inject feeds the real devices, as the window does, so the click goes through

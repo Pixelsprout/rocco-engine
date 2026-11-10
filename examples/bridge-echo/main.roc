@@ -2,6 +2,8 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 
 # A game for the Bridge check: it Listens on the port echo and Tells each
 # message back on the same port. A left click on the button Tells click.
+# A left click outside the UI casts a ray under the pointer, and the next
+# step Tells pick with the Collider it hit, or none.
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -13,16 +15,18 @@ import pf.Launch
 import pf.Light
 import pf.MouseButton
 import pf.Port
+import pf.Collider
+import pf.Query
 import pf.QueryResults
 import pf.Scene
 
-Model : { heard : List(Str) }
+Model : { heard : List(Str), aim : [Aim(Cam.Ray), Idle] }
 
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Echo" } }
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
-init = |_config| { model: { heard: [] }, commands: [] }
+init = |_config| { model: { heard: [], aim: Idle }, commands: [] }
 
 loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, _manifest| model
@@ -30,8 +34,41 @@ loaded = |model, _pack, _manifest| model
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, results, _dt| {
 	echoed = reply(model, results)
-	{ ..echoed, commands: echoed.commands.concat(clicks(input, results)) }
+	{
+		model: { ..echoed.model, aim: aim(input, results) },
+		commands: List.join([echoed.commands, clicks(input, results), picked(model, results)]),
+	}
 }
+
+aim : Vocabulary.Input, Vocabulary.QueryResults -> [Aim(Cam.Ray), Idle]
+aim = |input, results| if MouseButton.released(input, Left) and results.ui.over.is_empty() {
+	match Cam.unproject(camera, input.window, { x: input.pointer.x, y: input.pointer.y }) {
+		Ok(ray) => Aim(ray)
+		Err(SeesNothing) => Idle
+	}
+} else {
+	Idle
+}
+
+picked : Model, Vocabulary.QueryResults -> List(Command)
+picked = |model, results| match model.aim {
+	Aim(_) =>
+		match QueryResults.ray(results, pick_owner) {
+			Ok(hit) => [Port.tell("pick", hit.id.to_str())]
+			Err(Miss) => [Port.tell("pick", "none")]
+		}
+	Idle => []
+}
+
+# No Collider has this id, so the Raycast skips nothing.
+pick_owner : U64
+pick_owner = 100
+
+cube_id : U64
+cube_id = 1
+
+camera : Vocabulary.Camera
+camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
 
 clicks : Vocabulary.Input, Vocabulary.QueryResults -> List(Command)
 clicks = |input, results| if MouseButton.released(input, Left) and List.contains(results.ui.over, button_id) {
@@ -54,7 +91,7 @@ log_id = 9
 reply : Model, Vocabulary.QueryResults -> { model : Model, commands : List(Command) }
 reply = |model, results| {
 	msgs = Port.messages(results, "echo")
-	{ model: { heard: model.heard.concat(msgs) }, commands: msgs.map(|msg| Port.tell("echo", msg)) }
+	{ model: { ..model, heard: model.heard.concat(msgs) }, commands: msgs.map(|msg| Port.tell("echo", msg)) }
 }
 
 sky_light : Vocabulary.Light
@@ -91,17 +128,21 @@ log_row = |n| Panel({ ..Ui.default_panel, width: Fixed(200.0), height: Fixed(20.
 
 view : Model -> Vocabulary.Scene
 view = |model| {
-	cube = { ..Draw.default, id: 1, mesh: Mesh.primitive(Cube), tint: { r: 0.9, g: 0.22, b: 0.03 } }
-	camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
+	cube = { ..Draw.default, id: cube_id, mesh: Mesh.primitive(Cube), tint: { r: 0.9, g: 0.22, b: 0.03 } }
+	cube_collider = Collider.box(cube_id, cube.pos, cube.rot, { x: 0.5, y: 0.5, z: 0.5 })
+	pick_ray = match model.aim {
+		Aim(ray) => [Query.ray(pick_owner, ray.origin, ray.dir, 100.0)]
+		Idle => []
+	}
 	hud = Panel(Ui.panel(LeftTop, { x: 16.0, y: 16.0 }), [Text({ ..Ui.label(hud_text(model)), wrap: None })])
-	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(cube)], queries: [Port.listen("echo")], ui: [hud, button, log] }
+	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(cube), Collider(cube_collider)], queries: List.join([[Port.listen("echo")], pick_ray]), ui: [hud, button, log] }
 }
 
-expect reply({ heard: [] }, QueryResults.empty) == { model: { heard: [] }, commands: [] }
-expect reply({ heard: [] }, { ..QueryResults.empty, ports: [{ port: "echo", msg: "a" }, { port: "x", msg: "b" }, { port: "echo", msg: "" }] }) == { model: { heard: ["a", ""] }, commands: [Port.tell("echo", "a"), Port.tell("echo", "")] }
-expect hud_text({ heard: [] }) == "Listening on echo"
-expect hud_text({ heard: ["a", "b"] }) == "b"
-expect view({ heard: [] }).queries == [Port.listen("echo")]
+expect reply({ heard: [], aim: Idle }, QueryResults.empty) == { model: { heard: [], aim: Idle }, commands: [] }
+expect reply({ heard: [], aim: Idle }, { ..QueryResults.empty, ports: [{ port: "echo", msg: "a" }, { port: "x", msg: "b" }, { port: "echo", msg: "" }] }) == { model: { heard: ["a", ""], aim: Idle }, commands: [Port.tell("echo", "a"), Port.tell("echo", "")] }
+expect hud_text({ heard: [], aim: Idle }) == "Listening on echo"
+expect hud_text({ heard: ["a", "b"], aim: Idle }) == "b"
+expect view({ heard: [], aim: Idle }).queries == [Port.listen("echo")]
 
 released = { ..Input.empty, pointer: { ..Input.empty.pointer, released: [MouseButton.code(Left)] } }
 
@@ -110,3 +151,36 @@ over_button = { ..QueryResults.empty, ui: { over: [7], scroll: [] } }
 expect clicks(released, over_button) == [Port.tell("click", "7")]
 expect clicks(released, QueryResults.empty) == []
 expect clicks(Input.empty, over_button) == []
+
+released_at = |x, y| { ..released, pointer: { ..released.pointer, x, y, inside: Bool.True } }
+
+# A click on the cube in the middle of the window sends a Raycast from the eye.
+expect {
+	aimed = step({ heard: [], aim: Idle }, released_at(480.0, 270.0), QueryResults.empty, 0.0).model
+	match view(aimed).queries {
+		[Listen(_), Raycast(ray)] => ray.owner == pick_owner and ray.origin == camera.eye
+		_ => Bool.False
+	}
+}
+
+# A click over a Panel sends no Raycast.
+expect step({ heard: [], aim: Idle }, released_at(884.0, 36.0), over_button, 0.0).model.aim == Idle
+
+aiming : Model
+aiming = { heard: [], aim: Aim({ origin: camera.eye, dir: { x: 0.0, y: 0.0, z: -1.0 } }) }
+
+cube_hit : Vocabulary.RayHit
+cube_hit = {
+	owner: pick_owner,
+	slot: 0,
+	id: cube_id,
+	point: { x: 0.0, y: 0.0, z: 0.5 },
+	normal: { x: 0.0, y: 0.0, z: 1.0 },
+	distance: 4.0,
+}
+
+# The step after a Raycast Tells pick with the id it hit.
+expect step(aiming, Input.empty, { ..QueryResults.empty, rays: [cube_hit] }, 0.0).commands == [Port.tell("pick", "1")]
+
+# The step after a Raycast that hit nothing Tells pick none.
+expect step(aiming, Input.empty, QueryResults.empty, 0.0).commands == [Port.tell("pick", "none")]

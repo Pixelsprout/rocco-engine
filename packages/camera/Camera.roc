@@ -42,23 +42,46 @@ Camera := [].{
 	## with no right direction, such as straight down with no other `up`, sees
 	## nothing, so every point is `Behind`.
 	project : View, { width : F32, height : F32 }, Vec3 -> Try({ x : F32, y : F32 }, [Behind])
-	project = |view, size, point| {
-		view_dir = sub(view.target, view.eye)
-		up = if (length(cross(view_dir, view.up)) < up_epsilon) world_up else view.up
-		forward = normalize(view_dir)
-		right = normalize(cross(forward, up))
-		true_up = cross(right, forward)
-		offset = sub(point, view.eye)
-		depth = dot(forward, offset)
-		if depth <= near or dot(right, right) == 0.0 {
-			Err(Behind)
-		} else {
-			half = view.fov_y / 2.0
-			focal = half.cos() / half.sin()
-			ndc_x = focal / (size.width / size.height) * dot(right, offset) / depth
-			ndc_y = focal * dot(true_up, offset) / depth
-			Ok({ x: (ndc_x + 1.0) / 2.0 * size.width, y: (1.0 - ndc_y) / 2.0 * size.height })
+	project = |view, size, point| match basis(view) {
+		Ok({ forward, right, true_up }) => {
+			offset = sub(point, view.eye)
+			depth = dot(forward, offset)
+			if depth <= near {
+				Err(Behind)
+			} else {
+				f = focal(view.fov_y)
+				ndc_x = f / (size.width / size.height) * dot(right, offset) / depth
+				ndc_y = f * dot(true_up, offset) / depth
+				Ok({ x: (ndc_x + 1.0) / 2.0 * size.width, y: (1.0 - ndc_y) / 2.0 * size.height })
+			}
 		}
+		Err(NoRight) => Err(Behind)
+	}
+
+	## A line from `origin` along the unit direction `dir`.
+	Ray : { origin : Vec3, dir : Vec3 }
+
+	## The world ray under a window position, the inverse of `project`. The
+	## position and `size` are in logical pixels, as in `Input.pointer` and
+	## `Input.window`. The ray starts at the eye. Send it as a Raycast Query to
+	## find the Collider under the pointer; the answer comes the next step. A
+	## view that sees nothing, as in `project`, is `SeesNothing`.
+	unproject : View, { width : F32, height : F32 }, { x : F32, y : F32 } -> Try(Ray, [SeesNothing])
+	unproject = |view, size, position| match basis(view) {
+		Ok({ forward, right, true_up }) => {
+			f = focal(view.fov_y)
+			ndc_x = position.x / size.width * 2.0 - 1.0
+			ndc_y = 1.0 - position.y / size.height * 2.0
+			side = ndc_x * (size.width / size.height) / f
+			lift = ndc_y / f
+			dir = normalize({
+				x: forward.x + right.x * side + true_up.x * lift,
+				y: forward.y + right.y * side + true_up.y * lift,
+				z: forward.z + right.z * side + true_up.z * lift,
+			})
+			Ok({ origin: view.eye, dir })
+		}
+		Err(NoRight) => Err(SeesNothing)
 	}
 }
 
@@ -68,6 +91,27 @@ near = 0.1
 
 up_epsilon : F32
 up_epsilon = 0.000001
+
+# The host's camera axes. An up along the view falls back to +y, as the host
+# does. A view with no right direction sees nothing.
+basis : Camera.View -> Try({ forward : Camera.Vec3, right : Camera.Vec3, true_up : Camera.Vec3 }, [NoRight])
+basis = |view| {
+	view_dir = sub(view.target, view.eye)
+	up = if (length(cross(view_dir, view.up)) < up_epsilon) Camera.world_up else view.up
+	forward = normalize(view_dir)
+	right = normalize(cross(forward, up))
+	if dot(right, right) == 0.0 {
+		Err(NoRight)
+	} else {
+		Ok({ forward, right, true_up: cross(right, forward) })
+	}
+}
+
+focal : F32 -> F32
+focal = |fov_y| {
+	half = fov_y / 2.0
+	half.cos() / half.sin()
+}
 
 # The camera package does not import linalg, so it keeps its own vector helpers.
 sub : Camera.Vec3, Camera.Vec3 -> Camera.Vec3
@@ -186,4 +230,64 @@ expect Camera.project(test_view, test_size, { x: 0.0, y: 0.0, z: 9.95 }) == Err(
 expect {
 	view = Camera.look_at({ x: 0.0, y: 10.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 0.0 })
 	Camera.project(view, test_size, { x: 0.0, y: 0.0, z: 0.0 }) == Err(Behind)
+}
+
+# A ray through the middle of the window points along the view.
+expect {
+	match Camera.unproject(test_view, test_size, { x: 640.0, y: 400.0 }) {
+		Ok(ray) => ray.origin == test_view.eye and ray.dir.x.abs() < 0.0001 and ray.dir.y.abs() < 0.0001 and (ray.dir.z + 1.0).abs() < 0.0001
+		Err(_) => Bool.False
+	}
+}
+
+# A point along the ray projects back to the pointer, for a corner and an
+# off-centre pointer on a tilted view.
+expect {
+	view = {
+		eye: { x: 3.0, y: 5.0, z: 8.0 },
+		target: { x: -1.0, y: 0.5, z: 0.0 },
+		up: { x: 0.2, y: 1.0, z: 0.1 },
+		fov_y: 1.047,
+	}
+	round_trips = |pointer|
+		match Camera.unproject(view, test_size, pointer) {
+			Ok(ray) => {
+				along = { x: ray.origin.x + ray.dir.x * 7.0, y: ray.origin.y + ray.dir.y * 7.0, z: ray.origin.z + ray.dir.z * 7.0 }
+				match Camera.project(view, test_size, along) {
+					Ok(p) => (p.x - pointer.x).abs() < 0.05 and (p.y - pointer.y).abs() < 0.05
+					Err(_) => Bool.False
+				}
+			}
+			Err(_) => Bool.False
+		}
+	round_trips({ x: 0.0, y: 0.0 }) and round_trips({ x: 1280.0, y: 800.0 }) and round_trips({ x: 213.0, y: 611.0 })
+}
+
+# The ray's direction has unit length.
+expect {
+	match Camera.unproject(test_view, test_size, { x: 0.0, y: 800.0 }) {
+		Ok(ray) => ((ray.dir.x * ray.dir.x + ray.dir.y * ray.dir.y + ray.dir.z * ray.dir.z) - 1.0).abs() < 0.0001
+		Err(_) => Bool.False
+	}
+}
+
+# Straight down with +y up has no right direction, so it gives no ray.
+expect {
+	view = Camera.look_at({ x: 0.0, y: 10.0, z: 0.0 }, { x: 0.0, y: 0.0, z: 0.0 })
+	Camera.unproject(view, test_size, { x: 640.0, y: 400.0 }) == Err(SeesNothing)
+}
+
+# On a tilted view, the ray through the middle of the window points at the target.
+expect {
+	view = {
+		eye: { x: 3.0, y: 5.0, z: 8.0 },
+		target: { x: -1.0, y: 0.5, z: 0.0 },
+		up: { x: 0.2, y: 1.0, z: 0.1 },
+		fov_y: 1.047,
+	}
+	want = { x: -4.0 / 10.0125, y: -4.5 / 10.0125, z: -8.0 / 10.0125 }
+	match Camera.unproject(view, test_size, { x: 640.0, y: 400.0 }) {
+		Ok(ray) => (ray.dir.x - want.x).abs() < 0.0001 and (ray.dir.y - want.y).abs() < 0.0001 and (ray.dir.z - want.z).abs() < 0.0001
+		Err(_) => Bool.False
+	}
 }

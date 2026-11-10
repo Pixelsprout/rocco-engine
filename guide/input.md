@@ -130,6 +130,27 @@ pixels, the unit of the UI. The host reads it once per frame, so it
 follows a resize. A Headless run gets the Launch width and height. Pass it
 to `Camera.project` to put a label over a point in the world.
 
+## Picking
+
+To find what the player clicked in the world, turn the pointer into a ray
+and ask the Colliders. `Camera.unproject` takes the camera's View, the
+window size and the pointer position, and gives a ray from the eye through
+that point. Send it as a Raycast in the next Scene, and read the hit in the
+step after:
+
+```roc
+aim = match Camera.unproject(camera, input.window, { x: input.pointer.x, y: input.pointer.y }) {
+	Ok(ray) => [Query.ray(pick_owner, ray.origin, ray.dir, 100.0)]
+	Err(SeesNothing) => []
+}
+```
+
+The hit names the Collider's id, so give each thing you want to pick a
+Collider. The answer comes one step after the click, like every Query. Skip
+the pick when `results.ui.over` is not empty, so a click on a Panel does not
+also pick what is behind it. `examples/bridge-echo` picks its cube this way.
+See [Collisions](collisions.md) for Raycasts.
+
 ## The mouse lock
 
 The [Cursor] field of the Scene locks or frees the mouse:
