@@ -185,8 +185,8 @@ A game starts from `pf.Scene.empty` and sets only the fields it decides.
 _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Node**:
-One part of the Scene's 3D tree: a Group, which holds its children, or a
-leaf, which is a Draw, a Light, a Collider or a Speaker. The game writes
+One part of the Scene's 3D tree: a Group or an Attach, which holds its
+children, or a leaf, which is a Draw, a Light, a Collider or a Speaker. The game writes
 the tags itself, such as `Group({ id, pos, rot, selected }, [...])` and `Draw(...)`.
 "First" among Nodes means first in a depth-first, pre-order walk: a Group,
 then its children, then the Group's next sibling. That is the order the
@@ -201,6 +201,13 @@ it by its Group id, up to `Launch.capacity.groups` Groups per Scene.
 A selected Group includes all descendant Draws in one coverage and nearest-depth union.
 Post shaders choose outline style and occlusion policy from these generic inputs.
 _Avoid_: parent, frame (a display refresh), transform, pivot, container, entity
+
+**Attach**:
+A Node that names a Draw and one Joint of its Skin, and holds a list of
+child Nodes. Its children's Poses are local to that Joint: they follow the
+Joint's position and rot in the same Frame, never its scale. Where the
+Attach sits in the tree does not move it. Planned: dex r3c96iyu, ADR 0034.
+_Avoid_: socket, bone attachment, mount, parent
 
 **Pose**:
 A position and a rot. A Node's Pose is local to its Group, or to the world
@@ -303,6 +310,17 @@ takes it from the current Scene, with no interpolation. The UI draws after
 the Tone map, so the Environment never changes the UI. Start from
 `pf.Environment.default`. ADR 0026.
 _Avoid_: look, post settings, render settings
+
+**Sky blend**:
+The `sky_blend` field of an Environment: a second sky and an amount from 0
+to 1. The host blends the background and the image-based light from the
+sky toward the second sky together. Planned: dex 0fllooso.
+_Avoid_: sky fade, sky crossfade, sky mix
+
+**Sky fog**:
+The `fog.sky` amount of an Environment. The host mixes the fog colour into
+the sky, most at the horizon and none overhead. Planned: dex 0fllooso.
+_Avoid_: sky haze, horizon fog
 
 **Tone map**:
 The curve that maps the linear colour of the 3D view, above 1 included, to
@@ -569,6 +587,12 @@ The Command `Unload(pack)`. The host drops the pack and unloads each asset
 that no other loaded pack holds. An Unload for an unknown pack logs once and
 does nothing. A swap sends it from a step after `loaded`.
 _Avoid_: close, free, release
+
+**Log**:
+The Command `Log(msg)`. The host writes the line to stderr with a `game:`
+prefix, and a Driver reads it in the `step` reply. A Log goes to no Port.
+Planned: dex qo4dl51i.
+_Avoid_: print, dbg (the Roc debug expression), trace, Tell
 
 **Contact**:
 A fact the host computes from the previous Scene for a ContactsOf Query: two
