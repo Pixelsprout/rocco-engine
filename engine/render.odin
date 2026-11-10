@@ -157,7 +157,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 
 	black := sky_lighting_texture(1, false, context.allocator)
 	r.black_cube = sky_lighting_upload(black, context.allocator)
-	r.environment = {diffuse = r.black_cube, specular = r.black_cube}
+	r.environment = environment_light(r, {})
 
 	r.shadow = shadow_map_make(launch.shadow_map, int(launch.shadow_cascades))
 

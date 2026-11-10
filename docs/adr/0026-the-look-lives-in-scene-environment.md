@@ -75,3 +75,10 @@ picture that is not a Description.
   logs. Host tests start from a copy of `Environment.default`.
 - The fog and bloom passes test `amount > 0` and `strength > 0` to skip
   their work.
+
+## Later changes
+
+- 2026-11-11: Environment gained `sky_blend` (a second sky and an amount)
+  and `fog.sky` (fog on the sky by height). Both are off by default, like
+  fog and bloom. A blend renders both skies' light into blend cubes, so the
+  Surface shader contract keeps its slots. See docs/ENVIRONMENT-LIGHTING.md.

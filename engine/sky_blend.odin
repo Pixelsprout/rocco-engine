@@ -2,8 +2,6 @@ package engine
 
 import sg "../sokol-odin/sokol/gfx"
 
-// The blended specular cube matches the largest sky specular cube, 128 down
-// to 1 texel.
 SKY_BLEND_SPECULAR_MIPS :: 8
 
 #assert(1 << (SKY_BLEND_SPECULAR_MIPS - 1) == SKY_SPECULAR_SIDE)
@@ -14,12 +12,12 @@ Environment_Light :: struct {
 	params:            [4]f32,
 }
 
-// faces holds a colour attachment for each face of each mip, face first.
+// Each mip's attachments hold its six faces as colour targets 0 to 5.
 Sky_Blend_Cube :: struct {
 	texture: Mesh_Texture,
 	side:    int,
 	mips:    int,
-	faces:   [6 * SKY_BLEND_SPECULAR_MIPS]sg.View,
+	mip_faces: [SKY_BLEND_SPECULAR_MIPS]sg.Attachments,
 }
 
 // The targets are made on the first blend. from, to and amount are the last
@@ -63,7 +61,8 @@ sky_blend_make :: proc(b: ^Sky_Blend_Target) {
 		{
 			shader = sg.make_shader(cube_blend_shader_desc(sg.query_backend())),
 			sample_count = 1,
-			colors = {0 = {pixel_format = .RGBA16F}},
+			color_count = 6,
+			colors = {0 = {pixel_format = .RGBA16F}, 1 = {pixel_format = .RGBA16F}, 2 = {pixel_format = .RGBA16F}, 3 = {pixel_format = .RGBA16F}, 4 = {pixel_format = .RGBA16F}, 5 = {pixel_format = .RGBA16F}},
 			depth = {pixel_format = .NONE},
 			cull_mode = .NONE,
 			label = "sky-blend",
@@ -92,7 +91,7 @@ sky_blend_cube_make :: proc(cube: ^Sky_Blend_Cube, side, mips: int) {
 	cube^ = {texture = {image = image, view = sg.make_view({texture = {image = image}}), sampler = sampler}, side = side, mips = mips}
 	for mip in 0 ..< mips {
 		for face in 0 ..< 6 {
-			cube.faces[mip * 6 + face] = sg.make_view({color_attachment = {image = image, mip_level = i32(mip), slice = i32(face)}})
+			cube.mip_faces[mip].colors[face] = sg.make_view({color_attachment = {image = image, mip_level = i32(mip), slice = i32(face)}})
 		}
 	}
 }
@@ -101,21 +100,22 @@ sky_blend_cube_make :: proc(cube: ^Sky_Blend_Cube, side, mips: int) {
 // at that roughness times its own last mip.
 @(private = "file")
 sky_blend_cube :: proc(b: ^Sky_Blend_Target, cube: ^Sky_Blend_Cube, from, to: Mesh_Texture, from_lod, to_lod, amount: f32) {
+	action: sg.Pass_Action
+	for i in 0 ..< 6 {
+		action.colors[i].load_action = .DONTCARE
+	}
 	for mip in 0 ..< cube.mips {
 		roughness := f32(mip) / f32(max(cube.mips - 1, 1))
-		side := max(cube.side >> uint(mip), 1)
-		for face in 0 ..< 6 {
-			gfx_begin_pass({action = {colors = {0 = {load_action = .DONTCARE}}}, attachments = {colors = {0 = cube.faces[mip * 6 + face]}}, label = "sky-blend"})
-			sg.apply_pipeline(b.pip)
-			sg.apply_bindings({views = {VIEW_blend_from_tex = from.view, VIEW_blend_to_tex = to.view}, samplers = {SMP_blend_from_smp = from.sampler, SMP_blend_to_smp = to.sampler}})
-			params := Cube_Blend_Params {
-				target = {f32(face), f32(side), 0, 0},
-				lods   = {roughness * from_lod, roughness * to_lod, 0, 0},
-				amount = {amount, 0, 0, 0},
-			}
-			sg.apply_uniforms(UB_cube_blend_params, {ptr = &params, size = size_of(Cube_Blend_Params)})
-			sg.draw(0, 3, 1)
-			gfx_end_pass()
+		gfx_begin_pass({action = action, attachments = cube.mip_faces[mip], label = "sky-blend"})
+		sg.apply_pipeline(b.pip)
+		sg.apply_bindings({views = {VIEW_blend_from_tex = from.view, VIEW_blend_to_tex = to.view}, samplers = {SMP_blend_from_smp = from.sampler, SMP_blend_to_smp = to.sampler}})
+		params := Cube_Blend_Params {
+			target = {0, f32(max(cube.side >> uint(mip), 1)), 0, 0},
+			lods   = {roughness * from_lod, roughness * to_lod, 0, 0},
+			amount = {amount, 0, 0, 0},
 		}
+		sg.apply_uniforms(UB_cube_blend_params, {ptr = &params, size = size_of(Cube_Blend_Params)})
+		sg.draw(0, 3, 1)
+		gfx_end_pass()
 	}
 }

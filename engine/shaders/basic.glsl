@@ -497,7 +497,6 @@ void main() {
     vec3 from = mix(texture(samplerCube(sky_tex, sky_smp), v_dir).rgb, clear.rgb, blend.z);
     vec3 to = texture(samplerCube(sky_to_tex, sky_to_smp), v_dir).rgb;
     vec3 color = mix(from, to, blend.x);
-    // Full fog at the horizon and below, none overhead.
     float height = max(normalize(v_dir).y, 0.0);
     float fog = blend.y * pow(1.0 - height, 4.0);
     frag_color = vec4(mix(color, fog_color.rgb, fog), 1.0);
@@ -709,15 +708,16 @@ void main() {
 @program blit blit_vs blit_fs
 
 @fs cube_blend_fs
-// Writes one mip of one face of a cubemap. Each texel's direction follows
-// sky_face_direction in engine/sky_lighting.odin, and gl_FragCoord rows run
-// in upload order on every backend, as blit_fs relies on.
+// Writes one mip of all six faces of a cubemap, face i to colour target i.
+// Each texel's direction must match sky_face_direction in
+// engine/sky_lighting.odin. gl_FragCoord rows run in upload order on every
+// backend, as blit_fs relies on.
 layout(binding = 0) uniform textureCube blend_from_tex;
 layout(binding = 0) uniform sampler blend_from_smp;
 layout(binding = 1) uniform textureCube blend_to_tex;
 layout(binding = 1) uniform sampler blend_to_smp;
 
-// target is the face, the side in texels, and the mip to read from each
+// target.y is the side in texels. lods holds the mip to read from each
 // source. amount.x is the share of blend_to_tex.
 layout(binding = 0) uniform cube_blend_params {
     vec4 target;
@@ -725,7 +725,12 @@ layout(binding = 0) uniform cube_blend_params {
     vec4 amount;
 };
 
-out vec4 frag_color;
+layout(location = 0) out vec4 face_px;
+layout(location = 1) out vec4 face_nx;
+layout(location = 2) out vec4 face_py;
+layout(location = 3) out vec4 face_ny;
+layout(location = 4) out vec4 face_pz;
+layout(location = 5) out vec4 face_nz;
 
 vec3 face_direction(float face, vec2 uv) {
     if (face < 0.5) { return vec3(1.0, -uv.y, -uv.x); }
@@ -736,12 +741,21 @@ vec3 face_direction(float face, vec2 uv) {
     return vec3(-uv.x, -uv.y, -1.0);
 }
 
-void main() {
-    vec2 uv = gl_FragCoord.xy / target.y * 2.0 - 1.0;
-    vec3 d = normalize(face_direction(target.x, uv));
+vec4 blend_face(float face, vec2 uv) {
+    vec3 d = normalize(face_direction(face, uv));
     vec3 a = textureLod(samplerCube(blend_from_tex, blend_from_smp), d, lods.x).rgb;
     vec3 b = textureLod(samplerCube(blend_to_tex, blend_to_smp), d, lods.y).rgb;
-    frag_color = vec4(mix(a, b, amount.x), 1.0);
+    return vec4(mix(a, b, amount.x), 1.0);
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / target.y * 2.0 - 1.0;
+    face_px = blend_face(0.0, uv);
+    face_nx = blend_face(1.0, uv);
+    face_py = blend_face(2.0, uv);
+    face_ny = blend_face(3.0, uv);
+    face_pz = blend_face(4.0, uv);
+    face_nz = blend_face(5.0, uv);
 }
 @end
 

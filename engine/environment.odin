@@ -61,7 +61,6 @@ fog_uniform :: proc(fog: Fog) -> (fog_color, fog_ramp: [4]f32) {
 	return {fog.color.r, fog.color.g, fog.color.b, 0}, {fog.start, 1 / (fog.end - fog.start), fog.amount, 0}
 }
 
-// NaN becomes 0.
 @(private = "file")
 unit_number :: proc(logged: ^bit_set[Environment_Clamp], which: Environment_Clamp, name: string, n: f32) -> f32 {
 	if n >= 0 && n <= 1 {

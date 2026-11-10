@@ -42,7 +42,6 @@ test_sky_table_draws_no_sky_for_an_id_past_its_capacity :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(table.logged), 1)
 }
 
-// Two skies, a and b, with no pixels.
 sky_view_fixture :: proc(table: ^Sky_Table) -> (a, b: u32) {
 	sky_table_init(table, SMALL_SKIES, context.allocator, context.allocator)
 	slot_a, _ := sky_table_add(table, strings.clone("sky/a"), 1, nil)

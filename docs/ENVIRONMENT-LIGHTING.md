@@ -88,20 +88,22 @@ The lighting uses two blend cubes that the renderer makes on the first blend.
 The diffuse blend cube has six 16 by 16 RGBA16F faces.
 The specular blend cube has six 128 by 128 RGBA16F faces and eight mips.
 Mip `m` reads each source at `m / 7` of that source's last mip.
-One pass per face and mip writes the mix, 54 passes in all.
+One pass per mip writes the mix into all six faces at once, 9 passes in all.
 The passes run before the shadow pass, only when the skies or the amount change.
 A blend that holds still draws no passes.
 
 Mesh and Surface shaders read the blend cubes in slots 6 and 7.
 Their metadata is `(1, 7, 0, 0)`.
-So the shader contract does not change, and each lit fragment still takes one diffuse and one specular sample.
+The shader contract does not change.
+Each lit fragment still takes one diffuse sample and one specular sample.
 
 ## Sky fog
 
 `Environment.fog.sky` mixes the fog colour into the background.
 The host clamps it to 0 through 1 and logs once when it clamps.
 The mix is `fog.sky * (1 - max(direction.y, 0))^4`.
-So the horizon and every direction below it take the full amount, and overhead takes none.
+The horizon and every direction below it take the full amount.
+The direction straight overhead takes none.
 Sky fog does not depend on `fog.amount`, and it does not change the lighting.
 The clear colour never fogs.
 

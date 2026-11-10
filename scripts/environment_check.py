@@ -65,7 +65,6 @@ def drive(b, out):
     check(Path(none).read_bytes()==Path(unloaded).read_bytes(),'unloaded sky removes background and lighting together')
     b.step(1,tap=['R']); restored=shot('restored')
     check(Path(warm).read_bytes()==Path(restored).read_bytes(),'Pack reload restores the complete environment')
-    # B steps the blend from warm toward cool through 0.5 and 1, then back to 0.
     b.step(1,tap=['B']); half=shot('blend-half')
     for point in points:
         w,h,c=(warmth(patch(path,scene,point)) for path in (warm,half,cool))
@@ -74,7 +73,6 @@ def drive(b, out):
     check(sky[0]>30 and sky[2]<-30 and abs(sky[1])<20,f'the background blends with the light: {sky}')
     b.step(1,tap=['B']); full=shot('blend-full')
     check(Path(full).read_bytes()==Path(cool).read_bytes(),'a blend of 1 draws the second sky alone')
-    # F turns on the fog's sky amount with a rose fog colour.
     b.step(1,tap=['B']); b.step(1,tap=['F']); fogged=shot('sky-fog')
     horizon=max(abs(x-y) for x,y in zip(screen_patch(fogged,0.05,0.5),screen_patch(warm,0.05,0.5)))
     top=max(abs(x-y) for x,y in zip(screen_patch(fogged,0.05,0.02),screen_patch(warm,0.05,0.02)))
