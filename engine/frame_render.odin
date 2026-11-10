@@ -65,8 +65,8 @@ Submit_Shadow :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline
 Submit :: #type proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Surface :: #type proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, vs_params: Vs_Params, fs_params: Fs_Params, skin: ^Skin_Params)
 Submit_Lights :: #type proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame)
-Submit_Environment :: #type proc(ctx: rawptr, sky: ^Sky)
-Submit_Sky :: #type proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params)
+Submit_Environment :: #type proc(ctx: rawptr, sky: Sky_View)
+Submit_Sky :: #type proc(ctx: rawptr, sky: Sky_View, vs_params: Sky_Vs_Params, fs_params: Sky_Fs_Params)
 Submit_Bloom :: #type proc(ctx: rawptr, step: Bloom_Step)
 Submit_Tone_Map :: #type proc(ctx: rawptr, params: Tone_Map_Params)
 Submit_Ui :: #type proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32)
@@ -266,6 +266,12 @@ frame_render_destroy :: proc(fr: ^Frame_Render) {
 	delete(fr.attach_logged)
 }
 
+// A blend from no sky starts at the clear colour.
+sky_fs_params :: proc(sky: Sky_View, env: Environment) -> Sky_Fs_Params {
+	from_clear := f32(1) if sky.from == nil else 0
+	return {blend = {sky.amount, env.fog.sky, from_clear, 0}, fog_color = {env.fog.color.r, env.fog.color.g, env.fog.color.b, 0}, clear = {env.clear.r, env.clear.g, env.clear.b, 0}}
+}
+
 // An up along the view, or a zero up, has no right vector.
 frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect: f32) -> Frame_View {
 	pose := camera_lerp(prev.camera, curr.camera, alpha)
@@ -376,7 +382,7 @@ frame_render_draw :: proc(
 	lights.fog_color.w = shadow_filter_radius(shadow.filter)
 	lights.camera_pos.w = shadow.depth_bias
 
-	sky, has_sky := sky_resolve(skies, env.sky)
+	sky, has_sky := sky_view(skies, env.sky, env.sky_blend)
 	if fr.submits.submit_environment != nil { fr.submits.submit_environment(fr.submits.ctx, sky) }
 
 	when ODIN_OS == .Darwin { render_diagnostics_begin(fr, view) }
@@ -407,7 +413,7 @@ frame_render_draw :: proc(
 		}
 	}
 	if has_sky {
-		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj})
+		fr.submits.submit_sky(fr.submits.ctx, sky, {view_proj = view.view_proj}, sky_fs_params(sky, env))
 	}
 	instances, batches := particles_frame(fr.particles, 1 if fr.particles_paused else alpha)
 	if fr.submits.upload_particles != nil { fr.submits.upload_particles(fr.submits.ctx, instances, view) }
@@ -1022,7 +1028,7 @@ submits_none_submit :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline
 submits_none_submit_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {}
 
 @(private = "file")
-submits_none_submit_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {}
+submits_none_submit_sky :: proc(ctx: rawptr, sky: Sky_View, vs_params: Sky_Vs_Params, fs_params: Sky_Fs_Params) {}
 
 @(private = "file")
 submits_none_submit_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {}

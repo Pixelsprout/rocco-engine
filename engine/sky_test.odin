@@ -41,3 +41,56 @@ test_sky_table_draws_no_sky_for_an_id_past_its_capacity :: proc(t: ^testing.T) {
 	testing.expect(t, !ok)
 	testing.expect_value(t, len(table.logged), 1)
 }
+
+sky_view_fixture :: proc(table: ^Sky_Table) -> (a, b: u32) {
+	sky_table_init(table, SMALL_SKIES, context.allocator, context.allocator)
+	slot_a, _ := sky_table_add(table, strings.clone("sky/a"), 1, nil)
+	slot_b, _ := sky_table_add(table, strings.clone("sky/b"), 1, nil)
+	return sky_id(table, slot_a), sky_id(table, slot_b)
+}
+
+@(test)
+test_sky_view_draws_the_sky_alone_with_no_blend :: proc(t: ^testing.T) {
+	table: Sky_Table
+	a, b := sky_view_fixture(&table)
+	defer sky_table_destroy(&table)
+	sky_a, _ := sky_resolve(&table, a)
+
+	for blend in ([]Sky_Blend{{}, {to = b, amount = 0}, {to = 0, amount = 0.5}}) {
+		view, has_sky := sky_view(&table, a, blend)
+		testing.expect(t, has_sky)
+		testing.expect_value(t, view, Sky_View{from = sky_a})
+	}
+}
+
+@(test)
+test_sky_view_blends_toward_the_second_sky_and_draws_it_alone_at_1 :: proc(t: ^testing.T) {
+	table: Sky_Table
+	a, b := sky_view_fixture(&table)
+	defer sky_table_destroy(&table)
+	sky_a, _ := sky_resolve(&table, a)
+	sky_b, _ := sky_resolve(&table, b)
+
+	view, _ := sky_view(&table, a, {to = b, amount = 0.25})
+	testing.expect_value(t, view, Sky_View{from = sky_a, to = sky_b, amount = 0.25})
+	view, _ = sky_view(&table, a, {to = b, amount = 1})
+	testing.expect_value(t, view, Sky_View{from = sky_b})
+}
+
+@(test)
+test_sky_view_blends_from_no_sky_and_drops_an_unknown_second_sky :: proc(t: ^testing.T) {
+	table: Sky_Table
+	a, b := sky_view_fixture(&table)
+	defer sky_table_destroy(&table)
+	sky_b, _ := sky_resolve(&table, b)
+
+	view, has_sky := sky_view(&table, 0, {to = b, amount = 0.5})
+	testing.expect(t, has_sky)
+	testing.expect_value(t, view, Sky_View{to = sky_b, amount = 0.5})
+
+	_, has_sky = sky_view(&table, 0, {})
+	testing.expect(t, !has_sky)
+	view, has_sky = sky_view(&table, a, {to = SMALL_SKIES, amount = 0.5})
+	testing.expect(t, has_sky)
+	testing.expect(t, view.to == nil)
+}

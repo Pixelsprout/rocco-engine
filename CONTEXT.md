@@ -314,12 +314,12 @@ _Avoid_: look, post settings, render settings
 **Sky blend**:
 The `sky_blend` field of an Environment: a second sky and an amount from 0
 to 1. The host blends the background and the image-based light from the
-sky toward the second sky together. Planned: dex 0fllooso.
+sky toward the second sky together.
 _Avoid_: sky fade, sky crossfade, sky mix
 
 **Sky fog**:
 The `fog.sky` amount of an Environment. The host mixes the fog colour into
-the sky, most at the horizon and none overhead. Planned: dex 0fllooso.
+the sky, most at the horizon and none overhead.
 _Avoid_: sky haze, horizon fog
 
 **Tone map**:

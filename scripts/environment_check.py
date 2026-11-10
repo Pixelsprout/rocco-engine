@@ -25,6 +25,17 @@ def peak(path, scene, world):
                if (px-x)**2+(py-y)**2<=radius**2)
 
 
+# The mean of a 5 by 5 patch at a share of the width and height.
+def screen_patch(path, fx, fy):
+    width, height, pixels = bridge.png_rgba(Path(path).read_bytes())
+    x, y = int(fx*width), int(fy*height)
+    return [sum(pixels[(py*width+px)*4+k] for py in range(y-2,y+3) for px in range(x-2,x+3))/25 for k in range(3)]
+
+
+def warmth(rgb):
+    return rgb[0]-rgb[2]
+
+
 def drive(b, out):
     b.hello()
     b.step(1)
@@ -54,6 +65,18 @@ def drive(b, out):
     check(Path(none).read_bytes()==Path(unloaded).read_bytes(),'unloaded sky removes background and lighting together')
     b.step(1,tap=['R']); restored=shot('restored')
     check(Path(warm).read_bytes()==Path(restored).read_bytes(),'Pack reload restores the complete environment')
+    b.step(1,tap=['B']); half=shot('blend-half')
+    for point in points:
+        w,h,c=(warmth(patch(path,scene,point)) for path in (warm,half,cool))
+        check(min(w,c)+5<h<max(w,c)-5,f'a lit surface at {point} blends between the skies: {w:.0f}, {h:.0f}, {c:.0f}')
+    sky=[warmth(screen_patch(path,0.05,0.02)) for path in (warm,half,cool)]
+    check(sky[0]>30 and sky[2]<-30 and abs(sky[1])<20,f'the background blends with the light: {sky}')
+    b.step(1,tap=['B']); full=shot('blend-full')
+    check(Path(full).read_bytes()==Path(cool).read_bytes(),'a blend of 1 draws the second sky alone')
+    b.step(1,tap=['B']); b.step(1,tap=['F']); fogged=shot('sky-fog')
+    horizon=max(abs(x-y) for x,y in zip(screen_patch(fogged,0.05,0.5),screen_patch(warm,0.05,0.5)))
+    top=max(abs(x-y) for x,y in zip(screen_patch(fogged,0.05,0.02),screen_patch(warm,0.05,0.02)))
+    check(horizon>100 and top<horizon/2,f'sky fog is strongest at the horizon: {horizon:.0f} there, {top:.0f} at the top')
     b.quit()
     (root/'environment-evidence.json').write_text(json.dumps({'material_colour_changes':changes,'reference':patch(warm,scene,reference),'metal_reflection_peaks':peaks,'result':'passed'},indent=2)+'\n')
 

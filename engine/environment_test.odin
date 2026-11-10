@@ -131,3 +131,36 @@ test_environment_clamp_logs_each_bad_value_once_per_run :: proc(t: ^testing.T) {
 	testing.expect_value(t, logged, every)
 	testing.expect_value(t, second, first)
 }
+
+@(test)
+test_environment_clamp_keeps_a_sky_blend_and_a_sky_fog_in_range :: proc(t: ^testing.T) {
+	logged: bit_set[Environment_Clamp]
+	env := ENVIRONMENT_DEFAULT
+	env.sky_blend = {to = 3, amount = 0.25}
+	env.fog.sky = 0.5
+
+	testing.expect_value(t, environment_clamp(env, &logged), env)
+	testing.expect_value(t, logged, bit_set[Environment_Clamp]{})
+}
+
+@(test)
+test_environment_clamp_clamps_a_sky_blend_amount_into_0_to_1_and_logs_once :: proc(t: ^testing.T) {
+	for c in ([][2]f32{{1.5, 1}, {-0.25, 0}, {math.nan_f32(), 0}}) {
+		logged: bit_set[Environment_Clamp]
+		env := ENVIRONMENT_DEFAULT
+		env.sky_blend = {to = 3, amount = c[0]}
+		testing.expect_value(t, environment_clamp(env, &logged).sky_blend.amount, c[1])
+		testing.expect_value(t, logged, bit_set[Environment_Clamp]{.Sky_Blend_Amount})
+	}
+}
+
+@(test)
+test_environment_clamp_clamps_a_fog_sky_into_0_to_1_and_logs_once :: proc(t: ^testing.T) {
+	for c in ([][2]f32{{2, 1}, {-1, 0}, {math.nan_f32(), 0}}) {
+		logged: bit_set[Environment_Clamp]
+		env := ENVIRONMENT_DEFAULT
+		env.fog.sky = c[0]
+		testing.expect_value(t, environment_clamp(env, &logged).fog.sky, c[1])
+		testing.expect_value(t, logged, bit_set[Environment_Clamp]{.Fog_Sky})
+	}
+}

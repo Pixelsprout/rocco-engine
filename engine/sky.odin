@@ -33,6 +33,14 @@ Sky :: struct {
 	generation:       u16,
 }
 
+// What a Frame draws behind its meshes and lights them with: from blended
+// toward to by amount. A nil from is no sky. A nil to is no blend, with
+// amount 0.
+Sky_View :: struct {
+	from, to: ^Sky,
+	amount:   f32,
+}
+
 // Slot 0 is no sky and is never filled. After sky_table_upload, a new sky
 // uploads when it is added. The table owns each sky's name and pixels. The
 // slots never grow.
@@ -173,6 +181,21 @@ sky_resolve :: proc(t: ^Sky_Table, id: u32) -> (sky: ^Sky, ok: bool) {
 		}
 	}
 	return nil, false
+}
+
+// The blend needs a clamped amount. An amount of 1 draws to alone, so its
+// image-based light needs no blend pass.
+sky_view :: proc(t: ^Sky_Table, sky: u32, blend: Sky_Blend) -> (view: Sky_View, has_sky: bool) {
+	view.from, _ = sky_resolve(t, sky)
+	if blend.to != 0 && blend.amount > 0 {
+		if to, ok := sky_resolve(t, blend.to); ok {
+			view.to, view.amount = to, blend.amount
+		}
+	}
+	if view.amount == 1 {
+		view = {from = view.to}
+	}
+	return view, view.from != nil || view.to != nil
 }
 
 // sky/<dir> for each directory in dir, sorted. A directory with a missing

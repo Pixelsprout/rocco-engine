@@ -404,6 +404,7 @@ the UI.
 | Field | Default | Sets |
 |---|---|---|
 | `sky` | 0, no sky | the sky drawn behind the meshes |
+| `sky_blend` | an `amount` of 0, which is off | a second sky that `sky` blends toward |
 | `clear` | black | the colour behind the meshes where no sky is |
 | `tone_map` | `Aces` | how a bright colour rolls off to the screen |
 | `exposure` | 1 | a multiplier on every colour before the tone map |
@@ -418,6 +419,18 @@ that the host does not know, draws no sky, so the `clear` colour shows
 behind the meshes instead. [Assets and Packs](assets.md) shows how to load
 a sky and get its id. Like every colour, `clear` is linear, and both it and
 the sky go through the tone map.
+
+The sky also lights the meshes, so changing `sky` from one frame to the
+next makes the light jump. To move between two skies smoothly, such as
+over a day, set `sky_blend`: a second sky `to` and an `amount` from 0 to 1.
+The background and the light of the lit surfaces blend toward `to`
+together. An `amount` of 0 shows `sky` alone and 1 shows `to` alone. Once a
+blend reaches 1, set `sky` to the second sky and the amount back to 0, and
+nothing changes on screen.
+
+```roc
+environment: { ..Environment.default, sky: model.dawn, sky_blend: { to: model.noon, amount: model.day_share } }
+```
 
 ### Tone map and exposure
 
@@ -446,16 +459,19 @@ the surface is `amount` of the way to `color`. An `amount` of 1 hides a far
 surface in the fog colour, and the default `amount` of 0 turns fog off.
 
 ```roc
-environment: { ..Environment.default, fog: { color: { r: 0.32, g: 0.36, b: 0.45 }, start: 8.0, end: 40.0, amount: 1.0 } }
+environment: { ..Environment.default, fog: { color: { r: 0.32, g: 0.36, b: 0.45 }, start: 8.0, end: 40.0, amount: 1.0, sky: 0.0 } }
 ```
 
 The distance is measured straight from the camera, so the fog stays put
 when the camera turns on the spot. The fog mixes the whole colour of a
 surface after its lights and its glow, so a far lamp or an unlit sign
-fades too. The sky and the `clear` colour do not fog. Set the fog `color`
-to the colour of the sky at its horizon, or to the `clear` colour when
-there is no sky, so that far meshes melt into what is behind them instead
-of showing as flat shapes against it. The fog colour is linear, like every
+fades too. The `clear` colour does not fog. To fog the sky, set the fog's
+`sky` from 0 to 1. The host mixes the fog colour into the sky by that much
+at the horizon and below, less higher up, and not at all straight
+overhead, so far meshes melt into a hazy horizon. It works even with an
+`amount` of 0. With no sky, set the fog `color` to the `clear` colour
+instead, so that far meshes melt into what is behind them instead of
+showing as flat shapes against it. The fog colour is linear, like every
 other colour, and goes through the tone map with the rest of the 3D view.
 
 ### Bloom

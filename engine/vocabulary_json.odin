@@ -106,6 +106,12 @@ json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 json_write_environment :: proc(b: ^strings.Builder, env: ^Environment) {
 	json_key(b, "sky", first = true)
 	strings.write_u64(b, u64(env.sky))
+	json_key(b, "sky_blend")
+	json_key(b, "to", first = true)
+	strings.write_u64(b, u64(env.sky_blend.to))
+	json_key(b, "amount")
+	json_write_f32(b, env.sky_blend.amount)
+	strings.write_byte(b, '}')
 	json_key(b, "clear")
 	json_write_rgb(b, env.clear)
 	json_key(b, "tone_map")
@@ -128,6 +134,8 @@ json_write_fog :: proc(b: ^strings.Builder, fog: ^Fog) {
 	json_write_f32(b, fog.end)
 	json_key(b, "amount")
 	json_write_f32(b, fog.amount)
+	json_key(b, "sky")
+	json_write_f32(b, fog.sky)
 	strings.write_byte(b, '}')
 }
 

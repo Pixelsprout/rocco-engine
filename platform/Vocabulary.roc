@@ -473,6 +473,12 @@ Vocabulary := [].{
 	##
 	## - `sky`: a sky id from a Manifest. 0, or an id that the engine does not
 	##   know, draws no sky.
+	## - `sky_blend`: a second sky id, `to`, and an `amount` from 0 to 1. The
+	##   host blends the background and the image-based light from `sky`
+	##   toward `to` together. `to` 0 or `amount` 0 draws `sky` alone, and
+	##   `amount` 1 draws `to` alone. A blend from no `sky` starts at `clear`
+	##   and no image-based light. An `amount` outside 0 to 1 is clamped into
+	##   it and logs once.
 	## - `clear`: the linear colour behind the 3D view. The host clears to it
 	##   each frame, before any mesh. A sky draws over it.
 	## - `tone_map`: how linear colour above 1 rolls off to the screen. `Aces`
@@ -484,10 +490,12 @@ Vocabulary := [].{
 	## - `fog`: linear fog by distance from the camera. It starts at `start`
 	##   and reaches `amount` of `color` at `end`. `amount` runs from 0 to 1,
 	##   and 0 draws no fog. It mixes the lit colour of every mesh, glow and
-	##   unlit surfaces included, towards the linear `color`. The sky and
-	##   `clear` do not fog, so match `color` to the sky's horizon or to
-	##   `clear`. An `amount` outside 0 to 1 is clamped into it. With fog on,
-	##   an `end` at or below `start` moves just past `start`. Each logs once.
+	##   unlit surfaces included, towards the linear `color`. `sky` from 0 to
+	##   1 mixes `color` into the sky by height, by `sky` at the horizon and
+	##   below and not at all overhead. It works with `amount` 0 too. `clear`
+	##   does not fog, so match `color` to `clear` when there is no sky. An
+	##   `amount` or `sky` outside 0 to 1 is clamped into it. With fog on, an
+	##   `end` at or below `start` moves just past `start`. Each logs once.
 	## - `bloom`: a halo around light above `threshold`, scaled by `strength`,
 	##   with `knee` to soften the threshold. The halo starts where the
 	##   brightest channel passes `threshold - knee`. Past `threshold + knee`
@@ -497,10 +505,11 @@ Vocabulary := [].{
 	##   pass. A negative number becomes 0 and logs once.
 	Environment : {
 		sky : U32,
+		sky_blend : { to : U32, amount : F32 },
 		clear : Rgb,
 		tone_map : [Aces, AgX, Neutral],
 		exposure : F32,
-		fog : { color : Rgb, start : F32, end : F32, amount : F32 },
+		fog : { color : Rgb, start : F32, end : F32, amount : F32, sky : F32 },
 		bloom : { strength : F32, threshold : F32, knee : F32 },
 	}
 
