@@ -79,7 +79,8 @@ Renderer :: struct {
 	white:              Mesh_Texture,
 	flat_normal:        Mesh_Texture,
 	black_cube:         Mesh_Texture,
-	environment_sky:    ^Sky,
+	environment:        Environment_Light,
+	sky_blend:          Sky_Blend_Target,
 	shadow:             Shadow_Map,
 	ui:                 Ui_Gpu,
 	particles:          Particle_Gpu,
@@ -156,6 +157,7 @@ renderer_init :: proc(r: ^Renderer, launch: Launch) {
 
 	black := sky_lighting_texture(1, false, context.allocator)
 	r.black_cube = sky_lighting_upload(black, context.allocator)
+	r.environment = {diffuse = r.black_cube, specular = r.black_cube}
 
 	r.shadow = shadow_map_make(launch.shadow_map, int(launch.shadow_cascades))
 
@@ -483,8 +485,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 		if r.applied != r.instanced_pips[pipeline] { renderer_apply_pipeline(r, r.instanced_pips[pipeline]) }
 	} else { renderer_apply_skin(r, r.pips[pipeline], r.skinned_pips[pipeline], skin) }
 	tex := mesh_part_textures(part, r.white, r.flat_normal)
-	diffuse, specular := r.black_cube, r.black_cube
-	if r.environment_sky != nil { diffuse, specular = r.environment_sky.diffuse, r.environment_sky.specular }
+	diffuse, specular := r.environment.diffuse, r.environment.specular
 	bindings := sg.Bindings {
 		vertex_buffers = {0 = mesh.surface_vertices if part.raw_colour else mesh.vertices},
 		index_buffer = mesh.indices,
@@ -521,7 +522,7 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 
 	vs := vs_params
 	fs := fs_params
-	fs.environment_params = sky_lighting_params(r.environment_sky)
+	fs.environment_params = r.environment.params
 	sg.apply_uniforms(UB_vs_params, {ptr = &vs, size = size_of(Vs_Params)})
 	if !r.has_material || fs != r.applied_material {
 		sg.apply_uniforms(UB_fs_params, {ptr = &fs, size = size_of(Fs_Params)})
@@ -532,26 +533,31 @@ renderer_draw :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh
 	sg.draw(part.first, part.count, max(r.instance_count, 1))
 }
 
-renderer_environment :: proc(ctx: rawptr, sky: ^Sky) {
+renderer_environment :: proc(ctx: rawptr, sky: Sky_View) {
 	r := (^Renderer)(ctx)
-	r.environment_sky = sky
+	r.environment = environment_light(r, sky)
 }
 
 // The sky must follow every Draw that writes depth.
-renderer_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
+// With no blend, the to texture is the from texture. A blend from no sky
+// binds the to texture twice and the shader reads the clear colour instead.
+renderer_sky :: proc(ctx: rawptr, sky: Sky_View, vs_params: Sky_Vs_Params, fs_params: Sky_Fs_Params) {
 	r := (^Renderer)(ctx)
 	cube := &r.meshes.meshes[Primitive.Cube]
 	renderer_apply_pipeline(r, r.sky_pip)
+	to := sky.to.texture if sky.to != nil else sky.from.texture
+	from := sky.from.texture if sky.from != nil else to
 	sg.apply_bindings(
 		{
 			vertex_buffers = {0 = cube.vertices},
 			index_buffer = cube.indices,
-			views = {VIEW_sky_tex = sky.texture.view},
-			samplers = {SMP_sky_smp = sky.texture.sampler},
+			views = {VIEW_sky_tex = from.view, VIEW_sky_to_tex = to.view},
+			samplers = {SMP_sky_smp = from.sampler, SMP_sky_to_smp = to.sampler},
 		},
 	)
-	vs := vs_params
+	vs, fs := vs_params, fs_params
 	sg.apply_uniforms(UB_sky_vs_params, {ptr = &vs, size = size_of(Sky_Vs_Params)})
+	sg.apply_uniforms(UB_sky_fs_params, {ptr = &fs, size = size_of(Sky_Fs_Params)})
 	sg.draw(0, cube.index_count, 1)
 }
 

@@ -42,6 +42,7 @@ Shadow_Filter :: Roc_View_Shadow_Filter
 Environment :: Roc_View_Environment
 Tone_Map :: Roc_View_Environment_ToneMap
 Fog :: Roc_View_Environment_Fog
+Sky_Blend :: Roc_View_Environment_SkyBlend
 Bloom :: Roc_View_Environment_Bloom
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag

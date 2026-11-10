@@ -68,7 +68,7 @@ Lighting := [].{
 		clear: { r: 0.32, g: 0.48, b: 0.65 },
 		tone_map: AgX,
 		exposure: if (settings.exposure) 1.12 else 1.0,
-		fog: { color: { r: 0.393123, g: 0.477, b: 0.603827 }, start: 14.0, end: 120.0, amount: if (settings.haze) 0.38 else 0.0 },
+		fog: { color: { r: 0.393123, g: 0.477, b: 0.603827 }, start: 14.0, end: 120.0, amount: if (settings.haze) 0.38 else 0.0, sky: 0.0 },
 		bloom: { strength: if (settings.bloom) 0.18 else 0.0, threshold: 1.2, knee: 0.5 },
 	}
 }

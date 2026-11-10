@@ -17,8 +17,7 @@ renderer_surface :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Me
 	if r.applied != pip { renderer_apply_pipeline(r, pip) }
 	program := surface.shader.programs[int(layout)*3+int(pass)]
 	tex := mesh_part_textures(part, r.white, r.flat_normal)
-	diffuse, specular := r.black_cube, r.black_cube
-	if r.environment_sky != nil { diffuse, specular = r.environment_sky.diffuse, r.environment_sky.specular }
+	diffuse, specular := r.environment.diffuse, r.environment.specular
 	views := [8]sg.View{tex.base.view, tex.metallic_roughness.view, r.shadow.texture, tex.emissive.view, tex.normal.view, tex.occlusion.view, diffuse.view, specular.view}
 	samplers := [8]sg.Sampler{tex.base.sampler, tex.metallic_roughness.sampler, r.shadow.sampler, tex.emissive.sampler, tex.normal.sampler, tex.occlusion.sampler, diffuse.sampler, specular.sampler}
 	bindings := sg.Bindings{vertex_buffers = {0 = mesh.surface_vertices}, index_buffer = mesh.indices}
@@ -49,7 +48,7 @@ renderer_surface :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Me
 	renderer_instance_bindings(r, &bindings)
 	sg.apply_bindings(bindings)
 	vs := Surface_Vertex_Params{mvp = vs_params.mvp, model = vs_params.model, normal_model = vs_params.normal_model, render_time = {surface.time, 0, 0, 0}, draw_info = surface.draw_info}
-	fs := fs_params; fs.environment_params = sky_lighting_params(r.environment_sky)
+	fs := fs_params; fs.environment_params = r.environment.params
 	for block in shader_array(program.reflection["uniform_blocks"]) {
 		slot := shader_int(shader_object(block)["slot"])
 		data: sg.Range

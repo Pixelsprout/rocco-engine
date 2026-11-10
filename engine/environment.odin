@@ -11,6 +11,8 @@ Environment_Clamp :: enum {
 	Exposure,
 	Fog_Amount,
 	Fog_Range,
+	Fog_Sky,
+	Sky_Blend_Amount,
 	Bloom_Strength,
 	Bloom_Threshold,
 	Bloom_Knee,
@@ -42,6 +44,8 @@ environment_clamp :: proc(env: Environment, logged: ^bit_set[Environment_Clamp])
 			fog.end = max(fog.start + FOG_MIN_SPAN, math.nextafter(fog.start, math.inf_f32(1)))
 		}
 	}
+	e.fog.sky = unit_number(logged, .Fog_Sky, "a Fog sky", e.fog.sky)
+	e.sky_blend.amount = unit_number(logged, .Sky_Blend_Amount, "a sky_blend amount", e.sky_blend.amount)
 	e.bloom.strength = bloom_number(logged, .Bloom_Strength, "strength", e.bloom.strength)
 	e.bloom.threshold = bloom_number(logged, .Bloom_Threshold, "threshold", e.bloom.threshold)
 	e.bloom.knee = bloom_number(logged, .Bloom_Knee, "knee", e.bloom.knee)
@@ -55,6 +59,16 @@ fog_uniform :: proc(fog: Fog) -> (fog_color, fog_ramp: [4]f32) {
 		return {}, {}
 	}
 	return {fog.color.r, fog.color.g, fog.color.b, 0}, {fog.start, 1 / (fog.end - fog.start), fog.amount, 0}
+}
+
+// NaN becomes 0.
+@(private = "file")
+unit_number :: proc(logged: ^bit_set[Environment_Clamp], which: Environment_Clamp, name: string, n: f32) -> f32 {
+	if n >= 0 && n <= 1 {
+		return n
+	}
+	environment_log(logged, which, "%v of %v is outside 0 to 1; the host clamps it", name, n)
+	return 0 if math.is_nan(n) else clamp(n, 0, 1)
 }
 
 @(private = "file")

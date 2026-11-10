@@ -30,7 +30,8 @@ It does not add an HDR source format or a GI solver.
 
 Preparation runs once when the Pack loads the Sky.
 Changing `Environment.sky` among loaded skies changes bindings and metadata only.
-No convolution, image allocation, or lighting texture upload runs each Frame.
+No convolution or lighting texture upload runs each Frame.
+A sky blend draws into two blend cubes, described in "Sky blend".
 Each lit fragment adds one diffuse sample and one explicit-LOD specular sample.
 A missing Sky skips both samples through a uniform branch.
 
@@ -74,6 +75,36 @@ A custom Surface renderer must use this same selected Sky and metadata.
 Use `sky_lighting_params` to encode the metadata.
 It must bind both reflected cube resources with the matching filtering samplers.
 
+## Sky blend
+
+`Environment.sky_blend` blends from `sky` toward `sky_blend.to` by `sky_blend.amount`.
+The host clamps the amount to 0 through 1 and logs once when it clamps.
+A `to` of 0, an unknown `to`, or an amount of 0 draws `sky` alone.
+An amount of 1 draws `to` alone, with no blend work.
+A `sky` of 0 with a known `to` blends from the clear colour and black lighting.
+
+The background shader samples both background cubes and mixes them.
+The lighting uses two blend cubes that the renderer makes on the first blend.
+The diffuse blend cube has six 16 by 16 RGBA16F faces.
+The specular blend cube has six 128 by 128 RGBA16F faces and eight mips.
+Mip `m` reads each source at `m / 7` of that source's last mip.
+One pass per face and mip writes the mix, 54 passes in all.
+The passes run before the shadow pass, only when the skies or the amount change.
+A blend that holds still draws no passes.
+
+Mesh and Surface shaders read the blend cubes in slots 6 and 7.
+Their metadata is `(1, 7, 0, 0)`.
+So the shader contract does not change, and each lit fragment still takes one diffuse and one specular sample.
+
+## Sky fog
+
+`Environment.fog.sky` mixes the fog colour into the background.
+The host clamps it to 0 through 1 and logs once when it clamps.
+The mix is `fog.sky * (1 - max(direction.y, 0))^4`.
+So the horizon and every direction below it take the full amount, and overhead takes none.
+Sky fog does not depend on `fog.amount`, and it does not change the lighting.
+The clear colour never fogs.
+
 ## Ownership and failures
 
 The Sky table owns each Sky's name, source pixels, prepared pixels, and GPU textures.
@@ -105,7 +136,11 @@ The reference game contains four dielectric and four metallic spheres.
 Roughness increases from 0.05 through 0.25 and 0.5 to 1.
 It includes one unlit reference square and no Light nodes.
 Its two cubemaps exchange warm and cool colour channels.
+B steps the blend from warm toward cool through 0.5 and 1. F turns on a rose sky fog.
 The Bridge check verifies colour changes, roughness peaks, exposure, absence, unload, and exact reload recovery.
+It also verifies that a blend of 0.5 puts the background and every sphere between the two skies.
+It verifies that a blend of 1 matches the cool sky exactly.
+It verifies that sky fog changes the horizon far more than the top of the view.
 The same check runs in Metal, GL, and D3D CI jobs.
 Cross-compilation does not establish native screenshot agreement.
 

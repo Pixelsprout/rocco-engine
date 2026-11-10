@@ -85,8 +85,9 @@ Recorder :: struct {
 	lights:        Fs_Lights,
 	clusters:      Cluster_Frame,
 	lights_calls:  int,
-	sky:           ^Sky,
-	environment:   ^Sky,
+	sky:           Sky_View,
+	sky_fs:        Sky_Fs_Params,
+	environment:   Sky_View,
 	environment_calls: int,
 	environment_before: int,
 	sky_view_proj: Mat4,
@@ -254,16 +255,17 @@ record_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r.lights_calls += 1
 }
 
-record_environment :: proc(ctx: rawptr, sky: ^Sky) {
+record_environment :: proc(ctx: rawptr, sky: Sky_View) {
 	r := (^Recorder)(ctx)
 	r.environment = sky
 	r.environment_calls += 1
 	r.environment_before = len(r.submits)
 }
 
-record_sky :: proc(ctx: rawptr, sky: ^Sky, vs_params: Sky_Vs_Params) {
+record_sky :: proc(ctx: rawptr, sky: Sky_View, vs_params: Sky_Vs_Params, fs_params: Sky_Fs_Params) {
 	r := (^Recorder)(ctx)
 	r.sky = sky
+	r.sky_fs = fs_params
 	r.sky_view_proj = vs_params.view_proj
 	r.sky_calls += 1
 	r.sky_after = len(r.submits)
@@ -1606,7 +1608,7 @@ test_frame_render_submits_the_sky_after_every_draw :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, f.rec.sky_calls, 1)
 	testing.expect_value(t, f.rec.sky_after, 2)
-	testing.expect_value(t, f.rec.sky, &f.skies.skies[sky_slot(sky)])
+	testing.expect_value(t, f.rec.sky, Sky_View{from = &f.skies.skies[sky_slot(sky)]})
 	expect_mat4_near(t, f.rec.sky_view_proj, frame_fixture_view({}).view_proj)
 }
 
@@ -2202,6 +2204,32 @@ test_frame_environment_uses_the_background_sky_before_surface_submits :: proc(t:
 	testing.expect_value(t, f.rec.environment_before, 0)
 	sky_table_remove(&f.skies, sky_slot(sky))
 	frame_fixture_draw(&f, scene, scene, 0)
-	testing.expect_value(t, f.rec.environment, (^Sky)(nil))
+	testing.expect_value(t, f.rec.environment, Sky_View{})
 	testing.expect_value(t, len(f.skies.logged), 1)
+}
+
+@(test)
+test_frame_render_sends_a_sky_blend_to_the_light_and_the_sky_with_the_fog_and_clear :: proc(t: ^testing.T) {
+	f: Frame_Fixture
+	frame_fixture_init(&f)
+	defer frame_fixture_destroy(&f)
+	dawn := frame_fixture_sky(&f)
+	noon := frame_fixture_sky(&f)
+	scene := scene_of({})
+	scene.environment.sky = dawn
+	scene.environment.sky_blend = {to = noon, amount = 0.25}
+	scene.environment.clear = {r = 0.1}
+	scene.environment.fog = {color = {g = 0.5}, start = 1, end = 2, sky = 0.75}
+	frame_fixture_draw(&f, scene, scene, 0)
+
+	want := Sky_View{from = &f.skies.skies[sky_slot(dawn)], to = &f.skies.skies[sky_slot(noon)], amount = 0.25}
+	testing.expect_value(t, f.rec.environment, want)
+	testing.expect_value(t, f.rec.sky, want)
+	testing.expect_value(t, f.rec.sky_fs.blend, [4]f32{0.25, 0.75, 0, 0})
+	testing.expect_value(t, f.rec.sky_fs.fog_color, [4]f32{0, 0.5, 0, 0})
+	testing.expect_value(t, f.rec.sky_fs.clear, [4]f32{0.1, 0, 0, 0})
+
+	scene.environment.sky = 0
+	frame_fixture_draw(&f, scene, scene, 0)
+	testing.expect_value(t, f.rec.sky_fs.blend, [4]f32{0.25, 0.75, 1, 0})
 }
