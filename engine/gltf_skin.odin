@@ -85,6 +85,7 @@ glb_skin :: proc(l: ^Glb_Loader) -> (skin: Skin, influences: []Influence, err: G
 	joints := make([]Joint, count, context.temp_allocator)
 	for node, j in file_joints {
 		joints[j] = {
+			name         = g.nodes[node].name,
 			parent       = -1,
 			base         = mat4_identity(),
 			rest         = glb_node_trs(&g.nodes[node]),

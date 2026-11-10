@@ -141,6 +141,7 @@ Frame_Render :: struct {
 	shadow_logged:      bit_set[Shadow_Field],
 	draws_logged:       bool,
 	skinned_logged:     bool,
+	attach_logged:      map[Attach_Key]struct {},
 	shadow_map:         u32,
 	cascades:           int,
 	allocator:          mem.Allocator,
@@ -254,6 +255,7 @@ frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, shadow_map: u32
 	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
 	fr.skins = make([]Skin_Params, skinned_draw_capacity(draws), perm)
+	fr.attach_logged = make(map[Attach_Key]struct {}, perm)
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
@@ -261,6 +263,7 @@ frame_render_destroy :: proc(fr: ^Frame_Render) {
 	pairing_destroy(&fr.pairing)
 	delete(fr.skins, fr.allocator)
 	delete(fr.placed)
+	delete(fr.attach_logged)
 }
 
 // An up along the view, or a zero up, has no right vector.
@@ -316,6 +319,7 @@ frame_render_draw :: proc(
 		pairing = &fr.pairing,
 		alpha   = alpha,
 		data    = &frame_walk,
+		joint   = frame_attach_joint,
 	}
 	root := WALK_ROOT
 	nodes := curr.nodes.elements[:curr.nodes.length]
@@ -329,6 +333,7 @@ frame_render_draw :: proc(
 			frame_place(&frame_walk, d, room, draw_place_root(&fr.pairing, d, alpha))
 		}
 	}
+	tree_walk_attached(&walk)
 	if frame_walk.part_draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
 		fmt.eprintfln("a Scene's Draws need %v mesh part draws; the host draws the first %v", frame_walk.part_draws_seen, fr.draw_capacity)
@@ -595,8 +600,29 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 		}
 	case .Light:
 		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
-	case .Group, .Collider, .Speaker:
+	case .Group, .Attach, .Collider, .Speaker:
 	}
+}
+
+// The Joint at the placed Draw's interpolated Pose and Clip time, so an
+// attached child follows the Clip in the same Frame. A Draw past the draw
+// capacity is not placed, so its Attach finds no Draw.
+@(private = "file")
+frame_attach_joint :: proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: Pose, ok: bool) {
+	fw := (^Frame_Walk)(walk.data)
+	for &p in fw.fr.placed {
+		if p.draw_id != config.draw {
+			continue
+		}
+		miss: Attach_Miss
+		world, miss = attach_joint_pose(fw.meshes, p.mesh, p.transform.pose, p.model, roc_str_string(&config.joint))
+		if miss != .None {
+			attach_log(&fw.fr.attach_logged, config, p.mesh, miss)
+		}
+		return world, miss == .None
+	}
+	attach_log(&fw.fr.attach_logged, config, nil, .No_Draw)
+	return
 }
 
 // The draw capacity counts part draws, so the Draw that crosses it keeps the

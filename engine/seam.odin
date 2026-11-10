@@ -166,7 +166,7 @@ seam_query_search :: proc(s: ^Seam) -> Query_Answers {
 	if len(queries) == 0 {
 		return {}
 	}
-	colliders := scene_colliders(s.curr.nodes.elements[:s.curr.nodes.length], context.temp_allocator)
+	colliders := scene_colliders(s.curr.nodes.elements[:s.curr.nodes.length], seam_meshes(s), context.temp_allocator)
 	return queries_answer(&s.search, colliders, queries, context.temp_allocator)
 }
 
@@ -208,7 +208,7 @@ seam_sound :: proc(s: ^Seam, plays: []Play_Command) {
 	for play in plays {
 		audio_play(s.audio, play)
 	}
-	audio_speakers(s.audio, s.curr.nodes.elements[:s.curr.nodes.length])
+	audio_speakers(s.audio, s.curr.nodes.elements[:s.curr.nodes.length], seam_meshes(s))
 }
 
 // loaded consumes the box, the pack name and the manifest, as step does.
@@ -253,4 +253,10 @@ seam_shutdown :: proc(s: ^Seam) {
 	roc_decref(s.results)
 	s.calls.drop_model(s.model)
 	query_search_destroy(&s.search)
+}
+
+// A Seam in a test may have no Packs.
+@(private = "file")
+seam_meshes :: proc(s: ^Seam) -> ^Mesh_Table {
+	return s.packs.meshes if s.packs != nil else nil
 }

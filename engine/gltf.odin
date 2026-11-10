@@ -175,6 +175,7 @@ Gltf_Texture_Ref :: struct {
 }
 
 Gltf_Node :: struct {
+	name:        string,
 	mesh:        Maybe(int),
 	skin:        Maybe(int),
 	children:    []int,

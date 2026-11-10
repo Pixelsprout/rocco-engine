@@ -960,6 +960,8 @@ leaves_under = |parent, node| match node {
 		group = Pose.compose(parent, { pos: g.pos, rot: g.rot })
 		List.join_map(children, |child| leaves_under(group, child))
 	}
+	# Only the host poses a Skin, so a test cannot place an Attach's children.
+	Attach(_, _) => []
 	Draw(d) => [Draw(in_world(parent, d))]
 	Collider(c) => [Collider(in_world(parent, c))]
 	Light(Point(l)) => [Light(Point({ ..l, pos: Pose.compose(parent, { pos: l.pos, rot: Quat.identity }).pos }))]

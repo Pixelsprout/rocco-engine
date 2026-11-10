@@ -57,12 +57,12 @@ speaker_pairing_destroy :: proc(p: ^Speaker_Pairing) {
 // Sound id restarts at once with no fade. A Once that ended frees its voice
 // at once. Any other Speaker with no voice tries again on each call while it
 // stays in the Scene.
-audio_speakers :: proc(audio: ^Audio, nodes: []Node) {
+audio_speakers :: proc(audio: ^Audio, nodes: []Node, meshes: ^Mesh_Table = nil) {
 	p := &audio.speakers
 	pool := &audio.voices
 	clear(&p.curr)
 	clear(&p.curr_index)
-	speakers_gather(p, nodes)
+	speakers_gather(p, nodes, meshes)
 
 	for old in p.prev {
 		if old.speaker.id not_in p.curr_index && speaker_holds_voice(pool, old) {
@@ -130,20 +130,24 @@ place_equal :: proc(a, b: Place) -> bool {
 
 // Fills p.curr in walk order.
 @(private = "file")
-speakers_gather :: proc(p: ^Speaker_Pairing, nodes: []Node) {
+speakers_gather :: proc(p: ^Speaker_Pairing, nodes: []Node, meshes: ^Mesh_Table) {
+	joints := Scene_Joints{meshes, nodes}
 	walk := Tree_Walk {
-		visit = speaker_visit,
-		data  = p,
+		visit      = speaker_visit,
+		data       = p,
+		joint      = scene_attach_joint,
+		joint_data = &joints,
 	}
 	root := WALK_ROOT
 	for &node, i in nodes {
 		#partial switch node.tag {
 		case .Speaker:
 			speaker_pair(p, node.payload.speaker)
-		case .Group:
+		case .Group, .Attach:
 			tree_walk(&walk, nodes[i:i + 1], &root)
 		}
 	}
+	tree_walk_attached(&walk)
 }
 
 // The Speaker's Place comes from the walked Scene, with no interpolation, as

@@ -19,19 +19,24 @@ Pose :: struct {
 	rot: quaternion128,
 }
 
-// The Group that a Node sits in. A root Node has grouped false.
+// The Group or Attach that a Node sits in. A root Node has grouped false.
+// An Attach has the draw id and its joint hash, and a Group has joint 0.
 Parent_Id :: struct {
 	id:      u64,
 	grouped: bool,
+	joint:   u64,
 }
 
 // The parent Group of the Nodes that a walk visits. world is its world Pose
 // for this Frame, after interpolation. scene_world is its world Pose in the
 // walked Scene, before interpolation. unpaired is set by the pairing build
-// for a duplicate Group id or a Group past the capacity.
+// for a duplicate Group id or a Group past the capacity. no_world marks the
+// Nodes under an Attach in a walk with no joint proc, whose world Pose is
+// not known.
 Walk_Parent :: struct {
 	id:          Parent_Id,
 	unpaired:    bool,
+	no_world:    bool,
 	selected:    bool,
 	world:       Pose,
 	scene_world: Pose,
@@ -47,17 +52,23 @@ Prev_Pose :: struct {
 
 // Runs for every Node in depth-first pre-order, before a Group's children.
 Tree_Visit :: #type proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent)
+// The world Pose of an Attach's Joint. Not ok omits its children.
+Attach_Joint :: #type proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: Pose, ok: bool)
 
 // With a pairing, the walk interpolates each Group from its partner in the
 // previous Scene. Without one, world and scene_world are the same Pose.
 // A Group's visit sets group_unpaired, and tree_walk moves it to that
-// Group's Walk_Parent.
+// Group's Walk_Parent. An Attach waits in attaches until the caller runs
+// tree_walk_attached after the root Nodes.
 Tree_Walk :: struct {
 	visit:          Tree_Visit,
 	pairing:        ^Pairing,
 	alpha:          f32,
 	data:           rawptr,
 	group_unpaired: bool,
+	joint:          Attach_Joint,
+	joint_data:     rawptr,
+	attaches:       [dynamic]Attach_Pending,
 }
 
 // Maps each draw id of the previous Scene to its index in prev_draws, and
@@ -91,6 +102,13 @@ Prev_Draw :: struct {
 tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 	for &node in nodes {
 		walk.visit(walk, &node, parent)
+		if node.tag == .Attach {
+			if walk.attaches == nil {
+				walk.attaches = make([dynamic]Attach_Pending, 0, 4, context.temp_allocator)
+			}
+			append(&walk.attaches, Attach_Pending{attach = &node.payload.attach, selected = parent.selected})
+			continue
+		}
 		if node.tag != .Group {
 			continue
 		}
@@ -100,6 +118,7 @@ tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 		child := Walk_Parent {
 			id          = {id = g.id, grouped = true},
 			unpaired    = walk.group_unpaired,
+			no_world    = parent.no_world,
 			selected    = parent.selected || g.selected,
 			scene_world = pose_under(parent.id.grouped, parent.scene_world, local),
 		}
@@ -174,12 +193,15 @@ light_under :: proc(light: Light, parent: ^Walk_Parent) -> Light {
 
 // Each Collider of the Scene at its world Pose, in tree order. The Queries
 // test these.
-scene_colliders :: proc(nodes: []Node, allocator: mem.Allocator) -> []Collider {
+scene_colliders :: proc(nodes: []Node, meshes: ^Mesh_Table, allocator: mem.Allocator) -> []Collider {
 	// A flat Scene has at most this many Colliders, so it does not grow.
 	colliders := make([dynamic]Collider, 0, len(nodes), allocator)
+	joints := Scene_Joints{meshes, nodes}
 	walk := Tree_Walk {
-		visit = collider_visit,
-		data  = &colliders,
+		visit      = collider_visit,
+		data       = &colliders,
+		joint      = scene_attach_joint,
+		joint_data = &joints,
 	}
 	root := WALK_ROOT
 	// A root Collider is at its world Pose already. It goes straight into the
@@ -196,13 +218,14 @@ scene_colliders :: proc(nodes: []Node, allocator: mem.Allocator) -> []Collider {
 			}
 			spare[count] = node.payload.collider
 			count += 1
-		case .Group:
+		case .Group, .Attach:
 			non_zero_resize(&colliders, count)
 			tree_walk(&walk, nodes[i:i + 1], &root)
 			spare, count = raw_data(colliders), len(colliders)
 		}
 	}
 	non_zero_resize(&colliders, count)
+	tree_walk_attached(&walk)
 	return colliders[:]
 }
 
@@ -257,6 +280,7 @@ pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 			tree_walk(&walk, nodes[i:i + 1], &root)
 		}
 	}
+	tree_walk_attached(&walk)
 	if p.draws_seen > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
 		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
@@ -271,6 +295,10 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		pairing_add(p, &node.payload.draw, parent.id, parent.unpaired)
 	case .Group:
 		g := node.payload.group._0
+		if parent.no_world {
+			walk.group_unpaired = true
+			return
+		}
 		if g.id in p.groups {
 			if !p.group_duplicate_logged {
 				p.group_duplicate_logged = true
@@ -289,7 +317,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		}
 		local := pose_of(g.pos, g.rot)
 		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local)}
-	case .Light, .Collider, .Speaker:
+	case .Attach, .Light, .Collider, .Speaker:
 	}
 }
 

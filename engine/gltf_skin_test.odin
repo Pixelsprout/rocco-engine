@@ -60,7 +60,9 @@ test_glb_reads_the_skin_of_the_fixture :: proc(t: ^testing.T) {
 	testing.expect_value(t, notes, Glb_Notes{})
 	joints := data.skin.joints
 	testing.expect_value(t, len(joints), 3)
+	names := [3]string{"root", "mid", "tip"}
 	for joint, j in joints {
+		testing.expect_value(t, joint.name, names[j])
 		testing.expect_value(t, joint.parent, j - 1)
 		testing.expect_value(t, joint.base, mat4_identity())
 		testing.expect_value(t, joint.inverse_bind, mat4_translate({0, -f32(j), 0}))

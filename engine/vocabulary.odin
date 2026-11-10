@@ -46,6 +46,8 @@ Bloom :: Roc_View_Environment_Bloom
 Node :: Roc_VocabularyNode
 Node_Tag :: Roc_VocabularyNode_Tag
 Group :: Roc_VocabularyNode_Group
+Attach :: Roc_VocabularyNode_Attach
+Attach_Config :: Roc_VocabularyNode_Attach_0
 Draw :: Roc_VocabularyNode_Draw
 Draw_Pose :: Roc_VocabularyNode_Draw_Pose
 Collider :: Roc_VocabularyNode_Collider

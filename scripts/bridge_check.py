@@ -34,6 +34,10 @@ a screenshot next to the first one, with "-still" before the extension. It
 holds D until Pip is mid-walk, checks the Pose, saves a "-walk" screenshot
 and checks that the two screenshots differ.
 
+Then it runs attach, saves an "-attach-a" and an "-attach-b" screenshot half a
+Walk Clip apart, and checks that the yellow lantern attached to Pip's hand
+moved between them.
+
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Panel that holds two cell Panels, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
@@ -130,6 +134,16 @@ WALK_TOLERANCE = 1e-3
 # Pip and the camera move between the still and the walk screenshots, so far
 # more pixels than this change.
 MIN_CHANGED_PIXELS = 1000
+
+# examples/attach/main.roc: the Walk Clip lasts 1 s, 120 steps. The lantern
+# on Pip's right forearm is furthest back at step 30 and furthest forward at
+# step 90, about 27 pixels apart in a 960 by 540 screenshot.
+ATTACH_FIRST_STEPS = 30
+ATTACH_HALF_CLIP_STEPS = 60
+# Pip's white body has as much blue as red, and the lantern's yellow has far
+# less.
+MIN_LANTERN_PIXELS = 20
+MIN_LANTERN_MOVE = 15
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Panel that holds the score as one Text.
@@ -453,6 +467,29 @@ def drive_animation(b, out):
     changed = bridge.png_changed_pixels(still_out, walk_out)
     check(changed > MIN_CHANGED_PIXELS, f"{changed} pixels differ between the still and the walk screenshots")
 
+    b.quit()
+
+
+def lantern_centre(path):
+    with open(path, "rb") as f:
+        width, _height, pixels = bridge.png_rgba(f.read())
+    found = [(i // 4 % width, i // 4 // width) for i in range(0, len(pixels), 4) if pixels[i] > 200 and pixels[i + 1] > 200 and pixels[i + 2] < pixels[i] - 60]
+    check(len(found) >= MIN_LANTERN_PIXELS, f"{path} shows {len(found)} lantern pixels")
+    return sum(x for x, _ in found) / len(found), sum(y for _, y in found) / len(found)
+
+
+def drive_attach(b, out):
+    b.hello()
+    stem, ext = os.path.splitext(out)
+    b.step(ATTACH_FIRST_STEPS)
+    first_out = f"{stem}-attach-a{ext}"
+    b.screenshot(first_out)
+    b.step(ATTACH_HALF_CLIP_STEPS)
+    second_out = f"{stem}-attach-b{ext}"
+    b.screenshot(second_out)
+    (ax, ay), (bx, by) = lantern_centre(first_out), lantern_centre(second_out)
+    moved = math.hypot(bx - ax, by - ay)
+    check(moved > MIN_LANTERN_MOVE, f"the lantern moved {moved:.1f} pixels with Pip's hand over half a Walk Clip")
     b.quit()
 
 
@@ -859,7 +896,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("attach", drive_attach), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
 
 
 def run_game(game, drive, out, tmp, suffix):

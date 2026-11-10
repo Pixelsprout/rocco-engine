@@ -121,7 +121,7 @@ Press B for sparks, R to remove or restore sources, U to unload the image, and L
 ## The tree of Nodes
 
 `Scene.nodes` holds the 3D part of the Scene as a tree. A [Node] is one of
-five tags, and your game writes the tags directly:
+six tags, and your game writes the tags directly:
 
 - `Draw(draw)`: a [Draw], a mesh to draw. See [Pairing by id](#pairing-by-id).
 - `Light(light)`: a [Light]. See [Lights](#lights).
@@ -131,6 +131,9 @@ five tags, and your game writes the tags directly:
   it. See [Sound](sound.md#speakers).
 - `Group({ id, pos, rot, selected }, children)`: a Group id, a Pose and a list of
   child Nodes. See [Groups](#groups).
+- `Attach({ draw, joint }, children)`: a draw id, the name of a Joint in
+  that Draw's Skin and a list of child Nodes. See
+  [Attaching to a Joint](#attaching-to-a-joint).
 
 A game with no Groups writes a flat list of leaves, such as
 `[Light(Light.ambient(grey)), Draw(floor), Draw(player)]`. The order of the
@@ -191,6 +194,31 @@ When your game moves a Node to a new Group and wants it to stay where it
 is, give it the local Pose that [`Pose.relative`][Pose.relative] returns.
 [`Pose.compose`][Pose.compose] gives the world Pose of a local one, with
 the rule the host uses. Both are in `packages/linalg`.
+
+## Attaching to a Joint
+
+An Attach puts its children on one Joint of a skinned Draw, such as a hat
+on a head or a lantern in a hand. Name the Draw by its draw id and the
+Joint by its node name in the .glb:
+
+```roc
+Attach({ draw: pip_id, joint: "head" }, [Draw(orb), Light(glow)])
+```
+
+Each child's Pose is local to the Joint. The host poses the Skin first and
+then places the children in the same frame, so they follow the Clip with no
+lag. The children take the Joint's position and rot, never its scale. To
+size an attached mesh, set the `scale` of its own Draw.
+
+The Attach can sit anywhere in the tree. Its parent Group does not move
+it; only the Joint does. Draws, Lights, Colliders and Speakers under an
+Attach all move with the Joint.
+
+If no Draw has that id, the Draw's mesh has no Skin, or the Skin has no
+Joint of that name, the host draws none of the children and logs once for
+that draw id and joint. The log lists the Joint names of the Skin, so a
+typo is easy to find. `examples/attach` shows an orb on Pip's head and a
+lantern in Pip's hand.
 
 ## Pairing by id
 

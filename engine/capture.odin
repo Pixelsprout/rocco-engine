@@ -177,6 +177,8 @@ capture_contents :: proc(contents: ^Capture_Contents, nodes: Roc_List(Node)) {
 			group := &node.payload.group
 			if group._0.selected { append(&contents.selected, group._0.id) }
 			capture_contents(contents, group._1)
+		} else if node.tag == .Attach {
+			capture_contents(contents, node.payload.attach._1)
 		} else if node.tag == .Draw {
 			capture_count_draw(contents, node.payload.draw.id)
 		}

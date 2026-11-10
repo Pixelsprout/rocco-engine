@@ -32,7 +32,9 @@ Joint_Trs :: struct {
 // parent of -1 gives the identity. base is the fixed transform of the
 // non-Joint nodes above the Joint, up to its parent Joint or the scene root,
 // such as Blender's armature node. The inverse bind matrices include it.
+// name is the node name in the .glb, which an Attach names.
 Joint :: struct {
+	name:         string,
 	parent:       int,
 	base:         Mat4,
 	rest:         Joint_Trs,
@@ -121,12 +123,18 @@ skin_clone :: proc(s: Skin, allocator: mem.Allocator) -> Skin {
 	for &clip in out.clips {
 		clip.name = strings.clone(clip.name, allocator)
 	}
+	for &joint in out.joints {
+		joint.name = strings.clone(joint.name, allocator)
+	}
 	return out
 }
 
 skin_delete :: proc(s: Skin, allocator: mem.Allocator) {
 	for clip in s.clips {
 		delete(clip.name, allocator)
+	}
+	for joint in s.joints {
+		delete(joint.name, allocator)
 	}
 	delete(s.joints, allocator)
 	delete(s.clips, allocator)

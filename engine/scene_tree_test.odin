@@ -317,7 +317,7 @@ test_scene_colliders_compose_each_world_pose_from_the_scene :: proc(t: ^testing.
 	}
 	inner := []Node{node_collider(box)}
 	nodes := []Node{node_group(1, {x = 2}, quat_yaw(math.PI / 2), inner), node_collider(ball)}
-	got := scene_colliders(nodes, context.temp_allocator)
+	got := scene_colliders(nodes, nil, context.temp_allocator)
 
 	testing.expect_value(t, len(got), 2)
 	testing.expect_value(t, got[0].id, 5)
@@ -338,7 +338,7 @@ test_scene_colliders_keep_tree_order_past_the_root_count :: proc(t: ^testing.T) 
 	// The Group holds more Colliders than the Scene has root Nodes.
 	inner := []Node{ball(1), ball(2), ball(3)}
 	nodes := []Node{node_group(9, {}, IDENTITY, inner), ball(4), ball(5)}
-	got := scene_colliders(nodes, context.temp_allocator)
+	got := scene_colliders(nodes, nil, context.temp_allocator)
 
 	testing.expect_value(t, len(got), 5)
 	for c, i in got {
@@ -360,7 +360,7 @@ test_the_queries_see_a_grouped_collider_at_its_world_pose :: proc(t: ^testing.T)
 	inner := []Node{node_collider({id = 1, pos = {z = 2}, rot = IDENTITY, shape = half})}
 	nodes := []Node{node_group(9, {}, quat_yaw(math.PI / 2), inner), node_collider({id = 2, pos = {x = 2.5}, rot = IDENTITY, shape = half})}
 	queries := []Query{{tag = .ContactsOf, payload = {contacts_of = 1}}}
-	answers := queries_answer(&search, scene_colliders(nodes, context.temp_allocator), queries, context.temp_allocator)
+	answers := queries_answer(&search, scene_colliders(nodes, nil, context.temp_allocator), queries, context.temp_allocator)
 
 	testing.expect_value(t, len(answers.contacts), 1)
 	testing.expect_value(t, answers.contacts[0].a, 1)
