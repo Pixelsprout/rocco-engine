@@ -3,7 +3,7 @@ app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", 
 # A game for the Bridge check: it Listens on the port echo and Tells each
 # message back on the same port. A left click on the button Tells click.
 # A left click outside the UI casts a ray under the pointer, and the next
-# step Tells pick with the Collider it hit, or none.
+# step Tells pick with the Collider it hit, or none, and Logs it.
 
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
@@ -54,8 +54,8 @@ picked : Model, Vocabulary.QueryResults -> List(Command)
 picked = |model, results| match model.aim {
 	Aim(_) =>
 		match QueryResults.ray(results, pick_owner) {
-			Ok(hit) => [Port.tell("pick", hit.id.to_str())]
-			Err(Miss) => [Port.tell("pick", "none")]
+			Ok(hit) => [Port.tell("pick", hit.id.to_str()), Log("picked ${hit.id.to_str()}")]
+			Err(Miss) => [Port.tell("pick", "none"), Log("picked none")]
 		}
 	Idle => []
 }
@@ -179,8 +179,8 @@ cube_hit = {
 	distance: 4.0,
 }
 
-# The step after a Raycast Tells pick with the id it hit.
-expect step(aiming, Input.empty, { ..QueryResults.empty, rays: [cube_hit] }, 0.0).commands == [Port.tell("pick", "1")]
+# The step after a Raycast Tells pick with the id it hit, and Logs it.
+expect step(aiming, Input.empty, { ..QueryResults.empty, rays: [cube_hit] }, 0.0).commands == [Port.tell("pick", "1"), Log("picked 1")]
 
 # The step after a Raycast that hit nothing Tells pick none.
-expect step(aiming, Input.empty, QueryResults.empty, 0.0).commands == [Port.tell("pick", "none")]
+expect step(aiming, Input.empty, QueryResults.empty, 0.0).commands == [Port.tell("pick", "none"), Log("picked none")]

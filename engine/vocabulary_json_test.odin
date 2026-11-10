@@ -11,7 +11,7 @@ test_json_write_commands_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	roc_heap_test_begin()
 	defer roc_heap_test_end()
 	defer free_all(context.temp_allocator)
-	commands := []Command{{tag = .Quit}, fake_load("room", "a", "b\"c"), fake_unload("room")}
+	commands := []Command{{tag = .Quit}, fake_load("room", "a", "b\"c"), fake_unload("room"), fake_log("ready")}
 	list := roc_list_from_slice(commands)
 	defer roc_list_decref(list)
 	b := strings.builder_make(context.temp_allocator)
@@ -19,7 +19,7 @@ test_json_write_commands_uses_the_vocabulary_tags :: proc(t: ^testing.T) {
 	json_write_commands(&b, list)
 
 	got := strings.to_string(b)
-	testing.expect_value(t, got, `"Quit",{"Load":{"pack":"room","assets":["a","b\"c"]}},{"Unload":"room"}`)
+	testing.expect_value(t, got, `"Quit",{"Load":{"pack":"room","assets":["a","b\"c"]}},{"Unload":"room"},{"Log":"ready"}`)
 	_, err := json.parse_string(strings.concatenate({"[", got, "]"}, context.temp_allocator), allocator = context.temp_allocator)
 	testing.expect_value(t, err, nil)
 }

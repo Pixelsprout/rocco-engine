@@ -570,8 +570,8 @@ _Avoid_: command, request, event, intent
 A value that says do this once. `step` returns them; the host runs each one
 in list order after `step` and before `view`, except that a Play starts
 after `view`. `init` returns them too.
-`Quit`, `Load`, `Unload` and `Play` are the Commands; spawn and destroy may
-follow. The host binds no key to `Quit`; a game binds `Escape`
+`Quit`, `Load`, `Unload`, `Play`, `Burst`, `Tell` and `Log` are the
+Commands; spawn and destroy may follow. The host binds no key to `Quit`; a game binds `Escape`
 itself. Reserved for things a description cannot say.
 _Avoid_: description, effect, action, message, event
 
@@ -590,8 +590,8 @@ _Avoid_: close, free, release
 
 **Log**:
 The Command `Log(msg)`. The host writes the line to stderr with a `game:`
-prefix, and a Driver reads it in the `step` reply. A Log goes to no Port.
-Planned: dex qo4dl51i.
+prefix, at most 32 lines per step, and a Driver reads it in the `step` reply.
+A Log goes to no Port.
 _Avoid_: print, dbg (the Roc debug expression), trace, Tell
 
 **Contact**:

@@ -554,5 +554,8 @@ Vocabulary := [].{
 	##   `Sound.play`.
 	## - `Tell`: send a message to a port. The host does nothing with it, and a
 	##   Driver reads it in the `step` reply. Build one with `Port.tell`.
-	Command : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str })]
+	## - `Log`: write a line to stderr as `game: <msg>`. A Driver also reads it
+	##   in the `step` reply. The host writes at most 32 Log lines per step. If
+	##   it drops some, it writes one `game: N lines dropped` line.
+	Command : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str }), Log(Str)]
 }

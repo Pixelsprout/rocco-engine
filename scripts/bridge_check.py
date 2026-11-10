@@ -294,8 +294,10 @@ def pick_at(b, point):
     b.step(1, pointer={"x": point[0], "y": point[1]})
     commands = b.step(1, pointer={"x": point[0], "y": point[1], "tap": ["Left"]})["commands"]
     check(commands == [], f"the click step Tells nothing yet: {commands}")
-    picks = [c["Tell"]["msg"] for c in b.step(1)["commands"] if "Tell" in c and c["Tell"]["port"] == "pick"]
+    commands = b.step(1)["commands"]
+    picks = [c["Tell"]["msg"] for c in commands if "Tell" in c and c["Tell"]["port"] == "pick"]
     check(len(picks) == 1, f"one pick Tell after the click: {picks}")
+    check({"Log": f"picked {picks[0]}"} in commands, f"the step reply carries the pick Log: {commands}")
     return picks[0]
 
 

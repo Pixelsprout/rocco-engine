@@ -201,15 +201,17 @@ Roc_Init :: struct {
 Roc_Init_Commands_Tag :: enum u8 {
 	Burst = 0,
 	Load = 1,
-	Play = 2,
-	Quit = 3,
-	Tell = 4,
-	Unload = 5,
+	Log = 2,
+	Play = 3,
+	Quit = 4,
+	Tell = 5,
+	Unload = 6,
 }
 
 Roc_Init_Commands_Payload :: struct #raw_union {
 	burst: Roc_Init_Commands_Burst,
 	load: Roc_Init_Commands_Load,
+	log: Roc_Str,
 	play: Roc_Init_Commands_Play,
 	tell: Roc_Init_Commands_Tell,
 	unload: Roc_Str,
@@ -2134,6 +2136,8 @@ roc_init_commands_decref :: proc(value: Roc_Init_Commands) {
 	#partial switch value.tag {
 	case .Load:
 		roc_init_commands_load_decref(value.payload.load)
+	case .Log:
+		roc_str_decref(value.payload.log)
 	case .Tell:
 		roc_init_commands_tell_decref(value.payload.tell)
 	case .Unload:

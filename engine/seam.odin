@@ -1,5 +1,6 @@
 package engine
 
+import "core:fmt"
 import "core:strings"
 import "core:time"
 
@@ -188,9 +189,12 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool,
 			append(&pending, command.payload.play)
 		case .Burst:
 			particles_burst(s.particles, command.payload.burst)
-		case .Tell:
-			// A Tell is for the Driver, which reads it from the step reply.
+		case .Tell, .Log:
+			// A Driver reads each from the step reply.
 		}
+	}
+	for line in game_log_lines(commands.elements[:commands.length]) {
+		fmt.eprintln(line)
 	}
 	roc_list_decref(commands)
 	return quit, pending[:]
