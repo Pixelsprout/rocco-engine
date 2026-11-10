@@ -26,6 +26,41 @@ A helper generator must also reject names that produce the same Roc identifier a
 Rename ambiguous source materials before creating named helpers.
 Unmodified meshes with duplicate names continue to render their imported materials.
 
+## Tint one part of a model
+
+`Draw.tint` multiplies the base colour of every part in the Draw.
+To colour only one part, give that part its own named material in the asset.
+Then override the `BaseColour` of that material slot in `Draw.slot_materials`.
+The engine has no tint mask channel.
+
+For example, an otter has the materials `Fur` and `Outfit`.
+List the asset under `meshes` in `shaders.json`:
+
+```json
+"meshes": [{ "name": "Otter", "source": "assets/meshes/otter.glb" }]
+```
+
+The game build writes `Otter.roc` with one slot helper for each named material.
+Override the outfit slot and keep the tint white:
+
+```roc
+vendor : Str, Shader.Colour -> Vocabulary.Draw
+vendor = |pack, colour| {
+    ..Draw.default,
+    id: 7,
+    mesh: otter,
+    slot_materials: [{
+        slot: Otter.slot_outfit(pack),
+        material: { ..Material.default, properties: [BaseColour(colour)] },
+    }],
+}
+```
+
+The fur keeps its imported colour.
+The override replaces the outfit's base factor.
+The imported base texture and vertex colours still multiply it.
+`Draw.tint` still multiplies both parts, so a non-white tint also changes the fur.
+
 ## Vertex colour and alpha
 
 The importer reads `COLOR_0` as float VEC3/VEC4 or normalized unsigned byte/short VEC3/VEC4.
