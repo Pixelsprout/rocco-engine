@@ -38,6 +38,11 @@ Then it runs attach, saves an "-attach-a" and an "-attach-b" screenshot half a
 Walk Clip apart, and checks that the yellow sphere attached to Pip's hand
 moved between them.
 
+Then it runs primitives and saves a "-primitives" screenshot. Each cylinder
+Draw must carry mesh id 4 and show its own tint at points on its axis, so a
+missing cylinder, which draws the magenta Fallback mesh, fails. A point just
+above the stretched post must not show the post's green.
+
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Panel that holds two cell Panels, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
@@ -142,6 +147,19 @@ ATTACH_FIRST_STEPS = 30
 ATTACH_HALF_CLIP_STEPS = 60
 MIN_LANTERN_PIXELS = 20
 MIN_LANTERN_MOVE = 15
+
+# examples/primitives/main.roc: the Draw ids of the unit cylinder, the post and
+# the disc, and the world points on each axis that the camera sees through its
+# side or cap. The post is 3 tall, so the point above it shows the ground or
+# the sky.
+CYLINDER_MESH = 4
+CYLINDER_ID = 4
+POST_ID = 5
+DISC_ID = 6
+CYLINDER_POINTS = [{"x": 0.8, "y": 0.3, "z": 0.0}, {"x": 0.8, "y": 0.7, "z": 0.0}]
+POST_POINTS = [{"x": 2.2, "y": y, "z": 0.0} for y in (0.5, 1.5, 2.8)]
+DISC_POINTS = [{"x": 0.0, "y": 0.1, "z": 1.6}, {"x": 0.5, "y": 0.1, "z": 1.6}]
+ABOVE_POST = {"x": 2.2, "y": 3.3, "z": 0.0}
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Panel that holds the score as one Text.
@@ -489,6 +507,53 @@ def drive_attach(b, out):
     (ax, ay), (bx, by) = lantern_centre(first_out), lantern_centre(second_out)
     moved = math.hypot(bx - ax, by - ay)
     check(moved > MIN_LANTERN_MOVE, f"the lantern moved {moved:.1f} pixels with Pip's hand over half a Walk Clip")
+    b.quit()
+
+
+# The mean colour of the 3 by 3 pixels around a world point.
+def colour_at(path, camera, point):
+    with open(path, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+    px, py = project(camera, point, (width, height))
+    near = [((py + dy) * width + px + dx) * 4 for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+    return [sum(pixels[i + c] for i in near) / len(near) for c in range(3)]
+
+
+# The Fallback mesh is magenta, so under these tints it shows purple, with
+# almost no green.
+def yellow(rgb):
+    r, g, b = rgb
+    return r > 150 and g > 0.75 * r and b < 0.7 * r
+
+
+def green(rgb):
+    r, g, b = rgb
+    return g > 80 and g > r + 30 and g > b + 20
+
+
+def pale(rgb):
+    r, g, b = rgb
+    return min(r, g, b) > 120 and abs(r - g) < 30
+
+
+def drive_primitives(b, out):
+    b.hello()
+    b.step(2)
+    scene = b.scene()["scene"]
+    draws = {n["Draw"]["id"]: n["Draw"] for n in scene["nodes"] if "Draw" in n}
+    for draw_id in (CYLINDER_ID, POST_ID, DISC_ID):
+        check(draws[draw_id]["mesh"] == CYLINDER_MESH, f"Draw {draw_id} carries the cylinder mesh id: {draws[draw_id]}")
+
+    stem, ext = os.path.splitext(out)
+    shot = f"{stem}-primitives{ext}"
+    b.screenshot(shot)
+    camera = scene["camera"]
+    for name, points, matches in (("unit cylinder", CYLINDER_POINTS, yellow), ("post", POST_POINTS, green), ("disc", DISC_POINTS, pale)):
+        for point in points:
+            rgb = colour_at(shot, camera, point)
+            check(matches(rgb), f"the {name} shows its tint at {point}: {[round(c) for c in rgb]}")
+    above = colour_at(shot, camera, ABOVE_POST)
+    check(not green(above), f"the post ends at 3 units: {[round(c) for c in above]} above it")
     b.quit()
 
 
@@ -895,7 +960,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("attach", drive_attach), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("attach", drive_attach), ("primitives", drive_primitives), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
 
 
 def run_game(game, drive, out, tmp, suffix):
