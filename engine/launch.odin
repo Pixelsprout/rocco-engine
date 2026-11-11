@@ -16,11 +16,17 @@ LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 5 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 278653 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
-// GL flattens each uniform block to vec4, so the skinned main vertex shader
-// needs vs_params and the whole skin block. The shadow variants need less.
-// GL 4.3 promises only 256 vec4, but Mesa and the desktop drivers give more.
+// GL flattens each uniform block to vec4. A skinned vertex shader needs its
+// vertex block and the whole skin block, and a package shader adds
+// game_vertex. GL 4.3 promises only 256 vec4, but Mesa and the desktop
+// drivers give more.
 SKINNED_VERTEX_UNIFORM_VEC4 :: (size_of(Vs_Params) + size_of(Skin_Params)) / 16
+PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4 :: (SHADER_ENGINE_VERTEX_SIZE + SHADER_ENGINE_SKIN_SIZE + SHADER_GAME_VERTEX_SIZE) / 16
+LAUNCH_GL_NEED_SHADER :: "a skinned package shader"
 #assert(SKINNED_VERTEX_UNIFORM_VEC4 == 268 && size_of(Shadow_Vs_Params) <= size_of(Vs_Params))
+#assert(PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4 == 288 && SHADER_ENGINE_SKIN_SIZE == size_of(Skin_Params))
+// LAUNCH_GL_NEED_SHADER names the larger need.
+#assert(PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4 > SKINNED_VERTEX_UNIFORM_VEC4)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
 launch_default :: proc() -> Launch {
@@ -122,8 +128,9 @@ launch_device_check :: proc(launch: Launch, max_size, max_layers: i32) -> (field
 	return "", "", true
 }
 
-// Takes GL_MAX_VERTEX_UNIFORM_COMPONENTS and gives the vec4 count the skinned
-// vertex shaders need, or not ok when the context cannot hold them.
-launch_gl_check :: proc(vertex_uniform_components: i32) -> (need: int, ok: bool) {
-	return SKINNED_VERTEX_UNIFORM_VEC4, int(vertex_uniform_components) / 4 >= SKINNED_VERTEX_UNIFORM_VEC4
+// Takes GL_MAX_VERTEX_UNIFORM_COMPONENTS and gives the largest vec4 count a
+// skinned vertex shader needs and the shader that needs it, or not ok when
+// the context cannot hold them.
+launch_gl_check :: proc(vertex_uniform_components: i32) -> (need: int, shader: string, ok: bool) {
+	return PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4, LAUNCH_GL_NEED_SHADER, int(vertex_uniform_components) / 4 >= PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4
 }

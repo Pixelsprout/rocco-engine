@@ -45,7 +45,7 @@ layout(binding = 0) uniform vs_params {
 // from the bind pose to the Draw's pose, in the mesh's own space. With
 // vs_params, the skinned GL vertex shader needs 268 vec4 of uniforms. GL 4.3
 // promises only 256, so launch_gl_check in engine/launch.odin refuses a GL
-// context with less. Mesa and the desktop drivers give more.
+// context without room for this or a skinned package shader.
 @block skin
 layout(binding = 3) uniform skin_params {
     mat4 joints[64];
