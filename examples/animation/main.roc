@@ -18,6 +18,7 @@ import pf.Pose
 import pf.QueryResults
 import pf.Scene
 
+# region: model
 # A Clip id of 0 is no Clip. walk_duration is 0 and manifest is empty until
 # loaded gives them.
 Clips : { walk : U32, run : U32, walk_duration : F32, manifest : Manifest }
@@ -30,6 +31,8 @@ Animation : { walk_time : F32, run_time : F32, fade : F32 }
 # pip is 0, the fallback mesh, until loaded gives its id. running is the Clip
 # that the fade moves toward.
 Model : { pip : U32, clips : Clips, animation : Animation, running : Bool }
+
+# endregion
 
 pip_id : U64
 pip_id = 1
@@ -44,6 +47,7 @@ fade_seconds = 0.5
 launch : Vocabulary.Config -> Vocabulary.Launch
 launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title: "Animation" } }
 
+# region: loaded
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| {
 	clips = { walk: 0, run: 0, walk_duration: 0.0, manifest: [] }
@@ -59,6 +63,8 @@ loaded = |model, _pack, manifest| {
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), clips }
 }
 
+# endregion
+
 step : Model, Vocabulary.Input, Vocabulary.QueryResults, F32 -> { model : Model, commands : List(Command) }
 step = |model, input, _results, dt| {
 	running = if (Key.pressed(input, Space)) !model.running else model.running
@@ -66,6 +72,7 @@ step = |model, input, _results, dt| {
 	{ model: animate({ ..model, running }, dt), commands }
 }
 
+# region: animate
 # Walk plays at its own pace and Run keeps Walk's phase. The fade moves toward
 # the Clip that running names.
 animate : Model, F32 -> Model
@@ -79,6 +86,9 @@ animate = |model, dt| {
 	{ ..model, animation: { walk_time, run_time, fade } }
 }
 
+# endregion
+
+# region: pose
 pip_pose : Model -> Vocabulary.Pose
 pip_pose = |model| {
 	c = model.clips
@@ -86,6 +96,9 @@ pip_pose = |model| {
 	{ clip: c.walk, time: a.walk_time, fade_clip: c.run, fade_time: a.run_time, fade: a.fade }
 }
 
+# endregion
+
+# region: view
 view : Model -> Vocabulary.Scene
 view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
@@ -99,6 +112,8 @@ view = |model| {
 	]
 	{ ..Scene.empty, camera: Cam.look_at({ x: 0.0, y: 0.8, z: 2.4 }, { x: 0.0, y: 0.45, z: 0.0 }), nodes }
 }
+
+# endregion
 
 near : F32, F32 -> Bool
 near = |a, b| (a - b).abs() < 0.0001
@@ -139,6 +154,7 @@ expect {
 	!after.running and near(after.animation.fade, 0.8)
 }
 
+# region: phase-tests
 # Walk wraps at its duration, and Run sits at the same phase of its own.
 expect {
 	late = { ..animated, animation: { walk_time: 0.95, run_time: 0.7125, fade: 0.0 } }
@@ -146,10 +162,12 @@ expect {
 	near(a.walk_time, 0.05) and near(a.run_time, 0.0375)
 }
 
+# Half of Walk is half of Run.
 expect {
 	a = step(animated, Input.empty, QueryResults.empty, 0.5).model.animation
 	near(a.walk_time, 0.5) and near(a.run_time, 0.375)
 }
+# endregion
 
 # Escape quits.
 expect {

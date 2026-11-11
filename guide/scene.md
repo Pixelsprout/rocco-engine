@@ -220,30 +220,11 @@ that draw id and joint. The log lists the Joint names of the Skin, so a
 typo is easy to find. `examples/attach` shows an orb on Pip's head and a
 lantern in Pip's hand.
 
-## Grounding
+## Animation
 
-A fade between two Clips mixes each Joint's rotation on its own. When the
-two Clips bend the legs differently, the mix shortens the legs, and the
-feet sink into the ground for the length of the fade. Grounding fixes that.
-Name the foot Joints of a skinned Draw in `ground.feet`:
-
-```roc
-pip = { ..Draw.default, id: pip_id, mesh: model.pip, pose, ground: { feet: ["lower_leg.L", "lower_leg.R"] } }
-```
-
-After the host mixes the Clips, it compares each named foot Joint's height
-in the mesh's own space with its height in the bind pose. If a foot is
-below its bind height, the host lifts the whole Draw by the depth of the
-lowest foot. It never lowers the Draw, so a jump or the airborne part of a
-run keeps its height. The lift applies at every step, not only in a fade.
-
-The lift is in the mesh's units, before the Draw's `scale`. Attach children
-and the Draw's shadow follow it. The rig must bind with its feet on the
-ground, because the bind pose is the height the host lifts back to.
-
-An empty list, the default in `Draw.default`, turns Grounding off. A name
-that is not a Joint of the Skin logs once for that draw id and name and is
-skipped. `examples/animation` grounds Pip through the Walk-to-Run fade.
+A skinned Draw plays its Clips through its `pose`, and `ground.feet` keeps
+its feet out of the ground in a fade. [Animation](animation.md) explains
+Clips, fades, phase sync and Grounding.
 
 ## Pairing by id
 
@@ -261,7 +242,7 @@ same in both Scenes and the time did not go back. The `fade_time` blends
 by the same rule with the `fade_clip`. The `fade` blends only when both
 the `clip` and the `fade_clip` are the same. Anything else takes the
 current value, so a looping time that wraps back to the start does not
-play the Clip backwards for a frame.
+play the Clip backwards for a frame. See [Animation](animation.md).
 
 So the ids matter. Follow these rules:
 
