@@ -276,6 +276,10 @@ json_write_draw :: proc(b: ^strings.Builder, draw: ^Draw) {
 	json_key(b, "fade")
 	json_write_f32(b, draw.pose.fade)
 	strings.write_byte(b, '}')
+	json_key(b, "ground")
+	json_key(b, "feet", first = true)
+	json_write_list(b, draw.ground.feet, json_write_roc_str)
+	strings.write_byte(b, '}')
 	strings.write_byte(b, '}')
 }
 

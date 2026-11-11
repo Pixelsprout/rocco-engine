@@ -87,7 +87,8 @@ pip_pose = |model| {
 view : Model -> Vocabulary.Scene
 view = |model| {
 	ground = { ..Draw.default, id: ground_id, mesh: Mesh.primitive(Cube), pos: { x: 0.0, y: -0.1, z: 0.0 }, scale: { x: 6.0, y: 0.2, z: 6.0 }, tint: { r: 0.12, g: 0.25, b: 0.1 } }
-	pip = { ..Draw.default, id: pip_id, mesh: model.pip, rot: Quat.from_yaw(1.2), pose: pip_pose(model) }
+	# Grounding lifts Pip out of the sink of the half fade.
+	pip = { ..Draw.default, id: pip_id, mesh: model.pip, rot: Quat.from_yaw(1.2), pose: pip_pose(model), ground: { feet: ["lower_leg.L", "lower_leg.R"] } }
 	nodes = [
 		Light(Light.ambient({ r: 0.2, g: 0.25, b: 0.35 })),
 		Light(Light.sun({ x: -0.5, y: -0.75, z: -0.45 }, { r: 3.0, g: 2.7, b: 2.3 })),

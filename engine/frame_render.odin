@@ -172,6 +172,7 @@ Placed :: struct {
 	tint:         Rgb,
 	glow:         Rgb,
 	transform:    Draw_Transform,
+	ground:       Skin_Ground,
 	model:        Mat4,
 	skin:         ^Skin_Params,
 	light_box:    Box,
@@ -621,7 +622,7 @@ frame_attach_joint :: proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: 
 			continue
 		}
 		miss: Attach_Miss
-		world, miss = attach_joint_pose(fw.meshes, p.mesh, p.transform.pose, p.model, roc_str_string(&config.joint))
+		world, miss = attach_joint_pose(fw.meshes, p.mesh, p.transform.pose, p.ground, p.model, roc_str_string(&config.joint))
 		if miss != .None {
 			attach_log(&fw.fr.attach_logged, config, p.mesh, miss)
 		}
@@ -691,6 +692,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 			tint = d.tint,
 			glow = d.glow,
 			transform = x,
+			ground = draw_ground(d),
 			model = draw_model_matrix(x),
 			skin = room.skin,
 			shadow_count = parts_shadow_count(room.parts) if d.casts_shadow else 0,
@@ -703,7 +705,7 @@ frame_place :: #force_inline proc(fw: ^Frame_Walk, d: ^Draw, room: Frame_Room, x
 frame_render_pose :: proc(fr: ^Frame_Render, meshes: ^Mesh_Table) {
 	for p in fr.placed {
 		if p.skin != nil {
-			skin_matrices(meshes, p.mesh, p.transform.pose, &p.skin.joints)
+			skin_matrices(meshes, p.mesh, p.transform.pose, &p.skin.joints, p.ground)
 		}
 	}
 }

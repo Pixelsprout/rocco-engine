@@ -3,12 +3,19 @@ package engine
 import "core:fmt"
 import "core:math/linalg"
 
+// The Draw's id and its ground.feet. No feet turns Grounding off.
+Skin_Ground :: struct {
+	draw: u64,
+	feet: []Roc_Str,
+}
+
 // Fills out with the skin matrices of the Draw's pose and returns the Joint
 // count. A fade of 0 samples only pose.clip, and a fade of 1 only
 // pose.fade_clip. Clip id 0 alone draws the bind pose; mixed with a Clip it
 // gives the rest TRS. A Clip id of another mesh on either side, sampled or
-// not, draws the bind pose and logs once, which is the only allocation.
-skin_matrices :: proc(t: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, out: ^[MAX_JOINTS]Mat4) -> int {
+// not, draws the bind pose and logs once. Each log is an allocation. With
+// ground, skin_ground lifts the result.
+skin_matrices :: proc(t: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, out: ^[MAX_JOINTS]Mat4, ground := Skin_Ground{}) -> int {
 	count := len(m.skin.joints)
 	fade := clamp(pose.fade, 0, 1)
 	first, first_ok := skin_clip(t, m, pose.clip)
@@ -35,7 +42,40 @@ skin_matrices :: proc(t: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, out: ^[MAX_JOIN
 		}
 	}
 	skin_compose(&m.skin, a[:count], out[:count])
+	skin_ground(t, m, ground, out[:count])
 	return count
+}
+
+draw_ground :: proc(d: ^Draw) -> Skin_Ground {
+	return {draw = d.id, feet = d.ground.feet.elements[:d.ground.feet.length]}
+}
+
+// Lifts every Joint in model space by the depth of the lowest named foot
+// below its bind height. It never lowers them, so an airborne pose keeps its
+// height. An unknown foot logs once per draw and name.
+skin_ground :: proc(t: ^Mesh_Table, m: ^Mesh, ground: Skin_Ground, out: []Mat4) {
+	lift := f32(0)
+	for &foot in ground.feet {
+		name := roc_str_string(&foot)
+		j, found := skin_joint(&m.skin, name)
+		if !found {
+			key := Attach_Key{ground.draw, attach_joint_hash(name)}
+			if key not_in t.feet_logged {
+				t.feet_logged[key] = {}
+				fmt.eprintfln("draw id %v names foot %q, but mesh %q has no such Joint; its Joints are %v", ground.draw, name, m.name, skin_joint_names(&m.skin))
+			}
+			continue
+		}
+		bind := linalg.inverse(m.skin.joints[j].inverse_bind)
+		lift = max(lift, bind[1, 3] - (out[j] * bind)[1, 3])
+	}
+	if lift == 0 {
+		return
+	}
+	up := mat4_translate({0, lift, 0})
+	for &mat in out {
+		mat = up * mat
+	}
 }
 
 // Clip id 0 gives a nil Clip. An id of another mesh is not ok.

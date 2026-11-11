@@ -753,10 +753,11 @@ samples both Clips and mixes them by the fade. It is not a **Pose**, which is
 a position and a rot.
 _Avoid_: pose (for this value), anim, animation state, blend tree
 
-**Grounding** (planned):
+**Grounding**:
 The host lifts a skinned Draw so that no foot Joint named in its
 `ground.feet` is below that Joint's height in the bind pose. It never lowers
-the Draw. It fixes the sink of a fade between two leg poses. See ADR 0035.
+the Draw. It fixes the sink of a fade between two leg poses. An empty
+`ground.feet`, the default, turns it off. See ADR 0035.
 _Avoid_: foot lock, foot IK (the later task that pins a foot), ground snap
 
 ## Memory lifetimes

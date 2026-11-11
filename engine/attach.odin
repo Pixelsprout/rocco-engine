@@ -84,7 +84,7 @@ skin_joint :: proc(s: ^Skin, name: string) -> (index: int, found: bool) {
 
 // The world Pose of the named Joint of a Draw of mesh m at model and pose.
 // The Pose drops the scale of the Draw and of the Joint.
-attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, model: Mat4, name: string) -> (world: Pose, miss: Attach_Miss) {
+attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, ground: Skin_Ground, model: Mat4, name: string) -> (world: Pose, miss: Attach_Miss) {
 	if m == nil || !mesh_skinned(m) {
 		return {}, .No_Skin
 	}
@@ -93,7 +93,7 @@ attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, model:
 		return {}, .No_Joint
 	}
 	skin: [MAX_JOINTS]Mat4
-	skin_matrices(meshes, m, pose, &skin)
+	skin_matrices(meshes, m, pose, &skin, ground)
 	return pose_of_matrix(model * skin[j] * linalg.inverse(m.skin.joints[j].inverse_bind)), .None
 }
 
@@ -158,7 +158,7 @@ scene_attach_joint :: proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: 
 	m := mesh_lookup(joints.meshes, d.mesh) or_return
 	transform := draw_transform(d, d, draw_world, 1)
 	miss: Attach_Miss
-	world, miss = attach_joint_pose(joints.meshes, m, transform.pose, draw_model_matrix(transform), roc_str_string(&config.joint))
+	world, miss = attach_joint_pose(joints.meshes, m, transform.pose, draw_ground(d), draw_model_matrix(transform), roc_str_string(&config.joint))
 	return world, miss == .None
 }
 

@@ -43,6 +43,11 @@ Draw must carry mesh id 4 and show its own tint at points on its axis, so a
 missing cylinder, which draws the magenta Fallback mesh, fails. A point just
 above the stretched post must not show the post's green.
 
+Then it runs animation with Grounding on. Pip's Draw must name both foot
+Joints in ground.feet. It taps Space, steps to the middle of the Walk-to-Run
+fade, saves an "-animation" screenshot and checks that Pip's orange shoes
+show above the ground.
+
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Panel that holds two cell Panels, each with the score. Then
 it holds South on a pad, which pauses pong as Space does, and checks that the
@@ -160,6 +165,15 @@ CYLINDER_POINTS = [{"x": 0.8, "y": 0.3, "z": 0.0}, {"x": 0.8, "y": 0.7, "z": 0.0
 POST_POINTS = [{"x": 2.2, "y": y, "z": 0.0} for y in (0.5, 1.5, 2.8)]
 DISC_POINTS = [{"x": 0.0, "y": 0.1, "z": 1.6}, {"x": 0.5, "y": 0.1, "z": 1.6}]
 ABOVE_POST = {"x": 2.2, "y": 3.3, "z": 0.0}
+
+# examples/animation/main.roc: Pip's Draw id and foot Joints. The fade from
+# Walk to Run takes 60 steps, so 30 steps after Space is the half fade. The
+# shoes show below the point 0.1 above Pip's origin.
+ANIMATION_PIP_ID = 1
+ANIMATION_FEET = ["lower_leg.L", "lower_leg.R"]
+HALF_FADE_STEPS = 30
+SHOE_TOP = {"x": 0.0, "y": 0.1, "z": 0.0}
+MIN_SHOE_PIXELS = 100
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Panel that holds the score as one Text.
@@ -554,6 +568,33 @@ def drive_primitives(b, out):
             check(matches(rgb), f"the {name} shows its tint at {point}: {[round(c) for c in rgb]}")
     above = colour_at(shot, camera, ABOVE_POST)
     check(not green(above), f"the post ends at 3 units: {[round(c) for c in above]} above it")
+    b.quit()
+
+
+def orange(rgb):
+    r, g, b = rgb
+    return r > 150 and g < 0.6 * r and b < 0.4 * r
+
+
+def drive_grounding(b, out):
+    b.hello()
+    b.step(2)
+    pip = next(n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == ANIMATION_PIP_ID)
+    check(pip["ground"]["feet"] == ANIMATION_FEET, f"Pip's Draw names its foot Joints: {pip['ground']}")
+
+    b.step(HALF_FADE_STEPS, tap=["Space"])
+    scene = b.scene()["scene"]
+    pip = next(n["Draw"] for n in scene["nodes"] if "Draw" in n and n["Draw"]["id"] == ANIMATION_PIP_ID)
+    check(0 < pip["pose"]["fade"] < 1, f"Pip is in the Walk-to-Run fade: {pip['pose']}")
+
+    stem, ext = os.path.splitext(out)
+    shot = f"{stem}-animation{ext}"
+    b.screenshot(shot)
+    with open(shot, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+    _, top = project(scene["camera"], SHOE_TOP, (width, height))
+    shoes = sum(1 for i in range(top * width * 4, len(pixels), 4) if orange(pixels[i : i + 3]))
+    check(shoes >= MIN_SHOE_PIXELS, f"{shoes} orange shoe pixels show below row {top}, want {MIN_SHOE_PIXELS}")
     b.quit()
 
 
@@ -960,7 +1001,7 @@ def ball_pos(scene):
     return draws[-1]["pos"]
 
 
-GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("attach", drive_attach), ("primitives", drive_primitives), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
+GAMES = [("bridge-echo", drive_echo), ("tutorial/03-moving", drive_moving), ("tutorial/08-sound", drive_sound), ("tutorial/09-gamepad", drive_gamepad), ("tutorial/10-animation", drive_animation), ("attach", drive_attach), ("primitives", drive_primitives), ("animation", drive_grounding), ("pong", drive_ui), ("widgets", drive_widgets), ("glow", drive_glow)]
 
 
 def run_game(game, drive, out, tmp, suffix):
