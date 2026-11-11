@@ -2,6 +2,7 @@
 package engine
 
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
 import "core:slice"
 import "core:testing"
@@ -12,6 +13,8 @@ LEAN :: 7
 LIFT :: 8
 // A Clip id of another mesh.
 OTHER_CLIP :: 3
+// Pip with the Clips Idle, Walk and Run.
+ANIMATION_PIP_GLB :: #load("../examples/animation/assets/meshes/pip.glb")
 
 // Two Joints bound at rest: root at the origin and tip 1 up +y.
 chain_skin :: proc() -> Skin {
@@ -265,4 +268,50 @@ test_skin_matrices_pose_the_fixture_where_blender_does :: proc(t: ^testing.T) {
 	for v in 0 ..< 2 {
 		testing.expect_value(t, transform_point(out[0], data.vertices[v].pos), data.vertices[v].pos)
 	}
+}
+
+// The lowest foot Joint's height in model space minus its bind height.
+pip_foot_drop :: proc(t: ^testing.T, m: ^Mesh, pose: Draw_Pose) -> f32 {
+	table := clip_table()
+	defer delete(table.clips_logged)
+	out: [MAX_JOINTS]Mat4
+	skin_matrices(&table, m, pose, &out)
+	drop := f32(math.F32_MAX)
+	for name in ([]string{"lower_leg.L", "lower_leg.R"}) {
+		j, found := skin_joint(&m.skin, name)
+		testing.expectf(t, found, "Pip has the Joint %v", name)
+		bind := linalg.inverse(m.skin.joints[j].inverse_bind)
+		drop = min(drop, (out[j] * bind)[1, 3] - bind[1, 3])
+	}
+	return drop
+}
+
+// A per-Joint mix of two leg poses shortens the leg. At phase 0 Walk passes
+// with its legs straight down, and Run lands with its hips low, so the fade
+// sinks a foot that neither Clip sinks alone.
+@(test)
+test_pip_walk_to_run_fade_sinks_a_foot_below_its_bind_height :: proc(t: ^testing.T) {
+	data, _, err := glb_parse(ANIMATION_PIP_GLB, context.temp_allocator)
+	testing.expect_value(t, err, Glb_Error.None)
+	m := Mesh{name = "pip", skin = data.skin, first_clip = 1}
+	walk, run: u32
+	for clip, i in m.skin.clips {
+		switch clip.name {
+		case "Walk":
+			walk = m.first_clip + u32(i)
+		case "Run":
+			run = m.first_clip + u32(i)
+		}
+	}
+	testing.expect(t, walk != 0 && run != 0, "Pip has a Walk and a Run Clip")
+	walk_clip, _ := mesh_clip(&m, walk)
+	run_clip, _ := mesh_clip(&m, run)
+	for phase in ([]f32{0, 0.125, 0.25, 0.375, 0.5}) {
+		walk_time := phase * walk_clip.duration
+		run_time := phase * run_clip.duration
+		testing.expectf(t, pip_foot_drop(t, &m, {clip = walk, time = walk_time}) > -0.001, "Walk alone sinks at phase %v", phase)
+		testing.expectf(t, pip_foot_drop(t, &m, {clip = run, time = run_time}) > -0.001, "Run alone sinks at phase %v", phase)
+	}
+	drop := pip_foot_drop(t, &m, {clip = walk, time = 0, fade_clip = run, fade_time = 0, fade = 0.5})
+	testing.expectf(t, drop < -0.01, "the half fade at phase 0 drops the lowest foot %v, want below -0.01", drop)
 }

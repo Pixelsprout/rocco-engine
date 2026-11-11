@@ -1,5 +1,6 @@
 # Builds pip.glb, the rigged tutorial character, into each chapter app that
-# loads it, and the small skinned fixture for the engine's loader tests.
+# loads it and, with a Run Clip, into examples/animation. It also builds the
+# small skinned fixture for the engine's loader tests.
 # Run from the repository root with Blender 5.2:
 #   /Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py
 #
@@ -17,6 +18,7 @@ from mathutils import Matrix, Quaternion, Vector
 
 TUTORIAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 FIXTURE = os.path.join(TUTORIAL, "..", "..", "engine", "testdata", "skinned.glb")
+ANIMATION = os.path.join(TUTORIAL, "..", "animation")
 
 # Each chapter app keeps its own copy, so it runs with no ROCCO_ASSETS.
 CHAPTERS = ["02-character", "03-moving", "04-lights", "05-pickups", "06-door", "07-hud", "08-sound", "09-gamepad", "10-animation"]
@@ -34,6 +36,9 @@ EYE = (0.25, 0.85, 1.0, 1.0)
 
 SEGMENTS = 24
 RINGS = 12
+
+# From the hip Joint down to the foot Joint.
+LEG = 0.24
 
 # A-pose: each arm hangs this far out from straight down.
 ARM_ANGLE = math.radians(40.0)
@@ -279,6 +284,29 @@ def walk_pose(phase):
     }
 
 
+# One cycle: two strides. Run lands at phase 0 with its legs furthest apart
+# and its hips low enough that both feet touch the ground. Walk passes at
+# phase 0 with its legs straight down, so a fade between them mixes two
+# different leg poses and sinks a foot.
+def run_pose(phase):
+    swing = math.cos(2.0 * math.pi * phase)
+    stride = 40.0 * swing
+    flight = 0.02 * math.sin(2.0 * math.pi * phase) ** 2
+    return {
+        "hips": (flight - LEG * (1.0 - math.cos(math.radians(stride))), "X", 0.0),
+        "spine": (0.0, "X", 10.0),
+        "head": (0.0, "X", -6.0),
+        "upper_leg.L": (0.0, "X", stride),
+        "lower_leg.L": (0.0, "X", -20.0 * swing),
+        "upper_leg.R": (0.0, "X", -stride),
+        "lower_leg.R": (0.0, "X", 20.0 * swing),
+        "upper_arm.L": (0.0, "X", -40.0 * swing),
+        "lower_arm.L": (0.0, "X", -30.0),
+        "upper_arm.R": (0.0, "X", 40.0 * swing),
+        "lower_arm.R": (0.0, "X", -30.0),
+    }
+
+
 def make_scene():
     clear_scene()
     bpy.context.scene.render.fps = FPS
@@ -321,7 +349,7 @@ def glb_json(path):
 
 # Reads the JSON chunk back, so a change to the export options that drops the
 # Skin or a Clip fails the run.
-def check(path):
+def check(path, want_clips):
     gltf = glb_json(path)
     skins = gltf.get("skins", [])
     assert len(skins) == 1, f"{len(skins)} Skins"
@@ -337,7 +365,7 @@ def check(path):
         # Blender writes a key time as frame / fps, so a Clip keyed from frame 1 would start late.
         assert min(t["min"][0] for t in times) == 0.0, f"{animation['name']} does not start at 0 s"
         clips[animation["name"]] = max(t["max"][0] for t in times)
-    assert sorted(clips) == ["Idle", "Walk"], f"Clips {sorted(clips)}"
+    assert sorted(clips) == sorted(want_clips), f"Clips {sorted(clips)}"
     print(f"pip.glb: 1 Skin, {joints} Joints, " + ", ".join(f"{name} {duration:.3f} s" for name, duration in clips.items()))
 
 
@@ -433,11 +461,20 @@ def write_skinned_fixture(path):
         f.write(struct.pack("<II", len(buffer), 0x004E4942) + bytes(buffer))
 
 
-pip, rig = make_scene()
-for chapter in CHAPTERS:
-    meshes = os.path.join(TUTORIAL, chapter, "assets", "meshes")
+def export_pip(rig, pip, app, clips):
+    meshes = os.path.join(app, "assets", "meshes")
     os.makedirs(meshes, exist_ok=True)
     out = os.path.join(meshes, "pip.glb")
     export([rig, pip], out)
-check(out)
+    check(out, clips)
+
+
+pip, rig = make_scene()
+for chapter in CHAPTERS:
+    export_pip(rig, pip, os.path.join(TUTORIAL, chapter), ["Idle", "Walk"])
+# The export writes every Action, so Run is keyed only after the chapters
+# have their files.
+key_clip(rig, "Run", looped(0.75, 2, run_pose))
+rig.animation_data.action = None
+export_pip(rig, pip, os.path.normpath(ANIMATION), ["Idle", "Walk", "Run"])
 write_skinned_fixture(os.path.normpath(FIXTURE))
