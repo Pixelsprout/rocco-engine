@@ -5,17 +5,20 @@ Mesh := [].{
 	## shape as `Vocabulary.Manifest`.
 	Manifest : List({ name : Str, id : U32, duration : F32, size : { w : U32, h : U32 }, clips : List({ name : Str, id : U32, duration : F32 }) })
 
-	## The meshes that the engine builds itself. A loaded file has no tag. Give
-	## its name to `resolve`.
-	Primitive : [Cube, Sphere, Plane]
+	## The meshes that the engine builds itself. Each fits the unit cube around
+	## its origin. The plane faces up, and the cylinder stands on the y axis
+	## with closed caps. Size one with the Draw's `scale`. A loaded file has no
+	## tag. Give its name to `resolve`.
+	Primitive : [Cube, Sphere, Plane, Cylinder]
 
-	## The fixed mesh id of a Primitive: cube 1, sphere 2, plane 3. The
-	## Primitives load at startup and never unload, so you need no Pack.
+	## The fixed mesh id of a Primitive: cube 1, sphere 2, plane 3, cylinder 4.
+	## The Primitives load at startup and never unload, so you need no Pack.
 	primitive : Primitive -> U32
 	primitive = |p| match p {
 		Cube => 1
 		Sphere => 2
 		Plane => 3
+		Cylinder => 4
 	}
 
 	## The mesh id of a name in the Manifest. Call it once, in `loaded`, and keep
@@ -60,6 +63,7 @@ Mesh := [].{
 expect Mesh.primitive(Cube) == 1
 expect Mesh.primitive(Sphere) == 2
 expect Mesh.primitive(Plane) == 3
+expect Mesh.primitive(Cylinder) == 4
 
 manifest : Mesh.Manifest
 manifest = [

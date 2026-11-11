@@ -11,6 +11,7 @@ MESH_SLOT_BITS :: 16
 SLOT_LIMIT :: 1 << MESH_SLOT_BITS
 SPHERE_RINGS :: 32
 SPHERE_SEGMENTS :: 64
+CYLINDER_SEGMENTS :: 64
 // A posed mesh can reach past its bind-pose box, so the box of a skinned
 // mesh grows by this share of its largest side on every side.
 SKINNED_BOX_PAD :: 0.25
@@ -26,6 +27,7 @@ PRIMITIVE_NAMES := [Primitive]string {
 	.Cube     = "primitive/cube",
 	.Sphere   = "primitive/sphere",
 	.Plane    = "primitive/plane",
+	.Cylinder = "primitive/cylinder",
 }
 
 GREY :: [4]f32{0.8, 0.8, 0.8, 1}
@@ -103,6 +105,7 @@ Primitive :: enum u32 {
 	Cube,
 	Sphere,
 	Plane,
+	Cylinder,
 }
 
 // glTF puts uv 0, 0 at the top left of the image. tangent points along
@@ -662,6 +665,8 @@ primitive_build :: proc(p: Primitive, allocator: mem.Allocator) -> Mesh_Data {
 		return sphere_build(allocator)
 	case .Plane:
 		return {vertices = PLANE_VERTICES[:], indices = PLANE_INDICES[:]}
+	case .Cylinder:
+		return cylinder_build(allocator)
 	}
 	unreachable()
 }
@@ -732,6 +737,50 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 		}
 	}
 	return {vertices = vertices, indices = indices[:]}
+}
+
+// A cylinder of diameter 1 and height 1 on the y axis. The side has a top
+// row and a bottom row, each with a repeated seam vertex. Each cap is a fan
+// around its centre with its own vertices, so its edge stays sharp. The caps
+// take their uvs and tangents from the cube's top and bottom faces.
+cylinder_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
+	RING :: CYLINDER_SEGMENTS + 1
+	vertices := make([]Vertex, 4 * RING, allocator)
+	for s in 0 ..= CYLINDER_SEGMENTS {
+		phi := 2 * math.PI * f32(s) / CYLINDER_SEGMENTS
+		n := [3]f32{math.sin(phi), 0, math.cos(phi)}
+		u := f32(s) / CYLINDER_SEGMENTS
+		tangent := [4]f32{math.cos(phi), 0, -math.sin(phi), 1}
+		vertices[s] = {pos = n * 0.5 + {0, 0.5, 0}, color = GREY, normal = n, uv = {u, 0}, tangent = tangent}
+		vertices[RING + s] = {pos = n * 0.5 - {0, 0.5, 0}, color = GREY, normal = n, uv = {u, 1}, tangent = tangent}
+	}
+	for y, cap in ([2]f32{0.5, -0.5}) {
+		normal := [3]f32{0, math.sign(y), 0}
+		first := (2 + cap) * RING
+		for s in 0 ..< CYLINDER_SEGMENTS {
+			pos := vertices[s].normal * 0.5 + {0, y, 0}
+			vertices[first + s] = {pos = pos, color = GREY, normal = normal, uv = cube_uv(pos, normal), tangent = cube_tangent(normal)}
+		}
+		centre := [3]f32{0, y, 0}
+		vertices[first + CYLINDER_SEGMENTS] = {pos = centre, color = GREY, normal = normal, uv = cube_uv(centre, normal), tangent = cube_tangent(normal)}
+	}
+
+	indices := make([]u16, 12 * CYLINDER_SEGMENTS, allocator)
+	i := 0
+	for s in 0 ..< CYLINDER_SEGMENTS {
+		top, bottom := u16(s), u16(RING + s)
+		next := u16((s + 1) % CYLINDER_SEGMENTS)
+		top_cap, bottom_cap := u16(2 * RING), u16(3 * RING)
+		quad := [12]u16 {
+			top, bottom, bottom + 1,
+			top, bottom + 1, top + 1,
+			top_cap + CYLINDER_SEGMENTS, top_cap + u16(s), top_cap + next,
+			bottom_cap + CYLINDER_SEGMENTS, bottom_cap + next, bottom_cap + u16(s),
+		}
+		copy(indices[i:], quad[:])
+		i += len(quad)
+	}
+	return {vertices = vertices, indices = indices}
 }
 
 mesh_material_slots_delete :: proc(slots: []Mesh_Material_Slot, allocator: mem.Allocator) {

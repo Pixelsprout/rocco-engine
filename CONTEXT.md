@@ -504,16 +504,17 @@ a typo is visible, not fatal.
 _Avoid_: default mesh, error mesh, placeholder, missing mesh
 
 **Primitive**:
-A mesh the engine builds itself rather than loads: the cube, the sphere and
-the plane. They load at startup, belong to no Pack and never unload. They
+A mesh the engine builds itself rather than loads: the cube, the sphere, the
+plane and the cylinder. Each fits the unit cube, and the Draw scale sizes it.
+The cylinder stands on the y axis with closed caps. They load at startup, belong to no Pack and never unload. They
 are named with a `primitive/` prefix, such as `primitive/cube`. A loaded
 asset takes its bare file stem.
 _Avoid_: built-in, shape, basic mesh
 
 **Primitive tag**:
-A tag of `Primitive : [Cube, Sphere, Plane]` in the mesh package
+A tag of `Primitive : [Cube, Sphere, Plane, Cylinder]` in the mesh package
 (`packages/mesh/`). `Mesh.primitive` resolves one to its fixed mesh id:
-cube 1, sphere 2, plane 3. It needs no Config and no Pack. It belongs to the package, not the vocabulary: Draws still carry
+cube 1, sphere 2, plane 3, cylinder 4. It needs no Config and no Pack. It belongs to the package, not the vocabulary: Draws still carry
 a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
 

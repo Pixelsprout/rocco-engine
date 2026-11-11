@@ -50,7 +50,7 @@ host prints the name of the field and the rule, then exits with code 1. For
 example:
 
 ```text
-Launch.capacity.meshes must be at least 4, for the Fallback mesh and the three Primitives, so the run ends
+Launch.capacity.meshes must be at least 5, for the Fallback mesh and the four Primitives, so the run ends
 ```
 
 `launch` itself cannot fail. If your game wants to reject its Args, return

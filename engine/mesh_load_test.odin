@@ -1,6 +1,7 @@
 #+test
 package engine
 
+import "core:fmt"
 import "core:os"
 import "core:slice"
 import "core:testing"
@@ -93,7 +94,7 @@ test_mesh_load_file_stops_at_mesh_capacity :: proc(t: ^testing.T) {
 
 	testing.expect(t, a_ok)
 	testing.expect(t, !b_ok)
-	testing.expect_value(t, reason, "the mesh table is full at 6 meshes")
+	testing.expect_value(t, reason, fmt.tprintf("the mesh table is full at %v meshes", SMALL_MESHES))
 	testing.expect_value(t, table.count, SMALL_MESHES)
 	testing.expect_value(t, table.meshes[SMALL_MESHES - 1].name, "a")
 }

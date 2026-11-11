@@ -106,7 +106,7 @@ init = |_config| { model: { cube: Mesh.primitive(Cube) }, commands: [] }
 ```
 <!-- endregion -->
 
-The host makes three meshes itself: a cube, a sphere and a plane.
+The host makes four meshes itself: a cube, a sphere, a plane and a cylinder.
 `Mesh.primitive(Cube)` gives the id of the cube, so you need no file for
 it.
 

@@ -1,6 +1,7 @@
 #+test
 package engine
 
+import "core:math"
 import "core:math/linalg"
 import "core:slice"
 import "core:strings"
@@ -90,7 +91,7 @@ test_each_primitive_has_its_fixed_id_by_name :: proc(t: ^testing.T) {
 		name: string,
 		id:   u32,
 	}
-	for c in ([]Case{{"primitive/fallback", 0}, {"primitive/cube", 1}, {"primitive/sphere", 2}, {"primitive/plane", 3}}) {
+	for c in ([]Case{{"primitive/fallback", 0}, {"primitive/cube", 1}, {"primitive/sphere", 2}, {"primitive/plane", 3}, {"primitive/cylinder", 4}}) {
 		id, found := mesh_table_find(&table, c.name)
 		testing.expectf(t, found, "expected %v in the mesh table", c.name)
 		testing.expect_value(t, id, c.id)
@@ -138,6 +139,31 @@ test_sphere_normals_are_unit_and_point_out :: proc(t: ^testing.T) {
 		testing.expect(t, abs(v3_dot(v.normal, v.normal) - 1) < 1e-4)
 		testing.expect(t, abs(v3_dot(v.pos, v.pos) - 0.25) < 1e-4)
 		testing.expect(t, v3_dot(v.pos, v.normal) > 0)
+	}
+}
+
+@(test)
+test_cylinder_has_64_segments_and_two_caps :: proc(t: ^testing.T) {
+	data := primitive_build(.Cylinder, context.temp_allocator)
+	testing.expect_value(t, len(data.vertices), 4 * 65)
+	testing.expect_value(t, len(data.indices), 12 * 64)
+}
+
+// A cap normal is +y or -y and sits on its cap. A side normal is flat and
+// points out from the axis, so a Draw scale on y does not bend it.
+@(test)
+test_cylinder_fills_the_unit_cube_with_flat_caps :: proc(t: ^testing.T) {
+	data := primitive_build(.Cylinder, context.temp_allocator)
+	for v, i in data.vertices {
+		testing.expectf(t, abs(v.pos.y) == 0.5 || v.normal.y == 0, "vertex %v at %v is not on a cap or the side", i, v.pos)
+		radial := [3]f32{v.pos.x, 0, v.pos.z}
+		if v.normal.y == 0 {
+			testing.expect(t, abs(v3_dot(radial, radial) - 0.25) < 1e-4)
+			testing.expect(t, abs(v3_dot(v.normal, radial) - 0.5) < 1e-4)
+		} else {
+			testing.expect_value(t, v.normal, [3]f32{0, math.sign(v.pos.y), 0})
+			testing.expect(t, v3_dot(radial, radial) <= 0.25 + 1e-4)
+		}
 	}
 }
 
@@ -330,8 +356,10 @@ test_each_primitive_keeps_the_box_around_its_vertices :: proc(t: ^testing.T) {
 	testing.expect_value(t, table.meshes[Primitive.Fallback].box, Box{min = -0.5, max = 0.5})
 	testing.expect_value(t, table.meshes[Primitive.Cube].box, Box{min = -0.5, max = 0.5})
 	testing.expect_value(t, table.meshes[Primitive.Plane].box, Box{min = {-0.5, 0, -0.5}, max = {0.5, 0, 0.5}})
-	sphere := table.meshes[Primitive.Sphere].box
-	for i in 0 ..< 3 {
-		testing.expect(t, abs(sphere.min[i] + 0.5) < EPS && abs(sphere.max[i] - 0.5) < EPS)
+	for p in ([]Primitive{.Sphere, .Cylinder}) {
+		box := table.meshes[p].box
+		for i in 0 ..< 3 {
+			testing.expectf(t, abs(box.min[i] + 0.5) < EPS && abs(box.max[i] - 0.5) < EPS, "%v has box %v", p, box)
+		}
 	}
 }
