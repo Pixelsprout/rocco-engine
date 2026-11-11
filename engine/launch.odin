@@ -4,7 +4,7 @@ package engine
 GROUP_LIMIT :: 1 << 20
 LAUNCH_RULE_ZERO :: "must be above zero"
 LAUNCH_RULE_UI_QUADS :: "must be at most 16384, so a u16 index reaches every UI vertex"
-LAUNCH_RULE_MESHES :: "must be at least 4, for the Fallback mesh and the three Primitives"
+LAUNCH_RULE_MESHES :: "must be at least 5, for the Fallback mesh and the four Primitives"
 LAUNCH_RULE_SKIES :: "must be at least 2, for the reserved slot and one sky"
 LAUNCH_RULE_SOUNDS :: "must be at least 2, for the reserved slot and one Sound"
 LAUNCH_RULE_IMAGES :: "must be at least 2, for the reserved slot and one Image"
@@ -14,7 +14,7 @@ LAUNCH_RULE_GROUPS :: "must be at most 1048576"
 LAUNCH_RULE_SHADOW_MAP :: "must be from 8 to 16384 texels"
 LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
-#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 4 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
+#assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 5 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 278653 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.

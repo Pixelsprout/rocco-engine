@@ -614,7 +614,7 @@ These Commands do nothing and log once per pack name:
 
 The primitives load at startup, before `init`. They belong to no pack and
 never unload, so a game can draw them before any `Load`. Their ids are
-fixed: fallback 0, cube 1, sphere 2, plane 3. Each is its slot at
+fixed: fallback 0, cube 1, sphere 2, plane 3, cylinder 4. Each is its slot at
 generation 0. No primitive slot goes on a free list, so the ids never
 change.
 

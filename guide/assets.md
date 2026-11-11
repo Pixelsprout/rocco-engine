@@ -124,11 +124,17 @@ place.
 
 ## The Primitives
 
-The host makes three meshes itself: a cube, a sphere and a plane. They load
-at startup, belong to no Pack and never unload, so you can use them with no
-`Load`. [`Mesh.primitive`][Mesh.primitive] gives the id of each one from a
-[Primitive] tag, such as `Mesh.primitive(Cube)`. Pong draws only the cube,
-so it has no `assets/` folder.
+The host makes four meshes itself: a cube, a sphere, a plane and a
+cylinder. They load at startup, belong to no Pack and never unload, so you
+can use them with no `Load`. [`Mesh.primitive`][Mesh.primitive] gives the id
+of each one from a [Primitive] tag, such as `Mesh.primitive(Cube)`. Pong
+draws only the cube, so it has no `assets/` folder.
+
+Each Primitive fits the unit cube around its origin. The plane is flat in
+x-z and faces up. The cylinder stands on the y axis with closed caps. Size
+a Primitive with the Draw's `scale`: a cylinder with a `scale` of
+`{ x: 0.2, y: 3.0, z: 0.2 }` is a post 3 units tall, and its caps stay
+flat. `examples/primitives` draws all four.
 
 ## Reference
 

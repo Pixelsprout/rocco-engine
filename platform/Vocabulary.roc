@@ -82,7 +82,7 @@ Vocabulary := [].{
 	## the host draws the first entries, or a new Speaker waits for a voice, and
 	## the host logs once.
 	##
-	## - `meshes`: mesh slots. At least 4, for the Fallback mesh and the three
+	## - `meshes`: mesh slots. At least 5, for the Fallback mesh and the four
 	##   Primitives, and at most 65536.
 	## - `skies`: sky slots. At least 2, for the reserved slot and one sky, and
 	##   at most 65536.
