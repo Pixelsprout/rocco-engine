@@ -216,6 +216,8 @@ Mesh_Table :: struct {
 	logged:       map[u32]struct {},
 	// The Clip ids that skin_matrices found on another mesh.
 	clips_logged: map[u32]struct {},
+	// The unknown ground.feet names that skin_ground logged.
+	feet_logged:  map[Joint_Log_Key]struct {},
 	// Clip ids are never reused, so a stale Clip id names no Clip.
 	next_clip:    u32,
 	uploaded:     bool,
@@ -279,6 +281,7 @@ mesh_table_init :: proc(t: ^Mesh_Table, capacity: int, perm, allocator: mem.Allo
 	t.free = make([]int, capacity, perm)
 	t.logged = make(map[u32]struct {}, allocator)
 	t.clips_logged = make(map[u32]struct {}, allocator)
+	t.feet_logged = make(map[Joint_Log_Key]struct {}, allocator)
 	t.next_clip = 1
 	for p in Primitive {
 		data := primitive_build(p, context.temp_allocator)
@@ -310,6 +313,7 @@ mesh_table_destroy :: proc(t: ^Mesh_Table) {
 	texture_cache_destroy(&t.texture_cache)
 	delete(t.logged)
 	delete(t.clips_logged)
+	delete(t.feet_logged)
 	delete(t.meshes, t.perm)
 	delete(t.free, t.perm)
 }

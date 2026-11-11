@@ -220,6 +220,12 @@ that draw id and joint. The log lists the Joint names of the Skin, so a
 typo is easy to find. `examples/attach` shows an orb on Pip's head and a
 lantern in Pip's hand.
 
+## Animation
+
+A skinned Draw plays its Clips through its `pose`, and `ground.feet` keeps
+its feet out of the ground in a fade. [Animation](animation.md) explains
+Clips, fades, phase sync and Grounding.
+
 ## Pairing by id
 
 The host draws frames at the rate of the display, not at the step rate. To
@@ -231,12 +237,8 @@ that has the same `id` in the previous Scene. It interpolates `pos`,
 `scale`, `rot` and `scale_rot` between the two, but not `mesh` or `tint`.
 A Draw with no partner simply draws where it is.
 
-The host blends the `pose` too. The `time` blends when the `clip` is the
-same in both Scenes and the time did not go back. The `fade_time` blends
-by the same rule with the `fade_clip`. The `fade` blends only when both
-the `clip` and the `fade_clip` are the same. Anything else takes the
-current value, so a looping time that wraps back to the start does not
-play the Clip backwards for a frame.
+The host blends the `pose` of a skinned Draw too. [The Pose of a
+Draw](animation.md#the-pose-of-a-draw) gives the rules.
 
 So the ids matter. Follow these rules:
 

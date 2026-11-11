@@ -406,7 +406,9 @@ in the `.glb`. To find which one, add `expect idle != 0` and
 `expect walk != 0` to `loaded`, after the two `Mesh.clip` lines. Run
 `roc main.roc` again: a failed one writes `expect failed` to the log.
 
-You have made a whole game, with a character that walks. The guide pages
-explain each part in more detail. Start with
+You have made a whole game, with a character that walks. To fade Walk into
+a Run at the same phase and keep the feet on the ground, read
+[Animation](../animation.md). The guide pages explain each part in more
+detail. Start with
 [Assets and Packs](../assets.md) and [The Scene](../scene.md), or read
 [Shipping a game](../shipping.md) to build your game for other people.

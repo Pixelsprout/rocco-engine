@@ -13,8 +13,9 @@ Attach_Miss :: enum u8 {
 	No_Joint,
 }
 
-// An Attach logs once per draw id and joint name.
-Attach_Key :: struct {
+// An Attach miss and an unknown ground foot each log once per draw id and
+// joint name.
+Joint_Log_Key :: struct {
 	draw:  u64,
 	joint: u64,
 }
@@ -44,6 +45,10 @@ attach_parent_id :: proc(config: ^Attach_Config) -> Parent_Id {
 
 attach_joint_hash :: proc(name: string) -> u64 {
 	return hash.fnv64a(transmute([]u8)name) | 1
+}
+
+joint_log_key :: proc(draw: u64, joint: string) -> Joint_Log_Key {
+	return {draw, attach_joint_hash(joint)}
 }
 
 // With no joint_pose, as in the pairing of the previous Scene, the children
@@ -84,7 +89,7 @@ skin_joint :: proc(s: ^Skin, name: string) -> (index: int, found: bool) {
 
 // The world Pose of the named Joint of a Draw of mesh m at model and pose.
 // The Pose drops the scale of the Draw and of the Joint.
-attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, model: Mat4, name: string) -> (world: Pose, miss: Attach_Miss) {
+attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, ground: Skin_Ground, model: Mat4, name: string) -> (world: Pose, miss: Attach_Miss) {
 	if m == nil || !mesh_skinned(m) {
 		return {}, .No_Skin
 	}
@@ -93,7 +98,7 @@ attach_joint_pose :: proc(meshes: ^Mesh_Table, m: ^Mesh, pose: Draw_Pose, model:
 		return {}, .No_Joint
 	}
 	skin: [MAX_JOINTS]Mat4
-	skin_matrices(meshes, m, pose, &skin)
+	skin_matrices(meshes, m, pose, &skin, ground)
 	return pose_of_matrix(model * skin[j] * linalg.inverse(m.skin.joints[j].inverse_bind)), .None
 }
 
@@ -111,8 +116,8 @@ pose_of_matrix :: proc(m: Mat4) -> Pose {
 }
 
 // m is the mesh of the named Draw, or nil when no Draw has the id.
-attach_log :: proc(logged: ^map[Attach_Key]struct {}, config: ^Attach_Config, m: ^Mesh, miss: Attach_Miss) {
-	key := Attach_Key{config.draw, attach_joint_hash(roc_str_string(&config.joint))}
+attach_log :: proc(logged: ^map[Joint_Log_Key]struct {}, config: ^Attach_Config, m: ^Mesh, miss: Attach_Miss) {
+	key := joint_log_key(config.draw, roc_str_string(&config.joint))
 	if key in logged {
 		return
 	}
@@ -158,7 +163,7 @@ scene_attach_joint :: proc(walk: ^Tree_Walk, config: ^Attach_Config) -> (world: 
 	m := mesh_lookup(joints.meshes, d.mesh) or_return
 	transform := draw_transform(d, d, draw_world, 1)
 	miss: Attach_Miss
-	world, miss = attach_joint_pose(joints.meshes, m, transform.pose, draw_model_matrix(transform), roc_str_string(&config.joint))
+	world, miss = attach_joint_pose(joints.meshes, m, transform.pose, draw_ground(d), draw_model_matrix(transform), roc_str_string(&config.joint))
 	return world, miss == .None
 }
 

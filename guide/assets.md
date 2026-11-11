@@ -282,7 +282,8 @@ no tangents, and logs nothing.
 A `.glb` with a Skin loads as one skinned mesh, and its Manifest entry
 lists its Clips, each with a name, an id and a duration. A Draw plays a
 Clip through its `pose`. With no Clip named, the mesh draws in its bind
-pose. [Tutorial chapter 10](tutorial/10-animation.md) walks through it.
+pose. [Tutorial chapter 10](tutorial/10-animation.md) walks through it,
+and [Animation](animation.md) covers fades, phase sync and Grounding.
 
 The file must follow these rules:
 

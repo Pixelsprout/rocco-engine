@@ -191,7 +191,7 @@ is_sphere = |e| e.id % 2 == 0
 to_draw : Model, Entity -> Draw
 to_draw = |m, e| {
 	(mesh, rot) = if (is_sphere(e)) (m.sphere, Quat.identity) else (m.cube, Quat.from_yaw(e.yaw))
-	{ id: e.id, mesh, pos: e.pos, scale: { x: radius, y: radius, z: radius }, rot, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), casts_shadow: Bool.True, material: Material.default, materials: [], slot_materials: [], shader_values: [] }
+	{ id: e.id, mesh, pos: e.pos, scale: { x: radius, y: radius, z: radius }, rot, scale_rot: Quat.identity, tint: { r: 0.8, g: 0.8, b: 0.8 }, glow: { r: 0.0, g: 0.0, b: 0.0 }, pose: Pose.still(0, 0.0), ground: { feet: [] }, casts_shadow: Bool.True, material: Material.default, materials: [], slot_materials: [], shader_values: [] }
 }
 
 to_collider : Entity -> Vocabulary.Collider

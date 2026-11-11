@@ -16,8 +16,12 @@ SHADER_PREFIX :: "shader/"
 SHADER_HEADER_SIZE :: 96
 SHADER_METADATA_LIMIT :: 1024 * 1024
 SHADER_PAYLOAD_LIMIT :: 16 * 1024 * 1024
+// The vertex stage blocks of contract v1: engine_vertex, engine_skin and game_vertex.
+SHADER_ENGINE_VERTEX_SIZE :: 256
+SHADER_ENGINE_SKIN_SIZE :: 4096
+SHADER_GAME_VERTEX_SIZE :: 256
 @(rodata)
-SHADER_UNIFORM_SIZES := [6]int{256, 96, 512, 4096, 256, 256}
+SHADER_UNIFORM_SIZES := [6]int{SHADER_ENGINE_VERTEX_SIZE, 96, 512, SHADER_ENGINE_SKIN_SIZE, SHADER_GAME_VERTEX_SIZE, 256}
 @(rodata)
 SHADER_BACKENDS := [3]string{"glsl430", "hlsl5", "metal_macos"}
 @(rodata)

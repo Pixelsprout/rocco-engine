@@ -93,3 +93,13 @@ test_msaa_sample_count_maps_each_msaa_tag_to_its_sample_count :: proc(t: ^testin
 		testing.expectf(t, got == c.want, "%v gives %v samples, want %v", c.samples, got, c.want)
 	}
 }
+
+@(test)
+test_launch_gl_check_refuses_a_context_without_room_for_the_skinned_package_uniforms :: proc(t: ^testing.T) {
+	testing.expect_value(t, PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4, 288)
+	testing.expect(t, launch_gl_check(1152))
+	testing.expect(t, !launch_gl_check(1151))
+	testing.expect(t, !launch_gl_check(1072))
+	testing.expect(t, !launch_gl_check(1024))
+	testing.expect(t, launch_gl_check(16384))
+}

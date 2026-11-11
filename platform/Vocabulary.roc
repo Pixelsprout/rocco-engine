@@ -209,6 +209,13 @@ Vocabulary := [].{
 	##   beside the Draw for that. The fallback mesh ignores it.
 	## - `pose`: the Clips that pose a skinned mesh. A mesh with no Skin
 	##   ignores it.
+	## - `ground`: Grounding for a skinned mesh. `feet` names foot Joints, as
+	##   an Attach names its Joint. After the Clip mix, if a named foot is
+	##   below its height in the bind pose, the host lifts the whole Draw by the
+	##   depth of the lowest foot. It never lowers the Draw. The lift is in
+	##   model units, before `scale`, and Attach children and shadows follow
+	##   it. An empty list, the default, turns Grounding off. An unknown name
+	##   logs once per Draw and Joint and is skipped.
 	## - `casts_shadow`: whether this Draw adds a shadow to the Sun's map. It is
 	##   `Bool.True` by default. `Bool.False` removes it from shadow fitting and
 	##   shadow submissions, but keeps it in colour and selection rendering.
@@ -218,7 +225,7 @@ Vocabulary := [].{
 	##   Two named Surface assignments for one slot are invalid. Duplicate slot entries are invalid.
 	## - `shader_values`: generated Draw-scope values. Scene-scope values belong in `Scene.shader_values`.
 	##   Invalid assignments omit affected parts from every related pass and write a development log.
-	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool, material : Material.Override, materials : List(Shader.SlotAssignment), slot_materials : List(Material.SlotOverride), shader_values : List(Shader.Values) }
+	Draw : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, ground : { feet : List(Str) }, casts_shadow : Bool, material : Material.Override, materials : List(Shader.SlotAssignment), slot_materials : List(Material.SlotOverride), shader_values : List(Shader.Values) }
 
 	## The Clips that pose a skinned mesh in one Draw. Your Model owns every
 	## value. The host samples both Clips and mixes them by `fade`. Start from

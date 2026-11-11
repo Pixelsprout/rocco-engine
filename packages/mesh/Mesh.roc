@@ -57,6 +57,17 @@ Mesh := [].{
 			Err(NotFound) => 0.0
 		}
 	}
+
+	## The time in seconds of the fade Clip at the same normalized phase as
+	## `time` in the main Clip: `time / main duration * fade duration`. Give it
+	## to a Pose's `fade_time` so that both Clips put the same foot down at the
+	## same moment. A Clip id that is not in the Manifest, or a Clip with
+	## duration 0, gives 0.
+	synced_time : Manifest, U32, F32, U32 -> F32
+	synced_time = |manifest, main_clip, time, fade_clip| {
+		main_duration = clip_duration(manifest, main_clip)
+		if (main_duration == 0.0) 0.0 else time / main_duration * clip_duration(manifest, fade_clip)
+	}
 }
 
 # engine/mesh_test.odin pins the same primitive ids, so a change to the slot order fails a test on each side.
@@ -70,7 +81,7 @@ manifest = [
 	{ name: "sprout", id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] },
 	{ name: "missing", id: 0, duration: 0.0, size: { w: 0, h: 0 }, clips: [] },
 	{ name: "pip", id: 5, duration: 0.0, size: { w: 0, h: 0 }, clips: [{ name: "Idle", id: 1, duration: 2.0 }, { name: "Walk", id: 2, duration: 1.0 }] },
-	{ name: "crab", id: 6, duration: 0.0, size: { w: 0, h: 0 }, clips: [{ name: "Walk", id: 3, duration: 0.5 }] },
+	{ name: "crab", id: 6, duration: 0.0, size: { w: 0, h: 0 }, clips: [{ name: "Walk", id: 3, duration: 0.5 }, { name: "Still", id: 4, duration: 0.0 }] },
 ]
 
 expect Mesh.resolve(manifest, "sprout") == 4
@@ -90,3 +101,12 @@ expect Mesh.clip_duration(manifest, 3) == 0.5
 expect Mesh.clip_duration(manifest, 9) == 0.0
 expect Mesh.clip_duration(manifest, 0) == 0.0
 expect Mesh.clip_duration([], 1) == 0.0
+
+expect Mesh.synced_time(manifest, 2, 0.25, 1) == 0.5
+expect Mesh.synced_time(manifest, 1, 1.5, 3) == 0.375
+expect Mesh.synced_time(manifest, 2, 0.0, 3) == 0.0
+expect Mesh.synced_time(manifest, 9, 0.25, 1) == 0.0
+expect Mesh.synced_time(manifest, 2, 0.25, 9) == 0.0
+expect Mesh.synced_time(manifest, 0, 0.25, 1) == 0.0
+expect Mesh.synced_time(manifest, 4, 0.25, 1) == 0.0
+expect Mesh.synced_time(manifest, 2, 0.25, 4) == 0.0
