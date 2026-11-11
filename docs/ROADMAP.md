@@ -1674,6 +1674,41 @@ shows its tool log in a monospace face. Closes dex task kf5vd0lp.
 
 Check: the widgets example shows the built-in face beside a Pack face.
 
+## Milestone 43: Animation 2
+
+Done when Pip fades from Walk into Run at the same phase with no foot below
+the ground, in a new `examples/animation`. Grilled 2026-11-11 from the Agent
+Town otter notes. ADR 0035 records the decisions, and the dex task cyjya05i
+holds the tasks.
+
+The otter Clips are baked at every frame with LINEAR keys, so cubic keys
+would not change them. A walk-to-run fade sinks the otter 6.3 cm, even at a
+matched phase. A per-Joint mix of two leg poses shortens the leg.
+
+1. Pip gains a Run Clip in `examples/tutorial/source/make_meshes.py`. A
+   Walk-to-Run fade of Pip must sink at some phase, or the check proves
+   nothing.
+2. `Mesh.synced_time : Manifest, U32, F32, U32 -> F32` gives the fade
+   Clip's time at the main Clip's normalized phase. It is a package helper.
+   It has no Vocabulary change.
+3. One Vocabulary change: a Draw gains `ground : { feet : List(Str) }`, an
+   empty list by default. After the Clip mix, the host lifts the Draw so that
+   no named foot Joint is below its bind-pose height. The host never lowers
+   the Draw. The lift applies at every step while `feet` is not empty.
+4. `guide/animation.md` teaches Clips, fades, `Mesh.synced_time` and
+   Grounding. Tutorial chapter 10 links to it.
+5. Check the two open risks of Milestone 24: the skinned GL vertex shader
+   against the GL 4.3 uniform limit, and the D3D11 skinned path on a Windows
+   machine.
+
+Check: an Odin test poses Pip's Walk-to-Run fade at a phase that sinks. The
+lowest foot is below its bind height with no `feet`, and at its bind height
+with `feet`. A Bridge check screenshots `examples/animation` with Grounding
+on.
+
+Not in this milestone, each a dex task beside the milestones: two-bone IK
+with foot contacts, root motion, and CUBICSPLINE keys.
+
 ## Later arcs
 
 These arcs are a direction, not a plan. Each gets milestone numbers and its

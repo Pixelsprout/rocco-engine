@@ -218,7 +218,7 @@ _Avoid_: frame, transform, matrix, placement
 
 **Draw**:
 A leaf Node: a draw id, a mesh id, a position, scale, rot, scale_rot, tint,
-glow and Pose, local to its Group or to the world at the root.
+glow and Clip mix, local to its Group or to the world at the root.
 The scale acts along the axes of scale_rot, then rot turns the result.
 It is a description, not a command. `rot` is a unit quaternion. The host
 interpolates it between two Scenes. A game starts from `pf.Draw.default`.
@@ -746,11 +746,18 @@ Manifest entry of its mesh with the Clip's name and duration. Ids are unique
 across a Pack. Id 0 is no Clip.
 _Avoid_: animation index, clip handle
 
-**Pose**:
-The `pose` field of a Draw: a Clip and its time, a fade Clip and its time,
-and the fade weight from 0 to 1. The Model owns every value. The host
-samples both Clips and mixes them by the fade.
-_Avoid_: anim, animation state, blend tree
+**Clip mix**:
+The value of a Draw's `pose` field: a Clip and its time, a fade Clip and its
+time, and the fade weight from 0 to 1. The Model owns every value. The host
+samples both Clips and mixes them by the fade. It is not a **Pose**, which is
+a position and a rot.
+_Avoid_: pose (for this value), anim, animation state, blend tree
+
+**Grounding** (planned):
+The host lifts a skinned Draw so that no foot Joint named in its
+`ground.feet` is below that Joint's height in the bind pose. It never lowers
+the Draw. It fixes the sink of a fade between two leg poses. See ADR 0035.
+_Avoid_: foot lock, foot IK (the later task that pins a foot), ground snap
 
 ## Memory lifetimes
 
