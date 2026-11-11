@@ -44,9 +44,11 @@ missing cylinder, which draws the magenta Fallback mesh, fails. A point just
 above the stretched post must not show the post's green.
 
 Then it runs animation with Grounding on. Pip's Draw must name both foot
-Joints in ground.feet. It taps Space, steps to the middle of the Walk-to-Run
-fade, saves an "-animation" screenshot and checks that Pip's orange shoes
-show above the ground.
+Joints in ground.feet. It steps to the start of a Walk stride and saves an
+"-animation-walk" screenshot. One stride later, Space has Pip at the middle
+of the Walk-to-Run fade, where the mix sinks a foot 1.36 cm. It saves an
+"-animation" screenshot. The lowest orange shoe row must match the one in
+Walk, so a sunk foot, about 2 pixels lower, fails.
 
 Last it runs pong and checks that the `scene` reply holds the UI as a tree:
 the scoreboard is a Panel that holds two cell Panels, each with the score. Then
@@ -166,14 +168,16 @@ POST_POINTS = [{"x": 2.2, "y": y, "z": 0.0} for y in (0.5, 1.5, 2.8)]
 DISC_POINTS = [{"x": 0.0, "y": 0.1, "z": 1.6}, {"x": 0.5, "y": 0.1, "z": 1.6}]
 ABOVE_POST = {"x": 2.2, "y": 3.3, "z": 0.0}
 
-# examples/animation/main.roc: Pip's Draw id and foot Joints. The fade from
-# Walk to Run takes 60 steps, so 30 steps after Space is the half fade. The
-# shoes show below the point 0.1 above Pip's origin.
+# examples/animation/main.roc: Pip's Draw id and foot Joints. Walk is 1 s and
+# the fade from Walk to Run takes 60 steps. The shoes show below the point 0.1
+# above Pip's origin.
 ANIMATION_PIP_ID = 1
 ANIMATION_FEET = ["lower_leg.L", "lower_leg.R"]
+STRIDE_STEPS = 120
 HALF_FADE_STEPS = 30
 SHOE_TOP = {"x": 0.0, "y": 0.1, "z": 0.0}
 MIN_SHOE_PIXELS = 100
+SHOE_ROW_TOLERANCE = 1
 
 # examples/pong/main.roc: the scoreboard is the first root, a cell, a colon and
 # a cell. Each cell is a Panel that holds the score as one Text.
@@ -576,25 +580,44 @@ def orange(rgb):
     return r > 150 and g < 0.6 * r and b < 0.4 * r
 
 
+def animation_pip(b):
+    scene = b.scene()["scene"]
+    return scene, next(n["Draw"] for n in scene["nodes"] if "Draw" in n and n["Draw"]["id"] == ANIMATION_PIP_ID)
+
+
+def at_stride_start(pose):
+    return abs(pose["time"] - round(pose["time"])) < 0.01
+
+
+# The lowest row of the orange shoes and their pixel count.
+def shoe_pixels(b, scene, path):
+    b.screenshot(path)
+    with open(path, "rb") as f:
+        width, height, pixels = bridge.png_rgba(f.read())
+    _, top = project(scene["camera"], SHOE_TOP, (width, height))
+    rows = [i // 4 // width for i in range(top * width * 4, len(pixels), 4) if orange(pixels[i : i + 3])]
+    check(len(rows) >= MIN_SHOE_PIXELS, f"{len(rows)} orange shoe pixels show below row {top} in {path}, want {MIN_SHOE_PIXELS}")
+    return max(rows)
+
+
 def drive_grounding(b, out):
     b.hello()
     b.step(2)
-    pip = next(n["Draw"] for n in b.scene()["scene"]["nodes"] if "Draw" in n and n["Draw"]["id"] == ANIMATION_PIP_ID)
+    _, pip = animation_pip(b)
     check(pip["ground"]["feet"] == ANIMATION_FEET, f"Pip's Draw names its foot Joints: {pip['ground']}")
 
-    b.step(HALF_FADE_STEPS, tap=["Space"])
-    scene = b.scene()["scene"]
-    pip = next(n["Draw"] for n in scene["nodes"] if "Draw" in n and n["Draw"]["id"] == ANIMATION_PIP_ID)
-    check(0 < pip["pose"]["fade"] < 1, f"Pip is in the Walk-to-Run fade: {pip['pose']}")
-
+    b.step(round((1 - pip["pose"]["time"]) * STRIDE_STEPS) % STRIDE_STEPS or STRIDE_STEPS)
+    scene, pip = animation_pip(b)
+    check(pip["pose"]["fade"] == 0 and at_stride_start(pip["pose"]), f"Pip walks at the start of a stride: {pip['pose']}")
     stem, ext = os.path.splitext(out)
-    shot = f"{stem}-animation{ext}"
-    b.screenshot(shot)
-    with open(shot, "rb") as f:
-        width, height, pixels = bridge.png_rgba(f.read())
-    _, top = project(scene["camera"], SHOE_TOP, (width, height))
-    shoes = sum(1 for i in range(top * width * 4, len(pixels), 4) if orange(pixels[i : i + 3]))
-    check(shoes >= MIN_SHOE_PIXELS, f"{shoes} orange shoe pixels show below row {top}, want {MIN_SHOE_PIXELS}")
+    walk_row = shoe_pixels(b, scene, f"{stem}-animation-walk{ext}")
+
+    b.step(STRIDE_STEPS - HALF_FADE_STEPS)
+    b.step(HALF_FADE_STEPS, tap=["Space"])
+    scene, pip = animation_pip(b)
+    check(0 < pip["pose"]["fade"] < 1 and at_stride_start(pip["pose"]), f"Pip is in the Walk-to-Run fade at the start of a stride: {pip['pose']}")
+    fade_row = shoe_pixels(b, scene, f"{stem}-animation{ext}")
+    check(abs(fade_row - walk_row) <= SHOE_ROW_TOLERANCE, f"the lowest shoe row is {fade_row} in the fade and {walk_row} in Walk, want at most {SHOE_ROW_TOLERANCE} apart")
     b.quit()
 
 
