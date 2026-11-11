@@ -16,6 +16,11 @@ LAUNCH_RULE_CASCADES :: "must be at most 4"
 // The rules above spell these numbers out.
 #assert(UI_QUAD_LIMIT == 16384 && len(Primitive) == 5 && SKY_CAPACITY_MIN == 2 && SOUND_CAPACITY_MIN == 2 && IMAGE_CAPACITY_MIN == 2)
 #assert(SLOT_LIMIT == 65536 && DRAW_LIMIT == 278653 && GROUP_LIMIT == 1048576 && MAX_CASCADES == 4)
+// GL flattens each uniform block to vec4, so the skinned main vertex shader
+// needs vs_params and the whole skin block. The shadow variants need less.
+// GL 4.3 promises only 256 vec4, but Mesa and the desktop drivers give more.
+SKINNED_VERTEX_UNIFORM_VEC4 :: (size_of(Vs_Params) + size_of(Skin_Params)) / 16
+#assert(SKINNED_VERTEX_UNIFORM_VEC4 == 268 && size_of(Shadow_Vs_Params) <= size_of(Vs_Params))
 
 // pf.Launch.default on the host side. Keep it equal to platform/Launch.roc.
 launch_default :: proc() -> Launch {
@@ -115,4 +120,10 @@ launch_device_check :: proc(launch: Launch, max_size, max_layers: i32) -> (field
 		return "shadow_cascades", "exceeds the device shadow array layers", false
 	}
 	return "", "", true
+}
+
+// Takes GL_MAX_VERTEX_UNIFORM_COMPONENTS and gives the vec4 count the skinned
+// vertex shaders need, or not ok when the context cannot hold them.
+launch_gl_check :: proc(vertex_uniform_components: i32) -> (need: int, ok: bool) {
+	return SKINNED_VERTEX_UNIFORM_VEC4, int(vertex_uniform_components) / 4 >= SKINNED_VERTEX_UNIFORM_VEC4
 }

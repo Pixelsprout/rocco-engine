@@ -44,8 +44,8 @@ layout(binding = 0) uniform vs_params {
 // The array size is MAX_JOINTS in engine/skin.odin. Matrix j takes a vertex
 // from the bind pose to the Draw's pose, in the mesh's own space. With
 // vs_params, the skinned GL vertex shader needs 268 vec4 of uniforms. GL 4.3
-// promises only 256, so a GL driver must give more, as Mesa and the desktop
-// drivers do.
+// promises only 256, so launch_gl_check in engine/launch.odin refuses a GL
+// context with less. Mesa and the desktop drivers give more.
 @block skin
 layout(binding = 3) uniform skin_params {
     mat4 joints[64];
