@@ -1125,9 +1125,11 @@ the main and shadow passes. The Bridge check holds D and finds the walk
 screenshot differs from the still one. The alloc check records chapter 10
 at 14 allocs and 6 reallocs per step. Each pass draws at most 256 skinned
 Draws, so the `draws` limit drops from 2796197 to 2793466. CI passes on
-macOS, Linux and Windows (PR #14). Two risks stay open: the skinned GL
-vertex shader needs 268 vec4 of uniforms where GL 4.3 promises 256, and no
-person has run the D3D11 skinned path on a Windows machine.
+macOS, Linux and Windows (PR #14). The skinned GL vertex shader needs 268
+vec4 of uniforms, and a skinned package shader needs 288, where GL 4.3
+promises 256. Since Milestone 43 the Launch check refuses a GL context
+below 288 vec4 with a clear message. One risk stays open: no person has run
+the D3D11 skinned path on a Windows machine.
 
 Done when Pip plays Idle while still and Walk while moving in tutorial
 chapter 10, and fades between the two Clips. Grilled 2026-10-26. The dex task
