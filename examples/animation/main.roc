@@ -18,11 +18,13 @@ import pf.Pose
 import pf.QueryResults
 import pf.Scene
 
-# A Clip id of 0 is no Clip. Each duration is 0 until loaded gives it.
-Clips : { walk : U32, run : U32, walk_duration : F32, run_duration : F32 }
+# A Clip id of 0 is no Clip. walk_duration is 0 and manifest is empty until
+# loaded gives them.
+Clips : { walk : U32, run : U32, walk_duration : F32, manifest : Manifest }
 
-# Each time is in seconds, wrapped into its Clip. fade goes from 0, all Walk,
-# to 1, all Run.
+# Each time is in seconds, wrapped into its Clip. run_time follows Walk's
+# phase, so both Clips put the same foot down together. fade goes from 0, all
+# Walk, to 1, all Run.
 Animation : { walk_time : F32, run_time : F32, fade : F32 }
 
 # pip is 0, the fallback mesh, until loaded gives its id. running is the Clip
@@ -44,7 +46,7 @@ launch = |_config| { ..Launch.default, window: { ..Launch.default.window, title:
 
 init : Vocabulary.Config -> { model : Model, commands : List(Command) }
 init = |_config| {
-	clips = { walk: 0, run: 0, walk_duration: 0.0, run_duration: 0.0 }
+	clips = { walk: 0, run: 0, walk_duration: 0.0, manifest: [] }
 	animation = { walk_time: 0.0, run_time: 0.0, fade: 0.0 }
 	{ model: { pip: 0, clips, animation, running: Bool.False }, commands: [Load({ pack: "pip", assets: ["pip"] })] }
 }
@@ -53,7 +55,7 @@ loaded : Model, Str, Manifest -> Model
 loaded = |model, _pack, manifest| {
 	walk = Mesh.clip(manifest, "pip", "Walk")
 	run = Mesh.clip(manifest, "pip", "Run")
-	clips = { walk, run, walk_duration: Mesh.clip_duration(manifest, walk), run_duration: Mesh.clip_duration(manifest, run) }
+	clips = { walk, run, walk_duration: Mesh.clip_duration(manifest, walk), manifest }
 	{ ..model, pip: Mesh.resolve(manifest, "pip"), clips }
 }
 
@@ -64,8 +66,8 @@ step = |model, input, _results, dt| {
 	{ model: animate({ ..model, running }, dt), commands }
 }
 
-# Both Clips play at their own pace, and the fade moves toward the Clip that
-# running names.
+# Walk plays at its own pace and Run keeps Walk's phase. The fade moves toward
+# the Clip that running names.
 animate : Model, F32 -> Model
 animate = |model, dt| {
 	c = model.clips
@@ -73,7 +75,7 @@ animate = |model, dt| {
 	step_fade = dt / fade_seconds
 	fade = if (model.running) F32.min(a.fade + step_fade, 1.0) else F32.max(a.fade - step_fade, 0.0)
 	walk_time = Pose.loop(a.walk_time + dt, c.walk_duration)
-	run_time = Pose.loop(a.run_time + dt, c.run_duration)
+	run_time = Mesh.synced_time(c.manifest, c.walk, walk_time, c.run)
 	{ ..model, animation: { walk_time, run_time, fade } }
 }
 
@@ -105,7 +107,11 @@ start = init(Config.empty).model
 
 # Pip after loaded, with the Walk Clip 1 s long and the Run Clip 0.75 s long.
 animated : Model
-animated = { ..start, clips: { walk: 2, run: 3, walk_duration: 1.0, run_duration: 0.75 } }
+animated = {
+	clips = [{ name: "Walk", id: 2, duration: 1.0 }, { name: "Run", id: 3, duration: 0.75 }]
+	manifest = [{ name: "pip", id: 7, duration: 0.0, size: { w: 0, h: 0 }, clips }]
+	{ ..start, clips: { walk: 2, run: 3, walk_duration: 1.0, manifest } }
+}
 
 space : Vocabulary.Input
 space = { ..Input.empty, pressed: [Key.code(Space)] }
@@ -132,11 +138,16 @@ expect {
 	!after.running and near(after.animation.fade, 0.8)
 }
 
-# Each Clip plays at its own pace and wraps at its own duration.
+# Walk wraps at its duration, and Run sits at the same phase of its own.
 expect {
-	late = { ..animated, animation: { walk_time: 0.95, run_time: 0.7, fade: 0.0 } }
+	late = { ..animated, animation: { walk_time: 0.95, run_time: 0.7125, fade: 0.0 } }
 	a = step(late, Input.empty, QueryResults.empty, 0.1).model.animation
-	near(a.walk_time, 0.05) and near(a.run_time, 0.05)
+	near(a.walk_time, 0.05) and near(a.run_time, 0.0375)
+}
+
+expect {
+	a = step(animated, Input.empty, QueryResults.empty, 0.5).model.animation
+	near(a.walk_time, 0.5) and near(a.run_time, 0.375)
 }
 
 # Escape quits.
