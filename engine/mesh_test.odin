@@ -149,8 +149,7 @@ test_cylinder_has_64_segments_and_two_caps :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(data.indices), 12 * 64)
 }
 
-// A cap normal is +y or -y and sits on its cap. A side normal is flat and
-// points out from the axis, so a Draw scale on y does not bend it.
+// A flat side normal is why a Draw scale on y does not bend the shading.
 @(test)
 test_cylinder_fills_the_unit_cube_with_flat_caps :: proc(t: ^testing.T) {
 	data := primitive_build(.Cylinder, context.temp_allocator)

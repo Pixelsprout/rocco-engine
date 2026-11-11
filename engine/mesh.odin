@@ -739,12 +739,13 @@ sphere_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 	return {vertices = vertices, indices = indices[:]}
 }
 
-// A cylinder of diameter 1 and height 1 on the y axis. The side has a top
-// row and a bottom row, each with a repeated seam vertex. Each cap is a fan
-// around its centre with its own vertices, so its edge stays sharp. The caps
-// take their uvs and tangents from the cube's top and bottom faces.
+// A cylinder of diameter 1 and height 1 on the y axis. Each cap has its own
+// vertices so its edge stays sharp, with the cube's top and bottom uvs.
 cylinder_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 	RING :: CYLINDER_SEGMENTS + 1
+	cap_vertex :: proc(pos, normal: [3]f32) -> Vertex {
+		return {pos = pos, color = GREY, normal = normal, uv = cube_uv(pos, normal), tangent = cube_tangent(normal)}
+	}
 	vertices := make([]Vertex, 4 * RING, allocator)
 	for s in 0 ..= CYLINDER_SEGMENTS {
 		phi := 2 * math.PI * f32(s) / CYLINDER_SEGMENTS
@@ -758,27 +759,25 @@ cylinder_build :: proc(allocator: mem.Allocator) -> Mesh_Data {
 		normal := [3]f32{0, math.sign(y), 0}
 		first := (2 + cap) * RING
 		for s in 0 ..< CYLINDER_SEGMENTS {
-			pos := vertices[s].normal * 0.5 + {0, y, 0}
-			vertices[first + s] = {pos = pos, color = GREY, normal = normal, uv = cube_uv(pos, normal), tangent = cube_tangent(normal)}
+			vertices[first + s] = cap_vertex(vertices[s].normal * 0.5 + {0, y, 0}, normal)
 		}
-		centre := [3]f32{0, y, 0}
-		vertices[first + CYLINDER_SEGMENTS] = {pos = centre, color = GREY, normal = normal, uv = cube_uv(centre, normal), tangent = cube_tangent(normal)}
+		vertices[first + CYLINDER_SEGMENTS] = cap_vertex({0, y, 0}, normal)
 	}
 
 	indices := make([]u16, 12 * CYLINDER_SEGMENTS, allocator)
 	i := 0
+	top_cap, bottom_cap :: u16(2 * RING), u16(3 * RING)
 	for s in 0 ..< CYLINDER_SEGMENTS {
 		top, bottom := u16(s), u16(RING + s)
 		next := u16((s + 1) % CYLINDER_SEGMENTS)
-		top_cap, bottom_cap := u16(2 * RING), u16(3 * RING)
-		quad := [12]u16 {
+		segment := [12]u16 {
 			top, bottom, bottom + 1,
 			top, bottom + 1, top + 1,
 			top_cap + CYLINDER_SEGMENTS, top_cap + u16(s), top_cap + next,
 			bottom_cap + CYLINDER_SEGMENTS, bottom_cap + next, bottom_cap + u16(s),
 		}
-		copy(indices[i:], quad[:])
-		i += len(quad)
+		copy(indices[i:], segment[:])
+		i += len(segment)
 	}
 	return {vertices = vertices, indices = indices}
 }

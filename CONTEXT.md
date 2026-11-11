@@ -506,7 +506,7 @@ _Avoid_: default mesh, error mesh, placeholder, missing mesh
 **Primitive**:
 A mesh the engine builds itself rather than loads: the cube, the sphere, the
 plane and the cylinder. Each fits the unit cube, and the Draw scale sizes it.
-The cylinder stands on the y axis with closed caps. They load at startup, belong to no Pack and never unload. They
+They load at startup, belong to no Pack and never unload. They
 are named with a `primitive/` prefix, such as `primitive/cube`. A loaded
 asset takes its bare file stem.
 _Avoid_: built-in, shape, basic mesh
