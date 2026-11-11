@@ -167,8 +167,8 @@ init_cb :: proc "c" () {
 		os.exit(1)
 	}
 	when EXPECTED_BACKEND == .GLCORE {
-		if need, shader, ok := launch_gl_check(limits.gl_max_vertex_uniform_components); !ok {
-			fmt.eprintfln("The GL context holds %v vec4 of vertex uniforms, but %v needs %v, so the run ends", limits.gl_max_vertex_uniform_components / 4, shader, need)
+		if !launch_gl_check(limits.gl_max_vertex_uniform_components) {
+			fmt.eprintfln("The GL context holds %v vec4 of vertex uniforms, but %v needs %v, so the run ends", limits.gl_max_vertex_uniform_components / 4, LAUNCH_GL_NEED_SHADER, PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4)
 			os.exit(1)
 		}
 	}

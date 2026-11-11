@@ -3,7 +3,7 @@ package engine
 import "core:fmt"
 import "core:math/linalg"
 
-// The Draw's id and its ground.feet. No feet turns Grounding off.
+// No feet turns Grounding off.
 Skin_Ground :: struct {
 	draw: u64,
 	feet: []Roc_Str,
@@ -59,7 +59,7 @@ skin_ground :: proc(t: ^Mesh_Table, m: ^Mesh, ground: Skin_Ground, out: []Mat4) 
 		name := roc_str_string(&foot)
 		j, found := skin_joint(&m.skin, name)
 		if !found {
-			key := Attach_Key{ground.draw, attach_joint_hash(name)}
+			key := joint_log_key(ground.draw, name)
 			if key not_in t.feet_logged {
 				t.feet_logged[key] = {}
 				fmt.eprintfln("draw id %v names foot %q, but mesh %q has no such Joint; its Joints are %v", ground.draw, name, m.name, skin_joint_names(&m.skin))

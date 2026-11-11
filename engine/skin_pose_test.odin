@@ -13,8 +13,8 @@ LEAN :: 7
 LIFT :: 8
 // A Clip id of another mesh.
 OTHER_CLIP :: 3
-// Pip with the Clips Idle, Walk and Run.
 ANIMATION_PIP_GLB :: #load("../examples/animation/assets/meshes/pip.glb")
+PIP_FEET :: []string{"lower_leg.L", "lower_leg.R"}
 
 // Two Joints bound at rest: root at the origin and tip 1 up +y.
 chain_skin :: proc() -> Skin {
@@ -270,8 +270,6 @@ test_skin_matrices_pose_the_fixture_where_blender_does :: proc(t: ^testing.T) {
 	}
 }
 
-PIP_FEET :: []string{"lower_leg.L", "lower_leg.R"}
-
 // Pip with the Clip ids of Walk and Run, found by name.
 pip_mesh :: proc(t: ^testing.T) -> (m: Mesh, walk, run: u32) {
 	data, _, err := glb_parse(ANIMATION_PIP_GLB, context.temp_allocator)
@@ -289,13 +287,16 @@ pip_mesh :: proc(t: ^testing.T) -> (m: Mesh, walk, run: u32) {
 	return
 }
 
-// A ground with the feet as the Roc strings of a Draw.
 pip_ground :: proc(feet: []string) -> Skin_Ground {
 	strs := make([]Roc_Str, len(feet), context.temp_allocator)
 	for name, i in feet {
 		strs[i] = roc_str_from_slice(name)
 	}
 	return {draw = 1, feet = strs}
+}
+
+pip_half_fade :: proc(walk, run: u32) -> Draw_Pose {
+	return {clip = walk, time = 0, fade_clip = run, fade_time = 0, fade = 0.5}
 }
 
 // The lowest foot Joint's height in model space minus its bind height.
@@ -329,14 +330,14 @@ test_pip_walk_to_run_fade_sinks_a_foot_below_its_bind_height :: proc(t: ^testing
 		testing.expectf(t, pip_foot_drop(t, &m, {clip = walk, time = walk_time}) > -0.001, "Walk alone sinks at phase %v", phase)
 		testing.expectf(t, pip_foot_drop(t, &m, {clip = run, time = run_time}) > -0.001, "Run alone sinks at phase %v", phase)
 	}
-	drop := pip_foot_drop(t, &m, {clip = walk, time = 0, fade_clip = run, fade_time = 0, fade = 0.5})
+	drop := pip_foot_drop(t, &m, pip_half_fade(walk, run))
 	testing.expectf(t, drop < -0.01, "the half fade at phase 0 drops the lowest foot %v, want below -0.01", drop)
 }
 
 @(test)
 test_grounding_lifts_the_sinking_fade_to_the_bind_height :: proc(t: ^testing.T) {
 	m, walk, run := pip_mesh(t)
-	drop := pip_foot_drop(t, &m, {clip = walk, time = 0, fade_clip = run, fade_time = 0, fade = 0.5}, pip_ground(PIP_FEET))
+	drop := pip_foot_drop(t, &m, pip_half_fade(walk, run), pip_ground(PIP_FEET))
 	testing.expectf(t, abs(drop) < 0.0001, "the grounded half fade drops the lowest foot %v, want 0", drop)
 }
 
@@ -353,6 +354,6 @@ test_grounding_does_not_lower_an_airborne_pose :: proc(t: ^testing.T) {
 @(test)
 test_grounding_skips_an_unknown_foot :: proc(t: ^testing.T) {
 	m, walk, run := pip_mesh(t)
-	drop := pip_foot_drop(t, &m, {clip = walk, time = 0, fade_clip = run, fade_time = 0, fade = 0.5}, pip_ground({"no_such_foot", "lower_leg.L", "lower_leg.R"}))
+	drop := pip_foot_drop(t, &m, pip_half_fade(walk, run), pip_ground({"no_such_foot", "lower_leg.L", "lower_leg.R"}))
 	testing.expectf(t, abs(drop) < 0.0001, "the grounded half fade drops the lowest foot %v, want 0", drop)
 }

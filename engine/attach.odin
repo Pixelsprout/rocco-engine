@@ -13,8 +13,9 @@ Attach_Miss :: enum u8 {
 	No_Joint,
 }
 
-// An Attach logs once per draw id and joint name.
-Attach_Key :: struct {
+// An Attach miss and an unknown ground foot each log once per draw id and
+// joint name.
+Joint_Log_Key :: struct {
 	draw:  u64,
 	joint: u64,
 }
@@ -44,6 +45,10 @@ attach_parent_id :: proc(config: ^Attach_Config) -> Parent_Id {
 
 attach_joint_hash :: proc(name: string) -> u64 {
 	return hash.fnv64a(transmute([]u8)name) | 1
+}
+
+joint_log_key :: proc(draw: u64, joint: string) -> Joint_Log_Key {
+	return {draw, attach_joint_hash(joint)}
 }
 
 // With no joint_pose, as in the pairing of the previous Scene, the children
@@ -111,8 +116,8 @@ pose_of_matrix :: proc(m: Mat4) -> Pose {
 }
 
 // m is the mesh of the named Draw, or nil when no Draw has the id.
-attach_log :: proc(logged: ^map[Attach_Key]struct {}, config: ^Attach_Config, m: ^Mesh, miss: Attach_Miss) {
-	key := Attach_Key{config.draw, attach_joint_hash(roc_str_string(&config.joint))}
+attach_log :: proc(logged: ^map[Joint_Log_Key]struct {}, config: ^Attach_Config, m: ^Mesh, miss: Attach_Miss) {
+	key := joint_log_key(config.draw, roc_str_string(&config.joint))
 	if key in logged {
 		return
 	}

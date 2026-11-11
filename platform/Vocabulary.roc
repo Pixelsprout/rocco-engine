@@ -215,7 +215,7 @@ Vocabulary := [].{
 	##   depth of the lowest foot. It never lowers the Draw. The lift is in
 	##   model units, before `scale`, and Attach children and shadows follow
 	##   it. An empty list, the default, turns Grounding off. An unknown name
-	##   logs once and is skipped.
+	##   logs once per Draw and Joint and is skipped.
 	## - `casts_shadow`: whether this Draw adds a shadow to the Sun's map. It is
 	##   `Bool.True` by default. `Bool.False` removes it from shadow fitting and
 	##   shadow submissions, but keeps it in colour and selection rendering.

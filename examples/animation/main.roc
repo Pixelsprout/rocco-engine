@@ -121,7 +121,7 @@ near = |a, b| (a - b).abs() < 0.0001
 start : Model
 start = init(Config.empty).model
 
-# Pip after loaded, with the Walk Clip 1 s long and the Run Clip 0.75 s long.
+# Pip after loaded.
 animated : Model
 animated = {
 	clips = [{ name: "Walk", id: 2, duration: 1.0 }, { name: "Run", id: 3, duration: 0.75 }]
@@ -184,8 +184,7 @@ expect {
 # The Scene draws Pip with its Pose.
 expect {
 	model = { ..animated, pip: 7, animation: { walk_time: 0.5, run_time: 0.25, fade: 0.5 } }
-	draws = List.keep_oks(
-		view(model).nodes,
+	draws = view(model).nodes.keep_oks(
 		|node| match node {
 			Draw(d) if d.id == pip_id => Ok(d)
 			_ => Err(NotPip)

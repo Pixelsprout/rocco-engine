@@ -128,9 +128,8 @@ launch_device_check :: proc(launch: Launch, max_size, max_layers: i32) -> (field
 	return "", "", true
 }
 
-// Takes GL_MAX_VERTEX_UNIFORM_COMPONENTS and gives the largest vec4 count a
-// skinned vertex shader needs and the shader that needs it, or not ok when
-// the context cannot hold them.
-launch_gl_check :: proc(vertex_uniform_components: i32) -> (need: int, shader: string, ok: bool) {
-	return PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4, LAUNCH_GL_NEED_SHADER, int(vertex_uniform_components) / 4 >= PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4
+// Takes GL_MAX_VERTEX_UNIFORM_COMPONENTS and is not ok when the context
+// cannot hold the uniforms of a skinned package shader.
+launch_gl_check :: proc(vertex_uniform_components: i32) -> (ok: bool) {
+	return int(vertex_uniform_components) / 4 >= PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4
 }

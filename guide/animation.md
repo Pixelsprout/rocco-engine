@@ -111,10 +111,14 @@ its last frame. For a Clip that repeats, wrap the time yourself with
 and 0 while the duration is 0, as it is before `loaded`. Wrap at each
 step, so the time stays small enough for an `F32` to keep it exact.
 
-Between two steps, the host blends the Pose with the rest of the Draw.
-A time blends only when its Clip is the same in both Scenes and the time
-did not go back, so a time that wraps does not play the Clip backwards for
-a frame. See [Pairing by id](scene.md#pairing-by-id).
+Between two steps, the host blends the Pose with the rest of the Draw that
+has the same id in the previous Scene. See [Pairing by
+id](scene.md#pairing-by-id). The `time` blends when the `clip` is the same
+in both Scenes and the time did not go back. The `fade_time` blends by the
+same rule with the `fade_clip`. The `fade` blends only when both the
+`clip` and the `fade_clip` are the same. Anything else takes the current
+value, so a looping time that wraps back to the start does not play the
+Clip backwards for a frame.
 
 ## Fades
 

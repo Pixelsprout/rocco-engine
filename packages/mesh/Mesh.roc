@@ -102,7 +102,6 @@ expect Mesh.clip_duration(manifest, 9) == 0.0
 expect Mesh.clip_duration(manifest, 0) == 0.0
 expect Mesh.clip_duration([], 1) == 0.0
 
-# Walk is 1 s and Idle 2 s, so a quarter of Walk is a quarter of Idle.
 expect Mesh.synced_time(manifest, 2, 0.25, 1) == 0.5
 expect Mesh.synced_time(manifest, 1, 1.5, 3) == 0.375
 expect Mesh.synced_time(manifest, 2, 0.0, 3) == 0.0

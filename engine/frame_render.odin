@@ -141,7 +141,7 @@ Frame_Render :: struct {
 	shadow_logged:      bit_set[Shadow_Field],
 	draws_logged:       bool,
 	skinned_logged:     bool,
-	attach_logged:      map[Attach_Key]struct {},
+	attach_logged:      map[Joint_Log_Key]struct {},
 	shadow_map:         u32,
 	cascades:           int,
 	allocator:          mem.Allocator,
@@ -256,7 +256,7 @@ frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, shadow_map: u32
 	pairing_init(&fr.pairing, draws, groups, perm)
 	fr.placed = make([dynamic]Placed, 0, draws, perm)
 	fr.skins = make([]Skin_Params, skinned_draw_capacity(draws), perm)
-	fr.attach_logged = make(map[Attach_Key]struct {}, perm)
+	fr.attach_logged = make(map[Joint_Log_Key]struct {}, perm)
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
