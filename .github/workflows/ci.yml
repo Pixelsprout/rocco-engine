@@ -279,7 +279,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # The UI page compiles sokol's C sources and links clay's wasm object.
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       # The runner context is not available in a job-level env.
       - name: Read the emsdk pin
