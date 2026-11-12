@@ -32,6 +32,13 @@ binding of `Model`, the boxed wrappers, and the host they link against. There
 is exactly one.
 _Avoid_: SDK, framework, engine API
 
+**Web build** (planned):
+A game built to run in a browser page through WebGPU. The game's source is the
+same as for a native build, and nothing in the Vocabulary names the web. The
+host does nothing for the features a browser cannot give, such as Shader
+reload.
+_Avoid_: wasm build, browser port, HTML5 build
+
 **Game**:
 A Roc app built on the platform. It declares `Model` and defines `launch`,
 `init`, `step`, `loaded` and `view`. "App" is Roc's word for the file kind;
@@ -814,7 +821,7 @@ _Avoid_: phase, section, lap, timer
 
 **Bridge**:
 The host module that lets one outside process drive a run over a localhost
-socket. It injects Input, advances fixed steps on request and reports what
+socket. On a Web build the page opens a WebSocket to the Driver instead. It injects Input, advances fixed steps on request and reports what
 the host sees. The game does not know it exists, and nothing in the
 Vocabulary names it.
 _Avoid_: debug server, remote, Seam, port, debugger
