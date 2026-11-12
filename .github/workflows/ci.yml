@@ -277,13 +277,14 @@ jobs:
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    env:
-      ROCCO_TOOLS: ${{ runner.temp }}/tools
     steps:
       - uses: actions/checkout@v5
 
+      # The runner context is not available in a job-level env.
       - name: Read the emsdk pin
-        run: grep -E '^ARG EMSDK_VERSION=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+        run: |
+          grep -E '^ARG EMSDK_VERSION=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+          echo "ROCCO_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
 
       - uses: actions/cache@v4
         with:
