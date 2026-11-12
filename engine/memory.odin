@@ -1,13 +1,14 @@
 package engine
 
+import "arenas"
 import "base:runtime"
 import "core:mem"
-import vmem "core:mem/virtual"
+
 FRAME_ARENA_RESERVE :: 64 * mem.Megabyte
 
 Memory :: struct {
-	perm:            vmem.Arena,
-	frame:           vmem.Arena,
+	perm:            arenas.Arena,
+	frame:           arenas.Arena,
 	perm_allocator:  mem.Allocator,
 	frame_allocator: mem.Allocator,
 }
@@ -18,11 +19,11 @@ Memory :: struct {
 */
 memory_init :: proc(m: ^Memory) -> (err: mem.Allocator_Error) {
 	// Growing arena
-	m.perm_allocator = vmem.arena_allocator(&m.perm)
+	m.perm_allocator = arenas.allocator(&m.perm)
 
 	// Static arena for frame
-	vmem.arena_init_static(&m.frame, FRAME_ARENA_RESERVE) or_return
-	m.frame_allocator = vmem.arena_allocator(&m.frame)
+	arenas.init_static(&m.frame, FRAME_ARENA_RESERVE) or_return
+	m.frame_allocator = arenas.allocator(&m.frame)
 
 	return
 }
@@ -31,14 +32,14 @@ memory_init :: proc(m: ^Memory) -> (err: mem.Allocator_Error) {
 	Shuts down the memory allocators for the game engine.
 */
 memory_shutdown :: proc(m: ^Memory) {
-	vmem.arena_destroy(&m.frame)
-	vmem.arena_destroy(&m.perm)
+	arenas.destroy(&m.frame)
+	arenas.destroy(&m.perm)
 }
 
 frame_end :: proc(m: ^Memory) {
 	// check no watermark was left open
-	vmem.arena_check_temp(&m.frame)
-	vmem.arena_free_all(&m.frame)
+	arenas.check_temp(&m.frame)
+	arenas.free_all(&m.frame)
 }
 
 // A map grows once it is MAP_LOAD_FACTOR percent full, not when it is full.

@@ -2,8 +2,8 @@
 package engine
 
 import clay "../clay/bindings/odin/clay-odin"
+import "arenas"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:slice"
 import "core:strings"
 import "core:sync"
@@ -86,11 +86,11 @@ test_ui_error_logs_once_per_kind :: proc(t: ^testing.T) {
 test_ui_init_sizes_the_arena_from_clay :: proc(t: ^testing.T) {
 	sync.mutex_lock(&g_clay_lock)
 	defer sync.mutex_unlock(&g_clay_lock)
-	arena: vmem.Arena
-	defer vmem.arena_destroy(&arena)
+	arena: arenas.Arena
+	defer arenas.destroy(&arena)
 	defer clay.SetCurrentContext(nil)
 	ui: Ui
-	err := ui_init(&ui, {960, 540}, UI_QUAD_LIMIT, vmem.arena_allocator(&arena))
+	err := ui_init(&ui, {960, 540}, UI_QUAD_LIMIT, arenas.allocator(&arena))
 	testing.expect_value(t, err, nil)
 	testing.expect_value(t, len(ui.memory), int(clay.MinMemorySize()))
 	testing.expect(t, ui.ctx != nil)

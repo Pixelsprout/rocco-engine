@@ -273,7 +273,8 @@ jobs:
       - name: Check bounded capture storage
         run: odin test engine -debug -vet -strict-style -linker:msvc -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=test_capture_requires_explicit_bounded_real_clock_options,test_capture_without_a_path_allocates_nothing,test_capture_copies_commands_before_builder_reuse_and_bounds_storage,test_capture_builder_detects_failed_growth_without_allocating,test_capture_records_zero_multiple_steps_and_skips_after_the_frame_limit,test_capture_frame_overflow_preserves_existing_rows,test_capture_counts_source_field_and_supplement_ranges_separately
 
-  # Builds the wasm32 link of spikes/web-link. Nothing runs the page yet.
+  # Builds the wasm32 pages of spikes/web-link and spikes/web-arenas. Nothing
+  # runs the pages yet.
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -304,6 +305,15 @@ jobs:
           name: web-link-page
           path: spikes/web-link/build/page/
           if-no-files-found: error
+
+      # A native run of the heap arenas covers the code that wasm32 builds use.
+      - name: Test the arenas
+        run: |
+          sh scripts/toolchain.sh run odin test engine/arenas -debug -vet -strict-style
+          sh scripts/toolchain.sh run odin test engine/arenas -debug -vet -strict-style -define:ROCCO_ARENAS_HEAP=true
+
+      - name: Build the wasm32 arenas page
+        run: sh scripts/toolchain.sh run sh spikes/web-arenas/build.sh
 
   generated:
     runs-on: ubuntu-24.04

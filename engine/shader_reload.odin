@@ -1,10 +1,10 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -100,9 +100,9 @@ packs_shader_reload_poll :: proc(p: ^Packs) {
 
 packs_shader_reload :: proc(p: ^Packs) {
 	if !packs_shader_requested(p) { return }
-	scratch: vmem.Arena
-	defer vmem.arena_destroy(&scratch)
-	context.temp_allocator = vmem.arena_allocator(&scratch)
+	scratch: arenas.Arena
+	defer arenas.destroy(&scratch)
+	context.temp_allocator = arenas.allocator(&scratch)
 	record, read := shader_read_file(fmt.tprintf("%v/build.json", p.shader_dir), context.temp_allocator, SHADER_METADATA_LIMIT)
 	if !read { return }
 	revision := shader_hash(record)

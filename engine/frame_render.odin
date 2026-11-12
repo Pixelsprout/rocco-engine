@@ -1,10 +1,10 @@
 package engine
 
+import "arenas"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:slice"
 
 SCENE_NEAR :: f32(0.1)
@@ -131,7 +131,7 @@ Frame_Render :: struct {
 	particles_paused:   bool,
 	placed:             [dynamic]Placed,
 	draw_capacity:      int,
-	instance_scratch: vmem.Arena,
+	instance_scratch: arenas.Arena,
 	instance_scratch_peak: uint,
 	skins:              []Skin_Params,
 	submits:            Frame_Render_Submits,
@@ -260,7 +260,7 @@ frame_render_init :: proc(fr: ^Frame_Render, draws, groups: int, shadow_map: u32
 }
 
 frame_render_destroy :: proc(fr: ^Frame_Render) {
-	vmem.arena_destroy(&fr.instance_scratch)
+	arenas.destroy(&fr.instance_scratch)
 	pairing_destroy(&fr.pairing)
 	delete(fr.skins, fr.allocator)
 	delete(fr.placed)

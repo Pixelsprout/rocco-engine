@@ -17,3 +17,8 @@ odin test engine -debug
 # A Spans build compiles other code, so its tests run in a build of their own.
 echo "== odin test engine with Spans"
 odin test engine -debug -define:ROCCO_SPANS=true
+echo "== odin test engine/arenas"
+odin test engine/arenas -debug -vet -strict-style
+# wasm32 builds use the heap arenas, so a native run tests them too.
+echo "== odin test engine/arenas with heap arenas"
+odin test engine/arenas -debug -vet -strict-style -define:ROCCO_ARENAS_HEAP=true

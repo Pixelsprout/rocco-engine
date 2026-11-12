@@ -1,9 +1,9 @@
 package engine
 
+import "arenas"
 import "core:bytes"
 import "core:encoding/json"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:net"
 import "core:strings"
 
@@ -51,7 +51,7 @@ Bridge_Transport :: struct {
 	lines:             Json_Lines,
 	read_buf:          []u8,
 	reply:             strings.Builder,
-	scratch:           vmem.Arena,
+	scratch:           arenas.Arena,
 	allocator:         mem.Allocator,
 }
 
@@ -132,7 +132,7 @@ bridge_transport_close :: proc(t: ^Bridge_Transport) {
 	json_lines_destroy(&t.lines)
 	delete(t.read_buf, t.allocator)
 	strings.builder_destroy(&t.reply)
-	vmem.arena_destroy(&t.scratch)
+	arenas.destroy(&t.scratch)
 }
 
 bridge_transport_port :: proc(t: ^Bridge_Transport) -> int {
@@ -225,8 +225,8 @@ bridge_transport_send_held :: proc(t: ^Bridge_Transport, reply: string) {
 bridge_transport_answer :: proc(t: ^Bridge_Transport, line: string, status: Json_Line_Status, handle: Bridge_Handler, ctx: rawptr) -> (next: Bridge_Next) {
 	strings.builder_reset(&t.reply)
 	{
-		context.temp_allocator = vmem.arena_allocator(&t.scratch)
-		defer vmem.arena_free_all(&t.scratch)
+		context.temp_allocator = arenas.allocator(&t.scratch)
+		defer arenas.free_all(&t.scratch)
 		if status == .Too_Long {
 			bridge_reply_error(&t.reply, "the request is longer than 1 MiB")
 		} else {
