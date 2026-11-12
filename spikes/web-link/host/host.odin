@@ -94,6 +94,10 @@ read_file :: proc "contextless" (path: cstring) -> (Roc_Str, bool) {
 	(^int)(base)^ = 1
 	bytes := base[size_of(int):]
 	length := int(fread(bytes, 1, capacity, file))
+	if length == capacity {
+		puts("host: the file is too big for the read buffer")
+		abort()
+	}
 	return {bytes = bytes, length = length, capacity = capacity}, true
 }
 

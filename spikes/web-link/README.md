@@ -1,8 +1,8 @@
 # Web link spike
 
-This spike tests whether a Roc app built with `roc build --target=wasm32` can
-link against an Odin host that emscripten prebuilt, and run in a browser with
-the JS loader emscripten wrote for that host.
+This spike links a Roc app to an Odin host with `roc build --target=wasm32`.
+emscripten prebuilds the host and its JS loader. The page runs the result in a
+browser with that loader.
 
 It works. Chrome prints the file read line and one line from each of five
 `step` calls. Odin reads `/hello.txt` through the emscripten file system.
@@ -20,8 +20,7 @@ python3 -m http.server 8000 --directory spikes/web-link/build/page
 Open http://127.0.0.1:8000/index.html and read the console or the page text.
 
 Headless Chrome on macOS fires `requestAnimationFrame` once and then stops, so
-the steps never run there. A normal Chrome window runs them. Node runs them
-too, with a loader linked with `-sENVIRONMENT=node`.
+the steps never run there. A normal Chrome window runs them.
 
 ## The link model
 
@@ -44,13 +43,16 @@ The loader works with Roc's wasm when two rules hold:
 - Every export of the reference wasm is an export of the Roc wasm. The
   platform's `exports` list names them, `__indirect_function_table` included.
 
-`check_link.py` checks both rules after each build.
+`check_link.py` checks both rules after each build. The `exports` list in
+`platform/main.roc` and the pointer table in `host/main.c` match the loader of
+emscripten 7.0.0. A new emsdk pin can change that loader. If `check_link.py`
+then names a missing export, add it to both files.
 
 ## Commands
 
 `build.sh` runs these steps.
 
-1. `odin build host -target:freestanding_wasm32 -build-mode:obj -no-entry-point -default-to-nil-allocator -out:build/host_odin.o`
+1. `odin build host -target:freestanding_wasm32 -build-mode:obj -no-entry-point -default-to-nil-allocator -vet -strict-style -out:build/host_odin.o`
 2. `emcc -c host/main.c -o build/main.o`
 3. `emcc -v build/main.o build/host_odin.o -o targets/wasm32/index.html --shell-file host/shell.html -sALLOW_MEMORY_GROWTH=1 -sFORCE_FILESYSTEM=1 -sERROR_ON_UNDEFINED_SYMBOLS=0`
 

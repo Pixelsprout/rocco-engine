@@ -4,10 +4,8 @@
 #
 #   sh scripts/toolchain.sh run sh spikes/web-link/build.sh
 #
-# The first half prebuilds what a platform would ship in targets/wasm32: the
-# host object and the JS loader. The second half is the game build: roc
-# build, then the smallest step after it, which copies the loader and packs
-# the data files.
+# Everything before "roc: app" is the platform prebuild. A game author runs
+# only the steps from there on.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 work=$here/build

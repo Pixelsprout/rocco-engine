@@ -41,7 +41,8 @@ esac
 
 odin_dir=$tools/$odin_asset
 roc_dir=$tools/$roc_asset
-# One emsdk folder holds the active emscripten. install-emsdk switches it to the pin.
+# One emsdk folder holds the active emscripten. emsdk tags each release with
+# the same version, so the pin also fixes the installer.
 emsdk_dir=$tools/emsdk
 emcc_dir=$emsdk_dir/upstream/emscripten
 
@@ -75,7 +76,7 @@ install_emsdk() {
 	if [ ! -x "$emsdk_dir/emsdk" ]; then
 		mkdir -p "$emsdk_dir"
 		echo "== emsdk"
-		curl -fsSL https://github.com/emscripten-core/emsdk/archive/refs/heads/main.tar.gz |
+		curl -fsSL "https://github.com/emscripten-core/emsdk/archive/refs/tags/$emsdk_version.tar.gz" |
 			tar xz -C "$emsdk_dir" --strip-components=1
 	fi
 	"$emsdk_dir/emsdk" install "$emsdk_version"
