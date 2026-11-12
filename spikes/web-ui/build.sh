@@ -37,13 +37,10 @@ echo "== sokol-shdc: UI shader as WGSL"
 # the UI files with their imports moved onto the rocco collection, plus stubs
 # for the renderer parts they touch.
 echo "== slice: engine UI files"
-for file in ui.odin ui_render.odin font.odin font_baked.odin vocabulary.odin; do
+for file in ui.odin ui_render.odin font.odin font_baked.odin vocabulary.odin roc_platform_abi.odin; do
 	sed -e 's#"\.\./#"rocco:#' -e 's#^import "core:fmt"$#import fmt "spike:webfmt"#' \
 		"$root/engine/$file" > "$slice/$file"
 done
-# The glue asserts 64-bit layouts. Only Odin reads these types in the spike,
-# so the slice drops the asserts until the glue emits 32-bit layouts.
-sed -e 's#"\.\./#"rocco:#' -e '/^#assert/d' "$root/engine/roc_platform_abi.odin" > "$slice/roc_platform_abi.odin"
 cp "$here/slice/"*.odin "$slice/"
 
 echo "== odin: host object"

@@ -48,8 +48,7 @@ macOS runs only one frame.
 
 The copied files are `ui.odin`, `ui_render.odin`, `font.odin`,
 `font_baked.odin`, `vocabulary.odin` and `roc_platform_abi.odin`. Apart from
-the import paths, the build changes only `roc_platform_abi.odin` and the
-`fmt` import.
+the import paths, the build changes only the `fmt` import.
 See the findings.
 
 ## Findings
@@ -75,9 +74,9 @@ See the findings.
   index data in `context.temp_allocator`, and it fails with the nil
   allocator. The host sets the temp allocator to a zero-value
   `engine/arenas` Arena, which takes its blocks from libc.
-- `roc_platform_abi.odin` asserts 64-bit layouts, so it does not compile for
-  wasm32. The slice drops the 814 `#assert` lines. Only Odin reads these
-  types here. nuwkrpm8 emits the 32-bit layouts.
+- Before nuwkrpm8 merged, `roc_platform_abi.odin` asserted 64-bit layouts
+  and did not compile for wasm32. Now it asserts both pointer sizes, and the
+  slice copies it with its asserts.
 - The UI pipeline has no depth image, because it draws in the Post pass.
   The spike draws it straight to the swapchain, so sokol_app must make the
   swapchain with `depth_format = .NONE`. In the full renderer the UI keeps
@@ -99,8 +98,8 @@ See the findings.
 - The UI pipeline ran with a sample count of 1. The engine passes the
   Launch's MSAA count, so an MSAA UI pipeline did not run.
 - Image quads did not run. The stub Image table finds no Image.
-- The Element tree is built in Odin, so the 32-bit Roc layouts of `Element`
-  and `Roc_Str` did not run.
+- The Element tree is built in Odin, so no Roc app wrote the 32-bit
+  `Element` and `Roc_Str` layouts.
 
 ## What the Web host still needs for the UI
 
