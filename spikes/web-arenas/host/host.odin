@@ -79,7 +79,7 @@ step_frame :: proc "c" () {
 	}
 }
 
-// Prints the label and each value on one line. The host has no fmt.
+// The host has no fmt.
 report :: proc "contextless" (label: string, values: ..int) {
 	buf: [256]u8
 	n := copy(buf[:], label)

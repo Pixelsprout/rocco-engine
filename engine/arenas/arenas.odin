@@ -10,9 +10,8 @@ import vmem "core:mem/virtual"
 // On wasm, core:mem/virtual reserve returns nil with no error.
 HEAP :: #config(ROCCO_ARENAS_HEAP, ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32)
 
-// Each build uses only one of these imports. -vet rejects the other unused.
+// Native builds do not use runtime, and -vet rejects an unused import.
 _ :: runtime
-_ :: vmem
 
 when HEAP {
 	Arena :: runtime.Arena
@@ -21,11 +20,16 @@ when HEAP {
 }
 
 // A zero-value heap arena takes its blocks from the context allocator of the
-// first call.
+// first call. That allocator must outlive the arena, so it cannot be a frame
+// allocator.
 allocator :: proc(a: ^Arena) -> mem.Allocator {
 	when HEAP {
 		if a.backing_allocator.procedure == nil {
 			a.backing_allocator = context.allocator
+		}
+		// runtime.Arena starts at 4 MB. vmem starts growing arenas at 1 MB.
+		if a.minimum_block_size == 0 {
+			a.minimum_block_size = vmem.DEFAULT_ARENA_GROWING_MINIMUM_BLOCK_SIZE
 		}
 		return runtime.arena_allocator(a)
 	} else {
@@ -34,7 +38,7 @@ allocator :: proc(a: ^Arena) -> mem.Allocator {
 }
 
 // A static arena holds one block of `reserved` bytes and never grows.
-// The heap form takes the whole block from the context allocator now.
+// The heap form takes the whole block from the context allocator at init.
 init_static :: proc(a: ^Arena, reserved: uint) -> mem.Allocator_Error {
 	when HEAP {
 		runtime.arena_init(a, reserved, context.allocator) or_return
@@ -58,6 +62,8 @@ free_all :: proc(a: ^Arena) {
 destroy :: proc(a: ^Arena) {
 	when HEAP {
 		runtime.arena_destroy(a)
+		// A static arena keeps its refusing allocator past destroy otherwise.
+		a^ = {}
 	} else {
 		vmem.arena_destroy(a)
 	}

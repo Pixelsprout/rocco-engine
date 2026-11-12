@@ -60,6 +60,30 @@ test_static_arena_reuses_its_memory_after_free_all :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_destroyed_static_arena_works_again_as_a_growing_arena :: proc(t: ^testing.T) {
+	a: Arena
+	testing.expect_value(t, init_static(&a, 1 * mem.Megabyte), nil)
+	destroy(&a)
+	defer destroy(&a)
+	_, err := mem.alloc_bytes(2 * mem.Megabyte, 16, allocator(&a))
+	testing.expect_value(t, err, nil)
+}
+
+@(test)
+test_zero_value_arena_takes_small_blocks_first :: proc(t: ^testing.T) {
+	a: Arena
+	defer destroy(&a)
+	_, err := mem.alloc_bytes(64, 16, allocator(&a))
+	testing.expect_value(t, err, nil)
+	when HEAP {
+		testing.expect(t, a.total_capacity <= 2 * mem.Megabyte)
+	} else {
+		testing.expect(t, a.total_reserved <= 2 * mem.Megabyte)
+	}
+}
+
+// Only the -define:ROCCO_ARENAS_HEAP=true run tests this.
+@(test)
 test_heap_arenas_take_blocks_from_the_context_allocator :: proc(t: ^testing.T) {
 	when !HEAP {
 		return

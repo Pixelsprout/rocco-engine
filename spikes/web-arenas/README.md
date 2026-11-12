@@ -69,4 +69,13 @@ console. Headless Chrome on macOS runs only one frame.
   static arena does. It keeps its one block.
 - `runtime.Arena` falls back to `default_allocator()` when it has no backing
   allocator. The web host builds with `-default-to-nil-allocator`, so the
-  arenas capture the context allocator instead.
+  arenas capture the context allocator instead. That allocator must outlive
+  the arena.
+- `runtime.Arena` starts with 4 MB blocks. The heap arenas start at 1 MB, as
+  vmem does. Each scratch arena on the web mallocs and zeroes at least 1 MB at
+  its first allocation. vmem commits pages only as it uses them.
+- `runtime.Arena` has no mutex. The web build has no threads, so this is safe
+  now. A wasm pthreads build would need a lock.
+- This page tests `engine/arenas`, not `memory_init`. The full engine package
+  does not build for wasm yet. The engine call sites run only with the virtual
+  arenas until it does.
