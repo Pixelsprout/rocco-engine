@@ -1,8 +1,8 @@
 package engine
 
+import "arenas"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -34,9 +34,9 @@ mesh_load_file :: proc(t: ^Mesh_Table, dir, name: string) -> (id: u32, reason: s
 		return 0, mesh_table_full_reason(t), false
 	}
 	caller_temp := context.temp_allocator
-	scratch: vmem.Arena
-	defer vmem.arena_destroy(&scratch)
-	context.temp_allocator = vmem.arena_allocator(&scratch)
+	scratch: arenas.Arena
+	defer arenas.destroy(&scratch)
+	context.temp_allocator = arenas.allocator(&scratch)
 	path := fmt.tprintf("%v/%v.glb", dir, name)
 	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {

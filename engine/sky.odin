@@ -1,9 +1,9 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -226,9 +226,9 @@ sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: stri
 	if sky_table_full(t) {
 		return 0, sky_table_full_reason(t), false
 	}
-	scratch: vmem.Arena
-	defer vmem.arena_destroy(&scratch)
-	context.temp_allocator = vmem.arena_allocator(&scratch)
+	scratch: arenas.Arena
+	defer arenas.destroy(&scratch)
+	context.temp_allocator = arenas.allocator(&scratch)
 	stem := strings.trim_prefix(name, SKY_PREFIX)
 	side := 0
 	faces: [len(SKY_FACES)][]byte

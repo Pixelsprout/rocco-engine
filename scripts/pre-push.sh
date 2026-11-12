@@ -59,7 +59,9 @@ if touches '\.odin$'; then
 			defines=-define:ROCCO_D3D_GPU_TIMING=true
 			;;
 		# The web host assumes 32-bit Roc layouts.
-		spikes/web-link/host) targets=freestanding_wasm32 ;;
+		spikes/web-link/host | spikes/web-arenas/host) targets=freestanding_wasm32 ;;
+		# wasm32 builds take the heap arenas, so check that target too.
+		engine/arenas) targets="darwin_arm64 linux_amd64 windows_amd64 freestanding_wasm32" ;;
 		esac
 		for target in $targets; do
 			if [ "$target" = native ]; then

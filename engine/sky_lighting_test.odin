@@ -1,9 +1,9 @@
 #+test
 package engine
 
+import "arenas"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 import "core:testing"
@@ -60,9 +60,9 @@ test_sky_and_image_loads_release_scratch_and_owned_pixels :: proc(t: ^testing.T)
 	files["image/valid.png"] = png
 	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
-	frame: vmem.Arena
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	frame: arenas.Arena
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	tracking: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking, context.allocator)
 	defer mem.tracking_allocator_destroy(&tracking)
@@ -113,12 +113,12 @@ test_source_resolution_sky_exceeds_frame_scratch_without_reduction :: proc(t: ^t
 	for face in SKY_FACES { files[strings.concatenate({"valid/", face, ".png"}, context.temp_allocator)] = png }
 	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
-	frame: vmem.Arena
-	if err := vmem.arena_init_static(&frame, FRAME_ARENA_RESERVE); err != .None {
+	frame: arenas.Arena
+	if err := arenas.init_static(&frame, FRAME_ARENA_RESERVE); err != .None {
 		panic("cannot reserve frame arena")
 	}
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	skies: Sky_Table
 	sky_table_init(&skies, SMALL_SKIES, context.allocator, context.allocator)
 	defer sky_table_destroy(&skies)

@@ -1,10 +1,10 @@
 #+test
 package engine
 
+import "arenas"
 import "core:log"
 import "core:math"
 import "core:math/rand"
-import vmem "core:mem/virtual"
 import "core:testing"
 import "core:time"
 
@@ -374,9 +374,9 @@ test_contact_search_no_colliders_gives_no_contacts :: proc(t: ^testing.T) {
 // docs/DESIGN.md section 10 records the result.
 @(test)
 test_contact_search_timing_at_1000_colliders :: proc(t: ^testing.T) {
-	arena: vmem.Arena
-	testing.expect_value(t, vmem.arena_init_static(&arena, FRAME_ARENA_RESERVE), nil)
-	defer vmem.arena_destroy(&arena)
+	arena: arenas.Arena
+	testing.expect_value(t, arenas.init_static(&arena, FRAME_ARENA_RESERVE), nil)
+	defer arenas.destroy(&arena)
 
 	search: Query_Search
 	query_search_init(&search, context.allocator)
@@ -394,8 +394,8 @@ test_contact_search_timing_at_1000_colliders :: proc(t: ^testing.T) {
 	contacts := 0
 	start := time.tick_now()
 	for _ in 0 ..< RUNS {
-		contacts = len(contacts_find(&search, colliders, vmem.arena_allocator(&arena)))
-		vmem.arena_free_all(&arena)
+		contacts = len(contacts_find(&search, colliders, arenas.allocator(&arena)))
+		arenas.free_all(&arena)
 	}
 	mean := time.duration_microseconds(time.tick_since(start)) / RUNS
 

@@ -1,10 +1,10 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -82,9 +82,9 @@ shader_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string 
 
 shader_load_file :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32, reason: string, ok: bool) {
  caller_temp := context.temp_allocator
- scratch: vmem.Arena
- defer vmem.arena_destroy(&scratch)
- context.temp_allocator = vmem.arena_allocator(&scratch)
+ scratch: arenas.Arena
+ defer arenas.destroy(&scratch)
+ context.temp_allocator = arenas.allocator(&scratch)
  id, reason, ok = shader_load_file_scoped(t, dir, name)
  if !ok && reason != "" { reason = strings.clone(reason, caller_temp) }
  return
@@ -173,9 +173,9 @@ shader_sampler_desc :: proc(declaration: json.Object) -> sg.Sampler_Desc {
 	return {min_filter = .LINEAR if shader_text(policy["min"]) == "linear" else .NEAREST, mag_filter = .LINEAR if shader_text(policy["mag"]) == "linear" else .NEAREST, wrap_u = wrap, wrap_v = wrap, wrap_w = wrap}
 }
 shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
- scratch: vmem.Arena
- defer vmem.arena_destroy(&scratch)
- context.temp_allocator = vmem.arena_allocator(&scratch)
+ scratch: arenas.Arena
+ defer arenas.destroy(&scratch)
+ context.temp_allocator = arenas.allocator(&scratch)
 
 	if s.ready { return true }; if s.failed { return false }
 	backend := "metal_macos"
@@ -264,9 +264,9 @@ shader_constant_texels :: proc(value: json.Value) -> (pixels: [24]f32) {
 }
 
 shader_make_program :: proc(pkg: ^Shader_Package, reflection: json.Object) -> sg.Shader {
- scratch: vmem.Arena
- defer vmem.arena_destroy(&scratch)
- context.temp_allocator = vmem.arena_allocator(&scratch)
+ scratch: arenas.Arena
+ defer arenas.destroy(&scratch)
+ context.temp_allocator = arenas.allocator(&scratch)
  // Sokol consumes source and reflected names during make_shader.
  return sg.make_shader(shader_program_desc(pkg, reflection))
 }

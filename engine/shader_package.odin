@@ -1,12 +1,12 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:encoding/endian"
 import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
@@ -200,9 +200,9 @@ shader_canonical_value :: proc(c: ^Shader_Canonical) -> string {
 // The caller owns bytes. Failure creates no GPU objects and leaves no retained JSON.
 shader_package_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (pkg: Shader_Package, reason: string, ok: bool) {
  caller_temp := context.temp_allocator
- scratch: vmem.Arena
- defer vmem.arena_destroy(&scratch)
- context.temp_allocator = vmem.arena_allocator(&scratch)
+ scratch: arenas.Arena
+ defer arenas.destroy(&scratch)
+ context.temp_allocator = arenas.allocator(&scratch)
  pkg, reason, ok = shader_package_parse_scoped(bytes, allocator)
  if !ok && reason != "" { reason = strings.clone(reason, caller_temp) }
  return

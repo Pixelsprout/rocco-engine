@@ -1,8 +1,8 @@
 #+test
 package engine
 
+import "arenas"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 import "core:testing"
@@ -22,9 +22,9 @@ test_glb_load_scratch_does_not_accumulate_in_frame_memory :: proc(t: ^testing.T)
 		material = `{"name":"bark","pbrMetallicRoughness":{"baseColorTexture":{"index":0}},"normalTexture":{"index":4}}`)
 	dir := temp_assets_dir(t, files)
 	defer os.remove_all(dir)
-	frame: vmem.Arena
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	frame: arenas.Arena
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	assets: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&assets, context.allocator)
 	defer mem.tracking_allocator_destroy(&assets)
@@ -77,9 +77,9 @@ test_glb_parse_scratch_preserves_a_caller_temp_allocator_result :: proc(t: ^test
 	bytes := textured_glb(png_make(1, 1, PNG_RGB, {19, 29, 39}))
 	colors := color_glb(`{"bufferView":2,"componentType":5121,"normalized":true,"count":3,"type":"VEC4"}`,
 		{255, 0, 255, 51, 255, 0, 255, 51, 255, 0, 255, 51})
-	frame: vmem.Arena
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	frame: arenas.Arena
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	data, _, err := glb_parse(bytes, context.temp_allocator)
 	testing.expect_value(t, err, Glb_Error.None)
 	testing.expect_value(t, data.vertices[1].pos, [3]f32{1, 0, 0})
@@ -98,9 +98,9 @@ test_glb_parse_scratch_preserves_a_caller_temp_allocator_result :: proc(t: ^test
 test_glb_parse_error_releases_textures_and_scratch :: proc(t: ^testing.T) {
 	bytes := textured_glb(png_make(1, 1, PNG_RGB, {19, 29, 39}),
 		material = `{"pbrMetallicRoughness":{"baseColorTexture":{"index":0}},"normalTexture":{"index":4}}`)
-	frame: vmem.Arena
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	frame: arenas.Arena
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	assets: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&assets, context.allocator)
 	defer mem.tracking_allocator_destroy(&assets)
@@ -117,9 +117,9 @@ test_glb_bad_png_releases_decode_scratch_and_keeps_the_mesh :: proc(t: ^testing.
 	pixels := make([]byte, 256 * 256 * 4, context.temp_allocator)
 	image := png_make(256, 256, PNG_RGBA, pixels)
 	bytes := textured_glb(image[:len(image) / 2])
-	frame: vmem.Arena
-	defer vmem.arena_destroy(&frame)
-	context.temp_allocator = vmem.arena_allocator(&frame)
+	frame: arenas.Arena
+	defer arenas.destroy(&frame)
+	context.temp_allocator = arenas.allocator(&frame)
 	assets: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&assets, context.allocator)
 	defer mem.tracking_allocator_destroy(&assets)

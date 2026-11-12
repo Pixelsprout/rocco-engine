@@ -1,9 +1,9 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:slice"
 import "core:strings"
@@ -209,9 +209,9 @@ image_load_file :: proc(t: ^Image_Table, dir, name: string) -> (id: u32, reason:
 		return 0, image_table_full_reason(t), false
 	}
 	caller_temp := context.temp_allocator
-	scratch: vmem.Arena
-	defer vmem.arena_destroy(&scratch)
-	context.temp_allocator = vmem.arena_allocator(&scratch)
+	scratch: arenas.Arena
+	defer arenas.destroy(&scratch)
+	context.temp_allocator = arenas.allocator(&scratch)
 	path := fmt.tprintf("%v/%v.png", dir, strings.trim_prefix(name, IMAGE_PREFIX))
 	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {

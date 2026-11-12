@@ -1,11 +1,11 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
+import "arenas"
 import "core:encoding/endian"
 import "core:encoding/json"
 import "core:math/linalg"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:slice"
 import "core:strings"
 
@@ -294,9 +294,9 @@ Glb_View :: struct {
 // Skinned mesh nodes merge in bind-pose space with their Skin and Clips.
 glb_parse :: proc(bytes: []byte, allocator: mem.Allocator) -> (data: Mesh_Data, notes: Glb_Notes, err: Glb_Error) {
 	// Keep allocator unchanged when the caller passes context.temp_allocator.
-	scratch: vmem.Arena
-	defer vmem.arena_destroy(&scratch)
-	context.temp_allocator = vmem.arena_allocator(&scratch)
+	scratch: arenas.Arena
+	defer arenas.destroy(&scratch)
+	context.temp_allocator = arenas.allocator(&scratch)
 	json_chunk, bin := glb_chunks(bytes) or_return
 
 	l := Glb_Loader {
@@ -926,9 +926,9 @@ glb_texture :: proc(l: ^Glb_Loader, index: int, srgb: bool, allocator: mem.Alloc
 	switch img.mime_type {
 	case "image/png":
 		// Each PNG releases its decoder scratch after retained pixels are copied.
-		scratch: vmem.Arena
-		defer vmem.arena_destroy(&scratch)
-		context.temp_allocator = vmem.arena_allocator(&scratch)
+		scratch: arenas.Arena
+		defer arenas.destroy(&scratch)
+		context.temp_allocator = arenas.allocator(&scratch)
 		width, height, rgba, ok := png_decode(bytes)
 		if !ok {
 			l.notes += {.Bad_Png}

@@ -1,8 +1,8 @@
 #+test
 package engine
 
+import "arenas"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 import "core:testing"
@@ -15,8 +15,8 @@ test_shader_load_scratch_does_not_accumulate_in_frame_memory :: proc(t: ^testing
  bad,_:=strings.replace_all(shader_test_manifest(),`"repository":"floooh/sokol-tools-bin"`,`"repository":"floooh/sokol-tools-bin","unexpected":0`,context.temp_allocator)
  files["Bad.shaderpack"]=shader_test_pack(bad)
  dir:=temp_assets_dir(t,files);defer os.remove_all(dir)
- frame:vmem.Arena;defer vmem.arena_destroy(&frame)
- context.temp_allocator=vmem.arena_allocator(&frame)
+ frame:arenas.Arena;defer arenas.destroy(&frame)
+ context.temp_allocator=arenas.allocator(&frame)
  assets:mem.Tracking_Allocator;mem.tracking_allocator_init(&assets,context.allocator);defer mem.tracking_allocator_destroy(&assets)
  allocator:=mem.tracking_allocator(&assets)
  table:Shader_Table;shader_table_init(&table,allocator)
@@ -48,7 +48,7 @@ test_shader_parse_preserves_caller_arena_results_and_long_names :: proc(t: ^test
  parameter:=strings.concatenate({`"parameters":[{"default":[0.5],"name":"`,name,`","offset":0,"scope":"Scene","stage":"vertex","type":"F32"}],"skinning"`},context.temp_allocator)
  metadata,_:=strings.replace_all(shader_test_manifest(),`"parameters":[],"skinning"`,parameter,context.temp_allocator)
  bytes:=shader_test_pack(metadata)
- frame:vmem.Arena;defer vmem.arena_destroy(&frame);context.temp_allocator=vmem.arena_allocator(&frame)
+ frame:arenas.Arena;defer arenas.destroy(&frame);context.temp_allocator=arenas.allocator(&frame)
  pkg,reason,ok:=shader_package_parse(bytes,context.temp_allocator)
  testing.expectf(t,ok,"%v",reason)
  if ok {

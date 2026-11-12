@@ -1,7 +1,6 @@
 package engine
 
-import vmem "core:mem/virtual"
-
+import "arenas"
 
 Instance_Key :: struct {
 	mesh: ^Mesh,
@@ -99,10 +98,10 @@ surface_instance_key :: proc(surface: Surface_Material) -> (key: Surface_Instanc
 
 // Camera eligibility never removes a caster from the shared placement array.
 frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: Mesh_Pipeline, view_proj: Mat4, cascade: ^Cascade_View = nil, draw_params: []Draw_Params = nil) {
-	context.temp_allocator = vmem.arena_allocator(&fr.instance_scratch)
+	context.temp_allocator = arenas.allocator(&fr.instance_scratch)
 	defer {
 		fr.instance_scratch_peak = max(fr.instance_scratch_peak, fr.instance_scratch.total_used)
-		vmem.arena_free_all(&fr.instance_scratch)
+		arenas.free_all(&fr.instance_scratch)
 	}
 	batches := make([dynamic]Instance_Batch, 0, min(len(fr.placed), 64), context.temp_allocator)
 	members := make([dynamic]Instance_Member, 0, min(len(fr.placed), 64), context.temp_allocator)
