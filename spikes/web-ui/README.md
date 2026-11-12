@@ -42,13 +42,14 @@ macOS runs only one frame.
    and the Roc runtime parts that they touch.
 4. Odin builds the host as a `freestanding_wasm32` object, as in the link
    spike.
-5. emcc links the host, the sokol objects and clay's prebuilt
+5. emcc links the host, `main.o` from `host/main.c`, the sokol objects and clay's prebuilt
    `wasm/clay.o` into the page with `--use-port=emdawnwebgpu
    -sDEFAULT_TO_CXX -sALLOW_MEMORY_GROWTH=1`.
 
 The copied files are `ui.odin`, `ui_render.odin`, `font.odin`,
 `font_baked.odin`, `vocabulary.odin` and `roc_platform_abi.odin`. Apart from
-the import paths, the build changes only the glue file and the `fmt` import.
+the import paths, the build changes only `roc_platform_abi.odin` and the
+`fmt` import.
 See the findings.
 
 ## Findings
@@ -87,6 +88,19 @@ See the findings.
   host builds by hand must name each tag. Roc fills these in for a game.
 - `index.wasm` is 1.2 MB and `index.js` is 200 KB, in a debug build with no
   game.
+
+## What the spike does not test
+
+- The engine draws the UI into an RGBA8 target (`TARGET_COLOR_FORMAT` in
+  `engine/render_target.odin`) and then composites it to the swapchain. The
+  stub sets `TARGET_COLOR_FORMAT` to `.DEFAULT`, so the pipeline takes the
+  WebGPU swapchain format. The RGBA8 target and the composite step did not
+  run on WebGPU.
+- The UI pipeline ran with a sample count of 1. The engine passes the
+  Launch's MSAA count, so an MSAA UI pipeline did not run.
+- Image quads did not run. The stub Image table finds no Image.
+- The Element tree is built in Odin, so the 32-bit Roc layouts of `Element`
+  and `Roc_Str` did not run.
 
 ## What the Web host still needs for the UI
 

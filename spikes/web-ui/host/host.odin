@@ -24,7 +24,7 @@ g_context: runtime.Context
 g_temp: arenas.Arena
 g_ui: engine.Ui
 g_renderer: engine.Renderer
-g_frames: int
+g_reported: bool
 
 @(default_calling_convention = "c")
 foreign env {
@@ -103,9 +103,9 @@ frame :: proc "c" () {
 	sg.end_pass()
 	sg.commit()
 
-	g_frames += 1
-	if g_frames == 1 {
+	if !g_reported {
 		report_quads(quads, window)
+		g_reported = true
 	}
 	arenas.free_all(&g_temp)
 }

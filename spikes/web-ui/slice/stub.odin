@@ -39,7 +39,7 @@ image_lookup :: proc(t: ^Image_Table, id: u32) -> (image: ^Image, ok: bool) {
 }
 
 image_resolve :: proc(t: ^Image_Table, id: u32) -> (image: ^Image, ok: bool) {
-	return nil, false
+	return image_lookup(t, id)
 }
 
 // A copy of engine/roc_runtime.odin's, which the slice leaves out.
