@@ -315,6 +315,17 @@ jobs:
       - name: Build the wasm32 arenas page
         run: sh scripts/toolchain.sh run sh spikes/web-arenas/build.sh
 
+      - name: Build the WebGPU UI page
+        run: |
+          python3 scripts/shader_contract/install.py
+          sh scripts/toolchain.sh run sh spikes/web-ui/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-ui-page
+          path: spikes/web-ui/build/page/
+          if-no-files-found: error
+
   generated:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
