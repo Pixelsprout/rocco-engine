@@ -4,6 +4,7 @@ engine/*.bin
 *.dSYM/
 engine.a
 engine.bin
+/main
 build/
 
 # Roc platform link inputs. Built from engine/ or copied from sokol-odin/sokol/, clay/ and build/miniaudio/.
