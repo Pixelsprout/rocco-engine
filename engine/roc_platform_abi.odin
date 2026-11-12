@@ -4,9 +4,13 @@ package engine
 // Do not edit by hand; regenerate instead:
 //   roc glue ./OdinGlue.roc <out-dir> <platform>/main.roc
 
-// Every offset below is the 64-bit layout. This spec emits one pointer
-// width, so the host must be a 64-bit target.
-#assert(size_of(uintptr) == 8)
+// Each layout value below is written for both pointer widths. Roc sizes
+// its refcounts and lengths by the pointer width, so uint must match it.
+#assert(size_of(uintptr) == 8 || size_of(uintptr) == 4)
+#assert(size_of(uint) == size_of(uintptr))
+
+@(private = "file")
+ROC_POINTER_64 :: size_of(uintptr) == 8
 
 // The helpers below allocate and free through roc_alloc and roc_dealloc.
 // The host defines both in this package, because the Roc app calls them.
@@ -70,8 +74,8 @@ Roc_List :: struct($T: typeid) {
 	capacity_or_alloc_ptr: uint,
 }
 
-#assert(size_of(Roc_List(u8)) == 24)
-#assert(align_of(Roc_List(u8)) == 8)
+#assert(size_of(Roc_List(u8)) == (24 when ROC_POINTER_64 else 12))
+#assert(align_of(Roc_List(u8)) == (8 when ROC_POINTER_64 else 4))
 
 // A seamless slice tags the low bit of capacity_or_alloc_ptr and keeps
 // the data pointer of the allocation it shares there.
@@ -127,8 +131,8 @@ Roc_Str :: struct {
 	length:                uint,
 }
 
-#assert(size_of(Roc_Str) == 24)
-#assert(align_of(Roc_Str) == 8)
+#assert(size_of(Roc_Str) == (24 when ROC_POINTER_64 else 12))
+#assert(align_of(Roc_Str) == (8 when ROC_POINTER_64 else 4))
 // The inline length byte is the last byte, so the layout assumes little-endian.
 #assert(ODIN_ENDIAN == .Little)
 
@@ -177,26 +181,26 @@ Roc_Init_Arg0 :: struct {
 	assets: Roc_List(Roc_Str),
 }
 
-#assert(size_of(Roc_Init_Arg0) == 56)
+#assert(size_of(Roc_Init_Arg0) == (56 when ROC_POINTER_64 else 32))
 #assert(align_of(Roc_Init_Arg0) == 8)
 #assert(offset_of(Roc_Init_Arg0, seed) == 0)
 #assert(size_of(type_of(Roc_Init_Arg0{}.seed)) == 8)
 #assert(offset_of(Roc_Init_Arg0, args) == 8)
-#assert(size_of(type_of(Roc_Init_Arg0{}.args)) == 24)
-#assert(offset_of(Roc_Init_Arg0, assets) == 32)
-#assert(size_of(type_of(Roc_Init_Arg0{}.assets)) == 24)
+#assert(size_of(type_of(Roc_Init_Arg0{}.args)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Init_Arg0, assets) == (32 when ROC_POINTER_64 else 20))
+#assert(size_of(type_of(Roc_Init_Arg0{}.assets)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_Init :: struct {
 	commands: Roc_List(Roc_Init_Commands),
 	model: rawptr,
 }
 
-#assert(size_of(Roc_Init) == 32)
-#assert(align_of(Roc_Init) == 8)
+#assert(size_of(Roc_Init) == (32 when ROC_POINTER_64 else 16))
+#assert(align_of(Roc_Init) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Init, commands) == 0)
-#assert(size_of(type_of(Roc_Init{}.commands)) == 24)
-#assert(offset_of(Roc_Init, model) == 24)
-#assert(size_of(type_of(Roc_Init{}.model)) == 8)
+#assert(size_of(type_of(Roc_Init{}.commands)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Init, model) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Init{}.model)) == (8 when ROC_POINTER_64 else 4))
 
 Roc_Init_Commands_Tag :: enum u8 {
 	Burst = 0,
@@ -222,9 +226,9 @@ Roc_Init_Commands :: struct {
 	tag: Roc_Init_Commands_Tag,
 }
 
-#assert(size_of(Roc_Init_Commands) == 56)
+#assert(size_of(Roc_Init_Commands) == (56 when ROC_POINTER_64 else 40))
 #assert(align_of(Roc_Init_Commands) == 8)
-#assert(offset_of(Roc_Init_Commands, tag) == 48)
+#assert(offset_of(Roc_Init_Commands, tag) == (48 when ROC_POINTER_64 else 32))
 
 Roc_Init_Commands_Burst :: struct {
 	emitter: u64,
@@ -243,12 +247,12 @@ Roc_Init_Commands_Load :: struct {
 	pack: Roc_Str,
 }
 
-#assert(size_of(Roc_Init_Commands_Load) == 48)
-#assert(align_of(Roc_Init_Commands_Load) == 8)
+#assert(size_of(Roc_Init_Commands_Load) == (48 when ROC_POINTER_64 else 24))
+#assert(align_of(Roc_Init_Commands_Load) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Init_Commands_Load, assets) == 0)
-#assert(size_of(type_of(Roc_Init_Commands_Load{}.assets)) == 24)
-#assert(offset_of(Roc_Init_Commands_Load, pack) == 24)
-#assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == 24)
+#assert(size_of(type_of(Roc_Init_Commands_Load{}.assets)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Init_Commands_Load, pack) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Init_Commands_Load{}.pack)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_Init_Commands_Play :: struct {
 	at: Roc_Init_Commands_Play_At,
@@ -318,12 +322,12 @@ Roc_Init_Commands_Tell :: struct {
 	port: Roc_Str,
 }
 
-#assert(size_of(Roc_Init_Commands_Tell) == 48)
-#assert(align_of(Roc_Init_Commands_Tell) == 8)
+#assert(size_of(Roc_Init_Commands_Tell) == (48 when ROC_POINTER_64 else 24))
+#assert(align_of(Roc_Init_Commands_Tell) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Init_Commands_Tell, msg) == 0)
-#assert(size_of(type_of(Roc_Init_Commands_Tell{}.msg)) == 24)
-#assert(offset_of(Roc_Init_Commands_Tell, port) == 24)
-#assert(size_of(type_of(Roc_Init_Commands_Tell{}.port)) == 24)
+#assert(size_of(type_of(Roc_Init_Commands_Tell{}.msg)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Init_Commands_Tell, port) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Init_Commands_Tell{}.port)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_Launch_Arg0 :: Roc_Init_Arg0
 Roc_Launch :: struct {
@@ -334,17 +338,17 @@ Roc_Launch :: struct {
 	step_hz: u32,
 }
 
-#assert(size_of(Roc_Launch) == 88)
-#assert(align_of(Roc_Launch) == 8)
+#assert(size_of(Roc_Launch) == (88 when ROC_POINTER_64 else 68))
+#assert(align_of(Roc_Launch) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Launch, window) == 0)
-#assert(size_of(type_of(Roc_Launch{}.window)) == 40)
-#assert(offset_of(Roc_Launch, capacity) == 40)
+#assert(size_of(type_of(Roc_Launch{}.window)) == (40 when ROC_POINTER_64 else 24))
+#assert(offset_of(Roc_Launch, capacity) == (40 when ROC_POINTER_64 else 24))
 #assert(size_of(type_of(Roc_Launch{}.capacity)) == 32)
-#assert(offset_of(Roc_Launch, shadow_cascades) == 72)
+#assert(offset_of(Roc_Launch, shadow_cascades) == (72 when ROC_POINTER_64 else 56))
 #assert(size_of(type_of(Roc_Launch{}.shadow_cascades)) == 4)
-#assert(offset_of(Roc_Launch, shadow_map) == 76)
+#assert(offset_of(Roc_Launch, shadow_map) == (76 when ROC_POINTER_64 else 60))
 #assert(size_of(type_of(Roc_Launch{}.shadow_map)) == 4)
-#assert(offset_of(Roc_Launch, step_hz) == 80)
+#assert(offset_of(Roc_Launch, step_hz) == (80 when ROC_POINTER_64 else 64))
 #assert(size_of(type_of(Roc_Launch{}.step_hz)) == 4)
 
 Roc_Launch_Window :: struct {
@@ -357,21 +361,21 @@ Roc_Launch_Window :: struct {
 	vsync: bool,
 }
 
-#assert(size_of(Roc_Launch_Window) == 40)
-#assert(align_of(Roc_Launch_Window) == 8)
+#assert(size_of(Roc_Launch_Window) == (40 when ROC_POINTER_64 else 24))
+#assert(align_of(Roc_Launch_Window) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Launch_Window, title) == 0)
-#assert(size_of(type_of(Roc_Launch_Window{}.title)) == 24)
-#assert(offset_of(Roc_Launch_Window, height) == 24)
+#assert(size_of(type_of(Roc_Launch_Window{}.title)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Launch_Window, height) == (24 when ROC_POINTER_64 else 12))
 #assert(size_of(type_of(Roc_Launch_Window{}.height)) == 4)
-#assert(offset_of(Roc_Launch_Window, width) == 28)
+#assert(offset_of(Roc_Launch_Window, width) == (28 when ROC_POINTER_64 else 16))
 #assert(size_of(type_of(Roc_Launch_Window{}.width)) == 4)
-#assert(offset_of(Roc_Launch_Window, fullscreen) == 32)
+#assert(offset_of(Roc_Launch_Window, fullscreen) == (32 when ROC_POINTER_64 else 20))
 #assert(size_of(type_of(Roc_Launch_Window{}.fullscreen)) == 1)
-#assert(offset_of(Roc_Launch_Window, high_dpi) == 33)
+#assert(offset_of(Roc_Launch_Window, high_dpi) == (33 when ROC_POINTER_64 else 21))
 #assert(size_of(type_of(Roc_Launch_Window{}.high_dpi)) == 1)
-#assert(offset_of(Roc_Launch_Window, samples) == 34)
+#assert(offset_of(Roc_Launch_Window, samples) == (34 when ROC_POINTER_64 else 22))
 #assert(size_of(type_of(Roc_Launch_Window{}.samples)) == 1)
-#assert(offset_of(Roc_Launch_Window, vsync) == 35)
+#assert(offset_of(Roc_Launch_Window, vsync) == (35 when ROC_POINTER_64 else 23))
 #assert(size_of(type_of(Roc_Launch_Window{}.vsync)) == 1)
 
 Roc_Launch_Window_Samples :: enum u8 {
@@ -422,17 +426,17 @@ Roc_Loaded_Arg2 :: struct {
 	size: Roc_Loaded_Arg2_Size,
 }
 
-#assert(size_of(Roc_Loaded_Arg2) == 64)
-#assert(align_of(Roc_Loaded_Arg2) == 8)
+#assert(size_of(Roc_Loaded_Arg2) == (64 when ROC_POINTER_64 else 40))
+#assert(align_of(Roc_Loaded_Arg2) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Loaded_Arg2, clips) == 0)
-#assert(size_of(type_of(Roc_Loaded_Arg2{}.clips)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2, name) == 24)
-#assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2, duration) == 48)
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.clips)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Loaded_Arg2, name) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Loaded_Arg2{}.name)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Loaded_Arg2, duration) == (48 when ROC_POINTER_64 else 24))
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.duration)) == 4)
-#assert(offset_of(Roc_Loaded_Arg2, id) == 52)
+#assert(offset_of(Roc_Loaded_Arg2, id) == (52 when ROC_POINTER_64 else 28))
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.id)) == 4)
-#assert(offset_of(Roc_Loaded_Arg2, size) == 56)
+#assert(offset_of(Roc_Loaded_Arg2, size) == (56 when ROC_POINTER_64 else 32))
 #assert(size_of(type_of(Roc_Loaded_Arg2{}.size)) == 8)
 
 Roc_Loaded_Arg2_Clips :: struct {
@@ -441,13 +445,13 @@ Roc_Loaded_Arg2_Clips :: struct {
 	id: u32,
 }
 
-#assert(size_of(Roc_Loaded_Arg2_Clips) == 32)
-#assert(align_of(Roc_Loaded_Arg2_Clips) == 8)
+#assert(size_of(Roc_Loaded_Arg2_Clips) == (32 when ROC_POINTER_64 else 20))
+#assert(align_of(Roc_Loaded_Arg2_Clips) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Loaded_Arg2_Clips, name) == 0)
-#assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.name)) == 24)
-#assert(offset_of(Roc_Loaded_Arg2_Clips, duration) == 24)
+#assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.name)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Loaded_Arg2_Clips, duration) == (24 when ROC_POINTER_64 else 12))
 #assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.duration)) == 4)
-#assert(offset_of(Roc_Loaded_Arg2_Clips, id) == 28)
+#assert(offset_of(Roc_Loaded_Arg2_Clips, id) == (28 when ROC_POINTER_64 else 16))
 #assert(size_of(type_of(Roc_Loaded_Arg2_Clips{}.id)) == 4)
 
 Roc_Loaded_Arg2_Size :: struct {
@@ -471,19 +475,19 @@ Roc_Step_Arg1 :: struct {
 	window: Roc_Step_Arg1_Window,
 }
 
-#assert(size_of(Roc_Step_Arg1) == 184)
-#assert(align_of(Roc_Step_Arg1) == 8)
+#assert(size_of(Roc_Step_Arg1) == (184 when ROC_POINTER_64 else 108))
+#assert(align_of(Roc_Step_Arg1) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Step_Arg1, gamepads) == 0)
-#assert(size_of(type_of(Roc_Step_Arg1{}.gamepads)) == 24)
-#assert(offset_of(Roc_Step_Arg1, held) == 24)
-#assert(size_of(type_of(Roc_Step_Arg1{}.held)) == 24)
-#assert(offset_of(Roc_Step_Arg1, pointer) == 48)
-#assert(size_of(type_of(Roc_Step_Arg1{}.pointer)) == 96)
-#assert(offset_of(Roc_Step_Arg1, pressed) == 144)
-#assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == 24)
-#assert(offset_of(Roc_Step_Arg1, mouse) == 168)
+#assert(size_of(type_of(Roc_Step_Arg1{}.gamepads)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1, held) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Step_Arg1{}.held)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1, pointer) == (48 when ROC_POINTER_64 else 24))
+#assert(size_of(type_of(Roc_Step_Arg1{}.pointer)) == (96 when ROC_POINTER_64 else 56))
+#assert(offset_of(Roc_Step_Arg1, pressed) == (144 when ROC_POINTER_64 else 80))
+#assert(size_of(type_of(Roc_Step_Arg1{}.pressed)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1, mouse) == (168 when ROC_POINTER_64 else 92))
 #assert(size_of(type_of(Roc_Step_Arg1{}.mouse)) == 8)
-#assert(offset_of(Roc_Step_Arg1, window) == 176)
+#assert(offset_of(Roc_Step_Arg1, window) == (176 when ROC_POINTER_64 else 100))
 #assert(size_of(type_of(Roc_Step_Arg1{}.window)) == 8)
 
 Roc_Step_Arg1_Gamepads :: struct {
@@ -496,21 +500,21 @@ Roc_Step_Arg1_Gamepads :: struct {
 	slot: u8,
 }
 
-#assert(size_of(Roc_Step_Arg1_Gamepads) == 80)
-#assert(align_of(Roc_Step_Arg1_Gamepads) == 8)
+#assert(size_of(Roc_Step_Arg1_Gamepads) == (80 when ROC_POINTER_64 else 52))
+#assert(align_of(Roc_Step_Arg1_Gamepads) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Step_Arg1_Gamepads, held) == 0)
-#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.held)) == 24)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, pressed) == 24)
-#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.pressed)) == 24)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, left_stick) == 48)
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.held)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1_Gamepads, pressed) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.pressed)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1_Gamepads, left_stick) == (48 when ROC_POINTER_64 else 24))
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.left_stick)) == 8)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, left_trigger) == 56)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, left_trigger) == (56 when ROC_POINTER_64 else 32))
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.left_trigger)) == 4)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, right_stick) == 60)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, right_stick) == (60 when ROC_POINTER_64 else 36))
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.right_stick)) == 8)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, right_trigger) == 68)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, right_trigger) == (68 when ROC_POINTER_64 else 44))
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.right_trigger)) == 4)
-#assert(offset_of(Roc_Step_Arg1_Gamepads, slot) == 72)
+#assert(offset_of(Roc_Step_Arg1_Gamepads, slot) == (72 when ROC_POINTER_64 else 48))
 #assert(size_of(type_of(Roc_Step_Arg1_Gamepads{}.slot)) == 1)
 
 Roc_Step_Arg1_Gamepads_LeftStick :: struct {
@@ -536,21 +540,21 @@ Roc_Step_Arg1_Pointer :: struct {
 	inside: bool,
 }
 
-#assert(size_of(Roc_Step_Arg1_Pointer) == 96)
-#assert(align_of(Roc_Step_Arg1_Pointer) == 8)
+#assert(size_of(Roc_Step_Arg1_Pointer) == (96 when ROC_POINTER_64 else 56))
+#assert(align_of(Roc_Step_Arg1_Pointer) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Step_Arg1_Pointer, held) == 0)
-#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.held)) == 24)
-#assert(offset_of(Roc_Step_Arg1_Pointer, pressed) == 24)
-#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.pressed)) == 24)
-#assert(offset_of(Roc_Step_Arg1_Pointer, released) == 48)
-#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.released)) == 24)
-#assert(offset_of(Roc_Step_Arg1_Pointer, wheel) == 72)
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.held)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1_Pointer, pressed) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.pressed)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1_Pointer, released) == (48 when ROC_POINTER_64 else 24))
+#assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.released)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg1_Pointer, wheel) == (72 when ROC_POINTER_64 else 36))
 #assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.wheel)) == 8)
-#assert(offset_of(Roc_Step_Arg1_Pointer, x) == 80)
+#assert(offset_of(Roc_Step_Arg1_Pointer, x) == (80 when ROC_POINTER_64 else 44))
 #assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.x)) == 4)
-#assert(offset_of(Roc_Step_Arg1_Pointer, y) == 84)
+#assert(offset_of(Roc_Step_Arg1_Pointer, y) == (84 when ROC_POINTER_64 else 48))
 #assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.y)) == 4)
-#assert(offset_of(Roc_Step_Arg1_Pointer, inside) == 88)
+#assert(offset_of(Roc_Step_Arg1_Pointer, inside) == (88 when ROC_POINTER_64 else 52))
 #assert(size_of(type_of(Roc_Step_Arg1_Pointer{}.inside)) == 1)
 
 Roc_Step_Arg1_Pointer_Wheel :: struct {
@@ -586,18 +590,18 @@ Roc_Step_Arg2 :: struct {
 	ui: Roc_Step_Arg2_Ui,
 }
 
-#assert(size_of(Roc_Step_Arg2) == 144)
-#assert(align_of(Roc_Step_Arg2) == 8)
+#assert(size_of(Roc_Step_Arg2) == (144 when ROC_POINTER_64 else 72))
+#assert(align_of(Roc_Step_Arg2) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Step_Arg2, contacts) == 0)
-#assert(size_of(type_of(Roc_Step_Arg2{}.contacts)) == 24)
-#assert(offset_of(Roc_Step_Arg2, overlaps) == 24)
-#assert(size_of(type_of(Roc_Step_Arg2{}.overlaps)) == 24)
-#assert(offset_of(Roc_Step_Arg2, ports) == 48)
-#assert(size_of(type_of(Roc_Step_Arg2{}.ports)) == 24)
-#assert(offset_of(Roc_Step_Arg2, rays) == 72)
-#assert(size_of(type_of(Roc_Step_Arg2{}.rays)) == 24)
-#assert(offset_of(Roc_Step_Arg2, ui) == 96)
-#assert(size_of(type_of(Roc_Step_Arg2{}.ui)) == 48)
+#assert(size_of(type_of(Roc_Step_Arg2{}.contacts)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg2, overlaps) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Step_Arg2{}.overlaps)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg2, ports) == (48 when ROC_POINTER_64 else 24))
+#assert(size_of(type_of(Roc_Step_Arg2{}.ports)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg2, rays) == (72 when ROC_POINTER_64 else 36))
+#assert(size_of(type_of(Roc_Step_Arg2{}.rays)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg2, ui) == (96 when ROC_POINTER_64 else 48))
+#assert(size_of(type_of(Roc_Step_Arg2{}.ui)) == (48 when ROC_POINTER_64 else 24))
 
 Roc_Step_Arg2_Contacts :: struct {
 	a: u64,
@@ -665,12 +669,12 @@ Roc_Step_Arg2_Ui :: struct {
 	scroll: Roc_List(Roc_Step_Arg2_Ui_Scroll),
 }
 
-#assert(size_of(Roc_Step_Arg2_Ui) == 48)
-#assert(align_of(Roc_Step_Arg2_Ui) == 8)
+#assert(size_of(Roc_Step_Arg2_Ui) == (48 when ROC_POINTER_64 else 24))
+#assert(align_of(Roc_Step_Arg2_Ui) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_Step_Arg2_Ui, over) == 0)
-#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.over)) == 24)
-#assert(offset_of(Roc_Step_Arg2_Ui, scroll) == 24)
-#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.scroll)) == 24)
+#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.over)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_Step_Arg2_Ui, scroll) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_Step_Arg2_Ui{}.scroll)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_Step_Arg2_Ui_Scroll :: struct {
 	id: u64,
@@ -711,27 +715,27 @@ Roc_View :: struct {
 	cursor: Roc_View_Cursor,
 }
 
-#assert(size_of(Roc_View) == 288)
-#assert(align_of(Roc_View) == 8)
+#assert(size_of(Roc_View) == (288 when ROC_POINTER_64 else 212))
+#assert(align_of(Roc_View) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_View, emitters) == 0)
-#assert(size_of(type_of(Roc_View{}.emitters)) == 24)
-#assert(offset_of(Roc_View, nodes) == 24)
-#assert(size_of(type_of(Roc_View{}.nodes)) == 24)
-#assert(offset_of(Roc_View, post) == 48)
-#assert(size_of(type_of(Roc_View{}.post)) == 24)
-#assert(offset_of(Roc_View, queries) == 72)
-#assert(size_of(type_of(Roc_View{}.queries)) == 24)
-#assert(offset_of(Roc_View, shader_values) == 96)
-#assert(size_of(type_of(Roc_View{}.shader_values)) == 24)
-#assert(offset_of(Roc_View, ui) == 120)
-#assert(size_of(type_of(Roc_View{}.ui)) == 24)
-#assert(offset_of(Roc_View, camera) == 144)
+#assert(size_of(type_of(Roc_View{}.emitters)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, nodes) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_View{}.nodes)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, post) == (48 when ROC_POINTER_64 else 24))
+#assert(size_of(type_of(Roc_View{}.post)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, queries) == (72 when ROC_POINTER_64 else 36))
+#assert(size_of(type_of(Roc_View{}.queries)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, shader_values) == (96 when ROC_POINTER_64 else 48))
+#assert(size_of(type_of(Roc_View{}.shader_values)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, ui) == (120 when ROC_POINTER_64 else 60))
+#assert(size_of(type_of(Roc_View{}.ui)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View, camera) == (144 when ROC_POINTER_64 else 72))
 #assert(size_of(type_of(Roc_View{}.camera)) == 40)
-#assert(offset_of(Roc_View, environment) == 184)
+#assert(offset_of(Roc_View, environment) == (184 when ROC_POINTER_64 else 112))
 #assert(size_of(type_of(Roc_View{}.environment)) == 72)
-#assert(offset_of(Roc_View, shadow) == 256)
+#assert(offset_of(Roc_View, shadow) == (256 when ROC_POINTER_64 else 184))
 #assert(size_of(type_of(Roc_View{}.shadow)) == 24)
-#assert(offset_of(Roc_View, cursor) == 280)
+#assert(offset_of(Roc_View, cursor) == (280 when ROC_POINTER_64 else 208))
 #assert(size_of(type_of(Roc_View{}.cursor)) == 1)
 
 Roc_View_Emitters :: struct {
@@ -817,24 +821,24 @@ Roc_VocabularyNode_Attach :: struct {
 	_1: Roc_List(Roc_VocabularyNode),
 }
 
-#assert(size_of(Roc_VocabularyNode_Attach) == 56)
+#assert(size_of(Roc_VocabularyNode_Attach) == (56 when ROC_POINTER_64 else 40))
 #assert(align_of(Roc_VocabularyNode_Attach) == 8)
 #assert(offset_of(Roc_VocabularyNode_Attach, _0) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._0)) == 32)
-#assert(offset_of(Roc_VocabularyNode_Attach, _1) == 32)
-#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._1)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._0)) == (32 when ROC_POINTER_64 else 24))
+#assert(offset_of(Roc_VocabularyNode_Attach, _1) == (32 when ROC_POINTER_64 else 24))
+#assert(size_of(type_of(Roc_VocabularyNode_Attach{}._1)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Group :: struct {
 	_0: Roc_VocabularyNode_Group_0,
 	_1: Roc_List(Roc_VocabularyNode),
 }
 
-#assert(size_of(Roc_VocabularyNode_Group) == 64)
+#assert(size_of(Roc_VocabularyNode_Group) == (64 when ROC_POINTER_64 else 56))
 #assert(align_of(Roc_VocabularyNode_Group) == 8)
 #assert(offset_of(Roc_VocabularyNode_Group, _0) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Group{}._0)) == 40)
 #assert(offset_of(Roc_VocabularyNode_Group, _1) == 40)
-#assert(size_of(type_of(Roc_VocabularyNode_Group{}._1)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Group{}._1)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Tag :: enum u8 {
 	Attach = 0,
@@ -859,21 +863,21 @@ Roc_VocabularyNode :: struct {
 	tag: Roc_VocabularyNode_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode) == 384)
+#assert(size_of(Roc_VocabularyNode) == (384 when ROC_POINTER_64 else 256))
 #assert(align_of(Roc_VocabularyNode) == 8)
-#assert(offset_of(Roc_VocabularyNode, tag) == 376)
+#assert(offset_of(Roc_VocabularyNode, tag) == (376 when ROC_POINTER_64 else 248))
 
 Roc_VocabularyNode_Attach_0 :: struct {
 	draw: u64,
 	joint: Roc_Str,
 }
 
-#assert(size_of(Roc_VocabularyNode_Attach_0) == 32)
+#assert(size_of(Roc_VocabularyNode_Attach_0) == (32 when ROC_POINTER_64 else 24))
 #assert(align_of(Roc_VocabularyNode_Attach_0) == 8)
 #assert(offset_of(Roc_VocabularyNode_Attach_0, draw) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Attach_0{}.draw)) == 8)
 #assert(offset_of(Roc_VocabularyNode_Attach_0, joint) == 8)
-#assert(size_of(type_of(Roc_VocabularyNode_Attach_0{}.joint)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Attach_0{}.joint)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Collider :: struct {
 	id: u64,
@@ -964,47 +968,47 @@ Roc_VocabularyNode_Draw :: struct {
 	casts_shadow: bool,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw) == 376)
+#assert(size_of(Roc_VocabularyNode_Draw) == (376 when ROC_POINTER_64 else 248))
 #assert(align_of(Roc_VocabularyNode_Draw) == 8)
 #assert(offset_of(Roc_VocabularyNode_Draw, id) == 0)
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.id)) == 8)
 #assert(offset_of(Roc_VocabularyNode_Draw, ground) == 8)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.ground)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw, material) == 32)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.material)) == 160)
-#assert(offset_of(Roc_VocabularyNode_Draw, materials) == 192)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.materials)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw, shader_values) == 216)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.shader_values)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw, slot_materials) == 240)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.slot_materials)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw, glow) == 264)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.ground)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw, material) == (32 when ROC_POINTER_64 else 20))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.material)) == (160 when ROC_POINTER_64 else 80))
+#assert(offset_of(Roc_VocabularyNode_Draw, materials) == (192 when ROC_POINTER_64 else 100))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.materials)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw, shader_values) == (216 when ROC_POINTER_64 else 112))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.shader_values)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw, slot_materials) == (240 when ROC_POINTER_64 else 124))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw{}.slot_materials)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw, glow) == (264 when ROC_POINTER_64 else 136))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.glow)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, mesh) == 276)
+#assert(offset_of(Roc_VocabularyNode_Draw, mesh) == (276 when ROC_POINTER_64 else 148))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.mesh)) == 4)
-#assert(offset_of(Roc_VocabularyNode_Draw, pos) == 280)
+#assert(offset_of(Roc_VocabularyNode_Draw, pos) == (280 when ROC_POINTER_64 else 152))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pos)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, pose) == 292)
+#assert(offset_of(Roc_VocabularyNode_Draw, pose) == (292 when ROC_POINTER_64 else 164))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.pose)) == 20)
-#assert(offset_of(Roc_VocabularyNode_Draw, rot) == 312)
+#assert(offset_of(Roc_VocabularyNode_Draw, rot) == (312 when ROC_POINTER_64 else 184))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale) == 328)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale) == (328 when ROC_POINTER_64 else 200))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == 340)
+#assert(offset_of(Roc_VocabularyNode_Draw, scale_rot) == (340 when ROC_POINTER_64 else 212))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.scale_rot)) == 16)
-#assert(offset_of(Roc_VocabularyNode_Draw, tint) == 356)
+#assert(offset_of(Roc_VocabularyNode_Draw, tint) == (356 when ROC_POINTER_64 else 228))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.tint)) == 12)
-#assert(offset_of(Roc_VocabularyNode_Draw, casts_shadow) == 368)
+#assert(offset_of(Roc_VocabularyNode_Draw, casts_shadow) == (368 when ROC_POINTER_64 else 240))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw{}.casts_shadow)) == 1)
 
 Roc_VocabularyNode_Draw_Ground :: struct {
 	feet: Roc_List(Roc_Str),
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Ground) == 24)
-#assert(align_of(Roc_VocabularyNode_Draw_Ground) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Ground) == (24 when ROC_POINTER_64 else 12))
+#assert(align_of(Roc_VocabularyNode_Draw_Ground) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Ground, feet) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Ground{}.feet)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Ground{}.feet)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Draw_Material :: struct {
 	properties: Roc_List(Roc_VocabularyNode_Draw_Material_Properties),
@@ -1012,14 +1016,14 @@ Roc_VocabularyNode_Draw_Material :: struct {
 	textures: Roc_List(Roc_VocabularyNode_Draw_Material_Textures),
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material) == 160)
-#assert(align_of(Roc_VocabularyNode_Draw_Material) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material) == (160 when ROC_POINTER_64 else 80))
+#assert(align_of(Roc_VocabularyNode_Draw_Material) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material, properties) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.properties)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material, surface) == 24)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.surface)) == 112)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material, textures) == 136)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.textures)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.properties)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material, surface) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.surface)) == (112 when ROC_POINTER_64 else 56))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material, textures) == (136 when ROC_POINTER_64 else 68))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material{}.textures)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Draw_Material_Properties_Tag :: enum u8 {
 	Alpha = 0,
@@ -1089,9 +1093,9 @@ Roc_VocabularyNode_Draw_Material_Surface :: struct {
 	tag: Roc_VocabularyNode_Draw_Material_Surface_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface) == 112)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface) == 8)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface, tag) == 104)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface) == (112 when ROC_POINTER_64 else 56))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface) == (8 when ROC_POINTER_64 else 4))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface, tag) == (104 when ROC_POINTER_64 else 52))
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface :: struct {
 	parameters: Roc_List(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters),
@@ -1100,15 +1104,15 @@ Roc_VocabularyNode_Draw_Material_Surface_Surface :: struct {
 	scope: Roc_VocabularyNode_Draw_Material_Surface_Surface_Scope,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface) == 104)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface) == (104 when ROC_POINTER_64 else 52))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, parameters) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.parameters)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, shader) == 24)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.shader)) == 48)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, textures) == 72)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.textures)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, scope) == 96)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.parameters)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, shader) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.shader)) == (48 when ROC_POINTER_64 else 24))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, textures) == (72 when ROC_POINTER_64 else 36))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.textures)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface, scope) == (96 when ROC_POINTER_64 else 48))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface{}.scope)) == 1)
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters :: struct {
@@ -1116,11 +1120,11 @@ Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters :: struct {
 	value: Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters_Value,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters) == 96)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters) == (96 when ROC_POINTER_64 else 80))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters, name) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters{}.name)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters, value) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters{}.name)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters, value) == (24 when ROC_POINTER_64 else 12))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters{}.value)) == 68)
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Parameters_Value_Tag :: enum u8 {
@@ -1183,24 +1187,24 @@ Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader :: struct {
 	pack: Roc_Str,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader) == 48)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader) == (48 when ROC_POINTER_64 else 24))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader, asset) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader{}.asset)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader, pack) == 24)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader{}.pack)) == 24)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader{}.asset)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader, pack) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader{}.pack)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures :: struct {
 	name: Roc_Str,
 	texture: Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures) == 80)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures) == (80 when ROC_POINTER_64 else 40))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures, name) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures{}.name)) == 24)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures, texture) == 24)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures{}.texture)) == 56)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures{}.name)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures, texture) == (24 when ROC_POINTER_64 else 12))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures{}.texture)) == (56 when ROC_POINTER_64 else 28))
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture_Tag :: enum u8 {
 	Cubemap = 0,
@@ -1217,9 +1221,9 @@ Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture :: struct {
 	tag: Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture_Tag,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture) == 56)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture) == 8)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture, tag) == 48)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture) == (56 when ROC_POINTER_64 else 28))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture) == (8 when ROC_POINTER_64 else 4))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture, tag) == (48 when ROC_POINTER_64 else 24))
 
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture_Cubemap :: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader
 Roc_VocabularyNode_Draw_Material_Surface_Surface_Textures_Texture_Image2D :: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader
@@ -1237,11 +1241,11 @@ Roc_VocabularyNode_Draw_Material_Textures :: struct {
 	semantic: Roc_VocabularyNode_Draw_Material_Textures_Semantic,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Material_Textures) == 56)
-#assert(align_of(Roc_VocabularyNode_Draw_Material_Textures) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Material_Textures) == (56 when ROC_POINTER_64 else 28))
+#assert(align_of(Roc_VocabularyNode_Draw_Material_Textures) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Material_Textures, image) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Textures{}.image)) == 48)
-#assert(offset_of(Roc_VocabularyNode_Draw_Material_Textures, semantic) == 48)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Textures{}.image)) == (48 when ROC_POINTER_64 else 24))
+#assert(offset_of(Roc_VocabularyNode_Draw_Material_Textures, semantic) == (48 when ROC_POINTER_64 else 24))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw_Material_Textures{}.semantic)) == 1)
 
 Roc_VocabularyNode_Draw_Material_Textures_Image :: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader
@@ -1261,23 +1265,23 @@ Roc_VocabularyNode_Draw_Materials :: struct {
 	values: Roc_VocabularyNode_Draw_Material_Surface_Surface,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Materials) == 160)
-#assert(align_of(Roc_VocabularyNode_Draw_Materials) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Materials) == (160 when ROC_POINTER_64 else 80))
+#assert(align_of(Roc_VocabularyNode_Draw_Materials) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Materials, slot) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials{}.slot)) == 56)
-#assert(offset_of(Roc_VocabularyNode_Draw_Materials, values) == 56)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials{}.values)) == 104)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials{}.slot)) == (56 when ROC_POINTER_64 else 28))
+#assert(offset_of(Roc_VocabularyNode_Draw_Materials, values) == (56 when ROC_POINTER_64 else 28))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials{}.values)) == (104 when ROC_POINTER_64 else 52))
 
 Roc_VocabularyNode_Draw_Materials_Slot :: struct {
 	mesh: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader,
 	source_material: u32,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_Materials_Slot) == 56)
-#assert(align_of(Roc_VocabularyNode_Draw_Materials_Slot) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_Materials_Slot) == (56 when ROC_POINTER_64 else 28))
+#assert(align_of(Roc_VocabularyNode_Draw_Materials_Slot) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_Materials_Slot, mesh) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials_Slot{}.mesh)) == 48)
-#assert(offset_of(Roc_VocabularyNode_Draw_Materials_Slot, source_material) == 48)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials_Slot{}.mesh)) == (48 when ROC_POINTER_64 else 24))
+#assert(offset_of(Roc_VocabularyNode_Draw_Materials_Slot, source_material) == (48 when ROC_POINTER_64 else 24))
 #assert(size_of(type_of(Roc_VocabularyNode_Draw_Materials_Slot{}.source_material)) == 4)
 
 Roc_VocabularyNode_Draw_Materials_Slot_Mesh :: Roc_VocabularyNode_Draw_Material_Surface_Surface_Shader
@@ -1322,12 +1326,12 @@ Roc_VocabularyNode_Draw_SlotMaterials :: struct {
 	slot: Roc_VocabularyNode_Draw_Materials_Slot,
 }
 
-#assert(size_of(Roc_VocabularyNode_Draw_SlotMaterials) == 216)
-#assert(align_of(Roc_VocabularyNode_Draw_SlotMaterials) == 8)
+#assert(size_of(Roc_VocabularyNode_Draw_SlotMaterials) == (216 when ROC_POINTER_64 else 108))
+#assert(align_of(Roc_VocabularyNode_Draw_SlotMaterials) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyNode_Draw_SlotMaterials, material) == 0)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_SlotMaterials{}.material)) == 160)
-#assert(offset_of(Roc_VocabularyNode_Draw_SlotMaterials, slot) == 160)
-#assert(size_of(type_of(Roc_VocabularyNode_Draw_SlotMaterials{}.slot)) == 56)
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_SlotMaterials{}.material)) == (160 when ROC_POINTER_64 else 80))
+#assert(offset_of(Roc_VocabularyNode_Draw_SlotMaterials, slot) == (160 when ROC_POINTER_64 else 80))
+#assert(size_of(type_of(Roc_VocabularyNode_Draw_SlotMaterials{}.slot)) == (56 when ROC_POINTER_64 else 28))
 
 Roc_VocabularyNode_Draw_SlotMaterials_Material :: Roc_VocabularyNode_Draw_Material
 Roc_VocabularyNode_Draw_SlotMaterials_Material_Properties :: Roc_VocabularyNode_Draw_Material_Properties
@@ -1516,13 +1520,13 @@ Roc_View_Post :: struct {
 	location: Roc_View_Post_Location,
 }
 
-#assert(size_of(Roc_View_Post) == 112)
-#assert(align_of(Roc_View_Post) == 8)
+#assert(size_of(Roc_View_Post) == (112 when ROC_POINTER_64 else 56))
+#assert(align_of(Roc_View_Post) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_View_Post, values) == 0)
-#assert(size_of(type_of(Roc_View_Post{}.values)) == 104)
-#assert(offset_of(Roc_View_Post, enabled) == 104)
+#assert(size_of(type_of(Roc_View_Post{}.values)) == (104 when ROC_POINTER_64 else 52))
+#assert(offset_of(Roc_View_Post, enabled) == (104 when ROC_POINTER_64 else 52))
 #assert(size_of(type_of(Roc_View_Post{}.enabled)) == 1)
-#assert(offset_of(Roc_View_Post, location) == 105)
+#assert(offset_of(Roc_View_Post, location) == (105 when ROC_POINTER_64 else 53))
 #assert(size_of(type_of(Roc_View_Post{}.location)) == 1)
 
 Roc_View_Post_Values :: Roc_VocabularyNode_Draw_Material_Surface_Surface
@@ -1570,9 +1574,9 @@ Roc_View_Queries :: struct {
 	tag: Roc_View_Queries_Tag,
 }
 
-#assert(size_of(Roc_View_Queries) == 72)
+#assert(size_of(Roc_View_Queries) == (72 when ROC_POINTER_64 else 64))
 #assert(align_of(Roc_View_Queries) == 8)
-#assert(offset_of(Roc_View_Queries, tag) == 64)
+#assert(offset_of(Roc_View_Queries, tag) == (64 when ROC_POINTER_64 else 56))
 
 Roc_View_Queries_Overlap :: struct {
 	owner: u64,
@@ -1582,17 +1586,17 @@ Roc_View_Queries_Overlap :: struct {
 	slot: u32,
 }
 
-#assert(size_of(Roc_View_Queries_Overlap) == 64)
+#assert(size_of(Roc_View_Queries_Overlap) == (64 when ROC_POINTER_64 else 56))
 #assert(align_of(Roc_View_Queries_Overlap) == 8)
 #assert(offset_of(Roc_View_Queries_Overlap, owner) == 0)
 #assert(size_of(type_of(Roc_View_Queries_Overlap{}.owner)) == 8)
 #assert(offset_of(Roc_View_Queries_Overlap, exclude) == 8)
-#assert(size_of(type_of(Roc_View_Queries_Overlap{}.exclude)) == 24)
-#assert(offset_of(Roc_View_Queries_Overlap, pos) == 32)
+#assert(size_of(type_of(Roc_View_Queries_Overlap{}.exclude)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View_Queries_Overlap, pos) == (32 when ROC_POINTER_64 else 20))
 #assert(size_of(type_of(Roc_View_Queries_Overlap{}.pos)) == 12)
-#assert(offset_of(Roc_View_Queries_Overlap, shape) == 44)
+#assert(offset_of(Roc_View_Queries_Overlap, shape) == (44 when ROC_POINTER_64 else 32))
 #assert(size_of(type_of(Roc_View_Queries_Overlap{}.shape)) == 16)
-#assert(offset_of(Roc_View_Queries_Overlap, slot) == 60)
+#assert(offset_of(Roc_View_Queries_Overlap, slot) == (60 when ROC_POINTER_64 else 48))
 #assert(size_of(type_of(Roc_View_Queries_Overlap{}.slot)) == 4)
 
 Roc_View_Queries_Overlap_Pos :: Roc_Init_Commands_Play_At_At_Pos
@@ -1625,19 +1629,19 @@ Roc_View_Queries_Raycast :: struct {
 	slot: u32,
 }
 
-#assert(size_of(Roc_View_Queries_Raycast) == 64)
+#assert(size_of(Roc_View_Queries_Raycast) == (64 when ROC_POINTER_64 else 56))
 #assert(align_of(Roc_View_Queries_Raycast) == 8)
 #assert(offset_of(Roc_View_Queries_Raycast, owner) == 0)
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.owner)) == 8)
 #assert(offset_of(Roc_View_Queries_Raycast, exclude) == 8)
-#assert(size_of(type_of(Roc_View_Queries_Raycast{}.exclude)) == 24)
-#assert(offset_of(Roc_View_Queries_Raycast, dir) == 32)
+#assert(size_of(type_of(Roc_View_Queries_Raycast{}.exclude)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_View_Queries_Raycast, dir) == (32 when ROC_POINTER_64 else 20))
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.dir)) == 12)
-#assert(offset_of(Roc_View_Queries_Raycast, max_distance) == 44)
+#assert(offset_of(Roc_View_Queries_Raycast, max_distance) == (44 when ROC_POINTER_64 else 32))
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.max_distance)) == 4)
-#assert(offset_of(Roc_View_Queries_Raycast, origin) == 48)
+#assert(offset_of(Roc_View_Queries_Raycast, origin) == (48 when ROC_POINTER_64 else 36))
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.origin)) == 12)
-#assert(offset_of(Roc_View_Queries_Raycast, slot) == 60)
+#assert(offset_of(Roc_View_Queries_Raycast, slot) == (60 when ROC_POINTER_64 else 48))
 #assert(size_of(type_of(Roc_View_Queries_Raycast{}.slot)) == 4)
 
 Roc_View_Queries_Raycast_Dir :: Roc_Init_Commands_Play_At_At_Pos
@@ -1665,12 +1669,12 @@ Roc_VocabularyElement_Panel :: struct {
 	_1: Roc_List(Roc_VocabularyElement),
 }
 
-#assert(size_of(Roc_VocabularyElement_Panel) == 184)
+#assert(size_of(Roc_VocabularyElement_Panel) == (184 when ROC_POINTER_64 else 176))
 #assert(align_of(Roc_VocabularyElement_Panel) == 8)
 #assert(offset_of(Roc_VocabularyElement_Panel, _0) == 0)
 #assert(size_of(type_of(Roc_VocabularyElement_Panel{}._0)) == 160)
 #assert(offset_of(Roc_VocabularyElement_Panel, _1) == 160)
-#assert(size_of(type_of(Roc_VocabularyElement_Panel{}._1)) == 24)
+#assert(size_of(type_of(Roc_VocabularyElement_Panel{}._1)) == (24 when ROC_POINTER_64 else 12))
 
 Roc_VocabularyElement_Tag :: enum u8 {
 	Panel = 0,
@@ -1687,9 +1691,9 @@ Roc_VocabularyElement :: struct {
 	tag: Roc_VocabularyElement_Tag,
 }
 
-#assert(size_of(Roc_VocabularyElement) == 192)
+#assert(size_of(Roc_VocabularyElement) == (192 when ROC_POINTER_64 else 184))
 #assert(align_of(Roc_VocabularyElement) == 8)
-#assert(offset_of(Roc_VocabularyElement, tag) == 184)
+#assert(offset_of(Roc_VocabularyElement, tag) == (184 when ROC_POINTER_64 else 176))
 
 Roc_VocabularyElement_Panel_0 :: struct {
 	id: u64,
@@ -2010,15 +2014,15 @@ Roc_VocabularyElement_Text :: struct {
 	wrap: Roc_VocabularyElement_Text_Wrap,
 }
 
-#assert(size_of(Roc_VocabularyElement_Text) == 48)
-#assert(align_of(Roc_VocabularyElement_Text) == 8)
+#assert(size_of(Roc_VocabularyElement_Text) == (48 when ROC_POINTER_64 else 36))
+#assert(align_of(Roc_VocabularyElement_Text) == (8 when ROC_POINTER_64 else 4))
 #assert(offset_of(Roc_VocabularyElement_Text, str) == 0)
-#assert(size_of(type_of(Roc_VocabularyElement_Text{}.str)) == 24)
-#assert(offset_of(Roc_VocabularyElement_Text, color) == 24)
+#assert(size_of(type_of(Roc_VocabularyElement_Text{}.str)) == (24 when ROC_POINTER_64 else 12))
+#assert(offset_of(Roc_VocabularyElement_Text, color) == (24 when ROC_POINTER_64 else 12))
 #assert(size_of(type_of(Roc_VocabularyElement_Text{}.color)) == 16)
-#assert(offset_of(Roc_VocabularyElement_Text, size) == 40)
+#assert(offset_of(Roc_VocabularyElement_Text, size) == (40 when ROC_POINTER_64 else 28))
 #assert(size_of(type_of(Roc_VocabularyElement_Text{}.size)) == 4)
-#assert(offset_of(Roc_VocabularyElement_Text, wrap) == 44)
+#assert(offset_of(Roc_VocabularyElement_Text, wrap) == (44 when ROC_POINTER_64 else 32))
 #assert(size_of(type_of(Roc_VocabularyElement_Text{}.wrap)) == 1)
 
 Roc_VocabularyElement_Text_Color :: Roc_View_Emitters_EndColour

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rocco web pong spike</title>
+</head>
+<body>
+<pre id="output"></pre>
+<script>
+var output = document.getElementById("output");
+function show(text) {
+	console.log(text);
+	output.textContent += text + "\n";
+}
+window.addEventListener("error", (event) => show("error: " + event.message));
+window.addEventListener("unhandledrejection", (event) => show("rejection: " + event.reason));
+var Module = { print: show, printErr: show };
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
