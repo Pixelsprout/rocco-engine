@@ -1,11 +1,14 @@
 #!/bin/sh
-# Pins the Odin and Roc that CI uses on this machine.
+# Pins the Odin, Roc and emscripten that CI uses on this machine.
 # scripts/linux/Dockerfile holds the one copy of the pins.
 #
-#   sh scripts/toolchain.sh check          Compare odin and roc on PATH with the pins.
-#   sh scripts/toolchain.sh install        Download the pinned releases into ~/tools.
-#   sh scripts/toolchain.sh path           Print the two pinned directories, PATH style.
+#   sh scripts/toolchain.sh check          Compare odin, roc and emcc on PATH with the pins.
+#   sh scripts/toolchain.sh install        Download the pinned Odin and Roc into ~/tools.
+#   sh scripts/toolchain.sh install-emsdk  Install the pinned emscripten into ~/tools/emsdk.
+#   sh scripts/toolchain.sh path           Print the pinned directories, PATH style.
 #   sh scripts/toolchain.sh run <cmd...>   Run a command with the pinned compilers first on PATH.
+#
+# Only web builds need emcc, so check reports a missing emcc without failing.
 #
 # A local source build of Odin can carry the same dev-2026-11 tag and still
 # differ from the release archive CI downloads. check compares the commit.
@@ -19,6 +22,7 @@ pin() {
 
 odin_release=$(pin ODIN_RELEASE)
 roc_nightly=$(pin ROC_NIGHTLY)
+emsdk_version=$(pin EMSDK_VERSION)
 
 case "$(uname -s)-$(uname -m)" in
 Darwin-arm64)
@@ -37,6 +41,10 @@ esac
 
 odin_dir=$tools/$odin_asset
 roc_dir=$tools/$roc_asset
+# One emsdk folder holds the active emscripten. emsdk tags each release with
+# the same version, so the pin also fixes the installer.
+emsdk_dir=$tools/emsdk
+emcc_dir=$emsdk_dir/upstream/emscripten
 
 # The release archive is the only place the pinned Odin commit is written down.
 odin_commit() {
@@ -64,6 +72,18 @@ install() {
 	"$roc_dir/roc" version
 }
 
+install_emsdk() {
+	if [ ! -x "$emsdk_dir/emsdk" ]; then
+		mkdir -p "$emsdk_dir"
+		echo "== emsdk"
+		curl -fsSL "https://github.com/emscripten-core/emsdk/archive/refs/tags/$emsdk_version.tar.gz" |
+			tar xz -C "$emsdk_dir" --strip-components=1
+	fi
+	"$emsdk_dir/emsdk" install "$emsdk_version"
+	"$emsdk_dir/emsdk" activate "$emsdk_version"
+	"$emcc_dir/emcc" --version | head -n 1
+}
+
 check() {
 	status=0
 	if [ ! -x "$odin_dir/odin" ] || [ ! -x "$roc_dir/roc" ]; then
@@ -88,9 +108,19 @@ check() {
 		status=1
 		;;
 	esac
+	# emcc prints "emcc (...) 7.0.0 (<commit>)" on its first line.
+	have_emcc=$(emcc --version 2>/dev/null | head -n 1 || true)
+	case "$have_emcc" in
+	"") echo "emcc not on PATH. Web builds need it: sh scripts/toolchain.sh install-emsdk" ;;
+	*" $emsdk_version "*) echo "emcc ok: $have_emcc" ;;
+	*)
+		echo "emcc MISMATCH: PATH has '$have_emcc', CI uses $emsdk_version" >&2
+		status=1
+		;;
+	esac
 	if [ "$status" -ne 0 ]; then
 		echo "Prefix commands with: sh scripts/toolchain.sh run" >&2
-		echo "Or put these first on PATH: $odin_dir:$roc_dir" >&2
+		echo "Or put these first on PATH: $odin_dir:$roc_dir:$emcc_dir" >&2
 	fi
 	return "$status"
 }
@@ -100,15 +130,16 @@ cmd=${1:-check}
 case "$cmd" in
 check) check ;;
 install) install ;;
-path) echo "$odin_dir:$roc_dir" ;;
+install-emsdk) install_emsdk ;;
+path) echo "$odin_dir:$roc_dir:$emcc_dir" ;;
 run)
 	[ $# -gt 0 ] || { echo "usage: sh scripts/toolchain.sh run <command...>" >&2; exit 2; }
-	PATH=$odin_dir:$roc_dir:$PATH
+	PATH=$odin_dir:$roc_dir:$emcc_dir:$PATH
 	export PATH
 	exec "$@"
 	;;
 *)
-	echo "usage: sh scripts/toolchain.sh [check|install|path|run <command...>]" >&2
+	echo "usage: sh scripts/toolchain.sh [check|install|install-emsdk|path|run <command...>]" >&2
 	exit 2
 	;;
 esac

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rocco web link spike</title>
+</head>
+<body>
+<pre id="output"></pre>
+<script>
+var output = document.getElementById("output");
+function show(text) {
+	console.log(text);
+	output.textContent += text + "\n";
+}
+window.addEventListener("error", (event) => show("error: " + event.message));
+window.addEventListener("unhandledrejection", (event) => show("rejection: " + event.reason));
+var Module = { print: show, printErr: show };
+</script>
+<!-- file_packager writes pack.js per game. It preloads pack.data before main runs. -->
+<script src="pack.js"></script>
+{{{ SCRIPT }}}
+</body>
+</html>
