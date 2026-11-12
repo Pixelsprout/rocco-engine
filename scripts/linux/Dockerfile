@@ -24,3 +24,7 @@ RUN mkdir -p /opt/roc && curl -fsSL \
 
 ENV PATH="/opt/odin:/opt/roc:${PATH}"
 WORKDIR /work
+
+# The web job and scripts/toolchain.sh read this pin. This image does not
+# install emsdk. The pin sits last, so a change does not rebuild the layers above.
+ARG EMSDK_VERSION=7.0.0

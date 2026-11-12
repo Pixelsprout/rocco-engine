@@ -29,6 +29,9 @@ platform/targets/*/*.lib
 !platform/targets/x64win/d3d11.lib
 !platform/targets/x64win/ws2_32.lib
 platform/targets/*/*.pdb
+# spikes/web-link/build.sh writes the host object and the loader.
+spikes/web-link/platform/targets/
+spikes/web-link/app/*.wasm
 # Roc's linker output.
 examples/*/*.bin
 examples/*/*.exe
