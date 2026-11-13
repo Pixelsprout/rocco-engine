@@ -84,6 +84,9 @@ Built and running:
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
   bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
   gives the method.
+- Web builds for demos (ADR 0036). `roc scripts/build.roc web <game>` writes
+  a page and an itch.io zip that draw through WebGPU. The web host and
+  three games build in CI. `guide/web.md` lists what a page cannot do.
 
 ## Milestone 1: one source tree, three desktop targets (done)
 
@@ -157,7 +160,8 @@ What the work found:
   Linux binary is `bodies_linux.bin`.
 
 Not in this milestone: web. The pinned Roc nightly has a `wasm32` target, but
-Odin's JavaScript target and sokol's Emscripten path are separate work.
+Odin's JavaScript target and sokol's Emscripten path are separate work. Web
+came into scope later, through WebGPU. See ADR 0036.
 
 Not in this milestone: CI and a published platform bundle. Both are alpha
 work. See "Beside the milestones".
@@ -1759,6 +1763,10 @@ Slot these in when they pay for themselves. Do not run them as a block.
   `--opt=dev` and `--opt=speed` after every memory change.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
+- **The web Bridge.** The page connects out to the Driver over a WebSocket,
+  so a headless browser check can run in CI (dex task 32954kz7).
+- **The sokol pin.** Move sokol-odin past the WebGPU fragment stage fix and
+  drop the patch in `scripts/web/build-host.sh` (dex task usj2088r).
 
 Audio, fog and game-provided fonts moved into milestones 20, 37 and 41. World-space sprites, Blender
 as a level editor and shader loading moved into the later arcs.
@@ -1771,6 +1779,7 @@ as a level editor and shader loading moved into the later arcs.
   arcs.
 - Dynamics beyond simple collision. Host-side bodies wait for a game that
   needs them.
-- Web builds until Odin and sokol have a shared web path.
+- A WebGL2 fallback for web builds. The clustered lights need storage
+  buffers (ADR 0036).
 - A scripting API where Roc calls the engine. Roc returns descriptions. The
   engine acts on them.
