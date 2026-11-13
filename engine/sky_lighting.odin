@@ -154,7 +154,7 @@ sky_sample :: proc(side: int, pixels: []byte, linear: ^[256]f32, direction: [3]f
 
 sky_lighting_upload :: proc(tex: Sky_Lighting_Texture, allocator: mem.Allocator) -> Mesh_Texture {
 	desc := sg.Image_Desc {type = .CUBE, width = i32(tex.levels[0].width), height = i32(tex.levels[0].height), num_slices = 6, num_mipmaps = i32(len(tex.levels)), pixel_format = .RGBA16F, label = "sky-lighting"}
-	for level, i in tex.levels { desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))} }
+	desc.data = image_levels_data(tex.levels)
 	image := sg.make_image(desc)
 	delete(tex.levels, allocator)
 	delete(tex.pixels, allocator)

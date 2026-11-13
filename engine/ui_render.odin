@@ -31,14 +31,14 @@ ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator
 		}
 	}
 	g.indices = sg.make_buffer({usage = {index_buffer = true}, data = {ptr = raw_data(indices), size = uint(len(indices) * size_of(u16))}, label = "ui-indices"})
-	g.vertices = sg.make_buffer({usage = {vertex_buffer = true, stream_update = true}, size = uint(len(g.scratch) * size_of(Ui_Vertex)), label = "ui-vertices"})
+	g.vertices = sg.make_buffer({usage = {vertex_buffer = true, write_transient = true}, size = uint(len(g.scratch) * size_of(Ui_Vertex)), label = "ui-vertices"})
 
 	image := sg.make_image(
 		{
 			width = FONT_ATLAS_WIDTH,
 			height = FONT_ATLAS_HEIGHT,
 			pixel_format = .R8,
-			data = {mip_levels = {0 = {ptr = &FONT_ATLAS, size = size_of(FONT_ATLAS)}}},
+			data = {ptr = &FONT_ATLAS, size = size_of(FONT_ATLAS)},
 			label = "font-atlas",
 		},
 	)
@@ -57,7 +57,7 @@ ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator
 			width = UI_CHECKER_SIZE,
 			height = UI_CHECKER_SIZE,
 			pixel_format = .RGBA8,
-			data = {mip_levels = {0 = {ptr = &checker, size = size_of(checker)}}},
+			data = {ptr = &checker, size = size_of(checker)},
 			label = "image-checker",
 		},
 	)
@@ -99,9 +99,9 @@ ui_gpu_init :: proc(g: ^Ui_Gpu, quad_capacity: int, sample_count: i32, allocator
 	return nil
 }
 
-// sokol allows one update_buffer per buffer per frame, so this runs at most
-// once a frame. A run with no Image quad keeps the bindings of the run
-// before it.
+// sokol takes no write to a write_transient buffer after a draw binds it in
+// the frame, so this runs at most once a frame. A run with no Image quad
+// keeps the bindings of the run before it.
 renderer_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 	r := (^Renderer)(ctx)
 	g := &r.ui
@@ -110,7 +110,7 @@ renderer_ui :: proc(ctx: rawptr, quads: []Ui_Quad, screen: [2]f32) {
 		corners := ui_quad_vertices(q)
 		copy(g.scratch[i * 4:], corners[:])
 	}
-	sg.update_buffer(g.vertices, {ptr = raw_data(g.scratch), size = uint(len(quads) * 4 * size_of(Ui_Vertex))})
+	buffer_write(g.vertices, g.scratch[:len(quads) * 4])
 	renderer_apply_pipeline(r, g.pip)
 	vs := Ui_Vs_Params{screen = {screen.x, screen.y, 0, 0}}
 	sg.apply_uniforms(UB_ui_vs_params, {ptr = &vs, size = size_of(Ui_Vs_Params)})

@@ -10,7 +10,7 @@ Particle_Gpu :: struct {
 }
 
 particle_gpu_init :: proc(g: ^Particle_Gpu, samples: i32) {
-	g.instances = sg.make_buffer({size = PARTICLE_LIMIT * size_of(Particle_Instance), usage = {vertex_buffer = true, stream_update = true}, label = "particle-instances"})
+	g.instances = sg.make_buffer({size = PARTICLE_LIMIT * size_of(Particle_Instance), usage = {vertex_buffer = true, write_transient = true}, label = "particle-instances"})
 	shader := sg.make_shader(particle_shader_desc(sg.query_backend()))
 	for blend in Particle_Blend {
 		desc := particle_pipeline_desc(samples, blend)
@@ -33,7 +33,7 @@ particle_pipeline_desc :: proc(samples: i32, blend: Particle_Blend) -> sg.Pipeli
 renderer_upload_particles :: proc(ctx: rawptr, instances: []Particle_Instance, view: Frame_View) {
 	r := (^Renderer)(ctx)
 	if len(instances) == 0 { return }
-	sg.update_buffer(r.particles.instances, {ptr = raw_data(instances), size = uint(len(instances) * size_of(Particle_Instance))})
+	buffer_write(r.particles.instances, instances)
 	forward := v3_normalize(view.camera.target - view.camera.eye)
 	right := v3_normalize(v3_cross(forward, view.camera.up))
 	up := v3_cross(right, forward)

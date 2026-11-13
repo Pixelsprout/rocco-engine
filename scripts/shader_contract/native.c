@@ -89,7 +89,7 @@ static void init(void) {
     }
     const uint32_t white = 0xffffffff;
     sg_image image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,
-                                                  .data.mip_levels[0]=SG_RANGE(white)});
+                                                  .data=SG_RANGE(white)});
     white_view = sg_make_view(&(sg_view_desc){.texture.image=image});
     post_views[0] = white_view;
     for (int n=1; n<4; n++) {
@@ -97,7 +97,7 @@ static void init(void) {
         const unsigned char full = 255;
         sg_image input = sg_make_image(&(sg_image_desc){.width=1,.height=1,
             .pixel_format=n==2 ? SG_PIXELFORMAT_R8 : SG_PIXELFORMAT_R32F,
-            .data.mip_levels[0]=n==2 ? SG_RANGE(full) : SG_RANGE(one)});
+            .data=n==2 ? SG_RANGE(full) : SG_RANGE(one)});
         post_views[n] = sg_make_view(&(sg_view_desc){.texture.image=input});
     }
     sampler = sg_make_sampler(&(sg_sampler_desc){.min_filter=SG_FILTER_NEAREST,.mag_filter=SG_FILTER_NEAREST});

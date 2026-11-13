@@ -56,8 +56,8 @@ and an itch.io zip. Each spike passed.
 - The web host has no Bridge, no gamepads, no environment switches, no shader
   reload and no Spans, capture or GPU timing.
 - emsdk is a pinned tool. `scripts/toolchain.sh install-emsdk` installs it.
-- The sokol WebGPU backend gives a pipeline with no colour target no
-  fragment stage. `scripts/web/build-host.sh` patches a copy of sokol until
-  the pin moves past the upstream fix (dex task usj2088r).
+- The sokol WebGPU backend at the first pin gave no fragment stage to a
+  pipeline with no colour target, so a cutout shadow cast a solid shadow. The sokol-odin pin moved to baf5f3e, which has
+  the upstream fix, and `scripts/web/build-host.sh` no longer patches sokol.
 - A change to the engine needs `roc scripts/build.roc web-host` before a web
   build sees it.

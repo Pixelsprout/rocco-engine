@@ -35,25 +35,10 @@ esac
 rm -rf "$work"
 mkdir -p "$work" "$target"
 
-# The pinned sokol_gfx.h gives a WebGPU pipeline with no colour target no
-# fragment stage, so a cutout shadow never discards and casts a solid
-# shadow. Upstream sokol sets the fragment stage always. The copy here takes
-# that change until the sokol-odin pin moves past it.
 echo "== emcc: sokol for WebGPU"
-cp -R "$root/sokol-odin/sokol/c" "$work/sokol-c"
-python3 - "$work/sokol-c/sokol_gfx.h" <<'EOF'
-import sys
-path = sys.argv[1]
-text = open(path).read()
-old = "        if (desc->color_count > 0) {\n            wgpu_frag_state.module = shd->wgpu.fragment_func.module;\n"
-new = "        {\n            wgpu_frag_state.module = shd->wgpu.fragment_func.module;\n"
-if text.count(old) != 1:
-    sys.exit("build-host.sh: the sokol_gfx.h fragment stage change did not apply")
-open(path, "w").write(text.replace(old, new))
-EOF
 for lib in log gfx app glue; do
 	emcc -c $c_opt -DIMPL -DSOKOL_WGPU --use-port=emdawnwebgpu \
-		"$work/sokol-c/sokol_$lib.c" -o "$work/sokol_$lib.o"
+		"$root/sokol-odin/sokol/c/sokol_$lib.c" -o "$work/sokol_$lib.o"
 done
 
 echo "== emcc: miniaudio and stb_image"

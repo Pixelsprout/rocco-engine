@@ -84,6 +84,12 @@ Frame_Render_Submits :: struct {
 	submit_selection: Submit,
 	prepare_post: proc(ctx: rawptr, effects: []Resolved_Post) -> Post_Inputs,
 	submit_post: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Location, time: f32),
+	// Runs before the first pass, because a surface shader in any pass can
+	// read the clusters.
+	upload_clusters: proc(ctx: rawptr, clusters: Cluster_Frame),
+	// Takes every instance of one frame_render_instances call before its
+	// submit_instances calls, which take them in order.
+	upload_instances: proc(ctx: rawptr, instances: []Surface_Instance),
 	submit_instances: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, view_proj: Mat4, fs: Fs_Params, instances: []Surface_Instance),
 	submit_sky:      Submit_Sky,
 	submit_environment: Submit_Environment,
@@ -378,6 +384,7 @@ frame_render_draw :: proc(
 	clusters := cluster_build(gathered.points[:], view, window.size * window.dpi)
 	lights.cluster_grid = clusters.grid
 	if clusters.overflow { light_drop(fr, .Cluster_Over_Limit) }
+	if fr.submits.upload_clusters != nil { fr.submits.upload_clusters(fr.submits.ctx, clusters) }
 	span = span_close(spans, .Cluster_Build, span)
 	lights.fog_color, lights.fog_ramp = fog_uniform(env.fog)
 	lights.fog_color.w = shadow_filter_radius(shadow.filter)

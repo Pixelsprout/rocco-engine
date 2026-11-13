@@ -131,3 +131,11 @@ test_source_resolution_sky_exceeds_frame_scratch_without_reduction :: proc(t: ^t
 	testing.expect_value(t, sky_lighting_params(nil), [4]f32{})
 	testing.expect_value(t, frame.total_used, uint(0))
 }
+
+@(test)
+test_sky_lighting_levels_pack_every_face_of_every_level_in_one_range :: proc(t: ^testing.T) {
+	tex := sky_lighting_texture(4, true, context.temp_allocator)
+	data := image_levels_data(tex.levels)
+	testing.expect_value(t, data.ptr, rawptr(raw_data(tex.pixels)))
+	testing.expect_value(t, data.size, uint(len(tex.pixels)))
+}

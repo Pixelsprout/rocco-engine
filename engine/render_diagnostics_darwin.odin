@@ -27,7 +27,7 @@ render_diagnostics_begin :: proc(fr: ^Frame_Render, view: Frame_View) {
 	g_render_diagnostics_active = rocco_render_diagnostics_begin(g_state.steps, u32(len(fr.placed)), &camera_values)
 	if !g_render_diagnostics_active { return }
 	r := &g_state.renderer
-	rocco_render_diagnostics_buffer("instance", r.instance_buffer.id)
+	for slot in r.instance_slots[:r.instance_slot_count] { rocco_render_diagnostics_buffer("instance", slot.buffer.id) }
 	for buffer in r.cluster_buffers { rocco_render_diagnostics_buffer("cluster", buffer.id) }
 	if len(fr.placed) > 0 {
 		mesh := fr.placed[0].mesh

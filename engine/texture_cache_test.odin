@@ -111,11 +111,14 @@ test_texture_cache_separates_all_mips_dimensions_formats_and_cutoffs :: proc(t: 
 	for variant in 0 ..< 6 {
 		changed := tex
 		changed.levels = slice.clone(tex.levels); defer delete(changed.levels)
+		// The levels of a Texture follow each other in one buffer, as sokol takes them.
+		pixels: []byte; defer delete(pixels)
 		switch variant {
 		case 0:
-			changed.levels[1].pixels = slice.clone(tex.levels[1].pixels)
+			pixels = slice.clone(tex.pixels)
+			offset := 0
+			for &level in changed.levels { level.pixels = pixels[offset:][:len(level.pixels)]; offset += len(level.pixels) }
 			changed.levels[1].pixels[0] += 1
-			defer delete(changed.levels[1].pixels)
 		case 1: changed.srgb = false
 		case 2: changed.alpha_cutoff = 0.5
 		case 3: changed.alpha_cutoff = 0.25

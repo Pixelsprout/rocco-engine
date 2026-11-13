@@ -125,7 +125,7 @@ bloom_chain_init :: proc(c: ^Bloom_Chain) {
 	c.add_action = {colors = {0 = {load_action = .LOAD}}}
 	// Half floats of 0 are zero bytes.
 	black := [4]u16{}
-	c.black.image = sg.make_image({width = 1, height = 1, pixel_format = HDR_COLOR_FORMAT, data = {mip_levels = {0 = {ptr = &black, size = size_of(black)}}}, label = "bloom-black"})
+	c.black.image = sg.make_image({width = 1, height = 1, pixel_format = HDR_COLOR_FORMAT, data = {ptr = &black, size = size_of(black)}, label = "bloom-black"})
 	c.black.texture = sg.make_view({texture = {image = c.black.image}})
 	desc := sg.Pipeline_Desc {
 		shader = sg.make_shader(bloom_prefilter_shader_desc(sg.query_backend())),
@@ -156,7 +156,7 @@ target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, l
 		sample_count = 1,
 		label        = label,
 	}
-	desc.mtl_textures[0] = mtl_texture
+	desc.mtl_texture = mtl_texture
 	l.image = sg.make_image(desc)
 	l.texture = sg.make_view({texture = {image = l.image}})
 	if msaa {

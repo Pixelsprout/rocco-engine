@@ -52,14 +52,31 @@ renderer_instance_bindings :: proc(r: ^Renderer, bindings: ^sg.Bindings) {
 	}
 }
 
-// append_buffer keeps earlier pass ranges intact until the GPU completes the frame.
+// sokol keeps a destroyed buffer alive until the GPU completes the frames
+// that use it.
+renderer_upload_instances :: proc(ctx: rawptr, instances: []Surface_Instance) {
+	r := (^Renderer)(ctx)
+	assert(r.instance_slots_used < r.instance_slot_count)
+	slot := &r.instance_slots[r.instance_slots_used]
+	r.instance_slots_used += 1
+	capacity := instance_slot_capacity(slot.capacity, len(instances))
+	if capacity != slot.capacity {
+		if slot.capacity > 0 { sg.destroy_buffer(slot.buffer) }
+		slot^ = {buffer = sg.make_buffer({size = uint(capacity * size_of(Surface_Instance)), usage = {vertex_buffer = true, write_transient = true}, label = "instances"}), capacity = capacity}
+	}
+	buffer_write(slot.buffer, instances)
+	r.instance_buffer = slot.buffer
+	r.instance_offset = 0
+}
+
 renderer_instances :: proc(ctx: rawptr, pass: Surface_Pass, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Mesh_Pipeline, view_proj: Mat4, fs: Fs_Params, instances: []Surface_Instance) {
 	if len(instances) == 0 { return }
 	r := (^Renderer)(ctx)
-	r.instance_offset = int(sg.append_buffer(r.instance_buffer, {ptr = raw_data(instances), size = uint(len(instances)*size_of(Surface_Instance))}))
-	assert(!sg.query_buffer_overflow(r.instance_buffer))
 	r.instance_count = len(instances)
-	defer r.instance_count = 0
+	defer {
+		r.instance_offset += len(instances) * size_of(Surface_Instance)
+		r.instance_count = 0
+	}
 	vs := Vs_Params{mvp = view_proj, model = mat4_identity(), normal_model = mat4_identity()}
 	if part.surface != nil {
 		renderer_surface(ctx, pass, mesh, part, pipeline, vs, fs, nil)
