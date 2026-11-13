@@ -333,6 +333,16 @@ jobs:
           path: spikes/web-ui/build/page/
           if-no-files-found: error
 
+      # The lit page builds the IndirectSurface pack with four backends.
+      - name: Build the WebGPU lit page
+        run: sh scripts/toolchain.sh run sh spikes/web-lit/build.sh web
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-lit-page
+          path: spikes/web-lit/build/page/
+          if-no-files-found: error
+
   generated:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
