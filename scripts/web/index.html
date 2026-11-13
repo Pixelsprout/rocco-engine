@@ -51,20 +51,25 @@ function rocco_load(sources) {
 	script.onerror = function () { rocco_message("The page could not load " + sources[0] + "."); };
 	document.body.appendChild(script);
 }
-// The engine draws with WebGPU only. A browser can have WebGPU and still
-// give no adapter, such as on a blocked GPU. Either way the page says so
-// and loads nothing.
+// The engine draws with WebGPU only. Each way it can be missing has its own
+// fix, so the page names the one it found and loads nothing.
 async function rocco_start() {
+	if (!window.isSecureContext) {
+		rocco_message("This game needs WebGPU, which a browser gives only to a page served over https or from localhost. Open the page at an https:// or http://localhost address.");
+		return;
+	}
+	if (!navigator.gpu) {
+		rocco_message("This game needs WebGPU, and this browser does not have it. Try a recent Chrome or Edge on a desktop.");
+		return;
+	}
 	var adapter = null;
-	if (navigator.gpu) {
-		try {
-			adapter = await navigator.gpu.requestAdapter();
-		} catch (error) {
-			console.error(error);
-		}
+	try {
+		adapter = await navigator.gpu.requestAdapter();
+	} catch (error) {
+		console.error(error);
 	}
 	if (!adapter) {
-		rocco_message("This game needs WebGPU, and this browser cannot run it here. Try a recent Chrome or Edge on a desktop.");
+		rocco_message("This game needs WebGPU, and the browser found no GPU for it. Check that graphics acceleration is on in the browser settings. chrome://gpu shows the WebGPU status.");
 		return;
 	}
 	rocco_load(["index.data.js", "index.js"]);
