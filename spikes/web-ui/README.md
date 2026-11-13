@@ -108,3 +108,9 @@ See the findings.
   generated shader file holds the UI program for WebGPU.
 - A log procedure in place of `fmt.eprint*`, and a temp allocator.
 - The full engine package building for wasm32, so no slice is needed.
+
+## Superseded
+
+The web host in `scripts/web/` builds the whole engine for wasm32, so this
+slice is no longer needed. The engine has changed since, and the slice no
+longer builds against it. CI does not build this page. See `guide/web.md`.

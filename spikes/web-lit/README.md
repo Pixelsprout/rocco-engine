@@ -119,3 +119,9 @@ Then compare the two PNGs by eye. Both are 1280 x 720 at DPI 1.
   selection pass, skies and Images on WebGPU. The cube's pack ran in the
   instanced layout only.
 - More than one frame of the same Scene, steps and animation.
+
+## Superseded
+
+The web host in `scripts/web/` builds the whole engine for wasm32, so this
+slice is no longer needed. The engine has changed since, and the slice no
+longer builds against it. CI does not build this page. See `guide/web.md`.
