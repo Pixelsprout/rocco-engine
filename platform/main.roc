@@ -16,6 +16,7 @@ platform ""
 		"roc_step": step_for_host,
 		"roc_view": view_for_host,
 	}
+	# A new target also needs its files in the candidate-sdk job of ci.yml and the bundle job of release.yml.
 	targets: {
 		inputs_dir: "targets/",
 		arm64mac: { inputs: ["libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a", "libclang_rt.osx.a", app] },

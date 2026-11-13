@@ -1,5 +1,9 @@
+import os
 import struct
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from host_fltused import EXTERNAL, SEARCH_ALIAS, SYMBOL_SIZE, WEAK_EXTERNAL, symbol_name, weaken
 

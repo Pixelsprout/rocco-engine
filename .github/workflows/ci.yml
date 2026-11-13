@@ -328,6 +328,7 @@ jobs:
           python3 scripts/shader_contract/install.py
           sh scripts/toolchain.sh run roc scripts/build.roc web tutorial/08-sound
           sh scripts/toolchain.sh run roc scripts/build.roc web surface
+          sh scripts/toolchain.sh run roc scripts/build.roc web pong
 
       - uses: actions/upload-artifact@v4
         with:
@@ -358,8 +359,11 @@ jobs:
         with:
           version: 0.16.0
 
+      # Discovery runs every test_*.py, so a new test needs no edit here.
       - name: Test the generators
-        run: python3 -m unittest scripts/test_make_linux_stubs.py scripts/test_make_macos_sysroot.py scripts/test_make_windows_import_libs.py scripts/test_release.py scripts/test_candidate_sdk.py scripts/test_png_encode.py scripts/test_bridge.py scripts/test_ci_wait.py scripts/test_shader_contract.py scripts/test_build_shader.py scripts/test_shader_assets.py scripts/test_shader_reload.py scripts/test_gpu_timing_summary.py scripts/test_village_capture.py scripts/test_web_package.py bench/test_analyse.py bench/test_chart.py bench/test_compare_chart.py bench/test_headline.py bench/test_machine.py bench/test_realclock.py
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s bench -p 'test_*.py'
 
       - name: Test the village fixture
         run: python3 -m unittest discover -s examples/village/fixtures -p test_scene_effects.py
