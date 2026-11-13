@@ -1,6 +1,7 @@
 #+test
 package engine
 
+import sg "../sokol-odin/sokol/gfx"
 import "core:encoding/endian"
 import "core:encoding/json"
 import "core:fmt"
@@ -42,7 +43,7 @@ shader_test_manifest :: proc() -> string {
 }
 shader_test_pack :: proc(metadata: string, payload := "x", allocator := context.temp_allocator) -> []byte {
 	bytes := make([]byte, 96+len(metadata)+len(payload), allocator)
-	copy(bytes, "RCSHADER"); endian.put_u16(bytes[8:], .Little, 1); endian.put_u16(bytes[10:], .Little, 1); endian.put_u32(bytes[12:], .Little, 96); endian.put_u32(bytes[16:], .Little, u32(len(metadata))); endian.put_u32(bytes[20:], .Little, u32(len(payload))); endian.put_u32(bytes[28:], .Little, 7)
+	copy(bytes, "RCSHADER"); endian.put_u16(bytes[8:], .Little, SHADER_FORMAT); endian.put_u16(bytes[10:], .Little, 1); endian.put_u32(bytes[12:], .Little, 96); endian.put_u32(bytes[16:], .Little, u32(len(metadata))); endian.put_u32(bytes[20:], .Little, u32(len(payload))); endian.put_u32(bytes[28:], .Little, SHADER_BACKEND_MASK)
 	copy(bytes[96:], metadata); copy(bytes[96+len(metadata):], payload)
 	c := Shader_Canonical{source=metadata, valid=true}; shader_canonical_value(&c)
 	hash := shader_hash(transmute([]byte)strings.concatenate({`{"interface":`, c.interface, `,"layout":`, c.layout, `}`}, context.temp_allocator)); copy(bytes[32:64], hash[:]); hash = shader_hash(bytes[96:]); copy(bytes[64:96], hash[:]); return bytes
@@ -53,6 +54,41 @@ test_shader_package_accepts_all_required_backends_and_variants :: proc(t: ^testi
 	pkg, reason, ok := shader_package_parse(shader_test_pack(shader_test_manifest()), context.allocator)
 	testing.expectf(t, ok, "%v", reason)
 	if ok { defer json.destroy_value(pkg.manifest); testing.expect_value(t, pkg.max_displacement, f32(0.25)); testing.expect(t, !pkg.post) }
+}
+
+@(test)
+test_shader_package_names_a_rebuild_for_a_format_1_pack :: proc(t: ^testing.T) {
+	old := shader_test_pack(shader_test_manifest())
+	endian.put_u16(old[8:], .Little, 1); endian.put_u32(old[28:], .Little, 7)
+	_, reason, ok := shader_package_parse(old, context.allocator)
+	testing.expect(t, !ok)
+	testing.expectf(t, strings.contains(reason, "rebuild"), "reason %q", reason)
+}
+
+@(test)
+test_shader_package_requires_the_wgsl_backend :: proc(t: ^testing.T) {
+	metadata, _ := strings.replace(shader_test_manifest(), `"slang":"wgsl"`, `"slang":"glsl300es"`, 1, context.temp_allocator)
+	_, reason, ok := shader_package_parse(shader_test_pack(metadata), context.allocator)
+	testing.expect(t, !ok)
+	testing.expect_value(t, reason, "incomplete shader variants")
+}
+
+@(test)
+test_shader_program_desc_keeps_wgsl_bindings_and_unfilterable_depth :: proc(t: ^testing.T) {
+	program := `{"fragment_func":{"entry_point":"main","is_binary":false,"offset":0,"size":1},"name":"post_ldr",` +
+		`"samplers":[{"name":"scene_depth_smp","sampler_type":"nonfiltering","slot":1,"stage":"fragment","wgsl_group1_binding_n":33}],` +
+		`"uniform_blocks":[{"inst_name":"_1","size":128,"slot":1,"stage":"fragment","struct_name":"post","wgsl_group0_binding_n":1}],` +
+		`"vertex_func":{"entry_point":"main","is_binary":false,"offset":0,"size":1},` +
+		`"views":[{"texture":{"multisampled":false,"name":"scene_depth","sample_type":"unfilterable_float","slot":1,"stage":"fragment","type":"2d","wgsl_group1_binding_n":1}}]}`
+	value, err := json.parse_string(program, spec = .JSON, parse_integers = true, allocator = context.temp_allocator)
+	testing.expect_value(t, err, nil)
+	pkg := Shader_Package{payload = transmute([]byte)string("x")}
+	d := shader_program_desc(&pkg, value.(json.Object))
+	testing.expect_value(t, d.views[1].texture.sample_type, sg.Image_Sample_Type.UNFILTERABLE_FLOAT)
+	testing.expect_value(t, d.views[1].texture.wgsl_group1_binding_n, 1)
+	testing.expect_value(t, d.samplers[1].sampler_type, sg.Sampler_Type.NONFILTERING)
+	testing.expect_value(t, d.samplers[1].wgsl_group1_binding_n, 33)
+	testing.expect_value(t, d.uniform_blocks[1].wgsl_group0_binding_n, 1)
 }
 
 @(test)

@@ -23,8 +23,10 @@ layout(binding = 2) uniform fs_lights {
 };
 
 struct Point { vec4 pos; vec4 color; };
-struct Cluster { uvec4 range; };
-struct LightIndices { uvec4 ids; };
+// Cluster and LightIndices share a member name. The WGSL compile merges
+// structs with the same layout and then cannot find a second member name.
+struct Cluster { uvec4 lanes; };
+struct LightIndices { uvec4 lanes; };
 layout(binding = 12) readonly buffer engine_points { Point points[]; };
 layout(binding = 13) readonly buffer engine_clusters { Cluster clusters[]; };
 layout(binding = 14) readonly buffer engine_indices { LightIndices indices[]; };
@@ -211,7 +213,7 @@ vec4 surface_color(bool premultiplied) {
     ivec2 xy = clamp(ivec2(tile), ivec2(0), ivec2(15, 8));
     float depth = max(dot(v_world - camera_pos.xyz, view_dir.xyz), cluster_grid.w);
     int z = clamp(int(log(depth / cluster_grid.w) * cluster_grid.z), 0, 23);
-    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].range;
+    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].lanes;
     int directional_count = int(ambient.w);
     int total = directional_count + int(cluster.y);
     for (int i = 0; i < total; i++) {
@@ -226,7 +228,7 @@ vec4 surface_color(bool premultiplied) {
             }
         } else {
             uint at = cluster.x + uint(i - directional_count);
-            uvec4 ids = indices[at / 4u].ids;
+            uvec4 ids = indices[at / 4u].lanes;
             uint id = ids[int(at % 4u)];
             Point point = points[id];
             vec3 to_light = point.pos.xyz - v_world;

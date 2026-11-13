@@ -184,6 +184,8 @@ shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
 		backend = "glsl430"
 	case .D3D11:
 		backend = "hlsl5"
+	case .WGPU:
+		backend = "wgsl"
 	case .METAL_MACOS:
 	case:
 		s.failed = true; return false

@@ -1,4 +1,4 @@
-"""Version 1 package encoding and pinned reflection validation."""
+"""Package format 2 encoding and pinned reflection validation."""
 import hashlib
 import json
 import re
@@ -6,7 +6,12 @@ import struct
 from declarations import BuildError
 
 HEADER = struct.Struct("<8sHHIIIII32s32s")
-BACKENDS = ("glsl430", "hlsl5", "metal_macos")
+BACKENDS = ("glsl430", "hlsl5", "metal_macos", "wgsl")
+FORMAT = 2
+BACKEND_MASK = 15
+WGSL_SAMPLER_BASE = 32
+# scene_depth and selection_depth, the R32F Post inputs.
+UNFILTERABLE_POST_SLOTS = (1, 3)
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
@@ -28,7 +33,7 @@ def pack(manifest, payload):
     metadata = canonical(manifest)
     if len(metadata) > 1024 * 1024 or len(payload) > 16 * 1024 * 1024:
         raise BuildError("shader package exceeds contract size")
-    return HEADER.pack(b"RCSHADER", 1, 1, 96, len(metadata), len(payload), 0, 7,
+    return HEADER.pack(b"RCSHADER", FORMAT, 1, 96, len(metadata), len(payload), 0, BACKEND_MASK,
                        fingerprint(manifest), digest(metadata + payload)) + metadata + payload
 
 
@@ -112,7 +117,7 @@ def validate_reflection(reflection, declaration, contract):
     fields(reflection, ("shaders",))
     shaders = reflection["shaders"]
     if not isinstance(shaders, list) or tuple(s.get("slang") for s in shaders) != BACKENDS:
-        raise BuildError("compiler did not emit all three desktop backends in contract order")
+        raise BuildError("compiler did not emit all four backends in contract order")
     expected = contract["surface_programs"] if declaration["kind"] == "surface" else [contract["post_programs"][p] for p in declaration["locations"]]
     if declaration["kind"] == "surface" and not declaration.get("skinning", True):
         expected = [p for p in expected if not p.startswith("skinned")]
@@ -138,7 +143,7 @@ def validate_program(p, backend, declaration, contract):
     for key in ("vertex_func", "fragment_func"):
         f = p[key]
         fields(f, ("path", "is_binary", "entry_point"), ("d3d11_target",))
-        if f["is_binary"] is not False or not isinstance(f["path"], str) or not re.fullmatch(r"compiled_[A-Za-z0-9_]+\.(glsl|hlsl|metal)", f["path"]):
+        if f["is_binary"] is not False or not isinstance(f["path"], str) or not re.fullmatch(r"compiled_[A-Za-z0-9_]+\.(glsl|hlsl|metal|wgsl)", f["path"]):
             raise BuildError("invalid reflected source path or format")
         text(f["entry_point"])
         if backend == "hlsl5" and f.get("d3d11_target") != ("vs_5_0" if key == "vertex_func" else "ps_5_0"):
@@ -166,14 +171,14 @@ def validate_program(p, backend, declaration, contract):
     sizes = contract["post_uniform_sizes"] if declaration["kind"] == "post" else contract["uniform_sizes"]
     used = set()
     for b in p.get("uniform_blocks", []):
-        fields(b, ("slot", "stage", "size", "struct_name", "inst_name"), ("glsl_uniforms", "hlsl_register_b_n", "msl_buffer_n"))
+        fields(b, ("slot", "stage", "size", "struct_name", "inst_name"), ("glsl_uniforms", "hlsl_register_b_n", "msl_buffer_n", "wgsl_group0_binding_n"))
         slot = b["slot"]
         integer(slot, 0, 5)
         if slot in used or str(slot) not in sizes or b["size"] != sizes[str(slot)] or b["stage"] != ("vertex" if slot in (0, 3, 4) else "fragment"):
             raise BuildError("uniform block differs from platform contract")
         used.add(slot)
         text(b["struct_name"]); text(b["inst_name"])
-        for field in ("hlsl_register_b_n", "msl_buffer_n"):
+        for field in ("hlsl_register_b_n", "msl_buffer_n", "wgsl_group0_binding_n"):
             if field in b and b[field] != slot:
                 raise BuildError("unexpected backend uniform mapping")
         if backend == "glsl430":
@@ -192,7 +197,7 @@ def validate_program(p, backend, declaration, contract):
             raise BuildError("invalid reflection view")
         if "storage_buffer" in view:
             b = view["storage_buffer"]
-            fields(b, ("slot", "stage", "size", "align", "struct_name", "inst_name", "inner_struct_name", "readonly"), ("glsl_binding_n", "hlsl_register_t_n", "msl_buffer_n"))
+            fields(b, ("slot", "stage", "size", "align", "struct_name", "inst_name", "inner_struct_name", "readonly"), ("glsl_binding_n", "hlsl_register_t_n", "msl_buffer_n", "wgsl_group1_binding_n"))
             slot = b["slot"]
             integer(slot, 12, 14)
             if slot in storage or b["stage"] != "fragment" or b["readonly"] is not True or b["size"] != (32 if slot == 12 else 16) or b["align"] != 16 or declaration["kind"] != "surface":
@@ -204,7 +209,7 @@ def validate_program(p, backend, declaration, contract):
             storage[slot] = b
         elif "texture" in view:
             t = view["texture"]
-            fields(t, ("slot", "stage", "name", "multisampled", "type", "sample_type"), ("hlsl_register_t_n", "msl_texture_n"))
+            fields(t, ("slot", "stage", "name", "multisampled", "type", "sample_type"), ("hlsl_register_t_n", "msl_texture_n", "wgsl_group1_binding_n"))
             slot = t["slot"]
             integer(slot, 0, 11)
             text(t["name"])
@@ -222,7 +227,8 @@ def validate_program(p, backend, declaration, contract):
                     expected = semantics.get(slot)
                 else:
                     names = ("scene_colour", "scene_depth", "selection_coverage", "selection_depth")
-                    expected = (names[slot], "2d", "float") if slot < 4 and names[slot] in declaration["inputs"] else None
+                    sample = "unfilterable_float" if slot in UNFILTERABLE_POST_SLOTS else "float"
+                    expected = (names[slot], "2d", sample) if slot < 4 and names[slot] in declaration["inputs"] else None
                 if expected != (t["name"], t["type"], t["sample_type"]):
                     raise BuildError("engine texture differs from its reserved semantic")
             if declaration["kind"] == "post" and slot < 8 and slot >= 4:
@@ -231,11 +237,12 @@ def validate_program(p, backend, declaration, contract):
         else:
             raise BuildError("unsupported reflected resource kind")
     for s in p.get("samplers", []):
-        fields(s, ("slot", "stage", "name", "sampler_type"), ("hlsl_register_s_n", "msl_sampler_n"))
+        fields(s, ("slot", "stage", "name", "sampler_type"), ("hlsl_register_s_n", "msl_sampler_n", "wgsl_group1_binding_n"))
         slot = s["slot"]
         integer(slot, 0, 11)
         text(s["name"])
-        if slot in samplers or slot not in textures or s["stage"] != textures[slot]["stage"] or s["sampler_type"] not in ("filtering", "comparison"):
+        expected = ("nonfiltering",) if declaration["kind"] == "post" and slot in UNFILTERABLE_POST_SLOTS else ("filtering", "comparison")
+        if slot in samplers or slot not in textures or s["stage"] != textures[slot]["stage"] or s["sampler_type"] not in expected:
             raise BuildError("invalid sampler binding")
         samplers[slot] = s
     used = set()
@@ -251,8 +258,17 @@ def validate_program(p, backend, declaration, contract):
             raise BuildError("texture/sampler pair differs from resource declarations")
     if len(textures) > 12 or len(storage) > 3 or len(samplers) > 12 or len(used) > 12:
         raise BuildError("portable resource capacity exceeded")
+    if backend == "wgsl":
+        # sokol WGPU binds views at their slot and samplers after the views.
+        for resources, base in ((textures, 0), (storage, 0), (samplers, WGSL_SAMPLER_BASE)):
+            for slot, resource in resources.items():
+                if resource.get("wgsl_group1_binding_n") != base + slot:
+                    raise BuildError("unexpected WGSL resource binding")
+        for b in p.get("uniform_blocks", []):
+            if b.get("wgsl_group0_binding_n") != b["slot"]:
+                raise BuildError("unexpected WGSL uniform binding")
     for resources, field in ((textures, "msl_texture_n" if backend == "metal_macos" else "hlsl_register_t_n"), (storage, "msl_buffer_n" if backend == "metal_macos" else "hlsl_register_t_n"), (samplers, "msl_sampler_n" if backend == "metal_macos" else "hlsl_register_s_n")):
-        if backend == "glsl430":
+        if backend in ("glsl430", "wgsl"):
             continue
         for resource in resources.values():
             integer(resource.get(field), 0, 127)

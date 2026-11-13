@@ -128,7 +128,7 @@ def compile_shader(declaration, document, contract_dir, contract, compiler, pins
     source = composer.compose()
     output.mkdir(parents=True)
     (output / "input.glsl").write_bytes(source.encode("utf-8"))
-    command = [str(compiler), "-i", "input.glsl", "-o", "compiled", "-l", "metal_macos:glsl430:hlsl5", "-f", "bare_yaml", "--no-log-cmdline"]
+    command = [str(compiler), "-i", "input.glsl", "-o", "compiled", "-l", "metal_macos:glsl430:hlsl5:wgsl", "-f", "bare_yaml", "--no-log-cmdline"]
     completed = subprocess.run(command, cwd=output, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if completed.returncode:
         raise BuildError(composer.diagnostic(completed.stdout).rstrip())

@@ -12,7 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "platform/shader-tools"))
 import build as asset_build
-from package import HEADER, canonical, digest, fingerprint
+from package import BACKEND_MASK, FORMAT, HEADER, canonical, digest, fingerprint
 sys.path.insert(0, str(ROOT / "scripts/shader_contract"))
 import contract as proof
 
@@ -20,7 +20,7 @@ import contract as proof
 def decode(path):
     data = path.read_bytes()
     magic, fmt, version, header, metadata, payload, flags, mask, interface, checksum = HEADER.unpack_from(data)
-    if (magic, fmt, version, header, flags, mask) != (b"RCSHADER", 1, 1, 96, 0, 7) or len(data) != header + metadata + payload or digest(data[header:]) != checksum:
+    if (magic, fmt, version, header, flags, mask) != (b"RCSHADER", FORMAT, 1, 96, 0, BACKEND_MASK) or len(data) != header + metadata + payload or digest(data[header:]) != checksum:
         raise ValueError("invalid production shader package")
     manifest = json.loads(data[header:header + metadata])
     if canonical(manifest) != data[header:header + metadata] or fingerprint(manifest) != interface:

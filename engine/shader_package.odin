@@ -14,6 +14,10 @@ import "core:unicode/utf8"
 
 SHADER_PREFIX :: "shader/"
 SHADER_HEADER_SIZE :: 96
+SHADER_FORMAT :: 2
+SHADER_BACKEND_MASK :: 15
+// sokol WGPU binds views at their slot and samplers after the views.
+SHADER_WGSL_SAMPLER_BASE :: 32
 SHADER_METADATA_LIMIT :: 1024 * 1024
 SHADER_PAYLOAD_LIMIT :: 16 * 1024 * 1024
 // The vertex stage blocks of contract v1: engine_vertex, engine_skin and game_vertex.
@@ -23,7 +27,7 @@ SHADER_GAME_VERTEX_SIZE :: 256
 @(rodata)
 SHADER_UNIFORM_SIZES := [6]int{SHADER_ENGINE_VERTEX_SIZE, 96, 512, SHADER_ENGINE_SKIN_SIZE, SHADER_GAME_VERTEX_SIZE, 256}
 @(rodata)
-SHADER_BACKENDS := [3]string{"glsl430", "hlsl5", "metal_macos"}
+SHADER_BACKENDS := [4]string{"glsl430", "hlsl5", "metal_macos", "wgsl"}
 @(rodata)
 SHADER_PROGRAM_NAMES := [9]string{"surface_colour", "surface_shadow", "surface_selection", "skinned_colour", "skinned_shadow", "skinned_selection", "instanced_colour", "instanced_shadow", "instanced_selection"}
 @(rodata)
@@ -213,7 +217,8 @@ shader_package_parse_scoped :: proc(bytes: []byte, allocator: mem.Allocator) -> 
 	format, _ := endian.get_u16(bytes[8:], .Little); contract, _ := endian.get_u16(bytes[10:], .Little)
 	header, _ := endian.get_u32(bytes[12:], .Little); metadata_size, _ := endian.get_u32(bytes[16:], .Little)
 	payload_size, _ := endian.get_u32(bytes[20:], .Little); flags, _ := endian.get_u32(bytes[24:], .Little); mask, _ := endian.get_u32(bytes[28:], .Little)
-	if format != 1 || contract != 1 || header != SHADER_HEADER_SIZE || flags != 0 || mask != 7 { return {}, "incompatible shader contract version or backend mask", false }
+	if format == 1 { return {}, "shader package format 1 has no wgsl backend; rebuild it with the current shader tools", false }
+	if format != SHADER_FORMAT || contract != 1 || header != SHADER_HEADER_SIZE || flags != 0 || mask != SHADER_BACKEND_MASK { return {}, "incompatible shader contract version or backend mask", false }
 	if metadata_size == 0 || metadata_size > SHADER_METADATA_LIMIT || payload_size == 0 || payload_size > SHADER_PAYLOAD_LIMIT || u64(len(bytes)) != u64(header) + u64(metadata_size) + u64(payload_size) { return {}, "invalid shader package size", false }
 	body := bytes[header:]
 	checksum := shader_hash(body)
@@ -258,7 +263,7 @@ shader_manifest_validate :: proc(v: ^Shader_Validation, pkg: ^Shader_Package) ->
 		if !skin_ok || !instance_ok || len(shader_array(post["inputs"])) != 0 || len(shader_array(post["locations"])) != 0 || len(shader_array(post["parameters"])) != 0 || len(shader_array(post["textures"])) != 0 { return shader_fail(v, "mixed or invalid shader interfaces") }
 	} else if displacement != 0 || len(shader_array(surface["parameters"])) != 0 || len(shader_array(surface["textures"])) != 0 { return shader_fail(v, "mixed shader interfaces") }
 	for kind in ([]string{"surface", "post"}) { if !shader_declarations_validate(v, shader_object(interface[kind]), kind == "post") { return false } }
-	if !shader_list(v, root["shaders"], 3) || len(shader_array(root["shaders"])) != 3 { return shader_fail(v, "missing shader backend") }
+	if !shader_list(v, root["shaders"], len(SHADER_BACKENDS)) || len(shader_array(root["shaders"])) != len(SHADER_BACKENDS) { return shader_fail(v, "missing shader backend") }
 	expected := make([dynamic]string, context.temp_allocator)
 	if pkg.post {
 		if !shader_list(v, post["locations"], 2) || !shader_list(v, post["inputs"], 4) { return false }
@@ -374,7 +379,7 @@ shader_program_validate :: proc(v: ^Shader_Validation, value: json.Value, backen
 	}
 	blocks: [6]bool
 	for block in shader_array(p["uniform_blocks"]) {
-		if !shader_fields(v, block, {"slot", "stage", "size", "struct_name", "inst_name"}, {"glsl_uniforms", "hlsl_register_b_n", "msl_buffer_n"}) { return false }
+		if !shader_fields(v, block, {"slot", "stage", "size", "struct_name", "inst_name"}, {"glsl_uniforms", "hlsl_register_b_n", "msl_buffer_n", "wgsl_group0_binding_n"}) { return false }
 		b := shader_object(block); slot := shader_int(b["slot"])
 		if slot < 0 || slot >= 6 || blocks[slot] { return shader_fail(v, "invalid uniform block slot") }; blocks[slot] = true
 		if slot == 2 && !strings.has_suffix(name,"_colour") { return shader_fail(v,"lighting uniforms are unavailable in coverage passes") }
@@ -382,7 +387,8 @@ shader_program_validate :: proc(v: ^Shader_Validation, value: json.Value, backen
 		if pkg.post { if slot != 1 && slot != 5 { return shader_fail(v, "invalid Post uniform block") }; if slot == 1 { size = 128 } }
 		if shader_int(b["size"]) != size || shader_text(b["stage"]) != ("vertex" if slot == 0 || slot == 3 || slot == 4 else "fragment") || slot == 3 && ceiling != 7 { return shader_fail(v, "uniform block differs from engine contract") }
 		for key in ([]string{"struct_name", "inst_name"}) { if !shader_identifier(shader_text(b[key])) { return shader_fail(v, "invalid uniform identifier") } }
-		for key in ([]string{"hlsl_register_b_n", "msl_buffer_n"}) { if x, has := b[key]; has && shader_int(x) != slot { return shader_fail(v, "invalid physical uniform mapping") } }
+		for key in ([]string{"hlsl_register_b_n", "msl_buffer_n", "wgsl_group0_binding_n"}) { if x, has := b[key]; has && shader_int(x) != slot { return shader_fail(v, "invalid physical uniform mapping") } }
+		if backend == "wgsl" && "wgsl_group0_binding_n" not_in b { return shader_fail(v, "missing WGSL uniform binding") }
 		if backend == "glsl430" {
 			if !shader_list(v, b["glsl_uniforms"], 1) || len(shader_array(b["glsl_uniforms"])) != 1 { return shader_fail(v, "unsupported GL uniform flattening") }
 			u := shader_array(b["glsl_uniforms"])[0]
@@ -399,7 +405,7 @@ shader_program_validate :: proc(v: ^Shader_Validation, value: json.Value, backen
 		o, object := view.(json.Object)
 		if !object || len(o) != 1 { return shader_fail(v, "invalid reflected view") }
 		if resource, has := o["texture"]; has {
-			if !shader_fields(v, resource, {"slot", "stage", "name", "multisampled", "type", "sample_type"}, {"hlsl_register_t_n", "msl_texture_n"}) { return false }
+			if !shader_fields(v, resource, {"slot", "stage", "name", "multisampled", "type", "sample_type"}, {"hlsl_register_t_n", "msl_texture_n", "wgsl_group1_binding_n"}) { return false }
 			t := shader_object(resource); slot := shader_int(t["slot"]); stage := shader_text(t["stage"])
 			ms, boolean := t["multisampled"].(json.Boolean)
 			if slot < 0 || slot >= 12 || textures[slot] != nil || !boolean || ms || !slice.contains([]string{"vertex", "fragment"}, stage) || !shader_identifier(shader_text(t["name"])) { return shader_fail(v, "invalid texture reflection") }
@@ -413,31 +419,33 @@ shader_program_validate :: proc(v: ^Shader_Validation, value: json.Value, backen
 				type, sample := "2d", "float"
 				if slot == 2 { type, sample = "array", "depth" }; if slot == 6 || slot == 7 { type = "cube" }
 				if pkg.post {
-					names = []string{"scene_colour", "scene_depth", "selection_coverage", "selection_depth"}; type, sample = "2d", "float"
+					names = []string{"scene_colour", "scene_depth", "selection_coverage", "selection_depth"}; type, sample = "2d", "unfilterable_float" if shader_post_unfilterable(slot) else "float"
 					if slot >= 4 { return shader_fail(v, "invalid reserved Post texture") }
 					found := false; for input in shader_array(d["inputs"]) { if shader_text(input) == names[slot] { found = true } }; if !found { return shader_fail(v, "undeclared Post input") }
 				}
 				if stage != "fragment" || shader_text(t["name"]) != names[slot] || shader_text(t["type"]) != type || shader_text(t["sample_type"]) != sample { return shader_fail(v, "texture differs from reserved engine semantic") }
 			}
+			if backend == "wgsl" { if n, mapped := t["wgsl_group1_binding_n"]; !mapped || shader_int(n) != slot { return shader_fail(v, "invalid WGSL texture binding") } }
 			key := "msl_texture_n" if backend == "metal_macos" else "hlsl_register_t_n"
-			if backend != "glsl430" { n := shader_int(t[key]); s := 0 if stage == "vertex" else 1; if n < 0 || n >= 128 || physical_views[s][n] { return shader_fail(v, "invalid or overlapping physical texture binding") }; physical_views[s][n] = true }
+			if backend != "glsl430" && backend != "wgsl" { n := shader_int(t[key]); s := 0 if stage == "vertex" else 1; if n < 0 || n >= 128 || physical_views[s][n] { return shader_fail(v, "invalid or overlapping physical texture binding") }; physical_views[s][n] = true }
 		} else if storage_resource, has_storage := o["storage_buffer"]; has_storage {
-			if !shader_fields(v, storage_resource, {"slot", "stage", "size", "align", "struct_name", "inst_name", "inner_struct_name", "readonly"}, {"glsl_binding_n", "hlsl_register_t_n", "msl_buffer_n"}) { return false }
+			if !shader_fields(v, storage_resource, {"slot", "stage", "size", "align", "struct_name", "inst_name", "inner_struct_name", "readonly"}, {"glsl_binding_n", "hlsl_register_t_n", "msl_buffer_n", "wgsl_group1_binding_n"}) { return false }
 			b := shader_object(storage_resource); slot := shader_int(b["slot"])
 			if slot < 12 || slot > 14 || storage[slot-12] || pkg.post || !strings.has_suffix(name,"_colour") || shader_text(b["stage"]) != "fragment" || !shader_bool(b["readonly"]) || shader_int(b["size"]) != (32 if slot == 12 else 16) || shader_int(b["align"]) != 16 { return shader_fail(v, "invalid clustered storage reflection") }; storage[slot-12] = true
 			for key in ([]string{"struct_name", "inst_name", "inner_struct_name"}) { if !shader_identifier(shader_text(b[key])) { return shader_fail(v, "invalid storage identifier") } }
-			key := "glsl_binding_n" if backend == "glsl430" else "msl_buffer_n" if backend == "metal_macos" else "hlsl_register_t_n"
-			n := shader_int(b[key]); expected := slot - 12 if backend == "glsl430" else slot - 4 if backend == "metal_macos" else n
+			key := "glsl_binding_n" if backend == "glsl430" else "msl_buffer_n" if backend == "metal_macos" else "wgsl_group1_binding_n" if backend == "wgsl" else "hlsl_register_t_n"
+			n := shader_int(b[key]); expected := slot - 12 if backend == "glsl430" else slot - 4 if backend == "metal_macos" else slot if backend == "wgsl" else n
 			if n < 0 || n >= 128 || n != expected { return shader_fail(v, "invalid compact or physical storage binding") }
 			if backend == "hlsl5" { if physical_views[1][n] { return shader_fail(v, "overlapping D3D storage binding") }; physical_views[1][n] = true }
 		} else { return shader_fail(v, "unknown reflected view kind") }
 	}
 	physical_samplers: [2][16]bool
 	for sampler in shader_array(p["samplers"]) {
-		if !shader_fields(v, sampler, {"slot", "stage", "name", "sampler_type"}, {"hlsl_register_s_n", "msl_sampler_n"}) { return false }
+		if !shader_fields(v, sampler, {"slot", "stage", "name", "sampler_type"}, {"hlsl_register_s_n", "msl_sampler_n", "wgsl_group1_binding_n"}) { return false }
 		s := shader_object(sampler); slot := shader_int(s["slot"])
-		if slot < 0 || slot >= 12 || samplers[slot] != nil || textures[slot] == nil || shader_text(s["stage"]) != shader_text(textures[slot]["stage"]) || !shader_identifier(shader_text(s["name"])) || shader_text(s["sampler_type"]) != ("comparison" if !pkg.post && slot == 2 else "filtering") { return shader_fail(v, "invalid sampler reflection") }; samplers[slot] = s
-		if backend != "glsl430" { key := "msl_sampler_n" if backend == "metal_macos" else "hlsl_register_s_n"; n := shader_int(s[key]); stage := 0 if shader_text(s["stage"]) == "vertex" else 1; if n < 0 || n >= 16 || physical_samplers[stage][n] { return shader_fail(v, "invalid physical sampler binding") }; physical_samplers[stage][n] = true }
+		if slot < 0 || slot >= 12 || samplers[slot] != nil || textures[slot] == nil || shader_text(s["stage"]) != shader_text(textures[slot]["stage"]) || !shader_identifier(shader_text(s["name"])) || shader_text(s["sampler_type"]) != ("comparison" if !pkg.post && slot == 2 else "nonfiltering" if pkg.post && shader_post_unfilterable(slot) else "filtering") { return shader_fail(v, "invalid sampler reflection") }; samplers[slot] = s
+		if backend == "wgsl" { if n, mapped := s["wgsl_group1_binding_n"]; !mapped || shader_int(n) != SHADER_WGSL_SAMPLER_BASE + slot { return shader_fail(v, "invalid WGSL sampler binding") } }
+		if backend != "glsl430" && backend != "wgsl" { key := "msl_sampler_n" if backend == "metal_macos" else "hlsl_register_s_n"; n := shader_int(s[key]); stage := 0 if shader_text(s["stage"]) == "vertex" else 1; if n < 0 || n >= 16 || physical_samplers[stage][n] { return shader_fail(v, "invalid physical sampler binding") }; physical_samplers[stage][n] = true }
 	}
 	pairs, paired: [12]bool
 	for pair in shader_array(p["texture_sampler_pairs"]) {
@@ -468,16 +476,36 @@ shader_program_desc :: proc(pkg: ^Shader_Package, p: json.Object) -> (d: sg.Shad
 	for block in shader_array(p["uniform_blocks"]) {
 		b := shader_object(block); dst := &d.uniform_blocks[shader_int(b["slot"])]; dst.stage = shader_stage(b["stage"]); dst.size = u32(shader_int(b["size"])); dst.layout = .STD140
 		if n, mapped := b["hlsl_register_b_n"]; mapped { dst.hlsl_register_b_n = u8(shader_int(n)) }; if n, mapped := b["msl_buffer_n"]; mapped { dst.msl_buffer_n = u8(shader_int(n)) }
+		if n, mapped := b["wgsl_group0_binding_n"]; mapped { dst.wgsl_group0_binding_n = u8(shader_int(n)) }
 		for uniform, i in shader_array(b["glsl_uniforms"]) { u := shader_object(uniform); dst.glsl_uniforms[i] = {type = .FLOAT4, array_count = u16(shader_int(u["array_count"])), glsl_name = cstring_value(u["glsl_name"])} }
 	}
 	for view in shader_array(p["views"]) {
 		o := shader_object(view)
-		if resource, has := o["texture"]; has { t := shader_object(resource); dst := &d.views[shader_int(t["slot"])].texture; dst.stage = shader_stage(t["stage"]); dst.image_type = .CUBE if shader_text(t["type"]) == "cube" else .ARRAY if shader_text(t["type"]) == "array" else ._2D; dst.sample_type = .DEPTH if shader_text(t["sample_type"]) == "depth" else .FLOAT; if n, mapped := t["msl_texture_n"]; mapped { dst.msl_texture_n = u8(shader_int(n)) }; if n, mapped := t["hlsl_register_t_n"]; mapped { dst.hlsl_register_t_n = u8(shader_int(n)) } }
-		if resource, has := o["storage_buffer"]; has { b := shader_object(resource); dst := &d.views[shader_int(b["slot"])].storage_buffer; dst.stage = .FRAGMENT; dst.readonly = true; if n, mapped := b["msl_buffer_n"]; mapped { dst.msl_buffer_n = u8(shader_int(n)) }; if n, mapped := b["hlsl_register_t_n"]; mapped { dst.hlsl_register_t_n = u8(shader_int(n)) }; if n, mapped := b["glsl_binding_n"]; mapped { dst.glsl_binding_n = u8(shader_int(n)) } }
+		if resource, has := o["texture"]; has { t := shader_object(resource); dst := &d.views[shader_int(t["slot"])].texture; dst.stage = shader_stage(t["stage"]); dst.image_type = .CUBE if shader_text(t["type"]) == "cube" else .ARRAY if shader_text(t["type"]) == "array" else ._2D; dst.sample_type = shader_sample_type(t["sample_type"]); if n, mapped := t["msl_texture_n"]; mapped { dst.msl_texture_n = u8(shader_int(n)) }; if n, mapped := t["hlsl_register_t_n"]; mapped { dst.hlsl_register_t_n = u8(shader_int(n)) }; if n, mapped := t["wgsl_group1_binding_n"]; mapped { dst.wgsl_group1_binding_n = u8(shader_int(n)) } }
+		if resource, has := o["storage_buffer"]; has { b := shader_object(resource); dst := &d.views[shader_int(b["slot"])].storage_buffer; dst.stage = .FRAGMENT; dst.readonly = true; if n, mapped := b["msl_buffer_n"]; mapped { dst.msl_buffer_n = u8(shader_int(n)) }; if n, mapped := b["hlsl_register_t_n"]; mapped { dst.hlsl_register_t_n = u8(shader_int(n)) }; if n, mapped := b["glsl_binding_n"]; mapped { dst.glsl_binding_n = u8(shader_int(n)) }; if n, mapped := b["wgsl_group1_binding_n"]; mapped { dst.wgsl_group1_binding_n = u8(shader_int(n)) } }
 	}
-	for sampler in shader_array(p["samplers"]) { s := shader_object(sampler); dst := &d.samplers[shader_int(s["slot"])]; dst.stage = shader_stage(s["stage"]); dst.sampler_type = .COMPARISON if shader_text(s["sampler_type"]) == "comparison" else .FILTERING; if n, mapped := s["msl_sampler_n"]; mapped { dst.msl_sampler_n = u8(shader_int(n)) }; if n, mapped := s["hlsl_register_s_n"]; mapped { dst.hlsl_register_s_n = u8(shader_int(n)) } }
+	for sampler in shader_array(p["samplers"]) { s := shader_object(sampler); dst := &d.samplers[shader_int(s["slot"])]; dst.stage = shader_stage(s["stage"]); dst.sampler_type = shader_sampler_type(s["sampler_type"]); if n, mapped := s["msl_sampler_n"]; mapped { dst.msl_sampler_n = u8(shader_int(n)) }; if n, mapped := s["hlsl_register_s_n"]; mapped { dst.hlsl_register_s_n = u8(shader_int(n)) }; if n, mapped := s["wgsl_group1_binding_n"]; mapped { dst.wgsl_group1_binding_n = u8(shader_int(n)) } }
 	for pair in shader_array(p["texture_sampler_pairs"]) { pair_obj := shader_object(pair); dst := &d.texture_sampler_pairs[shader_int(pair_obj["slot"])]; dst.stage = shader_stage(pair_obj["stage"]); dst.view_slot = u8(shader_int(pair_obj["view_slot"])); dst.sampler_slot = u8(shader_int(pair_obj["sampler_slot"])); dst.glsl_name = cstring_value(pair_obj["glsl_name"]) }
 	return
+}
+
+// scene_depth and selection_depth are R32F, which WebGPU cannot filter.
+shader_post_unfilterable :: proc(slot: int) -> bool { return slot == 1 || slot == 3 }
+
+shader_sample_type :: proc(v: json.Value) -> sg.Image_Sample_Type {
+	switch shader_text(v) {
+	case "depth": return .DEPTH
+	case "unfilterable_float": return .UNFILTERABLE_FLOAT
+	}
+	return .FLOAT
+}
+
+shader_sampler_type :: proc(v: json.Value) -> sg.Sampler_Type {
+	switch shader_text(v) {
+	case "comparison": return .COMPARISON
+	case "nonfiltering": return .NONFILTERING
+	}
+	return .FILTERING
 }
 
 shader_canonical_string :: proc(raw: string) -> bool {
