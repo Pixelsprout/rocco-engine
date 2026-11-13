@@ -54,11 +54,14 @@ To try the page, serve the folder from any static web server and open it in
 Chrome:
 
 ```sh
-python3 -m http.server 8000 --directory build/web/08-sound
+python3 -m http.server 8000 --bind 127.0.0.1 --directory build/web/08-sound
 ```
 
-A page opened from a `file://` URL cannot load `index.data`, so it needs a
-server.
+Then open http://127.0.0.1:8000. A browser gives WebGPU only to a page from
+`localhost`, `127.0.0.1` or an `https://` address. Without `--bind`, the
+server prints `http://[::]:8000/`, and that address gets no WebGPU. A page
+opened from a `file://` URL cannot load `index.data`, so it needs a server
+too.
 
 ## Upload to itch.io
 
