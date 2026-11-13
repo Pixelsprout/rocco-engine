@@ -17,7 +17,7 @@ foreign libc {
 	libc_free :: proc(ptr: rawptr) ---
 }
 
-// Odin reserves the link name main, so platform/web/main.c calls this. On
+// Odin reserves the link name main, so scripts/web/main.c calls this. On
 // emscripten sapp.run starts the requestAnimationFrame loop and returns, so
 // this returns while the game runs.
 @(export, link_name = "rocco_web_main")

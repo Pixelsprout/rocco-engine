@@ -6,7 +6,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from web_package import exported_global, link_problems, shift_asm_consts, write_zip
+from web_package import exported_global, link_problems, page_files, shift_asm_consts, write_zip
 
 
 def leb(n):
@@ -98,6 +98,14 @@ class ShiftAsmConstsTest(unittest.TestCase):
 
     def test_a_loader_with_no_asm_consts_stays_the_same(self):
         self.assertEqual(shift_asm_consts('a = 1;\n', 100), 'a = 1;\n')
+
+
+class PageFilesTest(unittest.TestCase):
+    def test_lists_the_page_files_that_exist_in_load_order(self):
+        with tempfile.TemporaryDirectory() as page:
+            for file in ['index.wasm', 'index.html', 'index.data.js', 'index.js']:
+                open(os.path.join(page, file), 'w').close()
+            self.assertEqual(page_files(page), ['index.html', 'index.js', 'index.wasm', 'index.data.js'])
 
 
 class WriteZipTest(unittest.TestCase):

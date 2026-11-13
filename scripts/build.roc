@@ -639,7 +639,7 @@ web_game_run = |name| {
 
 # The path from examples/<name> back to the repository root.
 web_root_from : Str -> Str
-web_root_from = |name| Str.join_with(List.repeat("..", Str.split_on(name, "/").len() + 1), "/")
+web_root_from = |name| Str.join_with(List.repeat("..", name.split_on("/").len() + 1), "/")
 
 web_package_run : Target, Str -> Run
 web_package_run = |target, name| {

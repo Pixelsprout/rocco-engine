@@ -28,10 +28,7 @@ stem :: os.stem
 write :: os.write
 write_entire_file :: os.write_entire_file
 
-eprint :: fmt.eprint
-eprintf :: fmt.eprintf
 eprintfln :: fmt.eprintfln
 eprintln :: fmt.eprintln
-printf :: fmt.printf
 printfln :: fmt.printfln
 println :: fmt.println

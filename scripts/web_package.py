@@ -4,7 +4,7 @@
 
 <page dir> must hold the index.wasm that `roc build --target=wasm32` wrote.
 The script adds the prebuilt page and loader from platform/targets/wasm32,
-packs <game dir>/assets into index.data, and zips the page with index.html
+packs <game dir>/assets, if there is one, into index.data, and zips the page with index.html
 at the top. Run it from the repository root with emcc on PATH.
 """
 
@@ -156,13 +156,23 @@ def write_zip(zip_path, page_dir, files):
             z.write(os.path.join(page_dir, file), file)
 
 
+def page_files(page_dir):
+    return [file for file in PAGE_FILES if os.path.exists(os.path.join(page_dir, file))]
+
+
+# A game with no assets folder gets no index.data, as a native game finds no
+# folder. The page always loads index.data.js, so that file is written empty.
 def pack_assets(game_dir, page_dir):
-    assets = os.path.join(game_dir, 'assets')
-    packager = os.path.join(os.path.dirname(shutil.which('emcc')), 'tools', 'file_packager')
+    assets = os.path.join(os.path.abspath(game_dir), 'assets')
+    for file in ['index.data', 'index.data.js']:
+        if os.path.exists(os.path.join(page_dir, file)):
+            os.remove(os.path.join(page_dir, file))
     if not os.path.isdir(assets):
-        raise SystemExit(f'web_package: {assets} does not exist')
+        open(os.path.join(page_dir, 'index.data.js'), 'w').close()
+        return
+    packager = os.path.join(os.path.dirname(shutil.which('emcc')), 'tools', 'file_packager')
     subprocess.run(
-        [packager, 'index.data', '--preload', f'{os.path.abspath(assets)}@/assets', '--js-output=index.data.js'],
+        [packager, 'index.data', '--preload', f'{assets}@/assets', '--js-output=index.data.js'],
         cwd=page_dir,
         check=True,
         stdout=subprocess.DEVNULL,
@@ -188,7 +198,7 @@ def main(game_dir, page_dir, zip_name):
     shutil.copy(os.path.join(TARGET, 'index.html'), os.path.join(page_dir, 'index.html'))
     pack_assets(game_dir, page_dir)
     zip_path = os.path.join(page_dir, zip_name)
-    write_zip(zip_path, page_dir, PAGE_FILES)
+    write_zip(zip_path, page_dir, page_files(page_dir))
     print(f'== ready: {page_dir}, {zip_path}')
     return 0
 

@@ -34,10 +34,10 @@ The command writes `build/web/08-sound/`:
 | --- | --- |
 | `index.html` | The page. It checks for WebGPU, then loads the two scripts. |
 | `index.data.js` | The loader for `index.data`. |
-| `index.data` | Every file in the game's `assets/` folder. |
+| `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
 | `index.js` | emscripten's loader for the wasm. |
 | `index.wasm` | The engine and your game. |
-| `08-sound-web.zip` | The five files above, with `index.html` at the top. |
+| `08-sound-web.zip` | The files above, with `index.html` at the top. |
 
 The first web build also builds the web host into `platform/targets/wasm32/`,
 which takes about a minute. That host is a debug build. For a smaller and

@@ -240,13 +240,7 @@ lookup_env :: proc(name: string, allocator: runtime.Allocator) -> (string, bool)
 
 // emscripten sends fd 1 to Module.print and fd 2 to Module.printErr, and it
 // writes a line when it sees the newline.
-eprint :: proc(args: ..any, sep := " ") -> int {
-	return fmt.wprint(fd_writer(STDERR), ..args, sep = sep)
-}
 
-eprintf :: proc(format: string, args: ..any) -> int {
-	return fmt.wprintf(fd_writer(STDERR), format, ..args)
-}
 
 eprintfln :: proc(format: string, args: ..any) -> int {
 	return fmt.wprintf(fd_writer(STDERR), format, ..args, newline = true)
@@ -256,9 +250,6 @@ eprintln :: proc(args: ..any, sep := " ") -> int {
 	return fmt.wprintln(fd_writer(STDERR), ..args, sep = sep)
 }
 
-printf :: proc(format: string, args: ..any) -> int {
-	return fmt.wprintf(fd_writer(STDOUT), format, ..args)
-}
 
 printfln :: proc(format: string, args: ..any) -> int {
 	return fmt.wprintf(fd_writer(STDOUT), format, ..args, newline = true)
