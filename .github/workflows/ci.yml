@@ -309,11 +309,23 @@ jobs:
           path: spikes/web-link/build/page/
           if-no-files-found: error
 
-      # The web host build checks that the engine builds for wasm32, and
+      # The release web host goes into the candidate SDK as the wasm32 target.
+      - name: Build the web host
+        run: sh scripts/toolchain.sh run roc scripts/build.roc web-host --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-target-wasm32
+          path: platform/targets/wasm32/
+          if-no-files-found: error
+
       # web_package.py checks that each game links against the host's loader.
-      # surface has custom shader packs.
+      # surface has custom shader packs, which need the pinned sokol-shdc.
       - name: Build games for the web
+        env:
+          ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc
         run: |
+          python3 scripts/shader_contract/install.py
           sh scripts/toolchain.sh run roc scripts/build.roc web tutorial/08-sound
           sh scripts/toolchain.sh run roc scripts/build.roc web surface
 
@@ -358,7 +370,7 @@ jobs:
           git diff --exit-code
 
   candidate-sdk:
-    needs: [macos, linux, windows]
+    needs: [macos, linux, windows, web]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -395,6 +407,10 @@ jobs:
         with:
           name: candidate-target-x64win
           path: platform/targets/x64win
+      - uses: actions/download-artifact@v5
+        with:
+          name: candidate-target-wasm32
+          path: platform/targets/wasm32
 
       - name: Bundle the draft-PR candidate and external fixture
         run: python3 scripts/candidate_sdk.py "$RUNNER_TEMP/candidate-sdk"
