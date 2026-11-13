@@ -62,6 +62,9 @@ if touches '\.odin$'; then
 		spikes/web-link/host | spikes/web-arenas/host) targets=freestanding_wasm32 ;;
 		# Only build.sh adds the generated ABI file. The CI web job builds it.
 		spikes/web-pong/host) targets= ;;
+		# These packages compile only inside the engine slice that
+		# spikes/web-ui/build.sh writes. The CI web job builds it.
+		spikes/web-ui/*) targets= ;;
 		# wasm32 builds take the heap arenas, so check that target too.
 		engine/arenas) targets="$targets freestanding_wasm32" ;;
 		esac

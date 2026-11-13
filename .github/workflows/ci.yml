@@ -279,7 +279,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # The UI page compiles sokol's C sources and links clay's wasm object.
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       # The runner context is not available in a job-level env.
       - name: Read the emsdk pin
@@ -318,6 +321,17 @@ jobs:
       # The page build checks the 32-bit asserts of engine/roc_platform_abi.odin.
       - name: Build the wasm32 pong page
         run: sh scripts/toolchain.sh run sh spikes/web-pong/build.sh
+
+      - name: Build the WebGPU UI page
+        run: |
+          python3 scripts/shader_contract/install.py
+          sh scripts/toolchain.sh run sh spikes/web-ui/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-ui-page
+          path: spikes/web-ui/build/page/
+          if-no-files-found: error
 
   generated:
     runs-on: ubuntu-24.04
