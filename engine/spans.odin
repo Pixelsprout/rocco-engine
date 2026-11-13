@@ -2,9 +2,9 @@ package engine
 
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:strings"
 import "core:time"
+import "system"
 
 SPANS :: #config(ROCCO_SPANS, false)
 SPANS_CSV_ENV :: "ROCCO_SPANS_CSV"
@@ -71,10 +71,10 @@ when SPANS {
 // Exits the process when the settings and the build disagree, so a bench run
 // cannot end with no CSV and the sink cannot grow during a run.
 spans_csv_from_env :: proc(exit_after_frames: int) -> string {
-	path := os.get_env(SPANS_CSV_ENV, context.temp_allocator)
+	path := system.get_env(SPANS_CSV_ENV, context.temp_allocator)
 	if problem := spans_env_problem(SPANS, path, exit_after_frames); problem != "" {
-		fmt.eprintln(problem)
-		os.exit(1)
+		system.eprintln(problem)
+		system.exit(1)
 	}
 	return path
 }
@@ -170,9 +170,9 @@ span_cost_us :: proc(sink: ^Span_Sink) -> f64 {
 }
 
 // Writes nothing in a build without Spans.
-span_sink_write :: proc(sink: ^Span_Sink) -> os.Error {
+span_sink_write :: proc(sink: ^Span_Sink) -> system.Error {
 	when SPANS {
-		return os.write_entire_file(sink.path, span_csv(span_rows(sink), sink.cost_us, context.temp_allocator))
+		return system.write_entire_file(sink.path, span_csv(span_rows(sink), sink.cost_us, context.temp_allocator))
 	} else {
 		return nil
 	}

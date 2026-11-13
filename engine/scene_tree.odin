@@ -1,8 +1,8 @@
 package engine
 
-import "core:fmt"
 import "core:math/linalg"
 import "core:mem"
+import "system"
 
 POSE_IDENTITY :: Pose {
 	rot = 1,
@@ -287,7 +287,7 @@ pairing_build :: proc(p: ^Pairing, nodes: []Node) {
 	tree_walk_attached(&walk)
 	if p.draws_seen > p.capacity && !p.over_capacity_logged {
 		p.over_capacity_logged = true
-		fmt.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
+		system.eprintfln("a Scene has %v draws; the pairing map allocates past %v", p.draws_seen, p.capacity)
 	}
 }
 
@@ -302,7 +302,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		if g.id in p.groups {
 			if !p.group_duplicate_logged {
 				p.group_duplicate_logged = true
-				fmt.eprintfln("two groups share id %v; the first one pairs", g.id)
+				system.eprintfln("two groups share id %v; the first one pairs", g.id)
 			}
 			walk.group_unpaired = true
 			return
@@ -310,7 +310,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		if len(p.groups) == p.group_capacity {
 			if !p.groups_full_logged {
 				p.groups_full_logged = true
-				fmt.eprintfln("a Scene has more than %v groups; the host pairs the first %v", p.group_capacity, p.group_capacity)
+				system.eprintfln("a Scene has more than %v groups; the host pairs the first %v", p.group_capacity, p.group_capacity)
 			}
 			walk.group_unpaired = true
 			return
@@ -327,7 +327,7 @@ pairing_add :: #force_inline proc(p: ^Pairing, d: ^Draw, parent: Parent_Id, pare
 	if d.id in p.draws {
 		if d.id not_in p.logged {
 			p.logged[d.id] = {}
-			fmt.eprintfln("two draws share id %v; the first one pairs", d.id)
+			system.eprintfln("two draws share id %v; the first one pairs", d.id)
 		}
 		return
 	}

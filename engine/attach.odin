@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:hash"
 import "core:math/linalg"
 import "core:strings"
+import "system"
 
 // Why an Attach has no Joint to place its children at.
 Attach_Miss :: enum u8 {
@@ -122,7 +123,7 @@ attach_log :: proc(logged: ^map[Joint_Log_Key]struct {}, config: ^Attach_Config,
 		return
 	}
 	logged[key] = {}
-	fmt.eprintln(attach_message(config, m, miss))
+	system.eprintln(attach_message(config, m, miss))
 }
 
 // In the temp allocator.

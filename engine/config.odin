@@ -2,9 +2,9 @@ package engine
 
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:strconv"
 import "core:strings"
+import "system"
 
 SEED_ENV :: "ROCCO_SEED"
 DEBUG_CAMERA_ENV :: "ROCCO_DEBUG_CAMERA"
@@ -15,11 +15,11 @@ DEFAULT_ASSETS :: "assets"
 
 // Exits the process on a bad value, so a typo cannot change the run silently.
 seed_from_env :: proc() -> u64 {
-	value := os.get_env(SEED_ENV, context.temp_allocator)
+	value := system.get_env(SEED_ENV, context.temp_allocator)
 	seed, ok := seed_parse(value)
 	if !ok {
-		fmt.eprintfln("%v must be an unsigned 64-bit integer, got %q", SEED_ENV, value)
-		os.exit(1)
+		system.eprintfln("%v must be an unsigned 64-bit integer, got %q", SEED_ENV, value)
+		system.exit(1)
 	}
 	return seed
 }
@@ -35,21 +35,21 @@ seed_parse :: proc(value: string) -> (seed: u64, ok: bool) {
 }
 
 debug_camera_from_env :: proc() -> bool {
-	return os.get_env(DEBUG_CAMERA_ENV, context.temp_allocator) == "1"
+	return system.get_env(DEBUG_CAMERA_ENV, context.temp_allocator) == "1"
 }
 
 alloc_report_from_env :: proc() -> bool {
-	return os.get_env(ALLOC_REPORT_ENV, context.temp_allocator) == "1"
+	return system.get_env(ALLOC_REPORT_ENV, context.temp_allocator) == "1"
 }
 
 no_gamepads_from_env :: proc() -> bool {
-	return os.get_env(NO_GAMEPADS_ENV, context.temp_allocator) == "1"
+	return system.get_env(NO_GAMEPADS_ENV, context.temp_allocator) == "1"
 }
 
 assets_dir_from_env :: proc() -> string {
 	command_line := platform_command_line(context.temp_allocator)
 	program := command_line[0] if len(command_line) > 0 else ""
-	return assets_dir_from(os.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
+	return assets_dir_from(system.get_env(ASSETS_ENV, context.temp_allocator), program, context.temp_allocator)
 }
 
 // ROCCO_ASSETS wins; otherwise the assets sit beside the program. roc run sets
@@ -59,7 +59,7 @@ assets_dir_from :: proc(assets, program: string, allocator: mem.Allocator) -> st
 	if assets != "" {
 		return strings.clone(assets, allocator)
 	}
-	dir, _ := os.split_path(program)
+	dir, _ := system.split_path(program)
 	if dir == "" {
 		return strings.clone(DEFAULT_ASSETS, allocator)
 	}

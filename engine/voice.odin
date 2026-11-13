@@ -2,6 +2,7 @@ package engine
 
 import "core:fmt"
 import "core:mem"
+import "system"
 
 Voice_Use :: enum u8 {
 	Free,
@@ -76,13 +77,13 @@ voice_take :: proc(pool: ^Voice_Pool, use: Voice_Use) -> (index: int, ok: bool) 
 		if !ok {
 			if !pool.no_play_logged {
 				pool.no_play_logged = true
-				fmt.eprintfln("all %v voices hold Speakers; a Play plays nothing", len(pool.voices))
+				system.eprintfln("all %v voices hold Speakers; a Play plays nothing", len(pool.voices))
 			}
 			return 0, false
 		}
 		if !pool.steal_logged {
 			pool.steal_logged = true
-			fmt.eprintfln("all %v voices are in use; a Play takes the voice of the oldest Play", len(pool.voices))
+			system.eprintfln("all %v voices are in use; a Play takes the voice of the oldest Play", len(pool.voices))
 		}
 		// voice_release pushes the index, so this pops it again.
 		voice_release(pool, index)
@@ -110,7 +111,7 @@ voice_start :: proc(pool: ^Voice_Pool, index: int, engine: ^Ma_Engine, sound: ^S
 	if result != MA_SUCCESS {
 		if !pool.failed_logged {
 			pool.failed_logged = true
-			fmt.eprintfln("a voice did not start: %v; playing nothing", ma_result_description(result))
+			system.eprintfln("a voice did not start: %v; playing nothing", ma_result_description(result))
 		}
 		voice_free(pool, index)
 		return false
@@ -131,7 +132,7 @@ voice_set :: proc(pool: ^Voice_Pool, index: int, gain, pitch: f32, at: Place) {
 	if !(pitch > 0) {
 		if !pool.pitch_logged {
 			pool.pitch_logged = true
-			fmt.eprintfln("a pitch of %v is not above 0; playing at 1", pitch)
+			system.eprintfln("a pitch of %v is not above 0; playing at 1", pitch)
 		}
 		rate = 1
 	}

@@ -1,7 +1,7 @@
 package engine
 
 import "core:math"
-import "core:os"
+import "system"
 
 CAMERA_SPEED :: f32(4.0)
 CAMERA_SENSITIVITY :: f32(0.0025)
@@ -25,7 +25,7 @@ camera_init :: proc(c: ^Debug_Camera) {
 	c.near = 0.001
 	c.yaw = 0
 	c.pitch = 0
-	c.sweep = os.get_env(CAMERA_SWEEP_ENV, context.temp_allocator) == "1"
+	c.sweep = system.get_env(CAMERA_SWEEP_ENV, context.temp_allocator) == "1"
 }
 
 camera_basis :: proc(c: ^Debug_Camera) -> (forward, right, up: [3]f32) {

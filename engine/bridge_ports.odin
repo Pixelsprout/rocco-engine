@@ -1,8 +1,8 @@
 package engine
 
-import "core:fmt"
 import "core:mem"
 import "core:strings"
+import "system"
 
 // Counts the port names and the messages. A tell past it queues nothing.
 BRIDGE_PORTS_MAX_BYTES :: 4 * 1024 * 1024
@@ -76,7 +76,7 @@ bridge_ports_deliver :: proc(p: ^Bridge_Ports, queries: []Query) -> Roc_List(Por
 		if bridge_ports_listened(queries, m.port) {
 			append(&rows, Port_Message{port = roc_str_from_slice(m.port), msg = roc_str_from_slice(m.msg)})
 		} else if m.port not_in p.dropped {
-			fmt.eprintfln("the port %q has no Listen, so its messages are dropped", m.port)
+			system.eprintfln("the port %q has no Listen, so its messages are dropped", m.port)
 			p.dropped[strings.clone(m.port, p.allocator)] = true
 		}
 		bridge_ports_free(p, m)

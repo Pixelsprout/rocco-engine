@@ -1,7 +1,7 @@
 package engine
 
 import sg "../sokol-odin/sokol/gfx"
-import "core:fmt"
+import "system"
 
 POST_TARGET_IMAGES :: 4 + 2 * 3
 POST_TARGET_VIEWS :: 4 * 2 + 2 * 5
@@ -125,5 +125,5 @@ renderer_post :: proc(ctx: rawptr, effects: []Resolved_Post, location: Post_Loca
 }
 
 renderer_post_log :: proc(r: ^Renderer, reason: string) {
-	if !r.target.post.failed_logged { r.target.post.failed_logged = true; fmt.eprintfln("Post: %v; effect skipped", reason) }
+	if !r.target.post.failed_logged { r.target.post.failed_logged = true; system.eprintfln("Post: %v; effect skipped", reason) }
 }

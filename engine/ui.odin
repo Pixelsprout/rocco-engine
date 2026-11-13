@@ -2,10 +2,10 @@ package engine
 
 import clay "../clay/bindings/odin/clay-odin"
 import "base:runtime"
-import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:slice"
+import "system"
 
 // A u16 index reaches every vertex of a full buffer of this many quads, so
 // the Launch check caps capacity.ui_quads here.
@@ -566,15 +566,15 @@ ui_repair :: proc(ui: ^Ui, repair: Ui_Repair) {
 	ui.repairs_logged += {repair}
 	switch repair {
 	case .Bad_Char:
-		fmt.eprintfln("a Text has a character outside ASCII %v to %v; the host draws ?", FONT_FIRST, FONT_LAST)
+		system.eprintfln("a Text has a character outside ASCII %v to %v; the host draws ?", FONT_FIRST, FONT_LAST)
 	case .Quad_Cap:
-		fmt.eprintfln("a Scene's ui needs more than %v quads; the host drops the rest", len(ui.quads))
+		system.eprintfln("a Scene's ui needs more than %v quads; the host drops the rest", len(ui.quads))
 	case .Duplicate_Id:
-		fmt.eprintln("two Panels in a Scene's ui share an id; the host hit tests only the first")
+		system.eprintln("two Panels in a Scene's ui share an id; the host hit tests only the first")
 	case .Scroll_Without_Id:
-		fmt.eprintln("a Scroll Panel has id 0; the host scrolls it but lists no sizes for it")
+		system.eprintln("a Scroll Panel has id 0; the host scrolls it but lists no sizes for it")
 	case .Empty_Region:
-		fmt.eprintln("an Image Panel shows an empty region; the host draws no Image for it")
+		system.eprintln("an Image Panel shows an empty region; the host draws no Image for it")
 	}
 }
 
@@ -610,6 +610,6 @@ ui_error_cb :: proc "c" (data: clay.ErrorData) {
 	context = runtime.default_context()
 	ui := (^Ui)(data.userData)
 	if ui_error_mark_logged(ui, data.errorType) {
-		fmt.eprintfln("clay %v: %s", data.errorType, string(data.errorText.chars[:data.errorText.length]))
+		system.eprintfln("clay %v: %s", data.errorType, string(data.errorText.chars[:data.errorText.length]))
 	}
 }

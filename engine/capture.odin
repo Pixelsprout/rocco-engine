@@ -3,8 +3,8 @@ package engine
 import "core:fmt"
 import "core:io"
 import "core:mem"
-import "core:os"
 import "core:strings"
+import "system"
 
 CAPTURE_ENV :: "ROCCO_CAPTURE_CSV"
 CAPTURE_LABELS_ENV :: "ROCCO_CAPTURE_LABELS"
@@ -59,15 +59,15 @@ Capture_Sink :: struct {
 
 capture_problem :: proc(path: string, frames: int, mode: Run_Mode, bridge, debug_camera, debug_diagnostic: bool) -> string {
 	if path == "" { return "debug-camera capture requires a capture path" if debug_diagnostic else "" }
-	if !os.is_absolute_path(path) { return "capture path must be absolute" }
+	if !system.is_absolute_path(path) { return "capture path must be absolute" }
 	if frames <= 0 || frames > CAPTURE_MAX_FRAMES { return "capture requires a frame limit from 1 through 30000" }
 	if mode != .Real_Clock || bridge { return "capture requires Real_Clock without Bridge" }
 	if debug_camera && !debug_diagnostic { return "debug camera capture requires ROCCO_CAPTURE_DEBUG_CAMERA=1" }
 	if debug_diagnostic && !debug_camera { return "ROCCO_CAPTURE_DEBUG_CAMERA=1 requires ROCCO_DEBUG_CAMERA=1" }
 	for suffix in ([]string{"", ".commands.jsonl", ".meta.json"}) {
-		file, err := os.open(fmt.tprintf("%s%s", path, suffix), {.Read})
+		file, err := system.open(fmt.tprintf("%s%s", path, suffix), {.Read})
 		if err == nil {
-			_ = os.close(file)
+			_ = system.close(file)
 			return "capture output already exists"
 		}
 		if err != .Not_Exist { return "capture output path is unavailable" }
@@ -116,17 +116,17 @@ capture_frame_end :: proc(c: ^Capture_Sink, after: u64, steps: int, alpha: f32, 
 	append(&c.rows, c.row)
 }
 
-capture_write_new :: proc(path, data: string) -> os.Error {
-	file, err := os.open(path, {.Write, .Create, .Excl})
+capture_write_new :: proc(path, data: string) -> system.Error {
+	file, err := system.open(path, {.Write, .Create, .Excl})
 	if err != nil { return err }
-	n, write_err := os.write(file, transmute([]u8)data)
-	close_err := os.close(file)
+	n, write_err := system.write(file, transmute([]u8)data)
+	close_err := system.close(file)
 	if write_err != nil { return write_err }
-	if n != len(data) { return os.Error(io.Error.Short_Write) }
+	if n != len(data) { return system.Error(io.Error.Short_Write) }
 	return close_err
 }
 
-capture_sink_write :: proc(c: ^Capture_Sink, s: ^State) -> os.Error {
+capture_sink_write :: proc(c: ^Capture_Sink, s: ^State) -> system.Error {
 	if !c.on { return nil }
 	b := strings.builder_make(context.temp_allocator)
 	strings.write_string(&b, "frame,steps,step_before,step_after,prev_step,alpha,width,height,dpi,start_tick,commit_start_tick,commit_end_tick,delta_seconds,applied_seconds,clamped_seconds,eye_x,eye_y,eye_z,target_x,target_y,target_z,fov_y,pass_count,begin_pass_ticks,drawable_ticks\n")

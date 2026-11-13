@@ -2,9 +2,8 @@ package engine
 
 import sg "../sokol-odin/sokol/gfx"
 import "core:crypto/sha2"
-import "core:fmt"
 import "core:mem"
-import "core:os"
+import "system"
 
 // Every cache image is immutable 2D, one slice, one sample, with no storage or attachment flags.
 Texture_Image_Key :: struct {
@@ -144,8 +143,8 @@ texture_gpu_create_sampler :: proc(_: rawptr, s: Texture_Sampler) -> (sampler: s
 texture_gpu_destroy_sampler :: proc(_: rawptr, sampler: sg.Sampler) { sg.destroy_sampler(sampler) }
 
 texture_cache_report :: proc(c: ^Texture_Cache) {
-	if value, _ := os.lookup_env("ROCCO_TEXTURE_CACHE_REPORT", context.temp_allocator); value != "1" { return }
+	if value, _ := system.lookup_env("ROCCO_TEXTURE_CACHE_REPORT", context.temp_allocator); value != "1" { return }
 	ordinary, cutoff: int
 	for key in c.entries { if key.cutoff_bits == 0 { ordinary += 1 } else { cutoff += 1 } }
-	fmt.eprintfln("texture_cache live_images=%v references=%v hits=%v unique_payload_bytes=%v referenced_payload_bytes=%v native_allocated_bytes=%v ordinary_images=%v cutoff_images=%v", len(c.entries), c.references, c.hits, c.unique_payload_bytes, c.referenced_payload_bytes, texture_cache_native_bytes(c), ordinary, cutoff)
+	system.eprintfln("texture_cache live_images=%v references=%v hits=%v unique_payload_bytes=%v referenced_payload_bytes=%v native_allocated_bytes=%v ordinary_images=%v cutoff_images=%v", len(c.entries), c.references, c.hits, c.unique_payload_bytes, c.referenced_payload_bytes, texture_cache_native_bytes(c), ordinary, cutoff)
 }

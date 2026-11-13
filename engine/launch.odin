@@ -117,6 +117,11 @@ msaa_sample_count :: proc(samples: Msaa) -> i32 {
 	return 1
 }
 
+// WebGPU takes only 1 or 4 samples per pixel.
+msaa_webgpu :: proc(samples: Msaa) -> Msaa {
+	return .Off if samples == .Off else .X4
+}
+
 // Check the array dimensions before allocating shadow resources.
 launch_device_check :: proc(launch: Launch, max_size, max_layers: i32) -> (field, rule: string, ok: bool) {
 	if i64(launch.shadow_map) > i64(max_size) {

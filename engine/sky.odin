@@ -4,9 +4,9 @@ import sg "../sokol-odin/sokol/gfx"
 import "arenas"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import "core:strings"
+import "system"
 
 // The reserved slot and one sky.
 SKY_CAPACITY_MIN :: 2
@@ -175,9 +175,9 @@ sky_resolve :: proc(t: ^Sky_Table, id: u32) -> (sky: ^Sky, ok: bool) {
 		t.logged[id] = {}
 		stale := slot >= 1 && slot < len(t.skies) && id >> MESH_SLOT_BITS != u32(t.skies[slot].generation)
 		if stale {
-			fmt.eprintfln("sky id %v is from an unloaded pack; drawing no sky", id)
+			system.eprintfln("sky id %v is from an unloaded pack; drawing no sky", id)
 		} else {
-			fmt.eprintfln("sky id %v is not in the table; drawing no sky", id)
+			system.eprintfln("sky id %v is not in the table; drawing no sky", id)
 		}
 	}
 	return nil, false
@@ -201,10 +201,10 @@ sky_view :: proc(t: ^Sky_Table, sky: u32, blend: Sky_Blend) -> (view: Sky_View, 
 // sky/<dir> for each directory in dir, sorted. A directory with a missing
 // face is listed, and fails when a Load asks for it.
 sky_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
-	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
+	entries, err := system.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil {
 		if err != .Not_Exist {
-			fmt.eprintfln("cannot read %v: %v; no sky can load from it", dir, os.error_string(err))
+			system.eprintfln("cannot read %v: %v; no sky can load from it", dir, system.error_string(err))
 		}
 		return nil
 	}
@@ -234,9 +234,9 @@ sky_load_dir :: proc(t: ^Sky_Table, dir, name: string) -> (id: u32, reason: stri
 	faces: [len(SKY_FACES)][]byte
 	for face, i in SKY_FACES {
 		path := fmt.tprintf("%v/%v/%v.png", dir, stem, face)
-		bytes, read_err := os.read_entire_file(path, context.temp_allocator)
+		bytes, read_err := system.read_entire_file(path, context.temp_allocator)
 		if read_err != nil {
-			return 0, strings.clone(fmt.tprintf("%v: %v", path, os.error_string(read_err)), caller_temp), false
+			return 0, strings.clone(fmt.tprintf("%v: %v", path, system.error_string(read_err)), caller_temp), false
 		}
 		width, height, rgba, decoded := png_decode(bytes)
 		if !decoded {

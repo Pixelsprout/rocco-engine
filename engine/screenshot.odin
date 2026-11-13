@@ -2,7 +2,7 @@ package engine
 
 import "core:fmt"
 import "core:math"
-import "core:os"
+import "system"
 
 // Reads the target that the last Frame drew and saves it at path, in
 // physical pixels. Only a windowed run has a target.
@@ -26,8 +26,8 @@ screenshot_write :: proc(path: string, size: [2]i32, rgba: []byte) -> (error: st
 		rgba[i] = 255
 	}
 	png := png_encode(int(size.x), int(size.y), rgba, allocator = context.temp_allocator)
-	if err := os.write_entire_file(path, png); err != nil {
-		return fmt.tprintf("the host cannot write %q: %v", path, os.error_string(err))
+	if err := system.write_entire_file(path, png); err != nil {
+		return fmt.tprintf("the host cannot write %q: %v", path, system.error_string(err))
 	}
 	return ""
 }

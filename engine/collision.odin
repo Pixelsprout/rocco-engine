@@ -1,9 +1,9 @@
 package engine
 
-import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:slice"
+import "system"
 
 // Two box edges whose cross product is shorter than this squared are near
 // parallel. Their face axes already test the gap such an axis would.
@@ -331,7 +331,7 @@ query_slot_claim :: proc(search: ^Query_Search, asked: ^map[Owner_Slot]struct {}
 	if key in asked {
 		if key not_in search.logged_slots {
 			search.logged_slots[key] = {}
-			fmt.eprintfln("two queries share owner %v and slot %v; the first one is answered", key.owner, key.slot)
+			system.eprintfln("two queries share owner %v and slot %v; the first one is answered", key.owner, key.slot)
 		}
 		return false
 	}
@@ -742,7 +742,7 @@ shapes_make :: proc(search: ^Query_Search, colliders: []Collider, allocator: mem
 		if !ok {
 			if !search.logged_capsule {
 				search.logged_capsule = true
-				fmt.eprintfln("collider %v is a capsule; queries skip capsules", col.id)
+				system.eprintfln("collider %v is a capsule; queries skip capsules", col.id)
 			}
 			continue
 		}
@@ -750,7 +750,7 @@ shapes_make :: proc(search: ^Query_Search, colliders: []Collider, allocator: mem
 		if slots[slot] != 0 {
 			if col.id not_in search.logged_ids {
 				search.logged_ids[col.id] = {}
-				fmt.eprintfln("two colliders share id %v; the first one collides", col.id)
+				system.eprintfln("two colliders share id %v; the first one collides", col.id)
 			}
 			continue
 		}

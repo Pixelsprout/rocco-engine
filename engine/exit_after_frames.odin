@@ -1,18 +1,17 @@
 package engine
 
-import "core:fmt"
-import "core:os"
 import "core:strconv"
+import "system"
 
 EXIT_AFTER_FRAMES_ENV :: "ROCCO_EXIT_AFTER_FRAMES"
 
 // Exits the process on a bad value so a CI typo fails instead of running forever.
 exit_after_frames_from_env :: proc() -> int {
-	value := os.get_env(EXIT_AFTER_FRAMES_ENV, context.temp_allocator)
+	value := system.get_env(EXIT_AFTER_FRAMES_ENV, context.temp_allocator)
 	limit, ok := exit_after_frames_parse(value)
 	if !ok {
-		fmt.eprintfln("%v must be a positive integer, got %q", EXIT_AFTER_FRAMES_ENV, value)
-		os.exit(1)
+		system.eprintfln("%v must be a positive integer, got %q", EXIT_AFTER_FRAMES_ENV, value)
+		system.exit(1)
 	}
 	return limit
 }

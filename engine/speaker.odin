@@ -1,7 +1,7 @@
 package engine
 
-import "core:fmt"
 import "core:mem"
+import "system"
 
 // Long enough that a stopped Speaker does not click.
 SPEAKER_FADE_MS :: 5
@@ -171,7 +171,7 @@ speaker_pair :: proc(p: ^Speaker_Pairing, speaker: Speaker) {
 	if speaker.id in p.curr_index {
 		if speaker.id not_in p.logged {
 			p.logged[speaker.id] = {}
-			fmt.eprintfln("two Speakers share id %v; the first one plays", speaker.id)
+			system.eprintfln("two Speakers share id %v; the first one plays", speaker.id)
 		}
 		return
 	}
@@ -220,7 +220,7 @@ speaker_start :: proc(audio: ^Audio, entry: ^Speaker_Voice) {
 	if !taken {
 		if !audio.speakers.wait_logged {
 			audio.speakers.wait_logged = true
-			fmt.eprintfln("all %v voices are in use; a new Speaker waits silent for a free voice", len(audio.voices.voices))
+			system.eprintfln("all %v voices are in use; a new Speaker waits silent for a free voice", len(audio.voices.voices))
 		}
 		return
 	}

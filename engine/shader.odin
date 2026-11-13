@@ -5,9 +5,9 @@ import "arenas"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import "core:strings"
+import "system"
 
 SHADER_ASSET_LIMIT :: 32
 SHADER_PIPELINE_LIMIT :: 63
@@ -73,10 +73,10 @@ shader_lookup :: proc(t: ^Shader_Table, id: u32) -> (^Shader, bool) { slot := me
 shader_table_find :: proc(t: ^Shader_Table, name: string) -> (u32, bool) { for s, i in t.assets { if s.live && s.name == name { return shader_id(t, i), true } }; return 0, false }
 
 shader_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
-	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
+	entries, err := system.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil { return nil }
 	names := make([dynamic]string, 0, len(entries), allocator)
-	for e in entries { if e.type != .Directory && os.ext(e.name) == ".shaderpack" && shader_identifier(os.stem(e.name)) { append(&names, strings.concatenate({SHADER_PREFIX, os.stem(e.name)}, allocator)) } }
+	for e in entries { if e.type != .Directory && system.ext(e.name) == ".shaderpack" && shader_identifier(system.stem(e.name)) { append(&names, strings.concatenate({SHADER_PREFIX, system.stem(e.name)}, allocator)) } }
 	slice.sort(names[:]); return names[:]
 }
 
@@ -94,18 +94,18 @@ shader_load_file_scoped :: proc(t: ^Shader_Table, dir, name: string) -> (id: u32
 	if shader_table_full(t) { return 0, "Shader asset capacity exhausted", false }
 	file, err := shader_open_file(fmt.tprintf("%v/%v.shaderpack", dir, strings.trim_prefix(name, SHADER_PREFIX)))
  if err != nil { return 0, "cannot open Shader asset", false }
- defer os.close(file)
- size, size_error := os.file_size(file)
+ defer system.close(file)
+ size, size_error := system.file_size(file)
  if size_error != nil || size < SHADER_HEADER_SIZE || size > SHADER_HEADER_SIZE + SHADER_METADATA_LIMIT + SHADER_PAYLOAD_LIMIT { return 0, "invalid Shader asset file size", false }
  bytes := make([]byte, int(size), t.allocator)
  read := 0
  for read < len(bytes) {
-  n, error := os.read(file, bytes[read:])
+  n, error := system.read(file, bytes[read:])
   read += n
   if n == 0 || error != nil { delete(bytes, t.allocator); return 0, "truncated Shader asset", false }
  }
  extra: [1]byte
- if n, _ := os.read(file, extra[:]); n != 0 { delete(bytes, t.allocator); return 0, "Shader asset changed while reading", false }
+ if n, _ := system.read(file, extra[:]); n != 0 { delete(bytes, t.allocator); return 0, "Shader asset changed while reading", false }
 	pkg, error, parsed := shader_package_parse(bytes, t.allocator)
 	if !parsed { delete(bytes, t.allocator); return 0, error, false }
 	for &s, slot in t.assets {
@@ -192,8 +192,8 @@ shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
 	}
 	defer if !s.ready {
 		s.failed = true; shader_gpu_destroy(s)
-		if s.staged { fmt.eprintfln("Shader %q candidate failed GPU validation", s.name) }
-		else { fmt.eprintfln("Shader %q failed GPU validation; affected parts are omitted", s.name) }
+		if s.staged { system.eprintfln("Shader %q candidate failed GPU validation", s.name) }
+		else { system.eprintfln("Shader %q failed GPU validation; affected parts are omitted", s.name) }
 	}
  for declaration in shader_array(shader_interface(s)["textures"]) {
   d := shader_object(declaration)
@@ -201,13 +201,13 @@ shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
    caps := sg.query_pixelformat(.RGBA32F)
    policy := shader_object(d["sampler_policy"])
    filtering := shader_text(policy["min"]) == "linear" || shader_text(policy["mag"]) == "linear"
-   if !caps.sample || filtering && !caps.filter { fmt.eprintfln("Shader %q needs unsupported RGBA32F constant sampling",s.name);return false }
+   if !caps.sample || filtering && !caps.filter { system.eprintfln("Shader %q needs unsupported RGBA32F constant sampling",s.name);return false }
   }
  }
 	root := shader_object(s.package_data.manifest)
 	for b in shader_array(root["shaders"]) {
 		obj := shader_object(b); if shader_text(obj["slang"]) != backend { continue }
-		for program in shader_array(obj["programs"]) { p := shader_object(program); if reason := shader_device_check(p); reason != "" { fmt.eprintfln("Shader %q %v: %v", s.name, shader_text(p["name"]), reason); return false } }
+		for program in shader_array(obj["programs"]) { p := shader_object(program); if reason := shader_device_check(p); reason != "" { system.eprintfln("Shader %q %v: %v", s.name, shader_text(p["name"]), reason); return false } }
 		for program in shader_array(obj["programs"]) {
 			p := shader_object(program); index := shader_program_index(shader_text(p["name"]))
 			handle := shader_make_program(&s.package_data, p); s.programs[index] = {p, handle}

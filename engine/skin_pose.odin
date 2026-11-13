@@ -1,7 +1,7 @@
 package engine
 
-import "core:fmt"
 import "core:math/linalg"
+import "system"
 
 // No feet turns Grounding off.
 Skin_Ground :: struct {
@@ -62,7 +62,7 @@ skin_ground :: proc(t: ^Mesh_Table, m: ^Mesh, ground: Skin_Ground, out: []Mat4) 
 			key := joint_log_key(ground.draw, name)
 			if key not_in t.feet_logged {
 				t.feet_logged[key] = {}
-				fmt.eprintfln("draw id %v names foot %q, but mesh %q has no such Joint; its Joints are %v", ground.draw, name, m.name, skin_joint_names(&m.skin))
+				system.eprintfln("draw id %v names foot %q, but mesh %q has no such Joint; its Joints are %v", ground.draw, name, m.name, skin_joint_names(&m.skin))
 			}
 			continue
 		}
@@ -88,7 +88,7 @@ skin_clip :: proc(t: ^Mesh_Table, m: ^Mesh, id: u32) -> (clip: ^Clip, ok: bool) 
 	}
 	if id not_in t.clips_logged {
 		t.clips_logged[id] = {}
-		fmt.eprintfln("clip id %v is not a Clip of mesh %q; drawing the bind pose", id, m.name)
+		system.eprintfln("clip id %v is not a Clip of mesh %q; drawing the bind pose", id, m.name)
 	}
 	return nil, false
 }

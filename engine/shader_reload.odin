@@ -5,25 +5,25 @@ import "arenas"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:time"
+import "system"
 
 shader_read_file :: proc(path: string, allocator: mem.Allocator, limit: int) -> ([]byte, bool) {
 	file, err := shader_open_file(path)
 	if err != nil { return nil, false }
-	defer os.close(file)
-	size, size_error := os.file_size(file)
+	defer system.close(file)
+	size, size_error := system.file_size(file)
 	if size_error != nil || size < 0 || size > i64(limit) { return nil, false }
 	bytes := make([]byte, int(size), allocator)
 	read := 0
 	for read < len(bytes) {
-		n, error := os.read(file, bytes[read:]); read += n
+		n, error := system.read(file, bytes[read:]); read += n
 		if n == 0 || error != nil { delete(bytes, allocator); return nil, false }
 	}
 	extra: [1]byte
-	if n, _ := os.read(file, extra[:]); n != 0 { delete(bytes, allocator); return nil, false }
+	if n, _ := system.read(file, extra[:]); n != 0 { delete(bytes, allocator); return nil, false }
 	return bytes, true
 }
 
@@ -92,6 +92,8 @@ packs_shader_requested :: proc(p: ^Packs) -> bool {
 }
 
 packs_shader_reload_poll :: proc(p: ^Packs) {
+	// A page's preloaded files never change.
+	when ODIN_OS == .Freestanding { return }
 	if !packs_shader_requested(p) { return }
 	if p.shader_polled && time.tick_since(p.shader_poll_at) < 250*time.Millisecond { return }
 	p.shader_poll_at = time.tick_now(); p.shader_polled = true
@@ -128,7 +130,7 @@ packs_shader_reload :: proc(p: ^Packs) {
 	retry := false
 	for &s in p.shaders.assets {
 		if s.live && s.declared && !seen[s.name] {
-			fmt.eprintfln("Shader %q declaration removed or renamed; rebuild the game and restart; keeping the last valid generation", s.name)
+			system.eprintfln("Shader %q declaration removed or renamed; rebuild the game and restart; keeping the last valid generation", s.name)
 		}
 	}
 	for asset in assets {
@@ -144,7 +146,7 @@ packs_shader_reload :: proc(p: ^Packs) {
 			key := fmt.tprintf("reload:%v", name)
 			if key not_in p.logged_full {
 				p.logged_full[strings.clone(key, p.allocator)] = {}
-				fmt.eprintfln("Shader %q reload staging capacity exhausted; keeping the last valid generation and retrying", name)
+				system.eprintfln("Shader %q reload staging capacity exhausted; keeping the last valid generation and retrying", name)
 			}
 			retry = true; continue
 		}
@@ -154,18 +156,18 @@ packs_shader_reload :: proc(p: ^Packs) {
 		slot, reason := shader_candidate_stage(&p.shaders, name, bytes, active)
 		if slot == 0 {
 			delete(bytes, p.allocator)
-			fmt.eprintfln("Shader %q reload rejected: %v; keeping the last valid generation", name, reason)
+			system.eprintfln("Shader %q reload rejected: %v; keeping the last valid generation", name, reason)
 			continue
 		}
 		if !shader_candidate_validate(&p.shaders, &p.shaders.assets[slot], active) {
 			shader_candidate_destroy(&p.shaders, slot)
-			fmt.eprintfln("Shader %q reload GPU or pipeline validation failed; keeping the last valid generation", name)
+			system.eprintfln("Shader %q reload GPU or pipeline validation failed; keeping the last valid generation", name)
 			continue
 		}
 		id = shader_candidate_publish(&p.shaders, slot, mesh_slot(id) if found else 0)
 		published, _ := shader_lookup(&p.shaders, id); published.declared = true
 		packs_shader_hold_requests(p, name, id)
-		fmt.eprintfln("Shader %q reloaded", name)
+		system.eprintfln("Shader %q reloaded", name)
 	}
 	if !retry { p.shader_revision = revision; p.shader_revision_set = true }
 }

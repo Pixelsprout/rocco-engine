@@ -2,8 +2,8 @@ package engine
 
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:strings"
+import "system"
 
 import "base:runtime"
 
@@ -90,7 +90,7 @@ alloc_report_print :: proc(r: Alloc_Report) {
 	line := strings.builder_make(context.temp_allocator)
 	strings.write_string(&line, "alloc ")
 	alloc_report_write(&line, r, "%v=%v", " ")
-	fmt.println(strings.to_string(line))
+	system.println(strings.to_string(line))
 }
 
 // Writes the alloc line's fields in order, each with field_format, such as
@@ -128,7 +128,7 @@ roc_alloc :: proc "c" (length: uint, alignment: uint) -> rawptr {
 	size := roc_heap_header_size(int(alignment))
 	bytes, err := mem.alloc_bytes_non_zeroed(size + int(length), max(int(alignment), align_of(int)), g_roc_heap.backing)
 	if err != nil {
-		fmt.printfln("roc_alloc failed: %v", err)
+		system.printfln("roc_alloc failed: %v", err)
 		return nil
 	}
 	return roc_heap_header_write(raw_data(bytes), size, int(length))
@@ -157,7 +157,7 @@ roc_realloc :: proc "c" (ptr: rawptr, new_length: uint, alignment: uint) -> rawp
 		g_roc_heap.backing,
 	)
 	if err != nil {
-		fmt.printfln("roc_realloc failed: %v", err)
+		system.printfln("roc_realloc failed: %v", err)
 		return nil
 	}
 	return roc_heap_header_write(base, header.size, int(new_length))
@@ -195,7 +195,7 @@ roc_dbg :: proc "c" (bytes: [^]u8, length: uint) {
 	msg := string(bytes[:length])
 
 	// stderr, so the checks that read Frame Count from stdout never see it.
-	fmt.eprintfln("dbg: %v", msg)
+	system.eprintfln("dbg: %v", msg)
 }
 
 @(export, link_name = "roc_expect_failed")
@@ -204,7 +204,7 @@ roc_expect_failed :: proc "c" (bytes: [^]u8, length: uint) {
 
 	msg := string(bytes[:length])
 
-	fmt.printfln("expect failed: %v", msg)
+	system.printfln("expect failed: %v", msg)
 }
 
 @(export, link_name = "roc_crashed")
@@ -213,7 +213,7 @@ roc_crashed :: proc "c" (bytes: [^]u8, length: uint) {
 
 	msg := string(bytes[:length])
 
-	fmt.printfln("crashed: %v", msg)
+	system.printfln("crashed: %v", msg)
 
-	os.exit(1) // prevents undefined behavior
+	system.exit(1) // prevents undefined behavior
 }

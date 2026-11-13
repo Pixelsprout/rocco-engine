@@ -1,6 +1,6 @@
 package engine
 
-import "core:fmt"
+import "system"
 import sg "../sokol-odin/sokol/gfx"
 
 Particle_Gpu :: struct {
@@ -61,7 +61,7 @@ particle_image_resolve :: proc(images: ^Image_Table, id: u32) -> (image: ^Image,
 	if resolved, found := image_lookup(images, id); found { return resolved, true }
 	if id not_in images.logged {
 		images.logged[id] = {}
-		fmt.eprintfln("Particle Image id %v is missing or unloaded; omitting its particles", id)
+		system.eprintfln("Particle Image id %v is missing or unloaded; omitting its particles", id)
 	}
 	return nil, false
 }

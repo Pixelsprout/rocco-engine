@@ -1,11 +1,11 @@
 package engine
 
 import "arenas"
-import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
 import "core:slice"
+import "system"
 
 SCENE_NEAR :: f32(0.1)
 
@@ -279,7 +279,7 @@ frame_render_camera :: proc(fr: ^Frame_Render, prev, curr: Scene, alpha, aspect:
 	if v3_length(v3_cross(pose.target - pose.eye, pose.up)) < UP_EPSILON {
 		if !fr.up_fallback_logged {
 			fr.up_fallback_logged = true
-			fmt.eprintfln("the Scene camera's up %v is zero or along its view; using +y", pose.up)
+			system.eprintfln("the Scene camera's up %v is zero or along its view; using +y", pose.up)
 		}
 		pose.up = UP
 	}
@@ -343,11 +343,11 @@ frame_render_draw :: proc(
 	tree_walk_attached(&walk)
 	if frame_walk.part_draws_seen > fr.draw_capacity && !fr.draws_logged {
 		fr.draws_logged = true
-		fmt.eprintfln("a Scene's Draws need %v mesh part draws; the host draws the first %v", frame_walk.part_draws_seen, fr.draw_capacity)
+		system.eprintfln("a Scene's Draws need %v mesh part draws; the host draws the first %v", frame_walk.part_draws_seen, fr.draw_capacity)
 	}
 	if frame_walk.skin_blocks_seen > len(fr.skins) && !fr.skinned_logged {
 		fr.skinned_logged = true
-		fmt.eprintfln("a Scene has %v skinned draws, which need %v skin blocks; the host draws the ones that fit in %v", frame_walk.skinned_seen, frame_walk.skin_blocks_seen, len(fr.skins))
+		system.eprintfln("a Scene has %v skinned draws, which need %v skin blocks; the host draws the ones that fit in %v", frame_walk.skinned_seen, frame_walk.skin_blocks_seen, len(fr.skins))
 	}
 	gathered := &frame_walk.lights
 	lights := gathered.frame
@@ -905,21 +905,21 @@ light_drop :: proc(fr: ^Frame_Render, reason: Light_Drop) {
 	fr.lights_logged += {reason}
 	switch reason {
 	case .Second_Ambient:
-		fmt.eprintln("a Scene has a second ambient light; the host uses the first")
+		system.eprintln("a Scene has a second ambient light; the host uses the first")
 	case .Second_Sun:
-		fmt.eprintln("a second directional light sets shadow; it lights but casts no shadow")
+		system.eprintln("a second directional light sets shadow; it lights but casts no shadow")
 	case .Zero_Dir:
-		fmt.eprintln("a directional light has a zero dir; the host drops it")
+		system.eprintln("a directional light has a zero dir; the host drops it")
 	case .Bad_Range:
-		fmt.eprintln("a point light has a nonfinite range or a range <= 0; the host drops it")
+		system.eprintln("a point light has a nonfinite range or a range <= 0; the host drops it")
 	case .Bad_Point:
-		fmt.eprintln("a point light has a nonfinite position; the host drops it")
+		system.eprintln("a point light has a nonfinite position; the host drops it")
 	case .Directional_Over_Limit:
-		fmt.eprintfln("a Scene has more than %v directional lights; the host keeps the Sun and the first remaining lights", MAX_DIRECTIONALS)
+		system.eprintfln("a Scene has more than %v directional lights; the host keeps the Sun and the first remaining lights", MAX_DIRECTIONALS)
 	case .Points_Over_Limit:
-		fmt.eprintfln("a Scene has more than %v point lights; the host keeps the first lights", MAX_POINT_LIGHTS)
+		system.eprintfln("a Scene has more than %v point lights; the host keeps the first lights", MAX_POINT_LIGHTS)
 	case .Cluster_Over_Limit:
-		fmt.eprintfln("a cluster has more than %v point lights; the host keeps the nearest lights to its centre", CLUSTER_LIGHT_LIMIT)
+		system.eprintfln("a cluster has more than %v point lights; the host keeps the nearest lights to its centre", CLUSTER_LIGHT_LIMIT)
 	}
 }
 
