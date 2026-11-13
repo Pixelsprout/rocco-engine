@@ -103,25 +103,25 @@ All integers use little-endian encoding.
 The fixed header contains 96 bytes.
 The manifest immediately follows the header.
 The source payload immediately follows the manifest.
-Version 1 has no compression, trailing data, native pointers, or host enum numbers.
+Format 2 has no compression, trailing data, native pointers, or host enum numbers.
 
 | Offset | Size | Field | Required value |
 | --- | --- | --- | --- |
 | 0 | 8 | Magic | ASCII `RCSHADER` |
-| 8 | 2 | Format version | `1` |
+| 8 | 2 | Format version | `2` |
 | 10 | 2 | Platform contract version | `1` |
 | 12 | 4 | Header bytes | `96` |
 | 16 | 4 | Manifest bytes | At most 1,048,576 |
 | 20 | 4 | Source payload bytes | At most 16,777,216 |
 | 24 | 4 | Flags | `0` |
-| 28 | 4 | Backend mask | `7`: GL bit 0, D3D bit 1, Metal bit 2 |
+| 28 | 4 | Backend mask | `15`: GL bit 0, D3D bit 1, Metal bit 2, WGSL bit 3 |
 | 32 | 32 | Interface fingerprint | SHA-256 described below |
 | 64 | 32 | Content checksum | SHA-256 of manifest followed by source payload |
 
 The manifest uses UTF-8 JSON without whitespace.
 Object keys use sorted order.
 Numbers must be finite.
-Version 1 uses the reference `canonical()` encoding for hashes.
+The format uses the reference `canonical()` encoding for hashes.
 Future encoders must reproduce those bytes.
 
 The manifest records the compiler commit, backend transform, declarations, and each backend's reflected programs.
@@ -131,6 +131,9 @@ Offsets address the source payload.
 Sources use UTF-8 without embedded NUL bytes.
 The loader adds a NUL terminator when an API requires one.
 The package does not store compiler output paths.
+The manifest lists the backends in the order `glsl430`, `hlsl5`, `metal_macos`, `wgsl`.
+WGSL binds each uniform block in group 0 at its slot.
+WGSL binds each texture and storage buffer in group 1 at its slot, and each sampler in group 1 at 32 plus its slot.
 
 The fingerprint covers declarations and each backend's program names, attributes, blocks, views, samplers, and texture/sampler pairs.
 It includes parameter types, scopes, offsets, defaults, texture roles, Post inputs, Post locations, and displacement bounds.
@@ -139,6 +142,8 @@ A source edit can therefore preserve the fingerprint.
 A declaration or binding change requires a game rebuild and restart.
 
 Reject an unknown version, backend mask, flag, checksum, fingerprint, or resource requirement before creating GPU objects.
+Format 1 packages hold no WGSL backend.
+The runtime rejects them with a message to rebuild them with the current shader tools.
 Check lengths with overflow-safe arithmetic before allocating or reading sections.
 Reject truncated packages and trailing bytes.
 Validate every source range and UTF-8 string.
@@ -514,6 +519,8 @@ All Post images use physical output pixels.
 The shader receives pixel size and simulation render time through engine Post data.
 The wrapper supplies UVs that address the same physical pixel across all four inputs on each backend.
 GL and Metal/D3D image origins require the generated wrapper's UV conversion.
+Scene depth and selection depth reflect as `unfilterable_float` with `nonfiltering` samplers on every backend, because WebGPU cannot filter R32F.
+The engine samples every Post input with a nearest sampler.
 Depth stays in the engine's 0–1 reversed projection range.
 Convert GL clip depth before producing that image.
 

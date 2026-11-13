@@ -18,7 +18,7 @@ sys.path.insert(0, str(TOOLS))
 from declarations import BuildError, Document, encode_parameter, validate
 from helpers import mesh_materials
 from build import write_changed
-from package import HEADER, canonical, digest, fingerprint, parse_reflection, validate_reflection
+from package import BACKEND_MASK, FORMAT, HEADER, canonical, digest, fingerprint, parse_reflection, validate_reflection
 
 EXAMPLE = ROOT / "scripts/shader_assets/example"
 SHDC = os.environ.get("ROCCO_SHDC") or shutil.which("sokol-shdc")
@@ -64,7 +64,7 @@ class OutputTests(unittest.TestCase):
 def decode(path):
     data = path.read_bytes()
     magic, version, contract, size, metadata_size, payload_size, flags, mask, interface, checksum = HEADER.unpack_from(data)
-    assert (magic, version, contract, size, flags, mask) == (b"RCSHADER", 1, 1, 96, 0, 7)
+    assert (magic, version, contract, size, flags, mask) == (b"RCSHADER", FORMAT, 1, 96, 0, BACKEND_MASK)
     assert len(data) == size + metadata_size + payload_size
     assert digest(data[size:]) == checksum
     manifest = json.loads(data[size:size + metadata_size])
@@ -186,7 +186,7 @@ class PublishedCompilerTests(unittest.TestCase):
     def test_external_build_is_repeatable_and_has_all_resources_and_passes(self):
         self.run_build()
         manifest, payload = decode(self.out / "Foliage.shaderpack")
-        self.assertEqual([s["slang"] for s in manifest["shaders"]], ["glsl430", "hlsl5", "metal_macos"])
+        self.assertEqual([s["slang"] for s in manifest["shaders"]], ["glsl430", "hlsl5", "metal_macos", "wgsl"])
         for backend in manifest["shaders"]:
             self.assertEqual(len(backend["programs"]), 9)
             for program in backend["programs"]:
@@ -206,6 +206,9 @@ class PublishedCompilerTests(unittest.TestCase):
                     self.assertEqual([b["slot"] for b in storage], [12, 13, 14])
                     if backend["slang"] == "glsl430":
                         self.assertEqual([b["glsl_binding_n"] for b in storage], [0, 1, 2])
+                    if backend["slang"] == "wgsl":
+                        self.assertEqual([b["wgsl_group1_binding_n"] for b in storage], [12, 13, 14])
+                        self.assertEqual({s["wgsl_group1_binding_n"] - s["slot"] for s in program["samplers"]}, {32})
         post, _ = decode(self.out / "Outline.shaderpack")
         self.assertEqual([p["name"] for p in post["shaders"][0]["programs"]], ["post_hdr", "post_ldr"])
         files = {p.relative_to(self.game): p.read_bytes() for p in self.game.rglob("*") if p.is_file()}
@@ -302,6 +305,20 @@ class PublishedCompilerTests(unittest.TestCase):
         post, _ = decode(self.out / "Outline.shaderpack")
         self.assertEqual([p["name"] for p in post["shaders"][0]["programs"]], ["post_ldr"])
 
+    def test_r32f_post_inputs_are_unfilterable_on_every_backend(self):
+        self.run_build()
+        manifest, _ = decode(self.out / "Outline.shaderpack")
+        for backend in manifest["shaders"]:
+            for program in backend["programs"]:
+                textures = {v["texture"]["name"]: v["texture"] for v in program["views"] if "texture" in v}
+                samplers = {s["slot"]: s["sampler_type"] for s in program["samplers"]}
+                for name in ("scene_depth", "selection_depth"):
+                    self.assertEqual(textures[name]["sample_type"], "unfilterable_float", backend["slang"])
+                    self.assertEqual(samplers[textures[name]["slot"]], "nonfiltering", backend["slang"])
+                for name in ("scene_colour", "selection_coverage"):
+                    self.assertEqual(textures[name]["sample_type"], "float", backend["slang"])
+                    self.assertEqual(samplers[textures[name]["slot"]], "filtering", backend["slang"])
+
     def test_unsupported_reflection_is_rejected(self):
         self.run_build()
         reflection = parse_reflection((self.out / "Foliage.sources/compiled_reflection.yaml").read_text())
@@ -314,6 +331,14 @@ class PublishedCompilerTests(unittest.TestCase):
                        lambda p: p["views"][0]["texture"].update(slot=15)):
             changed = copy.deepcopy(reflection)
             mutate(changed["shaders"][0]["programs"][0])
+            with self.assertRaises(BuildError):
+                validate_reflection(changed, declaration, contract)
+        wgsl = [s["slang"] for s in reflection["shaders"]].index("wgsl")
+        for mutate in (lambda p: p["uniform_blocks"][0].update(wgsl_group0_binding_n=7),
+                       lambda p: p["views"][0]["texture"].update(wgsl_group1_binding_n=40),
+                       lambda p: p["samplers"][0].update(wgsl_group1_binding_n=p["samplers"][0]["slot"])):
+            changed = copy.deepcopy(reflection)
+            mutate(changed["shaders"][wgsl]["programs"][0])
             with self.assertRaises(BuildError):
                 validate_reflection(changed, declaration, contract)
 

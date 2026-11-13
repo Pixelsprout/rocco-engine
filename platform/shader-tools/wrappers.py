@@ -8,6 +8,9 @@ DEFAULTS = {
     "surface": "void rocco_surface(inout Surface surface, SurfaceInput data) {}",
     "lighting": "vec3 rocco_lighting(Lighting data) { return (data.diffuse + data.specular) * data.radiance * (clamp(dot(data.normal, data.direction), 0.0, 1.0) * data.attenuation); }",
 }
+# The depth inputs are R32F, which WebGPU cannot filter. The engine samples
+# every Post input with a nearest sampler, so no backend loses a filter.
+UNFILTERABLE_INPUTS = ("scene_depth", "selection_depth")
 POST_VERTEX = '''out vec2 v_uv;
 void main() {
     vec2 p = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2));
@@ -146,6 +149,8 @@ class Composer:
         inputs = ("scene_colour", "scene_depth", "selection_coverage", "selection_depth")
         for name in self.declaration["inputs"]:
             slot = inputs.index(name)
+            if name in UNFILTERABLE_INPUTS:
+                self.append(f"@image_sample_type {name} unfilterable_float\n@sampler_type {name}_smp nonfiltering")
             self.append(f"layout(binding={slot}) uniform texture2D {name};\nlayout(binding={slot}) uniform sampler {name}_smp;\nvec4 sample_{name}(vec2 uv) {{ return texture(sampler2D({name}, {name}_smp), uv); }}")
         self.template("post.glsl", {}, {"@@POST_HOOK@@": "post"})
         self.append("@end")

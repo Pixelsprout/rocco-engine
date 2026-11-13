@@ -65,6 +65,9 @@ if touches '\.odin$'; then
 		# These packages compile only inside the engine slice that
 		# spikes/web-ui/build.sh writes. The CI web job builds it.
 		spikes/web-ui/*) targets= ;;
+		# These name the engine through the slice collection, which
+		# spikes/web-lit/build.sh sets. The CI web job builds the page.
+		spikes/web-lit/*) targets= ;;
 		# wasm32 builds take the heap arenas, so check that target too.
 		engine/arenas) targets="$targets freestanding_wasm32" ;;
 		esac

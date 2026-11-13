@@ -35,6 +35,15 @@ class CompactShaderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compact_odin(text)
 
+    def test_generated_shaders_embed_wgsl_for_every_program(self):
+        for path in ('engine/shader_basic.odin', 'engine/shader_particles.odin'):
+            text = Path(path).read_text()
+            metal = re.findall(r'(\w+)_source_metal_macos := ', text)
+            wgsl = re.findall(r'(\w+)_source_wgsl := ', text)
+            self.assertTrue(metal)
+            self.assertEqual(sorted(wgsl), sorted(metal), path)
+            self.assertIn('case .WGPU:', text)
+
 
 if __name__ == '__main__':
     unittest.main()

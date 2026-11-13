@@ -123,8 +123,10 @@ layout(binding = 2) uniform fs_lights {
 };
 
 struct Point { vec4 pos; vec4 color; };
-struct Cluster { uvec4 range; };
-struct LightIndices { uvec4 ids; };
+// Cluster and LightIndices share a member name. The WGSL compile merges
+// structs with the same layout and then cannot find a second member name.
+struct Cluster { uvec4 lanes; };
+struct LightIndices { uvec4 lanes; };
 layout(binding = 12) readonly buffer engine_points { Point points[]; };
 layout(binding = 13) readonly buffer engine_clusters { Cluster clusters[]; };
 layout(binding = 14) readonly buffer engine_indices { LightIndices indices[]; };
@@ -329,7 +331,7 @@ vec4 surface_color(bool premultiplied) {
     ivec2 xy = clamp(ivec2(tile), ivec2(0), ivec2(15, 8));
     float depth = max(dot(v_world - camera_pos.xyz, view_dir.xyz), cluster_grid.w);
     int z = clamp(int(log(depth / cluster_grid.w) * cluster_grid.z), 0, 23);
-    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].range;
+    uvec4 cluster = clusters[(z * 9 + xy.y) * 16 + xy.x].lanes;
     float sun_attenuation = 1.0;
     // D3D requires uniform control flow around the comparison samples.
     if (shadow.x > 0.0) {
@@ -349,7 +351,7 @@ vec4 surface_color(bool premultiplied) {
             }
         } else {
             uint at = cluster.x + uint(i - directional_count);
-            uvec4 ids = indices[at / 4u].ids;
+            uvec4 ids = indices[at / 4u].lanes;
             uint id = ids[int(at % 4u)];
             Point point = points[id];
             vec3 to_light = point.pos.xyz - v_world;
@@ -806,9 +808,10 @@ layout(binding = 0) uniform bloom_prefilter_params {
 
 out vec4 frag_color;
 
-// The mean of the HDR texels in a box of cover texels around uv. Each tap is
+// The sum of the HDR texels in a box of cover texels around uv. Each tap is
 // bilinear and reads 2 x 2 texels, so the taps tile the box. textureLod takes
-// no derivatives, so the loops are safe on D3D.
+// no derivatives, so the loops are safe on D3D. The caller divides by the tap
+// count, because a division here stops the WGSL compile.
 vec3 prefilter_box(vec2 uv, vec2 texel, vec2 cover, ivec2 taps) {
     vec3 sum = vec3(0.0);
     for (int y = 0; y < taps.y; y++) {
@@ -817,7 +820,7 @@ vec3 prefilter_box(vec2 uv, vec2 texel, vec2 cover, ivec2 taps) {
             sum += textureLod(sampler2D(bloom_src_tex, bloom_src_smp), uv + offset * texel, 0.0).rgb;
         }
     }
-    return sum / float(taps.x * taps.y);
+    return sum;
 }
 
 // The 13 taps of bloom_down_13, each a box of the HDR texels under one mip 0
@@ -847,7 +850,7 @@ void main() {
     vec3 k = prefilter_box(uv + t * vec2( 1.0, -1.0), texel, cover, taps);
     vec3 l = prefilter_box(uv + t * vec2(-1.0,  1.0), texel, cover, taps);
     vec3 m = prefilter_box(uv + t * vec2( 1.0,  1.0), texel, cover, taps);
-    vec3 mean = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+    vec3 mean = (e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125) / float(taps.x * taps.y);
     float brightness = max(mean.r, max(mean.g, mean.b));
     float soft = clamp(brightness - threshold + knee, 0.0, 2.0 * knee);
     soft = soft * soft / (4.0 * knee + 1e-4);
