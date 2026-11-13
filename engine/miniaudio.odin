@@ -20,15 +20,19 @@ when ODIN_OS == .Darwin {
 	} else {
 		foreign import miniaudio "../build/miniaudio/miniaudio_windows_x64_release.lib"
 	}
+} else when ODIN_OS == .Freestanding {
+	// The web prebuild links miniaudio into the host object.
+	foreign import miniaudio "env.o"
 }
 
 MA_SUCCESS :: Ma_Result(0)
 MA_FORMAT_F32 :: 5
 // scripts/miniaudio/rocco_miniaudio.c sets the defines that these layouts
 // depend on, such as MA_NO_RESOURCE_MANAGER, and asserts the same sizes.
-MA_ENGINE_SIZE :: 1352
-MA_SOUND_SIZE :: 1016
-MA_AUDIO_BUFFER_REF_SIZE :: 112
+// The second size of each is for wasm32.
+MA_ENGINE_SIZE :: 1352 when size_of(rawptr) == 8 else 1040
+MA_SOUND_SIZE :: 1016 when size_of(rawptr) == 8 else 784
+MA_AUDIO_BUFFER_REF_SIZE :: 112 when size_of(rawptr) == 8 else 96
 MA_ATTENUATION_MODEL_LINEAR :: 2
 MA_POSITIONING_ABSOLUTE :: 0
 
@@ -115,9 +119,9 @@ Ma_Decoder_Config :: struct {
 	custom_backend_user_data: rawptr,
 }
 
-#assert(size_of(Ma_Resampler_Config) == 48)
-#assert(size_of(Ma_Engine_Config) == 256)
-#assert(size_of(Ma_Decoder_Config) == 144)
+#assert(size_of(Ma_Resampler_Config) == (48 when size_of(rawptr) == 8 else 32))
+#assert(size_of(Ma_Engine_Config) == (256 when size_of(rawptr) == 8 else 164))
+#assert(size_of(Ma_Decoder_Config) == (144 when size_of(rawptr) == 8 else 92))
 
 @(default_calling_convention = "c")
 foreign miniaudio {

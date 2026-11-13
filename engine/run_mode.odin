@@ -1,7 +1,6 @@
 package engine
 
-import "core:fmt"
-import "core:os"
+import "system"
 
 LOCKSTEP_ENV :: "ROCCO_LOCKSTEP"
 HEADLESS_ENV :: "ROCCO_HEADLESS"
@@ -21,19 +20,19 @@ run_mode_from_env :: proc(exit_after_frames: int, bridge: bool) -> Run_Mode {
 	headless := run_switch_from_env(HEADLESS_ENV)
 	mode, ok := run_mode_make(lockstep, headless, exit_after_frames, bridge)
 	if !ok {
-		fmt.eprintfln("%v=1 needs %v or %v, so the run ends", HEADLESS_ENV, EXIT_AFTER_FRAMES_ENV, BRIDGE_ENV)
-		os.exit(1)
+		system.eprintfln("%v=1 needs %v or %v, so the run ends", HEADLESS_ENV, EXIT_AFTER_FRAMES_ENV, BRIDGE_ENV)
+		system.exit(1)
 	}
 	return mode
 }
 
 @(private = "file")
 run_switch_from_env :: proc(name: string) -> bool {
-	value := os.get_env(name, context.temp_allocator)
+	value := system.get_env(name, context.temp_allocator)
 	on, ok := run_switch_parse(value)
 	if !ok {
-		fmt.eprintfln("%v must be 0 or 1, got %q", name, value)
-		os.exit(1)
+		system.eprintfln("%v must be 0 or 1, got %q", name, value)
+		system.exit(1)
 	}
 	return on
 }

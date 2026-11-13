@@ -4,10 +4,11 @@ import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
 import "core:math"
 import "core:strings"
+import "system"
 
 surface_log :: proc(p: ^Packs, draw: u64, reason: string) {
 	key := fmt.tprintf("surface:%v:%v", draw, reason)
-	if key not_in p.logged_assets { p.logged_assets[strings.clone(key, p.allocator)] = {}; fmt.eprintfln("Draw %v Surface: %v; affected parts are omitted", draw, reason) }
+	if key not_in p.logged_assets { p.logged_assets[strings.clone(key, p.allocator)] = {}; system.eprintfln("Draw %v Surface: %v; affected parts are omitted", draw, reason) }
 }
 surface_asset :: proc(p: ^Packs, reference: ^Shader_Asset) -> (Held_Asset, bool) { return pack_asset_lookup(p, roc_str_string(&reference.pack), roc_str_string(&reference.asset)) }
 surface_slot_valid :: proc(p: ^Packs, slot: ^Material_Slot, d: ^Draw, m: ^Mesh) -> bool {

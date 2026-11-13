@@ -3,11 +3,10 @@ package engine
 import sapp "../sokol-odin/sokol/app"
 import "core:fmt"
 import "core:mem"
-import "core:net"
-import "core:os"
 import "core:strconv"
 import "core:strings"
 import "core:time"
+import "system"
 
 // A Bridge run has vsync off, so a paused window waits this long each Frame
 // instead of drawing as fast as it can.
@@ -78,11 +77,11 @@ Bridge_Pointer :: struct {
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
 // typo cannot produce a normal run.
 bridge_port_from_env :: proc() -> int {
-	value := os.get_env(BRIDGE_ENV, context.temp_allocator)
+	value := system.get_env(BRIDGE_ENV, context.temp_allocator)
 	port, ok := bridge_port_parse(value)
 	if !ok {
-		fmt.eprintfln("%v must be a port from 1 to 65535, got %q", BRIDGE_ENV, value)
-		os.exit(1)
+		system.eprintfln("%v must be a port from 1 to 65535, got %q", BRIDGE_ENV, value)
+		system.exit(1)
 	}
 	return port
 }
@@ -98,7 +97,7 @@ bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
 	return n, true
 }
 
-bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> net.Network_Error {
+bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> Bridge_Open_Error {
 	bridge_transport_open(&b.transport, port, allocator) or_return
 	b.commands = strings.builder_make(allocator)
 	bridge_ports_init(&b.ports, allocator)
@@ -109,8 +108,8 @@ bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> net.Netw
 // A port in use must not start a normal run, so it exits the process.
 bridge_open_or_exit :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) {
 	if err := bridge_open(b, port, allocator); err != nil {
-		fmt.eprintfln("%v=%v: the host cannot listen on 127.0.0.1:%v: %v", BRIDGE_ENV, port, port, err)
-		os.exit(1)
+		system.eprintfln("%v=%v: the host cannot listen on 127.0.0.1:%v: %v", BRIDGE_ENV, port, port, err)
+		system.exit(1)
 	}
 }
 

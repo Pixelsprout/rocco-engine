@@ -34,6 +34,9 @@ host_build :: proc(s: ^State, options: Host_Options, calls: Game_Calls, run_comm
 		packs_destroy(&s.packs)
 		return
 	}
+	when EXPECTED_BACKEND == .WGPU {
+		s.launch.window.samples = msaa_webgpu(s.launch.window.samples)
+	}
 
 	perm := s.mem.perm_allocator
 	capacity := s.launch.capacity

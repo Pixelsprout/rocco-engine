@@ -63,13 +63,13 @@ if touches '\.odin$'; then
 		# Only build.sh adds the generated ABI file. The CI web job builds it.
 		spikes/web-pong/host) targets= ;;
 		# These packages compile only inside the engine slice that
-		# spikes/web-ui/build.sh writes. The CI web job builds it.
+		# spikes/web-ui/build.sh writes. The web host superseded the slice.
 		spikes/web-ui/*) targets= ;;
 		# These name the engine through the slice collection, which
-		# spikes/web-lit/build.sh sets. The CI web job builds the page.
+		# spikes/web-lit/build.sh sets. The web host superseded the slice.
 		spikes/web-lit/*) targets= ;;
-		# wasm32 builds take the heap arenas, so check that target too.
-		engine/arenas) targets="$targets freestanding_wasm32" ;;
+		# The web host builds these for wasm32, so check that target too.
+		engine | engine/arenas | engine/system) targets="$targets freestanding_wasm32" ;;
 		esac
 		for target in $targets; do
 			if [ "$target" = native ]; then

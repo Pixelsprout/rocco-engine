@@ -3,6 +3,7 @@ package engine
 import sg "../sokol-odin/sokol/gfx"
 import "core:fmt"
 import "core:strings"
+import "system"
 
 POST_EFFECT_LIMIT :: 32
 POST_UNIFORM_SLOTS :: 2 * POST_EFFECT_LIMIT
@@ -18,7 +19,7 @@ Post_Params :: struct { viewport, frame: [4]f32, reserved: [6][4]f32 }
 
 post_log :: proc(p: ^Packs, reason: string) {
 	key := fmt.tprintf("Post:%v", reason)
-	if key not_in p.logged_assets { p.logged_assets[strings.clone(key, p.allocator)] = {}; fmt.eprintfln("Post: %v; effect skipped", reason) }
+	if key not_in p.logged_assets { p.logged_assets[strings.clone(key, p.allocator)] = {}; system.eprintfln("Post: %v; effect skipped", reason) }
 }
 
 post_inputs :: proc(s: ^Shader) -> (inputs: Post_Inputs) {

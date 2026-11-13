@@ -27,12 +27,22 @@ sound at its range still plays and the falloff is not linear.
 #undef STB_VORBIS_HEADER_ONLY
 #include "../../miniaudio/extras/stb_vorbis.c"
 
-/* engine/miniaudio.odin declares these layouts. They are equal on the three targets. */
+/* engine/miniaudio.odin declares these layouts. They are equal on the three
+native targets. The web prebuild compiles this file for wasm32. */
+#include <stdint.h>
+#if UINTPTR_MAX == 0xFFFFFFFFu
+_Static_assert(sizeof(ma_engine_config) == 164, "update Ma_Engine_Config in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_decoder_config) == 92, "update Ma_Decoder_Config in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_engine) == 1040, "update MA_ENGINE_SIZE in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_sound) == 784, "update MA_SOUND_SIZE in engine/miniaudio.odin");
+_Static_assert(sizeof(ma_audio_buffer_ref) == 96, "update MA_AUDIO_BUFFER_REF_SIZE in engine/miniaudio.odin");
+#else
 _Static_assert(sizeof(ma_engine_config) == 256, "update Ma_Engine_Config in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_decoder_config) == 144, "update Ma_Decoder_Config in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_engine) == 1352, "update MA_ENGINE_SIZE in engine/miniaudio.odin");
-_Static_assert(_Alignof(ma_engine) == 8, "update the alignment of Ma_Engine in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_sound) == 1016, "update MA_SOUND_SIZE in engine/miniaudio.odin");
-_Static_assert(_Alignof(ma_sound) == 8, "update the alignment of Ma_Sound in engine/miniaudio.odin");
 _Static_assert(sizeof(ma_audio_buffer_ref) == 112, "update MA_AUDIO_BUFFER_REF_SIZE in engine/miniaudio.odin");
+#endif
+_Static_assert(_Alignof(ma_engine) == 8, "update the alignment of Ma_Engine in engine/miniaudio.odin");
+_Static_assert(_Alignof(ma_sound) == 8, "update the alignment of Ma_Sound in engine/miniaudio.odin");
 _Static_assert(_Alignof(ma_audio_buffer_ref) == 8, "update the alignment of Ma_Audio_Buffer_Ref in engine/miniaudio.odin");

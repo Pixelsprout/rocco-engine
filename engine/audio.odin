@@ -2,6 +2,7 @@ package engine
 
 import "core:fmt"
 import "core:mem"
+import "system"
 
 // The mix format when no device chooses one.
 AUDIO_CHANNELS :: 2
@@ -32,7 +33,7 @@ audio_init :: proc(audio: ^Audio, device: bool) {
 			audio.device = true
 			return
 		}
-		fmt.eprintfln("the audio device did not open: %v. The run has no sound.", ma_result_description(result))
+		system.eprintfln("the audio device did not open: %v. The run has no sound.", ma_result_description(result))
 	}
 	// With no device, only a failed allocation fails.
 	result := audio_engine_init(&audio.engine, device = false)

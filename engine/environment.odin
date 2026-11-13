@@ -1,7 +1,7 @@
 package engine
 
-import "core:fmt"
 import "core:math"
+import "system"
 
 // A Fog end at or below its start moves at least this far past the start,
 // so the fog ramp never divides by zero.
@@ -85,5 +85,5 @@ environment_log :: proc(logged: ^bit_set[Environment_Clamp], which: Environment_
 		return
 	}
 	logged^ += {which}
-	fmt.eprintfln(format, ..args)
+	system.eprintfln(format, ..args)
 }

@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:mem"
+import "system"
 
 MESH_SLOT_BITS :: 16
 // A mesh or sky id packs its slot in MESH_SLOT_BITS, so a table holds at most this many slots.
@@ -414,7 +415,7 @@ mesh_table_upload :: proc(t: ^Mesh_Table) {
 	for &m in t.meshes[len(Primitive):t.count] {
 		if m.live {
 			if !mesh_upload_loaded(t, &m) {
-				fmt.eprintfln("mesh %q texture upload failed; drawing without textures", m.name)
+				system.eprintfln("mesh %q texture upload failed; drawing without textures", m.name)
 				mesh_upload(&m, m.data)
 				mesh_data_delete(t, m.data)
 				m.data = {}
@@ -622,11 +623,11 @@ mesh_resolve :: proc(t: ^Mesh_Table, id: u32, draw_id: u64) -> (mesh: ^Mesh, fal
 	if id not_in t.logged {
 		t.logged[id] = {}
 		if id == 0 {
-			fmt.eprintfln("mesh id 0 is the fallback; drawing the fallback (first seen on draw id %v)", draw_id)
+			system.eprintfln("mesh id 0 is the fallback; drawing the fallback (first seen on draw id %v)", draw_id)
 		} else if stale {
-			fmt.eprintfln("mesh id %v is from an unloaded pack; drawing the fallback (first seen on draw id %v)", id, draw_id)
+			system.eprintfln("mesh id %v is from an unloaded pack; drawing the fallback (first seen on draw id %v)", id, draw_id)
 		} else {
-			fmt.eprintfln("mesh id %v is not in the table; drawing the fallback (first seen on draw id %v)", id, draw_id)
+			system.eprintfln("mesh id %v is not in the table; drawing the fallback (first seen on draw id %v)", id, draw_id)
 		}
 	}
 	return &t.meshes[Primitive.Fallback], true

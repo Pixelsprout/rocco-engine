@@ -21,6 +21,10 @@ platform ""
 		arm64mac: { inputs: ["libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a", "libclang_rt.osx.a", app] },
 		x64glibc: { inputs: ["Scrt1.o", "crti.o", "libhost.a", "sokol_app.a", "sokol_gfx.a", "sokol_glue.a", "sokol_log.a", "clay.a", "miniaudio.a", app, "libX11.so.6", "libXi.so.6", "libXcursor.so.1", "libGL.so.1", "libc.so.6", "libm.so.6", "crtn.o"] },
 		x64win: { inputs: ["host.lib", "sokol_app.lib", "sokol_gfx.lib", "sokol_glue.lib", "sokol_log.lib", "clay.lib", "miniaudio.lib", app, "ucrtbase.lib", "kernel32.lib", "user32.lib", "gdi32.lib", "shell32.lib", "d3d11.lib", "ws2_32.lib"] },
+		wasm32: {
+			inputs: ["host.o", app],
+			exports: ["__wasm_call_ctors", "main", "__indirect_function_table", "fflush", "emscripten_stack_get_end", "emscripten_stack_get_base", "strerror", "setThrew", "emscripten_stack_init", "emscripten_stack_get_free", "_emscripten_stack_restore", "_emscripten_stack_alloc", "emscripten_stack_get_current", "malloc", "free", "memalign", "__start_em_asm", "__stop_em_asm", "__start_em_js", "__stop_em_js", "__start_em_lib_deps", "__stop_em_lib_deps", "emwgpuCreateAdapter", "emwgpuCreateBindGroup", "emwgpuCreateBindGroupLayout", "emwgpuCreateCommandBuffer", "emwgpuCreateCommandEncoder", "emwgpuCreateComputePassEncoder", "emwgpuCreateComputePipeline", "emwgpuCreateDevice", "emwgpuCreateExternalTexture", "emwgpuCreatePipelineLayout", "emwgpuCreateQuerySet", "emwgpuCreateQueue", "emwgpuCreateRenderBundle", "emwgpuCreateRenderBundleEncoder", "emwgpuCreateRenderPassEncoder", "emwgpuCreateRenderPipeline", "emwgpuCreateSampler", "emwgpuCreateShaderModule", "emwgpuCreateSurface", "emwgpuCreateTexture", "emwgpuCreateTextureView", "emwgpuImportBuffer", "emwgpuOnCompilationInfoCompleted", "emwgpuOnCreateComputePipelineCompleted", "emwgpuOnCreateRenderPipelineCompleted", "emwgpuOnDeviceLostCompleted", "emwgpuOnMapAsyncCompleted", "emwgpuOnPopErrorScopeCompleted", "emwgpuOnRequestAdapterCompleted", "emwgpuOnRequestDeviceCompleted", "emwgpuOnUncapturedError", "emwgpuOnWorkDoneCompleted"],
+		},
 	}
 
 import Vocabulary exposing [Command, Manifest]

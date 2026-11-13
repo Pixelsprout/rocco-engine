@@ -6,9 +6,9 @@ import sglue "../sokol-odin/sokol/glue"
 import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:strings"
 import "core:time"
+import "system"
 
 import "base:runtime"
 
@@ -65,8 +65,8 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 	roc_heap_init(context.allocator)
 	// A bad Launch ends the run, so a typo cannot change the run silently.
 	if field, rule, ok := host_build(&g_state, options, calls, app_run_command); !ok {
-		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
-		os.exit(1)
+		system.eprintfln("Launch.%v %v, so the run ends", field, rule)
+		system.exit(1)
 	}
 
 	if g_state.mode == .Headless {
@@ -84,13 +84,13 @@ app_run :: proc(calls: Game_Calls) -> (err: mem.Allocator_Error) {
 host_options_from_env :: proc(bridge: bool) -> Host_Options {
 	exit_after_frames := exit_after_frames_from_env()
 	mode := run_mode_from_env(exit_after_frames, bridge)
-	capture_csv := os.get_env(CAPTURE_ENV, context.temp_allocator)
+	capture_csv := system.get_env(CAPTURE_ENV, context.temp_allocator)
 	debug_camera := debug_camera_from_env()
-	debug_diagnostic, valid := run_switch_parse(os.get_env(CAPTURE_DEBUG_CAMERA_ENV, context.temp_allocator))
-	if !valid { fmt.eprintfln("%v must be 0 or 1", CAPTURE_DEBUG_CAMERA_ENV); os.exit(1) }
+	debug_diagnostic, valid := run_switch_parse(system.get_env(CAPTURE_DEBUG_CAMERA_ENV, context.temp_allocator))
+	if !valid { system.eprintfln("%v must be 0 or 1", CAPTURE_DEBUG_CAMERA_ENV); system.exit(1) }
 	if problem := capture_problem(capture_csv, exit_after_frames, mode, bridge, debug_camera, debug_diagnostic); problem != "" {
-		fmt.eprintln(problem)
-		os.exit(1)
+		system.eprintln(problem)
+		system.exit(1)
 	}
 	return {
 		capture_csv = capture_csv,
@@ -130,6 +130,7 @@ app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sa
 		event_cb = event_cb,
 		disable_vsync = vsync_off,
 		metal = {disable_display_sync = vsync_off},
+		html5 = {update_document_title = true},
 	}
 }
 
@@ -163,18 +164,18 @@ init_cb :: proc "c" () {
 
 	limits := sg.query_limits()
 	if field, rule, ok := launch_device_check(g_state.launch, limits.max_image_size_array, limits.max_image_array_layers); !ok {
-		fmt.eprintfln("Launch.%v %v, so the run ends", field, rule)
-		os.exit(1)
+		system.eprintfln("Launch.%v %v, so the run ends", field, rule)
+		system.exit(1)
 	}
 	when EXPECTED_BACKEND == .GLCORE {
 		if !launch_gl_check(limits.gl_max_vertex_uniform_components) {
-			fmt.eprintfln("The GL context holds %v vec4 of vertex uniforms, but %v needs %v, so the run ends", limits.gl_max_vertex_uniform_components / 4, LAUNCH_GL_NEED_SHADER, PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4)
-			os.exit(1)
+			system.eprintfln("The GL context holds %v vec4 of vertex uniforms, but %v needs %v, so the run ends", limits.gl_max_vertex_uniform_components / 4, LAUNCH_GL_NEED_SHADER, PACKAGE_SKINNED_VERTEX_UNIFORM_VEC4)
+			system.exit(1)
 		}
 	}
 
 	when ODIN_OS == .Darwin {
-		if g_state.capture.on { g_state.capture.label_passes = os.get_env(CAPTURE_LABELS_ENV, context.temp_allocator) == "1" }
+		if g_state.capture.on { g_state.capture.label_passes = system.get_env(CAPTURE_LABELS_ENV, context.temp_allocator) == "1" }
 	}
 	gpu_timing_app_init()
 
@@ -228,10 +229,10 @@ cleanup_cb :: proc "c" () {
 app_shutdown :: proc() {
 	capture_err := capture_sink_write(&g_state.capture, &g_state)
 	capture_failed := g_state.capture.failed != ""
-	if capture_err != nil || capture_failed { fmt.eprintfln("capture failed: %v %v", capture_err, g_state.capture.failed) }
+	if capture_err != nil || capture_failed { system.eprintfln("capture failed: %v %v", capture_err, g_state.capture.failed) }
 	spans_err := span_sink_write(&g_state.spans)
 	if spans_err != nil {
-		fmt.eprintfln("the Spans CSV did not write: %v", spans_err)
+		system.eprintfln("the Spans CSV did not write: %v", spans_err)
 	}
 	gpu_timing_app_shutdown()
 	bridge_close(&g_state.bridge)
@@ -247,19 +248,19 @@ app_shutdown :: proc() {
 	}
 	memory_shutdown(&g_state.mem)
 
-	fmt.printfln("Frame Count: %v", g_state.frame_count)
+	system.printfln("Frame Count: %v", g_state.frame_count)
 
 	when TRACK_ALLOC {
 		for _, entry in g_track.allocation_map {
-			fmt.eprintfln("LEAK %v bytes at %v", entry.size, entry.location)
+			system.eprintfln("LEAK %v bytes at %v", entry.size, entry.location)
 		}
 		for bad in g_track.bad_free_array {
-			fmt.eprintfln("BAD Free at %v", bad.location)
+			system.eprintfln("BAD Free at %v", bad.location)
 		}
 		mem.tracking_allocator_destroy(&g_track)
 	}
 	if spans_err != nil || capture_err != nil || capture_failed {
-		os.exit(1)
+		system.exit(1)
 	}
 }
 

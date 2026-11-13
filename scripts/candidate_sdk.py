@@ -17,7 +17,7 @@ FIXTURE_FILES = (
 
 
 def candidate(out):
-    for target, host in (('arm64mac', 'libhost.a'), ('x64glibc', 'libhost.a'), ('x64win', 'host.lib')):
+    for target, host in (('arm64mac', 'libhost.a'), ('x64glibc', 'libhost.a'), ('x64win', 'host.lib'), ('wasm32', 'host.o')):
         path = ROOT / 'platform/targets' / target / host
         if not path.is_file():
             raise FileNotFoundError('candidate requires ordinary release target: ' + str(path))

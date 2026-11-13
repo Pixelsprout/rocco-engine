@@ -131,8 +131,35 @@ jobs:
             !platform/targets/x64win/*.pdb
           if-no-files-found: error
 
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Read the emsdk pin
+        run: |
+          grep -E '^ARG EMSDK_VERSION=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+          echo "ROCCO_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
+
+      - name: Install Odin, Roc and emscripten
+        run: |
+          sh scripts/toolchain.sh install
+          sh scripts/toolchain.sh install-emsdk
+
+      - name: Build the web host
+        run: sh scripts/toolchain.sh run roc scripts/build.roc web-host --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-wasm32
+          path: platform/targets/wasm32/
+          if-no-files-found: error
+
   bundle:
-    needs: [macos, linux, windows]
+    needs: [macos, linux, windows, web]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -172,6 +199,10 @@ jobs:
         with:
           name: target-x64win
           path: platform/targets/x64win
+      - uses: actions/download-artifact@v5
+        with:
+          name: target-wasm32
+          path: platform/targets/wasm32
 
       # roc bundle does not discover dependencies, so include target files
       # and shader tools. Roc takes URLs that differ only in

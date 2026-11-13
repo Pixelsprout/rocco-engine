@@ -5,6 +5,7 @@ import "core:mem"
 import "core:slice"
 import "core:strings"
 import "core:time"
+import "system"
 
 // One name and id of a Manifest, before it crosses the seam.
 Manifest_Line :: struct {
@@ -163,7 +164,7 @@ pack_load :: proc(p: ^Packs, pack: string, assets: []string, allocator: mem.Allo
 	if pack in p.loaded {
 		if pack not_in p.logged_packs {
 			p.logged_packs[strings.clone(pack, p.allocator)] = {}
-			fmt.eprintfln("pack %q is already loaded; ignoring the Load", pack)
+			system.eprintfln("pack %q is already loaded; ignoring the Load", pack)
 		}
 		return nil, false
 	}
@@ -224,7 +225,7 @@ pack_unload :: proc(p: ^Packs, pack: string) -> (ok: bool) {
 	if !found {
 		if pack not_in p.logged_unloads {
 			p.logged_unloads[strings.clone(pack, p.allocator)] = {}
-			fmt.eprintfln("pack %q is not loaded; ignoring the Unload", pack)
+			system.eprintfln("pack %q is not loaded; ignoring the Unload", pack)
 		}
 		return false
 	}
@@ -352,7 +353,7 @@ pack_asset_id :: proc(p: ^Packs, pack, name: string) -> Held_Asset {
 			case .Shader:
 				full_reason = "the Shader asset table is full"
 			}
-			fmt.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, full_reason)
+			system.eprintfln("pack %q names %q, but %v; its id is 0", pack, name, full_reason)
 		}
 		return {kind, 0}
 	}
@@ -397,7 +398,7 @@ pack_kind :: proc(name: string) -> Asset_Kind {
 @(private = "file")
 pack_log_asset :: proc(p: ^Packs, name, message: string) {
 	p.logged_assets[strings.clone(name, p.allocator)] = {}
-	fmt.eprintfln("%v; its id is 0", message)
+	system.eprintfln("%v; its id is 0", message)
 }
 
 // Asset references resolve only through the named live Pack.

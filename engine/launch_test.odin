@@ -103,3 +103,11 @@ test_launch_gl_check_refuses_a_context_without_room_for_the_skinned_package_unif
 	testing.expect(t, !launch_gl_check(1024))
 	testing.expect(t, launch_gl_check(16384))
 }
+
+@(test)
+test_msaa_webgpu_draws_any_msaa_with_4_samples :: proc(t: ^testing.T) {
+	testing.expect_value(t, msaa_webgpu(.Off), Msaa.Off)
+	testing.expect_value(t, msaa_webgpu(.X2), Msaa.X4)
+	testing.expect_value(t, msaa_webgpu(.X4), Msaa.X4)
+	testing.expect_value(t, msaa_webgpu(.X8), Msaa.X4)
+}

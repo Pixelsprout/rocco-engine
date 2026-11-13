@@ -3,9 +3,9 @@ package engine
 import "core:c"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import "core:strings"
+import "system"
 
 // The reserved slot and one Sound.
 SOUND_CAPACITY_MIN :: 2
@@ -133,11 +133,11 @@ sound_resolve :: proc(t: ^Sound_Table, id: u32) -> (sound: ^Sound, ok: bool) {
 		t.logged[id] = {}
 		stale := slot >= 1 && slot < len(t.sounds) && id >> MESH_SLOT_BITS != u32(t.sounds[slot].generation)
 		if id == 0 {
-			fmt.eprintln("Sound id 0 is no Sound; playing nothing")
+			system.eprintln("Sound id 0 is no Sound; playing nothing")
 		} else if stale {
-			fmt.eprintfln("Sound id %v is from an unloaded pack; playing nothing", id)
+			system.eprintfln("Sound id %v is from an unloaded pack; playing nothing", id)
 		} else {
-			fmt.eprintfln("Sound id %v is not in the table; playing nothing", id)
+			system.eprintfln("Sound id %v is not in the table; playing nothing", id)
 		}
 	}
 	return nil, false
@@ -166,18 +166,18 @@ sound_lookup :: proc(t: ^Sound_Table, id: u32) -> (sound: ^Sound, ok: bool) {
 // stem wins, so a.ogg loads before a.wav. Each shared stem logs once and goes
 // in logged.
 sound_names_on_disk :: proc(dir: string, files: ^map[string]string, logged: ^map[string]struct {}, allocator: mem.Allocator) -> []string {
-	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
+	entries, err := system.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil {
 		if err != .Not_Exist {
-			fmt.eprintfln("cannot read %v: %v; no Sound can load from it", dir, os.error_string(err))
+			system.eprintfln("cannot read %v: %v; no Sound can load from it", dir, system.error_string(err))
 		}
 		return nil
 	}
 
 	file_names := make([dynamic]string, 0, len(entries), context.temp_allocator)
 	for e in entries {
-		ext := os.ext(e.name)
-		if e.type != .Directory && (ext == ".wav" || ext == ".ogg") && os.stem(e.name) != "" {
+		ext := system.ext(e.name)
+		if e.type != .Directory && (ext == ".wav" || ext == ".ogg") && system.stem(e.name) != "" {
 			append(&file_names, e.name)
 		}
 	}
@@ -185,11 +185,11 @@ sound_names_on_disk :: proc(dir: string, files: ^map[string]string, logged: ^map
 
 	names := make([dynamic]string, 0, len(file_names), allocator)
 	for file in file_names {
-		name := strings.concatenate({SOUND_PREFIX, os.stem(file)}, context.temp_allocator)
+		name := strings.concatenate({SOUND_PREFIX, system.stem(file)}, context.temp_allocator)
 		if kept, shared := files^[name]; shared {
 			if name not_in logged^ {
 				logged^[strings.clone(name, allocator)] = {}
-				fmt.eprintfln("%v holds %v and %v; %q loads %v", dir, kept, file, name, kept)
+				system.eprintfln("%v holds %v and %v; %q loads %v", dir, kept, file, name, kept)
 			}
 			continue
 		}
@@ -208,9 +208,9 @@ sound_load_file :: proc(t: ^Sound_Table, dir, name, file: string) -> (id: u32, r
 		return 0, sound_table_full_reason(t), false
 	}
 	path := fmt.tprintf("%v/%v", dir, file)
-	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
+	bytes, read_err := system.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {
-		return 0, fmt.tprintf("%v: %v", path, os.error_string(read_err)), false
+		return 0, fmt.tprintf("%v: %v", path, system.error_string(read_err)), false
 	}
 	if len(bytes) == 0 {
 		return 0, fmt.tprintf("%v is empty", path), false

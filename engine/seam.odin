@@ -1,8 +1,8 @@
 package engine
 
-import "core:fmt"
 import "core:strings"
 import "core:time"
+import "system"
 
 Game_Calls :: struct {
 	launch:     proc(config: Config) -> Launch,
@@ -194,7 +194,7 @@ seam_run_commands :: proc(s: ^Seam, commands: Roc_List(Command)) -> (quit: bool,
 		}
 	}
 	for line in game_log_lines(commands.elements[:commands.length]) {
-		fmt.eprintln(line)
+		system.eprintln(line)
 	}
 	roc_list_decref(commands)
 	return quit, pending[:]

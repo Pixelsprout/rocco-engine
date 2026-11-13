@@ -4,9 +4,9 @@ import sg "../sokol-odin/sokol/gfx"
 import "arenas"
 import "core:fmt"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import "core:strings"
+import "system"
 
 // The reserved slot and one Image.
 IMAGE_CAPACITY_MIN :: 2
@@ -173,29 +173,29 @@ image_resolve :: proc(t: ^Image_Table, id: u32) -> (image: ^Image, ok: bool) {
 	slot := image_slot(id)
 	stale := slot >= 1 && slot < len(t.images) && id >> MESH_SLOT_BITS != u32(t.images[slot].generation)
 	if id == 0 {
-		fmt.eprintln("Image id 0 names no Image; drawing the checker")
+		system.eprintln("Image id 0 names no Image; drawing the checker")
 	} else if stale {
-		fmt.eprintfln("Image id %v is from an unloaded pack; drawing the checker", id)
+		system.eprintfln("Image id %v is from an unloaded pack; drawing the checker", id)
 	} else {
-		fmt.eprintfln("Image id %v is not in the table; drawing the checker", id)
+		system.eprintfln("Image id %v is not in the table; drawing the checker", id)
 	}
 	return nil, false
 }
 
 // image/<stem> for each .png file in dir, sorted.
 image_names_on_disk :: proc(dir: string, allocator: mem.Allocator) -> []string {
-	entries, err := os.read_all_directory_by_path(dir, context.temp_allocator)
+	entries, err := system.read_all_directory_by_path(dir, context.temp_allocator)
 	if err != nil {
 		if err != .Not_Exist {
-			fmt.eprintfln("cannot read %v: %v; no Image can load from it", dir, os.error_string(err))
+			system.eprintfln("cannot read %v: %v; no Image can load from it", dir, system.error_string(err))
 		}
 		return nil
 	}
 
 	names := make([dynamic]string, 0, len(entries), allocator)
 	for e in entries {
-		if e.type != .Directory && os.ext(e.name) == ".png" && os.stem(e.name) != "" {
-			append(&names, strings.concatenate({IMAGE_PREFIX, os.stem(e.name)}, allocator))
+		if e.type != .Directory && system.ext(e.name) == ".png" && system.stem(e.name) != "" {
+			append(&names, strings.concatenate({IMAGE_PREFIX, system.stem(e.name)}, allocator))
 		}
 	}
 	slice.sort(names[:])
@@ -213,9 +213,9 @@ image_load_file :: proc(t: ^Image_Table, dir, name: string) -> (id: u32, reason:
 	defer arenas.destroy(&scratch)
 	context.temp_allocator = arenas.allocator(&scratch)
 	path := fmt.tprintf("%v/%v.png", dir, strings.trim_prefix(name, IMAGE_PREFIX))
-	bytes, read_err := os.read_entire_file(path, context.temp_allocator)
+	bytes, read_err := system.read_entire_file(path, context.temp_allocator)
 	if read_err != nil {
-		return 0, strings.clone(fmt.tprintf("%v: %v", path, os.error_string(read_err)), caller_temp), false
+		return 0, strings.clone(fmt.tprintf("%v: %v", path, system.error_string(read_err)), caller_temp), false
 	}
 	width, height, rgba, decoded := png_decode(bytes)
 	if !decoded {

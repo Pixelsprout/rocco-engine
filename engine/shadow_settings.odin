@@ -1,6 +1,6 @@
 package engine
 
-import "core:fmt"
+import "system"
 
 SHADOW_DEFAULT :: Shadow{distance = 0, normal_bias = SHADOW_NORMAL_OFFSET, depth_bias = 0, distribution = CASCADE_SPLIT_WEIGHT, blend = CASCADE_BLEND, filter = .Pcf3}
 SHADOW_MAP_MIN :: 8
@@ -70,5 +70,5 @@ shadow_distance :: proc(settings: Shadow, cascades: int) -> f32 {
 shadow_log :: proc(logged: ^bit_set[Shadow_Field], field: Shadow_Field, name, rule: string) {
 	if field in logged { return }
 	logged^ += {field}
-	fmt.eprintfln("Scene.shadow.%v must be %v; the host uses Shadow.default.%v", name, rule, name)
+	system.eprintfln("Scene.shadow.%v must be %v; the host uses Shadow.default.%v", name, rule, name)
 }
