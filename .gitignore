@@ -31,6 +31,7 @@ platform/targets/*/*.lib
 platform/targets/*/*.pdb
 # spikes/web-link/build.sh writes the host object and the loader.
 spikes/web-link/platform/targets/
+platform/targets/wasm32/
 # A roc build in spikes/web-link/app without --output writes main.wasm there.
 spikes/web-link/app/*.wasm
 # Roc's linker output.

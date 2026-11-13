@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rocco</title>
+<link rel="icon" href="data:,">
+<style>
+html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px sans-serif; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; }
+#message { display: none; position: absolute; inset: 0; padding: 2em; box-sizing: border-box; text-align: center; align-content: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+<!-- sokol_app finds the canvas by its default selector, #canvas. -->
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="message"></div>
+<script>
+function rocco_message(text) {
+	var box = document.getElementById("message");
+	box.textContent = text;
+	box.style.display = "block";
+	document.getElementById("canvas").style.display = "none";
+}
+// miniaudio resumes its AudioContext on a click or touch. A key press also counts.
+window.addEventListener("keydown", function () {
+	if (window.miniaudio && window.miniaudio.unlock) {
+		window.miniaudio.unlock();
+	}
+}, true);
+var Module = {
+	canvas: document.getElementById("canvas"),
+	print: function (text) { console.log(text); },
+	printErr: function (text) { console.error(text); },
+	onAbort: function (what) { rocco_message("The game stopped: " + what); },
+	onExit: function (code) {
+		if (code !== 0) {
+			rocco_message("The game stopped with exit code " + code + ". The browser console shows why.");
+		}
+	},
+};
+// index.data.js preloads the game's assets folder from index.data, and it
+// must run before index.js starts the engine.
+function rocco_load(sources) {
+	if (sources.length === 0) {
+		return;
+	}
+	var script = document.createElement("script");
+	script.src = sources[0];
+	script.onload = function () { rocco_load(sources.slice(1)); };
+	script.onerror = function () { rocco_message("The page could not load " + sources[0] + "."); };
+	document.body.appendChild(script);
+}
+// The engine draws with WebGPU only. A browser can have WebGPU and still
+// give no adapter, such as on a blocked GPU. Either way the page says so
+// and loads nothing.
+async function rocco_start() {
+	var adapter = null;
+	if (navigator.gpu) {
+		try {
+			adapter = await navigator.gpu.requestAdapter();
+		} catch (error) {
+			console.error(error);
+		}
+	}
+	if (!adapter) {
+		rocco_message("This game needs WebGPU, and this browser cannot run it here. Try a recent Chrome or Edge on a desktop.");
+		return;
+	}
+	rocco_load(["index.data.js", "index.js"]);
+}
+rocco_start();
+</script>
+</body>
+</html>

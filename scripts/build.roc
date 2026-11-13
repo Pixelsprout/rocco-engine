@@ -32,7 +32,7 @@ BenchMode : [Headless, Windowed]
 # Check writes no guide page. It fails if a guide page differs from its regions.
 DocsMode : [Write, Check]
 
-Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), Shaders, Font, FontTable, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
+Step : [Inputs(Mode), Glue, Host(Mode, HostAlloc, HostSpans), Game(Str), WebHost(Mode), Web(Str), Shaders, Font, FontTable, Keys, Target, Docs(DocsMode), BenchGame(Str), BenchTwin(Str), BenchRun(Bench)]
 
 parse : List(Str) -> Try(List(Step), [Usage])
 parse = |args| match args {
@@ -45,6 +45,9 @@ parse = |args| match args {
 	["host", "--release", "--spans"] => Ok([Host(Release, default_host_alloc(Release), Spans)])
 	["host", "--release", "--track-alloc"] => Ok([Host(Release, Tracked, NoSpans)])
 	["game", name] => Ok([Game(name)])
+	["web-host"] => Ok([WebHost(Debug)])
+	["web-host", "--release"] => Ok([WebHost(Release)])
+	["web", name] => Ok([Web(name)])
 	["shaders"] => Ok([Shaders])
 	["font"] => Ok([Font, FontTable])
 	["font-table"] => Ok([FontTable])
@@ -473,6 +476,10 @@ usage =
 	\\  host            build the engine into platform/targets/<target>/
 	\\  game <name>     link examples/<name> against the platform, such as
 	\\                  cards or tutorial/01-window
+	\\  web-host        build the web host into platform/targets/wasm32/ with emcc
+	\\  web <name>      build examples/<name> for the web into build/web/<name>/:
+	\\                  index.html, index.js, index.wasm, index.data and a zip for
+	\\                  itch.io. It builds a debug web host first if there is none
 	\\  shaders         regenerate engine/shader_basic.odin, if sokol-shdc is on PATH
 	\\  font            regenerate engine/font_baked.odin from scripts/fonts/, if odin is on PATH,
 	\\                  then font-table
@@ -502,7 +509,7 @@ usage =
 	\\                  vsync off instead of Headless, so the render Spans are
 	\\                  measured.
 	\\
-	\\inputs, host and all take --release to use the release sokol and miniaudio archives and build
+	\\inputs, host, web-host and all take --release to use the release sokol and miniaudio archives and build
 	\\the host with -o:speed and without -debug. Without it they use debug.
 	\\
 	\\A debug host has the host tracking allocator and its leak report. A release
@@ -553,6 +560,8 @@ run_step! = |step, target| match step {
 	Host(mode, alloc, spans) => host!(target, host_run(target, mode, alloc, spans))
 	Game(name) => link_game!(target, "examples/${name}", game_binary(name))
 	BenchGame(name) => link_game!(target, "bench/${name}", name)
+	WebHost(mode) => web_host!(mode)
+	Web(name) => web_game!(target, name)
 	BenchTwin(name) => exec!(twin_run(target, name))
 	BenchRun(bench) => bench!(target, bench)
 	Shaders =>
@@ -608,6 +617,62 @@ link_game! = |target, dir, name| {
 		exec!({ program: target.python, args: ["${root}/platform/shader-tools/build.py"], cwd: dir })?
 	}
 	exec_allowing!(game_run(target, dir, name), [2])
+}
+
+web_host_dir : Str
+web_host_dir = "platform/targets/wasm32"
+
+web_host_run : Mode -> Run
+web_host_run = |mode| { program: "sh", args: ["scripts/web/build-host.sh", mode_name(mode)], cwd: "." }
+
+# The page folder holds index.html, the loader, the game's wasm, its packed
+# assets and the zip for itch.io.
+web_page_dir : Str -> Str
+web_page_dir = |name| "build/web/${game_binary(name)}"
+
+web_game_run : Str -> Run
+web_game_run = |name| {
+	program: "roc",
+	args: ["build", "--target=wasm32", "--output=${web_root_from(name)}/${web_page_dir(name)}/index.wasm", "main.roc"],
+	cwd: "examples/${name}",
+}
+
+# The path from examples/<name> back to the repository root.
+web_root_from : Str -> Str
+web_root_from = |name| Str.join_with(List.repeat("..", Str.split_on(name, "/").len() + 1), "/")
+
+web_package_run : Target, Str -> Run
+web_package_run = |target, name| {
+	program: target.python,
+	args: ["scripts/web_package.py", "examples/${name}", web_page_dir(name), "${game_binary(name)}-web.zip"],
+	cwd: ".",
+}
+
+web_host! : Mode => Try({}, _)
+web_host! = |mode| {
+	if !Cmd.check_available!("emcc") {
+		return Err(Failed("emcc is not on PATH. Run sh scripts/toolchain.sh install-emsdk, then run this through sh scripts/toolchain.sh run."))
+	}
+	exec!(web_host_run(mode))
+}
+
+# With no web host yet, web builds a debug one first.
+web_game! : Target, Str => Try({}, _)
+web_game! = |target, name| {
+	dir = "examples/${name}"
+	if !(Path.utf8("${dir}/main.roc").is_file!() ?? Bool.False) {
+		return Err(Failed("${dir}/main.roc does not exist."))
+	}
+	if !(Path.utf8("${web_host_dir}/host.o").is_file!() ?? Bool.False) {
+		web_host!(Debug)?
+	}
+	if Path.utf8("${dir}/shaders.json").is_file!() ?? Bool.False {
+		root = (Env.cwd!() ? |_| Failed("The working directory is unavailable.")).display()
+		exec!({ program: target.python, args: ["${root}/platform/shader-tools/build.py"], cwd: dir })?
+	}
+	Path.utf8(web_page_dir(name)).create_all!()?
+	exec_allowing!(web_game_run(name), [2])?
+	exec!(web_package_run(target, name))
 }
 
 bench! : Target, Bench => Try({}, _)
@@ -846,7 +911,15 @@ expect parse(["shaders"]) == Ok([Shaders])
 expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
+expect web_root_from("pong") == "../.."
+expect web_root_from("tutorial/08-sound") == "../../.."
+expect web_game_run("tutorial/08-sound").args == ["build", "--target=wasm32", "--output=../../../build/web/08-sound/index.wasm", "main.roc"]
 expect game_binary("tutorial/01-window") == "01-window"
+expect parse(["web-host"]) == Ok([WebHost(Debug)])
+expect parse(["web-host", "--release"]) == Ok([WebHost(Release)])
+expect parse(["web", "tutorial/08-sound"]) == Ok([Web("tutorial/08-sound")])
+expect parse(["web"]) == Err(Usage)
+expect parse(["web-host", "--spans"]) == Err(Usage)
 expect parse(["glue", "--release"]) == Err(Usage)
 expect parse(["inputs", "--debug"]) == Err(Usage)
 expect parse(["inputs", "--release", "--track-alloc"]) == Err(Usage)
