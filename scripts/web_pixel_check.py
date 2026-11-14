@@ -19,11 +19,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bridge
 
-# For pong after 60 steps: native Linux on Mesa llvmpipe GL, web on
-# headless Chrome with WebGPU on SwiftShader, both 960x540. These are first
-# guesses until a CI run measures the real counts.
+# For pong after 60 steps: native Linux on Mesa llvmpipe GL, web on headless
+# Chrome with WebGPU on Mesa lavapipe, both 960x540. CI run 43571158993
+# measured 3768 changed pixels at 0, 280 at 16 and 24 at 64, mostly along
+# edges. The limit is about twice the count at 16. A missing paddle changes
+# about 900 pixels.
 TOLERANCE = 16
-LIMIT = 5000
+LIMIT = 600
 REPORT_TOLERANCES = (0, 4, 8, 16, 32, 64)
 
 

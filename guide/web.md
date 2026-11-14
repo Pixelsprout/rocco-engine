@@ -137,7 +137,7 @@ sh scripts/screenshot.sh --web pong out.png 60
 It starts the Relay, the server and a Chrome window, runs 60 steps and
 saves the frame. On macOS the window must stay open, because headless
 Chrome there stops drawing after the first frame. CI runs it headless on
-Linux, with WebGPU on SwiftShader, and compares the frame with a native
+Linux, with WebGPU on Mesa's software Vulkan, and compares the frame with a native
 screenshot of the same step. The two differ a little, so the check allows
 a small difference in each pixel and a small count of changed pixels.
 `scripts/web/shot.sh` stays for checks of the page itself: it prints the
