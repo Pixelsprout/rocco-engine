@@ -39,6 +39,16 @@ host does nothing for the features a browser cannot give, such as Shader
 reload.
 _Avoid_: wasm build, browser port, HTML5 build
 
+**Page**:
+The HTML document that loads a Web build in a browser and shows the player
+everything outside the canvas. A game can supply its own page; else it gets
+the Default page.
+_Avoid_: web shell, shell, HTML wrapper, index
+
+**Default page**:
+The Page a Web build gets when the game supplies none.
+_Avoid_: stock page, template
+
 **Game**:
 A Roc app built on the platform. It declares `Model` and defines `launch`,
 `init`, `step`, `loaded` and `view`. "App" is Roc's word for the file kind;
