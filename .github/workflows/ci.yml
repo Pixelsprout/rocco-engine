@@ -336,9 +336,16 @@ jobs:
           path: build/web/08-sound/08-sound-web.zip
           if-no-files-found: error
 
-      # Headless Chrome draws WebGPU on SwiftShader's Vulkan. The Relay
-      # carries the Bridge calls, as in a native run. Ubuntu 24.04 blocks the
-      # user namespaces that Chrome's sandbox needs.
+      # Chrome's ANGLE needs a Vulkan device with VK_KHR_surface, which the
+      # runner has not. Mesa's lavapipe is a software one.
+      - name: Install a software Vulkan device
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+
+      # Headless Chrome draws WebGPU on lavapipe. The Relay carries the Bridge
+      # calls, as in a native run. Ubuntu 24.04 blocks the user namespaces
+      # that Chrome's sandbox needs.
       - name: Screenshot pong on the web
         env:
           CHROME_FLAGS: --headless=new --no-sandbox --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface --enable-logging=stderr --v=0
