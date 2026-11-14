@@ -213,6 +213,8 @@
         "glCompileShader",
         "glCompressedTexSubImage2D",
         "glCompressedTexSubImage3D",
+        "glCopyBufferSubData",
+        "glCopyImageSubData",
         "glCreateProgram",
         "glCreateShader",
         "glCullFace",
