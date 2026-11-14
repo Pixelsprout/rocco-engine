@@ -140,6 +140,17 @@ Chrome there stops drawing after the first frame. CI runs it headless on
 Linux, with WebGPU on Mesa's software Vulkan, and compares the frame with a native
 screenshot of the same step. The two differ a little, so the check allows
 a small difference in each pixel and a small count of changed pixels.
+To run that same headless browser on your own machine, start Docker and
+run:
+
+```sh
+sh scripts/linux/web-shot.sh pong build/web-check/pong-web.png 60
+```
+
+It builds a small Linux image with Chrome and Mesa, and screenshots the
+page you built. A page that fails in CI fails here too, so you can fix it
+before you push.
+
 `scripts/web/shot.sh` stays for checks of the page itself: it prints the
 page's messages and presses a key to start the audio.
 

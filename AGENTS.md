@@ -13,6 +13,7 @@ We use matt-pocock skills to work through tasks:
 
 # Worktrees, toolchain and CI
 - Prepare a new worktree with `sh scripts/worktree.sh new <path> <branch>`, or run `sh scripts/worktree.sh setup` inside one. It fills the submodules and builds the archives that the host links.
+- After a rebase or pull that moves a submodule pin, run `sh scripts/worktree.sh setup` again. A link error such as `undefined symbol: _sg_...` means the archives are stale.
 - If `sh scripts/toolchain.sh check` reports a mismatch, prefix each `odin` and `roc` command with `sh scripts/toolchain.sh run`. CI uses the pinned compilers.
 - The pre-push hook runs `scripts/pre-push.sh`. Run it yourself before a push from a clone without the hook.
 - After a push, run `python3 scripts/ci_wait.py`. It waits for CI and prints the output of each failed step.
@@ -20,7 +21,7 @@ We use matt-pocock skills to work through tasks:
 # Seeing a frame
 To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
 
-For a web build, run `scripts/screenshot.sh --web <game> <out.png> [steps]` after `roc scripts/build.roc web <game>`. It drives the page over the Bridge through a Relay and needs a windowed Chrome on macOS. `scripts/web/shot.sh <page dir> <out.png>` prints the page's own messages. See `guide/web.md`.
+For a web build, run `scripts/screenshot.sh --web <game> <out.png> [steps]` after `roc scripts/build.roc web <game>`. It drives the page over the Bridge through a Relay and needs a windowed Chrome on macOS. `scripts/web/shot.sh <page dir> <out.png>` prints the page's own messages. Before you push a change to the web CI job, run `sh scripts/linux/web-shot.sh <game> <out.png> [steps]`: it runs the CI's headless Chrome in Docker. See `guide/web.md`.
 
 To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the ops and the Input rules.
 1. Get a port with `python3 scripts/bridge.py free-port`.

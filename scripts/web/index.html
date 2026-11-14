@@ -46,7 +46,11 @@ var Module = {
 	canvas: document.getElementById("canvas"),
 	print: function (text) { console.log(text); },
 	printErr: function (text) { console.error(text); },
-	onAbort: function (what) { rocco_message("The game stopped: " + what); },
+	// A debug build's asserts abort with no message, so the stack names the call.
+	onAbort: function (what) {
+		console.error(new Error("abort").stack);
+		rocco_message("The game stopped: " + what);
+	},
 	onExit: function (code) {
 		if (code !== 0) {
 			rocco_message("The game stopped with exit code " + code + ". The browser console shows why.");

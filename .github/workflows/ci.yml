@@ -343,20 +343,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
 
-      # Headless Chrome draws WebGPU on lavapipe. The Relay carries the Bridge
-      # calls, as in a native run. Ubuntu 24.04 blocks the user namespaces
-      # that Chrome's sandbox needs.
+      # headless-shot.sh holds the Chrome flags. scripts/linux/web-shot.sh
+      # runs the same step locally in the Linux image.
       - name: Screenshot pong on the web
-        env:
-          CHROME_FLAGS: --headless=new --no-sandbox --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface --enable-logging=stderr --v=0
-          CHROME_LOG: build/web-check/chrome.log
-          # Headless Chrome keeps 143 pixels of the window height for its own
-          # UI, so this gives the 960x540 page of the native run.
-          CHROME_WINDOW: 960,683
-        run: |
-          google-chrome --version
-          mkdir -p build/web-check
-          timeout 180 sh scripts/screenshot.sh --web pong build/web-check/pong-web.png 60 || { grep -E 'CONSOLE|ERROR|WebGPU|Vulkan' build/web-check/chrome.log | tail -60; exit 1; }
+        run: sh scripts/web/headless-shot.sh pong build/web-check/pong-web.png 60
 
       - uses: actions/upload-artifact@v4
         if: always()

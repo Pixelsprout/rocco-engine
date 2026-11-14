@@ -63,7 +63,9 @@ if [ "$web" = 1 ]; then
 		--force-color-profile=srgb --force-device-scale-factor=1 --window-size="${CHROME_WINDOW:-960,540}" \
 		${CHROME_FLAGS:-} "http://127.0.0.1:$http_port/index.html?bridge=$ROCCO_BRIDGE" > "${CHROME_LOG:-/dev/null}" 2>&1 &
 	browser=$!
-	trap 'kill "$relay" "$server" "$browser" 2>/dev/null || true; wait "$browser" 2>/dev/null || true; rm -rf "$profile"' EXIT
+	# Chrome's helper processes can still write to the profile after the main
+	# one exits, so a failed removal must not fail the screenshot.
+	trap 'kill "$relay" "$server" "$browser" 2>/dev/null || true; wait "$browser" 2>/dev/null || true; rm -rf "$profile" 2>/dev/null || true' EXIT
 else
 	# eval "$(...)" would hide a build.roc failure from set -e.
 	target_lines=$(roc scripts/build.roc target)
