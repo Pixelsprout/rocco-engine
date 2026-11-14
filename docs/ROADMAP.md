@@ -1763,8 +1763,8 @@ Slot these in when they pay for themselves. Do not run them as a block.
   `--opt=dev` and `--opt=speed` after every memory change.
 - **Benchmark regression tracking.** Compare each reference run with the
   last one (dex task uanu7pa4).
-- **The web Bridge.** The page connects out to the Driver over a WebSocket,
-  so a headless browser check can run in CI (dex task 32954kz7).
+- **The web Bridge.** The page connects out to a Relay over a WebSocket,
+  so a headless browser check can run in CI (ADR 0037, dex task 32954kz7).
 - **The sokol pin.** Move sokol-odin past the WebGPU fragment stage fix and
   drop the patch in `scripts/web/build-host.sh` (dex task usj2088r).
 

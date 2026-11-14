@@ -821,7 +821,8 @@ _Avoid_: phase, section, lap, timer
 
 **Bridge**:
 The host module that lets one outside process drive a run over a localhost
-socket. On a Web build the page opens a WebSocket to the Driver instead. It injects Input, advances fixed steps on request and reports what
+socket. On a Web build the page connects out to a Relay instead. It
+injects Input, advances fixed steps on request and reports what
 the host sees. The game does not know it exists, and nothing in the
 Vocabulary names it.
 _Avoid_: debug server, remote, Seam, port, debugger
@@ -832,6 +833,13 @@ an agent. One Driver at a time. While a Driver controls the run, the host
 ignores the real keyboard, mouse and gamepads, unless the Driver turns
 devices on in hello.
 _Avoid_: client, controller, bot, harness
+
+**Relay**:
+The outside process that carries Bridge requests and replies between one
+Driver and one Web build page. The page connects to it, and a Driver
+connects to it as it would to a native run, so the Driver sees the same
+replies. It writes the screenshots that the page cannot.
+_Avoid_: proxy, server, bridge server
 
 **Port**:
 A named channel between the game and a Driver or an extension. The game
