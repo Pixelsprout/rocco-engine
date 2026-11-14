@@ -32,7 +32,8 @@ The command writes `build/web/08-sound/`:
 
 | File | What it holds |
 | --- | --- |
-| `index.html` | The page. It checks for WebGPU, then loads the two scripts. |
+| `index.html` | The page. It loads `rocco.js` and shows each message that `rocco.js` sends. |
+| `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
 | `index.data.js` | The loader for `index.data`. |
 | `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
 | `index.js` | emscripten's loader for the wasm. |

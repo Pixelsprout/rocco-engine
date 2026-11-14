@@ -73,5 +73,5 @@ echo "== wasm-ld: relocatable host.o"
 "$llvm/wasm-ld" -r -o "$target/host.o" $objects $libs
 cp "$work/index.js" "$target/index.js"
 cp "$work/index.wasm" "$target/reference.wasm"
-cp "$root/scripts/web/index.html" "$target/index.html"
+cp "$root/scripts/web/index.html" "$root/scripts/web/rocco.js" "$target/"
 echo "== ready: $target"

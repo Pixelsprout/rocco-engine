@@ -6,7 +6,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from web_package import exported_global, link_problems, page_files, shift_asm_consts, write_zip
+from web_package import copy_default_page, exported_global, link_problems, page_files, shift_asm_consts, write_zip
 
 
 def leb(n):
@@ -103,9 +103,21 @@ class ShiftAsmConstsTest(unittest.TestCase):
 class PageFilesTest(unittest.TestCase):
     def test_lists_the_page_files_that_exist_in_load_order(self):
         with tempfile.TemporaryDirectory() as page:
-            for file in ['index.wasm', 'index.html', 'index.data.js', 'index.js']:
+            for file in ['index.wasm', 'rocco.js', 'index.html', 'index.data.js', 'index.js']:
                 open(os.path.join(page, file), 'w').close()
-            self.assertEqual(page_files(page), ['index.html', 'index.js', 'index.wasm', 'index.data.js'])
+            self.assertEqual(page_files(page), ['index.html', 'rocco.js', 'index.js', 'index.wasm', 'index.data.js'])
+
+
+class CopyDefaultPageTest(unittest.TestCase):
+    def test_copies_the_page_and_rocco_js_from_the_target(self):
+        with tempfile.TemporaryDirectory() as target, tempfile.TemporaryDirectory() as page:
+            for file in ['index.html', 'rocco.js', 'index.js']:
+                with open(os.path.join(target, file), 'w') as f:
+                    f.write(file)
+            copy_default_page(target, page)
+            self.assertEqual(sorted(os.listdir(page)), ['index.html', 'rocco.js'])
+            with open(os.path.join(page, 'rocco.js')) as f:
+                self.assertEqual(f.read(), 'rocco.js')
 
 
 class WriteZipTest(unittest.TestCase):

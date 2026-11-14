@@ -16,19 +16,22 @@ canvas { display: block; width: 100%; height: 100%; }
 <!-- sokol_app finds the canvas by its default selector, #canvas. -->
 <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
 <div id="message"></div>
+<script src="rocco.js"></script>
 <script>
 function rocco_message(text) {
-	// A headless browser shows nothing, so the console gets the text too.
-	console.error(text);
 	var box = document.getElementById("message");
 	box.textContent = text;
 	box.style.display = "block";
 	document.getElementById("canvas").style.display = "none";
 	return box;
 }
+window.addEventListener("rocco:unsupported", function (event) { rocco_message(event.detail.message); });
+window.addEventListener("rocco:stopped", function (event) { rocco_message(event.detail.message); });
 // The engine dispatches rocco:quit after a Quit Command or the Bridge's quit
 // has ended the run. A restart needs a fresh page.
 window.addEventListener("rocco:quit", function () {
+	// A headless browser shows nothing, so the console gets the text too.
+	console.log("The game has ended.");
 	var box = rocco_message("The game has ended.");
 	var again = document.createElement("button");
 	again.textContent = "Play again";
@@ -36,62 +39,6 @@ window.addEventListener("rocco:quit", function () {
 	box.appendChild(document.createElement("br"));
 	box.appendChild(again);
 });
-// miniaudio resumes its AudioContext on a click or touch. A key press also counts.
-window.addEventListener("keydown", function () {
-	if (window.miniaudio && window.miniaudio.unlock) {
-		window.miniaudio.unlock();
-	}
-}, true);
-var Module = {
-	canvas: document.getElementById("canvas"),
-	print: function (text) { console.log(text); },
-	printErr: function (text) { console.error(text); },
-	// A debug build's asserts abort with no message, so the stack names the call.
-	onAbort: function (what) {
-		console.error(new Error("abort").stack);
-		rocco_message("The game stopped: " + what);
-	},
-	onExit: function (code) {
-		if (code !== 0) {
-			rocco_message("The game stopped with exit code " + code + ". The browser console shows why.");
-		}
-	},
-};
-// index.data.js preloads the game's assets folder from index.data, and it
-// must run before index.js starts the engine.
-function rocco_load(sources) {
-	if (sources.length === 0) {
-		return;
-	}
-	var script = document.createElement("script");
-	script.src = sources[0];
-	script.onload = function () { rocco_load(sources.slice(1)); };
-	script.onerror = function () { rocco_message("The page could not load " + sources[0] + "."); };
-	document.body.appendChild(script);
-}
-// The engine draws with WebGPU only. Each way it can be missing has its own
-// fix, so the page names the one it found and loads nothing.
-async function rocco_start() {
-	if (!window.isSecureContext) {
-		rocco_message("This game needs WebGPU, which a browser gives only to a page served over https or from localhost. Open the page at an https:// or http://localhost address.");
-		return;
-	}
-	if (!navigator.gpu) {
-		rocco_message("This game needs WebGPU, and this browser does not have it. Try a recent Chrome or Edge on a desktop.");
-		return;
-	}
-	var adapter = null;
-	try {
-		adapter = await navigator.gpu.requestAdapter();
-	} catch (error) {
-		console.error(error);
-	}
-	if (!adapter) {
-		rocco_message("This game needs WebGPU, and the browser found no GPU for it. Check that graphics acceleration is on in the browser settings. chrome://gpu shows the WebGPU status.");
-		return;
-	}
-	rocco_load(["index.data.js", "index.js"]);
-}
 rocco_start();
 </script>
 </body>

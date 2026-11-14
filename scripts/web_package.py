@@ -3,7 +3,7 @@
     python3 scripts/web_package.py <game dir> <page dir> <zip name>
 
 <page dir> must hold the index.wasm that `roc build --target=wasm32` wrote.
-The script adds the prebuilt page and loader from platform/targets/wasm32,
+The script adds the prebuilt page, rocco.js and loader from platform/targets/wasm32,
 packs <game dir>/assets, if there is one, into index.data, and zips the page with index.html
 at the top. Run it from the repository root with emcc on PATH.
 """
@@ -17,7 +17,7 @@ import zipfile
 
 TARGET = 'platform/targets/wasm32'
 KINDS = {0: 'func', 1: 'table', 2: 'memory', 3: 'global', 4: 'tag'}
-PAGE_FILES = ['index.html', 'index.js', 'index.wasm', 'index.data', 'index.data.js']
+PAGE_FILES = ['index.html', 'rocco.js', 'index.js', 'index.wasm', 'index.data', 'index.data.js']
 
 
 def read_leb(data, i):
@@ -156,6 +156,11 @@ def write_zip(zip_path, page_dir, files):
             z.write(os.path.join(page_dir, file), file)
 
 
+def copy_default_page(target, page_dir):
+    for file in ['index.html', 'rocco.js']:
+        shutil.copy(os.path.join(target, file), os.path.join(page_dir, file))
+
+
 def page_files(page_dir):
     return [file for file in PAGE_FILES if os.path.exists(os.path.join(page_dir, file))]
 
@@ -195,7 +200,7 @@ def main(game_dir, page_dir, zip_name):
         js = shift_asm_consts(f.read(), delta)
     with open(os.path.join(page_dir, 'index.js'), 'w') as f:
         f.write(js)
-    shutil.copy(os.path.join(TARGET, 'index.html'), os.path.join(page_dir, 'index.html'))
+    copy_default_page(TARGET, page_dir)
     pack_assets(game_dir, page_dir)
     zip_path = os.path.join(page_dir, zip_name)
     write_zip(zip_path, page_dir, page_files(page_dir))
