@@ -9,7 +9,9 @@
 # starts a Relay, a static server and Chrome on ?bridge=P, and makes the
 # same Bridge calls. CHROME names the Chrome program, CHROME_WINDOW the
 # window size (default: 960,540) and CHROME_FLAGS adds switches, such as
-# the headless WebGPU ones that CI passes. On macOS, headless Chrome stops
+# the headless WebGPU ones that CI passes. CHROME_LOG names a file for
+# Chrome's output, which holds the page's console with --enable-logging=stderr.
+# On macOS, headless Chrome stops
 # requestAnimationFrame, so leave the window open there.
 set -eu
 
@@ -59,7 +61,7 @@ if [ "$web" = 1 ]; then
 	# shellcheck disable=SC2086
 	"$CHROME" --user-data-dir="$profile" --no-first-run --no-default-browser-check \
 		--force-color-profile=srgb --force-device-scale-factor=1 --window-size="${CHROME_WINDOW:-960,540}" \
-		${CHROME_FLAGS:-} "http://127.0.0.1:$http_port/index.html?bridge=$ROCCO_BRIDGE" > /dev/null 2>&1 &
+		${CHROME_FLAGS:-} "http://127.0.0.1:$http_port/index.html?bridge=$ROCCO_BRIDGE" > "${CHROME_LOG:-/dev/null}" 2>&1 &
 	browser=$!
 	trap 'kill "$relay" "$server" "$browser" 2>/dev/null || true; wait "$browser" 2>/dev/null || true; rm -rf "$profile"' EXIT
 else

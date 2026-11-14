@@ -18,6 +18,8 @@ canvas { display: block; width: 100%; height: 100%; }
 <div id="message"></div>
 <script>
 function rocco_message(text) {
+	// A headless browser shows nothing, so the console gets the text too.
+	console.error(text);
 	var box = document.getElementById("message");
 	box.textContent = text;
 	box.style.display = "block";

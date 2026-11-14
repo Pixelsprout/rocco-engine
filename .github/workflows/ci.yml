@@ -337,16 +337,19 @@ jobs:
           if-no-files-found: error
 
       # Headless Chrome draws WebGPU on SwiftShader's Vulkan. The Relay
-      # carries the Bridge calls, as in a native run.
+      # carries the Bridge calls, as in a native run. Ubuntu 24.04 blocks the
+      # user namespaces that Chrome's sandbox needs.
       - name: Screenshot pong on the web
         env:
-          CHROME_FLAGS: --headless=new --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface
+          CHROME_FLAGS: --headless=new --no-sandbox --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface --enable-logging=stderr --v=0
+          CHROME_LOG: build/web-check/chrome.log
         run: |
           google-chrome --version
           mkdir -p build/web-check
-          timeout 300 sh scripts/screenshot.sh --web pong build/web-check/pong-web.png 60
+          timeout 180 sh scripts/screenshot.sh --web pong build/web-check/pong-web.png 60 || { grep -E 'CONSOLE|ERROR|WebGPU|Vulkan' build/web-check/chrome.log | tail -60; exit 1; }
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: web-check
           path: build/web-check/
