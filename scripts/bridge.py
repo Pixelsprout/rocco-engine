@@ -26,18 +26,26 @@ disconnects. The port comes from --port or ROCCO_BRIDGE:
     python3 scripts/bridge.py tell town --file msg.txt
     python3 scripts/bridge.py quit
     python3 scripts/bridge.py free-port
+    python3 scripts/bridge.py relay --port 7878
+
+relay serves a web run: the page connects to it with ?bridge=7878, and the
+other calls then reach the page through it. It runs until the quit reply.
 
 The CLI exits with 1 on an "ok": false reply and with 2 when it cannot talk
 to the host. Python standard library only.
 """
 
 import argparse
+import base64
+import hashlib
 import json
 import os
+import selectors
 import socket
 import struct
 import sys
 import time
+import urllib.parse
 import zlib
 
 PORT_ENV = "ROCCO_BRIDGE"
@@ -241,6 +249,304 @@ def png_changed_pixels(path_a, path_b):
     return sum(1 for x, y in zip(pixels_a, pixels_b) if x != y)
 
 
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+WS_CONTINUATION, WS_TEXT, WS_BINARY, WS_CLOSE, WS_PING, WS_PONG = 0, 1, 2, 8, 9, 10
+# A page on any other host could reach the Relay from the player's browser.
+RELAY_ORIGIN_HOSTS = ("localhost", "127.0.0.1")
+RELAY_PAGE_DROPPED = "the page closed before it replied"
+# Tells a replaced page to stop dialling, so two tabs do not take the Relay
+# from each other. engine/bridge_transport_web.odin reads it.
+RELAY_REPLACED = 4000
+
+
+def ws_accept(key):
+    return base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode()
+
+
+def ws_frame(opcode, payload, mask=None, fin=True):
+    """One WebSocket frame. A page's frames carry a mask and the Relay's do not."""
+    head = bytearray([(0x80 if fin else 0) | opcode])
+    mask_bit = 0x80 if mask is not None else 0
+    if len(payload) < 126:
+        head.append(mask_bit | len(payload))
+    elif len(payload) < 65536:
+        head.append(mask_bit | 126)
+        head += struct.pack(">H", len(payload))
+    else:
+        head.append(mask_bit | 127)
+        head += struct.pack(">Q", len(payload))
+    if mask is None:
+        return bytes(head) + payload
+    return bytes(head) + mask + ws_mask(payload, mask)
+
+
+def ws_mask(payload, mask):
+    whole = (mask * (len(payload) // 4 + 1))[: len(payload)]
+    return (int.from_bytes(payload, "big") ^ int.from_bytes(whole, "big")).to_bytes(len(payload), "big")
+
+
+def ws_parse_frame(data):
+    """Returns ((fin, opcode, payload), rest), or (None, data) until the frame is whole."""
+    if len(data) < 2:
+        return None, data
+    fin = bool(data[0] & 0x80)
+    opcode = data[0] & 0x0F
+    masked = bool(data[1] & 0x80)
+    length = data[1] & 0x7F
+    at = 2
+    if length == 126:
+        if len(data) < 4:
+            return None, data
+        (length,) = struct.unpack(">H", data[2:4])
+        at = 4
+    elif length == 127:
+        if len(data) < 10:
+            return None, data
+        (length,) = struct.unpack(">Q", data[2:10])
+        at = 10
+    mask = None
+    if masked:
+        if len(data) < at + 4:
+            return None, data
+        mask = data[at : at + 4]
+        at += 4
+    if len(data) < at + length:
+        return None, data
+    payload = bytes(data[at : at + length])
+    if mask is not None:
+        payload = ws_mask(payload, mask)
+    return (fin, opcode, payload), data[at + length :]
+
+
+def relay_origin_allowed(head):
+    """A browser always sends Origin. A page from another host is refused."""
+    origin = relay_header(head, "origin")
+    return origin == "" or urllib.parse.urlsplit(origin).hostname in RELAY_ORIGIN_HOSTS
+
+
+def relay_header(head, wanted):
+    for line in head.split("\r\n")[1:]:
+        name, _, value = line.partition(":")
+        if name.strip().lower() == wanted:
+            return value.strip()
+    return ""
+
+
+class RelayConn:
+    def __init__(self, sock):
+        self.sock = sock
+        self.buf = b""
+        # One of "new", "page" or "driver".
+        self.kind = "new"
+        # A page's message so far, while its frames are split.
+        self.message = b""
+
+
+class Relay:
+    """Joins one page's WebSocket and one Driver's JSON Lines on one port.
+
+    The first bytes name the side: "GET " is the page, anything else is a
+    Driver. Each Driver line goes to the page as one text message, and each
+    page message goes back as one reply line. A new page replaces the old
+    one. A request waits until a page connects. The Relay exits after it
+    forwards the reply to quit."""
+
+    def __init__(self, port, host="127.0.0.1"):
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.listener.bind((host, port))
+        self.listener.listen(8)
+        self.port = self.listener.getsockname()[1]
+        self.selector = selectors.DefaultSelector()
+        self.selector.register(self.listener, selectors.EVENT_READ)
+        self.page = None
+        self.driver = None
+        # Drivers that connected while another was served, in order.
+        self.waiting = []
+        # The request the page owes a reply to, and the Driver that sent it.
+        self.in_flight = None
+        self.done = False
+
+    def close(self):
+        self.done = True
+        socks = [key.fileobj for key in self.selector.get_map().values()] + [conn.sock for conn in self.waiting]
+        self.selector.close()
+        for sock in socks:
+            sock.close()
+
+    def serve(self):
+        try:
+            while not self.done:
+                for key, _ in self.selector.select(timeout=0.2):
+                    if self.done:
+                        break
+                    if key.data is None:
+                        self.accept()
+                    else:
+                        self.read(key.data)
+        except (OSError, ValueError):
+            if not self.done:
+                raise
+
+    def accept(self):
+        sock, _ = self.listener.accept()
+        conn = RelayConn(sock)
+        self.selector.register(sock, selectors.EVENT_READ, conn)
+
+    def drop(self, conn):
+        try:
+            self.selector.unregister(conn.sock)
+        except (KeyError, ValueError):
+            pass
+        conn.sock.close()
+        if conn is self.page:
+            self.page = None
+            if self.in_flight is not None:
+                _, driver = self.in_flight
+                self.in_flight = None
+                if driver is not None:
+                    self.reply(driver, json.dumps({"ok": False, "error": RELAY_PAGE_DROPPED}, separators=(",", ":")).encode())
+        elif conn is self.driver:
+            self.driver = None
+            if self.in_flight is not None:
+                # The page still owes the reply, and it goes nowhere.
+                self.in_flight = (self.in_flight[0], None)
+            self.next_driver()
+        elif conn in self.waiting:
+            self.waiting.remove(conn)
+
+    def read(self, conn):
+        try:
+            data = conn.sock.recv(65536)
+        except OSError:
+            data = b""
+        if not data:
+            self.drop(conn)
+            return
+        conn.buf += data
+        if conn.kind == "new":
+            self.classify(conn)
+        elif conn.kind == "page":
+            self.read_page(conn)
+        if conn.kind == "driver" and conn is self.driver:
+            self.forward()
+
+    def classify(self, conn):
+        if conn.buf.startswith(b"GET "):
+            end = conn.buf.find(b"\r\n\r\n")
+            if end >= 0:
+                self.open_page(conn, conn.buf[:end].decode("latin-1"), conn.buf[end + 4 :])
+            return
+        if len(conn.buf) < 4 and b"\n" not in conn.buf and b"GET "[: len(conn.buf)] == conn.buf:
+            return
+        conn.kind = "driver"
+        if self.driver is None:
+            self.driver = conn
+        else:
+            self.waiting.append(conn)
+            # A waiting Driver's lines stay in the socket until its turn.
+            self.selector.unregister(conn.sock)
+
+    def open_page(self, conn, head, rest):
+        key = relay_header(head, "sec-websocket-key")
+        if not relay_origin_allowed(head) or not key:
+            conn.sock.sendall(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            self.drop(conn)
+            return
+        conn.sock.sendall(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" f"Sec-WebSocket-Accept: {ws_accept(key)}\r\n\r\n").encode())
+        if self.page is not None:
+            old = self.page
+            try:
+                old.sock.sendall(ws_frame(WS_CLOSE, struct.pack(">H", RELAY_REPLACED) + b"replaced"))
+            except OSError:
+                pass
+            self.drop(old)
+        conn.kind = "page"
+        conn.buf = rest
+        self.page = conn
+        self.read_page(conn)
+        self.forward()
+
+    def read_page(self, conn):
+        while conn is self.page:
+            frame, conn.buf = ws_parse_frame(conn.buf)
+            if frame is None:
+                return
+            fin, opcode, payload = frame
+            if opcode == WS_PING:
+                conn.sock.sendall(ws_frame(WS_PONG, payload))
+            elif opcode == WS_CLOSE:
+                self.drop(conn)
+            elif opcode in (WS_TEXT, WS_BINARY, WS_CONTINUATION):
+                conn.message += payload
+                if fin:
+                    message, conn.message = conn.message, b""
+                    self.page_reply(message)
+
+    def page_reply(self, message):
+        if self.in_flight is None:
+            return
+        request, driver = self.in_flight
+        self.in_flight = None
+        try:
+            reply = json.loads(message)
+        except ValueError:
+            reply = None
+        if isinstance(reply, dict) and "png" in reply:
+            message = self.save_png(request, reply)
+        # A Driver that left before the reply gets nothing, but its quit
+        # still ends the run.
+        if driver is not None:
+            self.reply(driver, message)
+        if request.get("op") == "quit" and isinstance(reply, dict) and reply.get("ok"):
+            self.done = True
+            return
+        self.forward()
+
+    # The host has no file system to write to, so the Relay writes the PNG
+    # to the request's path and gives the Driver the native reply.
+    def save_png(self, request, reply):
+        data = base64.b64decode(reply.pop("png"))
+        try:
+            with open(request["path"], "wb") as f:
+                f.write(data)
+        except (OSError, KeyError, TypeError) as err:
+            reply = {"ok": False, "error": f"the Relay cannot write {request.get('path')!r}: {err}"}
+        return json.dumps(reply, separators=(",", ":")).encode()
+
+    def reply(self, driver, message):
+        try:
+            driver.sock.sendall(message + b"\n")
+        except OSError:
+            self.drop(driver)
+
+    # Sends the Driver's next line when the page owes nothing.
+    def forward(self):
+        while self.driver is not None and self.page is not None and self.in_flight is None:
+            end = self.driver.buf.find(b"\n")
+            if end < 0:
+                return
+            line, self.driver.buf = self.driver.buf[:end].rstrip(b"\r"), self.driver.buf[end + 1 :]
+            if not line.strip():
+                continue
+            try:
+                request = json.loads(line)
+            except ValueError:
+                request = {}
+            self.in_flight = (request if isinstance(request, dict) else {}, self.driver)
+            try:
+                self.page.sock.sendall(ws_frame(WS_TEXT, line))
+            except OSError:
+                self.drop(self.page)
+
+    def next_driver(self):
+        if self.driver is not None or not self.waiting:
+            return
+        self.driver = self.waiting.pop(0)
+        self.selector.register(self.driver.sock, selectors.EVENT_READ, self.driver)
+        self.forward()
+
+
 def mouse_arg(text):
     parts = text.split(",")
     if len(parts) != 2:
@@ -366,6 +672,9 @@ def parse_args(argv):
     shot.add_argument("path")
     ops.add_parser("quit")
     ops.add_parser("free-port", help="print a free localhost port for ROCCO_BRIDGE")
+    relay = ops.add_parser("relay", help="join a web page's WebSocket and the Drivers on one port, until quit")
+    # SUPPRESS keeps the main --port when this one is not given.
+    relay.add_argument("--port", type=int, default=argparse.SUPPRESS, help=f"the port the page and the Drivers connect to (default: ${PORT_ENV})")
     args = parser.parse_args(argv)
     if args.op == "tell" and (args.msg is None) == (args.file is None):
         tell.error("give either MSG or --file PATH")
@@ -386,6 +695,19 @@ def main(argv=None):
             print(f"bridge.py: give --port or set {PORT_ENV}", file=sys.stderr)
             return 2
         port = int(value)
+    if args.op == "relay":
+        try:
+            relay = Relay(port)
+        except OSError as err:
+            print(f"bridge.py: the Relay cannot listen on 127.0.0.1:{port}: {err}", file=sys.stderr)
+            return 2
+        try:
+            relay.serve()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            relay.close()
+        return 0
     try:
         with Bridge.connect(port, wait=args.wait) as b:
             try:

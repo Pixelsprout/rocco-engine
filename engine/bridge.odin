@@ -50,6 +50,8 @@ Bridge :: struct {
 	alloc:        Alloc_Report,
 	// The tell op's messages for the next step.
 	ports:        Bridge_Ports,
+	// The path of a screenshot whose reply waits for the read-back.
+	shot_path:    strings.Builder,
 }
 
 // One pad of a step op. A slot that the request does not name has no pad.
@@ -77,13 +79,22 @@ Bridge_Pointer :: struct {
 // Returns 0 when the Bridge is off. Exits the process on a bad value, so a
 // typo cannot produce a normal run.
 bridge_port_from_env :: proc() -> int {
-	value := system.get_env(BRIDGE_ENV, context.temp_allocator)
+	value, name := bridge_port_text()
 	port, ok := bridge_port_parse(value)
 	if !ok {
-		system.eprintfln("%v must be a port from 1 to 65535, got %q", BRIDGE_ENV, value)
+		system.eprintfln("%v must be a port from 1 to 65535, got %q", name, value)
 		system.exit(1)
 	}
 	return port
+}
+
+// A hosted page must not connect to a port on the player's machine, so only
+// a page served from this machine reads ?bridge.
+bridge_web_port_text :: proc(hostname, value: string) -> string {
+	if hostname != "localhost" && hostname != "127.0.0.1" {
+		return ""
+	}
+	return value
 }
 
 bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
@@ -100,6 +111,7 @@ bridge_port_parse :: proc(value: string) -> (port: int, ok: bool) {
 bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> Bridge_Open_Error {
 	bridge_transport_open(&b.transport, port, allocator) or_return
 	b.commands = strings.builder_make(allocator)
+	b.shot_path = strings.builder_make(allocator)
 	bridge_ports_init(&b.ports, allocator)
 	b.on = true
 	return nil
@@ -108,7 +120,11 @@ bridge_open :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) -> Bridge_O
 // A port in use must not start a normal run, so it exits the process.
 bridge_open_or_exit :: proc(b: ^Bridge, port: int, allocator: mem.Allocator) {
 	if err := bridge_open(b, port, allocator); err != nil {
-		system.eprintfln("%v=%v: the host cannot listen on 127.0.0.1:%v: %v", BRIDGE_ENV, port, port, err)
+		when ODIN_OS == .Freestanding {
+			system.eprintfln("?bridge=%v: this browser cannot open a WebSocket", port)
+		} else {
+			system.eprintfln("%v=%v: the host cannot listen on 127.0.0.1:%v: %v", BRIDGE_ENV, port, port, err)
+		}
 		system.exit(1)
 	}
 }
@@ -119,6 +135,7 @@ bridge_close :: proc(b: ^Bridge) {
 	}
 	bridge_transport_close(&b.transport)
 	strings.builder_destroy(&b.commands)
+	strings.builder_destroy(&b.shot_path)
 	bridge_ports_destroy(&b.ports)
 	b.on = false
 }
@@ -150,6 +167,16 @@ bridge_clock_time :: proc(b: ^Bridge, frame_time: f64) -> f64 {
 	}
 	b.owed_steps -= 1
 	return frame_time
+}
+
+// The browser paces requestAnimationFrame, and a sleep would block its event
+// loop, which delivers the Bridge's messages.
+bridge_pause_wait :: proc(b: ^Bridge) {
+	when ODIN_OS != .Freestanding {
+		if bridge_paused(b) {
+			time.sleep(BRIDGE_PAUSE_WAIT)
+		}
+	}
 }
 
 // A paused Frame runs no step, and draws the Scene that the scene op returns.

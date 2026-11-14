@@ -45,12 +45,13 @@ echo "== emcc: miniaudio and stb_image"
 emcc -c $c_opt "$root/scripts/miniaudio/rocco_miniaudio.c" -o "$work/miniaudio.o"
 emcc -c $c_opt -DSTBI_NO_STDIO -DSTBI_ONLY_PNG "$odin_root/vendor/stb/src/stb_image.c" -o "$work/stb_image.o"
 emcc -c $c_opt "$root/scripts/web/main.c" -o "$work/main.o"
+emcc -c $c_opt --use-port=emdawnwebgpu "$root/scripts/web/rocco_web.c" -o "$work/rocco_web.o"
 
 echo "== odin: engine object"
 odin build "$root/engine" -target:freestanding_wasm32 -build-mode:obj -no-entry-point \
 	-default-to-nil-allocator $odin_opt -vet -strict-style -out:"$work/engine.o"
 
-objects="$work/main.o $work/engine.o $work/sokol_log.o $work/sokol_gfx.o $work/sokol_app.o $work/sokol_glue.o
+objects="$work/main.o $work/rocco_web.o $work/engine.o $work/sokol_log.o $work/sokol_gfx.o $work/sokol_app.o $work/sokol_glue.o
 	$work/miniaudio.o $work/stb_image.o $root/clay/bindings/odin/clay-odin/wasm/clay.o"
 
 # The Roc functions stay undefined here. The loader gets an unused stub for
@@ -60,7 +61,7 @@ objects="$work/main.o $work/engine.o $work/sokol_log.o $work/sokol_gfx.o $work/s
 echo "== emcc: reference link and loader"
 # shellcheck disable=SC2086
 emcc -v $objects -o "$work/index.js" \
-	--use-port=emdawnwebgpu -sDEFAULT_TO_CXX -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=8MB \
+	--use-port=emdawnwebgpu -lwebsocket.js -sDEFAULT_TO_CXX -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=8MB \
 	-sFORCE_FILESYSTEM=1 -sERROR_ON_UNDEFINED_SYMBOLS=0 \
 	2> "$work/emcc.log" || { cat "$work/emcc.log" >&2; exit 1; }
 # The system libraries come as -l flags, and ports such as emdawnwebgpu as

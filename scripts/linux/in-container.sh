@@ -34,6 +34,9 @@ RUN_PREFIX="$RUN" sh scripts/run-games.sh "$FRAMES" cards entity-game pong bridg
 # CI uploads the screenshots from build/bridge-check.
 RUN_PREFIX="$RUN" python3 scripts/bridge_check.py build/bridge-check/bridge-check.png
 
+# The web job takes the same frame in Chrome, and the web-pixels job compares them.
+$RUN sh scripts/screenshot.sh pong build/bridge-check/pong-native.png 60
+
 echo "== host check"
 sh scripts/host-check.sh
 

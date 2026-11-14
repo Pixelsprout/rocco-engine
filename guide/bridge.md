@@ -39,7 +39,7 @@ forward for a quarter of a second with `scripts/bridge.py`:
 ```sh
 $ export ROCCO_BRIDGE=7878
 $ python3 scripts/bridge.py hello
-{"ok":true,"protocol":10,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":11,"step_hz":120,"steps":0,"headless":false,"devices":false,"web":false}
 $ python3 scripts/bridge.py step 30 --held W
 {"ok":true,"steps":30,"commands":[],"alloc":{"step":30,"allocs":3,"deallocs":3,"reallocs":0,"live":3,"step_us":1.1,"view_us":0.9}}
 $ python3 scripts/bridge.py scene
@@ -107,7 +107,8 @@ stick of a pad and quits with Start.
 example in `examples/`, such as `tutorial/04-lights`. It starts the built
 game with the Bridge on a free port, runs the steps with no Input, saves the
 screenshot and quits. With no step count, it runs one second of steps. It
-prints the `screenshot` reply.
+prints the `screenshot` reply. With `--web` first, it saves the frame from
+the game's web page instead, as [Web runs](#web-runs) explains.
 
 ## Requests and replies
 
@@ -140,13 +141,14 @@ on the second. They come from real runs of the tutorial on a Mac.
 
 ```
 {"op":"hello"}
-{"ok":true,"protocol":10,"step_hz":120,"steps":0,"headless":false,"devices":false}
+{"ok":true,"protocol":11,"step_hz":120,"steps":0,"headless":false,"devices":false,"web":false}
 ```
 
 `protocol` is the version of the requests and replies. It goes up when a
 reply changes shape, so a Driver can check it first. `step_hz` is the step
 rate from the game's [Launch](launch.md), and `steps` is the count of fixed
-steps the run has taken. `headless` is `true` in a Headless run.
+steps the run has taken. `headless` is `true` in a Headless run, and
+`web` is `true` in a [web run](#web-runs).
 
 `hello` also takes `devices`, `true` or `false`. With `devices` on, the
 person's real keyboard, mouse, pointer and gamepads reach the game together
@@ -155,7 +157,7 @@ echoes the setting. This exchange is from a run of bridge-echo:
 
 ```
 {"op":"hello","devices":true}
-{"ok":true,"protocol":10,"step_hz":120,"steps":0,"headless":false,"devices":true}
+{"ok":true,"protocol":11,"step_hz":120,"steps":0,"headless":false,"devices":true,"web":false}
 ```
 
 A `hello` without `devices` turns it off. The setting lasts while this
@@ -487,7 +489,8 @@ A Headless run draws nothing, so it replies with an error there:
 ```
 
 The host sends the reply, then exits with code 0. It does not answer the
-requests that come after `quit`.
+requests that come after `quit`. A [web run](#web-runs) ends the page's
+run instead, and the tab stays open.
 
 ## inject
 
@@ -664,6 +667,67 @@ ROCCO_HEADLESS=1 ROCCO_BRIDGE=7878 roc main.roc
 
 A Headless run takes one frame for each step, and draws nothing.
 
+## Web runs
+
+A web page cannot listen on a socket, so a [web build](web.md) connects
+out instead. A Relay sits between the page and the Driver:
+
+```sh
+python3 scripts/bridge.py relay --port 7878
+```
+
+The Relay listens on one port. The page connects to it with a WebSocket,
+and each Driver connects to the same port with JSON Lines, as it would to
+a native run. The Relay passes each request to the page and each reply
+back, so every `bridge.py` command and every Driver works unchanged. The
+Relay runs until it passes on the reply to `quit`.
+
+Open the page with `?bridge=` and the Relay's port, such as
+`http://127.0.0.1:8000/index.html?bridge=7878`. The page tries to connect
+every quarter second until the Relay answers. Until then, it shows the
+first frame and runs no steps, as a native run with no Driver does. The
+page turns the Bridge on only when it was served from `localhost` or
+`127.0.0.1`. A page on itch.io or any other host ignores `?bridge` and
+never opens a connection, so the same build is safe to upload.
+
+The Relay serves one page and one Driver at a time. When a new page
+connects, such as after a reload, it replaces the old one and its run
+starts again at step 0. The old page stops trying to connect, so two open
+tabs do not take turns. Reload a page to give it the Relay back. If the page goes away while a request waits for
+its reply, the Driver gets the error
+`the page closed before it replied`. A request that arrives while no page
+is connected waits until one connects.
+
+A page cannot write a file, so `screenshot` works a little differently
+inside. The page reads the frame back from the GPU, which takes until
+after the frame, and sends the PNG to the Relay. The Relay writes the file
+at `path`, and the Driver gets the same reply as in a native run. Send an
+absolute path, as `bridge.py` does, because the Relay writes it from its
+own folder.
+
+`quit` and a `Quit` Command from the game end a web run in the same way.
+The page sends any reply it owes, stops drawing, shuts the engine down and
+dispatches a `rocco:quit` event on `window`. What the player sees next is
+up to the page. The default page shows that the game has ended, with a
+button that loads the page again.
+
+`scripts/screenshot.sh --web <game> <out.png> [steps]` does all of this
+for you. It needs the page from `roc scripts/build.roc web <game>`. It
+starts a Relay, a static server and Chrome on the page with `?bridge`,
+then makes the same Bridge calls as a native screenshot. Chrome opens a
+window at 960 by 540, and `CHROME_WINDOW` changes that size. On macOS,
+headless Chrome stops drawing after the first frame, so the window must
+stay open. CI runs it headless on Linux, as [Web builds](web.md#the-bridge)
+shows.
+
+Two things differ from a native run:
+
+- `devices` stays on until the page connects again, because the page
+  cannot see a Driver come and go behind the Relay. Send `hello` without
+  `devices` to turn it off.
+- `ROCCO_EXIT_AFTER_FRAMES` and the other switches do nothing, because a
+  page has no environment.
+
 ## Limits
 
 - The host listens on `127.0.0.1` only. A Driver on another machine cannot
@@ -699,7 +763,7 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Op | Fields | Reply fields |
 |---|---|---|
-| `hello` | `devices`, optional | `protocol`, `step_hz`, `steps`, `headless`, `devices` |
+| `hello` | `devices`, optional | `protocol`, `step_hz`, `steps`, `headless`, `devices`, `web` |
 | `step` | `n`, `held`, `tap`, `mouse`, `gamepads`, `pointer`, each optional | `steps`, `commands`, `alloc` |
 | `scene` | none | `steps`, `scene`, `results` |
 | `screenshot` | `path` | `path`, `physical`, `logical` |
@@ -711,10 +775,11 @@ A Headless run takes one frame for each step, and draws nothing.
 
 | Field | Means |
 |---|---|
-| `protocol` | The version of the requests and replies. Today it is 10. |
+| `protocol` | The version of the requests and replies. Today it is 11. |
 | `step_hz` | The fixed steps per second, from the game's Launch. |
 | `steps` | The fixed steps that the run has taken. |
 | `headless` | `true` in a Headless run, `false` with a window. |
+| `web` | `true` in a web run through a Relay, `false` in a native run. |
 | `devices` | `true` lets the real devices reach the game with the Driver's Input, while this Driver stays connected. The default is `false`. |
 | `n` | How many steps to run, a whole number of 1 or more. The default is 1. |
 | `held` | A list of Key names, held for every step. |
@@ -820,6 +885,7 @@ A Headless run takes one frame for each step, and draws nothing.
 | `bridge.py tell PORT --file PATH` | `tell` with the whole file, read as UTF-8 text. |
 | `bridge.py quit` | `quit` |
 | `bridge.py free-port` | Nothing. It prints a free localhost port for `ROCCO_BRIDGE`. |
+| `bridge.py relay --port P` | Nothing. It runs a Relay on port P for a web page and its Drivers, until the `quit` reply. |
 
 `bridge.py` reads the port from `--port P` or from `ROCCO_BRIDGE`.
 `--wait S` keeps trying to connect for S seconds. `--devices` sends

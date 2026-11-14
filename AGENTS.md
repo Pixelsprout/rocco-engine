@@ -20,7 +20,7 @@ We use matt-pocock skills to work through tasks:
 # Seeing a frame
 To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
 
-For a web build, run `scripts/web/shot.sh <page dir> <out.png>`. It needs a windowed Chrome. See `guide/web.md`.
+For a web build, run `scripts/screenshot.sh --web <game> <out.png> [steps]` after `roc scripts/build.roc web <game>`. It drives the page over the Bridge through a Relay and needs a windowed Chrome on macOS. `scripts/web/shot.sh <page dir> <out.png>` prints the page's own messages. See `guide/web.md`.
 
 To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the ops and the Input rules.
 1. Get a port with `python3 scripts/bridge.py free-port`.

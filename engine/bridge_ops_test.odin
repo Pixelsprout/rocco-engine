@@ -35,6 +35,7 @@ test_bridge_hello_reports_the_protocol_the_step_rate_the_steps_and_the_mode :: p
 	expect_field(t, reply, "steps", i64(7))
 	expect_field(t, reply, "headless", true)
 	expect_field(t, reply, "devices", false)
+	expect_field(t, reply, "web", false)
 	testing.expect(t, !("error" in reply))
 }
 

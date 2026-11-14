@@ -1,6 +1,7 @@
 package engine
 
 import sapp "../sokol-odin/sokol/app"
+import "core:encoding/base64"
 import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
@@ -14,8 +15,12 @@ import "core:strings"
 // 8: the scene reply names the UI rectangle Panel, not Box.
 // 9: each Panel config in scene gained image.
 // 10: the scene reply moved sky and clear into environment.
-BRIDGE_PROTOCOL :: 10
+// 11: hello gained web.
+BRIDGE_PROTOCOL :: 11
 BRIDGE_NOT_YET :: "not yet"
+// WebGPU maps the read-back buffer after the Frame, so the web holds the
+// screenshot reply and the Relay writes the file.
+BRIDGE_SCREENSHOT_LATER :: ODIN_OS == .Freestanding
 
 // ask and listen are kept for Ports (ADR 0009).
 @(rodata)
@@ -97,6 +102,7 @@ bridge_op_hello :: proc(s: ^State, request: json.Object, reply: ^strings.Builder
 	bridge_reply_field(reply, "steps", s.steps)
 	bridge_reply_field(reply, "headless", s.mode == .Headless)
 	bridge_reply_field(reply, "devices", devices)
+	bridge_reply_field(reply, "web", ODIN_OS == .Freestanding)
 	return .Read, ""
 }
 
@@ -181,15 +187,61 @@ bridge_op_screenshot :: proc(s: ^State, request: json.Object, reply: ^strings.Bu
 	if s.mode == .Headless {
 		return .Read, "a Headless run draws no image to screenshot"
 	}
-	size: [2]i32
-	size, error = screenshot_save(&s.renderer, path)
-	if error != "" {
-		return .Read, error
+	when BRIDGE_SCREENSHOT_LATER {
+		if error = platform_read_target_later(s.renderer.target.color.image, s.renderer.target.size, bridge_screenshot_on_read, s); error != "" {
+			return .Read, error
+		}
+		return bridge_screenshot_hold(s, path), ""
+	} else {
+		size: [2]i32
+		size, error = screenshot_save(&s.renderer, path)
+		if error != "" {
+			return .Read, error
+		}
+		bridge_screenshot_fields(reply, path, size, sapp.dpi_scale())
+		return .Read, ""
 	}
+}
+
+bridge_screenshot_fields :: proc(reply: ^strings.Builder, path: string, size: [2]i32, dpi: f32) {
 	bridge_reply_field(reply, "path", path)
 	bridge_reply_field(reply, "physical", size)
-	bridge_reply_field(reply, "logical", screenshot_logical_size(size, sapp.dpi_scale()))
-	return .Read, ""
+	bridge_reply_field(reply, "logical", screenshot_logical_size(size, dpi))
+}
+
+// Keeps the path for bridge_screenshot_read, which sends the reply.
+bridge_screenshot_hold :: proc(s: ^State, path: string) -> Bridge_Next {
+	strings.builder_reset(&s.bridge.shot_path)
+	strings.write_string(&s.bridge.shot_path, path)
+	return .Hold
+}
+
+// Sends the held screenshot reply. The page cannot write a file, so the PNG
+// goes in base64 and the Relay writes it to path.
+bridge_screenshot_read :: proc(s: ^State, rgba: []byte, size: [2]i32, error: string) {
+	reply := strings.builder_make(context.temp_allocator)
+	if error != "" {
+		bridge_reply_error(&reply, error)
+	} else {
+		png := screenshot_png(size, rgba)
+		strings.write_string(&reply, `{"ok":true`)
+		bridge_screenshot_fields(&reply, strings.to_string(s.bridge.shot_path), size, s.window.dpi)
+		strings.write_string(&reply, `,"png":"`)
+		base64.encode_into(strings.to_writer(&reply), png)
+		strings.write_string(&reply, `"}`)
+	}
+	bridge_transport_send_held(&s.bridge.transport, strings.to_string(reply))
+}
+
+// The read-back's callback, from the browser's event loop. user is the ^State.
+bridge_screenshot_on_read :: proc "c" (user: rawptr, rgba: [^]u8, width, height: i32, error: cstring) {
+	s := (^State)(user)
+	context = s.ctx
+	pixels: []byte
+	if rgba != nil {
+		pixels = rgba[:int(width) * int(height) * 4]
+	}
+	bridge_screenshot_read(s, pixels, {width, height}, string(error))
 }
 
 // Queues msg for the next step whose Scene Listens on port. queued is the

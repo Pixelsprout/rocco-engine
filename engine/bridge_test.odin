@@ -25,6 +25,15 @@ test_bridge_port_takes_1_to_65535 :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_bridge_web_port_is_read_only_on_this_machine :: proc(t: ^testing.T) {
+	testing.expect_value(t, bridge_web_port_text("localhost", "7878"), "7878")
+	testing.expect_value(t, bridge_web_port_text("127.0.0.1", "7878"), "7878")
+	for host in ([]string{"example.itch.io", "html-classic.itch.zone", "", "localhost.example.com", "127.0.0.2", "[::1]"}) {
+		testing.expectf(t, bridge_web_port_text(host, "7878") == "", "expected no port on %q", host)
+	}
+}
+
+@(test)
 test_bridge_port_rejects_bad_values :: proc(t: ^testing.T) {
 	for value in ([]string{"0", "-1", "65536", "+80", "080", "port", " 80", "80 ", "1_000"}) {
 		_, ok := bridge_port_parse(value)

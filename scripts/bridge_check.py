@@ -102,7 +102,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge
 
 # The protocol of engine/bridge_ops.odin.
-PROTOCOL = 10
+PROTOCOL = 11
 # examples/bridge-echo/main.roc
 ECHO_BUTTON_ID = 7
 ECHO_MENU_ID = 8
