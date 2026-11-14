@@ -5,6 +5,7 @@ import "arenas"
 import "core:mem"
 import "core:net"
 import "core:strings"
+import "system"
 
 Bridge_Open_Error :: net.Network_Error
 
@@ -24,6 +25,11 @@ Bridge_Transport :: struct {
 	reply:             strings.Builder,
 	scratch:           arenas.Arena,
 	allocator:         mem.Allocator,
+}
+
+// The port's text and where it came from, for the error message.
+bridge_port_text :: proc() -> (value, name: string) {
+	return system.get_env(BRIDGE_ENV, context.temp_allocator), BRIDGE_ENV
 }
 
 // Port 0 asks the OS for a free port. Only tests use it.

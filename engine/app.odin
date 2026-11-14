@@ -7,7 +7,6 @@ import slog "../sokol-odin/sokol/log"
 import "core:fmt"
 import "core:mem"
 import "core:strings"
-import "core:time"
 import "system"
 
 import "base:runtime"
@@ -114,7 +113,9 @@ host_options_from_env :: proc(bridge: bool) -> Host_Options {
 // a fresh cstring from allocator; sokol copies it when the run starts.
 app_desc :: proc(launch: Launch, mode: Run_Mode, allocator: mem.Allocator) -> sapp.Desc {
 	window := launch.window
-	vsync_off := mode == .Lockstep || !window.vsync
+	// A browser presents only on its own refresh, and rejects any other
+	// WebGPU present mode.
+	vsync_off := ODIN_OS != .Freestanding && (mode == .Lockstep || !window.vsync)
 	return {
 		init_cb = init_cb,
 		frame_cb = frame_cb,
@@ -189,9 +190,7 @@ frame_cb :: proc "c" () {
 	capture_start: i64
 	if g_state.capture.on { capture_start = capture_tick() }
 
-	if bridge_paused(&g_state.bridge) {
-		time.sleep(BRIDGE_PAUSE_WAIT)
-	}
+	bridge_pause_wait(&g_state.bridge)
 	// The first Frame draws before any request is read, so a screenshot
 	// always has a Frame to read.
 	if g_state.frame_count > 0 {
@@ -218,10 +217,15 @@ frame_cb :: proc "c" () {
 	)
 }
 
+// On the web, sokol calls this when the run quits and then stops the frame
+// loop.
 cleanup_cb :: proc "c" () {
 	context = g_state.ctx
 
 	app_shutdown()
+	when ODIN_OS == .Freestanding {
+		platform_run_ended()
+	}
 }
 
 // A Headless run never set up sokol, so it must not shut it down. A bench run

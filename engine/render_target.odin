@@ -106,7 +106,7 @@ render_target_fit :: proc(t: ^Render_Target, size: [2]i32, dpi: f32) {
 	t.size = size
 	t.dpi = dpi
 	t.hdr = target_layer_make(size, t.samples, HDR_COLOR_FORMAT, "target-hdr", "target-hdr-msaa")
-	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", platform_readable_color_texture(size.x, size.y))
+	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", readable = true)
 	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
 	t.hdr.attachments.depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})
 	t.bloom.count = bloom_mip_count(size, dpi)
@@ -145,8 +145,9 @@ bloom_chain_init :: proc(c: ^Bloom_Chain) {
 	c.up = sg.make_pipeline(desc)
 }
 
-// mtl_texture is a Metal texture that sokol takes for the resolved image, or nil.
-target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, label, msaa_label: cstring, mtl_texture: rawptr = nil) -> (l: Target_Layer) {
+// A readable layer is one a screenshot reads back. WebGPU copies it out, and
+// Metal takes a texture of the platform's for it.
+target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, label, msaa_label: cstring, readable := false) -> (l: Target_Layer) {
 	msaa := samples > 1
 	desc := sg.Image_Desc {
 		usage        = {resolve_attachment = msaa, color_attachment = !msaa},
@@ -156,7 +157,13 @@ target_layer_make :: proc(size: [2]i32, samples: i32, format: sg.Pixel_Format, l
 		sample_count = 1,
 		label        = label,
 	}
-	desc.mtl_texture = mtl_texture
+	when EXPECTED_BACKEND == .WGPU {
+		desc.usage.copy_src = readable
+	} else {
+		if readable {
+			desc.mtl_texture = platform_readable_color_texture(size.x, size.y)
+		}
+	}
 	l.image = sg.make_image(desc)
 	l.texture = sg.make_view({texture = {image = l.image}})
 	if msaa {

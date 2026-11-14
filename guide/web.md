@@ -97,14 +97,57 @@ for a key press gives the player that first input.
 - **Environment.** A page has no environment variables and no command line.
   `Config.args` is empty, the Seed is 0, and the `ROCCO_*` switches such as
   `ROCCO_HEADLESS` and `ROCCO_EXIT_AFTER_FRAMES` do nothing.
-- **The Bridge.** The web host does not open a Bridge yet. A later web
-  Bridge will connect to the Driver over a WebSocket.
+- **The Bridge.** A page cannot listen on a socket, so it connects out to
+  a Relay. The next section shows how.
+- **Vsync.** The browser draws on its own refresh, so the page ignores a
+  Launch `vsync` of `False`.
 - **Shader reload.** The page's files never change, so the host does not
   watch the shader packs.
 - **Spans, capture and GPU timing.** These measure native runs only. A web
   build has none of them.
 - **Quit.** A `Quit` command stops the game, but the browser tab stays
-  open.
+  open. The page gets a `rocco:quit` event, as the next section explains.
+
+## The Bridge
+
+A script, a CI test or an agent can drive a web build through the
+[Bridge](bridge.md), as it drives a native run. The page connects out to a
+Relay, and the Driver connects to the same Relay:
+
+```sh
+python3 scripts/bridge.py relay --port 7878 &
+python3 -m http.server 8000 --bind 127.0.0.1 --directory build/web/pong &
+```
+
+Then open http://127.0.0.1:8000/index.html?bridge=7878 in Chrome, and
+send requests with `python3 scripts/bridge.py --port 7878 hello` and the
+other commands. Each command is its own connection, and the page keeps its
+place between them. The Relay exits after it passes on the reply to `quit`.
+
+The page reads `?bridge` only when it was served from `localhost` or
+`127.0.0.1`. On itch.io or any other host, the page ignores it and opens
+no connection. So you upload the same build that you test.
+
+To save one frame in a single command, build the page and run:
+
+```sh
+sh scripts/screenshot.sh --web pong out.png 60
+```
+
+It starts the Relay, the server and a Chrome window, runs 60 steps and
+saves the frame. On macOS the window must stay open, because headless
+Chrome there stops drawing after the first frame. CI runs it headless on
+Linux, with WebGPU on Mesa's software Vulkan, and compares the frame with a native
+screenshot of the same step. The two differ a little, so the check allows
+a small difference in each pixel and a small count of changed pixels.
+`scripts/web/shot.sh` stays for checks of the page itself: it prints the
+page's messages and presses a key to start the audio.
+
+The Bridge's `quit` and a `Quit` Command from the game end a web run in
+the same way. The engine sends any reply it owes, stops drawing, shuts
+down and dispatches `rocco:quit` on `window`, with no detail. The default
+page listens for it and shows that the game has ended, with a button that
+loads the page again. A page of your own can listen for the same event.
 
 ## Shader packs
 

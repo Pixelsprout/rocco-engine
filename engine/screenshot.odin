@@ -22,14 +22,19 @@ screenshot_save :: proc(r: ^Renderer, path: string) -> (size: [2]i32, error: str
 // The window shows the target as opaque, so the PNG is opaque too. rgba is
 // top row first.
 screenshot_write :: proc(path: string, size: [2]i32, rgba: []byte) -> (error: string) {
-	for i := 3; i < len(rgba); i += 4 {
-		rgba[i] = 255
-	}
-	png := png_encode(int(size.x), int(size.y), rgba, allocator = context.temp_allocator)
+	png := screenshot_png(size, rgba)
 	if err := system.write_entire_file(path, png); err != nil {
 		return fmt.tprintf("the host cannot write %q: %v", path, system.error_string(err))
 	}
 	return ""
+}
+
+// Makes rgba opaque and encodes it in the temp allocator.
+screenshot_png :: proc(size: [2]i32, rgba: []byte) -> []byte {
+	for i := 3; i < len(rgba); i += 4 {
+		rgba[i] = 255
+	}
+	return png_encode(int(size.x), int(size.y), rgba, allocator = context.temp_allocator)
 }
 
 // dpi is physical pixels per logical pixel.
