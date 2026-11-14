@@ -45,7 +45,8 @@ exits, and agents depend on that: the run keeps its place between calls.
   Chrome on `?bridge=P`, then makes the native Bridge calls.
   `scripts/web/shot.sh` stays for the page's own messages and the key press
   that starts audio.
-- CI runs headless Chrome with WebGPU on SwiftShader. It compares a pong
+- CI runs headless Chrome with WebGPU on Mesa's lavapipe, a software
+  Vulkan device. It compares a pong
   screenshot with the native one by a per-channel tolerance and a limit on
   changed pixels, both set from measured runs.
 
@@ -74,8 +75,11 @@ exits, and agents depend on that: the run keeps its place between calls.
   setup differs.
 - A web `quit` leaves the tab open. The page, not the host, decides what
   the player sees.
-- The CI image needs Chrome and a software Vulkan device. If headless
-  Chrome stalls requestAnimationFrame on Linux, the job falls back to
-  headed Chrome under `xvfb-run`.
+- The CI job needs Chrome and a software Vulkan device. Chrome's own
+  SwiftShader gives no WebGPU adapter there, because ANGLE needs
+  `VK_KHR_surface`, so the job installs `mesa-vulkan-drivers` and
+  `libvulkan1`. Ubuntu 24.04 blocks the user namespaces of Chrome's
+  sandbox, so Chrome runs with `--no-sandbox`. Headless Chrome on Linux
+  keeps requestAnimationFrame running, so the job needs no `xvfb-run`.
 - The web and native screenshots differ by rasterizer, so the check has a
   tolerance, not byte equality.
