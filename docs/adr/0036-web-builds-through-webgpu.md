@@ -53,11 +53,13 @@ and an itch.io zip. Each spike passed.
 - CI builds the web host and three games (08-sound, surface and pong) in
   its web job. It does not run a page yet. A headless browser check waits
   for the web Bridge (dex task 32954kz7).
-- The web host has no Bridge, no gamepads, no environment switches, no shader
+- The web host has no Bridge yet; ADR 0037 adds one through a Relay. It
+  has no gamepads, no environment switches, no shader
   reload and no Spans, capture or GPU timing.
 - emsdk is a pinned tool. `scripts/toolchain.sh install-emsdk` installs it.
 - The sokol WebGPU backend at the first pin gave no fragment stage to a
-  pipeline with no colour target, so a cutout shadow cast a solid shadow. The sokol-odin pin moved to baf5f3e, which has
-  the upstream fix, and `scripts/web/build-host.sh` no longer patches sokol.
+  pipeline with no colour target, so a cutout shadow cast a solid shadow.
+  The sokol-odin pin moved to baf5f3e, which has the upstream fix, and
+  `scripts/web/build-host.sh` no longer patches sokol.
 - A change to the engine needs `roc scripts/build.roc web-host` before a web
   build sees it.
