@@ -52,8 +52,12 @@ Renderer :: struct {
 	depth_pips, skinned_depth_pips: [Mesh_Pipeline]sg.Pipeline,
 	pips:               [Mesh_Pipeline]sg.Pipeline,
 	instanced_pips, instanced_shadow_pips, instanced_depth_pips: [Mesh_Pipeline]sg.Pipeline,
+	// The slot of the instance upload in progress. instance_offset is a
+	// byte offset into its buffer.
 	instance_buffer: sg.Buffer,
 	instance_offset, instance_count: int,
+	instance_slots: [INSTANCE_SLOT_LIMIT]Instance_Slot,
+	instance_slots_used, instance_slot_count: int,
 	skinned_pips:       [Mesh_Pipeline]sg.Pipeline,
 	sky_pip:            sg.Pipeline,
 	shadow_pips:        [Mesh_Pipeline]sg.Pipeline,
@@ -134,13 +138,13 @@ skinned_draw_capacity :: proc(draws: int) -> int {
 renderer_init :: proc(r: ^Renderer, launch: Launch) {
 	cluster_sizes := [3]uint{MAX_POINT_LIGHTS * size_of(Packed_Light), CLUSTER_COUNT * size_of(Cluster_Range), CLUSTER_INDEX_LIMIT * size_of(u32)}
 	for size, i in cluster_sizes {
-		r.cluster_buffers[i] = sg.make_buffer({size = size, usage = {storage_buffer = true, stream_update = true}})
+		r.cluster_buffers[i] = sg.make_buffer({size = size, usage = {storage_buffer = true, write_transient = true}})
 		r.cluster_views[i] = sg.make_view({storage_buffer = {buffer = r.cluster_buffers[i]}})
 	}
 	sample_count := msaa_sample_count(launch.window.samples)
 	render_target_init(&r.target, sample_count)
 	particle_gpu_init(&r.particles, sample_count)
-	r.instance_buffer = sg.make_buffer({size = instance_buffer_size(int(launch.capacity.draws), int(launch.shadow_cascades)), usage = {vertex_buffer = true, stream_update = true}})
+	r.instance_slot_count = instance_slot_count(int(launch.shadow_cascades))
 	mesh_table_upload(&r.meshes)
 	if r.shaders != nil { shader_table_upload(r.shaders, sample_count) }
 	sky_table_upload(&r.skies)
@@ -434,13 +438,27 @@ renderer_shadow :: proc(ctx: rawptr, mesh: ^Mesh, part: ^Mesh_Part, pipeline: Me
 renderer_lights :: proc(ctx: rawptr, lights: Fs_Lights, clusters: Cluster_Frame) {
 	r := (^Renderer)(ctx)
 	r.lights = lights
-	empty_point: Packed_Light
-	point_data := sg.Range{ptr = raw_data(clusters.points), size = uint(len(clusters.points) * size_of(Packed_Light))}
-	if len(clusters.points) == 0 { point_data = {ptr = &empty_point, size = size_of(Packed_Light)} }
-	sg.update_buffer(r.cluster_buffers[0], point_data)
-	sg.update_buffer(r.cluster_buffers[1], {ptr = raw_data(clusters.ranges), size = uint(len(clusters.ranges) * size_of(Cluster_Range))})
-	sg.update_buffer(r.cluster_buffers[2], {ptr = raw_data(clusters.indices), size = uint(len(clusters.indices) * size_of(u32))})
 	renderer_apply_pipeline(r, r.pips[.Opaque])
+}
+
+renderer_upload_clusters :: proc(ctx: rawptr, clusters: Cluster_Frame) {
+	r := (^Renderer)(ctx)
+	buffer_write(r.cluster_buffers[0], clusters.points)
+	buffer_write(r.cluster_buffers[1], clusters.ranges)
+	buffer_write(r.cluster_buffers[2], clusters.indices)
+}
+
+// sokol rejects a draw that binds a write_transient buffer with no write this
+// frame, and rejects an empty write, so an empty write puts one zero word.
+buffer_write :: proc(buffer: sg.Buffer, data: []$T) {
+	zero: u32
+	src := sg.Range{ptr = raw_data(data), size = uint(len(data) * size_of(T))}
+	if len(data) == 0 { src = {ptr = &zero, size = size_of(zero)} }
+	sg.write_buffer_transient({src = {data = src}, dst = {buffer = buffer}})
+}
+
+renderer_end_frame :: proc(r: ^Renderer) {
+	r.instance_slots_used = 0
 }
 
 // Every apply_pipeline of the Shadow and Main passes goes through here, so
@@ -578,11 +596,13 @@ renderer_submits :: proc(r: ^Renderer) -> Frame_Render_Submits {
 		submit_shadow = renderer_shadow,
 		submit = renderer_draw,
 		submit_lights = renderer_lights,
+		upload_clusters = renderer_upload_clusters,
 		submit_surface = renderer_surface,
 		submit_depth = renderer_depth,
 		submit_selection = renderer_selection,
 		prepare_post = renderer_prepare_post,
 		submit_post = renderer_post,
+		upload_instances = renderer_upload_instances,
 		submit_instances = renderer_instances,
 		submit_sky = renderer_sky,
 		submit_environment = renderer_environment,

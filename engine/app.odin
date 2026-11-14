@@ -140,7 +140,7 @@ app_gfx_desc :: proc(capacity: Capacity, cascades: int) -> sg.Desc {
 	textures := texture_pool_size(capacity)
 	return {
 		logger = {func = slog.func},
-		buffer_pool_size = 3 * i32(capacity.meshes) + 5 + 2,
+		buffer_pool_size = 3 * i32(capacity.meshes) + 4 + 2 + i32(instance_slot_count(cascades)),
 		shader_pool_size = SHADER_ASSET_LIMIT * 9 + 32 + 1 + 3 + 5,
 		pipeline_pool_size = SHADER_ASSET_LIMIT * SHADER_PIPELINE_LIMIT + 64 + 2 + 7 + 9,
 		image_pool_size = textures,
@@ -290,6 +290,7 @@ app_lock_mouse :: proc(locked: bool) {
 app_commit :: proc() {
 	gpu_timing_app_commit()
 	sg.commit()
+	renderer_end_frame(&g_state.renderer)
 }
 
 app_request_quit :: proc() {

@@ -172,13 +172,13 @@ static void init(void) {
     }
     const uint32_t white = 0xffffffff;
     sg_image image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,
-                                                  .data.mip_levels[0]=SG_RANGE(white)});
+                                                  .data=SG_RANGE(white)});
     white_view = sg_make_view(&(sg_view_desc){.texture.image=image});
     const uint16_t environment_pixels[24] = {0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00, 0x3400,0x3800,0x3c00,0x3c00};
-    sg_image environment_image = sg_make_image(&(sg_image_desc){.type=SG_IMAGETYPE_CUBE,.num_slices=6,.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA16F,.data.mip_levels[0]=SG_RANGE(environment_pixels)});
+    sg_image environment_image = sg_make_image(&(sg_image_desc){.type=SG_IMAGETYPE_CUBE,.num_slices=6,.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA16F,.data=SG_RANGE(environment_pixels)});
     environment_texture = sg_make_view(&(sg_view_desc){.texture.image=environment_image});
     const uint32_t flat_normal = 0xffff8080;
-    sg_image normal_image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,.data.mip_levels[0]=SG_RANGE(flat_normal)});
+    sg_image normal_image = sg_make_image(&(sg_image_desc){.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_RGBA8,.data=SG_RANGE(flat_normal)});
     normal_texture = sg_make_view(&(sg_view_desc){.texture.image=normal_image});
     sg_image shadow_image = sg_make_image(&(sg_image_desc){.type=SG_IMAGETYPE_ARRAY,.num_slices=4,.width=1,.height=1,.pixel_format=SG_PIXELFORMAT_DEPTH,.usage.depth_stencil_attachment=true});
     shadow_texture = sg_make_view(&(sg_view_desc){.texture.image=shadow_image});
@@ -198,7 +198,7 @@ static void init(void) {
     for (int n=0; n<4; n++) {
         sg_image input = sg_make_image(&(sg_image_desc){.width=16,.height=16,
             .pixel_format=n==0 ? SG_PIXELFORMAT_RGBA8 : n==2 ? SG_PIXELFORMAT_R8 : SG_PIXELFORMAT_R32F,
-            .data.mip_levels[0]=post_data[n]});
+            .data=post_data[n]});
         post_views[n] = sg_make_view(&(sg_view_desc){.texture.image=input});
     }
     sampler = sg_make_sampler(&(sg_sampler_desc){.min_filter=SG_FILTER_NEAREST,.mag_filter=SG_FILTER_NEAREST});

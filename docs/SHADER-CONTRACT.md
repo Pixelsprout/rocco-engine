@@ -312,18 +312,18 @@ The final vector uses zero padding.
 
 The renderer owns three storage buffers and three storage views.
 Their maximum logical allocation is 972,800 bytes.
-Metal's stream buffers retain two backing copies, totaling 1,945,600 bytes before driver overhead.
+They are write-transient buffers, so Metal keeps two backing copies, totaling 1,945,600 bytes before driver overhead.
 Other backends can allocate additional driver storage.
-The host uploads 55,296 range bytes, up to 32,768 Point bytes, and up to 884,736 index bytes each Frame.
-Empty Point and index buffers receive one zero record.
+The host uploads 55,296 range bytes, up to 32,768 Point bytes, and up to 884,736 index bytes each Frame, before the first pass.
+Empty Point and index buffers receive one zero word.
 The host compacts indices in place before upload.
 The Frame arena also holds the full 884,736-byte index workspace and up to 12,288 bytes of camera-space positions.
 Growing gathered light arrays can retain earlier allocations until the Frame ends.
 
 Repeated bindings and equal Material values reuse the active pipeline state.
 Pipeline changes invalidate both caches.
-Sokol retains uploaded stream data until the corresponding in-flight Frame completes.
-The renderer budgets three additional buffer handles and three view handles.
+Sokol retains write-transient data until the corresponding in-flight Frame completes.
+The renderer budgets three additional buffer handles and three view handles for the storage buffers.
 The default mesh buffer budget now includes every mesh slot, UI buffers, and these storage buffers.
 
 ## Portable limits and device checks
@@ -556,7 +556,7 @@ A different fingerprint requires a game rebuild and restart in the initial imple
 
 ## Sources
 
-The resource ceilings and bindings use the pinned `sokol-odin` submodule at `b13d03cf534c36bb1afb766eef6e3445061d786a`.
+The resource ceilings and bindings use the pinned `sokol-odin` submodule at `baf5f3e28f8923a8efbc7007f9720066286e7972`.
 The compiler evidence comes from the pinned binary.
 The upstream [shader compiler documentation](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md) explains raw output and binding metadata.
 The [OpenGL 4.3 specification](https://registry.khronos.org/OpenGL/specs/gl/glspec43.core.pdf) defines guaranteed GL limits.

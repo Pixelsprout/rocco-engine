@@ -1,4 +1,4 @@
-// Private Metal state follows sokol-odin b13d03cf534c36bb1afb766eef6e3445061d786a.
+// Private Metal state follows sokol-odin baf5f3e28f8923a8efbc7007f9720066286e7972.
 #define sg_setup rocco_sg_setup
 #define sg_begin_pass rocco_sg_begin_pass
 #define sg_apply_pipeline rocco_sg_apply_pipeline
@@ -160,9 +160,9 @@ void rocco_render_diagnostics_buffer(const char* role, uint32_t buffer_id) {
     sg_mtl_buffer_info native = sg_mtl_query_buffer_info(handle);
     char escaped[128];
     rocco_diag_string(escaped, sizeof(escaped), role);
-    rocco_diag_record("{\"event\":\"buffer\",\"step\":%llu,\"role\":\"%s\",\"id\":%u,\"state\":%d,\"requested_bytes\":%llu,\"slots\":%d,\"active_slot\":%d,\"append_bytes\":%d,\"overflow\":%s}\n",
+    rocco_diag_record("{\"event\":\"buffer\",\"step\":%llu,\"role\":\"%s\",\"id\":%u,\"state\":%d,\"requested_bytes\":%llu,\"slots\":%d,\"active_slot\":%d}\n",
         (unsigned long long)rocco_diag_step, escaped, buffer_id, info.slot.state, (unsigned long long)sg_query_buffer_size(handle),
-        info.num_slots, info.active_slot, info.append_pos, info.append_overflow ? "true" : "false");
+        info.num_slots, info.active_slot);
     for (int i = 0; i < info.num_slots && i < SG_NUM_INFLIGHT_FRAMES; i++) {
         id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)native.buf[i];
         rocco_diag_record("{\"event\":\"buffer-native\",\"step\":%llu,\"id\":%u,\"slot\":%d,\"present\":%s,\"length\":%llu,\"contents\":%s,\"handle\":\"%p\"}\n",

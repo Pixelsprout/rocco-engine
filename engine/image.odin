@@ -113,10 +113,19 @@ texture_image_desc :: proc(tex: Texture) -> sg.Image_Desc {
 		pixel_format = .SRGB8A8 if tex.srgb else .RGBA8,
 		label        = label,
 	}
-	for level, i in tex.levels {
-		desc.data.mip_levels[i] = {ptr = raw_data(level.pixels), size = uint(len(level.pixels))}
-	}
+	desc.data = image_levels_data(tex.levels)
 	return desc
+}
+
+// sokol takes every mip level as one packed range, so each level must
+// follow the one before it in memory.
+image_levels_data :: proc(levels: []Image_Level) -> sg.Range {
+	size := 0
+	for level in levels {
+		assert(raw_data(level.pixels) == rawptr(uintptr(raw_data(levels[0].pixels)) + uintptr(size)))
+		size += len(level.pixels)
+	}
+	return {ptr = raw_data(levels[0].pixels), size = uint(size)}
 }
 
 // Copies rgba into level 0. Each further level averages 2 x 2 texels of the

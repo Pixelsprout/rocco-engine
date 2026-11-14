@@ -236,13 +236,13 @@ image_upload :: proc(t: ^Image_Table, image: ^Image) {
 			height = i32(image.height),
 			num_mipmaps = 1,
 			pixel_format = .SRGB8A8,
-			data = {mip_levels = {0 = {ptr = raw_data(image.pixels), size = uint(len(image.pixels))}}},
+			data = {ptr = raw_data(image.pixels), size = uint(len(image.pixels))},
 			label = "image",
 		},
 	)
 	image.view = sg.make_view({texture = {image = image.image}})
  linear_pixels := image.linear_pixels if image.linear_pixels != nil else image.pixels
- image.linear_image = sg.make_image({width = i32(image.width), height = i32(image.height), pixel_format = .RGBA8, data = {mip_levels = {0 = {ptr = raw_data(linear_pixels), size = uint(len(linear_pixels))}}}})
+ image.linear_image = sg.make_image({width = i32(image.width), height = i32(image.height), pixel_format = .RGBA8, data = {ptr = raw_data(linear_pixels), size = uint(len(linear_pixels))}})
  image.linear_view = sg.make_view({texture = {image = image.linear_image}})
 	delete(image.pixels, t.allocator)
 	image.pixels = nil

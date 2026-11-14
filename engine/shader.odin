@@ -222,7 +222,7 @@ shader_upload :: proc(t: ^Shader_Table, s: ^Shader) -> bool {
 		if constant, exists := default["constant"]; exists {
 			pixels := shader_constant_texels(constant)
 			cube := shader_text(d["type"]) == "cube"
-			image := sg.make_image({type = .CUBE if cube else ._2D, width = 1, height = 1, num_slices = 6 if cube else 1, pixel_format = .RGBA32F, data = {mip_levels = {0 = {ptr = &pixels[0], size = 96 if cube else 16}}}})
+			image := sg.make_image({type = .CUBE if cube else ._2D, width = 1, height = 1, num_slices = 6 if cube else 1, pixel_format = .RGBA32F, data = {ptr = &pixels[0], size = 96 if cube else 16}})
 			s.constants[index] = {image = image, view = sg.make_view({texture = {image = image}})}
 			if sg.query_image_state(image) != .VALID || sg.query_view_state(s.constants[index].view) != .VALID { return false }
 		}

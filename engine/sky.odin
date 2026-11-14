@@ -272,7 +272,7 @@ sky_upload :: proc(t: ^Sky_Table, sky: ^Sky) {
 			num_slices = len(SKY_FACES),
 			num_mipmaps = 1,
 			pixel_format = .SRGB8A8,
-			data = {mip_levels = {0 = {ptr = raw_data(sky.pixels), size = uint(len(sky.pixels))}}},
+			data = {ptr = raw_data(sky.pixels), size = uint(len(sky.pixels))},
 			label = "sky",
 		},
 	)
@@ -281,7 +281,7 @@ sky_upload :: proc(t: ^Sky_Table, sky: ^Sky) {
 		view    = sg.make_view({texture = {image = image}}),
 		sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, wrap_w = .CLAMP_TO_EDGE, label = "sky"}),
 	}
- linear_image := sg.make_image({type = .CUBE, width = i32(sky.side), height = i32(sky.side), num_slices = 6, pixel_format = .RGBA8, data = {mip_levels = {0 = {ptr = raw_data(sky.pixels), size = uint(len(sky.pixels))}}}})
+ linear_image := sg.make_image({type = .CUBE, width = i32(sky.side), height = i32(sky.side), num_slices = 6, pixel_format = .RGBA8, data = {ptr = raw_data(sky.pixels), size = uint(len(sky.pixels))}})
  sky.linear_texture = {image = linear_image, view = sg.make_view({texture = {image = linear_image}}), sampler = sg.make_sampler({min_filter = .LINEAR, mag_filter = .LINEAR, wrap_u = .CLAMP_TO_EDGE, wrap_v = .CLAMP_TO_EDGE, wrap_w = .CLAMP_TO_EDGE})}
 	sky.diffuse = sky_lighting_upload(sky.lighting.diffuse, t.allocator)
 	sky.specular = sky_lighting_upload(sky.lighting.specular, t.allocator)

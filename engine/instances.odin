@@ -1,6 +1,13 @@
 package engine
 
 import "arenas"
+import sg "../sokol-odin/sokol/gfx"
+
+// A frame makes one instance upload per pass and pipeline: the Main pass,
+// the Scene_Depth pass and a Shadow pass for each cascade, with one spare.
+INSTANCE_PASSES_BESIDE_SHADOW :: 3
+INSTANCE_SLOT_LIMIT :: len(SCENE_ORDER_PIPELINES) * (MAX_CASCADES + INSTANCE_PASSES_BESIDE_SHADOW)
+INSTANCE_SLOT_MIN :: 256
 
 Instance_Key :: struct {
 	mesh: ^Mesh,
@@ -32,8 +39,22 @@ Instance_Batch :: struct {
 	first, last: int,
 }
 
-instance_buffer_size :: proc(draws, cascades: int) -> uint {
-	return uint(draws * (cascades + 3) * size_of(Surface_Instance))
+// sokol takes no write to a write_transient buffer after a draw binds it in
+// the frame, so each instance upload of a frame gets a buffer of its own.
+Instance_Slot :: struct {
+	buffer: sg.Buffer,
+	capacity: int,
+}
+
+instance_slot_count :: proc(cascades: int) -> int {
+	return len(SCENE_ORDER_PIPELINES) * (cascades + INSTANCE_PASSES_BESIDE_SHADOW)
+}
+
+instance_slot_capacity :: proc(capacity, needed: int) -> int {
+	if needed <= capacity { return capacity }
+	grown := max(capacity, INSTANCE_SLOT_MIN)
+	for grown < needed { grown *= 2 }
+	return grown
 }
 
 // Homogeneous plane support keeps boxes that cross the eye plane.
@@ -153,11 +174,16 @@ frame_render_instances :: proc(fr: ^Frame_Render, pass: Surface_Pass, pipeline: 
 		}
 	}
 	instances := make([]Surface_Instance, len(members), context.temp_allocator)
+	starts := make([]int, len(batches) + 1, context.temp_allocator)
 	next := 0
-	for batch in batches {
-		start := next
+	for batch, i in batches {
+		starts[i] = next
 		for member := batch.first; member >= 0; member = members[member].next { instances[next] = members[member].instance; next += 1 }
+	}
+	starts[len(batches)] = next
+	if len(instances) > 0 && fr.submits.upload_instances != nil { fr.submits.upload_instances(fr.submits.ctx, instances) }
+	for batch, i in batches {
 		fs := transmute(Fs_Params)batch.key.fs_bits; fs.tint = {1, 1, 1, 1}
-		fr.submits.submit_instances(fr.submits.ctx, pass, batch.key.mesh, batch.part, pipeline, view_proj, fs, instances[start:next])
+		fr.submits.submit_instances(fr.submits.ctx, pass, batch.key.mesh, batch.part, pipeline, view_proj, fs, instances[starts[i]:starts[i + 1]])
 	}
 }

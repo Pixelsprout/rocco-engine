@@ -193,7 +193,6 @@ test_instance_scratch_reuses_storage_across_four_shadow_cascades :: proc(t: ^tes
 	}
 	testing.expect_value(t, r.instance_calls, 6)
 	testing.expect_value(t, r.instance_records, 32768 * (MAX_CASCADES + 2))
-	testing.expect(t, uint(r.instance_records * size_of(Surface_Instance)) < instance_buffer_size(32768, MAX_CASCADES))
 	testing.expect(t, fr.instance_scratch_peak < 16 * mem.Megabyte)
 	fmt.eprintfln("instance scratch peak for 32768 rigid Draws and four cascades: %v bytes", fr.instance_scratch_peak)
 }
@@ -340,4 +339,20 @@ test_adjacent_surface_batches_preserve_signed_zero_payload_bits :: proc(t: ^test
 	base := instance_key(&placed[0], &part, fs, 0)
 	fs.material[0] = negative_zero
 	testing.expect(t, instance_key(&placed[0], &part, fs, 0) != base)
+}
+
+@(test)
+test_a_frame_has_an_instance_slot_for_each_pass_and_pipeline :: proc(t: ^testing.T) {
+	passes := 1 + MAX_CASCADES + 1
+	testing.expect(t, instance_slot_count(MAX_CASCADES) >= passes * len(SCENE_ORDER_PIPELINES))
+	testing.expect_value(t, instance_slot_count(1), 3 * (1 + 3))
+}
+
+@(test)
+test_an_instance_slot_grows_to_a_power_of_two_and_never_shrinks :: proc(t: ^testing.T) {
+	testing.expect_value(t, instance_slot_capacity(0, 1), INSTANCE_SLOT_MIN)
+	testing.expect_value(t, instance_slot_capacity(INSTANCE_SLOT_MIN, INSTANCE_SLOT_MIN), INSTANCE_SLOT_MIN)
+	testing.expect_value(t, instance_slot_capacity(INSTANCE_SLOT_MIN, INSTANCE_SLOT_MIN + 1), 2 * INSTANCE_SLOT_MIN)
+	testing.expect_value(t, instance_slot_capacity(4096, 10), 4096)
+	testing.expect_value(t, instance_slot_capacity(64, 5000), 8192)
 }

@@ -122,6 +122,16 @@ test_texture_build_halves_each_mipmap_down_to_1_by_1 :: proc(t: ^testing.T) {
 	}
 }
 
+@(test)
+test_texture_image_desc_gives_every_mip_level_as_one_packed_range :: proc(t: ^testing.T) {
+	rgba := make([]byte, 4 * 4 * 4, context.temp_allocator)
+	tex := texture_build(4, 4, rgba, {mipmaps = true}, srgb = false, allocator = context.temp_allocator)
+	desc := texture_image_desc(tex)
+	testing.expect_value(t, desc.num_mipmaps, 3)
+	testing.expect_value(t, desc.data.ptr, rawptr(raw_data(tex.pixels)))
+	testing.expect_value(t, desc.data.size, uint((16 + 4 + 1) * 4))
+}
+
 // Half black and half white averages to linear 0.5, which is sRGB 188, not 128.
 // Alpha is linear already, so it averages as it is.
 @(test)
