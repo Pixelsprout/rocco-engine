@@ -32,7 +32,7 @@ The command writes `build/web/08-sound/`:
 
 | File | What it holds |
 | --- | --- |
-| `index.html` | The page. It loads `rocco.js` and shows each message that `rocco.js` sends. |
+| `index.html` | The page. It loads `rocco.js`, shows a Loading line until the game draws its first frame, and shows each message that `rocco.js` sends. |
 | `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
 | `index.data.js` | The loader for `index.data`. |
 | `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
@@ -160,6 +160,10 @@ the same way. The engine sends any reply it owes, stops drawing, shuts
 down and dispatches `rocco:quit` on `window`, with no detail. The default
 page listens for it and shows that the game has ended, with a button that
 loads the page again. A page of your own can listen for the same event.
+
+The engine also dispatches `rocco:ready` on `window`, with no detail, once
+it has drawn its first frame. The default page shows a Loading line until
+then. A run driven over the Bridge gets the event too.
 
 ## Shader packs
 

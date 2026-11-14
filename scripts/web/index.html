@@ -9,22 +9,30 @@
 html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px sans-serif; overflow: hidden; }
 canvas { display: block; width: 100%; height: 100%; }
 #message { display: none; position: absolute; inset: 0; padding: 2em; box-sizing: border-box; text-align: center; align-content: center; line-height: 1.5; }
+#loading { position: absolute; inset: 0; text-align: center; align-content: center; pointer-events: none; }
 #message button { margin-top: 1em; font: inherit; padding: 0.4em 1.2em; }
 </style>
 </head>
 <body>
 <!-- sokol_app finds the canvas by its default selector, #canvas. -->
 <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="loading">Loading</div>
 <div id="message"></div>
 <script src="rocco.js"></script>
 <script>
 function rocco_message(text) {
+	document.getElementById("loading").style.display = "none";
 	var box = document.getElementById("message");
 	box.textContent = text;
 	box.style.display = "block";
 	document.getElementById("canvas").style.display = "none";
 	return box;
 }
+window.addEventListener("rocco:ready", function () {
+	// A headless browser shows nothing, so a check reads the console instead.
+	console.log("The game is ready.");
+	document.getElementById("loading").style.display = "none";
+});
 window.addEventListener("rocco:unsupported", function (event) { rocco_message(event.detail.message); });
 window.addEventListener("rocco:stopped", function (event) { rocco_message(event.detail.message); });
 // The engine dispatches rocco:quit after a Quit Command or the Bridge's quit

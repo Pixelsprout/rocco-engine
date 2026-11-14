@@ -15,6 +15,7 @@ Read_Done :: #type proc "c" (user: rawptr, rgba: [^]u8, width, height: i32, erro
 foreign env {
 	rocco_web_read_texture :: proc(device, texture: rawptr, width, height: i32, done: Read_Done, user: rawptr) ---
 	rocco_web_dispatch_quit :: proc() ---
+	rocco_web_dispatch_ready :: proc() ---
 }
 
 shader_open_file :: proc(path: string) -> (^system.File, system.Error) {
@@ -42,6 +43,11 @@ platform_read_target_later :: proc(color: sg.Image, size: [2]i32, done: Read_Don
 	}
 	rocco_web_read_texture(sg.wgpu_device(), texture, size.x, size.y, done, user)
 	return ""
+}
+
+// The page can hide its loading screen once the canvas shows the game.
+platform_first_frame :: proc() {
+	rocco_web_dispatch_ready()
 }
 
 // The page decides what the player sees after the run.

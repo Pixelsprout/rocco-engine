@@ -14,9 +14,11 @@ import "core:time"
 FAKE_PASS_WAIT :: 30 * time.Millisecond
 
 Fake_Platform_Calls :: struct {
-	commits: int,
-	quits:   int,
-	submits: int,
+	commits:                int,
+	quits:                  int,
+	submits:                int,
+	first_frames:           int,
+	commits_at_first_frame: int,
 }
 
 // Guarded by the Roc heap test lock, as g_fake is.
@@ -55,8 +57,41 @@ fake_platform :: proc(frame_duration: f64) -> Frame_Platform {
 		window = headless_window(launch_default()),
 		lock_mouse = proc(locked: bool) {},
 		commit = proc() {g_fake_platform.commits += 1},
+		first_frame = proc() {
+			g_fake_platform.first_frames += 1
+			g_fake_platform.commits_at_first_frame = g_fake_platform.commits
+		},
 		request_quit = proc() {g_fake_platform.quits += 1},
 	}
+}
+
+@(test)
+test_frame_run_calls_first_frame_once_after_the_first_commit :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_host_init(&s)
+	defer fake_host_destroy(&s)
+
+	for _ in 0 ..< 3 {
+		frame_run(&s, fake_platform(s.clock.fixed_dt))
+	}
+
+	testing.expect_value(t, g_fake_platform.first_frames, 1)
+	testing.expect_value(t, g_fake_platform.commits_at_first_frame, 1)
+}
+
+@(test)
+test_a_headless_frame_run_never_calls_first_frame :: proc(t: ^testing.T) {
+	roc_heap_test_begin()
+	defer roc_heap_test_end()
+	s: State
+	fake_host_init(&s, mode = .Headless)
+	defer fake_host_destroy(&s)
+
+	frame_run(&s, fake_platform(s.clock.fixed_dt))
+
+	testing.expect_value(t, g_fake_platform.first_frames, 0)
 }
 
 @(test)

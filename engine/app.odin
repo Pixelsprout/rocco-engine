@@ -212,6 +212,7 @@ frame_cb :: proc "c" () {
 			mouse_locked = sapp.mouse_locked(),
 			lock_mouse = app_lock_mouse,
 			commit = app_commit,
+			first_frame = platform_first_frame,
 			request_quit = app_request_quit,
 		},
 	)

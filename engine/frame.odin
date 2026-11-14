@@ -12,6 +12,8 @@ Frame_Platform :: struct {
 	mouse_locked:   bool,
 	lock_mouse:     proc(locked: bool),
 	commit:         proc(),
+	// Called once, after the first commit. A Page waits for it on the web.
+	first_frame:    proc(),
 	request_quit:   proc(),
 }
 
@@ -113,6 +115,9 @@ frame_run :: proc(s: ^State, platform: Frame_Platform) {
 		platform.commit()
 		if s.capture.on { s.capture.row.commit_end = capture_tick() }
 		span_close(&s.spans, .Commit, span)
+		if s.frame_count == 0 {
+			platform.first_frame()
+		}
 	}
 	if s.capture.on { capture_frame_end(&s.capture, s.steps, steps, alpha, view.camera, s.seam.has_prev) }
 	s.frame_count += 1

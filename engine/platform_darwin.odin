@@ -16,6 +16,9 @@ platform_command_line :: proc(allocator := context.allocator) -> []string {
 	return os.args
 }
 
+// Only the web host tells its page about the first frame.
+platform_first_frame :: proc() {}
+
 // sokol gives every attachment Private storage, and getBytes cannot read a
 // Private texture. Shared storage is valid for a render target on Apple
 // silicon, the only macOS target. sokol takes ownership of the texture.

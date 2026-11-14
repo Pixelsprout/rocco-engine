@@ -25,6 +25,9 @@ platform_command_line :: proc(allocator := context.allocator) -> []string {
 	return os.args
 }
 
+// Only the web host tells its page about the first frame.
+platform_first_frame :: proc() {}
+
 // sokol's own colour attachment can already be read back on this backend.
 platform_readable_color_texture :: proc(width, height: i32) -> rawptr {
 	return nil

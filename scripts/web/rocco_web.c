@@ -42,6 +42,10 @@ EM_JS(void, rocco_web_dispatch_quit, (void), {
 	window.dispatchEvent(new Event("rocco:quit"));
 });
 
+EM_JS(void, rocco_web_dispatch_ready, (void), {
+	window.dispatchEvent(new Event("rocco:ready"));
+});
+
 static bool rocco_socket_on_open(int type, const EmscriptenWebSocketOpenEvent *e, void *data) {
 	rocco_socket *s = data;
 	s->on_event(s->user, e->socket, ROCCO_SOCKET_OPEN, NULL, 0);

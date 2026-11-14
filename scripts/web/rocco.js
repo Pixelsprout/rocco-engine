@@ -3,6 +3,8 @@
 //   rocco:unsupported  insecure, no-webgpu, no-adapter
 //   rocco:stopped      load, canvas, abort, exit
 // rocco.js writes each message to the console and shows nothing itself.
+// The host also dispatches rocco:ready after its first frame and rocco:quit
+// after the run ends, both with no detail.
 // These names and reasons are a contract that game Pages depend on.
 (function () {
 	var started = false;
