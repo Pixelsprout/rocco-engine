@@ -5,7 +5,8 @@
 <page dir> must hold the index.wasm that `roc build --target=wasm32` wrote.
 The script adds the prebuilt page, rocco.js and loader from platform/targets/wasm32,
 packs <game dir>/assets, if there is one, into index.data, and zips the page with index.html
-at the top. Run it from the repository root with emcc on PATH.
+at the top. If <game dir>/web exists, its files are copied over the Default page.
+Run it from the repository root with emcc on PATH.
 """
 
 import os
@@ -18,6 +19,9 @@ import zipfile
 TARGET = 'platform/targets/wasm32'
 KINDS = {0: 'func', 1: 'table', 2: 'memory', 3: 'global', 4: 'tag'}
 PAGE_FILES = ['index.html', 'rocco.js', 'index.js', 'index.wasm', 'index.data', 'index.data.js']
+BUILD_FILES = [file for file in PAGE_FILES if file != 'index.html']
+CANVAS_ID = re.compile(r'''(?<![\w-])id\s*=\s*["']canvas["']''')
+ROCCO_SCRIPT = re.compile(r'''<script\b[^>]*(?<![\w-])src\s*=\s*["'](\./)?rocco\.js([?#][^"']*)?["']''')
 
 
 def read_leb(data, i):
@@ -161,6 +165,38 @@ def copy_default_page(target, page_dir):
         shutil.copy(os.path.join(target, file), os.path.join(page_dir, file))
 
 
+def game_page_files(web_dir):
+    """Every file under web_dir as a path with / separators, without dotfiles."""
+    files = []
+    for root, dirs, names in os.walk(web_dir):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for name in names:
+            if not name.startswith('.'):
+                files.append(os.path.relpath(os.path.join(root, name), web_dir).replace(os.sep, '/'))
+    return sorted(files)
+
+
+# Names compare in any case, because macOS and Windows file names do.
+def game_page_problems(web_dir, files):
+    problems = [f'{web_dir}/{file} has a name that the build writes. Rename it.' for file in files if file.lower() in BUILD_FILES]
+    if 'index.html' not in files:
+        return problems + [f'{web_dir}/index.html is missing. The Page needs it.']
+    with open(os.path.join(web_dir, 'index.html'), encoding='utf-8', errors='replace') as f:
+        html = f.read()
+    if not CANVAS_ID.search(html):
+        problems.append(f'{web_dir}/index.html has no element with id="canvas". The game draws into it.')
+    if not ROCCO_SCRIPT.search(html):
+        problems.append(f'{web_dir}/index.html does not load rocco.js. Add <script src="rocco.js"></script>.')
+    return problems
+
+
+def copy_game_page(web_dir, page_dir, files):
+    for file in files:
+        target = os.path.join(page_dir, file)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        shutil.copy(os.path.join(web_dir, file), target)
+
+
 def page_files(page_dir):
     return [file for file in PAGE_FILES if os.path.exists(os.path.join(page_dir, file))]
 
@@ -185,6 +221,15 @@ def pack_assets(game_dir, page_dir):
 
 
 def main(game_dir, page_dir, zip_name):
+    web_dir = os.path.join(game_dir, 'web')
+    web_files = []
+    if os.path.isdir(web_dir):
+        web_files = game_page_files(web_dir)
+        problems = game_page_problems(web_dir, web_files)
+        for problem in problems:
+            print(f'web_package: {problem}', file=sys.stderr)
+        if problems:
+            return 1
     with open(os.path.join(TARGET, 'reference.wasm'), 'rb') as f:
         reference = f.read()
     with open(os.path.join(page_dir, 'index.wasm'), 'rb') as f:
@@ -201,9 +246,11 @@ def main(game_dir, page_dir, zip_name):
     with open(os.path.join(page_dir, 'index.js'), 'w') as f:
         f.write(js)
     copy_default_page(TARGET, page_dir)
+    copy_game_page(web_dir, page_dir, web_files)
     pack_assets(game_dir, page_dir)
     zip_path = os.path.join(page_dir, zip_name)
-    write_zip(zip_path, page_dir, page_files(page_dir))
+    # page_files already holds index.html, at the top of the zip.
+    write_zip(zip_path, page_dir, page_files(page_dir) + [file for file in web_files if file != 'index.html'])
     print(f'== ready: {page_dir}, {zip_path}')
     return 0
 

@@ -6,7 +6,28 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from web_package import copy_default_page, exported_global, link_problems, page_files, shift_asm_consts, write_zip
+from web_package import (
+    copy_default_page,
+    copy_game_page,
+    exported_global,
+    game_page_files,
+    game_page_problems,
+    link_problems,
+    page_files,
+    shift_asm_consts,
+    write_zip,
+)
+
+
+GOOD_PAGE = '<canvas id="canvas"></canvas>\n<script src="rocco.js"></script>\n'
+
+
+def write_files(root, files):
+    for path, text in files.items():
+        full = os.path.join(root, path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, 'w') as f:
+            f.write(text)
 
 
 def leb(n):
@@ -120,6 +141,92 @@ class CopyDefaultPageTest(unittest.TestCase):
                 self.assertEqual(f.read(), 'rocco.js')
 
 
+class GamePageFilesTest(unittest.TestCase):
+    def test_lists_every_file_under_the_web_folder_except_dotfiles(self):
+        with tempfile.TemporaryDirectory() as web:
+            files = {'index.html': '', 'title.png': '', 'fonts/a.woff2': '', '.DS_Store': '', 'fonts/.hidden': ''}
+            write_files(web, files)
+            self.assertEqual(game_page_files(web), ['fonts/a.woff2', 'index.html', 'title.png'])
+
+
+class GamePageProblemsTest(unittest.TestCase):
+    def problems(self, files):
+        with tempfile.TemporaryDirectory() as web:
+            write_files(web, files)
+            return [problem.replace(web, 'WEB') for problem in game_page_problems(web, game_page_files(web))]
+
+    def test_a_page_with_the_canvas_and_rocco_js_has_no_problems(self):
+        self.assertEqual(self.problems({'index.html': GOOD_PAGE, 'style.css': ''}), [])
+
+    def test_accepts_single_quotes_and_a_dot_slash_path(self):
+        page = "<canvas class='x' id='canvas'></canvas><script defer src='./rocco.js'></script>"
+        self.assertEqual(self.problems({'index.html': page}), [])
+
+    def test_names_each_file_with_a_reserved_name(self):
+        problems = self.problems({'index.html': GOOD_PAGE, 'rocco.js': '', 'index.data': ''})
+        self.assertEqual(problems, [
+            'WEB/index.data has a name that the build writes. Rename it.',
+            'WEB/rocco.js has a name that the build writes. Rename it.',
+        ])
+
+    def test_a_reserved_name_matches_in_any_case(self):
+        self.assertEqual(self.problems({'index.html': GOOD_PAGE, 'Index.JS': ''}), [
+            'WEB/Index.JS has a name that the build writes. Rename it.',
+        ])
+
+    def test_a_reserved_name_in_a_subfolder_is_allowed(self):
+        self.assertEqual(self.problems({'index.html': GOOD_PAGE, 'lib/index.js': ''}), [])
+
+    def test_names_a_missing_index_html(self):
+        self.assertEqual(self.problems({'title.png': ''}), ['WEB/index.html is missing. The Page needs it.'])
+
+    def test_names_a_missing_canvas(self):
+        self.assertEqual(self.problems({'index.html': '<script src="rocco.js"></script>'}), [
+            'WEB/index.html has no element with id="canvas". The game draws into it.',
+        ])
+
+    def test_a_canvas_id_inside_another_attribute_does_not_count(self):
+        page = '<canvas data-id="canvas"></canvas><script src="rocco.js"></script>'
+        self.assertEqual(self.problems({'index.html': page}), [
+            'WEB/index.html has no element with id="canvas". The game draws into it.',
+        ])
+
+    def test_a_rocco_js_data_src_does_not_count(self):
+        page = '<canvas id="canvas"></canvas><script data-src="rocco.js"></script>'
+        self.assertEqual(self.problems({'index.html': page}), [
+            'WEB/index.html does not load rocco.js. Add <script src="rocco.js"></script>.',
+        ])
+
+    def test_accepts_a_query_string_after_rocco_js(self):
+        page = '<canvas id="canvas"></canvas><script src="rocco.js?v=2"></script>'
+        self.assertEqual(self.problems({'index.html': page}), [])
+
+    def test_a_page_that_is_not_utf8_is_still_checked(self):
+        with tempfile.TemporaryDirectory() as web:
+            with open(os.path.join(web, 'index.html'), 'wb') as f:
+                f.write(b'<canvas id="canvas"></canvas>\xff<script src="rocco.js"></script>')
+            self.assertEqual(game_page_problems(web, ['index.html']), [])
+
+    def test_names_a_missing_rocco_js_script(self):
+        self.assertEqual(self.problems({'index.html': '<canvas id="canvas"></canvas><p>rocco.js</p>'}), [
+            'WEB/index.html does not load rocco.js. Add <script src="rocco.js"></script>.',
+        ])
+
+
+class CopyGamePageTest(unittest.TestCase):
+    def test_copies_the_folder_over_the_default_page(self):
+        with tempfile.TemporaryDirectory() as web, tempfile.TemporaryDirectory() as page:
+            write_files(web, {'index.html': 'game page', 'img/title.png': 'png'})
+            write_files(page, {'index.html': 'default page', 'rocco.js': 'engine'})
+            copy_game_page(web, page, game_page_files(web))
+            with open(os.path.join(page, 'index.html')) as f:
+                self.assertEqual(f.read(), 'game page')
+            with open(os.path.join(page, 'img', 'title.png')) as f:
+                self.assertEqual(f.read(), 'png')
+            with open(os.path.join(page, 'rocco.js')) as f:
+                self.assertEqual(f.read(), 'engine')
+
+
 class WriteZipTest(unittest.TestCase):
     def test_puts_the_page_files_at_the_top_of_the_zip(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,6 +238,14 @@ class WriteZipTest(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as z:
                 self.assertEqual(z.namelist(), ['index.html', 'index.js', 'index.wasm'])
                 self.assertEqual(z.read('index.html'), b'index.html')
+
+    def test_keeps_the_folders_of_game_page_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(tmp, {'index.html': '', 'img/title.png': 'png'})
+            zip_path = os.path.join(tmp, 'game.zip')
+            write_zip(zip_path, tmp, ['index.html', 'img/title.png'])
+            with zipfile.ZipFile(zip_path) as z:
+                self.assertEqual(z.read('img/title.png'), b'png')
 
 
 if __name__ == '__main__':
