@@ -32,7 +32,7 @@ The command writes `build/web/08-sound/`:
 
 | File | What it holds |
 | --- | --- |
-| `index.html` | The page. It loads `rocco.js`, shows a Loading line until the game draws its first frame, and shows each message that `rocco.js` sends. |
+| `index.html` | The page. 08-sound has its own page in `examples/tutorial/08-sound/web/`, with a Click to play screen. A game without a `web/` folder gets the default page. |
 | `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
 | `index.data.js` | The loader for `index.data`. |
 | `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip</title>
+<link rel="icon" href="data:,">
+<style>
+html, body { margin: 0; height: 100%; background: #10200d; color: #e8f0e0; font: 16px sans-serif; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; outline: none; }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 2em; box-sizing: border-box; text-align: center; line-height: 1.5; background: #10200d; }
+.screen h1 { margin: 0; font-size: 3em; letter-spacing: 0.05em; }
+.screen p { margin: 0; max-width: 32em; }
+.screen button { font: inherit; font-size: 1.25em; padding: 0.5em 1.6em; border: 0; border-radius: 0.3em; background: #e0a030; color: #10200d; cursor: pointer; }
+.screen button:focus-visible { outline: 3px solid #e8f0e0; outline-offset: 3px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="start" class="screen">
+	<h1>Pip</h1>
+	<p>Collect the five pickups, then walk through the door. Move with W, A, S and D. Turn your sound on.</p>
+	<button id="play" autofocus>Click to play</button>
+</div>
+<div id="loading" class="screen" hidden><p>Loading</p></div>
+<div id="message" class="screen" hidden><p id="message-text"></p></div>
+<div id="end" class="screen" hidden>
+	<h1>Thanks for playing</h1>
+	<button id="again">Play again</button>
+</div>
+<script src="rocco.js"></script>
+<script>
+// An id of "" hides every screen and shows the game.
+function show(id) {
+	for (var screen of document.querySelectorAll(".screen")) {
+		screen.hidden = screen.id !== id;
+	}
+}
+
+// The canvas stays under the start and loading screens, because the
+// engine sizes it while it loads.
+function finish(id) {
+	show(id);
+	document.getElementById("canvas").hidden = true;
+}
+
+function stop(text) {
+	document.getElementById("message-text").textContent = text;
+	finish("message");
+}
+
+// The click is the user gesture that lets miniaudio start its AudioContext.
+document.getElementById("play").onclick = function () {
+	show("loading");
+	document.getElementById("canvas").focus();
+	rocco_start();
+};
+document.getElementById("again").onclick = function () { location.reload(); };
+
+// A Bridge run starts the game without a click, so the first frame also
+// hides the start screen. A headless browser shows nothing, so the CI web
+// job reads this console line instead.
+window.addEventListener("rocco:ready", function () {
+	console.log("The game is ready.");
+	show("");
+});
+window.addEventListener("rocco:unsupported", function (event) { stop(event.detail.message); });
+window.addEventListener("rocco:stopped", function (event) { stop(event.detail.message); });
+// A restart needs a fresh page.
+window.addEventListener("rocco:quit", function () {
+	console.log("The game has ended.");
+	finish("end");
+	document.getElementById("again").focus();
+});
+</script>
+</body>
+</html>

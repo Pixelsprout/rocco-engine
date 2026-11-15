@@ -408,6 +408,14 @@ If you hear nothing, read the log. If the host can't open the audio device,
 it says so once, and the game runs with no sound. If a name in the `Load`
 is wrong, the log names it.
 
+The game also builds into a web page, as [Web builds](../web.md) shows. A
+browser plays no sound until the player clicks or presses a key on the page,
+so this chapter's game has its own page in
+[`examples/tutorial/08-sound/web/index.html`](../../examples/tutorial/08-sound/web/index.html).
+Its `index.html` shows a Click to play screen, and the click starts the game
+and its sound. When a game has a `web/` folder, the web build copies it and
+uses its `index.html` in place of the default page.
+
 You have made a whole game: a character that you load from a file, moves
 with the keys, collects pickups and wins, with lights, a shadow, a HUD and
 sound. Next, read [9. A gamepad](09-gamepad.md). It walks Pip with the

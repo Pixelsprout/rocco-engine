@@ -358,6 +358,26 @@ jobs:
             exit 1
           }
 
+      # 08-sound has its own Page with a Click to play screen. With ?bridge,
+      # rocco.js starts the game without the click, and the Page hides the
+      # start screen on rocco:ready.
+      - name: Screenshot 08-sound on the web
+        run: sh scripts/web/headless-shot.sh tutorial/08-sound build/web-check/08-sound/08-sound-web.png 60
+
+      # The Default page logs the same line, so the first check makes sure
+      # the build used the game's own Page.
+      - name: Check that the 08-sound Page sent rocco:ready
+        run: |
+          grep -q 'Click to play' build/web/08-sound/index.html || {
+            echo "build/web/08-sound/index.html is not the Page from examples/tutorial/08-sound/web."
+            exit 1
+          }
+          grep -q 'The game is ready.' build/web-check/08-sound/chrome.log || {
+            echo "The page never logged 'The game is ready.', so rocco:ready did not reach it."
+            grep CONSOLE build/web-check/08-sound/chrome.log | tail -20
+            exit 1
+          }
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
