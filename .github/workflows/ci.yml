@@ -348,6 +348,16 @@ jobs:
       - name: Screenshot pong on the web
         run: sh scripts/web/headless-shot.sh pong build/web-check/pong-web.png 60
 
+      # The Default page logs this line when the host sends rocco:ready. Without
+      # the event, every Page keeps its loading screen.
+      - name: Check that pong sent rocco:ready
+        run: |
+          grep -q 'The game is ready.' build/web-check/chrome.log || {
+            echo "The page never logged 'The game is ready.', so rocco:ready did not reach it."
+            grep CONSOLE build/web-check/chrome.log | tail -20
+            exit 1
+          }
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

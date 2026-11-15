@@ -62,5 +62,20 @@ class JobStateTest(unittest.TestCase):
         self.assertEqual(ci_wait.job_state({"status": "completed", "conclusion": "failure"}), "failure")
 
 
+class RunsToWaitForTest(unittest.TestCase):
+    def test_waits_for_the_ci_run_when_another_workflow_starts_first(self):
+        self.assertIsNone(ci_wait.runs_to_wait_for([{"databaseId": 1, "workflowName": "Grow the site"}]))
+
+    def test_returns_every_run_once_the_ci_run_has_started(self):
+        runs = [
+            {"databaseId": 1, "workflowName": "Grow the site"},
+            {"databaseId": 2, "workflowName": "CI"},
+        ]
+        self.assertEqual(ci_wait.runs_to_wait_for(runs), [(1, "Grow the site"), (2, "CI")])
+
+    def test_returns_none_when_no_run_has_started(self):
+        self.assertIsNone(ci_wait.runs_to_wait_for([]))
+
+
 if __name__ == "__main__":
     unittest.main()

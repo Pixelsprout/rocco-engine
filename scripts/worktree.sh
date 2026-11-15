@@ -15,10 +15,34 @@ usage() {
 	exit 2
 }
 
+# Stops setup when a submodule is missing or empty. git submodule update can
+# exit 0 and still leave an empty folder, and the build fails much later.
+submodule_problems() {
+	git submodule status | while read -r line; do
+		path=$(echo "$line" | awk '{print $2}')
+		case "$line" in
+		-*) echo "  $path is not cloned." ;;
+		*) [ -n "$(ls -A "$path" 2>/dev/null | grep -vx .git)" ] || echo "  $path is empty. Run: git -C $path checkout -f HEAD -- ." ;;
+		esac
+	done
+}
+
+check_submodules() {
+	problems=$(submodule_problems)
+	if [ -n "$problems" ]; then
+		echo "worktree.sh: the submodules are not ready:" >&2
+		echo "$problems" >&2
+		echo "If a clone failed, run git submodule update --init outside the sandbox." >&2
+		exit 1
+	fi
+}
+
 setup() {
 	cd "$1"
 	echo "== submodules in $1"
+	echo "The clone can use SSH. If it seems stuck, approve the SSH key prompt (1Password)."
 	git submodule update --init
+	check_submodules
 	sh scripts/macos/build-sokol.sh
 	sh scripts/macos/build-miniaudio.sh
 	sh scripts/toolchain.sh run roc scripts/build.roc inputs

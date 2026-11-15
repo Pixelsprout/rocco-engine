@@ -26,6 +26,8 @@ STEP = "##[group]Run "
 END_GROUP = "##[endgroup]"
 ERROR = "##[error]"
 FAILED = ("failure", "timed_out", "startup_failure")
+# The name in .github/workflows/ci.yml. It runs on every push to main and every PR.
+CI_WORKFLOW = "CI"
 
 
 class GhError(Exception):
@@ -66,15 +68,25 @@ def job_state(job):
     return job["conclusion"] or "completed"
 
 
+def runs_to_wait_for(runs):
+    """Returns the (id, workflow) pairs to wait for, or None until the CI run has started.
+
+    Other workflows, such as "Grow the site", often start first and end sooner.
+    """
+    if not any(r["workflowName"] == CI_WORKFLOW for r in runs):
+        return None
+    return [(r["databaseId"], r["workflowName"]) for r in runs]
+
+
 def runs_for_head(wait):
     sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
     deadline = time.monotonic() + wait
     while True:
-        runs = json.loads(gh("run", "list", "--commit", sha, "--json", "databaseId,workflowName"))
+        runs = runs_to_wait_for(json.loads(gh("run", "list", "--commit", sha, "--json", "databaseId,workflowName")))
         if runs:
-            return [(r["databaseId"], r["workflowName"]) for r in runs]
+            return runs
         if time.monotonic() > deadline:
-            raise GhError(f"no CI run started for {sha[:7]} within {wait}s. Was it pushed?")
+            raise GhError(f"no {CI_WORKFLOW} run started for {sha[:7]} within {wait}s. Was it pushed?")
         time.sleep(10)
 
 
