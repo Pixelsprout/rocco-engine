@@ -100,6 +100,12 @@
 		}
 	}, true);
 
+	// sokol cancels mousedown on the canvas, and a cancelled mousedown moves no
+	// focus. In an iframe, a click would then leave the keys with the parent page.
+	window.addEventListener("pointerdown", function () {
+		window.focus();
+	}, true);
+
 	// A Driver must reach the game past any start screen the Page shows. The
 	// host check and the empty-value rule match the engine's Bridge, so a
 	// public page never starts on its own.
