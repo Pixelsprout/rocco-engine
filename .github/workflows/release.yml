@@ -216,6 +216,9 @@ jobs:
             echo "$file" >> "$RUNNER_TEMP/assets"
             echo "--url=$name=$RELEASE_BASE/$(basename "$file")" >> "$RUNNER_TEMP/urls"
           done
+          # A game outside a checkout downloads rocco_web.py to make its Web build.
+          echo "$PWD/scripts/rocco_web.py" >> "$RUNNER_TEMP/assets"
+          echo "--url=rocco_web=$RELEASE_BASE/rocco_web.py" >> "$RUNNER_TEMP/urls"
           cat "$RUNNER_TEMP/urls"
 
       # docs --check also fails on an item with no ## comment or a stale guide page.

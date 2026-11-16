@@ -630,21 +630,12 @@ web_host_run = |mode| { program: "sh", args: ["scripts/web/build-host.sh", mode_
 web_page_dir : Str -> Str
 web_page_dir = |name| "build/web/${game_binary(name)}"
 
-web_game_run : Str -> Run
-web_game_run = |name| {
-	program: "roc",
-	args: ["build", "--target=wasm32", "--output=${web_root_from(name)}/${web_page_dir(name)}/index.wasm", "main.roc"],
-	cwd: "examples/${name}",
-}
-
-# The path from examples/<name> back to the repository root.
-web_root_from : Str -> Str
-web_root_from = |name| Str.join_with(List.repeat("..", name.split_on("/").len() + 1), "/")
-
+# rocco_web.py builds the shaders and the wasm, then packages the page. It
+# finds the platform through the game's header, which names ../../platform.
 web_package_run : Target, Str -> Run
 web_package_run = |target, name| {
 	program: target.python,
-	args: ["scripts/web_package.py", "examples/${name}", web_page_dir(name), "${game_binary(name)}-web.zip"],
+	args: ["scripts/rocco_web.py", "examples/${name}", "--out", web_page_dir(name)],
 	cwd: ".",
 }
 
@@ -666,12 +657,6 @@ web_game! = |target, name| {
 	if !(Path.utf8("${web_host_dir}/host.o").is_file!() ?? Bool.False) {
 		web_host!(Debug)?
 	}
-	if Path.utf8("${dir}/shaders.json").is_file!() ?? Bool.False {
-		root = (Env.cwd!() ? |_| Failed("The working directory is unavailable.")).display()
-		exec!({ program: target.python, args: ["${root}/platform/shader-tools/build.py"], cwd: dir })?
-	}
-	Path.utf8(web_page_dir(name)).create_all!()?
-	exec_allowing!(web_game_run(name), [2])?
 	exec!(web_package_run(target, name))
 }
 
@@ -911,9 +896,7 @@ expect parse(["shaders"]) == Ok([Shaders])
 expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
-expect web_root_from("pong") == "../.."
-expect web_root_from("tutorial/08-sound") == "../../.."
-expect web_game_run("tutorial/08-sound").args == ["build", "--target=wasm32", "--output=../../../build/web/08-sound/index.wasm", "main.roc"]
+expect target_for(mac).map_ok(|target| web_package_run(target, "tutorial/08-sound").args) == Ok(["scripts/rocco_web.py", "examples/tutorial/08-sound", "--out", "build/web/08-sound"])
 expect game_binary("tutorial/01-window") == "01-window"
 expect parse(["web-host"]) == Ok([WebHost(Debug)])
 expect parse(["web-host", "--release"]) == Ok([WebHost(Release)])

@@ -319,7 +319,7 @@ jobs:
           path: platform/targets/wasm32/
           if-no-files-found: error
 
-      # web_package.py checks that each game links against the host's loader.
+      # rocco_web.py checks that each game links against the host's loader.
       # surface has custom shader packs, which need the pinned sokol-shdc.
       - name: Build games for the web
         env:

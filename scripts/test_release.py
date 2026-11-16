@@ -29,6 +29,7 @@ BUNDLE_URLS = {
     "mesh": f"{BASE}/mesh-CCC.tar.zst",
     "ui": f"{BASE}/ui-DDD.tar.zst",
     "camera": f"{BASE}/camera-EEE.tar.zst",
+    "rocco_web": f"{BASE}/rocco_web.py",
 }
 NIGHTLY = "nightly-2026-11-04-2622062"
 
@@ -131,6 +132,7 @@ class PackDocsTest(unittest.TestCase):
                     "mesh_url": f"{BASE}/mesh-CCC.tar.zst",
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
                     "camera_url": f"{BASE}/camera-EEE.tar.zst",
+                    "rocco_web_url": f"{BASE}/rocco_web.py",
                     "roc_nightly": "nightly-2026-11-04-2622062",
                 },
             )
@@ -152,7 +154,7 @@ class PackDocsTest(unittest.TestCase):
 
 
 class CheckDocsTest(unittest.TestCase):
-    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "camera-EEE.tar.zst", "docs.tar.gz"]
+    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "camera-EEE.tar.zst", "rocco_web.py", "docs.tar.gz"]
 
     def pack(self, tmp, urls=BUNDLE_URLS):
         api = Path(tmp) / "docs"

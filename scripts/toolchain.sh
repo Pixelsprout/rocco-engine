@@ -8,7 +8,7 @@
 #   sh scripts/toolchain.sh path           Print the pinned directories, PATH style.
 #   sh scripts/toolchain.sh run <cmd...>   Run a command with the pinned compilers first on PATH.
 #
-# Only web builds need emcc, so check reports a missing emcc without failing.
+# Only the web host build needs emcc, so check reports a missing emcc without failing.
 #
 # A local source build of Odin can carry the same dev-2026-11 tag and still
 # differ from the release archive CI downloads. check compares the commit.
@@ -111,7 +111,7 @@ check() {
 	# emcc prints "emcc (...) 7.0.0 (<commit>)" on its first line.
 	have_emcc=$(emcc --version 2>/dev/null | head -n 1 || true)
 	case "$have_emcc" in
-	"") echo "emcc not on PATH. Web builds need it: sh scripts/toolchain.sh install-emsdk" ;;
+	"") echo "emcc not on PATH. The web host build needs it: sh scripts/toolchain.sh install-emsdk" ;;
 	*" $emsdk_version "*) echo "emcc ok: $have_emcc" ;;
 	*)
 		echo "emcc MISMATCH: PATH has '$have_emcc', CI uses $emsdk_version" >&2
