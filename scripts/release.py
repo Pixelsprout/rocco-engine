@@ -23,8 +23,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui", "camera"]
+# Release assets that the guide links but that have no API pages.
+DOCS_TOOLS = ["rocco_web"]
 # The keys of urls.json are the marker names in the guide pages, such as {{platform_url}}.
-DOCS_MARKERS = [f"{name}_url" for name in DOCS_BUNDLES] + ["roc_nightly"]
+DOCS_MARKERS = [f"{name}_url" for name in DOCS_BUNDLES + DOCS_TOOLS] + ["roc_nightly"]
 LOCAL_PATH = re.compile(r'"(?:\.\./)+(platform|packages/([A-Za-z0-9_-]+))/main\.roc"')
 
 
@@ -75,10 +77,10 @@ def notes(tag, nightly, urls):
 
 
 def docs_markers(nightly, urls):
-    missing = [name for name in DOCS_BUNDLES if name not in urls]
+    missing = [name for name in DOCS_BUNDLES + DOCS_TOOLS if name not in urls]
     if missing:
         raise ValueError(f"no URL for {', '.join(missing)}")
-    markers = {f"{name}_url": urls[name] for name in DOCS_BUNDLES}
+    markers = {f"{name}_url": urls[name] for name in DOCS_BUNDLES + DOCS_TOOLS}
     markers["roc_nightly"] = nightly
     return markers
 
@@ -112,6 +114,7 @@ def check_docs(docs_file, release_base, assets):
     for name in DOCS_BUNDLES:
         if f"{name}/index.html" not in files:
             problems.append(f"the tarball has no {name}/index.html")
+    for name in DOCS_BUNDLES + DOCS_TOOLS:
         key = f"{name}_url"
         if key not in markers:
             continue

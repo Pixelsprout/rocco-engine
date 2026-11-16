@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -6,7 +7,15 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from web_package import (
+from rocco_web import (
+    BuildError,
+    asset_files,
+    find_target,
+    pack_assets,
+    platform_dirs,
+    platform_source,
+    roc_caches,
+    shaders,
     copy_default_page,
     copy_game_page,
     exported_global,
@@ -246,6 +255,116 @@ class WriteZipTest(unittest.TestCase):
             write_zip(zip_path, tmp, ['index.html', 'img/title.png'])
             with zipfile.ZipFile(zip_path) as z:
                 self.assertEqual(z.read('img/title.png'), b'png')
+
+
+HASH = '6AcVMzPtbKbotTHWqn131CpxMhAXcSdwDfBYuMrC6Hby'
+URL = f'https://github.com/Pixelsprout/rocco-engine/releases/download/v0.14.0/platform-{HASH}.tar.zst'
+
+
+class PlatformSourceTest(unittest.TestCase):
+    def test_reads_the_platform_string_from_the_header(self):
+        header = f'app [init, launch] {{ mesh: "https://x/mesh-abc.tar.zst", pf: platform "{URL}", roc: "nightly" }}\n'
+        self.assertEqual(platform_source(header), URL)
+
+    def test_reads_a_local_platform_path(self):
+        self.assertEqual(platform_source('app [init] { pf: platform "../../platform/main.roc" }'), '../../platform/main.roc')
+
+    def test_a_header_with_no_platform_is_an_error(self):
+        with self.assertRaises(BuildError):
+            platform_source('module [thing]')
+
+
+class RocCachesTest(unittest.TestCase):
+    def test_lists_the_caches_in_the_order_roc_looks(self):
+        env = {'ROC_CACHE_DIR': '/rc', 'XDG_CACHE_HOME': '/xdg', 'LOCALAPPDATA': '/local'}
+        home = os.path.join(os.path.expanduser('~'), '.cache', 'roc')
+        self.assertEqual(roc_caches(env), ['/rc', os.path.join('/xdg', 'roc'), home, os.path.join('/local', 'roc')])
+
+    def test_with_no_variables_only_the_home_cache_is_left(self):
+        self.assertEqual(roc_caches({}), [os.path.join(os.path.expanduser('~'), '.cache', 'roc')])
+
+
+class PlatformDirsTest(unittest.TestCase):
+    def test_a_local_path_names_the_folder_of_its_main_roc(self):
+        self.assertEqual(platform_dirs('examples/pong', '../../platform/main.roc', {}), ['platform'])
+
+    def test_a_url_names_the_bundle_hash_in_each_cache(self):
+        dirs = platform_dirs('.', URL, {'ROC_CACHE_DIR': '/rc'})
+        self.assertEqual(dirs[0], os.path.join('/rc', 'packages', HASH))
+        self.assertTrue(all(dir.endswith(HASH) for dir in dirs))
+
+    def test_a_url_with_no_hash_is_an_error(self):
+        with self.assertRaises(BuildError):
+            platform_dirs('.', 'https://example.com/platform.tar.zst', {})
+
+
+class ShadersTest(unittest.TestCase):
+    def test_runs_the_platform_shader_build_from_relative_paths(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, 'platform', 'shader-tools'))
+            os.makedirs(os.path.join(root, 'examples', 'surface'))
+            with open(os.path.join(root, 'platform', 'shader-tools', 'build.py'), 'w') as f:
+                f.write("open('built', 'w').close()\n")
+            open(os.path.join(root, 'examples', 'surface', 'shaders.json'), 'w').close()
+            here = os.getcwd()
+            os.chdir(root)
+            try:
+                self.assertTrue(shaders('platform', os.path.join('examples', 'surface')))
+            finally:
+                os.chdir(here)
+            self.assertTrue(os.path.isfile(os.path.join(root, 'examples', 'surface', 'built')))
+
+    def test_a_game_with_no_shaders_json_skips_the_build(self):
+        with tempfile.TemporaryDirectory() as game:
+            self.assertFalse(shaders('/no-platform', game))
+
+
+class FindTargetTest(unittest.TestCase):
+    def test_finds_the_first_platform_with_a_wasm32_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(tmp, {f'b/targets/wasm32/{file}': '' for file in ['index.html', 'rocco.js', 'index.js', 'reference.wasm']})
+            dirs = [os.path.join(tmp, 'a'), os.path.join(tmp, 'b')]
+            self.assertEqual(find_target(dirs), (dirs[1], os.path.join(dirs[1], 'targets', 'wasm32')))
+
+    def test_a_target_from_before_v0_14_0_is_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(tmp, {'targets/wasm32/host.wasm': ''})
+            with self.assertRaisesRegex(BuildError, 'v0.14.0'):
+                find_target([tmp])
+
+    def test_names_each_folder_it_tried(self):
+        with self.assertRaisesRegex(BuildError, '/nowhere'):
+            find_target(['/nowhere'])
+
+
+class AssetFilesTest(unittest.TestCase):
+    def test_lists_folders_and_files_as_fs_paths_without_dotfiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(tmp, {'assets/b.txt': 'b', 'assets/a.txt': 'a', 'assets/sky/x.png': 'x', 'assets/.DS_Store': '', 'assets/.git/y': ''})
+            dirs, files = asset_files(os.path.join(tmp, 'assets'))
+            self.assertEqual(dirs, [('/', 'assets'), ('/assets', 'sky')])
+            self.assertEqual([path for path, _ in files], ['/assets/a.txt', '/assets/b.txt', '/assets/sky/x.png'])
+
+
+class PackAssetsTest(unittest.TestCase):
+    def test_joins_the_files_and_lists_each_one_with_its_offsets(self):
+        with tempfile.TemporaryDirectory() as game, tempfile.TemporaryDirectory() as page:
+            write_files(game, {'assets/a.txt': 'aa', 'assets/sky/x.png': 'xyz'})
+            pack_assets(game, page)
+            with open(os.path.join(page, 'index.data'), 'rb') as f:
+                self.assertEqual(f.read(), b'aaxyz')
+            with open(os.path.join(page, 'index.data.js')) as f:
+                js = f.read()
+            self.assertIn(json.dumps([['/assets/a.txt', 0, 2], ['/assets/sky/x.png', 2, 5]]), js)
+            self.assertIn(json.dumps([['/', 'assets'], ['/assets', 'sky']]), js)
+            self.assertIn('"rocco:stopped"', js)
+
+    def test_a_game_with_no_assets_gets_an_empty_loader_and_no_data(self):
+        with tempfile.TemporaryDirectory() as game, tempfile.TemporaryDirectory() as page:
+            write_files(page, {'index.data': 'old'})
+            pack_assets(game, page)
+            self.assertEqual(sorted(os.listdir(page)), ['index.data.js'])
+            self.assertEqual(os.path.getsize(os.path.join(page, 'index.data.js')), 0)
 
 
 if __name__ == '__main__':

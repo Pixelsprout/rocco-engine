@@ -16,7 +16,53 @@ clustered lights need storage buffers, which WebGL2 does not have.
 
 ## Build a page
 
-You need emscripten next to Odin and Roc. Install the pinned version once:
+You need Roc and Python 3. In your game's folder, download `rocco_web.py`
+from the release and run it:
+
+```sh
+curl -LO {{rocco_web_url}}
+python3 rocco_web.py
+```
+
+The script builds `main.roc` with `roc build --target=wasm32`, then writes
+`build/web/`:
+
+| File | What it holds |
+| --- | --- |
+| `index.html` | The page. A game without a `web/` folder gets the default page. A game can have [its own page](#your-own-page). |
+| `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
+| `index.data.js` | The loader for `index.data`. |
+| `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
+| `index.js` | emscripten's loader for the wasm. |
+| `index.wasm` | The engine and your game. |
+| `<folder>-web.zip` | The files above, with `index.html` at the top. `<folder>` is the name of the game's folder. |
+
+The script finds the web host through the `platform` URL in the header of
+`main.roc`. Roc keeps each bundle in its cache, and the platform bundle holds
+the host, its loader and `rocco.js`. If the script cannot find the bundle, it
+lists the folders it tried. Then pass `--platform <dir>`. Use `--out <dir>` to
+write the page to another folder, and `--roc <path>` to build with a Roc that
+is not on `PATH`.
+
+If the game has a `shaders.json`, the script builds its shader packs first.
+
+To try the page, serve the folder from any static web server and open it in
+Chrome:
+
+```sh
+python3 -m http.server 8000 --bind 127.0.0.1 --directory build/web
+```
+
+Then open http://127.0.0.1:8000. A browser gives WebGPU only to a page from
+`localhost`, `127.0.0.1` or an `https://` address. Without `--bind`, the
+server prints `http://[::]:8000/`, and that address gets no WebGPU. A page
+opened from a `file://` URL cannot load `index.data`, so it needs a server
+too.
+
+### In a rocco checkout
+
+A game in `examples/` uses the checkout's platform, so its web host is built
+from the engine source with emscripten. Install the pinned version once:
 
 ```sh
 sh scripts/toolchain.sh install-emsdk
@@ -28,19 +74,8 @@ Then build a game from `examples/` for the web:
 sh scripts/toolchain.sh run roc scripts/build.roc web tutorial/08-sound
 ```
 
-The command writes `build/web/08-sound/`:
-
-| File | What it holds |
-| --- | --- |
-| `index.html` | The page. A game without a `web/` folder gets the default page. 08-sound has [its own page](#your-own-page), with a Click to play screen. |
-| `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
-| `index.data.js` | The loader for `index.data`. |
-| `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
-| `index.js` | emscripten's loader for the wasm. |
-| `index.wasm` | The engine and your game. |
-| `08-sound-web.zip` | The files above, with `index.html` at the top. |
-
-The first web build also builds the web host into `platform/targets/wasm32/`,
+The command runs `scripts/rocco_web.py` and writes `build/web/08-sound/`. The
+first web build also builds the web host into `platform/targets/wasm32/`,
 which takes about a minute. That host is a debug build. For a smaller and
 faster page, build a release host first:
 
@@ -50,19 +85,6 @@ sh scripts/toolchain.sh run roc scripts/build.roc web tutorial/08-sound
 ```
 
 Run `web-host` again after you change the engine.
-
-To try the page, serve the folder from any static web server and open it in
-Chrome:
-
-```sh
-python3 -m http.server 8000 --bind 127.0.0.1 --directory build/web/08-sound
-```
-
-Then open http://127.0.0.1:8000. A browser gives WebGPU only to a page from
-`localhost`, `127.0.0.1` or an `https://` address. Without `--bind`, the
-server prints `http://[::]:8000/`, and that address gets no WebGPU. A page
-opened from a `file://` URL cannot load `index.data`, so it needs a server
-too.
 
 ## Upload to itch.io
 
