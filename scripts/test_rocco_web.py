@@ -15,6 +15,7 @@ from rocco_web import (
     platform_dirs,
     platform_source,
     roc_caches,
+    shaders,
     copy_default_page,
     copy_game_page,
     exported_global,
@@ -295,6 +296,27 @@ class PlatformDirsTest(unittest.TestCase):
     def test_a_url_with_no_hash_is_an_error(self):
         with self.assertRaises(BuildError):
             platform_dirs('.', 'https://example.com/platform.tar.zst', {})
+
+
+class ShadersTest(unittest.TestCase):
+    def test_runs_the_platform_shader_build_from_relative_paths(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, 'platform', 'shader-tools'))
+            os.makedirs(os.path.join(root, 'examples', 'surface'))
+            with open(os.path.join(root, 'platform', 'shader-tools', 'build.py'), 'w') as f:
+                f.write("open('built', 'w').close()\n")
+            open(os.path.join(root, 'examples', 'surface', 'shaders.json'), 'w').close()
+            here = os.getcwd()
+            os.chdir(root)
+            try:
+                self.assertTrue(shaders('platform', os.path.join('examples', 'surface')))
+            finally:
+                os.chdir(here)
+            self.assertTrue(os.path.isfile(os.path.join(root, 'examples', 'surface', 'built')))
+
+    def test_a_game_with_no_shaders_json_skips_the_build(self):
+        with tempfile.TemporaryDirectory() as game:
+            self.assertFalse(shaders('/no-platform', game))
 
 
 class FindTargetTest(unittest.TestCase):

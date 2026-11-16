@@ -338,7 +338,8 @@ def shaders(platform, game_dir):
     """Builds the game's shader packs, if it has a shaders.json. True if it did."""
     if not os.path.isfile(os.path.join(game_dir, 'shaders.json')):
         return False
-    if subprocess.run([sys.executable, os.path.join(platform, 'shader-tools', 'build.py')], cwd=game_dir).returncode != 0:
+    build = os.path.join(os.path.abspath(platform), 'shader-tools', 'build.py')
+    if subprocess.run([sys.executable, build], cwd=game_dir).returncode != 0:
         raise BuildError('the shader build stopped. Its output above says why.')
     return True
 
