@@ -32,7 +32,7 @@ The command writes `build/web/08-sound/`:
 
 | File | What it holds |
 | --- | --- |
-| `index.html` | The page. 08-sound has its own page in `examples/tutorial/08-sound/web/`, with a Click to play screen. A game without a `web/` folder gets the default page. |
+| `index.html` | The page. A game without a `web/` folder gets the default page. 08-sound has [its own page](#your-own-page), with a Click to play screen. |
 | `rocco.js` | The engine's start-up code. It checks for WebGPU, then loads the two scripts below. |
 | `index.data.js` | The loader for `index.data`. |
 | `index.data` | Every file in the game's `assets/` folder. A game with no `assets/` folder has no `index.data`. |
@@ -86,7 +86,114 @@ message in place of the game.
 
 Browsers start a page's audio only after the player clicks, taps or
 presses a key. Until then the game runs silently. A title screen that waits
-for a key press gives the player that first input.
+for a key press gives the player that first input. So does a page with a
+Click to play screen, as in the example under [Your own page](#your-own-page).
+
+## Your own page
+
+Every game gets the default page unless it has its own. The default page
+shows a Loading line, then the game, and a short message if something goes
+wrong. For your own start screen, end screen or style, give the game a page
+of its own.
+
+Make a `web/` folder next to the game's `main.roc`, and put an `index.html`
+in it. The web build copies the folder into `build/web/<game>/` and the
+zip, so the page can use its own images, fonts and scripts. It skips files
+and folders whose names start with a dot. Its `index.html` takes the place
+of the default page.
+[`examples/tutorial/08-sound/web/index.html`](../examples/tutorial/08-sound/web/index.html)
+is a full example.
+
+If `web/` has no `index.html`, the build stops. The page must also have two
+things, or the build stops with an error that names the missing one:
+
+- A `<canvas id="canvas">`. The engine finds the canvas by this id and
+  draws into it.
+- A `<script src="rocco.js"></script>` tag. `rocco.js` is the engine's
+  start-up code. The build writes it next to the page, so don't copy it
+  into `web/`.
+
+The build also writes `index.js`, `index.wasm`, `index.data` and
+`index.data.js`. If a file at the top of `web/` has one of these names, or
+`rocco.js`, the build stops. Upper and lower case count as the same name.
+
+### Start the game
+
+The page calls `rocco_start()` to start the game. Nothing loads before
+that call, and a second call does nothing. A page with no start screen
+calls it at once. A page with a Click to play button calls it from the
+click.
+
+A Driver can't click a button. So when the page is served from `localhost`
+or `127.0.0.1` with `?bridge=PORT`, `rocco.js` starts the game at once,
+as if the page had called `rocco_start()`. `scripts/screenshot.sh --web`
+and an agent can then drive a page with any start screen. On itch.io, the
+page waits for its own call as usual.
+
+### Events
+
+The engine shows nothing itself. It tells the page what happens through
+four events on `window`, and it also writes each `message` to the browser
+console. The page decides what the player sees.
+
+| Event | When | `event.detail` |
+| --- | --- | --- |
+| `rocco:ready` | Once, after the game draws its first frame. | None. |
+| `rocco:unsupported` | The browser can't run the game, so nothing loads. | `{ reason, message }`. `reason` is `insecure` (not served from `https://` or `localhost`), `no-webgpu` or `no-adapter` (no GPU for WebGPU). |
+| `rocco:stopped` | The game could not start, or it stopped with an error. | `{ reason, message }`. `reason` is `load` (a file did not load), `canvas` (no `id="canvas"`), `abort` (the engine hit an error) or `exit` (an exit code other than 0). |
+| `rocco:quit` | A `Quit` Command or the Bridge's `quit` has ended the run. | None. |
+
+Each `message` is a sentence for the player that says what went wrong and
+what to try, so a page can show it as it is. Listen for all four events. A
+page that ignores `rocco:unsupported` shows a black tab to a player whose
+browser has no WebGPU.
+
+After `rocco:quit`, the game can't start again in the same page. To let
+the player play again, reload the page with `location.reload()`, as the
+default page's button does.
+
+### An example page
+
+This page shows a Click to play button, then the game. It shows each
+message in place of the game, and a line of thanks when the game quits:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My game</title>
+<style>
+html, body { margin: 0; height: 100%; background: #000; color: #eee; font: 16px sans-serif; }
+canvas { display: block; width: 100%; height: 100%; }
+#screen { position: absolute; inset: 0; display: grid; place-content: center; padding: 2em; text-align: center; background: #000; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="screen"><button id="play">Click to play</button></div>
+<script src="rocco.js"></script>
+<script>
+var screen = document.getElementById("screen");
+
+function show(text) {
+	screen.textContent = text;
+	screen.style.display = "grid";
+}
+
+document.getElementById("play").onclick = function () {
+	show("Loading");
+	rocco_start();
+};
+window.addEventListener("rocco:ready", function () { screen.style.display = "none"; });
+window.addEventListener("rocco:unsupported", function (event) { show(event.detail.message); });
+window.addEventListener("rocco:stopped", function (event) { show(event.detail.message); });
+window.addEventListener("rocco:quit", function () { show("Thanks for playing!"); });
+</script>
+</body>
+</html>
+```
 
 ## Differences
 
@@ -106,8 +213,9 @@ for a key press gives the player that first input.
   watch the shader packs.
 - **Spans, capture and GPU timing.** These measure native runs only. A web
   build has none of them.
-- **Quit.** A `Quit` command stops the game, but the browser tab stays
-  open. The page gets a `rocco:quit` event, as the next section explains.
+- **Quit.** A `Quit` Command stops the game, but the browser tab stays
+  open. The page gets a `rocco:quit` event and decides what to show, as
+  [Events](#events) explains.
 
 ## The Bridge
 
@@ -157,13 +265,8 @@ page's messages and presses a key to start the audio.
 
 The Bridge's `quit` and a `Quit` Command from the game end a web run in
 the same way. The engine sends any reply it owes, stops drawing, shuts
-down and dispatches `rocco:quit` on `window`, with no detail. The default
-page listens for it and shows that the game has ended, with a button that
-loads the page again. A page of your own can listen for the same event.
-
-The engine also dispatches `rocco:ready` on `window`, with no detail, once
-it has drawn its first frame. The default page shows a Loading line until
-then. A run driven over the Bridge gets the event too.
+down and dispatches `rocco:quit`. A run driven over the Bridge gets
+`rocco:ready` and the other [events](#events) too.
 
 ## Shader packs
 
