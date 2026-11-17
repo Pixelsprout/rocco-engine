@@ -24,9 +24,10 @@ macOS arm64, Linux x64, Windows x64 and the web.
 
 ![A village with houses, a cobbled path, trees and tall grass, rendered by rocco](docs/images/village.jpg)
 
-<sub>The [village example](examples/village/), with CC0 models by
-[Quaternius](https://quaternius.com) and the layout from the CodingQuests
-Godot village.</sub>
+<sub>The [village example](examples/village/). Models by
+[Quaternius](https://quaternius.com) (CC0). Village layout by
+[CodingQuests](https://codingquests.io), from their
+[Godot 3D village](https://codingquests.io/api/downloads/blog-godot-3d-village-look).</sub>
 
 ## Warning
 
