@@ -119,7 +119,12 @@ view : Model -> Vocabulary.Scene
 view = |model| {
 	cube = { ..Draw.default, id: 1, mesh: model.cube, tint: { r: 0.9, g: 0.22, b: 0.03 } }
 	camera = Cam.look_at({ x: 2.0, y: 2.0, z: 4.0 }, { x: 0.0, y: 0.0, z: 0.0 })
-	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(cube)] }
+	{
+		..Scene.empty,
+		camera, nodes: [Light(sky_light),
+		Light(sunlight),
+		Draw(cube)]
+	}
 }
 ```
 
