@@ -1,4 +1,9 @@
-<h1 align="center"><img src="docs/logo/rocco-wordmark.svg" alt="rocco" width="360"></h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/rocco-wordmark-dark.svg">
+    <img src="docs/logo/rocco-wordmark.svg" alt="rocco" width="360">
+  </picture>
+</h1>
 
 Project page: <https://pixelsprout.dev/projects/rocco/>
 
