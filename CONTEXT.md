@@ -49,6 +49,38 @@ _Avoid_: web shell, shell, HTML wrapper, index
 The Page a Web build gets when the game supplies none.
 _Avoid_: stock page, template
 
+**Tour**:
+The interactive, in-browser form of the Tutorial. A reader edits a game's
+source beside the lesson text and runs it in a Preview. The Tour gives the
+reader its assets; the reader cannot add their own.
+_Avoid_: playground, sandbox, interactive guide
+
+**Tour step**:
+One screen of the Tour: lesson text, a starting source and the assets that
+step needs.
+_Avoid_: lesson, page, chapter
+
+**Preview**:
+The part of a Tour step that runs the reader's edited game in the web host.
+The game is interpreted, not compiled, so a Preview is not a Web build: its
+speed and failures can differ from the Web build of the same source.
+_Avoid_: game window, output, canvas, Web build
+
+**Tour host**:
+The web host that the Preview runs. Unlike the web host of a Web build, it
+runs the reader's game through Roc's interpreter.
+_Avoid_: playground host, interpreter host
+
+**Compile worker**:
+The part of the Tour page that checks the reader's game and lowers it for
+the Tour host. It lives for the whole visit.
+_Avoid_: compiler service, build server
+
+**Source bundle**:
+The platform and package source files that the compile worker reads, for one
+pinned engine release.
+_Avoid_: asset pack, Pack
+
 **Game**:
 A Roc app built on the platform. It declares `Model` and defines `launch`,
 `init`, `step`, `loaded` and `view`. "App" is Roc's word for the file kind;
