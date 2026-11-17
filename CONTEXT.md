@@ -73,8 +73,9 @@ _Avoid_: playground host, interpreter host
 
 **Preview loader**:
 The engine script in a Preview that receives the reader's lowered game from
-the Tour page and then starts the Tour host. A new Run gets a new Preview, so
-each Preview loader takes one game.
+the Tour page and then starts the Tour host. On a hot reload it receives each
+later game, checks it against the first, and either swaps it in or asks the
+page for a new Preview.
 _Avoid_: Tour bridge, shim
 
 **Hot reload**:
