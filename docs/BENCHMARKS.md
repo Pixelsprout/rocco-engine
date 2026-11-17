@@ -620,7 +620,7 @@ the Python standard library.
 
 ## Repeat a run
 
-1. Install the tools in `README.md`, "Requirements". Put the pinned Roc
+1. Install the tools in `CONTRIBUTING.md`, "Requirements". Put the pinned Roc
    compiler on PATH. Python 3 must be on PATH. On Windows, Git Bash must be
    installed, and the sokol D3D11 archives must be built with
    `scripts\windows\build_sokol.cmd`.

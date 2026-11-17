@@ -34,7 +34,7 @@ Linux-x86_64)
 	roc_asset=roc_nightly-linux_x86_64-$roc_nightly
 	;;
 *)
-	echo "toolchain.sh: no pinned download for $(uname -s)-$(uname -m). See README.md." >&2
+	echo "toolchain.sh: no pinned download for $(uname -s)-$(uname -m). See CONTRIBUTING.md." >&2
 	exit 2
 	;;
 esac

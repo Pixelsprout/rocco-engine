@@ -52,7 +52,7 @@ setup() {
 }
 
 [ "$(uname -s)" = Darwin ] || {
-	echo "worktree.sh: macOS only. See the Requirements table in README.md." >&2
+	echo "worktree.sh: macOS only. See the Requirements table in CONTRIBUTING.md." >&2
 	exit 2
 }
 

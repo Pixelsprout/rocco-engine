@@ -19,7 +19,7 @@ We use matt-pocock skills to work through tasks:
 - After a push, run `python3 scripts/ci_wait.py`. It waits for CI and prints the output of each failed step.
 
 # Seeing a frame
-To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `README.md`.
+To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `CONTRIBUTING.md`.
 
 For a web build, run `scripts/screenshot.sh --web <game> <out.png> [steps]` after `roc scripts/build.roc web <game>`. It drives the page over the Bridge through a Relay and needs a windowed Chrome on macOS. `scripts/web/shot.sh <page dir> <out.png>` prints the page's own messages. Before you push a change to the web CI job, run `sh scripts/linux/web-shot.sh <game> <out.png> [steps]`: it runs the CI's headless Chrome in Docker. See `guide/web.md`.
 
