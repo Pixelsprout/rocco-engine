@@ -53,4 +53,9 @@ and `research/tour-web-host-restart-and-assets`.
   build of the same source.
 - The Tour cannot show heavy examples such as `village`, and it is
   borderline on phones.
-- Each Roc pin move must also rebase the compile worker's patch to Roc.
+- rocco carries its Roc patches (compile worker cache, interpreter shim)
+  as one patch file each, in one directory beside the compile worker. The
+  build applies them to a copy of the pinned Roc source. Each file names
+  its upstream status. The Tour never waits for upstream Roc.
+- A Roc pin move fails in CI if a carried patch does not apply. When
+  upstream takes a change, the pin move deletes that patch file.
