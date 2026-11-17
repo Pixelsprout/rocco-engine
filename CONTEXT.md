@@ -71,6 +71,12 @@ The web host that the Preview runs. Unlike the web host of a Web build, it
 runs the reader's game through Roc's interpreter.
 _Avoid_: playground host, interpreter host
 
+**Preview loader**:
+The engine script in a Preview that receives the reader's lowered game from
+the Tour page and then starts the Tour host. A new Run gets a new Preview, so
+each Preview loader takes one game.
+_Avoid_: Tour bridge, shim
+
 **Compile worker**:
 The part of the Tour page that checks the reader's game and lowers it for
 the Tour host. It lives for the whole visit.
