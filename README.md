@@ -1,4 +1,4 @@
-# rocco
+<h1 align="center"><img src="docs/logo/rocco-wordmark.svg" alt="rocco" width="360"></h1>
 
 Project page: <https://pixelsprout.dev/projects/rocco/>
 
