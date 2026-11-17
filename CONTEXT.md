@@ -77,6 +77,12 @@ the Tour page and then starts the Tour host. A new Run gets a new Preview, so
 each Preview loader takes one game.
 _Avoid_: Tour bridge, shim
 
+**Hot reload**:
+A Run that gives the running Preview the new game and keeps its Model. When
+the Model's shape, `init`, `loaded` or `launch` changes, or when the game
+stores a function, the Run starts a new Preview instead.
+_Avoid_: hot swap, live reload
+
 **Compile worker**:
 The part of the Tour page that checks the reader's game and lowers it for
 the Tour host. It lives for the whole visit.
