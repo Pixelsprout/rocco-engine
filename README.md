@@ -22,7 +22,11 @@ clock, the input, the GPU and the audio for you.
 The engine is a Roc platform, and your game is a Roc app. One game builds for
 macOS arm64, Linux x64, Windows x64 and the web.
 
-![Pip, the tutorial character, walking past a pickup](guide/images/tutorial-10-animation.png)
+![A village with houses, a cobbled path, trees and tall grass, rendered by rocco](docs/images/village.jpg)
+
+<sub>The [village example](examples/village/), with CC0 models by
+[Quaternius](https://quaternius.com) and the layout from the CodingQuests
+Godot village.</sub>
 
 ## Warning
 
