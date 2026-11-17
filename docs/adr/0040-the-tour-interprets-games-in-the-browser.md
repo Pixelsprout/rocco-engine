@@ -1,4 +1,4 @@
-# 0039: The Tour interprets games in the browser
+# 0040: The Tour interprets games in the browser
 
 Status: accepted, 2026-11-17.
 
