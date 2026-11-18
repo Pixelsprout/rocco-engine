@@ -18,6 +18,7 @@ is silent. In this chapter, you add four sounds:
 
 ![Pip walks toward the door, with "Pickups: 1 / 5" at the top left](../images/tutorial-08-sound.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [7. A HUD](07-hud.md). The full app
 is
 [`examples/tutorial/08-sound/main.roc`](../../examples/tutorial/08-sound/main.roc).
@@ -26,9 +27,15 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/07-hud/main.roc examples/tutorial/08-sound/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [7. A HUD](07-hud.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 The header and `pip.glb` stay the same.
 
+<!-- tour:skip -->
 ## Get the sound files
 
 A Sound is an asset, like Pip's mesh. The host reads `.wav` and `.ogg`
@@ -50,6 +57,14 @@ The four files come from a Python script,
 [`examples/tutorial/source/make_sounds.py`](../../examples/tutorial/source/make_sounds.py).
 It builds each sound from sine waves, so you can change a note and run it
 again.
+<!-- /tour:skip -->
+<!-- tour-only
+## The sound files
+
+A Sound is an asset, like Pip's mesh. The Tour gives your game four sound
+files: `blip.wav`, `creak.wav`, `hum.wav` and `music.wav`. A Sound takes
+the name `sound/` and its file stem, so `blip.wav` is `sound/blip`.
+-->
 
 ## The imports
 
@@ -303,6 +318,7 @@ camera keeps the same offset behind Pip, and so does the Listener. Walk
 toward the door, and the hum gets louder. Walk to the left, and the hum
 moves to your right ear.
 
+<!-- tour:skip -->
 ## Test the sounds
 
 A Play is a value, like `Quit`, and the Speakers are part of the Scene. So
@@ -389,7 +405,9 @@ Run the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Play the game
 
 In `pip/`, run:
@@ -397,6 +415,13 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 The music starts at once, and the hum is quiet. Walk toward the door and
 listen to the hum grow. Each pickup blips. When you take the last one, the
@@ -404,6 +429,7 @@ door creaks as it rises, and the hum rises with it and fades away. Walk
 through the open door before the creak ends, and the creak stops. Press
 Escape to quit.
 
+<!-- tour:skip -->
 If you hear nothing, read the log. If the host can't open the audio device,
 it says so once, and the game runs with no sound. If a name in the `Load`
 is wrong, the log names it.
@@ -415,6 +441,11 @@ so this chapter's game has its own page in
 Its `index.html` shows a Click to play screen, and the click starts the game
 and its sound. When a game has a `web/` folder, the web build copies it and
 uses its `index.html` in place of the default page.
+<!-- /tour:skip -->
+<!-- tour-only
+A browser plays no sound until you click or press a key on the page. If
+you hear nothing, click the Preview.
+-->
 
 You have made a whole game: a character that you load from a file, moves
 with the keys, collects pickups and wins, with lights, a shadow, a HUD and

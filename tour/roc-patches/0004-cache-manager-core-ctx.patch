@@ -1,0 +1,70 @@
+Change: The compile cache can store each entry as one file through roc_ctx
+(storage = .core_ctx), so the compile worker keeps a warm cache with no file
+system.
+Upstream: not proposed.
+Source: research/tour-compile-worker-build (cache_manager.patch).
+
+diff --git a/src/compile/cache_manager.zig b/src/compile/cache_manager.zig
+index 0e3382a..3b4afae 100644
+--- a/src/compile/cache_manager.zig
++++ b/src/compile/cache_manager.zig
+@@ -21,6 +21,8 @@ const artifacts = @import("artifact_store.zig");
+ /// Public `CacheManager` declaration.
+ pub const CacheManager = struct {
+     config: CacheConfig,
++    /// `.core_ctx` keeps each entry as one file through `roc_ctx`, for embedders without a file system.
++    storage: enum { native, core_ctx } = .native,
+     roc_ctx: CoreCtx = undefined,
+     allocator: Allocator,
+     stats: CacheStats,
+@@ -185,8 +187,17 @@ pub const CacheManager = struct {
+     const EntrySource = union(enum) { bytes: []const u8, stream: CoreCtx.FileStream };
+ 
+     fn storeEntry(self: *Self, allocator: Allocator, kind: Kind, family: artifacts.Family, key: [32]u8, source: EntrySource, size: usize, scope: []const u8, name: []const u8) void {
+-        if (comptime threading.is_freestanding) return;
+         if (!self.config.enabled) return;
++        if (self.storage == .core_ctx) {
++            const path = self.coreCtxPath(allocator, family, key, scope) orelse return self.recordStoreFailureFor(kind);
++            defer allocator.free(path);
++            (switch (source) {
++                .bytes => |bytes| self.roc_ctx.writeFile(path, bytes),
++                .stream => |stream| self.roc_ctx.writeFileStream(path, stream),
++            }) catch return self.recordStoreFailureFor(kind);
++            return self.recordStoreFor(kind, size);
++        }
++        if (comptime threading.is_freestanding) return;
+         const store = self.storeHandle() orelse {
+             self.recordStoreFailureFor(kind);
+             return;
+@@ -336,9 +347,30 @@ pub const CacheManager = struct {
+         return artifact;
+     }
+ 
++    fn coreCtxPath(self: *const Self, allocator: Allocator, family: artifacts.Family, key: [32]u8, scope: []const u8) ?[]u8 {
++        var store = self.openStore(allocator) catch return null;
++        defer store.deinit();
++        return store.entryPath(allocator, identity(family, key, scope)) catch null;
++    }
++
++    fn loadCoreCtx(self: *const Self, allocator: Allocator, family: artifacts.Family, key: [32]u8, scope: []const u8) ?[]align(CacheModule.SERIALIZATION_ALIGNMENT.toByteUnits()) u8 {
++        const path = self.coreCtxPath(allocator, family, key, scope) orelse return null;
++        defer allocator.free(path);
++        const info = self.roc_ctx.stat(path) catch return null;
++        const bytes = allocator.alignedAlloc(u8, CacheModule.SERIALIZATION_ALIGNMENT, @intCast(info.size)) catch return null;
++        if ((self.roc_ctx.readFileInto(path, bytes) catch 0) == bytes.len) return bytes;
++        allocator.free(bytes);
++        return null;
++    }
++
+     fn loadMapped(self: *Self, allocator: Allocator, kind: Kind, family: artifacts.Family, key: [32]u8, scope: []const u8, counted: bool) ?CacheModule.CacheData {
+-        if (comptime threading.is_freestanding) return null;
+         if (!self.config.enabled) return null;
++        if (self.storage == .core_ctx) {
++            const bytes = self.loadCoreCtx(allocator, family, key, scope);
++            if (counted) if (bytes) |data| self.recordHitFor(kind, data.len) else self.recordMissFor(kind);
++            return if (bytes) |data| .{ .allocated = data } else null;
++        }
++        if (comptime threading.is_freestanding) return null;
+         const store = self.storeHandle() orelse {
+             if (counted) self.recordMissFor(kind);
+             return null;

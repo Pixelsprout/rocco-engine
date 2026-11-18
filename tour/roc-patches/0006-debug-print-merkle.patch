@@ -1,0 +1,87 @@
+Change: procFingerprint prints the bytes of string and bytes literals as a
+hash, and procFingerprintResolved names each callee by a hash the caller
+supplies. The compile worker builds the Merkle hashes of init, loaded and
+launch from it.
+Upstream: not proposed.
+Source: research/tour-init-identity (debug-print-merkle.patch).
+
+--- a/src/lir/debug_print.zig
++++ b/src/lir/debug_print.zig
+@@ -108,9 +108,9 @@
+                         .f64_literal => |f| try writer.print("literal f64 {d}", .{f}),
+                         .f32_literal => |f| try writer.print("literal f32 {d}", .{f}),
+                         .dec_literal => |d| try writer.print("literal dec {d}", .{d}),
+-                        .str_literal => try writer.writeAll("literal str"),
++                        .str_literal => |l| try writer.print("literal str h{x:0>16}", .{std.hash.Wyhash.hash(0, self.store.strings.get(l.backing)[l.offset..][0..l.len])}),
+                         .static_data => |read| try writer.print("literal static_data s{d}", .{@backingInt(read.id)}),
+-                        .bytes_literal => try writer.writeAll("literal bytes"),
++                        .bytes_literal => |l| try writer.print("literal bytes h{x:0>16}", .{std.hash.Wyhash.hash(0, self.store.strings.get(l.bytes.backing)[l.bytes.offset..][0..l.bytes.len])}),
+                         .proc_ref => |p| try writer.print("literal proc_ref p{d}", .{@backingInt(p)}),
+                     }
+                     const extra = self.store.literalExtra(s.value);
+@@ -562,10 +562,31 @@
+ /// of first appearance, each in its own namespace. The object cache's
+ /// diagnostics compare these across programs.
+ pub fn procFingerprint(
++    gpa: std.mem.Allocator,
++    store: *const LirStore,
++    layouts: *const layout_mod.Store,
++    proc_id: LIR.LirProcSpecId,
++) Error!u64 {
++    return procFingerprintResolved(gpa, store, layouts, proc_id, null);
++}
++
++/// Names callees by caller-supplied hashes, for a Merkle hash of a proc tree.
++/// The proc itself prints as `pself`. A callee in `hashes` prints as its
++/// hash; any other callee prints as `pcycle`. Each callee id is appended to
++/// `callees`, in text order.
++pub const Resolver = struct {
++    self_id: u64,
++    hashes: *const std.AutoHashMap(u64, u64),
++    callees: *std.ArrayList(u64),
+     gpa: std.mem.Allocator,
++};
++
++pub fn procFingerprintResolved(
++    gpa: std.mem.Allocator,
+     store: *const LirStore,
+     layouts: *const layout_mod.Store,
+     proc_id: LIR.LirProcSpecId,
++    resolver: ?Resolver,
+ ) Error!u64 {
+     var text: std.Io.Writer.Allocating = .init(gpa);
+     defer text.deinit();
+@@ -585,7 +606,7 @@
+     while (index < source.len) {
+         const at_boundary = index == 0 or !isIdentByte(source[index - 1]);
+         if (at_boundary) {
+-            if (try canonicalReference(gpa, store, source, index, &names, &canonical.writer)) |next| {
++            if (try canonicalReference(gpa, store, source, index, &names, &canonical.writer, resolver)) |next| {
+                 index = next;
+                 continue;
+             }
+@@ -615,6 +636,7 @@
+     start: usize,
+     names: *std.StringHashMap(std.AutoHashMap(u64, u32)),
+     writer: *std.Io.Writer,
++    resolver: ?Resolver,
+ ) Error!?usize {
+     // `l12`, `j3`, `p7`, and `static_data s4`.
+     const letter = source[start];
+@@ -624,7 +646,15 @@
+         const end = digitsEnd(source, start + 1);
+         if (end > start + 1 and (end == source.len or !isIdentByte(source[end]))) {
+             const value = std.fmt.parseInt(u64, source[start + 1 .. end], 10) catch return null;
+-            if (letter == 'p') {
++            if (letter == 'p' and resolver != null) {
++                const r = resolver.?;
++                if (value == r.self_id) {
++                    try writer.writeAll("pself");
++                } else {
++                    try r.callees.append(r.gpa, value);
++                    if (r.hashes.get(value)) |h| try writer.print("m{x:0>16}", .{h}) else try writer.writeAll("pcycle");
++                }
++            } else if (letter == 'p') {
+                 const identity = store.getProcSpecImmediate(@fromBackingInt(@intCast(@as(u32, @intCast(value))))).identity;
+                 try writer.print("p{s}", .{&identity.symbolHex()});
+             } else {

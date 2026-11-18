@@ -1,0 +1,19 @@
+.{
+    .name = .rocco_compile_worker,
+    .version = "0.0.0",
+    .fingerprint = 0x7e180a75a10b423,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // scripts/test_tour_worker.py checks that this commit is ROC_COMMIT in
+        // scripts/linux/Dockerfile. Move both with `zig fetch --save=roc <url>`.
+        .roc = .{
+            .url = "https://codeload.github.com/roc-lang/roc/tar.gz/262206271cf05db948eef2b96fae88a1aca07b19",
+            .hash = "roc-0.0.0-NAC9wwaB7APAJ0gk4CrtkWAQEratqsCqqrfqh_WpvD6s",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

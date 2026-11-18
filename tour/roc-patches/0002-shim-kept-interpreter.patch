@@ -1,0 +1,48 @@
+Change: The interpreter shim keeps one LirInterpreter per image across entry
+calls, so its per-procedure caches and stacks survive between game calls.
+Upstream: not proposed.
+Source: research/tour-interpreter-in-tour-host (item 3 of
+interpreter-shim.patch, without the spike's roc_shim_tour_keep_interpreter
+toggle).
+
+diff --git a/src/interpreter_shim/main.zig b/src/interpreter_shim/main.zig
+index 4b4402f..bc8e811 100644
+--- a/src/interpreter_shim/main.zig
++++ b/src/interpreter_shim/main.zig
+@@ -57,6 +57,9 @@ const RuntimeState = struct {
+     /// the host point into them after the entrypoint's interpreter is gone.
+     static_strings: eval.LirInterpreter.StaticStrings.Table,
+     entrypoints: EntrypointTable,
++    /// One interpreter for every entry call, so its per-procedure caches and
++    /// stacks survive between calls.
++    retained: ?*eval.LirInterpreter.Retained = null,
+ };
+ 
+ /// What each platform entrypoint call needs from the image, resolved once so
+@@ -252,7 +255,7 @@ fn evaluateEntrypointInState(
+     const entrypoint = state.entrypoints.forOrdinal(entry_idx) orelse
+         invariant("LIR shim invariant violated: missing platform entrypoint ordinal {d}", .{entry_idx});
+ 
+-    const retained = eval.LirInterpreter.Retained.create(
++    const retained = state.retained orelse eval.LirInterpreter.Retained.create(
+         allocator(),
+         &view.store,
+         &view.layouts,
+@@ -262,12 +265,14 @@ fn evaluateEntrypointInState(
+     ) catch {
+         ops.crash("LIR shim could not initialize the LIR interpreter");
+     };
+-    defer retained.release();
++    if (state.retained == null) {
++        // RuntimeState owns this image for every retained callback lifetime.
++        state.static_data.install(&retained.interpreter);
++        state.retained = retained;
++    }
+     retained.enter();
+     defer retained.leave();
+     const interpreter = &retained.interpreter;
+-    // RuntimeState owns this image for every retained callback lifetime.
+-    state.static_data.install(interpreter);
+ 
+     _ = interpreter.eval(.{
+         .proc_id = entrypoint.root_proc,

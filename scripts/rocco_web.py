@@ -270,14 +270,19 @@ def asset_files(assets):
     return [('/', 'assets')] + dirs, files
 
 
-def data_loader(dirs, entries):
+def data_loader(dirs, entries, locate_file=False):
     """index.data.js: it fetches index.data at once, then fills the Emscripten FS in preRun,
-    before main runs. index.js reads Module.preRun when it loads, after this script."""
+    before main runs. index.js reads Module.preRun when it loads, after this script.
+    With locate_file, the Tour's Preview loader names index.data and index.wasm through
+    globalThis.tourLocateFile. index.js reads Module.locateFile when it loads."""
+    url = 'Module["locateFile"]("index.data", "")' if locate_file else '"index.data"'
+    locate = ('''
+	Module["locateFile"] = globalThis.tourLocateFile;''' if locate_file else '')
     return f'''(function () {{
-	var Module = window.Module;
+	var Module = window.Module;{locate}
 	var dirs = {json.dumps(dirs)};
 	var files = {json.dumps(entries)};
-	var data = fetch("index.data").then(function (response) {{
+	var data = fetch({url}).then(function (response) {{
 		if (!response.ok) {{
 			throw new Error(response.status + " " + response.url);
 		}}

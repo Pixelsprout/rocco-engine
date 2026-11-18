@@ -1,0 +1,107 @@
+Change: Hot reload in the interpreter shim. A call with a new image makes a new
+state and retires the old one. A retired image is freed, except its literal
+table, once no erased callable holds its interpreter.
+Upstream: not proposed.
+Source: research/tour-native-hot-reload (hot-swap.patch and swap-free.patch,
+without the spike's poison, count and stats exports).
+
+diff --git a/src/interpreter_shim/main.zig b/src/interpreter_shim/main.zig
+index bc8e811..5bc3b47 100644
+--- a/src/interpreter_shim/main.zig
++++ b/src/interpreter_shim/main.zig
+@@ -371,5 +371,94 @@ fn shimEntrypointFromImage(
+         ops.crash("LIR shim received no embedded LIR image");
+     };
+ 
+-    evaluateEntrypointInState(ensureEmbeddedRuntimeState(base, image_len, ops), entry_idx, ops, ret_ptr, arg_ptr);
++    evaluateEntrypointInState(&tourImage(base, image_len, ops).state, entry_idx, ops, ret_ptr, arg_ptr);
++}
++
++/// rocco Tour hot reload: one heap state per image. A call with a new image
++/// base or length makes a new state and retires the old one. The kept
++/// interpreter, erased callables and static callables hold pointers into
++/// `state`, so a state never moves.
++const TourImage = struct {
++    state: RuntimeState,
++    program: eval.LirInterpreter.StaticCallableProgram,
++    base: usize,
++    len: usize,
++};
++
++var tour_current: ?*TourImage = null;
++/// Replaced images that an erased callable still holds.
++var tour_retired: [256]*TourImage = undefined;
++var tour_retired_count: usize = 0;
++
++fn tourImage(image_base: *anyopaque, image_len: usize, ops: *RocOps) *TourImage {
++    const base = @intFromPtr(image_base);
++    if (tour_current) |current| {
++        if (current.base == base and current.len == image_len) return current;
++    }
++    const gpa = allocator();
++    const view = viewEmbeddedLirImage(image_base, image_len, ops);
++    const static_data = eval.InterpreterStaticData.init(gpa, view.static_data, view.static_data_value_count) catch {
++        ops.crash("LIR shim could not allocate the immutable value image");
++    };
++    const static_strings = eval.LirInterpreter.buildStaticStrings(gpa, &view.store) catch {
++        ops.crash("LIR shim could not allocate the string literal image");
++    };
++    const entrypoints = EntrypointTable.build(gpa, &view) catch {
++        ops.crash("LIR shim could not allocate the entrypoint table");
++    };
++    const next = gpa.create(TourImage) catch ops.crash("LIR shim could not allocate an image state");
++    next.* = .{
++        .state = .{
++            .source = .{ .embedded = .{ .base = base, .len = image_len } },
++            .shm = if (has_coordination) null else {},
++            .view = view,
++            .static_data = static_data,
++            .static_strings = static_strings,
++            .entrypoints = entrypoints,
++        },
++        .program = undefined,
++        .base = base,
++        .len = image_len,
++    };
++    next.program.bind(.{
++        .allocator = gpa,
++        .store = &next.state.view.store,
++        .layout_store = &next.state.view.layouts,
++        .static_strings = next.state.static_strings.view(),
++        .static_addresses = next.state.static_data.addresses,
++        .synchronization_io = shimIo(),
++    });
++    next.state.static_data.ownByProgram(&next.program);
++    if (tour_current) |old| {
++        // The erased callables the old interpreter made hold their own
++        // references, so the interpreter lives while one of them does.
++        if (old.state.retained) |retained| retained.release();
++        old.state.retained = null;
++        if (tour_retired_count == tour_retired.len) ops.crash("LIR shim has too many retired images");
++        tour_retired[tour_retired_count] = old;
++        tour_retired_count += 1;
++        tourFreeRetired();
++    }
++    tour_current = next;
++    return next;
++}
++
++/// Frees each retired image except its literal table. A kept Model and the
++/// host's kept Scenes may point into the literal table. The image bytes
++/// belong to the host, which frees them.
++fn tourFreeRetired() void {
++    var kept: usize = 0;
++    for (tour_retired[0..tour_retired_count]) |old| {
++        if (old.state.retained != null) {
++            tour_retired[kept] = old;
++            kept += 1;
++            continue;
++        }
++        old.state.static_data.deinit();
++        allocator().free(old.state.entrypoints.entries);
++        allocator().free(old.state.entrypoints.arg_layouts);
++        old.state.view.deinit();
++        allocator().destroy(old);
++    }
++    tour_retired_count = kept;
+ }

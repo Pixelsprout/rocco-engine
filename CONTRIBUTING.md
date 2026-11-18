@@ -48,6 +48,59 @@ The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. A different compiler warns and builds anyway. Fix the
 `PATH`, never the pin.
 
+The Tour builds from a copy of the pinned Roc with rocco's patches applied.
+`tour/roc-patches/` holds one `.patch` file per change, applied in name order.
+The header of each patch states its upstream status. `ARG ROC_COMMIT` in
+`scripts/linux/Dockerfile` names the Roc commit of `ROC_NIGHTLY`. When you move
+the Roc pin, change both. Then run `python3 scripts/roc_patches.py check`. If a
+patch does not apply, update the patch before you move the pin. CI runs the
+same check on every push. `python3 scripts/roc_patches.py apply <dir>` writes
+the patched copy into `<dir>`.
+
+The compile worker (`tour/compile-worker/`) takes the pinned Roc as a Zig
+package. Its `build.zig.zon` names the Roc commit in the package URL, and
+`scripts/test_tour_worker.py` fails if that commit is not `ROC_COMMIT`. When
+you move the Roc pin, run `zig fetch --save=roc
+https://codeload.github.com/roc-lang/roc/tar.gz/<commit>` in
+`tour/compile-worker/`. The worker build applies patches 0004 and 0006 to
+copies of the files they change. The Roc package itself stays unedited. Also
+compare `roc_stack_size` in `tour/compile-worker/build.zig` with
+`src/base/stack_budget.zig` in Roc. Nothing checks it for you.
+
+To build the compile worker and the source bundle, put Zig `ZIG_VERSION`
+(`scripts/linux/Dockerfile`) on `PATH` and run
+`python3 scripts/tour_worker.py build`. It writes
+`build/tour/compile-worker/`. Then run
+`node --test 'tour/compile-worker/test/*.test.mjs'`.
+
+To build all the Tour artifacts, run `sh scripts/toolchain.sh run python3
+scripts/tour_artifacts.py build` with the same Zig on `PATH`. It writes
+`build/tour/` in the layout of the `tour.tar.gz` release asset:
+`manifest.json`, `compile-worker/` and `preview/`. The compile worker and the
+Preview get one build id. Intermediate files go to `build/tour-work/`. A site
+checkout with `DOCS_SOURCE` set to this checkout reads `build/tour/`. Then run
+`node --test 'tour/host/test/*.test.mjs'`. It drives the Preview in headless
+Chrome over the ADR 0041 messages, hot reload included.
+
+A site can deploy the large Tour files under other names, for example
+`index.wasm.br` for a brotli copy. The page names the suffix. The scripts are
+not changed:
+- The compile worker reads `suffix` from its own URL. A Worker made from
+  `compile-worker.mjs?suffix=.br` loads `compile-worker.wasm.br`.
+  `source-bundle.json` keeps its name.
+- The Preview reads `suffix` from the `host.html` URL. `host.html?suffix=.br`
+  loads `index.wasm.br` and `index.data.br`. The other Preview files keep
+  their names.
+
+With no `suffix`, both load the plain names. `rocco.js` and the normal Web
+build do not read it.
+
+The release workflow's `tour` job runs the same build with `--tag <release
+tag>`. The `bundle` job then runs `python3 scripts/tour_artifacts.py pack`,
+which writes the source bundle again with the five `release.py docs` URLs and
+writes `tour.tar.gz`. `python3 scripts/tour_artifacts.py check <tour.tar.gz>
+--tag <tag>` checks a tarball against the contract with the site.
+
 The submodules:
 
 - `sokol-odin/` is floooh/sokol-odin. The engine imports its `sokol/` folder.
@@ -318,6 +371,27 @@ from the bundle hashes. The header block of a page holds markers instead:
 `{{camera_url}}` and `{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
 reader to get the values from the latest release.
 
+Each Tutorial page is also the text of one Tour step. Two kinds of marker
+change the page for the Tour and stay hidden on GitHub and in the desktop
+Guide. Put each marker on its own line, outside a fenced block:
+
+- `<!-- tour:skip -->` and `<!-- /tour:skip -->` around a desktop-only part:
+  a `sh` or `diff` block, a download, "Before you start", "Run the game",
+  "Play the game" or a Test section.
+- `<!-- tour-only`, then the Tour text, then `-->` on its own line. The text
+  shows only in the Tour.
+
+Blocks do not nest. Put markers between paragraphs, so the desktop page keeps
+its paragraphs. A Tour step starts from the app of the chapter before it, and
+step 1 starts from `examples/tutorial/00-start/`, an empty window. The site
+points each header path at the release URL of its bundle, so a header names
+the platform and the bundled packages only by their repository path.
+`python3 scripts/tour_content.py check` fails on a bad marker, a desktop-only
+part outside a skip block, a missing step source, another header path or a
+`shaders.json` in a step. The `tour` CI job runs it, builds the Tour
+artifacts, lowers every step source with the compile worker, runs the
+warm-against-cold stale check and drives the Preview in headless Chrome.
+
 ### macOS
 
 ```sh
@@ -479,6 +553,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/animation/` | Pip walks on the spot, and SPACE fades it into the Run Clip and back. `Mesh.synced_time` keeps Run at Walk's phase. The camera looks from the side, so the feet show against the ground. Its `ground.feet` turns on Grounding, so the fade does not sink Pip's feet. The Bridge check screenshots it mid-fade. `make_meshes.py` writes its `pip.glb`, the only copy with Run. |
 | `examples/primitives/` | The four Primitives: a plane for the ground, a cube, a sphere and a cylinder, with a cylinder stretched into a post and one squashed into a disc by the Draw scale. The Bridge check screenshots it and checks each cylinder's tint at points on its axis, so a missing cylinder, which draws the magenta Fallback mesh, fails. |
 | `examples/widgets/` | A game for the Bridge check: a button, a dropdown, an accordion, focus and a scrolling log from the widget modules of `packages/ui`. It Tells each click on the port `widgets`. |
+| `examples/tutorial/00-start/` | The starting source of Tour step 1: an app that opens an empty window. It is not a chapter. |
 | `examples/tutorial/<nn>-<name>/` | One app for each tutorial chapter in `guide/tutorial/`. Each chapter starts from the one before it, so `git diff --no-index` of two `main.roc` files shows the change. |
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character with a 12-Joint Skin and the Clips Idle and Walk, into each chapter in its `CHAPTERS` list. It then keys a Run Clip and writes `pip.glb` with Idle, Walk and Run into `examples/animation`, so the chapter files do not change. It also writes `engine/testdata/skinned.glb`, the small skinned fixture for the loader tests. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
@@ -512,6 +587,14 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/Regions.roc` | The region copy. `build.roc` imports it to copy each region into the `guide/` pages. |
 | `scripts/DocCheck.roc` | The missing-comment check. `build.roc` imports it to find each API item with no `##` comment. |
 | `guide/` | The docs for game authors. `guide/install.md` is the first page. `guide/tutorial/` holds the tutorial chapters and `guide/images/` their screenshots. See "Docs". |
+| `tour/roc-patches/` | The Roc patches that the Tour carries, one `.patch` file per change, each with a header that states its upstream status. |
+| `tour/compile-worker/` | The Tour compile worker: `build.zig` embeds the pinned Roc in a wasm32 module, `js/compile-worker.mjs` is its JS API and `test/` lowers Tutorial games with it. |
+| `scripts/tour_content.py` | Checks the Tour markers in the Tutorial pages and the Tour step sources. |
+| `scripts/tour_worker.py` | Builds the compile worker and writes the source bundle into `build/tour/compile-worker/`. |
+| `scripts/tour_host.py` | Builds the Tour host and writes the Preview folder into `build/tour/preview/`. |
+| `scripts/tour_artifacts.py` | Builds the compile worker and the Preview into `build/tour/` with one build id, and writes `manifest.json`. The release job calls it. |
+| `tour/host/` | The Tour host: `tour_glue.c` (the game calls and the output hooks), `host.html`, the Preview loader `preview.js`, and `test/`, which drives the Preview in headless Chrome. |
+| `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game, pong and tutorial chapter 10. |

@@ -15,6 +15,7 @@ you change the lights so that Pip casts one. You use:
 
 ![Pip on the ground with its shadow behind it and to the left](../images/tutorial-04-lights.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [3. Moving](03-moving.md). The full
 app is
 [`examples/tutorial/04-lights/main.roc`](../../examples/tutorial/04-lights/main.roc).
@@ -23,6 +24,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/03-moving/main.roc examples/tutorial/04-lights/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [3. Moving](03-moving.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 The imports and `pip.glb` stay the same, and so does the header:
 
@@ -78,6 +84,7 @@ ground, and the edges of the shadow get softer.
 memory. A large world can set `shadow_cascades` to 4 instead, so shadows
 near the camera stay sharp. [Launch](../launch.md) lists both fields.
 
+<!-- tour:skip -->
 ## Run the game
 
 The tests from chapter 3 still pass, because only the lights changed. In
@@ -87,6 +94,13 @@ The tests from chapter 3 still pass, because only the lights changed. In
 roc test main.roc
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Walk Pip around. Its shadow walks with it and falls on the ground behind
 it.

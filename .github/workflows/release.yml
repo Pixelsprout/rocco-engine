@@ -158,8 +158,32 @@ jobs:
           path: platform/targets/wasm32/
           if-no-files-found: error
 
+  # The steps live in .github/actions/tour, shared with ci.yml. The release URLs
+  # exist only after the bundle job runs bundle_sdk.py, so the bundle job
+  # writes them into the source bundle and packs tour.tar.gz.
+  tour:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Check the carried Roc patches against the pinned Roc
+        run: python3 scripts/roc_patches.py check
+
+      - uses: ./.github/actions/tour
+        with:
+          tag: ${{ github.ref_name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tour-artifacts
+          path: build/tour/
+          if-no-files-found: error
+
   bundle:
-    needs: [macos, linux, windows, web]
+    needs: [macos, linux, windows, web, tour]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -203,6 +227,10 @@ jobs:
         with:
           name: target-wasm32
           path: platform/targets/wasm32
+      - uses: actions/download-artifact@v5
+        with:
+          name: tour-artifacts
+          path: ${{ runner.temp }}/tour
 
       # roc bundle does not discover dependencies, so include target files
       # and shader tools. Roc takes URLs that differ only in
@@ -228,6 +256,14 @@ jobs:
           mapfile -t urls < "$RUNNER_TEMP/urls"
           python3 scripts/release.py docs build/docs "$RUNNER_TEMP/docs.tar.gz" "nightly-${ROC_NIGHTLY}" "${urls[@]}"
           echo "$RUNNER_TEMP/docs.tar.gz" >> "$RUNNER_TEMP/assets"
+
+      # The source bundle mounts the same URLs as release.py docs, so a
+      # Tour step header that names any docs bundle compiles.
+      - name: Make the Tour tarball
+        run: |
+          mapfile -t urls < "$RUNNER_TEMP/urls"
+          python3 scripts/tour_artifacts.py pack "$RUNNER_TEMP/tour" "$RUNNER_TEMP/tour.tar.gz" --tag "${{ github.ref_name }}" "${urls[@]}"
+          echo "$RUNNER_TEMP/tour.tar.gz" >> "$RUNNER_TEMP/assets"
 
       # Cards has no checkout on the test runners, so its header points at the
       # bundle URLs.
@@ -259,6 +295,13 @@ jobs:
           gh release download "${{ github.ref_name }}" --pattern docs.tar.gz --dir "$RUNNER_TEMP/published"
           mapfile -t assets < <(gh release view "${{ github.ref_name }}" --json assets --jq '.assets[].name')
           python3 scripts/release.py check-docs "$RUNNER_TEMP/published/docs.tar.gz" "$RELEASE_BASE" "${assets[@]}"
+
+      - name: Check the published Tour tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ github.ref_name }}" --pattern tour.tar.gz --dir "$RUNNER_TEMP/published"
+          python3 scripts/tour_artifacts.py check "$RUNNER_TEMP/published/tour.tar.gz" --tag "${{ github.ref_name }}"
 
   # Fresh runners with only Roc installed and no checkout, so every platform
   # file comes from the release URLs.

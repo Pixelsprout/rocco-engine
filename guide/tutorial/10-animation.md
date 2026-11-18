@@ -18,6 +18,7 @@ you:
 
 ![Pip walks toward the camera in mid-stride, one leg forward and its arms swinging](../images/tutorial-10-animation.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [9. A gamepad](09-gamepad.md). The
 full app is
 [`examples/tutorial/10-animation/main.roc`](../../examples/tutorial/10-animation/main.roc).
@@ -26,11 +27,22 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/09-gamepad/main.roc examples/tutorial/10-animation/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [9. A gamepad](09-gamepad.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
+<!-- tour:skip -->
 The header and the sounds stay the same. If you downloaded `pip.glb` before
 rocco could load a Skin, your copy may have no Clips. Download
 [`pip.glb`](../../examples/tutorial/10-animation/assets/meshes/pip.glb?raw=true)
 again into `pip/assets/meshes/`.
+<!-- /tour:skip -->
+<!-- tour-only
+The header and the sounds stay the same. The Tour's `pip.glb` has the Idle
+and Walk Clips.
+-->
 
 ## The imports
 
@@ -315,6 +327,7 @@ the start does not blend backwards. See
   not load. See [Meshes from glTF](../assets.md#meshes-from-gltf) for the
   full list and the log line.
 
+<!-- tour:skip -->
 ## Test the Clips
 
 The times and the fade are plain numbers in the Model, so you test them
@@ -387,7 +400,9 @@ the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Play the game
 
 In `pip/`, run:
@@ -395,16 +410,32 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Pip stands and breathes, with a small nod of its head. Walk, and it fades
 into a stride that matches its speed. Push the stick halfway, and the stride
 slows down. Let go, and Pip fades back into Idle.
 
+<!-- tour:skip -->
 If Pip stands still in its bind pose and never moves its legs, a Clip name
 did not match, and `Mesh.clip` gave 0. Compare the names with the Clip names
 in the `.glb`. To find which one, add `expect idle != 0` and
 `expect walk != 0` to `loaded`, after the two `Mesh.clip` lines. Run
 `roc main.roc` again: a failed one writes `expect failed` to the log.
+<!-- /tour:skip -->
+<!-- tour-only
+If Pip stands still in its bind pose and never moves its legs, a Clip name
+did not match, and `Mesh.clip` gave 0. Compare the names with the Clip names
+in the `.glb`. To find which one, add `expect idle != 0` and
+`expect walk != 0` to `loaded`, after the two `Mesh.clip` lines. A failed
+one shows in the Console.
+-->
 
 You have made a whole game, with a character that walks. To fade Walk into
 a Run at the same phase and keep the feet on the ground, read

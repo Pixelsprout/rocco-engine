@@ -19,6 +19,7 @@ window and draw a cube, using three of the [five calls](../calls.md):
 
 ![The chapter 1 window: an orange cube on a black background](../images/tutorial-01-window.png)
 
+<!-- tour:skip -->
 Each chapter has a full app in `examples/tutorial/`. For this chapter it is
 [`examples/tutorial/01-window/main.roc`](../../examples/tutorial/01-window/main.roc).
 If you get lost, compare your file with it.
@@ -37,6 +38,16 @@ markers in double braces. You can find the values in the notes of the
 1. Make a folder called `pip`.
 2. Make the file `pip/main.roc`.
 3. Put this header at the top of `pip/main.roc`:
+<!-- /tour:skip -->
+<!-- tour-only
+The editor holds your game, an app that opens an empty window. Change it as
+you read. The Preview runs the game after you stop typing. If you get lost,
+press Show answer to see the full app of this chapter.
+
+## The header
+
+The first line of the game is its header:
+-->
 
 ```roc
 app [init, launch, loaded, step, view] { cam: "{{camera_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}" }
@@ -163,6 +174,7 @@ view = |model| {
   Draw. The list puts the lights first, then the cube.
 - `Scene.empty` fills in the other fields of the Scene.
 
+<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
@@ -174,6 +186,12 @@ roc main.roc
 The first run downloads the bundles and builds the game. Then a window
 called Pip opens and shows an orange cube. Close the window to stop the
 game.
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview shows an orange cube. If you turned auto-run off, press Run.
+-->
 
 Next, read [2. The character](02-character.md). You load Pip from a file,
 and the cube becomes the ground under it.
