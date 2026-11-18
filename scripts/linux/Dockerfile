@@ -5,6 +5,9 @@ FROM ubuntu:24.04
 
 ARG ODIN_RELEASE=dev-2026-11
 ARG ROC_NIGHTLY=2026-11-04-2622062
+# The roc-lang/roc commit of ROC_NIGHTLY. scripts/roc_patches.py applies the
+# carried Roc patches to it.
+ARG ROC_COMMIT=262206271cf05db948eef2b96fae88a1aca07b19
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

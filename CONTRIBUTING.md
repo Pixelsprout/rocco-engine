@@ -48,6 +48,15 @@ The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. A different compiler warns and builds anyway. Fix the
 `PATH`, never the pin.
 
+The Tour builds from a copy of the pinned Roc with rocco's patches applied.
+`tour/roc-patches/` holds one `.patch` file per change, applied in name order.
+The header of each patch states its upstream status. `ARG ROC_COMMIT` in
+`scripts/linux/Dockerfile` names the Roc commit of `ROC_NIGHTLY`. When you move
+the Roc pin, change both. Then run `python3 scripts/roc_patches.py check`. If a
+patch does not apply, update the patch before you move the pin. CI runs the
+same check on every push. `python3 scripts/roc_patches.py apply <dir>` writes
+the patched copy into `<dir>`.
+
 The submodules:
 
 - `sokol-odin/` is floooh/sokol-odin. The engine imports its `sokol/` folder.
@@ -512,6 +521,8 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/Regions.roc` | The region copy. `build.roc` imports it to copy each region into the `guide/` pages. |
 | `scripts/DocCheck.roc` | The missing-comment check. `build.roc` imports it to find each API item with no `##` comment. |
 | `guide/` | The docs for game authors. `guide/install.md` is the first page. `guide/tutorial/` holds the tutorial chapters and `guide/images/` their screenshots. See "Docs". |
+| `tour/roc-patches/` | The Roc patches that the Tour carries, one `.patch` file per change, each with a header that states its upstream status. |
+| `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game, pong and tutorial chapter 10. |

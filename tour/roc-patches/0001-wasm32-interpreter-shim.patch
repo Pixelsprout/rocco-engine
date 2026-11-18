@@ -1,0 +1,166 @@
+Change: Build Roc's interpreter shim as a wasm32-freestanding archive for the
+Tour host. The shim compiles out the ipc module (it needs mmap and an OS) and
+takes its memory from the host's memalign and free, because emscripten owns
+memory.grow. It adds the tour-shim-wasm32-freestanding build step.
+Upstream: not proposed. A general "shim for wasm hosts" change could go
+upstream; ask on the Roc Zulip first.
+Source: research/tour-interpreter-in-tour-host (build-zig.patch, items 1 and 2
+of interpreter-shim.patch).
+
+diff --git a/build.zig b/build.zig
+index 2179ca0..4cdb508 100755
+--- a/build.zig
++++ b/build.zig
+@@ -5885,6 +5885,41 @@ fn addMainExe(
+     // Include the pre-built builtins object
+     interpreter_shim_lib.root_module.addObjectFile(builtins_obj.getEmittedBin());
+     interpreter_shim_lib.bundle_compiler_rt = true;
++
++    // rocco Tour: the same interpreter shim archive for wasm32-freestanding,
++    // linked into an emscripten host that supplies memalign and free.
++    if (!b.top_level_steps.contains("tour-shim-wasm32-freestanding")) {
++        const tour_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
++        const tour_builtins = addBuiltinsObject(b, roc_modules, "roc_builtins_tour_freestanding", "src/builtins/static_lib.zig", tour_target, optimize, false);
++        const tour_shim = b.addLibrary(.{
++            .name = "roc_interpreter_shim_wasm32_freestanding",
++            .root_module = b.createModule(.{
++                .root_source_file = b.path("src/interpreter_shim/main.zig"),
++                .target = tour_target,
++                .optimize = optimize,
++                .strip = program_object_strip,
++                .omit_frame_pointer = program_object_omit_frame_pointer,
++            }),
++            .linkage = .static,
++        });
++        configureBackend(tour_shim, tour_target);
++        tour_shim.root_module.addImport("base", roc_modules.base);
++        tour_shim.root_module.addImport("builtins", roc_modules.builtins);
++        tour_shim.root_module.addImport("eval", roc_modules.eval);
++        tour_shim.root_module.addImport("ipc", roc_modules.ipc);
++        tour_shim.root_module.addImport("layout", roc_modules.layout);
++        tour_shim.root_module.addImport("lir", roc_modules.lir);
++        tour_shim.root_module.addImport("vendor_parse_float", roc_modules.vendor_parse_float);
++        tour_shim.root_module.addImport("vendor_ryu", roc_modules.vendor_ryu);
++        tour_shim.root_module.addImport("shim_io", b.createModule(.{ .root_source_file = b.path("src/shim_io.zig") }));
++        tour_shim.root_module.addImport("shim_host_abi", shim_host_abi_module);
++        tour_shim.root_module.addImport("compiled_builtins", compiled_builtins_module);
++        tour_shim.step.dependOn(&write_compiled_builtins.step);
++        tour_shim.root_module.addObjectFile(tour_builtins.getEmittedBin());
++        tour_shim.bundle_compiler_rt = true;
++        const tour_step = b.step("tour-shim-wasm32-freestanding", "Interpreter shim archive for a wasm32 host (rocco Tour)");
++        tour_step.dependOn(&b.addInstallArtifact(tour_shim, .{}).step);
++    }
+     // The link inputs `roc` embeds are digested once here (see
+     // src/build/embedded_digests.zig), so `roc run` never rehashes them.
+     //
+diff --git a/src/interpreter_shim/main.zig b/src/interpreter_shim/main.zig
+index ea42efe..4b4402f 100644
+--- a/src/interpreter_shim/main.zig
++++ b/src/interpreter_shim/main.zig
+@@ -9,7 +9,11 @@ const std = @import("std");
+ const invariant = @import("base").invariant;
+ const builtins = @import("builtins");
+ const eval = @import("eval");
+-const ipc = @import("ipc");
++const builtin = @import("builtin");
++/// Shared-memory coordination needs an OS. A wasm32 host gets its image only
++/// through `roc_entrypoint_from_image`.
++const has_coordination = builtin.cpu.arch != .wasm32;
++const ipc = if (has_coordination) @import("ipc") else struct {};
+ const layout = @import("layout");
+ const lir = @import("lir");
+ const GuardedList = lir.LirStore.GuardedList;
+@@ -34,7 +38,9 @@ pub const std_options = shim_io.std_options_static_archive;
+ const Allocator = std.mem.Allocator;
+ const RocOps = builtins.host_abi.RocOps;
+ const shim_symbols = builtins.shim_symbols;
+-const SharedMemoryAllocator = ipc.SharedMemoryAllocator;
++const SharedMemoryAllocator = if (has_coordination) ipc.SharedMemoryAllocator else void;
++/// `SharedMemoryAllocator.Header` is 512 bytes on every target.
++const shm_header_size: usize = 512;
+ 
+ const RuntimeState = struct {
+     source: union(enum) {
+@@ -44,7 +50,7 @@ const RuntimeState = struct {
+             len: usize,
+         },
+     },
+-    shm: ?SharedMemoryAllocator,
++    shm: if (has_coordination) ?SharedMemoryAllocator else void,
+     view: lir.LirImage.ProgramView,
+     static_data: eval.InterpreterStaticData,
+     /// Literal backings live as long as the image, because values returned to
+@@ -106,7 +112,7 @@ const EntrypointTable = struct {
+     }
+ };
+ 
+-const RuntimeStateError = ipc.CoordinationError || ipc.platform.SharedMemoryError || lir.LirImage.ImageError || Allocator.Error;
++const RuntimeStateError = if (has_coordination) ipc.CoordinationError || ipc.platform.SharedMemoryError || lir.LirImage.ImageError || Allocator.Error else lir.LirImage.ImageError || Allocator.Error;
+ 
+ var runtime_state_initialized: std.atomic.Value(bool) = .init(false);
+ var runtime_state: RuntimeState = undefined;
+@@ -136,9 +142,31 @@ fn shimIo() std.Io {
+ }
+ 
+ fn allocator() Allocator {
++    if (comptime !has_coordination) return host_heap;
+     return std.heap.page_allocator;
+ }
+ 
++/// On wasm32 the host (emscripten) owns `memory.grow`. Zig's wasm page
++/// allocator grows memory behind sbrk's back, so the shim takes its own
++/// memory from the host's malloc instead.
++const host_heap: Allocator = .{ .ptr = undefined, .vtable = &.{
++    .alloc = hostHeapAlloc,
++    .resize = hostHeapResize,
++    .remap = Allocator.noRemap,
++    .free = hostHeapFree,
++} };
++extern fn memalign(alignment: usize, size: usize) ?[*]u8;
++extern fn free(ptr: ?*anyopaque) void;
++fn hostHeapAlloc(_: *anyopaque, len: usize, alignment: std.mem.Alignment, _: usize) ?[*]u8 {
++    return memalign(@max(alignment.toByteUnits(), @sizeOf(usize)), len);
++}
++fn hostHeapResize(_: *anyopaque, memory: []u8, _: std.mem.Alignment, new_len: usize, _: usize) bool {
++    return new_len <= memory.len;
++}
++fn hostHeapFree(_: *anyopaque, memory: []u8, _: std.mem.Alignment, _: usize) void {
++    free(memory.ptr);
++}
++
+ fn openRuntimeState(gpa: Allocator) RuntimeStateError!RuntimeState {
+     var shm = try SharedMemoryAllocator.fromCoordination(gpa, shimIo());
+     errdefer shm.deinit(gpa);
+@@ -251,12 +279,12 @@ fn evaluateEntrypointInState(
+ }
+ 
+ fn viewEmbeddedLirImage(image_base: *anyopaque, image_len: usize, ops: *RocOps) lir.LirImage.ProgramView {
+-    if (image_len < @sizeOf(SharedMemoryAllocator.Header) + @sizeOf(lir.LirImage.Header)) {
++    if (image_len < shm_header_size + @sizeOf(lir.LirImage.Header)) {
+         ops.crash("LIR shim received an invalid embedded LIR image");
+     }
+ 
+     const base_ptr: [*]align(1) u8 = @ptrCast(@alignCast(image_base));
+-    const header: *const lir.LirImage.Header = @ptrCast(@alignCast(base_ptr + @sizeOf(SharedMemoryAllocator.Header)));
++    const header: *const lir.LirImage.Header = @ptrCast(@alignCast(base_ptr + shm_header_size));
+     if (header.magic != lir.LirImage.MAGIC) {
+         ops.crash("LIR shim received a non-LIR embedded image");
+     }
+@@ -296,7 +324,7 @@ fn ensureEmbeddedRuntimeState(image_base: *anyopaque, image_len: usize, ops: *Ro
+     };
+     runtime_state = .{
+         .source = .{ .embedded = .{ .base = base, .len = image_len } },
+-        .shm = null,
++        .shm = if (has_coordination) null else {},
+         .view = view,
+         .static_data = static_data,
+         .static_strings = static_strings,
+@@ -309,7 +337,7 @@ fn ensureEmbeddedRuntimeState(image_base: *anyopaque, image_len: usize, ops: *Ro
+ 
+ comptime {
+     @export(&shimGetOps, .{ .name = shim_symbols.roc_shim_get_ops });
+-    @export(&shimEntrypoint, .{ .name = shim_symbols.roc_entrypoint });
++    if (has_coordination) @export(&shimEntrypoint, .{ .name = shim_symbols.roc_entrypoint });
+     @export(&shimEntrypointFromImage, .{ .name = shim_symbols.roc_entrypoint_from_image });
+ }
+ 
