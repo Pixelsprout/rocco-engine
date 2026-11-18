@@ -68,9 +68,35 @@ export fn tw_free(ptr: [*]u8, size: usize) void {
     gpa.free(ptr[0..size]);
 }
 
+/// A cache file put here counts as live until the next compile, so a worker
+/// seeded by cache-import can hand the same entries on.
 export fn tw_put_file(path_ptr: [*]const u8, path_len: usize, data_ptr: [*]const u8, data_len: usize) u32 {
     vfs.put(path_ptr[0..path_len], data_ptr[0..data_len]) catch return 1;
+    vfs.touch(path_ptr[0..path_len]) catch return 1;
     return 0;
+}
+
+/// The number of live cache entries. Index them with tw_cache_path_* and
+/// tw_cache_data_* until the next call into the worker that writes files.
+export fn tw_cache_count() usize {
+    vfs.pruneTouched();
+    return vfs.touched.count();
+}
+
+export fn tw_cache_path_ptr(i: usize) [*]const u8 {
+    return vfs.touched.keys()[i].ptr;
+}
+
+export fn tw_cache_path_len(i: usize) usize {
+    return vfs.touched.keys()[i].len;
+}
+
+export fn tw_cache_data_ptr(i: usize) [*]const u8 {
+    return vfs.files.get(vfs.touched.keys()[i]).?.ptr;
+}
+
+export fn tw_cache_data_len(i: usize) usize {
+    return vfs.files.get(vfs.touched.keys()[i]).?.len;
 }
 
 /// Makes the bundle folder `dir` the package that `url` names, by putting it
@@ -107,6 +133,7 @@ export fn tw_identity_len() usize {
 /// A failed compile leaves no image.
 export fn tw_compile(path_ptr: [*]const u8, path_len: usize) u32 {
     stats = @splat(0);
+    vfs.clearTouched();
     if (image_buffer) |b| gpa.free(b);
     image_buffer = null;
     image_len = 0;

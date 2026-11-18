@@ -71,7 +71,7 @@ To build the compile worker and the source bundle, put Zig `ZIG_VERSION`
 (`scripts/linux/Dockerfile`) on `PATH` and run
 `python3 scripts/tour_worker.py build`. It writes
 `build/tour/compile-worker/`. Then run
-`node --test tour/compile-worker/test/compile-worker.test.mjs`.
+`node --test 'tour/compile-worker/test/*.test.mjs'`.
 
 To build all the Tour artifacts, run `sh scripts/toolchain.sh run python3
 scripts/tour_artifacts.py build` with the same Zig on `PATH`. It writes

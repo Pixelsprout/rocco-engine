@@ -10,6 +10,9 @@ const Allocator = std.mem.Allocator;
 /// Where Roc looks for a URL package: one folder per bundle hash.
 pub const package_cache = "/home/.cache/roc/packages";
 
+/// ROC_CACHE_DIR, with the trailing slash.
+pub const cache_dir = "/cache/";
+
 pub const Vfs = struct {
     gpa: Allocator,
     files: std.StringHashMapUnmanaged([]u8) = .empty,
@@ -17,6 +20,35 @@ pub const Vfs = struct {
     writes: usize = 0,
     write_bytes: usize = 0,
     stderr: ?*const fn ([]const u8) void = null,
+    /// The cache files read or written since `clearTouched`: the live cache
+    /// that a recycled worker hands to its successor.
+    touched: std.StringArrayHashMapUnmanaged(void) = .empty,
+
+    pub fn touch(self: *Vfs, path: []const u8) Allocator.Error!void {
+        if (!std.mem.startsWith(u8, path, cache_dir) or self.touched.contains(path)) return;
+        const owned = try self.gpa.dupe(u8, path);
+        errdefer self.gpa.free(owned);
+        try self.touched.put(self.gpa, owned, {});
+    }
+
+    pub fn clearTouched(self: *Vfs) void {
+        for (self.touched.keys()) |k| self.gpa.free(k);
+        self.touched.clearRetainingCapacity();
+    }
+
+    /// Drops touched paths whose file is gone, so every key has a file.
+    pub fn pruneTouched(self: *Vfs) void {
+        var i: usize = 0;
+        while (i < self.touched.count()) {
+            const k = self.touched.keys()[i];
+            if (self.files.contains(k)) {
+                i += 1;
+            } else {
+                self.touched.swapRemoveAt(i);
+                self.gpa.free(k);
+            }
+        }
+    }
 
     pub fn put(self: *Vfs, path: []const u8, data: []const u8) Allocator.Error!void {
         const owned = try self.gpa.dupe(u8, data);
@@ -101,11 +133,14 @@ fn readFile(p: ?*anyopaque, _: std.Io, path: []const u8, a: Allocator) CoreCtx.R
     const v = get(p);
     const d = lookup(v, path) orelse return error.FileNotFound;
     v.reads += 1;
+    v.touch(path) catch return error.OutOfMemory;
     return a.dupe(u8, d) catch error.OutOfMemory;
 }
 fn readFileInto(p: ?*anyopaque, _: std.Io, path: []const u8, buf: []u8) CoreCtx.ReadError!usize {
-    const d = lookup(get(p), path) orelse return error.FileNotFound;
+    const v = get(p);
+    const d = lookup(v, path) orelse return error.FileNotFound;
     if (buf.len < d.len) return error.StreamTooLong;
+    v.touch(path) catch return error.OutOfMemory;
     @memcpy(buf[0..d.len], d);
     return d.len;
 }
@@ -114,6 +149,7 @@ fn writeFile(p: ?*anyopaque, _: std.Io, path: []const u8, data: []const u8) Core
     v.writes += 1;
     v.write_bytes += data.len;
     v.put(path, data) catch return error.OutOfMemory;
+    v.touch(path) catch return error.OutOfMemory;
 }
 fn writeFileStream(p: ?*anyopaque, _: std.Io, path: []const u8, stream: CoreCtx.FileStream) CoreCtx.WriteError!void {
     const v = get(p);
