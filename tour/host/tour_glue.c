@@ -44,6 +44,34 @@ EM_JS(void, tour_image_take, (uint8_t *to), {
 	globalThis.tourImage = null;
 });
 
+// tour_host.py links with --wrap for these three, so the shim's calls land
+// here first. The engine's own roc_* then print and, for a crash, exit.
+enum { OUT_DBG, OUT_EXPECT, OUT_CRASH };
+
+EM_JS(void, tour_output, (int kind, const uint8_t *bytes, size_t len), {
+	var text = new TextDecoder().decode(HEAPU8.slice(bytes, bytes + len));
+	if (globalThis.tourOutput) globalThis.tourOutput(["dbg", "expect", "crash"][kind], text);
+});
+
+extern void __real_roc_dbg(const uint8_t *bytes, size_t len);
+extern void __real_roc_expect_failed(const uint8_t *bytes, size_t len);
+extern void __real_roc_crashed(const uint8_t *bytes, size_t len);
+
+void __wrap_roc_dbg(const uint8_t *bytes, size_t len) {
+	tour_output(OUT_DBG, bytes, len);
+	__real_roc_dbg(bytes, len);
+}
+
+void __wrap_roc_expect_failed(const uint8_t *bytes, size_t len) {
+	tour_output(OUT_EXPECT, bytes, len);
+	__real_roc_expect_failed(bytes, len);
+}
+
+void __wrap_roc_crashed(const uint8_t *bytes, size_t len) {
+	tour_output(OUT_CRASH, bytes, len);
+	__real_roc_crashed(bytes, len);
+}
+
 static void *image;
 static size_t image_len;
 

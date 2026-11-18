@@ -2,11 +2,24 @@
 // globalThis.tourImage for the Tour host's main to pull, and only then adds
 // rocco.js and calls rocco_start().
 //
+// In an iframe it speaks postMessage with its parent, the Tour page: it posts
+// tour:waiting, takes the first tour:image, and forwards the rocco.js events
+// and the game's crash, dbg and expect output.
+//
 // On localhost or 127.0.0.1, ?image=<url> makes it fetch the image itself,
 // so a Driver or CI can run a Tour host with no Tour page.
 (function () {
 	// tour_host.py writes the build id, the same as the compile worker's.
 	var BUILD_ID = "@BUILD_ID@";
+
+	var framed = window.parent !== window;
+
+	// The Preview is a same-origin iframe of the Tour page.
+	function post(message) {
+		if (framed) {
+			window.parent.postMessage(message, location.origin);
+		}
+	}
 
 	function stopped(message) {
 		console.error(message);
@@ -22,6 +35,50 @@
 		document.body.appendChild(script);
 	}
 
+	["rocco:ready", "rocco:quit"].forEach(function (type) {
+		window.addEventListener(type, function () { post({ type: type }); });
+	});
+	["rocco:unsupported", "rocco:stopped"].forEach(function (type) {
+		window.addEventListener(type, function (event) {
+			post({ type: type, reason: event.detail.reason, message: event.detail.message });
+		});
+	});
+
+	// tour_glue.c calls this from roc_crashed, roc_dbg and roc_expect_failed.
+	globalThis.tourOutput = function (kind, text) {
+		if (kind === "crash") {
+			post({ type: "tour:crash", message: text });
+		} else {
+			post({ type: "tour:" + kind, text: text });
+		}
+	};
+
+	// "started" after the first image, "bad" after an image from another build.
+	var state = "waiting";
+
+	function receive(event) {
+		var data = event.data;
+		if (event.source !== window.parent || !data || data.type !== "tour:image") {
+			return;
+		}
+		var buildId = data.identity && data.identity.buildId;
+		if (state === "bad" || buildId !== BUILD_ID) {
+			state = "bad";
+			post({
+				type: "tour:bad-image",
+				reason: "build",
+				message: "The image is from build " + buildId + ", and this Preview is build " + BUILD_ID + ".",
+			});
+			return;
+		}
+		if (state === "started") {
+			// Hot reload of a later image is not here yet.
+			return;
+		}
+		state = "started";
+		start(new Uint8Array(data.image));
+	}
+
 	var local = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 	var url = local ? new URLSearchParams(location.search).get("image") : null;
 	if (url) {
@@ -35,5 +92,8 @@
 		}, function (error) {
 			stopped("The Preview could not load the image " + url + ": " + error.message);
 		});
+	} else if (framed) {
+		window.addEventListener("message", receive);
+		post({ type: "tour:waiting" });
 	}
 })();

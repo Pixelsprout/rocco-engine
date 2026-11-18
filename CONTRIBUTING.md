@@ -73,6 +73,15 @@ To build the compile worker and the source bundle, put Zig `ZIG_VERSION`
 `build/tour/compile-worker/`. Then run
 `node --test tour/compile-worker/test/compile-worker.test.mjs`.
 
+To build all the Tour artifacts, run `sh scripts/toolchain.sh run python3
+scripts/tour_artifacts.py build` with the same Zig on `PATH`. It writes
+`build/tour/` in the layout of the `tour.tar.gz` release asset:
+`manifest.json`, `compile-worker/` and `preview/`. The compile worker and the
+Preview get one build id. Intermediate files go to `build/tour-work/`. A site
+checkout with `DOCS_SOURCE` set to this checkout reads `build/tour/`. Then run
+`node --test 'tour/host/test/*.test.mjs'`. It drives the Preview in headless
+Chrome over the ADR 0041 messages.
+
 The submodules:
 
 - `sokol-odin/` is floooh/sokol-odin. The engine imports its `sokol/` folder.
@@ -562,6 +571,9 @@ does not call it again. After a change to `launch`, restart the game.
 | `tour/compile-worker/` | The Tour compile worker: `build.zig` embeds the pinned Roc in a wasm32 module, `js/compile-worker.mjs` is its JS API and `test/` lowers Tutorial games with it. |
 | `scripts/tour_content.py` | Checks the Tour markers in the Tutorial pages and the Tour step sources. |
 | `scripts/tour_worker.py` | Builds the compile worker and writes the source bundle into `build/tour/compile-worker/`. |
+| `scripts/tour_host.py` | Builds the Tour host and writes the Preview folder into `build/tour/preview/`. |
+| `scripts/tour_artifacts.py` | Builds the compile worker and the Preview into `build/tour/` with one build id, and writes `manifest.json`. The release job calls it. |
+| `tour/host/` | The Tour host: `tour_glue.c` (the game calls and the output hooks), `host.html`, the Preview loader `preview.js`, and `test/`, which drives the Preview in headless Chrome. |
 | `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |

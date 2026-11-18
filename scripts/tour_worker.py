@@ -28,6 +28,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKER_DIR = os.path.join(ROOT, 'tour', 'compile-worker')
 ZON = os.path.join(WORKER_DIR, 'build.zig.zon')
 DEFAULT_OUT = os.path.join(ROOT, 'build', 'tour', 'compile-worker')
+# Intermediate files stay out of build/tour/, which holds only the Tour artifacts.
+WORK = os.path.join(ROOT, 'build', 'tour-work')
 # The root the worker mounts the bundle at. App headers resolve against it.
 BUNDLE_ROOT = '/rocco'
 # Host link inputs and tools, not Roc modules of the platform or a package.
@@ -95,16 +97,21 @@ def check_zig(zig):
         raise SystemExit(f'tour_worker.py: {zig} is Zig {got}, the pin is ZIG_VERSION={want}')
 
 
-def build_worker(out):
-    zig = os.environ.get('ZIG', 'zig')
-    check_zig(zig)
-    # Roc's build.zig needs an LLVM bundle at configure time unless it gets a
-    # local one. The worker links no LLVM, so an empty bundle skips the fetch.
-    deps = os.path.join(ROOT, 'build', 'tour', 'roc-deps-empty')
+def empty_roc_deps():
+    """Roc's build.zig needs an LLVM bundle at configure time unless it gets a
+    local one. The Tour links no LLVM, so an empty bundle skips the fetch."""
+    deps = os.path.join(WORK, 'roc-deps-empty')
     for sub in ('include', 'lib'):
         os.makedirs(os.path.join(deps, sub), exist_ok=True)
-    prefix = os.path.join(ROOT, 'build', 'tour', 'zig-out')
-    subprocess.run([zig, 'build', '--prefix', prefix, f'-Droc-deps-path={deps}', f'-Dbuild-id={build_id()}'],
+    return deps
+
+
+def build_worker(out, build_id):
+    zig = os.environ.get('ZIG', 'zig')
+    check_zig(zig)
+    deps = empty_roc_deps()
+    prefix = os.path.join(WORK, 'zig-out')
+    subprocess.run([zig, 'build', '--prefix', prefix, f'-Droc-deps-path={deps}', f'-Dbuild-id={build_id}'],
                    cwd=WORKER_DIR, check=True)
     os.makedirs(out, exist_ok=True)
     shutil.copyfile(os.path.join(prefix, 'compile-worker.wasm'), os.path.join(out, 'compile-worker.wasm'))
@@ -123,7 +130,7 @@ def main(argv):
     args = parser.parse_args(argv)
     urls = release.parse_urls(args.url)
     if args.command == 'build':
-        build_worker(args.out)
+        build_worker(args.out, build_id())
         write_source_bundle(ROOT, urls, os.path.join(args.out, 'source-bundle.json'))
         print(f'== {args.out}')
     else:

@@ -1,8 +1,8 @@
-// Runs the built Tour host in headless Chrome with ?image=<url>. Build first:
-//   python3 scripts/tour_worker.py build
-//   sh scripts/toolchain.sh run python3 scripts/tour_host.py build
-//   node --test tour/host/test/
-// TOUR_PREVIEW_DIR and TOUR_WORKER_DIR name other build folders. CHROME names
+// Runs the built Preview folder in headless Chrome: alone with ?image=<url>,
+// and in an iframe of a test page that speaks the ADR 0041 messages. Build first:
+//   sh scripts/toolchain.sh run python3 scripts/tour_artifacts.py build
+//   node --test 'tour/host/test/*.test.mjs'
+// TOUR_DIR names another build/tour/ folder. CHROME names
 // the Chrome program and CHROME_FLAGS adds switches, such as CI's Vulkan ones.
 // TOUR_HOST_SHOT=<out.png> saves the frame after the run.
 import { test, before, after } from "node:test";
@@ -15,24 +15,74 @@ import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const preview = resolve(process.env.TOUR_PREVIEW_DIR ?? join(root, "build/tour/preview"));
-const workerDir = resolve(process.env.TOUR_WORKER_DIR ?? join(root, "build/tour/compile-worker"));
+const tourDir = resolve(process.env.TOUR_DIR ?? join(root, "build/tour"));
+const preview = join(tourDir, "preview");
+const workerDir = join(tourDir, "compile-worker");
 const chromePath = process.env.CHROME ??
   (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function lower(step) {
-  const { startCompileWorker } = await import(join(workerDir, "compile-worker.mjs"));
-  const worker = await startCompileWorker(
-    readFileSync(join(workerDir, "compile-worker.wasm")),
-    JSON.parse(readFileSync(join(workerDir, "source-bundle.json"), "utf8")),
-  );
-  const result = worker.compile(readFileSync(join(root, "examples/tutorial", step, "main.roc"), "utf8"));
+let worker;
+async function lower(source) {
+  if (!worker) {
+    const { startCompileWorker } = await import(join(workerDir, "compile-worker.mjs"));
+    worker = await startCompileWorker(
+      readFileSync(join(workerDir, "compile-worker.wasm")),
+      JSON.parse(readFileSync(join(workerDir, "source-bundle.json"), "utf8")),
+    );
+  }
+  const result = worker.compile(source);
   assert.equal(result.ok, true, result.reports);
-  return result.image;
+  return result;
 }
 
-const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };
+const chapter = (step) => readFileSync(join(root, "examples/tutorial", step, "main.roc"), "utf8");
+
+// Edits of the step 1 stub, so each game does one thing on its first frames.
+function stub(from, to) {
+  const source = chapter("00-start");
+  assert.ok(source.includes(from), `00-start has no ${from}`);
+  return source.replace(from, to);
+}
+const STEP = "step = |model, _input, _results, _dt| { model, commands: [] }";
+const OUTPUT_GAME = stub(STEP,
+  'step = |model, _input, _results, _dt| {\n\tdbg "tick"\n\texpect model != {}\n\t{ model, commands: [] }\n}');
+const CRASH_GAME = stub("view = |_model| Scene.empty", 'view = |_model| crash "boom"');
+
+// The Tour page's side of ADR 0041, reduced: it opens the Preview in an
+// iframe, records what the Preview posts, and answers tour:waiting with the
+// image named in ?image (an identity at <image>.json).
+const PARENT = `<!doctype html>
+<meta charset="utf-8">
+<body style="margin:0">
+<script>
+  const params = new URLSearchParams(location.search);
+  window.received = [];
+  const preview = document.createElement("iframe");
+  preview.style = "width:960px;height:540px;border:0";
+  addEventListener("message", async (e) => {
+    if (e.source !== preview.contentWindow) return;
+    received.push(e.data);
+    if (e.data.type !== "tour:waiting" || !params.get("image")) return;
+    const image = await (await fetch(params.get("image"))).arrayBuffer();
+    const identity = await (await fetch(params.get("image") + ".json")).json();
+    preview.contentWindow.postMessage({ type: "tour:image", image, identity }, location.origin, [image]);
+  });
+  // Posts the image from another window of the same origin, not the Preview's parent.
+  window.postFromSibling = async (url) => {
+    const sibling = document.createElement("iframe");
+    document.body.appendChild(sibling);
+    const image = await (await fetch(url)).arrayBuffer();
+    const identity = await (await fetch(url + ".json")).json();
+    sibling.contentWindow.Function("target", "message", "target.postMessage(message, '*')")(
+      preview.contentWindow, { type: "tour:image", image, identity });
+  };
+  preview.src = "host.html";
+  document.body.appendChild(preview);
+</script>
+`;
+
+const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".wasm": "application/wasm" };
 let server, port, chrome, profile, cdp;
 const images = {};
 
@@ -120,7 +170,16 @@ function exceptions() {
 }
 
 before(async () => {
-  images["/03-moving.rocs"] = await lower("03-moving");
+  const serveImage = (name, { image, identity }) => {
+    images[`/${name}.rocs`] = image;
+    images[`/${name}.rocs.json`] = JSON.stringify(identity);
+  };
+  const moving = await lower(chapter("03-moving"));
+  serveImage("03-moving", moving);
+  serveImage("other-build", { image: moving.image, identity: { ...moving.identity, buildId: "v0.0.0-1-g0000000" } });
+  serveImage("output", await lower(OUTPUT_GAME));
+  serveImage("crash", await lower(CRASH_GAME));
+  images["/parent.html"] = PARENT;
   port = await serve();
   cdp = await connect(await startChrome());
   await cdp.send("Runtime.enable");
@@ -169,4 +228,64 @@ test("with no ?image the Preview waits and does not load rocco.js", async () => 
   await sleep(1000);
   assert.equal(await cdp.evaluate("typeof window.rocco_start"), "undefined");
   assert.deepEqual(await cdp.evaluate("tourEvents"), []);
+});
+
+// What the Preview posted to the test page, by type.
+const received = () => cdp.evaluate("received");
+const receivedTypes = async () => (await received()).map((m) => m.type);
+const previewEval = (expression) => cdp.evaluate(`document.querySelector("iframe").contentWindow.eval(${JSON.stringify(expression)})`);
+
+test("the Preview posts tour:waiting, and a first tour:image runs to rocco:ready", async () => {
+  await open("parent.html?image=/03-moving.rocs");
+  assert.ok(await until(`received.some((m) => m.type === "rocco:ready")`, 60000),
+    `no rocco:ready; got ${JSON.stringify(await receivedTypes())}; exceptions: ${exceptions()}`);
+  assert.deepEqual(await receivedTypes(), ["tour:waiting", "rocco:ready"]);
+  assert.deepEqual((await received())[1], { type: "rocco:ready" });
+  assert.deepEqual(exceptions(), []);
+});
+
+test("dbg and failed expect lines arrive as tour:dbg and tour:expect", async () => {
+  await open("parent.html?image=/output.rocs");
+  assert.ok(await until(`received.some((m) => m.type === "tour:dbg") && received.some((m) => m.type === "tour:expect")`, 60000),
+    `got ${JSON.stringify(await receivedTypes())}; exceptions: ${exceptions()}`);
+  const all = await received();
+  const dbg = all.find((m) => m.type === "tour:dbg");
+  assert.equal(typeof dbg.text, "string");
+  assert.match(dbg.text, /tick/);
+  assert.equal(typeof all.find((m) => m.type === "tour:expect").text, "string");
+});
+
+test("a crashing game posts tour:crash with the crash message", async () => {
+  await open("parent.html?image=/crash.rocs");
+  const crash = await until(`received.find((m) => m.type === "tour:crash")`, 60000);
+  assert.ok(crash, `no tour:crash; got ${JSON.stringify(await receivedTypes())}; exceptions: ${exceptions()}`);
+  assert.match(crash.message, /boom/);
+});
+
+test("an image from another build gets tour:bad-image and the game does not start", async () => {
+  await open("parent.html?image=/other-build.rocs");
+  const bad = await until(`received.find((m) => m.type === "tour:bad-image")`, 20000);
+  assert.ok(bad, `no tour:bad-image; got ${JSON.stringify(await receivedTypes())}`);
+  assert.equal(bad.reason, "build");
+  assert.match(bad.message, /v0\.0\.0-1-g0000000/);
+  await sleep(1000);
+  assert.deepEqual(await receivedTypes(), ["tour:waiting", "tour:bad-image"]);
+  assert.equal(await previewEval("typeof window.rocco_start"), "undefined");
+});
+
+test("the Preview takes an image only from its parent", async () => {
+  await open("parent.html");
+  assert.ok(await until(`received.some((m) => m.type === "tour:waiting")`, 20000), "no tour:waiting");
+  await cdp.evaluate(`postFromSibling("/03-moving.rocs")`);
+  await sleep(1500);
+  assert.deepEqual(await receivedTypes(), ["tour:waiting"]);
+  assert.equal(await previewEval("typeof window.rocco_start"), "undefined");
+});
+
+test("manifest.json names the build id that the compile worker and the Preview share", async () => {
+  const manifest = JSON.parse(readFileSync(join(tourDir, "manifest.json"), "utf8"));
+  assert.deepEqual(Object.keys(manifest).sort(), ["buildId", "rocNightly", "tag"]);
+  const { identity } = await lower(chapter("00-start"));
+  assert.equal(manifest.buildId, identity.buildId);
+  assert.ok(readFileSync(join(preview, "preview.js"), "utf8").includes(`var BUILD_ID = ${JSON.stringify(manifest.buildId)};`));
 });

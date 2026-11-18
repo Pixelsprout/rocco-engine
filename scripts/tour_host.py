@@ -28,8 +28,8 @@ import tour_worker
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOST_DIR = os.path.join(ROOT, 'tour', 'host')
-WORK = os.path.join(ROOT, 'build', 'tour')
-DEFAULT_OUT = os.path.join(WORK, 'preview')
+WORK = tour_worker.WORK
+DEFAULT_OUT = os.path.join(ROOT, 'build', 'tour', 'preview')
 WEB_HOST_OBJECTS = os.path.join(ROOT, 'build', 'web-host')
 SHIM = 'libroc_interpreter_shim_wasm32_freestanding.a'
 
@@ -146,13 +146,15 @@ def build_shim():
     tour_worker.check_zig(zig)
     tree = patched_roc()
     # An empty LLVM bundle skips the LLVM fetch. The shim links no LLVM.
-    deps = os.path.join(WORK, 'roc-deps-empty')
-    for sub in ('include', 'lib'):
-        os.makedirs(os.path.join(deps, sub), exist_ok=True)
+    deps = tour_worker.empty_roc_deps()
     print('== zig: wasm32 interpreter shim', flush=True)
     subprocess.run([zig, 'build', 'tour-shim-wasm32-freestanding', '-Doptimize=ReleaseFast', f'-Droc-deps-path={deps}'],
                    cwd=tree, check=True)
     return os.path.join(tree, 'zig-out', 'lib', SHIM)
+
+
+# The glue posts the game's output to the Tour page before the engine's own call runs.
+WRAPPED = ('roc_dbg', 'roc_expect_failed', 'roc_crashed')
 
 
 def link_host(shim, out, env):
@@ -167,7 +169,8 @@ def link_host(shim, out, env):
     print('== emcc: Tour host', flush=True)
     subprocess.run(['emcc', *objects, glue, shim, '-o', os.path.join(out, 'index.js'),
                     '--use-port=emdawnwebgpu', '-lwebsocket.js', '-sDEFAULT_TO_CXX', '-sALLOW_MEMORY_GROWTH=1',
-                    '-sSTACK_SIZE=8MB', '-sFORCE_FILESYSTEM=1'], check=True, env=env)
+                    '-sSTACK_SIZE=8MB', '-sFORCE_FILESYSTEM=1', *[f'-Wl,--wrap={name}' for name in WRAPPED]],
+                   check=True, env=env)
 
 
 def write_page(out, build_id):
@@ -181,7 +184,7 @@ def write_page(out, build_id):
         f.write(loader.replace('"@BUILD_ID@"', json.dumps(build_id)))
 
 
-def build(out):
+def build(out, build_id):
     check_glue_abi(os.path.join(HOST_DIR, 'tour_glue.c'), os.path.join(ROOT, 'engine', 'roc_platform_abi.odin'))
     env = emscripten_env(os.environ)
     shim = build_shim()
@@ -189,9 +192,10 @@ def build(out):
     if os.path.exists(out):
         shutil.rmtree(out)
     os.makedirs(out)
+    os.makedirs(WORK, exist_ok=True)
     link_host(shim, out, env)
     check_no_memory_grow(os.path.join(out, 'index.wasm'))
-    write_page(out, tour_worker.build_id())
+    write_page(out, build_id)
     write_shared_data(ROOT, out)
 
 
@@ -202,7 +206,7 @@ def main(argv):
     command.add_argument('--out', default=DEFAULT_OUT)
     args = parser.parse_args(argv)
     try:
-        build(os.path.abspath(args.out))
+        build(os.path.abspath(args.out), tour_worker.build_id())
     except (BuildError, roc_patches.PatchError) as e:
         print(f'tour_host.py: {e}', file=sys.stderr)
         return 1
