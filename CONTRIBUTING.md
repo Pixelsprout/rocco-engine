@@ -80,7 +80,7 @@ scripts/tour_artifacts.py build` with the same Zig on `PATH`. It writes
 Preview get one build id. Intermediate files go to `build/tour-work/`. A site
 checkout with `DOCS_SOURCE` set to this checkout reads `build/tour/`. Then run
 `node --test 'tour/host/test/*.test.mjs'`. It drives the Preview in headless
-Chrome over the ADR 0041 messages.
+Chrome over the ADR 0041 messages, hot reload included.
 
 The release workflow's `tour` job runs the same build with `--tag <release
 tag>`. The `bundle` job then runs `python3 scripts/tour_artifacts.py pack`,
