@@ -44,6 +44,13 @@ class SharedDataTest(unittest.TestCase):
         self.assertIn('["/assets/sound/blip.wav", 3, 7]', loader)
         self.assertIn('["/assets", "sound"]', loader)
 
+    def test_the_data_loader_takes_its_file_names_from_the_preview_loader(self):
+        self.files()
+        with open(os.path.join(self.out, 'index.data.js')) as f:
+            loader = f.read()
+        self.assertIn('Module["locateFile"] = globalThis.tourLocateFile', loader)
+        self.assertIn('fetch(Module["locateFile"]("index.data", ""))', loader)
+
     def test_two_steps_with_different_bytes_under_one_name_fail(self):
         write(os.path.join(self.root, 'examples', 'tutorial', '10-animation', 'assets', 'meshes', 'pip.glb'), b'NEW')
         with self.assertRaisesRegex(tour_host.BuildError, '/assets/meshes/pip.glb.*02-character.*10-animation'):

@@ -68,7 +68,7 @@ def write_shared_data(root, out):
             entries.append([path, offset, offset + len(chunk)])
             offset += len(chunk)
     with open(os.path.join(out, 'index.data.js'), 'w') as f:
-        f.write(rocco_web.data_loader([list(d) for d in dirs], entries))
+        f.write(rocco_web.data_loader([list(d) for d in dirs], entries, locate_file=True))
     return [path for path, _ in files]
 
 

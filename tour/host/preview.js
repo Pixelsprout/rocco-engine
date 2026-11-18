@@ -9,11 +9,21 @@
 //
 // On localhost or 127.0.0.1, ?image=<url> makes it fetch the image itself,
 // so a Driver or CI can run a Tour host with no Tour page.
+//
+// ?suffix=<suffix> loads index.wasm<suffix> and index.data<suffix>, so a site
+// can deploy them under other names, such as index.wasm.br.
 (function () {
 	// tour_host.py writes the build id, the same as the compile worker's.
 	var BUILD_ID = "@BUILD_ID@";
 
 	var framed = window.parent !== window;
+	var params = new URLSearchParams(location.search);
+
+	// The Tour's index.data.js gives this to Module.locateFile before index.js loads.
+	var suffix = params.get("suffix") || "";
+	globalThis.tourLocateFile = function (path, prefix) {
+		return (prefix || "") + path + (path === "index.wasm" || path === "index.data" ? suffix : "");
+	};
 
 	// The Preview is a same-origin iframe of the Tour page.
 	function post(message) {
@@ -36,10 +46,15 @@
 		document.body.appendChild(script);
 	}
 
-	// "started" after the first image, "bad" after an image from another build,
-	// "stopped" after rocco:stopped, rocco:quit or rocco:unsupported, and
-	// "crashed" after a Roc crash.
-	var state = "waiting";
+	var WAITING = "waiting";
+	var STARTED = "started";
+	var BAD = "bad";
+	var STOPPED = "stopped";
+	var CRASHED = "crashed";
+	// WAITING until the first image, then STARTED. BAD after an image from
+	// another build, STOPPED after rocco:stopped, rocco:quit or
+	// rocco:unsupported, and CRASHED after a Roc crash.
+	var state = WAITING;
 	// The first image's identity. Its init, loaded and launch made the Model,
 	// so every later image is compared with it, and it never changes.
 	var baseline = null;
@@ -53,19 +68,19 @@
 		post({ type: "rocco:ready" });
 	});
 	window.addEventListener("rocco:quit", function () {
-		halt("stopped");
+		halt(STOPPED);
 		post({ type: "rocco:quit" });
 	});
 	["rocco:unsupported", "rocco:stopped"].forEach(function (type) {
 		window.addEventListener(type, function (event) {
-			halt("stopped");
+			halt(STOPPED);
 			post({ type: type, reason: event.detail.reason, message: event.detail.message });
 		});
 	});
 
-	function halt(why) {
-		if (state === "started") {
-			state = why;
+	function halt(end) {
+		if (state === STARTED) {
+			state = end;
 		}
 		pending = null;
 	}
@@ -73,7 +88,7 @@
 	// tour_glue.c calls this from roc_crashed, roc_dbg and roc_expect_failed.
 	globalThis.tourOutput = function (kind, text) {
 		if (kind === "crash") {
-			halt("crashed");
+			halt(CRASHED);
 			post({ type: "tour:crash", message: text });
 		} else {
 			post({ type: "tour:" + kind, text: text });
@@ -83,10 +98,13 @@
 	// tour_glue.c calls this after the first game call on a swapped image.
 	globalThis.tourSwapped = function () { post({ type: "tour:swapped" }); };
 
-	// Why the kept Model cannot take this image, or null.
+	// The tour:need-iframe reason why the kept Model cannot take this image, or null.
 	function refusal(identity) {
-		if (state !== "started") {
-			return state;
+		if (state === CRASHED) {
+			return "crashed";
+		}
+		if (state === STOPPED) {
+			return "stopped";
 		}
 		if (baseline.erasedCallables > 0 || identity.erasedCallables > 0) {
 			return "erased-callable";
@@ -118,7 +136,7 @@
 				if (!error || error.name !== "ExitStatus") {
 					throw error;
 				}
-				halt("crashed");
+				halt(CRASHED);
 			}
 		});
 	};
@@ -129,8 +147,8 @@
 			return;
 		}
 		var buildId = data.identity && data.identity.buildId;
-		if (state === "bad" || buildId !== BUILD_ID) {
-			state = "bad";
+		if (state === BAD || buildId !== BUILD_ID) {
+			state = BAD;
 			post({
 				type: "tour:bad-image",
 				reason: "build",
@@ -138,7 +156,7 @@
 			});
 			return;
 		}
-		if (state !== "waiting") {
+		if (state !== WAITING) {
 			var why = refusal(data.identity);
 			if (why) {
 				post({ type: "tour:need-iframe", reason: why });
@@ -148,13 +166,13 @@
 			}
 			return;
 		}
-		state = "started";
+		state = STARTED;
 		baseline = data.identity;
 		start(new Uint8Array(data.image));
 	}
 
 	var local = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-	var url = local ? new URLSearchParams(location.search).get("image") : null;
+	var url = local ? params.get("image") : null;
 	if (url) {
 		fetch(url).then(function (response) {
 			if (!response.ok) {

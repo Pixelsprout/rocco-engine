@@ -11,6 +11,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
+import { brotliCompressSync, constants as zlib } from "node:zlib";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -111,12 +112,30 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".json": "applic
 let server, port, chrome, profile, cdp;
 const images = {};
 
+const previewFile = (path) => {
+  try { return readFileSync(join(preview, path)); } catch { return null; }
+};
+const brotli = (data) => brotliCompressSync(data, { params: { [zlib.BROTLI_PARAM_QUALITY]: 1 } });
+// Under /br/ the Preview folder is served as a site that deploys only brotli
+// index.wasm.br and index.data.br, with no index.wasm or index.data.
+const brRequests = [];
+function serveBr(path, res) {
+  brRequests.push(path);
+  const name = path.slice("/br/".length);
+  if (name === "index.wasm" || name === "index.data") return res.writeHead(404).end();
+  const plain = name.replace(/\.br$/, "");
+  const body = previewFile(plain);
+  if (!body) return res.writeHead(404).end();
+  const type = { "content-type": types[extname(plain)] ?? "application/octet-stream" };
+  if (plain === name) return res.writeHead(200, type).end(body);
+  res.writeHead(200, { ...type, "content-encoding": "br" }).end(brotli(body));
+}
+
 function serve() {
   server = createServer((req, res) => {
     const path = new URL(req.url, "http://x").pathname;
-    const body = images[path] ?? (() => {
-      try { return readFileSync(join(preview, path)); } catch { return null; }
-    })();
+    if (path.startsWith("/br/")) return serveBr(path, res);
+    const body = images[path] ?? previewFile(path);
     if (!body) { res.writeHead(404).end(); return; }
     res.writeHead(200, { "content-type": types[extname(path)] ?? "application/octet-stream" }).end(body);
   });
@@ -252,6 +271,15 @@ test("?image runs a lowered 03-moving with WebGPU and draws frames", async () =>
     const shot = await cdp.send("Page.captureScreenshot", { format: "png" });
     writeFileSync(process.env.TOUR_HOST_SHOT, Buffer.from(shot.result.data, "base64"));
   }
+});
+
+test("?suffix=.br makes the Preview load index.wasm.br and index.data.br", async () => {
+  brRequests.length = 0;
+  await open("br/host.html?suffix=.br&image=/03-moving.rocs");
+  const first = await until("tourEvents.length > 0 && tourEvents[0]", 60000);
+  assert.deepEqual(first, { type: "rocco:ready", detail: null }, `no rocco:ready; exceptions: ${exceptions()}`);
+  assert.ok(brRequests.includes("/br/index.wasm.br") && brRequests.includes("/br/index.data.br"), brRequests.join(" "));
+  assert.ok(!brRequests.includes("/br/index.wasm") && !brRequests.includes("/br/index.data"), brRequests.join(" "));
 });
 
 test("an image URL that does not load stops the Preview before rocco.js loads", async () => {

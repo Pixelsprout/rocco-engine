@@ -82,6 +82,19 @@ checkout with `DOCS_SOURCE` set to this checkout reads `build/tour/`. Then run
 `node --test 'tour/host/test/*.test.mjs'`. It drives the Preview in headless
 Chrome over the ADR 0041 messages, hot reload included.
 
+A site can deploy the large Tour files under other names, for example
+`index.wasm.br` for a brotli copy. The page names the suffix. The scripts are
+not changed:
+- The compile worker reads `suffix` from its own URL. A Worker made from
+  `compile-worker.mjs?suffix=.br` loads `compile-worker.wasm.br`.
+  `source-bundle.json` keeps its name.
+- The Preview reads `suffix` from the `host.html` URL. `host.html?suffix=.br`
+  loads `index.wasm.br` and `index.data.br`. The other Preview files keep
+  their names.
+
+With no `suffix`, both load the plain names. `rocco.js` and the normal Web
+build do not read it.
+
 The release workflow's `tour` job runs the same build with `--tag <release
 tag>`. The `bundle` job then runs `python3 scripts/tour_artifacts.py pack`,
 which writes the source bundle again with the five `release.py docs` URLs and

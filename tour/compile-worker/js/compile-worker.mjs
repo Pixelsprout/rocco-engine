@@ -2,7 +2,7 @@
 // Worker. scripts/tour_worker.py copies it beside compile-worker.wasm and
 // source-bundle.json.
 //
-//   const worker = await startCompileWorker(wasmBytes, sourceBundle);
+//   const worker = await startCompileWorker(wasm, sourceBundle);
 //   const result = worker.compile(source);
 //
 // In a module Web Worker it also answers messages; see onmessage below.
@@ -13,16 +13,33 @@ export const APP_PATH = "/rocco/examples/tutorial/tour/main.roc";
 
 const STATS = ["check_ms", "lower_ms", "identity_ms", "image_ms", "total_ms", "cache_hits", "cache_misses"];
 
+async function compileModule(wasm) {
+  if (wasm instanceof WebAssembly.Module) return wasm;
+  if (wasm instanceof Response) return WebAssembly.compileStreaming(wasm);
+  return WebAssembly.compile(wasm);
+}
+
 /**
- * @param {BufferSource} wasmBytes compile-worker.wasm
+ * A worker that failed to start rejects with an error whose memory is the
+ * wasm memory size in bytes, or 0 if no instance was made.
+ * @param {BufferSource | WebAssembly.Module | Response} wasm compile-worker.wasm. A Response must have the type application/wasm.
  * @param {{ files: Record<string, string>, urls: Record<string, string> }} bundle source-bundle.json
  */
-export async function startCompileWorker(wasmBytes, bundle) {
+export async function startCompileWorker(wasm, bundle) {
+  let memory;
+  try {
+    return await start(await compileModule(wasm), bundle, (made) => (memory = made));
+  } catch (err) {
+    throw Object.assign(err instanceof Error ? err : new Error(String(err)), { memory: memory?.buffer.byteLength ?? 0 });
+  }
+}
+
+async function start(module, bundle, onMemory) {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   let memory;
   let reports = [];
-  const { instance } = await WebAssembly.instantiate(wasmBytes, {
+  const instance = await WebAssembly.instantiate(module, {
     env: {
       js_report: (ptr, len) => reports.push(dec.decode(new Uint8Array(memory.buffer, ptr, len))),
       js_now: () => performance.now(),
@@ -30,6 +47,7 @@ export async function startCompileWorker(wasmBytes, bundle) {
   });
   const x = instance.exports;
   memory = x.memory;
+  onMemory(memory);
   x.tw_init();
 
   function withBytes(bytes, fn) {
@@ -98,7 +116,27 @@ export async function startCompileWorker(wasmBytes, bundle) {
     for (const { path, bytes } of entries) putFile(path, new Uint8Array(bytes));
   }
 
-  return { compile, exportCache, importCache, memory: () => memory.buffer.byteLength };
+  return { compile, exportCache, importCache, memory: () => memory.buffer.byteLength, module };
+}
+
+/**
+ * Starts the worker from the files beside moduleUrl. A `suffix` in its query,
+ * such as ?suffix=.br, is added to the wasm file name, so a site can deploy
+ * compile-worker.wasm under another name.
+ * @param {URL} moduleUrl the URL of this module
+ */
+export async function loadCompileWorker(moduleUrl) {
+  const suffix = moduleUrl.searchParams.get("suffix") ?? "";
+  const load = async (name) => {
+    const response = await fetch(new URL(name, moduleUrl));
+    if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+    return response;
+  };
+  const [wasm, bundle] = await Promise.all([
+    load(`compile-worker.wasm${suffix}`),
+    load("source-bundle.json").then((r) => r.json()),
+  ]);
+  return startCompileWorker(wasm, bundle);
 }
 
 // Messages, when this module runs as a module Web Worker:
@@ -111,7 +149,9 @@ export async function startCompileWorker(wasmBytes, bundle) {
 //                   { type: "failed", id: null, kind: "internal", reports } when startup fails
 //                   { type: "cache", entries }
 // memory is the wasm memory size in bytes after the compile. It never shrinks.
-// The worker loads compile-worker.wasm and source-bundle.json from its own folder.
+// After a failed start it is the size the start reached, or 0.
+// The worker loads compile-worker.wasm and source-bundle.json from its own
+// folder. Add ?suffix=<suffix> to the worker URL to load compile-worker.wasm<suffix>.
 
 /**
  * Answers the page's messages for the worker that `started` resolves to.
@@ -122,12 +162,13 @@ export async function startCompileWorker(wasmBytes, bundle) {
  */
 export function compileWorkerMessages(started, post) {
   let queue = started.catch(() => {});
+  const internal = (id, err, memory) => post({ type: "failed", id, kind: "internal", reports: String(err), memory });
   const handle = async (data) => {
     let worker;
     try {
       worker = await started;
     } catch (err) {
-      if (data?.type === "compile") post({ type: "failed", id: data.id, kind: "internal", reports: String(err) });
+      if (data?.type === "compile") internal(data.id, err, err?.memory ?? 0);
       if (data?.type === "cache-export") post({ type: "cache", entries: [] }, []);
       return;
     }
@@ -147,7 +188,7 @@ export function compileWorkerMessages(started, post) {
     try {
       result = worker.compile(data.source);
     } catch (err) {
-      return post({ type: "failed", id, kind: "internal", reports: String(err), memory: worker.memory() });
+      return internal(id, err, worker.memory());
     }
     const { reports, stats } = result;
     const memory = worker.memory();
@@ -164,18 +205,7 @@ export function compileWorkerMessages(started, post) {
 }
 
 if (typeof WorkerGlobalScope !== "undefined" && globalThis instanceof WorkerGlobalScope) {
-  const load = async (name) => {
-    const response = await fetch(new URL(name, import.meta.url));
-    if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
-    return response;
-  };
-  const started = (async () => {
-    const [wasm, bundle] = await Promise.all([
-      load("compile-worker.wasm").then((r) => r.arrayBuffer()),
-      load("source-bundle.json").then((r) => r.json()),
-    ]);
-    return startCompileWorker(wasm, bundle);
-  })();
+  const started = loadCompileWorker(new URL(import.meta.url));
   started.then(
     () => postMessage({ type: "ready" }),
     (err) => postMessage({ type: "failed", id: null, kind: "internal", reports: String(err) }),

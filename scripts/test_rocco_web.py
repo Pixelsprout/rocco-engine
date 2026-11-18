@@ -358,6 +358,8 @@ class PackAssetsTest(unittest.TestCase):
             self.assertIn(json.dumps([['/assets/a.txt', 0, 2], ['/assets/sky/x.png', 2, 5]]), js)
             self.assertIn(json.dumps([['/', 'assets'], ['/assets', 'sky']]), js)
             self.assertIn('"rocco:stopped"', js)
+            self.assertIn('fetch("index.data")', js)
+            self.assertNotIn('locateFile', js)
 
     def test_a_game_with_no_assets_gets_an_empty_loader_and_no_data(self):
         with tempfile.TemporaryDirectory() as game, tempfile.TemporaryDirectory() as page:
