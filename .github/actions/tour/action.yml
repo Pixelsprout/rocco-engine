@@ -62,16 +62,19 @@ runs:
 
     # Chrome's WebGPU needs a Vulkan device. Mesa's lavapipe is a software one.
     # The .deb files are cached, because a slow Ubuntu mirror once took 9 minutes for these 28 MB.
-    # The key follows the runner image, so the cached files match the packages the image has.
-    - id: runner-image
+    # The key is the candidate versions in the image's own package lists, not the image version,
+    # because a new image rolls out every week and two run side by side during the rollout.
+    - id: vulkan-versions
       shell: bash
-      run: echo "version=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      run: |
+        versions=$(apt-cache show --no-all-versions mesa-vulkan-drivers libvulkan1 | awk '/^Version:/ { print $2 }' | paste -sd- -)
+        echo "key=$ImageOS-$versions" >> "$GITHUB_OUTPUT"
 
     - id: vulkan-debs
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/vulkan-debs
-        key: vulkan-debs-${{ steps.runner-image.outputs.version }}
+        key: vulkan-debs-${{ steps.vulkan-versions.outputs.key }}
 
     - name: Download a software Vulkan device
       if: steps.vulkan-debs.outputs.cache-hit != 'true'
