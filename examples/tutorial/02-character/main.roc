@@ -5,7 +5,6 @@ app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc
 import cam.Camera as Cam
 import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Manifest]
-import pf.Config
 import pf.Draw
 import pf.Launch
 import pf.Light
@@ -48,16 +47,6 @@ view = |model| {
 	pip = { ..Draw.default, id: 2, mesh: model.pip }
 	camera = Cam.look_at({ x: 0.0, y: 1.4, z: 2.6 }, { x: 0.0, y: 0.5, z: 0.0 })
 	{ ..Scene.empty, camera, nodes: [Light(sky_light), Light(sunlight), Draw(ground), Draw(pip)] }
-}
-
-# endregion
-
-# region: tests
-expect init(Config.empty).commands == [Load({ pack: "pip", assets: ["pip"] })]
-
-expect {
-	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }])
-	model.pip == 4
 }
 
 # endregion

@@ -87,11 +87,9 @@ near the camera stay sharp. [Launch](../launch.md) lists both fields.
 <!-- tour:skip -->
 ## Run the game
 
-The tests from chapter 3 still pass, because only the lights changed. In
-`pip/`, run:
+In `pip/`, run:
 
 ```sh
-roc test main.roc
 roc main.roc
 ```
 <!-- /tour:skip -->

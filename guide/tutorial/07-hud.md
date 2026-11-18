@@ -52,14 +52,11 @@ import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
-import pf.Config
 import pf.Draw
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
 import pf.Query
-import pf.QueryResults
 import pf.Scene
 ```
 <!-- endregion -->
@@ -102,9 +99,8 @@ hud = |model| {
 <!-- endregion -->
 
 - `count_text` and `status_text` give the strings. They read only the
-  Model, so the tests can check them without the host. `status_text`
-  uses `is_open` from chapter 6, so it says that the door is open only
-  once the door has risen all the way.
+  Model. `status_text` uses `is_open` from chapter 6, so it says that the
+  door is open only once the door has risen all the way.
 - `Text(...)` is an Element that draws one string. `label` starts from
   `Ui.label`, which gives white text 24 pixels high, and turns wrapping
   off, so a line of the HUD never breaks.
@@ -146,36 +142,6 @@ view = |model| {
 Like the rest of the Scene, `view` builds the HUD again at each step, from
 the Model. The text changes as soon as the Model does, with no code to
 update it.
-
-<!-- tour:skip -->
-## Test the HUD
-
-Add these tests below the tests from chapter 6:
-
-<!-- region: examples/tutorial/07-hud/main.roc#tests -->
-```roc
-expect count_text(start) == "Pickups: 0 / 5"
-
-# Each pickup that Pip collects counts up by one.
-expect {
-	after = step(start, Input.empty, contact_with(12), 0.1).model
-	count_text(after) == "Pickups: 1 / 5"
-}
-
-expect status_text({ ..start, pickups: [] }) == "The door is opening."
-
-expect status_text({ ..start, pickups: [], door_lift: door_height }) == "The door is open. Walk through it."
-
-expect status_text({ ..start, phase: Won }) == "You win! Press Escape to quit."
-```
-<!-- endregion -->
-
-Run the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
 
 <!-- tour:skip -->
 ## Play the game

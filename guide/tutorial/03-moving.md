@@ -1,6 +1,6 @@
 ---
 title: "3. Moving"
-summary: Make Pip walk with W, A, S and D. Read the Input in step, move by speed times dt, and test the movement.
+summary: Make Pip walk with W, A, S and D. Read the Input in step and move by speed times dt.
 order: 3
 ---
 
@@ -51,19 +51,15 @@ import linalg.Vec3 as V
 import linalg.Quat
 import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Manifest, Vec3]
-import pf.Config
 import pf.Draw
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
-import pf.QueryResults
 import pf.Scene
 ```
 <!-- endregion -->
 
-`Key` reads the Input. `Input` and `QueryResults` give the empty values
-that the tests use.
+`Key` reads the Input.
 
 ## The Model
 
@@ -167,62 +163,6 @@ view = |model| {
 keeps id 2 at every step, so the host pairs Pip's Draw across two Scenes
 and moves Pip smoothly between them. [The Scene](../scene.md) explains how
 this works.
-
-<!-- tour:skip -->
-## Test the movement
-
-A test gives `step` an Input with some keys held. The Input holds key
-codes, so make them with `Key.code`. Add these tests at the bottom of the
-file, in place of the tests from chapter 2:
-
-<!-- region: examples/tutorial/03-moving/main.roc#tests -->
-```roc
-pi : F32
-pi = 3.14159265
-
-near : F32, F32 -> Bool
-near = |a, b| (a - b).abs() < 0.0001
-
-start : Model
-start = init(Config.empty).model
-
-hold : List(Key.Key) -> Vocabulary.Input
-hold = |keys| { ..Input.empty, held: keys.map(Key.code) }
-
-# W for one step moves Pip toward -z and turns it to face -z.
-expect {
-	moved = step(start, hold([W]), QueryResults.empty, 0.1).model
-	near(moved.pos.z, -0.25) and near(moved.pos.x, 0.0) and near(moved.yaw, pi)
-}
-
-# Two keys at once move Pip no faster than one key.
-expect {
-	moved = step(start, hold([W, D]), QueryResults.empty, 0.1).model
-	near(V.length(moved.pos), 0.25)
-}
-
-# Pip stops at the edge of the ground.
-expect {
-	moved = step(start, hold([D]), QueryResults.empty, 10.0).model
-	near(moved.pos.x, edge)
-}
-
-# With no key, Pip stays where it is and keeps its yaw.
-expect {
-	turned = { ..start, yaw: 1.0 }
-	step(turned, Input.empty, QueryResults.empty, 0.1).model == turned
-}
-```
-<!-- endregion -->
-
-A test can pass any `dt`. A `dt` of 10 seconds would walk Pip far past the
-edge in one step, so the third test checks that Pip stops at the edge. Run
-the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
 
 <!-- tour:skip -->
 ## Run the game

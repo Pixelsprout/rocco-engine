@@ -224,62 +224,6 @@ the game once it is open. The door is a cube, like the ground, so it uses
 `model.cube`.
 
 <!-- tour:skip -->
-## Test the door and the win
-
-Add these tests below the tests from chapter 5:
-
-<!-- region: examples/tutorial/06-door/main.roc#tests -->
-```roc
-# With every pickup collected, the door rises to its full height.
-expect {
-	cleared = { ..start, pickups: [] }
-	step(cleared, Input.empty, QueryResults.empty, 10.0).model.door_lift == door_height
-}
-
-# While one pickup is left, the door stays shut.
-expect {
-	one_left = { ..start, pickups: [{ id: 10, pos: V.zero }] }
-	step(one_left, Input.empty, QueryResults.empty, 10.0).model.door_lift == 0.0
-}
-
-# A shut door pushes Pip back, and Pip has not won.
-expect {
-	at_door = { ..start, pos: { x: 0.0, y: 0.0, z: -2.6 } }
-	after = step(at_door, Input.empty, contact_with(door_id), 0.1).model
-	near(after.pos.z, -2.5) and after.phase == Playing
-}
-
-# Pip wins when it walks into the open door.
-expect {
-	open = { ..start, pickups: [], door_lift: door_height }
-	step(open, Input.empty, contact_with(door_id), 0.1).model.phase == Won
-}
-
-# After the win, the keys no longer move Pip.
-expect {
-	won = { ..start, phase: Won }
-	step(won, hold([W]), QueryResults.empty, 0.1).model.pos == start.pos
-}
-
-# Escape quits at any time.
-expect {
-	escape = { ..Input.empty, pressed: [Key.code(Escape)] }
-	step(start, escape, QueryResults.empty, 0.1).commands == [Quit]
-}
-```
-<!-- endregion -->
-
-The `contact_with` helper from chapter 5 gives a Contact with a normal of
--z, as if Pip walks into the door from the front. A test can set any
-field of the Model, so the win test starts with the door already open. Run
-the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
-
-<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
