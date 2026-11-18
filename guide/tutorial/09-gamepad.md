@@ -248,19 +248,20 @@ The Preview runs your game. If you turned auto-run off, press Run. Click the
 Preview to give it the keys.
 -->
 
+<!-- tour:skip -->
 Push the left stick a little, and Pip creeps. Push it all the way, and Pip
 walks as fast as with the keys. Collect the pickups and walk through the
 door, then press Start to quit.
 
-<!-- tour:skip -->
 If Pip doesn't move, check that the game window is in front: on macOS, the
 pad sends nothing to a window in the back. Then read the limits for your OS
 in [Gamepads](../gamepad.md#limits). On Windows, a pad that
 you plug in can take a second to appear.
 <!-- /tour:skip -->
 <!-- tour-only
-If Pip doesn't move, click the Preview and press a button on the pad. A
-browser shows a pad to the page only after you press one of its buttons.
+The Preview can't read a gamepad yet, so the stick and Start do nothing
+here. The keys still walk Pip, so collect the pickups and walk through the
+door. To try the stick, play this step on your computer, as the Guide shows.
 -->
 
 Next, read [10. Animation](10-animation.md). It plays the Idle and Walk
