@@ -57,6 +57,22 @@ patch does not apply, update the patch before you move the pin. CI runs the
 same check on every push. `python3 scripts/roc_patches.py apply <dir>` writes
 the patched copy into `<dir>`.
 
+The compile worker (`tour/compile-worker/`) takes the pinned Roc as a Zig
+package. Its `build.zig.zon` names the Roc commit in the package URL, and
+`scripts/test_tour_worker.py` fails if that commit is not `ROC_COMMIT`. When
+you move the Roc pin, run `zig fetch --save=roc
+https://codeload.github.com/roc-lang/roc/tar.gz/<commit>` in
+`tour/compile-worker/`. The worker build applies patches 0004 and 0006 to
+copies of the files they change. The Roc package itself stays unedited. Also
+compare `roc_stack_size` in `tour/compile-worker/build.zig` with
+`src/base/stack_budget.zig` in Roc. Nothing checks it for you.
+
+To build the compile worker and the source bundle, put Zig `ZIG_VERSION`
+(`scripts/linux/Dockerfile`) on `PATH` and run
+`python3 scripts/tour_worker.py build`. It writes
+`build/tour/compile-worker/`. Then run
+`node --test tour/compile-worker/test/compile-worker.test.mjs`.
+
 The submodules:
 
 - `sokol-odin/` is floooh/sokol-odin. The engine imports its `sokol/` folder.
@@ -522,6 +538,8 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/DocCheck.roc` | The missing-comment check. `build.roc` imports it to find each API item with no `##` comment. |
 | `guide/` | The docs for game authors. `guide/install.md` is the first page. `guide/tutorial/` holds the tutorial chapters and `guide/images/` their screenshots. See "Docs". |
 | `tour/roc-patches/` | The Roc patches that the Tour carries, one `.patch` file per change, each with a header that states its upstream status. |
+| `tour/compile-worker/` | The Tour compile worker: `build.zig` embeds the pinned Roc in a wasm32 module, `js/compile-worker.mjs` is its JS API and `test/` lowers Tutorial games with it. |
+| `scripts/tour_worker.py` | Builds the compile worker and writes the source bundle into `build/tour/compile-worker/`. |
 | `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |

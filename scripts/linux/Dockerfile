@@ -8,6 +8,9 @@ ARG ROC_NIGHTLY=2026-11-04-2622062
 # The roc-lang/roc commit of ROC_NIGHTLY. scripts/roc_patches.py applies the
 # carried Roc patches to it.
 ARG ROC_COMMIT=262206271cf05db948eef2b96fae88a1aca07b19
+# The Zig that builds the Tour compile worker (scripts/tour_worker.py). Roc's
+# build.zig.zon asks for it.
+ARG ZIG_VERSION=0.17.0
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
