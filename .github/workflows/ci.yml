@@ -458,6 +458,16 @@ jobs:
           python3 scripts/make_linux_stubs.py
           git diff --exit-code
 
+  roc-patches:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # A Roc pin move that breaks a carried patch fails here, before merge.
+      - name: Check the carried Roc patches against the pinned Roc
+        run: python3 scripts/roc_patches.py check
+
   candidate-sdk:
     needs: [macos, linux, windows, web]
     runs-on: ubuntu-24.04
