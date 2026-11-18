@@ -1,7 +1,7 @@
 # 0041: The Preview loads rocco.js unchanged and speaks postMessage
 
 Status: accepted, 2026-11-17. Amended 2026-11-18: a Preview takes later
-images for hot reload.
+images for hot reload. Amended 2026-11-18: each image carries a build id.
 
 ## Context
 
@@ -31,8 +31,8 @@ branch `research/tour-end-to-end` did not use `rocco.js`: it set its own
   - Page to Preview: `tour:image { image, identity }`, with the
     `ArrayBuffer` transferred. `identity` holds the image's host boundary
     digests, the Merkle hashes of what `init`, `loaded` and `launch` reach,
-    and the erased-callable count. The first image starts the Tour host and
-    becomes the baseline. A later image is a hot reload.
+    the erased-callable count, and `buildId`. The first image starts the
+    Tour host and becomes the baseline. A later image is a hot reload.
   - Preview to page:
     - `tour:waiting`: the Preview loader listens for the image.
     - `rocco:ready`, `rocco:unsupported { reason, message }`,
@@ -47,6 +47,16 @@ branch `research/tour-end-to-end` did not use `rocco.js`: it set its own
       `reason` is `crashed`, `stopped` (after `rocco:stopped`, `rocco:quit`
       or `rocco:unsupported`), `erased-callable`, `digest`, `init`,
       `loaded` or `launch`.
+    - `tour:bad-image { reason, message }`: the Preview refuses an image
+      and stops. A new Preview from the same cache fails again, so the page
+      asks the reader to reload the page and never reloads by itself. In
+      v1, `reason` is only `build`.
+- CI writes one build id, `git describe --always --dirty`, into the compile
+  worker and the Tour host in the same build. The Preview loader compares
+  `identity.buildId` with its own build id on every image, before it starts
+  `rocco.js` or swaps. A mismatch sends `tour:bad-image { reason: "build" }`.
+  `FORMAT_VERSION` and the host boundary digests do not cover the shim or
+  the interpreter, so they cannot catch a stale compile worker.
 - The Preview loader compares each later identity with the baseline, never
   with the last swapped image, because the Model still comes from the first
   image's `init`. A refused image does not change the baseline. The engine
@@ -86,6 +96,14 @@ branch `research/tour-end-to-end` did not use `rocco.js`: it set its own
   payload is the same as `tour:image`.
 - The page compares identities. Rejected: the meaning of each digest and
   hash would leave the engine repo.
+- No build id; rely on `FORMAT_VERSION` and the digests. Rejected: a
+  compile worker from an older deploy can pass both.
+- A baked-in `launch` digest in the Tour host for the first image.
+  Rejected: CI would lower a game to build the host, and the build id
+  already catches a worker from another build.
+- Send `tour:need-iframe` or `rocco:unsupported` for a build mismatch.
+  Rejected: a new Preview fails the same way, and `rocco:unsupported` is
+  the `rocco.js` contract, which has not loaded yet.
 - Send the image on the iframe's `load` event. Rejected: the Preview loader
   may not listen yet.
 - A static `rocco.js` tag, with `main` waiting on a promise. Rejected: it
