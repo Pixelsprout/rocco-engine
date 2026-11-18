@@ -82,6 +82,12 @@ checkout with `DOCS_SOURCE` set to this checkout reads `build/tour/`. Then run
 `node --test 'tour/host/test/*.test.mjs'`. It drives the Preview in headless
 Chrome over the ADR 0041 messages.
 
+The release workflow's `tour` job runs the same build with `--tag <release
+tag>`. The `bundle` job then runs `python3 scripts/tour_artifacts.py pack`,
+which writes the source bundle again with the five `release.py docs` URLs and
+writes `tour.tar.gz`. `python3 scripts/tour_artifacts.py check <tour.tar.gz>
+--tag <tag>` checks a tarball against the contract with the site.
+
 The submodules:
 
 - `sokol-odin/` is floooh/sokol-odin. The engine imports its `sokol/` folder.
@@ -369,8 +375,9 @@ points each header path at the release URL of its bundle, so a header names
 the platform and the bundled packages only by their repository path.
 `python3 scripts/tour_content.py check` fails on a bad marker, a desktop-only
 part outside a skip block, a missing step source, another header path or a
-`shaders.json` in a step. The `tour-worker` CI job runs it and then lowers
-every step source with the compile worker.
+`shaders.json` in a step. The `tour` CI job runs it, builds the Tour
+artifacts, lowers every step source with the compile worker, runs the
+warm-against-cold stale check and drives the Preview in headless Chrome.
 
 ### macOS
 
