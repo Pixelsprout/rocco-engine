@@ -1,6 +1,6 @@
 // Smoke test of the built compile worker. Build it first:
 //   python3 scripts/tour_worker.py build
-//   node --test tour/compile-worker/test/
+//   node --test 'tour/compile-worker/test/*.test.mjs'
 // TOUR_WORKER_DIR names another build folder.
 import { test } from "node:test";
 import assert from "node:assert/strict";

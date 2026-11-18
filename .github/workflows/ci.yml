@@ -495,7 +495,7 @@ jobs:
         run: python3 scripts/tour_worker.py build
 
       - name: Lower every Tour step source with the compile worker
-        run: node --test tour/compile-worker/test/
+        run: node --test 'tour/compile-worker/test/*.test.mjs'
 
   candidate-sdk:
     needs: [macos, linux, windows, web]

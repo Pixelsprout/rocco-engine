@@ -2,7 +2,7 @@
 // stub and each chapter app, which is one step's answer and the next step's
 // starting source. Build the worker first:
 //   python3 scripts/tour_worker.py build
-//   node --test tour/compile-worker/test/
+//   node --test 'tour/compile-worker/test/*.test.mjs'
 // TOUR_WORKER_DIR names another build folder.
 import { test } from "node:test";
 import assert from "node:assert/strict";
