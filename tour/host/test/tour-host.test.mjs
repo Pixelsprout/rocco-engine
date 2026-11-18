@@ -228,8 +228,15 @@ after(async () => {
     chrome.kill();
     await exited;
   }
-  // Chrome's helpers can still write to the profile after the main process exits.
-  if (profile) rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  // Chrome's helpers can still write to the profile after the main process
+  // exits, so a profile left in the temp folder must not fail the run.
+  if (profile) {
+    try {
+      rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    } catch (error) {
+      console.warn(`left the Chrome profile ${profile}: ${error.message}`);
+    }
+  }
 });
 
 test("?image runs a lowered 03-moving with WebGPU and draws frames", async () => {
