@@ -468,22 +468,42 @@ jobs:
       - name: Check the carried Roc patches against the pinned Roc
         run: python3 scripts/roc_patches.py check
 
-  tour-worker:
+  # release.yml has a tour job with the same name and the same Zig cache key,
+  # so a release restores the Zig cache that main saved for its Roc pin.
+  tour:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      # The Tour host links the web host, which compiles sokol and links clay.
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
-      - name: Read the Zig pin
-        run: echo "ZIG_VERSION=$(sed -n 's/^ARG ZIG_VERSION=//p' scripts/linux/Dockerfile)" >> "$GITHUB_ENV"
+      - name: Read the Zig, Roc and emsdk pins
+        run: |
+          grep -E '^ARG (ZIG_VERSION|ROC_COMMIT|EMSDK_VERSION)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+          echo "ROCCO_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
 
+      # The worker and shim caches of one Roc pin are about 1.9 GiB together.
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
+          cache-key: roc-${{ env.ROC_COMMIT }}
+          cache-size-limit: 3072
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tools/emsdk
+          key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Install Odin, Roc and emscripten
+        run: |
+          sh scripts/toolchain.sh install
+          sh scripts/toolchain.sh install-emsdk
 
       - name: Check the Tour markers and step sources
         run: python3 scripts/tour_content.py check
@@ -491,11 +511,26 @@ jobs:
       - name: Test the image prefix
         run: zig test tour/compile-worker/src/image.zig
 
-      - name: Build the compile worker and the source bundle
-        run: python3 scripts/tour_worker.py build
+      # It applies the carried Roc patches and fails on a memory.grow in the Tour host.
+      - name: Build the Tour artifacts
+        run: sh scripts/toolchain.sh run python3 scripts/tour_artifacts.py build
 
-      - name: Lower every Tour step source with the compile worker
+      - name: Lower every Tour step source and run the warm-against-cold stale check
         run: node --test 'tour/compile-worker/test/*.test.mjs'
+
+      # Chrome's WebGPU needs a Vulkan device. Mesa's lavapipe is a software one.
+      - name: Install a software Vulkan device
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+
+      # The same Chrome flags as scripts/web/headless-shot.sh.
+      - name: Run the Preview in headless Chrome
+        env:
+          CHROME_FLAGS: --headless=new --no-sandbox --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface
+        run: |
+          google-chrome --version
+          node --test 'tour/host/test/*.test.mjs'
 
   candidate-sdk:
     needs: [macos, linux, windows, web]

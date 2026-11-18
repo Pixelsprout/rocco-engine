@@ -74,6 +74,9 @@ void __wrap_roc_crashed(const uint8_t *bytes, size_t len) {
 
 static void *image;
 static size_t image_len;
+// The bytes of the image before the last swap, freed after the first call on
+// the new image. The shim reads them until that call retires the old state.
+static void *retired;
 
 // The shim keeps views into the image, so the bytes live as long as the run.
 // The LIR header needs 8-byte alignment; the Roc CLI uses 16.
@@ -91,10 +94,29 @@ static void pull_image(void) {
 	tour_image_take(image);
 }
 
+EM_JS(void, tour_swapped, (void), {
+	if (globalThis.tourSwapped) globalThis.tourSwapped();
+});
+
+// Hot reload. The Preview loader calls this at the start of a frame callback,
+// when no game call runs, with the new image in globalThis.tourImage. It
+// returns 0 and leaves the image there until main has pulled the first one.
+EMSCRIPTEN_KEEPALIVE int tour_swap_image(void) {
+	if (!image || retired) return 0;
+	retired = image;
+	pull_image();
+	return 1;
+}
+
 // The interpreter writes the result into ret, which the caller aligns to 16.
 static void call(uint32_t entry, void *ret, void *args) {
 	if (!image) pull_image();
 	roc_entrypoint_from_image(entry, roc_shim_get_ops(), ret, args, image, image_len);
+	if (retired) {
+		free(retired);
+		retired = NULL;
+		tour_swapped();
+	}
 }
 
 #define RETURN(type, ret) \
