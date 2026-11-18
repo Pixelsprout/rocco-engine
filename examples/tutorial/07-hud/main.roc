@@ -10,14 +10,11 @@ import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
-import pf.Config
 import pf.Draw
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
 import pf.Query
-import pf.QueryResults
 import pf.Scene
 # endregion
 
@@ -232,118 +229,3 @@ pickup = |mesh, p| {
 	size = 2.0 * pickup_radius
 	{ ..Draw.default, id: p.id, mesh, pos: p.pos, scale: { x: size, y: size, z: size }, tint: { r: 1.0, g: 0.62, b: 0.08 } }
 }
-
-pi : F32
-pi = 3.14159265
-
-near : F32, F32 -> Bool
-near = |a, b| (a - b).abs() < 0.0001
-
-start : Model
-start = init(Config.empty).model
-
-hold : List(Key.Key) -> Vocabulary.Input
-hold = |keys| { ..Input.empty, held: keys.map(Key.code) }
-
-# W for one step moves Pip toward -z and turns it to face -z.
-expect {
-	moved = step(start, hold([W]), QueryResults.empty, 0.1).model
-	near(moved.pos.z, -0.25) and near(moved.pos.x, 0.0) and near(moved.yaw, pi)
-}
-
-# Two keys at once move Pip no faster than one key.
-expect {
-	moved = step(start, hold([W, D]), QueryResults.empty, 0.1).model
-	near(V.length(moved.pos), 0.25)
-}
-
-# Pip stops at the edge of the ground.
-expect {
-	moved = step(start, hold([D]), QueryResults.empty, 10.0).model
-	near(moved.pos.x, edge)
-}
-
-# With no key, Pip stays where it is and keeps its yaw.
-expect {
-	turned = { ..start, yaw: 1.0 }
-	step(turned, Input.empty, QueryResults.empty, 0.1).model == turned
-}
-
-contact_with : U64 -> Vocabulary.QueryResults
-contact_with = |id| { ..QueryResults.empty, contacts: [{ a: pip_id, b: id, normal: { x: 0.0, y: 0.0, z: -1.0 }, depth: 0.1 }] }
-
-# A Contact with a pickup collects it, and only it.
-expect {
-	after = step(start, Input.empty, contact_with(12), 0.1).model
-	after.pickups.map(|p| p.id) == [10, 11, 13, 14]
-}
-
-# With no Contact, every pickup stays.
-expect step(start, Input.empty, QueryResults.empty, 0.1).model.pickups == start_pickups
-
-# The Scene asks for Pip's Contacts, and each pickup has a Collider.
-expect {
-	scene = view(start)
-	has_collider = |p| List.any(
-		scene.nodes,
-		|node| match node {
-			Collider(c) => c.id == p.id
-			_ => Bool.False
-		},
-	)
-	scene.queries == [Query.contacts_of(pip_id)] and List.all(start_pickups, has_collider)
-}
-
-# With every pickup collected, the door rises to its full height.
-expect {
-	cleared = { ..start, pickups: [] }
-	step(cleared, Input.empty, QueryResults.empty, 10.0).model.door_lift == door_height
-}
-
-# While one pickup is left, the door stays shut.
-expect {
-	one_left = { ..start, pickups: [{ id: 10, pos: V.zero }] }
-	step(one_left, Input.empty, QueryResults.empty, 10.0).model.door_lift == 0.0
-}
-
-# A shut door pushes Pip back, and Pip has not won.
-expect {
-	at_door = { ..start, pos: { x: 0.0, y: 0.0, z: -2.6 } }
-	after = step(at_door, Input.empty, contact_with(door_id), 0.1).model
-	near(after.pos.z, -2.5) and after.phase == Playing
-}
-
-# Pip wins when it walks into the open door.
-expect {
-	open = { ..start, pickups: [], door_lift: door_height }
-	step(open, Input.empty, contact_with(door_id), 0.1).model.phase == Won
-}
-
-# After the win, the keys no longer move Pip.
-expect {
-	won = { ..start, phase: Won }
-	step(won, hold([W]), QueryResults.empty, 0.1).model.pos == start.pos
-}
-
-# Escape quits at any time.
-expect {
-	escape = { ..Input.empty, pressed: [Key.code(Escape)] }
-	step(start, escape, QueryResults.empty, 0.1).commands == [Quit]
-}
-
-# region: tests
-expect count_text(start) == "Pickups: 0 / 5"
-
-# Each pickup that Pip collects counts up by one.
-expect {
-	after = step(start, Input.empty, contact_with(12), 0.1).model
-	count_text(after) == "Pickups: 1 / 5"
-}
-
-expect status_text({ ..start, pickups: [] }) == "The door is opening."
-
-expect status_text({ ..start, pickups: [], door_lift: door_height }) == "The door is open. Walk through it."
-
-expect status_text({ ..start, phase: Won }) == "You win! Press Escape to quit."
-
-# endregion

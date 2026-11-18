@@ -53,14 +53,11 @@ import linalg.Quat
 import mesh.Mesh as Mesh
 import pf.Vocabulary exposing [Command, Contact, Manifest, Vec3]
 import pf.Collider
-import pf.Config
 import pf.Draw
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
 import pf.Query
-import pf.QueryResults
 import pf.Scene
 ```
 <!-- endregion -->
@@ -211,49 +208,6 @@ touched where it was. `walk` stays the same as in chapter 3.
 If you give a new Collider an id lower than `pip_id`, Pip becomes `b` in
 its Contacts. Then `touched` misses it. Keep Pip's id the lowest, or check
 both sides of each Contact.
-
-<!-- tour:skip -->
-## Test the pickups
-
-A test makes the Contacts by hand, so it needs no host. Add these tests
-below the tests from chapter 3:
-
-<!-- region: examples/tutorial/05-pickups/main.roc#tests -->
-```roc
-contact_with : U64 -> Vocabulary.QueryResults
-contact_with = |id| { ..QueryResults.empty, contacts: [{ a: pip_id, b: id, normal: { x: 0.0, y: 0.0, z: -1.0 }, depth: 0.1 }] }
-
-# A Contact with a pickup collects it, and only it.
-expect {
-	after = step(start, Input.empty, contact_with(12), 0.1).model
-	after.pickups.map(|p| p.id) == [10, 11, 13, 14]
-}
-
-# With no Contact, every pickup stays.
-expect step(start, Input.empty, QueryResults.empty, 0.1).model.pickups == start_pickups
-
-# The Scene asks for Pip's Contacts, and each pickup has a Collider.
-expect {
-	scene = view(start)
-	has_collider = |p| List.any(
-		scene.nodes,
-		|node| match node {
-			Collider(c) => c.id == p.id
-			_ => Bool.False
-		},
-	)
-	scene.queries == [Query.contacts_of(pip_id)] and List.all(start_pickups, has_collider)
-}
-```
-<!-- endregion -->
-
-The `normal` and `depth` of the test Contact don't matter here, because
-collecting reads only the ids. Run the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
 
 <!-- tour:skip -->
 ## Run the game

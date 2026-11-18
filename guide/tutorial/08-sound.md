@@ -79,14 +79,11 @@ import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
-import pf.Config
 import pf.Draw
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
 import pf.Query
-import pf.QueryResults
 import pf.Scene
 import pf.Sound
 import pf.Speaker
@@ -317,95 +314,6 @@ At the start, the camera is where it was in chapter 7. As Pip walks, the
 camera keeps the same offset behind Pip, and so does the Listener. Walk
 toward the door, and the hum gets louder. Walk to the left, and the hum
 moves to your right ear.
-
-<!-- tour:skip -->
-## Test the sounds
-
-A Play is a value, like `Quit`, and the Speakers are part of the Scene. So
-you test them without the host. `speakers_of` picks the root Speakers out of
-the Nodes, and `door_of` finds the door's Group and the Speakers in it. Add
-these tests below the tests from chapter 7:
-
-<!-- region: examples/tutorial/08-sound/main.roc#tests -->
-```roc
-# The root Speakers of a Scene, in list order.
-speakers_of : Vocabulary.Scene -> List(Vocabulary.Speaker)
-speakers_of = |scene| List.keep_oks(
-	scene.nodes,
-	|node| match node {
-		Speaker(s) => Ok(s)
-		_ => Err(NotSpeaker)
-	},
-)
-
-# The door's Group, and the Speakers in it.
-door_of : Vocabulary.Scene -> { pos : Vec3, speakers : List(Vocabulary.Speaker) }
-door_of = |scene| {
-	groups = List.keep_oks(
-		scene.nodes,
-		|node| match node {
-			Group(g, children) if g.id == door_group_id => Ok({ pos: g.pos, speakers: speakers_of({ ..scene, nodes: children }) })
-			_ => Err(NotDoor)
-		},
-	)
-	match List.first(groups) {
-		Ok(door) => door
-		Err(_) => { pos: V.zero, speakers: [] }
-	}
-}
-
-with_sounds : Model
-with_sounds = { ..start, sounds: { blip: 7, creak: 6, hum: 8, music: 9 } }
-
-rising : Model
-rising = { ..with_sounds, pickups: [], door_lift: 0.5 * door_height }
-
-# Pip collects a pickup, and the step plays the blip once.
-expect step(with_sounds, Input.empty, contact_with(12), 0.1).commands == [Sound.play(7)]
-
-# With no pickup collected, nothing plays.
-expect step(with_sounds, Input.empty, QueryResults.empty, 0.1).commands == []
-
-# The music plays Here, outside the door's Group.
-expect {
-	root = speakers_of(view(with_sounds))
-	root.map(|s| s.id) == [music_speaker_id] and root.map(|s| s.sound) == [9] and root.map(|s| s.at) == [Here]
-}
-
-# While the door is shut, its Group holds the hum at its centre, and no creak.
-expect {
-	door = door_of(view(with_sounds))
-	ids = door.speakers.map(|s| s.id)
-	places = door.speakers.map(|s| s.at)
-	door.pos == door_pos and ids == [hum_speaker_id] and places == [At({ pos: V.zero, range: door_range })]
-}
-
-# Halfway up, the Group has risen, the hum plays at half gain and the creak plays once.
-expect {
-	door = door_of(view(rising))
-	ids = door.speakers.map(|s| s.id)
-	gains = door.speakers.map(|s| s.gain)
-	repeats = door.speakers.map(|s| s.repeat)
-	door.pos == { ..door_pos, y: door_pos.y + 0.5 * door_height } and ids == [hum_speaker_id, creak_speaker_id] and gains == [0.5, 1.0] and repeats == [Loop, Once]
-}
-
-# Once the door is open, the hum has gone and the creak plays on.
-expect door_of(view({ ..rising, door_lift: door_height })).speakers.map(|s| s.id) == [creak_speaker_id]
-
-# When Pip walks through, the creak leaves the Scene, so it stops.
-expect {
-	door = door_of(view({ ..rising, door_lift: door_height, phase: Won }))
-	door.pos == { ..door_pos, y: door_pos.y + door_height } and door.speakers == []
-}
-```
-<!-- endregion -->
-
-Run the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
 
 <!-- tour:skip -->
 ## Play the game

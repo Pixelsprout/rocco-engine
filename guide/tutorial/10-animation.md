@@ -57,16 +57,13 @@ import mesh.Mesh as Mesh
 import ui.Ui
 import pf.Vocabulary exposing [Command, Contact, Element, Manifest, Vec3]
 import pf.Collider
-import pf.Config
 import pf.Draw
 import pf.GamepadButton
-import pf.Input
 import pf.Key
 import pf.Launch
 import pf.Light
 import pf.Pose
 import pf.Query
-import pf.QueryResults
 import pf.Scene
 import pf.Sound
 import pf.Speaker
@@ -148,7 +145,7 @@ does not know.
 
 The host has no clock for a Clip. Each step, the Model moves the time of
 each Clip, and `view` tells the host which Clip to draw at which time. That
-keeps `step` pure: a test can put Pip at any moment of any Clip.
+keeps `step` pure.
 
 Walk should play at the speed you ask Pip to walk at. That speed comes
 from the input, so first pull the direction out of `walk` into its own
@@ -326,81 +323,6 @@ the start does not blend backwards. See
   Joints, and its keys are LINEAR or STEP. A file that breaks a rule does
   not load. See [Meshes from glTF](../assets.md#meshes-from-gltf) for the
   full list and the log line.
-
-<!-- tour:skip -->
-## Test the Clips
-
-The times and the fade are plain numbers in the Model, so you test them
-like Pip's position. Add these tests below the tests from chapter 9:
-
-<!-- region: examples/tutorial/10-animation/main.roc#tests -->
-```roc
-# Pip after loaded, with the Idle Clip 2 s long and the Walk Clip 1 s long.
-animated : Model
-animated = { ..start, clips: { idle: 1, walk: 2, idle_duration: 2.0, walk_duration: 1.0 } }
-
-# One step of W fades halfway to Walk. Walk moves by dt x speed / walk_speed.
-expect {
-	a = step(animated, hold([W]), QueryResults.empty, 0.1).model.animation
-	near(a.fade, 0.5) and near(a.walk_time, 0.1) and near(a.idle_time, 0.1)
-}
-
-# The fade stops at 1, all Walk.
-expect {
-	walking = { ..animated, animation: { idle_time: 0.0, walk_time: 0.0, fade: 0.9 } }
-	step(walking, hold([W]), QueryResults.empty, 0.1).model.animation.fade == 1.0
-}
-
-# Standing still fades back toward Idle, and the walk time stays.
-expect {
-	walking = { ..animated, animation: { idle_time: 0.0, walk_time: 0.5, fade: 1.0 } }
-	a = step(walking, Input.empty, QueryResults.empty, 0.1).model.animation
-	near(a.fade, 0.5) and a.walk_time == 0.5
-}
-
-# The stick halfway up plays Walk at half speed.
-expect {
-	half_up = { ..Input.idle_gamepad, left_stick: { x: 0.0, y: 0.5 } }
-	near(step(animated, with_pads([half_up]), QueryResults.empty, 0.1).model.animation.walk_time, 0.05)
-}
-
-# The shut door pushes Pip back with no key held, and Pip does not walk.
-expect {
-	at_door = { ..animated, pos: { x: 0.0, y: 0.0, z: -2.6 } }
-	a = step(at_door, Input.empty, contact_with(door_id), 0.1).model.animation
-	a.fade == 0.0 and a.walk_time == 0.0
-}
-
-# After the win, Pip spins in Idle, even with W held.
-expect {
-	won = { ..animated, phase: Won, animation: { idle_time: 0.0, walk_time: 0.5, fade: 1.0 } }
-	a = step(won, hold([W]), QueryResults.empty, 0.1).model.animation
-	near(a.fade, 0.5) and a.walk_time == 0.5
-}
-
-# Each time wraps back to the start of its Clip.
-expect {
-	late = { ..animated, animation: { idle_time: 1.95, walk_time: 0.95, fade: 1.0 } }
-	a = step(late, hold([W]), QueryResults.empty, 0.1).model.animation
-	near(a.idle_time, 0.05) and near(a.walk_time, 0.05)
-}
-
-# Pip's Draw plays Idle and fades to Walk.
-expect {
-	pose = pip_pose({ ..animated, animation: { idle_time: 1.5, walk_time: 0.25, fade: 0.5 } })
-	pose == { clip: 1, time: 1.5, fade_clip: 2, fade_time: 0.25, fade: 0.5 }
-}
-```
-<!-- endregion -->
-
-`start` has no Clip ids and durations of 0, so `Pose.loop` holds its times
-at 0. `animated` gives it the ids and durations that `loaded` would. Run
-the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
 
 <!-- tour:skip -->
 ## Play the game

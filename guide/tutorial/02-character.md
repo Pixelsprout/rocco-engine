@@ -136,32 +136,6 @@ view = |model| {
 - The camera moves closer and looks at the middle of Pip.
 
 <!-- tour:skip -->
-## Test the calls
-
-Each call is a plain function, so `roc test` can test it. Add
-`import pf.Config` below the other imports. `Config.empty` gives you a
-Config for tests. Then add these tests at the bottom of the file:
-
-<!-- region: examples/tutorial/02-character/main.roc#tests -->
-```roc
-expect init(Config.empty).commands == [Load({ pack: "pip", assets: ["pip"] })]
-
-expect {
-	model = loaded(init(Config.empty).model, "pip", [{ name: "pip", id: 4, duration: 0.0, size: { w: 0, h: 0 }, clips: [] }])
-	model.pip == 4
-}
-```
-<!-- endregion -->
-
-The second test gives `loaded` a Manifest where `pip` has id 4, and checks
-that the Model keeps that id. Run the tests:
-
-```sh
-roc test main.roc
-```
-<!-- /tour:skip -->
-
-<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:

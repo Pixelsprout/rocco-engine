@@ -401,6 +401,7 @@ expect {
 	paused.state == Paused and resumed.state == Running and resumed.score == m.score
 }
 
+# region: gamepad-test
 # South on a pad pauses as Space does. Holding it does not resume.
 expect {
 	m = init(Config.empty).model
@@ -409,6 +410,7 @@ expect {
 	still = game_state(paused, { ..Input.empty, gamepads: [{ ..pad, pressed: [] }] })
 	paused.state == Paused and still.state == Paused
 }
+# endregion
 
 # A score of 7 ends the game, and the paddles and ball freeze there.
 expect {
