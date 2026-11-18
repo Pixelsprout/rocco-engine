@@ -58,10 +58,14 @@ def check_build_id(out, build_id):
             raise BuildError(f'preview/preview.js does not hold the build id {build_id}')
 
 
-def build(out, build_id, tag, roc_nightly, urls,
-          build_worker=tour_worker.build_worker, build_host=tour_host.build):
+def check_tag(tag):
     if not SAFE_TAG.match(tag):
         raise BuildError(f'The tag {tag} is not a safe folder name for the site')
+
+
+def build(out, build_id, tag, roc_nightly, urls,
+          build_worker=tour_worker.build_worker, build_host=tour_host.build):
+    check_tag(tag)
     if os.path.exists(out):
         shutil.rmtree(out)
     worker = os.path.join(out, 'compile-worker')
@@ -91,8 +95,7 @@ def check_manifest(manifest, tag):
         raise BuildError(f'manifest.json must be {{"buildId", "tag", "rocNightly"}} with string values, not {manifest}')
     if manifest['tag'] != tag:
         raise BuildError(f'manifest.json has the tag {manifest["tag"]}, and the release tag is {tag}')
-    if not SAFE_TAG.match(tag):
-        raise BuildError(f'The tag {tag} is not a safe folder name for the site')
+    check_tag(tag)
 
 
 def check_source_bundle(bundle):
@@ -104,7 +107,7 @@ def check_source_bundle(bundle):
 
 def pack(out, tar_file, tag, urls):
     """Writes tour.tar.gz from a built folder: the source bundle with the release URLs of
-    release.py docs (chapters 3 and 7 add linalg and ui to the header), and the files at the root."""
+    release.py docs, and the files at the root."""
     missing = [name for name in release.DOCS_BUNDLES if name not in urls]
     if missing:
         raise BuildError(f'pack needs --url for {", ".join(missing)}')

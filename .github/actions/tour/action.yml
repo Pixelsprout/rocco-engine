@@ -1,0 +1,77 @@
+name: Build and test the Tour artifacts
+description: >
+  Installs the pinned Zig, Roc, Odin and emscripten, checks the Tour content,
+  builds build/tour/ and runs the compile worker and Preview tests. The caller
+  checks out the repository with its submodules first.
+inputs:
+  tag:
+    description: The tag for manifest.json. Empty means git describe.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Read the Zig, Roc and emsdk pins
+      shell: bash
+      run: |
+        grep -E '^ARG (ZIG_VERSION|ROC_COMMIT|EMSDK_VERSION)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+        echo "ROCCO_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
+
+    # The worker and shim caches of one Roc pin are about 1.9 GiB together.
+    # ci.yml and release.yml share this cache key, so a release restores the
+    # Zig cache that main saved for its Roc pin.
+    - uses: mlugg/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+        cache-key: roc-${{ env.ROC_COMMIT }}
+        cache-size-limit: 3072
+
+    - uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/tools/emsdk
+        key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install Odin, Roc and emscripten
+      shell: bash
+      run: |
+        sh scripts/toolchain.sh install
+        sh scripts/toolchain.sh install-emsdk
+
+    - name: Check the Tour markers and step sources
+      shell: bash
+      run: python3 scripts/tour_content.py check
+
+    - name: Test the image prefix
+      shell: bash
+      run: zig test tour/compile-worker/src/image.zig
+
+    # It applies the carried Roc patches and fails on a memory.grow in the Tour host.
+    - name: Build the Tour artifacts
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: sh scripts/toolchain.sh run python3 scripts/tour_artifacts.py build ${TAG:+--tag "$TAG"}
+
+    - name: Lower every Tour step source and run the warm-against-cold stale check
+      shell: bash
+      run: node --test 'tour/compile-worker/test/*.test.mjs'
+
+    # Chrome's WebGPU needs a Vulkan device. Mesa's lavapipe is a software one.
+    - name: Install a software Vulkan device
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+
+    # The same Chrome flags as scripts/web/headless-shot.sh.
+    - name: Run the Preview in headless Chrome
+      shell: bash
+      env:
+        CHROME_FLAGS: --headless=new --no-sandbox --enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan --disable-vulkan-surface
+      run: |
+        google-chrome --version
+        node --test 'tour/host/test/*.test.mjs'

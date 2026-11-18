@@ -11,7 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tour_artifacts
 
 BUILD = 'v0.14.1-44-gabc1234-dirty'
-PREVIEW = ('host.html', 'preview.js', 'rocco.js', 'index.js', 'index.wasm', 'index.data', 'index.data.js')
+NIGHTLY = '2026-11-04-2622062'
+LAYOUT = sorted(tour_artifacts.LAYOUT)
+PREVIEW = [name.removeprefix('preview/') for name in LAYOUT if name.startswith('preview/')]
+
+
+def manifest():
+    return {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': f'nightly-{NIGHTLY}'}
 
 
 def write(path, data):
@@ -41,7 +47,7 @@ class BuildTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def build(self, worker=fake_worker, host=fake_host, tag='v0.15.0'):
-        tour_artifacts.build(self.out, build_id=BUILD, tag=tag, roc_nightly='2026-11-04-2622062',
+        tour_artifacts.build(self.out, build_id=BUILD, tag=tag, roc_nightly=NIGHTLY,
                              urls={}, build_worker=worker, build_host=host)
 
     def files(self):
@@ -52,14 +58,12 @@ class BuildTest(unittest.TestCase):
 
     def test_the_folder_has_the_tarball_layout(self):
         self.build()
-        self.assertEqual(self.files(), sorted(
-            ['manifest.json', 'compile-worker/compile-worker.wasm', 'compile-worker/compile-worker.mjs',
-             'compile-worker/source-bundle.json'] + [f'preview/{n}' for n in PREVIEW]))
+        self.assertEqual(self.files(), LAYOUT)
 
     def test_the_manifest_names_the_build_the_tag_and_the_roc_nightly(self):
         self.build()
         with open(os.path.join(self.out, 'manifest.json')) as f:
-            self.assertEqual(json.load(f), {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': 'nightly-2026-11-04-2622062'})
+            self.assertEqual(json.load(f), manifest())
 
     def test_a_worker_from_another_build_fails(self):
         with self.assertRaisesRegex(tour_artifacts.BuildError, 'compile-worker.wasm'):
@@ -81,8 +85,6 @@ class BuildTest(unittest.TestCase):
 
 URLS = {name: f'https://example.com/v0.15.0/{name}-HASH{name}.tar.zst' for name in ('platform', 'linalg', 'mesh', 'ui', 'camera')}
 RELEASE_URLS = {**URLS, 'rocco_web': 'https://example.com/v0.15.0/rocco_web.py'}
-LAYOUT = sorted(['manifest.json', 'compile-worker/compile-worker.wasm', 'compile-worker/compile-worker.mjs',
-                 'compile-worker/source-bundle.json'] + [f'preview/{n}' for n in PREVIEW])
 
 
 def read_member(tar_path, name):
@@ -103,7 +105,7 @@ class PackTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.out = os.path.join(self.tmp.name, 'tour')
         self.tar = os.path.join(self.tmp.name, 'tour.tar.gz')
-        tour_artifacts.build(self.out, build_id=BUILD, tag='v0.15.0', roc_nightly='2026-11-04-2622062',
+        tour_artifacts.build(self.out, build_id=BUILD, tag='v0.15.0', roc_nightly=NIGHTLY,
                              urls={}, build_worker=fake_worker, build_host=fake_host)
 
     def tearDown(self):
@@ -119,8 +121,7 @@ class PackTest(unittest.TestCase):
 
     def test_the_manifest_in_the_tarball_names_the_release_tag(self):
         self.pack()
-        self.assertEqual(json.loads(read_member(self.tar, 'manifest.json')),
-                         {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': 'nightly-2026-11-04-2622062'})
+        self.assertEqual(json.loads(read_member(self.tar, 'manifest.json')), manifest())
 
     def test_the_source_bundle_mounts_the_five_docs_urls(self):
         self.pack()
@@ -155,7 +156,7 @@ class CheckTest(unittest.TestCase):
                                         for name, url in URLS.items()}}
         self.members = {name: b'x' for name in LAYOUT}
         self.members['compile-worker/source-bundle.json'] = json.dumps(bundle).encode()
-        self.manifest = {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': 'nightly-2026-11-04-2622062'}
+        self.manifest = manifest()
 
     def tearDown(self):
         self.tmp.cleanup()

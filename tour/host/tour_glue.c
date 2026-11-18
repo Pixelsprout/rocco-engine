@@ -127,7 +127,7 @@ static void call(uint32_t entry, void *ret, void *args) {
 	} while (0)
 
 // The argument buffer offsets are Roc's wasm32 entry table for this
-// platform (src/layout/entrypoint_args.zig): docs/research/tour-interpreter-in-tour-host.md.
+// platform (src/layout/entrypoint_args.zig).
 void roc_drop_model(void *model) {
 	_Alignas(16) uint8_t args[8] = {0};
 	memcpy(args, &model, 4);
