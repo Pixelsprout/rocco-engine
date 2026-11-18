@@ -468,6 +468,32 @@ jobs:
       - name: Check the carried Roc patches against the pinned Roc
         run: python3 scripts/roc_patches.py check
 
+  tour-worker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read the Zig pin
+        run: echo "ZIG_VERSION=$(sed -n 's/^ARG ZIG_VERSION=//p' scripts/linux/Dockerfile)" >> "$GITHUB_ENV"
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test the image prefix
+        run: zig test tour/compile-worker/src/image.zig
+
+      - name: Build the compile worker and the source bundle
+        run: python3 scripts/tour_worker.py build
+
+      - name: Lower Tour games with the compile worker
+        run: node --test tour/compile-worker/test/compile-worker.test.mjs
+
   candidate-sdk:
     needs: [macos, linux, windows, web]
     runs-on: ubuntu-24.04
