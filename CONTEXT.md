@@ -56,9 +56,19 @@ reader its assets; the reader cannot add their own.
 _Avoid_: playground, sandbox, interactive guide
 
 **Tour step**:
-One screen of the Tour: lesson text, a starting source and the assets that
-step needs.
+One screen of the Tour, made from one Tutorial page: that page's lesson text,
+a starting source and an answer.
 _Avoid_: lesson, page, chapter
+
+**Starting source**:
+The game source that a Tour step opens with: the previous chapter's app. The
+first Tour step starts from an app that opens an empty window.
+_Avoid_: template, scaffold
+
+**Answer**:
+The game source that a Tour step shows on Show answer: the app that its
+Tutorial page ends with.
+_Avoid_: solution
 
 **Preview**:
 The part of a Tour step that runs the reader's edited game in the web host.
