@@ -84,9 +84,10 @@ runs:
         sudo rm -rf "$debs/partial" "$debs/lock"
         sudo chown -R "$USER" "$debs"
 
+    # apt-get would fetch these files again from the mirror. dpkg installs only the cached ones.
     - name: Install a software Vulkan device
       shell: bash
-      run: sudo apt-get install -y --no-install-recommends "$RUNNER_TEMP"/vulkan-debs/*.deb
+      run: sudo dpkg -i "$RUNNER_TEMP"/vulkan-debs/*.deb
 
     # The same Chrome flags as scripts/web/headless-shot.sh.
     - name: Run the Preview in headless Chrome
