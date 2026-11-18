@@ -485,14 +485,17 @@ jobs:
         with:
           node-version: 22
 
+      - name: Check the Tour markers and step sources
+        run: python3 scripts/tour_content.py check
+
       - name: Test the image prefix
         run: zig test tour/compile-worker/src/image.zig
 
       - name: Build the compile worker and the source bundle
         run: python3 scripts/tour_worker.py build
 
-      - name: Lower Tour games with the compile worker
-        run: node --test tour/compile-worker/test/compile-worker.test.mjs
+      - name: Lower every Tour step source with the compile worker
+        run: node --test 'tour/compile-worker/test/*.test.mjs'
 
   candidate-sdk:
     needs: [macos, linux, windows, web]

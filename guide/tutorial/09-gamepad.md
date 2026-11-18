@@ -17,6 +17,7 @@ this chapter, you:
 
 ![Pip walks toward the door, with "Pickups: 1 / 5" at the top left](../images/tutorial-09-gamepad.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [8. Sound](08-sound.md). The full
 app is
 [`examples/tutorial/09-gamepad/main.roc`](../../examples/tutorial/09-gamepad/main.roc).
@@ -25,6 +26,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/08-sound/main.roc examples/tutorial/09-gamepad/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [8. Sound](08-sound.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 The header, the assets and the Model stay the same. You need no new asset:
 the host reads the pads for you. Plug in an Xbox, PlayStation or Switch Pro
@@ -163,6 +169,7 @@ Pip's game has one player, so it asks any pad, and `walk` adds up the
 sticks of all the pads. The player can pick up any pad, and the game does
 not need to know its slot.
 
+<!-- tour:skip -->
 ## Test the gamepad
 
 A Gamepad is a record, so you test the stick and the buttons without a pad.
@@ -223,7 +230,9 @@ Run the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Play the game
 
 In `pip/`, run:
@@ -231,15 +240,28 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Push the left stick a little, and Pip creeps. Push it all the way, and Pip
 walks as fast as with the keys. Collect the pickups and walk through the
 door, then press Start to quit.
 
+<!-- tour:skip -->
 If Pip doesn't move, check that the game window is in front: on macOS, the
 pad sends nothing to a window in the back. Then read the limits for your OS
 in [Gamepads](../gamepad.md#limits). On Windows, a pad that
 you plug in can take a second to appear.
+<!-- /tour:skip -->
+<!-- tour-only
+If Pip doesn't move, click the Preview and press a button on the pad. A
+browser shows a pad to the page only after you press one of its buttons.
+-->
 
 Next, read [10. Animation](10-animation.md). It plays the Idle and Walk
 Clips on Pip, so it walks instead of gliding. For the triggers, the slots

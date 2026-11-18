@@ -16,6 +16,7 @@ ground. You use:
 
 ![Pip stands on a green ground](../images/tutorial-02-character.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from
 [1. A window, a camera and a cube](01-window.md). The full app is
 [`examples/tutorial/02-character/main.roc`](../../examples/tutorial/02-character/main.roc).
@@ -24,6 +25,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/01-window/main.roc examples/tutorial/02-character/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [1. A window, a camera and a cube](01-window.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 The header stays the same:
 
@@ -31,6 +37,7 @@ The header stays the same:
 app [init, launch, loaded, step, view] { cam: "{{camera_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}" }
 ```
 
+<!-- tour:skip -->
 ## Get the mesh file
 
 Pip is a binary glTF file, `pip.glb`.
@@ -46,6 +53,15 @@ name of its file stem, so `pip.glb` is `pip`.
 
 If you are curious, Pip comes from a Blender script:
 [`examples/tutorial/source/make_meshes.py`](../../examples/tutorial/source/make_meshes.py).
+<!-- /tour:skip -->
+<!-- tour-only
+## The mesh file
+
+Pip is a binary glTF file, `pip.glb`. The Tour gives your game its assets,
+so the file is already there. A mesh takes the name of its file stem, so
+`pip.glb` is `pip`. [Assets and Packs](../assets.md) shows where each kind
+of asset goes.
+-->
 
 ## The Model
 
@@ -119,6 +135,7 @@ view = |model| {
 - `nodes` holds the lights from chapter 1, then the ground and Pip.
 - The camera moves closer and looks at the middle of Pip.
 
+<!-- tour:skip -->
 ## Test the calls
 
 Each call is a plain function, so `roc test` can test it. Add
@@ -142,7 +159,9 @@ that the Model keeps that id. Run the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
@@ -150,8 +169,20 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
 
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
+
+<!-- tour:skip -->
 Pip stands in the middle of a green ground. If you see a magenta cube
 instead, check that the file is at `pip/assets/meshes/pip.glb`.
+<!-- /tour:skip -->
+<!-- tour-only
+Pip stands in the middle of a green ground.
+-->
 
 Next, read [3. Moving](03-moving.md), where you make Pip walk with the keys.

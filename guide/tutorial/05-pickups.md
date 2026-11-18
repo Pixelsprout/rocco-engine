@@ -20,6 +20,7 @@ the host shapes and questions, and the host gives back the answers. Your
 game decides what the answers mean. [Collisions and Queries](../collisions.md)
 explains this in more detail.
 
+<!-- tour:skip -->
 This chapter starts from your app from
 [4. Lights, a sun and its shadow](04-lights.md). The full app is
 [`examples/tutorial/05-pickups/main.roc`](../../examples/tutorial/05-pickups/main.roc).
@@ -28,6 +29,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/04-lights/main.roc examples/tutorial/05-pickups/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [4. Lights, a sun and its shadow](04-lights.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 `pip.glb` stays the same, and so does the header:
 
@@ -206,6 +212,7 @@ If you give a new Collider an id lower than `pip_id`, Pip becomes `b` in
 its Contacts. Then `touched` misses it. Keep Pip's id the lowest, or check
 both sides of each Contact.
 
+<!-- tour:skip -->
 ## Test the pickups
 
 A test makes the Contacts by hand, so it needs no host. Add these tests
@@ -246,7 +253,9 @@ collecting reads only the ids. Run the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
@@ -254,6 +263,13 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Walk Pip into a pickup. The pickup disappears.
 

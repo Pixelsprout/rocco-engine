@@ -16,6 +16,7 @@ chapter, you add a HUD: text that sits over the game. You use:
 
 ![Pip on the ground, with "Pickups: 0 / 5" at the top left and "Collect every pickup." at the bottom](../images/tutorial-07-hud.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from
 [6. The door and the win](06-door.md). The full app is
 [`examples/tutorial/07-hud/main.roc`](../../examples/tutorial/07-hud/main.roc).
@@ -24,6 +25,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/06-door/main.roc examples/tutorial/07-hud/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [6. The door and the win](06-door.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 `pip.glb` stays the same.
 
@@ -141,6 +147,7 @@ Like the rest of the Scene, `view` builds the HUD again at each step, from
 the Model. The text changes as soon as the Model does, with no code to
 update it.
 
+<!-- tour:skip -->
 ## Test the HUD
 
 Add these tests below the tests from chapter 6:
@@ -168,7 +175,9 @@ Run the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Play the game
 
 In `pip/`, run:
@@ -176,6 +185,13 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Collect the five pickups and watch the count go up. When the door opens,
 walk Pip through it. The HUD says that you have won. Press Escape to quit.

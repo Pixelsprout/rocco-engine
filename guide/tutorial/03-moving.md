@@ -14,6 +14,7 @@ In this chapter, you make Pip walk with the keys W, A, S and D. You use:
 
 ![Pip on the ground, seen from above and in front](../images/tutorial-03-moving.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [2. The character](02-character.md).
 The full app is
 [`examples/tutorial/03-moving/main.roc`](../../examples/tutorial/03-moving/main.roc).
@@ -22,8 +23,15 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/02-character/main.roc examples/tutorial/03-moving/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [2. The character](02-character.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
+<!-- tour:skip -->
 Keep `pip/assets/meshes/pip.glb` from chapter 2. It doesn't change.
+<!-- /tour:skip -->
 
 ## The header and the imports
 
@@ -160,6 +168,7 @@ keeps id 2 at every step, so the host pairs Pip's Draw across two Scenes
 and moves Pip smoothly between them. [The Scene](../scene.md) explains how
 this works.
 
+<!-- tour:skip -->
 ## Test the movement
 
 A test gives `step` an Input with some keys held. The Input holds key
@@ -213,7 +222,9 @@ the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
@@ -221,6 +232,13 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Hold W, A, S or D. Pip walks and turns to face the way it walks, and stops
 at the edge of the ground.

@@ -17,6 +17,7 @@ pickup. Then it rises, and Pip wins by walking into the doorway. You use:
 
 ![Pip on the ground, with the pickups around it and a red door at the far edge](../images/tutorial-06-door.png)
 
+<!-- tour:skip -->
 This chapter starts from your app from [5. Pickups](05-pickups.md). The
 full app is
 [`examples/tutorial/06-door/main.roc`](../../examples/tutorial/06-door/main.roc).
@@ -25,6 +26,11 @@ To see every change, compare the two chapter apps:
 ```sh
 git diff --no-index examples/tutorial/05-pickups/main.roc examples/tutorial/06-door/main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+The editor starts with your app from [5. Pickups](05-pickups.md).
+If you get lost, press Show answer to see the full app of this chapter.
+-->
 
 The imports and `pip.glb` stay the same, and so does the header:
 
@@ -217,6 +223,7 @@ doorway. So the same Collider stops Pip while the door is shut and wins
 the game once it is open. The door is a cube, like the ground, so it uses
 `model.cube`.
 
+<!-- tour:skip -->
 ## Test the door and the win
 
 Add these tests below the tests from chapter 5:
@@ -270,7 +277,9 @@ the tests:
 ```sh
 roc test main.roc
 ```
+<!-- /tour:skip -->
 
+<!-- tour:skip -->
 ## Run the game
 
 In `pip/`, run:
@@ -278,6 +287,13 @@ In `pip/`, run:
 ```sh
 roc main.roc
 ```
+<!-- /tour:skip -->
+<!-- tour-only
+## See the game
+
+The Preview runs your game. If you turned auto-run off, press Run. Click the
+Preview to give it the keys.
+-->
 
 Collect every pickup. The door rises. Walk Pip into the doorway, and Pip
 spins. Press Escape to quit.
