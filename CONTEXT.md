@@ -104,6 +104,12 @@ The platform and package source files that the compile worker reads, for one
 pinned engine release.
 _Avoid_: asset pack, Pack
 
+**Tour artifacts**:
+The files that one engine release ships so a site can run the Tour: the
+compile worker, the source bundle and the Preview folder. They come from one
+build and share one build id.
+_Avoid_: Tour bundle, Tour pack
+
 **Game**:
 A Roc app built on the platform. It declares `Model` and defines `launch`,
 `init`, `step`, `loaded` and `view`. "App" is Roc's word for the file kind;
