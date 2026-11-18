@@ -61,11 +61,12 @@ runs:
       run: node --test 'tour/compile-worker/test/*.test.mjs'
 
     # Chrome's WebGPU needs a Vulkan device. Mesa's lavapipe is a software one.
+    # A cached install, because a slow Ubuntu mirror once took 9 minutes for these 28 MB.
     - name: Install a software Vulkan device
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+      uses: awalsh128/cache-apt-pkgs-action@v1
+      with:
+        packages: mesa-vulkan-drivers libvulkan1
+        version: "1"
 
     # The same Chrome flags as scripts/web/headless-shot.sh.
     - name: Run the Preview in headless Chrome

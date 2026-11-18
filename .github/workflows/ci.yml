@@ -468,8 +468,47 @@ jobs:
       - name: Check the carried Roc patches against the pinned Roc
         run: python3 scripts/roc_patches.py check
 
+  # A pull request runs the tour job only when it changes a file the Tour build
+  # reads. A push to main always runs it, and release.yml runs it on each tag.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      tour: ${{ steps.filter.outputs.tour }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            tour:
+              - tour/**
+              - engine/**
+              - platform/**
+              - packages/**
+              - glue
+              - sokol-odin
+              - miniaudio
+              - clay
+              - examples/tutorial/**
+              - guide/tutorial/**
+              - scripts/web/**
+              - scripts/miniaudio/**
+              - scripts/tour_*.py
+              - scripts/roc_patches.py
+              - scripts/rocco_web.py
+              - scripts/toolchain.sh
+              - scripts/linux/Dockerfile
+              - .github/actions/tour/**
+              - .github/workflows/ci.yml
+
   # The steps live in .github/actions/tour, which release.yml shares.
   tour:
+    needs: changes
+    # changes is skipped on a push, so !cancelled() lets tour run after it.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.tour == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
