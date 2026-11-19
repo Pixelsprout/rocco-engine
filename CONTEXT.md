@@ -951,6 +951,12 @@ _Avoid_: connection, socket, client
 
 ## The Editor
 
+**Prefab**:
+A tree of Nodes authored ahead of time, which a game places in its Scene,
+once or many times. A Prefab can hold other Prefabs. "Level" is a game's
+word for a large one.
+_Avoid_: scene (the Description), NodePack, blueprint, template, level
+
 **Editor**:
 A Rocco app that launches a game and inspects or edits its run over the
 Bridge, as an Observer or the Driver.
