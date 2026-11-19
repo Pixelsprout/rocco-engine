@@ -597,12 +597,18 @@ a `U32`.
 _Avoid_: mesh enum, mesh name, primitive id
 
 **Image**:
-An asset that holds a picture, loaded and unloaded by a Pack. It is a PNG
-in `assets/images/`, named with an `image/` prefix, such as `image/coin`.
-The game shows it through an `Image` value: an Image id, a region, a tint
-and a filter. UI Panels show it, and 2D sprites will take the same value.
-`docs/adr/0024-an-image-is-a-pack-asset.md` records the decision.
+A picture with an Image id. A Pack loads most Images from PNGs in
+`assets/images/`, named with an `image/` prefix, such as `image/coin`; a
+Render is the other kind. The game shows it through an `Image` value: an
+Image id, a region, a tint and a filter. UI Panels show it, and 2D sprites
+will take the same value. `docs/adr/0024-an-image-is-a-pack-asset.md`
+records the decision.
 _Avoid_: texture (the engine's GPU word), sprite, icon, picture
+
+**Render**:
+An Image that the host draws from a Scene, not one a Pack loads. A Panel
+shows it like any other Image.
+_Avoid_: render target, canvas, framebuffer, viewport
 
 **Image id**:
 A number the engine assigns to each Image it loaded, published in a
@@ -891,8 +897,8 @@ _Avoid_: phase, section, lap, timer
 ## The Bridge
 
 **Bridge**:
-The host module that lets one outside process drive a run over a localhost
-socket. On a Web build the page connects out to a Relay instead. It
+The host module that lets outside processes drive or watch a run over a
+localhost socket: one Driver and any number of Observers. On a Web build the page connects out to a Relay instead. It
 injects Input, advances fixed steps on request and reports what
 the host sees. The game does not know it exists, and nothing in the
 Vocabulary names it.
@@ -905,6 +911,16 @@ ignores the real keyboard, mouse and gamepads, unless the Driver turns
 devices on in hello.
 _Avoid_: client, controller, bot, harness
 
+**Observer**:
+An outside process that watches a run over the Bridge without driving it.
+Any number can watch at once, beside the one Driver.
+_Avoid_: client, viewer, spectator, listener
+
+**Watch**:
+An Observer's standing request for the run's Scenes, at a rate the
+Observer chooses.
+_Avoid_: subscription, subscribe, stream, feed
+
 **Relay**:
 The outside process that carries Bridge requests and replies between one
 Driver and one Web build page. The page connects to it, and a Driver
@@ -913,8 +929,9 @@ replies. It writes the screenshots that the page cannot.
 _Avoid_: proxy, server, bridge server
 
 **Port**:
-A named channel between the game and a Driver or an extension. The game
-names it with a `Str`. The socket port in `ROCCO_BRIDGE` is not a Port.
+A named channel between the game and a Driver, an extension or another
+run's Bridge. The game names it with a `Str`. The socket port in
+`ROCCO_BRIDGE` is not a Port.
 _Avoid_: channel, topic, event, subscription
 
 **Tell**:
@@ -926,3 +943,39 @@ _Avoid_: publish, emit, send event
 A Query that asks for the messages sent to a Port since the last step. The
 game puts it in `Scene.queries` every step for each Port it reads.
 _Avoid_: subscription, subscribe, topic
+
+**Link**:
+A Port whose far end is another run's Bridge. A game uses a Link to be the
+Driver or an Observer of that run.
+_Avoid_: connection, socket, client
+
+## The Editor
+
+**Editor**:
+A Rocco app that launches a game and inspects or edits its run over the
+Bridge, as an Observer or the Driver.
+_Avoid_: IDE, studio, inspector, tool
+
+**Shell**:
+The Editor app itself: it lays out the Panes, holds the Link to the game
+and composes the Tools.
+_Avoid_: frame, host, workspace, window
+
+**Pane**:
+One rectangle of the Shell's layout, filled by one Tool.
+_Avoid_: panel (a UI Element), dock, tab, window, viewport
+
+**Tool**:
+A Roc package for one editing job, such as the Files Tool or the Code Tool.
+Its core names no Rocco type, so any Roc app can use it; a Pane shows it
+through `packages/ui`.
+_Avoid_: module, plugin, panel, dock, widget
+
+**Scene pane**:
+A Pane in which the Editor draws the game's Scene itself, with its own
+camera, selection and gizmos.
+_Avoid_: viewport, scene view, editor view
+
+**Game pane**:
+A Pane that shows the game's own frames.
+_Avoid_: viewport, game view, play window

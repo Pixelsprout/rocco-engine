@@ -1756,8 +1756,10 @@ Decisions and Fog. Three grilling tickets run in order: the editor's shape
 and protocol, authored scenes against the Scene-from-Model design, and how
 an author makes a Pack.
 
-Decisions so far: the editor speaks a protocol so a web and a native front
-end can both exist, and the native front end uses Rocco's own UI.
+ADR 0042 records the Editor's shape: a Rocco app that launches the game
+and Watches it over the Bridge as an Observer, with a Shell that composes
+Tools. The first milestone is Editor 1, inspect only: a Node tree,
+read-only properties, a Scene pane, pause and step, and a log.
 
 ## Candidate milestones
 
