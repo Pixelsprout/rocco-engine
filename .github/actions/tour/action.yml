@@ -61,11 +61,36 @@ runs:
       run: node --test 'tour/compile-worker/test/*.test.mjs'
 
     # Chrome's WebGPU needs a Vulkan device. Mesa's lavapipe is a software one.
-    - name: Install a software Vulkan device
+    # The .deb files are cached, because a slow Ubuntu mirror once took 9 minutes for these 28 MB.
+    # The key is the candidate versions in the image's own package lists, not the image version,
+    # because a new image rolls out every week and two run side by side during the rollout.
+    - id: vulkan-versions
       shell: bash
       run: |
+        versions=$(apt-cache show --no-all-versions mesa-vulkan-drivers libvulkan1 | awk '/^Version:/ { print $2 }' | paste -sd- -)
+        echo "key=$ImageOS-$versions" >> "$GITHUB_OUTPUT"
+
+    - id: vulkan-debs
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/vulkan-debs
+        key: vulkan-debs-${{ steps.vulkan-versions.outputs.key }}
+
+    - name: Download a software Vulkan device
+      if: steps.vulkan-debs.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        debs="$RUNNER_TEMP/vulkan-debs"
+        mkdir -p "$debs/partial"
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+        sudo apt-get install -y --no-install-recommends --download-only -o Dir::Cache::archives="$debs" mesa-vulkan-drivers libvulkan1
+        sudo rm -rf "$debs/partial" "$debs/lock"
+        sudo chown -R "$USER" "$debs"
+
+    # apt-get would fetch these files again from the mirror. dpkg installs only the cached ones.
+    - name: Install a software Vulkan device
+      shell: bash
+      run: sudo dpkg -i "$RUNNER_TEMP"/vulkan-debs/*.deb
 
     # The same Chrome flags as scripts/web/headless-shot.sh.
     - name: Run the Preview in headless Chrome
