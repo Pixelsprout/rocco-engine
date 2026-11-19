@@ -1712,8 +1712,67 @@ lowest foot is below its bind height with no `feet`, and at its bind height
 with `feet`. A Bridge check screenshots `examples/animation` with Grounding
 on.
 
-Not in this milestone, each a dex task beside the milestones: two-bone IK
-with foot contacts, root motion, and CUBICSPLINE keys.
+Not in this milestone: two-bone IK with foot contacts and root motion
+(Milestone 45), and CUBICSPLINE keys (the glTF animation candidate).
+
+## Milestone 44: Shadows 2
+
+Done when a Point Light and a second Directional cast shadows in an
+example, and a short note records whether virtual shadow maps are worth
+their cost. Dex task gml8qg4r.
+
+1. Research virtual shadow maps against the 1 to 4 Sun cascades first.
+2. Grill more than one shadow caster with that note in hand. Point-light
+   shadows need cube maps or more shadow maps.
+
+Check: Bridge screenshots on macOS, Linux and Windows show the new shadows.
+
+## Milestone 45: Animation 3: contacts and IK
+
+Done when Pip walks on uneven ground in `examples/animation` with no foot
+sliding. Dex task nmivqccx holds a grilling ticket, then two-bone IK with
+foot contacts, root motion and Joint read-back. The grilling revisits the
+lift-only rule of ADR 0035.
+
+## Milestone 46: Render scale and upscaling
+
+Done when a game sets a render scale and an FSR 1-style spatial upscale
+brings the 3D frame to the window size. The UI draws at full resolution.
+Dex task suo91olp.
+
+1. A render scale and an edge-adaptive upscale and sharpen pass. These are
+   fragment passes, so every backend runs them.
+2. Temporal upscaling (FSR 2 or TSR class) is a research ticket after step
+   1. It needs motion vectors, a jittered projection and history.
+
+Check: Bridge screenshots compare full scale, upscaled and bilinear, and
+`docs/BENCHMARKS.md` records the GPU time at each scale.
+
+## Milestone 47: Rocco Editor
+
+A map, not a plan yet. The end goal is a level editor inside a Rocco
+Editor, in the way Godot has one. Dex task 4xiyooyu holds the Notes,
+Decisions and Fog. Three grilling tickets run in order: the editor's shape
+and protocol, authored scenes against the Scene-from-Model design, and how
+an author makes a Pack.
+
+Decisions so far: the editor speaks a protocol so a web and a native front
+end can both exist, and the native front end uses Rocco's own UI.
+
+## Candidate milestones
+
+Each gets a number and its own grilling when it starts. The dex tasks hold
+the members.
+
+- **glTF animation coverage.** CUBICSPLINE keys, morph targets, Clips with
+  no Skin, mixed files, more than 64 Joints.
+- **UI 2.** Nine-slice and tiled Panels, the Clay wrap bug, the cost of an
+  empty UI.
+- **Perf and bench hygiene.** The allocation pool, allocator counter
+  parity, benchmark regression tracking.
+- **Platform health sweep.** Open Linux, Windows, macOS and CI bugs.
+- **Open-world demo.** The Zelda-style demo, distance culling and mesh LODs,
+  an equirectangular sky.
 
 ## Later arcs
 
@@ -1724,8 +1783,9 @@ own grilling when it starts.
 
 - Instancing, and frustum culling from the mesh boxes (dex task
   cqz1zbne).
-- Scenery as a Pack: Blender as the level editor, with static colliders and
-  triangle mesh colliders (dex task 99iz77jj).
+- Scenery as a Pack, with static colliders and triangle mesh colliders.
+  Blender as the level editor (dex task 99iz77jj) now sits under the
+  Rocco Editor, Milestone 47.
 - Particles moved to Milestone 41.
 - Cascaded shadow maps and light selection moved to Milestone 33.
 - A third-person controller: capsule tests and shape casts.
@@ -1748,33 +1808,21 @@ repo, pulls this arc.
 
 Slot these in when they pay for themselves. Do not run them as a block.
 
-- **Debug drawing.** Lines, wireframe, text. `Scene` gains a `lines` list.
-  This is a vocabulary change.
 - **`Camera.unproject`.** A pointer ray from `packages/camera`, which the
   game sends as a `Raycast`. No Vocabulary change.
-- **An equirectangular sky loader.** One panorama converted to the six
-  cubemap faces at load.
 - **A `settle` call.** Same-step contact resolution. See `docs/NOTES.md`.
-- **The allocation pool.** A fixed region reserved once at startup with a
-  free list behind `roc_alloc` and `roc_dealloc`. Removes the system heap
-  from the step path. Satisfies static allocation. Measure before and after
-  with a bench sweep and the Roc heap counters.
-- **Debug and speed parity.** Run the allocator counters under both
-  `--opt=dev` and `--opt=speed` after every memory change.
-- **Benchmark regression tracking.** Compare each reference run with the
-  last one (dex task uanu7pa4).
 - **The web Bridge.** The page connects out to a Relay over a WebSocket,
   so a headless browser check can run in CI (ADR 0037, dex task 32954kz7).
 
-Audio, fog and game-provided fonts moved into milestones 20, 37 and 41. World-space sprites, Blender
-as a level editor and shader loading moved into the later arcs.
+Audio, fog and game-provided fonts moved into milestones 20, 37 and 42. World-space sprites and
+shader loading moved into the later arcs. Debug drawing and Blender as a level editor moved under
+Milestone 47. The equirectangular sky, the allocation pool, allocator parity and benchmark
+tracking moved into the candidate milestones.
 
 ## Out of scope
 
 - A Vulkan or Metal backend by hand. sokol is the floor.
 - Networking between players. The debug Bridge listens on localhost only.
-- An editor. Blender as a level editor is the nearest thing, in the later
-  arcs.
 - Dynamics beyond simple collision. Host-side bodies wait for a game that
   needs them.
 - A WebGL2 fallback for web builds. The clustered lights need storage
