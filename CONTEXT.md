@@ -952,10 +952,27 @@ _Avoid_: connection, socket, client
 ## The Editor
 
 **Prefab**:
-A tree of Nodes authored ahead of time, which a game places in its Scene,
-once or many times. A Prefab can hold other Prefabs. "Level" is a game's
-word for a large one.
+A tree of Nodes authored ahead of time, loaded by a Pack, which a game
+places in its Scene once or many times. The host draws a placed Prefab as
+authored. A Prefab can hold other Prefabs. "Level" is a game's word for a
+large one. See ADR 0043.
 _Avoid_: scene (the Description), NodePack, blueprint, template, level
+
+**Marker**:
+A Prefab node with a name, a Pose, tags and properties, which draws
+nothing. A game reads it as a spawn point, a waypoint or a trigger.
+_Avoid_: empty, spawn, point, locator
+
+**Path**:
+The local ids from a placed Prefab down to one of its nodes, through any
+Prefabs inside it.
+_Avoid_: node id, address, key
+
+**Change**:
+A game's alteration to one node of a placed Prefab, for the step that
+sends it: replace the node, or hide it. Without it the node draws as
+authored.
+_Avoid_: override, patch, edit, variant
 
 **Editor**:
 A Rocco app that launches a game and inspects or edits its run over the
