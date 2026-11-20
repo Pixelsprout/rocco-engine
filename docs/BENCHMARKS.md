@@ -289,7 +289,8 @@ traces of each build.
   engine. Engines also put work in different places: one engine does work in
   a worker thread, and another engine does the same work on the GPU. A single
   number hides that difference. The Odin twins are the control instead. They
-  run the same logic through the same run loop with no Roc, so the difference
+  run the same logic, with the same Model layout, through the same run loop
+  with no Roc, so the difference
   is the cost of the Seam and of Roc.
 - **No GPU time.** The Spans measure CPU time only. `render_submit` and
   `commit` measure the CPU cost of the sokol calls, not the GPU work. The

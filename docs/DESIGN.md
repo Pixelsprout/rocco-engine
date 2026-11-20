@@ -77,7 +77,8 @@ A message for a port waits in the host's port queue until the next step
 runs. That step gets the messages of each port that a `Listen` Query in the
 previous `Scene` names, and the host drops the rest. A `Tell` is a Command
 the host does not act on: the Bridge writes it in the `step` reply, and
-ADR 0018 records both rules.
+ADR 0018 records both rules. A `Log` goes to no port: the host writes it to
+stderr, and the Bridge also writes it in the `step` reply.
 
 With no `ContactsOf` Query, the host does no contact search. With one or
 more, it searches the grid cells under each asking owner. It gives each
