@@ -4,9 +4,9 @@ Date: 2026-11-05.
 The implementation uses the [documented lighting contract](../guides/environment-lighting.md).
 The [numeric evidence](environment-lighting-2026-11-05.json) records all measured runs.
 
-![Warm cubemap: dielectric spheres above metallic spheres](environment-warm.png)
+![Warm cubemap: dielectric spheres above metallic spheres](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/environment-warm.png?raw=true)
 
-![Cool cubemap: the same materials and camera](environment-cool.png)
+![Cool cubemap: the same materials and camera](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/environment-cool.png?raw=true)
 
 Roughness increases from left to right: 0.05, 0.25, 0.5, and 1.
 The white square uses an unlit material.

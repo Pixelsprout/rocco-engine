@@ -133,6 +133,7 @@ These costs require a measured binding or batching problem before an atlas becom
 
 Duplicate allocation is proven for the grass pair.
 A bandwidth limit and a stutter cause remain unproven.
+A later [Windows debug camera diagnostic](../evidence/windows-village-debug-camera-2026-11-06.md) placed the largest delays inside CPU Spans and did not reproduce the stutter.
 Sharing storage does not necessarily reduce texture samples per frame.
 It may change cache locality or memory pressure, but measurements must establish those effects.
 

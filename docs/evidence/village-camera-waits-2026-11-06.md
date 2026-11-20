@@ -85,7 +85,7 @@ The script tests check same-frame interval association, optional wait fields, an
 The new summary processed the complete old wide-sweep capture successfully.
 The new pass-entry clocks still need a completed native run.
 
-The [evidence archive](village-camera-waits-2026-11-06.tar.gz) retains both launch records, monitors, logs, and probe scripts.
+The [evidence archive](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/village-camera-waits-2026-11-06.tar.gz) retains both launch records, monitors, logs, and probe scripts.
 It also retains the export failure, revised wide-sweep summary, and all 14 slow-frame phase records.
 It excludes the large, unusable native trace, which remains at the local path above.
 Archive SHA-256: `db090f74e2845f38c5b13770b833e32bba3aab70afb8ed86579505adfa5bb84a`.

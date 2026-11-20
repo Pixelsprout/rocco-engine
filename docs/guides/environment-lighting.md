@@ -7,6 +7,7 @@ The renderer adds all lighting in linear HDR.
 The tone-map pass applies `Environment.exposure` once to the background and surfaces together.
 Existing Ambient and direct lights remain additive.
 Unlit materials keep their authored colour and emission.
+[The evidence report](../evidence/environment-lighting-2026-11-05.md) records the measured runs and the reference images.
 
 ## Preparation and update cost
 

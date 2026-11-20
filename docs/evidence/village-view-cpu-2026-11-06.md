@@ -103,12 +103,12 @@ The initial selected image also matches.
 Visual inspection confirms the complete village at route step 600.
 Pixel runs provide parity evidence, separate from CPU timing.
 The reference binary SHA-256 is `7848c12a73960f7f53f0cb2cd9fdcd921fc5dd59a011e16fe567905fbf2380d2`.
-The reference archive is [Surface reuse evidence](surface-reuse-cpu-2026-11-06.tar.gz).
+The reference archive is [Surface reuse evidence](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/surface-reuse-cpu-2026-11-06.tar.gz).
 
 ## Retained artifacts
 
 [Machine-readable results](village-view-cpu-2026-11-06.json) contain the comparison, hashes, spike records, and parity results.
-[Committed timing evidence](village-view-cpu-2026-11-06.tar.gz) contains every CSV, log, build record, probe, and patch.
+[Committed timing evidence](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/village-view-cpu-2026-11-06.tar.gz) contains every CSV, log, build record, probe, and patch.
 The full archive preserves every screenshot, Scene snapshot, and measurement binary outside Git.
 Its path is `/tmp/rocco-village-view-full-evidence.tar.gz`.
 Its SHA-256 is `6487c5c04eed900bd182fd4c17b9a0263004c85911ba9b03e06398f1dc16c52c`.

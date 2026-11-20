@@ -38,6 +38,7 @@ Raw reflection uses stable temporary filenames rather than game paths.
 
 The [complete authoring proof](../evidence/shader-authoring-proof-2026-11-05.md) combines named slots, wind, cutout shadows, Selection, outlines, and reload.
 Its clean CI jobs consume the checksummed candidate SDK without an engine checkout or Odin.
+[The published shader proof](../evidence/published-shader-proof-2026-11-05.md) records the review of the published-bundle run.
 
 ## Live shader development
 

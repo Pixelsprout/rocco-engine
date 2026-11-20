@@ -31,6 +31,9 @@ To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the
 
 `scene` returns the QueryResults that the next `step` gets. So the game acts on a Contact one step after `scene` shows it.
 
+# Evidence
+Write raw captures, such as tarballs, CSV sets, logs and screenshots, to `docs/evidence/raw/`. Git ignores it. Commit only the Markdown report and a small JSON summary. `docs/evidence/README.md` gives the rules.
+
 # Odin file layout
 Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
 1. Imports.

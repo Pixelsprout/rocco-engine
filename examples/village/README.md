@@ -115,6 +115,8 @@ Human appearance review and native backend acceptance remain open for the combin
 Controlled optimized CPU runs reduced p95 from 48.41–51.94 ms to 27.94–29.12 ms.
 Frame-local Surface resolution reuse preserves the full scene and seven exact comparison images.
 Read the [CPU evidence](../../docs/evidence/surface-reuse-cpu-2026-11-06.json).
+The [View cache evidence](../../docs/evidence/village-view-cpu-2026-11-06.md) records the Step plus View p95 drop from 8.443 ms to 0.424 ms.
+The [scene depth batching summary](../../docs/evidence/scene-depth-batching-metal-2026-11-06.json) records the Metal batching run.
 Real-clock CPU, GPU, pacing, per-effect, and reference PC acceptance remain open.
 No density or texture reduction establishes a performance preset in this checkpoint.
 

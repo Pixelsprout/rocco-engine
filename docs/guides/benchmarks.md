@@ -90,7 +90,7 @@ The scratch test peaks at 11,696,448 bytes for 32,768 Draws and four shadow casc
 The arena returns to zero used bytes after each of its 15 pipeline calls.
 
 The [CPU report](../evidence/rigid-instancing-cpu-2026-11-05.json) includes percentiles, process medians, spread, machine data, commands, and binary hashes.
-The [raw sample archive](../evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
+The [raw sample archive](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
 The [Metal report](../evidence/rigid-instancing-metal-2026-11-05.json) records all 22 example/tutorial comparisons and Surface checks.
 Eighteen screenshots match exactly after 60 Bridge steps.
 Three differ by at most one byte in six channels or fewer.
