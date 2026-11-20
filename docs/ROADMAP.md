@@ -107,8 +107,7 @@ needs beyond that, such as sprite sheet animation, tile maps and 2D
 collision.
 
 **The editor as a level editor.** After Editor 1 the editor grows toward
-authoring levels. Blender as a level editor and debug drawing sit under it
-in dex.
+authoring levels. Debug drawing sits under it in dex.
 
 ## Out of scope
 
