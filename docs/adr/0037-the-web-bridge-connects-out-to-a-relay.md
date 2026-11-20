@@ -33,7 +33,7 @@ exits, and agents depend on that: the run keeps its place between calls.
   WebGPU buffer map is asynchronous, so the reply is held until it ends.
   The reply carries the PNG in base64, and the Relay writes it to `path`
   and drops the bytes. The Driver gets the native reply shape.
-- `hello` reports `web`, and `protocol` goes to 11.
+- `hello` reports `web`.
 - The Relay's WebSocket server uses the Python standard library only.
 - On the web, the Bridge `quit` and the game's `Quit` Command end the run
   the same way. The host replies if a reply is owed, stops the frame loop,
@@ -45,10 +45,6 @@ exits, and agents depend on that: the run keeps its place between calls.
   Chrome on `?bridge=P`, then makes the native Bridge calls.
   `scripts/web/shot.sh` stays for the page's own messages and the key press
   that starts audio.
-- CI runs headless Chrome with WebGPU on Mesa's lavapipe, a software
-  Vulkan device. It compares a pong
-  screenshot with the native one by a per-channel tolerance and a limit on
-  changed pixels, both set from measured runs.
 
 ## Considered options
 
@@ -66,8 +62,6 @@ exits, and agents depend on that: the run keeps its place between calls.
 - Turn the Bridge on for any origin with `?bridge`. Rejected: a hosted page
   would connect to a port on the player's machine.
 - The `websockets` package. Rejected: no script in `scripts/` needs pip.
-- Let the game's page replace `index.html` in this task. Deferred to its
-  own task: the page contract is a design question of its own.
 
 ## Consequences
 
@@ -75,11 +69,5 @@ exits, and agents depend on that: the run keeps its place between calls.
   setup differs.
 - A web `quit` leaves the tab open. The page, not the host, decides what
   the player sees.
-- The CI job needs Chrome and a software Vulkan device. Chrome's own
-  SwiftShader gives no WebGPU adapter there, because ANGLE needs
-  `VK_KHR_surface`, so the job installs `mesa-vulkan-drivers` and
-  `libvulkan1`. Ubuntu 24.04 blocks the user namespaces of Chrome's
-  sandbox, so Chrome runs with `--no-sandbox`. Headless Chrome on Linux
-  keeps requestAnimationFrame running, so the job needs no `xvfb-run`.
 - The web and native screenshots differ by rasterizer, so the check has a
   tolerance, not byte equality.

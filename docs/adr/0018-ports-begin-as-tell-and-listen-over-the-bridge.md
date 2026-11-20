@@ -1,8 +1,6 @@
 # 0018: Ports begin as Tell and Listen over the Bridge
 
-Status: accepted, 2026-10-29. It replaces the first consequence of ADR
-0009: a Driver can now send the game a message. The other decisions of
-ADR 0009 stand.
+Status: accepted, 2026-10-29.
 
 ## Context
 
@@ -26,8 +24,8 @@ the agents do, and the stage tells the Driver what the person selects.
   host got them, and the queue empties.
 - A message for a port that no Query Listens on at that step is dropped,
   and the host logs once per port. So a stale queue cannot grow.
-- The queue holds at most 4 MiB of port names and messages. A `tell` past
-  that replies with an error and queues nothing.
+- The queue has a size cap. A `tell` past it replies with an error and
+  queues nothing.
 - A `Tell` reaches the Driver in the `step` reply, as every Command does.
   The host does not act on it. So the `listen` op is not needed.
 - `Ask` and the `listen` op wait for a consumer. The `ask` and `listen` ops
@@ -47,8 +45,7 @@ the agents do, and the stage tells the Driver what the person selects.
 
 ## Consequences
 
-- `BRIDGE_PROTOCOL` is 2, because the `results` of a `scene` reply gain
-  `ports`.
+- The `results` of a `scene` reply gain `ports`, a Bridge protocol change.
 - The Vocabulary changed, so every game rebuilds.
 - A Scene with only a Listen Query still runs the collider walk. A later
   change may skip it.
