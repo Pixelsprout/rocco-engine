@@ -6,7 +6,8 @@ with the [docs](https://pixelsprout.dev/projects/rocco/docs/) instead.
 rocco builds for three desktop targets from one checkout. Each machine
 builds its own target. The renderer goes through sokol with a different
 backend per OS. `docs/DESIGN.md` says where the line between Odin and Roc
-goes and why. `docs/ROADMAP.md` says what is built next.
+goes and why. `docs/ROADMAP.md` says where rocco is going, and dex holds
+the milestones and tasks.
 
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
@@ -618,7 +619,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `clay/` | Submodule: nicbarker/clay. The engine imports `bindings/odin/clay-odin/`. |
 | `miniaudio/` | Submodule: mackron/miniaudio at `0.11.24`. `scripts/miniaudio/rocco_miniaudio.c` compiles it. |
 | `docs/DESIGN.md` | The design. Read first. |
-| `docs/ROADMAP.md` | Milestones and what is out of scope. |
+| `docs/ROADMAP.md` | The destination, the order of the arcs and what is out of scope. dex holds the milestones. |
 | `docs/guides/benchmarks.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
 | `GLOSSARY.md` | The domain glossary: the words rocco uses and the ones it avoids. |
 | `docs/CONCEPTS.md` | The general graphics and memory concepts the engine is built from. |

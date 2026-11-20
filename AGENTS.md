@@ -3,6 +3,8 @@
 # Project Management
 We use *dex* for project management to track tasks and issues. The `tasks.jsonl` is commited to the repo.
 
+dex is the source of truth for milestones: scope, "Done when", status and results. `docs/ROADMAP.md` holds only the destination, the order of the arcs and what is out of scope. Do not copy a task or its status into the roadmap. Change the roadmap only when the direction changes.
+
 # Workflow
 We use matt-pocock skills to work through tasks:
 - `/implement` - Implement a task.

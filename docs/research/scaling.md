@@ -2,7 +2,7 @@
 
 Date: 2026-10-20.
 Status: historical. Several steps of "A proposed order" have shipped. The ADRs record each decision: Launch (0007), the Bridge (0009), audio (0011), the Scene tree (0014), Ports (0018), the look (0026), game shaders (0028) and web builds (0036).
-[The roadmap](../ROADMAP.md) tracks the rest. Dated notes in the body record later changes.
+dex tracks the rest, under the **rocco roadmap** task (`7mpm5az4`). Dated notes in the body record later changes.
 
 ## Question
 
