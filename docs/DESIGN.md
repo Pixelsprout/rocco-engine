@@ -152,45 +152,10 @@ The platform header names five types. Nothing in them names a game. The
 test: if a field would be meaningless to a different game, the field belongs
 in the app.
 
-```roc
-Vec3     : { x : F32, y : F32, z : F32 }
-Rgb      : { r : F32, g : F32, b : F32 }
-Rgba     : { r : F32, g : F32, b : F32, a : F32 }
-Config   : { seed : U64, assets : List(Str), args : List(Str) }
-Launch   : { window : Window, step_hz : U32, shadow_map : U32, shadow_cascades : U32, capacity : Capacity }
-Window   : { width : U32, height : U32, title : Str, fullscreen : Bool, high_dpi : Bool, samples : Msaa, vsync : Bool }
-Msaa     : [Off, X2, X4, X8]
-Capacity : { meshes : U32, skies : U32, images : U32, draws : U32, groups : U32, ui_quads : U32, sounds : U32, voices : U32 }
-Manifest : List({ name : Str, id : U32, duration : F32, size : { w : U32, h : U32 }, clips : List({ name : Str, id : U32, duration : F32 }) })
-Image    : { id : U32, region : [Whole, Px({ x : U32, y : U32, w : U32, h : U32 })], tint : Rgba, filter : [Linear, Nearest] }
-Input    : { held : List(U16), pressed : List(U16), mouse : { dx : F32, dy : F32 }, gamepads : List(Gamepad), window : { width : F32, height : F32 }, pointer : { x : F32, y : F32, inside : Bool, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
-Gamepad  : { slot : U8, held : List(U8), pressed : List(U8), left_stick : { x : F32, y : F32 }, right_stick : { x : F32, y : F32 }, left_trigger : F32, right_trigger : F32 }
-Quat     : { x : F32, y : F32, z : F32, w : F32 }
-Draw     : { id : U64, mesh : U32, pos : Vec3, scale : Vec3, rot : Quat, scale_rot : Quat, tint : Rgb, glow : Rgb, pose : Pose, casts_shadow : Bool }
-Pose     : { clip : U32, time : F32, fade_clip : U32, fade_time : F32, fade : F32 }
-Camera   : { eye : Vec3, target : Vec3, up : Vec3, fov_y : F32 }
-Collider : { id : U64, pos : Vec3, rot : Quat, shape : [Box(Vec3), Sphere(F32), Capsule({ radius : F32, half_height : F32 })] }
-Contact  : { a : U64, b : U64, normal : Vec3, depth : F32 }
-RayHit   : { owner : U64, slot : U32, id : U64, point : Vec3, normal : Vec3, distance : F32 }
-OverlapHit : { owner : U64, slot : U32, id : U64 }
-QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
-Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
-Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
-Node     := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Attach({ draw : U64, joint : Str }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
-Cursor   : [Free, Locked]
-Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
-Align    : [Start, Center, End]
-AttachPoint : [LeftTop, LeftCenter, LeftBottom, CenterTop, CenterCenter, CenterBottom, RightTop, RightCenter, RightBottom]
-PanelConfig : { id : U64, width : Sizing, height : Sizing, pad : { left : F32, right : F32, top : F32, bottom : F32 }, gap : F32, direction : [Row, Col], child_align : { x : Align, y : Align }, background : Rgba, radius : F32, overflow : [Visible, Clip, Scroll({ x : F32, y : F32 })], floating : [NoFloat, Float({ to : [Window, Parent], attach : AttachPoint, on : AttachPoint, offset : { x : F32, y : F32 } })] }
-Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
-Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
-Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
-Shadow   : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
-Environment : { sky : U32, sky_blend : { to : U32, amount : F32 }, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32, sky : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
-Place    : [Here, At({ pos : Vec3, range : F32 })]
-Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
-Command  : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str }), Log(Str)]
-```
+`platform/Vocabulary.roc` holds every type and its doc comment, and it is the
+source of truth. This document does not copy the signatures. The table below
+says what each type carries across the seam and what it leaves out on
+purpose.
 
 | Type | Carries | Does not carry |
 |---|---|---|
@@ -617,8 +582,9 @@ These Commands do nothing and log once per pack name:
 
 The primitives load at startup, before `init`. They belong to no pack and
 never unload, so a game can draw them before any `Load`. Their ids are
-fixed: fallback 0, cube 1, sphere 2, plane 3, cylinder 4. Each is its slot at
-generation 0. No primitive slot goes on a free list, so the ids never
+fixed. The fallback is id 0, the id a failed name gets, so a missing mesh
+draws as the fallback. `engine/mesh.odin` lists the others. Each is its
+slot at generation 0. No primitive slot goes on a free list, so the ids never
 change.
 
 GPU resources belong to the asset. Vertex and image data are scratch until
@@ -693,10 +659,10 @@ game's assets from any working directory. `ROCCO_ASSETS` replaces the
 `assets/meshes/` and loads none of them. `Config.assets` holds each stem,
 such as `sprout`, in sorted order. Names are case-sensitive. A `Load` reads
 each named file that is not loaded yet. Ids follow the order of the Loads,
-so the same Loads give the same ids. The primitives are named
-`primitive/fallback`, `primitive/cube`, `primitive/sphere`,
-`primitive/plane` and `primitive/cylinder`. A file stem cannot contain `/`, so a file never takes
-the name of a primitive. A name that is not on disk, or a file that does
+so the same Loads give the same ids. A primitive is named
+`primitive/<shape>`, such as `primitive/cube`, and `engine/mesh.odin` lists
+them. A file stem cannot contain `/`, so a file never takes the name of a
+primitive. A name that is not on disk, or a file that does
 not load, gets id 0 in the Manifest and one log line per run.
 
 A skinned mesh draws through its own pipeline and its own shadow
