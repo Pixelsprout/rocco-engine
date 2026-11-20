@@ -105,7 +105,7 @@ use the same owner and slot.
 The host answers the Queries in `engine/collision.odin`. Once per step it
 composes each Collider's world Pose down the tree of the current Scene. It
 skips that walk when the Scene has no Queries. Then it builds the Shapes and
-a uniform grid over them on the ground plane. ADR 0008 records the grid. The
+a uniform grid over them on the ground plane. ADR 0005 records the grid. The
 grid finds the pairs whose world boxes overlap. A test for each pair of
 shapes then gives the normal and depth. Two boxes get a separating axis test
 on 15 axes. Two spheres, and a box and a sphere, get direct tests. When two
@@ -302,7 +302,7 @@ The game decides the camera. `Scene.camera` says where the eye is, what it
 looks at, which way is up and the vertical field of view. The host
 interpolates `eye`, `target` and `up` like a draw. If `up` is zero or lies
 along the view, the host uses +y and logs once. See
-`docs/adr/0001-orientation-crosses-the-seam.md`. Pure helpers such as `look_at`,
+`docs/adr/0001-transforms-cross-the-seam.md`. Pure helpers such as `look_at`,
 `follow` and `project` live in the camera package in `packages/camera/`.
 `project` gives the window pixel of a world point, so a game can place UI over
 it. The package does not depend on the platform: Roc records are structural,
@@ -436,7 +436,7 @@ the pointer and `QueryResults.ui` through open records, and return a
 Node into an Element with `Node.build`. The widgets are not Vocabulary, and
 the engine has no widget and no focus. A game with no UI returns `ui: []`,
 which allocates nothing. Decision.
-`docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the tree.
+`docs/adr/0014-the-scene-crosses-the-seam-as-a-tree.md` records the tree.
 `docs/adr/0004-ui-layout-runs-in-the-host.md` records the layout options.
 
 A Panel carries Clay's layout fields and Clay's defaults in its config. The
@@ -496,7 +496,7 @@ Sizes are logical pixels. Two layout results flow back to the game, in
 the view and content sizes of the tagged Scroll Panels. The host hit tests
 the pointer of the last step after the Frame's layout, so `over` lags by one
 step. A floating Panel blocks the pointer when it, or any Panel inside it, has
-a Hit id. `docs/adr/0020-the-pointer-and-the-ui-hit-test.md` records the
+a Hit id. `docs/adr/0004-ui-layout-runs-in-the-host.md` records the
 decision. The host multiplies each size by `sapp.dpi_scale()`. `sapp.dpi_scale()` is 2 on
 a Retina Mac with `high_dpi` on. It is 1 with `high_dpi` off. Headless lays
 out at dpi 1. Decision.
@@ -505,7 +505,7 @@ The game learns the window size from `Input.window`, in logical pixels:
 `sapp.width()` and `sapp.height()` over `sapp.dpi_scale()`, read once per
 frame. Every step of a frame gets the same size. Headless gives the Launch
 width and height. A game that projects a world point into the window, such
-as a label over a character, uses it. See ADR 0019. Decision.
+as a label over a character, uses it. See ADR 0004. Decision.
 
 The host runs C Clay through its Odin bindings. Clay is a git submodule
 pinned to a commit. The `inputs` step copies its prebuilt lib per target,
@@ -728,7 +728,7 @@ squash that must stay along a world axis while `rot` spins sets `scale_rot`
 to `conjugate(rot) · F_world`. The host lights normals with the inverse
 transpose of the model matrix, so a non-uniform scale keeps them correct. A
 zero scale factor gives a zero normal along that axis. Decision.
-`docs/adr/0002-a-scale-acts-along-its-own-axes.md` records the options.
+`docs/adr/0001-transforms-cross-the-seam.md` records the options.
 
 ### The 3D Scene is a tree
 
@@ -959,10 +959,9 @@ in the roadmap removes the system heap from that path.
 - **No hosted function until a pure value cannot express the need.** A sound
   with a duration has host-side lifetime, and it arrived as a Description: a
   Speaker Node in the Scene, paired by id, with a `Play` Command for a sound
-  that the game fires and forgets. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
-  records why it is not `Spawn` and `Destroy`, and
-  `docs/adr/0017-sounds-the-game-controls-are-speaker-nodes.md` why a sound
-  the game controls is a Node. A physics body with a
+  that the game fires and forgets. `docs/adr/0017-sounds-the-game-controls-are-speaker-nodes.md`
+  records why it is not `Spawn` and `Destroy`, and why a sound the game
+  controls is a Node. A physics body with a
   warm-start cache is the next case. Descriptions first. Commands only when
   a description cannot say it.
 
@@ -1123,7 +1122,7 @@ about the same. The id check and the sort take most of the time.
 `slice.sort_by` took about 200 microseconds for 1,000 elements, so the host
 uses its own heap sort.
 
-The grid of ADR 0008 replaced the sweep and prune on 2026-10-21. The same
+The grid of ADR 0005 replaced the sweep and prune on 2026-10-21. The same
 test on `x64win`, an i7-9700F, before and after:
 
 | Build | Sweep and prune, microseconds | Grid, microseconds |
