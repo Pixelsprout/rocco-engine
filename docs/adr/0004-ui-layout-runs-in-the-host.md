@@ -1,59 +1,67 @@
 # 0004: UI layout runs in the host
 
-Status: accepted, 2026-10-15. Partly superseded by ADR 0013 on
-2026-10-22: the UI crosses the seam as a tree of Elements, not as a flat
-stream. The layout decision stands. ADR 0019 on 2026-10-30 gives the
-game the window size in Input; the host still lays out. On 2026-10-31,
-`Ui.measure`, `Ui.fit` and `Ui.wrap` let the game measure text with a
-copy of the host's font table; the host still lays out. ADR 0020 on
-2026-10-31 sends the pointer and the hit results to the game. On
-2026-11-01 a Panel can show an Image (ADR 0024); the host still lays out.
+Status: accepted, 2026-10-15.
+Supersedes: ADR 0019 (Input carries the window size), ADR 0020 (The pointer
+and the UI hit test).
 
 ## Context
 
-Games need a UI drawn flat over the 3D view: a key count now, menus and
-inventories later. Somebody must lay it out: size the boxes, wrap the text
-and anchor panels to the window. The glue cannot carry recursive tag unions,
-so a tree of Elements cannot cross the seam as a nested value.
-
-terrocotta (github.com/obust/terrocotta) ports Clay's layout to pure Roc,
-so layout inside the platform package is possible.
+Games need a UI drawn flat over the 3D view: a key count, menus, logs that
+scroll. Somebody must size the Panels, wrap the Text and anchor Panels to
+the window. Games also need hover, clicks and scrolling, so a game must
+learn which Panel is under the Pointer. Clay already lays out, hit tests a
+pointer and clips its elements.
 
 ## Decision
 
-- The host runs C Clay through its Odin bindings. A pinned submodule
-  supplies the prebuilt lib per target, copied by the `inputs` step like
-  sokol's.
-- `Scene.ui` was at first a flat stream of Elements: `Open(Box)`, `Text`,
-  `Close`. Since ADR 0013 it is a list of trees of `Panel` and `Text`
-  Elements, and `Box` is now `Panel`. The host walks the trees into Clay's
-  open, configure and close calls in order, once per frame, against the
-  window size.
-- The host measures text with its one baked font. At first the game never
-  measured and never learned the window size. Since ADR 0019, Input carries
-  the window size, and `Ui.measure` measures text with a copy of the
-  host's font table. The host still lays out.
-- At first the UI only displayed, and no layout result flowed back to the
-  game. Since ADR 0020, the tagged Panels under the pointer and the sizes
-  of the Scroll Panels come back in `QueryResults.ui`.
+- The host lays out the UI with C Clay, through its Odin bindings, once per
+  Frame against the window size. The UI crosses the seam as a tree of
+  Elements (ADR 0014).
+- Panel fields follow Clay's names and defaults, so an empty config means
+  the same on both sides.
+- Input carries the window size in logical pixels, so a game can place
+  things in window space, such as a label over a character.
+- Input carries the Pointer in logical window pixels. `Input.mouse` stays
+  for mouse look.
+- After each Frame's layout, the host hit tests the Pointer of the last
+  step. `QueryResults.ui.over` lists the tagged Panels under it, innermost
+  first. `QueryResults.ui.scroll` gives each tagged Scroll Panel's view and
+  content size. Both arrive every step with no Query.
+- The game owns the scroll offset. The host never feeds a wheel or a drag
+  to Clay.
+- A floating Panel blocks the Pointer only when it, or a Panel inside it,
+  has a Hit id.
+- A repeated Hit id logs once. The second Panel is laid out and drawn but
+  never hit.
 
 ## Considered options
 
-- Layout in Roc, from terrocotta or a port of it. Games could query bounds
-  and hit tests in `step` with no host round trip, and layout would be
-  tested with `expect`. It was rejected for now: terrocotta is young, is
-  tied to roc-ray types, needs a host call to measure each text run, and
-  has no performance data under the new compiler. We would own a layout
-  engine.
-- A parent index on each Element. "Parents before children" does not give
-  the pre-order that Clay needs, so the host would build child lists in
-  scratch and check every index. The stream has one error, unbalanced
-  Open and Close, and the host repairs it.
+- Layout in Roc, from terrocotta or a port of Clay. Games could hit test in
+  `step` with no host round trip. Rejected: we would own a layout engine.
+  The game can still measure text with `Ui.measure`, which uses a copy of
+  the host's font table.
+- Hit results in Input. Rejected: they are facts about the previous Scene,
+  as Contacts are, so they belong in QueryResults.
+- A hit Query per Panel. Rejected: a UI needs the results every step, and a
+  Query per Panel repeats the tree in `Scene.queries`.
+- Clay's own scroll state, fed the wheel and drag. Rejected: the host would
+  keep UI state that the game cannot see or save.
+- Every floating Panel blocks the Pointer, Clay's default. Rejected: an
+  untagged label or HUD panel would hide the Panels under it.
+- No floating Panel blocks the Pointer. Rejected: a click on a menu item
+  would also reach the button under the menu.
+- The host projects a world point for a floating Panel. Rejected: one Input
+  field is enough, and the host would need an attach mode and a projection.
+- The window size in physical pixels. Rejected: UI sizes and
+  `Camera.project` are in logical pixels, so every game would divide.
 
 ## Consequences
 
-- Panel fields follow Clay's names and defaults (`Fit`, `Start`), so an
-  empty config means the same on both sides.
-- Pointer input for the UI reopened this decision. ADR 0020 settled it
-  with hit results: Input carries the pointer, and `QueryResults.ui` gives
-  the tagged Panels under it. The host still lays out.
+- `ui.over` lags by one step. A new Panel appears in it one step after the
+  Scene that adds it. Every step of one Frame gets the same `ui`.
+- The game projects with the camera of its Model, and the host draws an
+  interpolated camera, so a projected point can trail the drawn one by up
+  to one step.
+- Clay keeps clip records that only its scroll update removes. The host
+  runs that update after each layout with a zero delta, so no record
+  outlives its layout.
