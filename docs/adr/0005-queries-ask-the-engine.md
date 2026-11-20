@@ -1,57 +1,62 @@
 # 0005: Queries ask the engine
 
-Status: accepted, 2026-10-16. ADR 0008 replaces the search: the sweep and
-prune for the Contacts, and the test of every Collider for Raycast and
-Overlap.
+Status: accepted, 2026-10-16.
+Supersedes: ADR 0008 (A shared grid answers the Queries).
 
 ## Context
 
 A game needs facts that only the engine has: what a ray hits, what touches
-a volume. Contacts already work as a request and a reply. The game returns
-Colliders in the Scene, and the host gives the Contacts to the next step.
-`Load` and `loaded` follow the same pattern. A reply that is an argument to
-`step` keeps `step` pure, so replay still works. The reply arrives one step
-late. A fact that the game needs in the same step, such as UI layout, stays
-in the host (ADR 0004).
+a volume. Contacts already worked as a request and a reply, and `Load` and
+`loaded` follow the same pattern. A reply that is an argument to `step`
+keeps `step` pure, so replay still works. The reply arrives one step late.
+A fact that the game needs in the same step, such as UI layout, stays in
+the host (ADR 0004).
+
+A first search tested each Raycast and Overlap against every Collider and
+ran a sweep and prune over all Colliders for the Contacts. At bench sizes
+that search set the cost of the whole step.
 
 ## Decision
 
-- A Query asks the engine about something. A Command tells the engine to do
-  something.
-- The game puts its queries in `Scene.queries`. The host answers them
+- The game puts its Queries in `Scene.queries`. The host answers them
   against Scene N and gives the QueryResults to step N+1. The first step
   gets empty QueryResults.
-- `step` takes QueryResults in place of the Contacts.
+- The Collider Queries are `ContactsOf(owner)`, `Raycast` (the nearest hit
+  only) and `Overlap` (each Collider that a shape touches).
 - Queries test Colliders only. The host skips a capsule Collider and logs
   one line.
-- There are three kinds of Query:
-  - `ContactsOf(owner)`: the Contacts of the owner's Collider.
-  - `Raycast`: the nearest hit only.
-  - `Overlap`: each Collider that a shape touches.
-- Raycast and Overlap take an owner, a slot and an exclude list.
-- An owner and a slot link a result to its query. The host skips the
-  owner's own Collider. If two queries of one kind have the same owner and
-  slot, the host logs once and keeps the first.
-- A miss has no row.
-- QueryResults is a record of flat lists: `{ contacts, rays, overlaps }`.
-  A `contacts` row is a Contact, a `rays` row is a RayHit, and an
-  `overlaps` row is an OverlapHit.
-- With no ContactsOf query, the host does no contact search. With one or
-  more, the host runs the sweep and prune over all Colliders. It returns
-  each pair that involves any asking owner, once, in id order.
-- The host tests each Raycast and each Overlap against every Collider.
-  There is no cap and no broad phase for them.
+- Raycast and Overlap take an Owner, a Slot and an exclude list. The Owner
+  and Slot link a result to its Query. The host skips the Owner's own
+  Collider. If two Queries of one kind share an Owner and Slot, the host
+  logs once and keeps the first.
+- A miss has no row. QueryResults holds one flat list per kind of Query.
+- With no ContactsOf Query, the host does no contact search.
+- The host builds the shapes and one uniform grid over them once per step,
+  on the first Query that needs them. Every Query of the step searches it.
+- The grid lies on the ground plane, x and z. Its cell size follows the
+  typical shape size, so one huge shape, such as a ground box, does not set
+  it. A shape too big or too odd for the grid (huge, infinite, NaN) goes to
+  a list that every Query tests.
+- ContactsOf searches only the cells under each asking Owner. A Raycast
+  walks the cells along the ray and stops past the nearest hit. An Overlap
+  tests only the cells under its box.
 
 ## Considered options
 
-- One list of a union of answer kinds. It was rejected. No union that the
-  host builds carries a list yet, and each answer costs one allocation.
+- One list of a union of answer kinds. Rejected: no union that the host
+  builds carries a list yet, and each answer costs one allocation.
+- Keep the brute-force search and remove only the waste. Rejected: it saves
+  a small constant factor and keeps the growth.
+- A bounding volume tree. Rejected for now: the Colliders change every
+  step, so the tree must be rebuilt or refitted each step, and a grid is
+  simpler for shapes of similar size.
 
 ## Consequences
 
-- A game that sends no ContactsOf query gets no Contacts. Each game that
-  reads Contacts today must ask for them.
-- The Contact search runs only when a game asks, so a game with Colliders
-  and no ContactsOf query pays nothing for it.
-- Future work: RaycastAll, shape casts, raymarching against SDFs, a broad
-  phase for Raycast and Overlap, layers and masks, and capsule tests.
+- A game that sends no ContactsOf Query gets no Contacts, and a step with
+  Colliders and no Query builds nothing.
+- The cost now comes from the grid build, which grows with the Collider
+  count.
+- Shapes of very different sizes make the grid less useful. Many big shapes
+  cost one test each per Query.
+- Future work: RaycastAll, shape casts, layers and masks, and capsule tests.

@@ -4,72 +4,49 @@ Status: accepted, 2026-10-14.
 
 ## Context
 
-The host loads every mesh in `assets/meshes/` once, before `init`, and
-keeps it for the whole run. The game gets the ids in the `Config` manifest.
-Nothing can change what is loaded while the game runs.
-
-Kula needs a different block set and sky for each Theme. A larger game needs
-to stream content in and out. The engine had one lifetime for loaded assets,
-the level, and no way for a game to end it.
+The host loaded every mesh in `assets/meshes/` once, before `init`, and
+kept it for the whole run. Nothing could change what was loaded while the
+game ran. Kula needs a different block set and sky for each Theme, and a
+larger game needs to stream content in and out. The engine had one
+lifetime for loaded assets, the level, and no way for a game to end it.
 
 ## Decision
 
-- A Pack is a named set of assets that load and unload together. "Level" is
-  a game word. The engine has no level.
-- `Command` gains `Load({ pack : Str, assets : List(Str) })` and
-  `Unload(Str)`. The host runs each one after the `init` or `step` that
-  returned it, and before the next `view`.
-- `init` returns `{ model, commands }`, so a game can load its first pack
+- A Pack is the unit of asset lifetime. The engine has no level.
+- The game sends `Load` and `Unload` Commands. The host runs each one after
+  the `init` or `step` that returned it, and before the next `view`.
+- `init` returns `{ model, commands }`, so a game can load its first Pack
   before the first step.
-- A fourth seam function, `loaded : Model, Str, Manifest -> Model`, takes the
-  pack name and a `Manifest : List({ name : Str, id : U32 })`. `loaded` is
-  the only promise that ids exist. The host loads synchronously and calls
-  `loaded` in the same frame, before the next `view`.
-- `Config` carries `assets : List(Str)`, the names found on disk, with no
-  ids.
-- Packs are independent. Any number can be loaded at once. Each unloads by
-  name, in any order.
-- An asset named by two loaded packs loads once and keeps one id. Each asset
-  counts the packs that hold it and unloads when the count is zero.
-- Assets are organised by type on disk, not by pack: meshes in
-  `assets/meshes/`, skies in `assets/sky/`. A pack is a list of names in game
-  data, not a directory.
-- Every name in a Load appears in the Manifest. A name not on disk, or a file
-  that fails to load, gets id 0 and one log line.
-- The primitives load at startup. They belong to no pack and never unload.
-  They are the one exception to `loaded`: a game can draw them before any
-  Load.
+- A fourth call, `loaded`, gets the Pack name and its Manifest. The host
+  loads synchronously and calls `loaded` before the next `view`.
+- `Config` carries the asset names found on disk, with no ids.
+- Packs are independent. Any number can be loaded at once, and each unloads
+  by name, in any order. An asset that two loaded Packs name loads once
+  and keeps one id.
+- Assets sit on disk by kind, not by Pack. A Pack is a list of names in
+  game data, not a directory.
+- Every name in a Load appears in the Manifest. A missing name or a failed
+  load gets id 0 and one log line.
+- The Primitives load at startup, belong to no Pack and never unload. A
+  game can draw them before any Load.
 
-Three other options were rejected:
+## Considered options
 
-- One pack at a time. A Load replaces the loaded pack. It is simple, but a
-  world pack and a room pack cannot live together, and a swap cannot keep
-  the old pack drawn until the new one is ready.
-- A stack of packs. A Load pushes and an Unload pops the top. It fits menus
-  over a world, but streamed chunks behind the player must unload in any
-  order.
-- A directory per pack. The files of a pack sit in `assets/<pack>/`. One
-  file then cannot serve two packs without a copy, and a game cannot choose
-  its packs in Roc.
+- One Pack at a time, where a Load replaces the loaded Pack. Rejected: a
+  world Pack and a room Pack cannot live together, and a swap cannot keep
+  the old Pack drawn until the new one is ready.
+- A stack of Packs. Rejected: it fits menus over a world, but streamed
+  chunks behind the player must unload in any order.
+- A directory per Pack. Rejected: one file then cannot serve two Packs
+  without a copy, and a game cannot choose its Packs in Roc.
 
 ## Consequences
 
-- A swap is `Load(new)`, then `loaded`, then `Unload(old)` from a later
-  step. The new ids exist before the old ones go, so no frame draws a stale
-  id.
-- A later background loader changes no game. Games already wait for
-  `loaded`.
-- Each asset table reuses freed slots through a free list. The slot
-  generation from the mesh id makes an id from an unloaded pack stale, and
-  a stale id draws the fallback.
-- GPU resources belong to the asset, not the pack. Vertex and image data are
-  scratch until upload, so a pack keeps only its name and its asset list. The
-  level arena goes.
-- `Config` carries no ids, so the primitive ids are fixed constants:
-  fallback 0, cube 1, sphere 2, plane 3. Each is its slot at generation 0.
-  `Mesh.primitive(Cube)` takes no `Config`. A test on each side of the seam
-  pins the values, and no primitive slot goes on a free list.
-- Every game changes `init` and adds `loaded`. This is a vocabulary change,
-  so the host and every game rebuild.
-- A Load for a loaded pack, an Unload for an unknown pack, and a second Load
-  of one pack in one step each log once per pack name and do nothing.
+- A later background loader changes no game, because games already wait
+  for `loaded`.
+- Each asset table reuses freed slots. The slot generation in an id makes
+  an id from an unloaded Pack stale, and a stale id draws the Fallback mesh.
+- GPU resources belong to the asset, not the Pack. A Pack keeps only its
+  name and its asset list.
+- `Config` carries no ids, so the Primitive ids are fixed constants. No
+  Primitive slot goes on a free list.

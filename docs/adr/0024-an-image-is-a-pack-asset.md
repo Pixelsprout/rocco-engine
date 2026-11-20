@@ -1,6 +1,6 @@
 # 0024: An Image is a Pack asset
 
-Status: accepted, 2026-11-01. Milestone 34.
+Status: accepted, 2026-11-01.
 
 ## Context
 
@@ -15,32 +15,21 @@ value.
 
 ## Decision
 
-- An Image is a Pack asset. Its name has the `image/` prefix, and its file
-  is `assets/images/<stem>.png`. The noun is Image. PNG is the only format.
-- One `Image` value names an Image and how to show it:
-  `{ id : U32, region : [Whole, Px({ x, y, w, h })], tint : Rgba, filter : [Linear, Nearest] }`.
-  The region counts in source pixels from the top-left corner. UI Panels
-  take it now, and 2D sprites will take it later. A flipbook is a region
-  that changes. The Panel adds its own `[Stretch, Fit]`.
-- The filter is a field of each Image value. `Image.default` has `Linear`.
-  The host keeps one Linear and one Nearest sampler, both clamped to the
-  edge, and every Image shares them. Launch has no filter default yet.
-- An Image has no mipmaps. It uploads as SRGB8A8 with one level.
-- Each Manifest entry carries `size : { w : U32, h : U32 }`. An Image fills
-  it. Every other kind, and a name that did not load, gives 0 by 0.
-  `Image.size` reads it, so a game can count a region without the file.
-- `Launch.capacity.images` sizes the Image table, 256 by default, at least
-  2 and at most 65536. Slot 0 holds no Image. A full table gives id 0 and
-  one log line, as for meshes. The sokol image and view pools grow by the
-  capacity, and the sampler pool by 2.
+- An Image is a Pack asset with the `image/` prefix. PNG is the only
+  format.
+- One `Image` value names an Image id, a region of it, a tint and a filter.
+  UI Panels take it now, and 2D sprites will take it later. A flipbook is
+  a region that changes. The Panel adds its own fit.
+- The filter is a field of each Image value, not a Launch default. Every
+  Image shares one Linear and one Nearest sampler.
+- An Image has no mipmaps.
+- Each Manifest entry carries a size, which an Image fills. A game can
+  count a region without the file.
 - Id 0, or a stale id, draws a magenta and black checker and logs once for
-  each id. A game shows `NoImage` until `loaded` gives the id, as Kula and
-  Agent Town do.
-- After the decode, the loader gives each fully transparent pixel the
-  average colour of the nearest pixels that have one. The UI blend stays
-  straight alpha, so linear filtering does not darken a visible edge.
-- An Image's GPU image and view go when its last Pack unloads, as a mesh's
-  do. The slot's generation goes up, so a kept id no longer finds it.
+  each id. A game shows `NoImage` until `loaded` gives the id.
+- The loader fills the colour of fully transparent pixels from their
+  neighbours, so the UI blend stays straight alpha with no dark fringe.
+- An Image's GPU resources go when its last Pack unloads, as a mesh's do.
 
 ## Considered options
 
@@ -51,15 +40,11 @@ value.
 - Mipmaps. Rejected for now: UI icons draw near their own size, and
   mipmaps blur pixel art. A 2D mode that scales far down can add them.
 - Premultiplied alpha. Rejected for now: it changes the UI blend for every
-  quad, and the bleed already removes the dark fringe at a visible edge.
-- A filter default in Launch. Deferred to the 2D mode, as a dex task.
+  quad, and the colour fill already removes the dark fringe.
+- A filter default in Launch. Deferred to the 2D mode.
 
 ## Consequences
 
-- Adding `size` to the Manifest and `images` to the Capacity changes the
-  vocabulary. Every hand-written Manifest literal gains `size`.
 - An Image costs its pixels on the heap until the upload, then its GPU
-  memory only. A Load in `init` uploads when the renderer starts; a later
-  Load uploads at once.
-- Nine-slice and tiled images, JPG and hot reload stay out. Each is a later
-  dex task or not planned.
+  memory only.
+- Nine-slice and tiled images, JPG and hot reload stay out.
