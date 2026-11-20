@@ -490,15 +490,31 @@ _Avoid_: game object, GameObject, body, node, actor
 **Draw id**:
 A stable number on a Draw that the host uses to pair a draw with its
 predecessor in the previous Scene and interpolate between them. Entities use
-their entity id; fixed scenery uses ids no entity reaches.
+their entity id. Under ADR 0045 the id is optional: a Draw with id 0 pairs
+by its Position key, so fixed scenery needs no id. Until that lands, scenery
+uses ids no entity reaches.
 _Avoid_: handle, key, index, entity id (when the draw is scenery)
 
 **Group id**:
 A stable number on a Group that pairs it with its predecessor, as a draw id
 pairs Draws. Group ids and draw ids are apart: an entity's Group and its
 Draw can both carry the entity id. If two Groups share an id, the first
-pairs and the host logs once.
+pairs and the host logs once. Under ADR 0045 a Group with id 0 pairs by
+its Position key.
 _Avoid_: parent id, node id, draw id
+
+**Position key**:
+How the host pairs a Draw or Group with id 0 (ADR 0045): its anchor, the
+nearest ancestor Group with a non-zero id or the Scene root, and its index
+among siblings of the same kind that also have id 0. Inserting such a
+sibling ahead of it shifts the key.
+_Avoid_: path (a Prefab's Path), index, slot
+
+**Ids**:
+The opaque counter in `Id.roc` that a game keeps in its Model.
+`ids.fresh()` returns the next id from 1 upward and never reuses one. Bit 63
+stays clear: it marks a Prefab node's hash id. See ADR 0045.
+_Avoid_: id generator, allocator, registry, seed
 
 **Mesh id**:
 A number the engine assigns to each mesh it loaded, published in a Manifest
