@@ -2,7 +2,7 @@
 
 rocco is a game engine written in Odin that hosts games written in Roc. The
 two meet at a seam of five pure functions, and this glossary fixes the words
-on both sides of it. `docs/DESIGN.md` decides meaning; `docs/GLOSSARY.md`
+on both sides of it. `docs/DESIGN.md` decides meaning; `docs/CONCEPTS.md`
 explains the general graphics and memory concepts the engine is built from.
 
 ## The two sides

@@ -620,5 +620,6 @@ does not call it again. After a change to `launch`, restart the game.
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
 | `docs/BENCHMARKS.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
-| `docs/GLOSSARY.md` | Terms as rocco uses them. |
+| `GLOSSARY.md` | The domain glossary: the words rocco uses and the ones it avoids. |
+| `docs/CONCEPTS.md` | The general graphics and memory concepts the engine is built from. |
 

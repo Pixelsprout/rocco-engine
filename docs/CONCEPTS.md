@@ -1,6 +1,6 @@
-# Glossary
+# Concepts
 
-Terms as rocco uses them, one paragraph each. Entries link to each other by anchor. Terms that only made sense inside the original course were removed; a few entries still cite measurements from that engine, which is this one.
+The general graphics, memory and toolchain concepts rocco is built from, one paragraph each. Domain terms live in `GLOSSARY.md` at the repo root. Entries link to each other by anchor. Terms that only made sense inside the original course were removed; a few entries still cite measurements from that engine, which is this one.
 
 ## Accumulator {#accumulator}
 

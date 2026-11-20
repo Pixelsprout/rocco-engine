@@ -8,7 +8,7 @@ the Game calls, with a new Scene from every fixed step. The second question
 is capacity: how far each axis scales before a Frame misses its budget.
 
 The terms Lockstep, Headless, Bench game, Odin twin, Span and Args have the
-meanings in [CONTEXT.md](../CONTEXT.md).
+meanings in [GLOSSARY.md](../GLOSSARY.md).
 
 ## Results
 
