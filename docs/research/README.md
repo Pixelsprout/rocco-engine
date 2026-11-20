@@ -12,5 +12,6 @@ The Status line at the top of each note says what happened next.
 | [godot-scene.md](godot-scene.md) | What does the Godot village reference contain? | Reference for `examples/village`. |
 | [immersive-scene.md](immersive-scene.md) | What does rocco lack for the village scene? | Historical. `examples/village/SCOPE.md` holds the scope. |
 | [texture-sharing.md](texture-sharing.md) | Should rocco share textures or build atlases first? | Sharing implemented. No atlas. |
+| [basic-cli-coverage.md](basic-cli-coverage.md) | What can basic-cli 0.26 and the pinned Roc do for the Python scripts? | Open. Feeds the scripts map (dex `ja8rs881`). |
 
 Add a new note here as `<topic>.md`, with a Date line and a Status line under the title.
