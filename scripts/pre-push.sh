@@ -42,6 +42,22 @@ touches() {
 	grep -Eq "$1" "$changed"
 }
 
+# Raw evidence belongs in a release asset, not in git. docs/evidence/README.md
+# gives the rule.
+evidence_limit=1048576
+too_big=
+for file in $(grep '^docs/evidence/' "$changed" | sort -u); do
+	[ -f "$file" ] || continue
+	if [ "$(wc -c <"$file")" -gt "$evidence_limit" ]; then
+		too_big="$too_big $file"
+	fi
+done
+if [ -n "$too_big" ]; then
+	echo "pre-push: these evidence files are over 1 MiB:$too_big" >&2
+	echo "pre-push: upload them as a release asset and link them. See docs/evidence/README.md." >&2
+	exit 1
+fi
+
 if touches '\.odin$'; then
 	# A file such as platform_linux.odin compiles only for its own OS, so check
 	# every package for every CI target.
