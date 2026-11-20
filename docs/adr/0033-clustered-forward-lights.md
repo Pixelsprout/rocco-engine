@@ -1,40 +1,54 @@
 # 0033: Clustered forward lights
 
-Status: accepted, 2026-11-05. Supersedes [ADR 0023](0023-a-light-list-per-draw.md).
+Status: accepted, 2026-11-05.
+Supersedes: ADR 0023 (a light list per Draw).
 
-A large Draw can receive hundreds of lamps.
-A list of eight lights drops most lamps and changes abruptly when lamps move.
-The CPU now builds one camera grid each Frame, and fragments read their local Point lights through storage buffers.
+## Context
 
-The grid has 16 by 9 screen tiles and 24 logarithmic depth slices.
-Each cluster retains at most 64 Point lights.
-Overflow keeps lights nearest its centre, with Scene order resolving equal distances.
-The host logs each limit once per run.
-The host accepts the first 1,024 Point lights in Scene order.
-It accepts four Directional lights, with the Sun always first.
-A late Sun replaces the last retained Directional when necessary.
-Point lights cast no shadows.
-The Sun retains its cascaded shadows.
+Agent Town's key art has many small lamps, and one large Draw, such as a
+ground plane at dusk, can be reached by hundreds of them. A fixed light list
+per Draw keeps only the nearest few. It drops most lamps, and lights pop in
+and out as the camera and the lamps move.
 
-The CPU tests conservative sphere bounds against cluster planes.
-The grid uses the interpolated camera and physical output size.
-Depth extends to every accepted Point sphere, with a minimum far depth of 100 units.
-The build uses the Frame arena and uploads three buffers once per Frame.
-Headless runs build no clusters.
-The `cluster_build` Span excludes this work from `render_submit`.
+## Decision
 
-The built-in PBR shader retains its BRDF, normal mapping, alpha rules, fog, and skinning.
-Material slot 1 uses 80 bytes.
-Lighting slot 2 uses 512 bytes.
-The Point, cluster range, and packed index records use the reserved storage slots 12, 13, and 14.
-GL maps these slots to physical storage bindings 0, 1, and 2.
-[The shader contract](../SHADER-CONTRACT.md) records the exact layout and budgets.
+- The host builds one cluster grid over the camera view each Frame, on the
+  CPU, in the Frame arena. The grid has screen tiles and logarithmic depth
+  slices.
+- Point lights reach a fragment only through the clusters. The host tests a
+  conservative sphere for each Point light against the cluster planes and
+  uploads the lights, the cluster ranges and the light indices as storage
+  buffers once per Frame. Each fragment reads the Point lights of its own
+  cluster.
+- Directional lights stay a short per-Frame list, with the Sun always first.
+  A late Sun replaces the last Directional the host keeps.
+- The host caps the Point lights per Frame and per cluster. A full cluster
+  keeps the lights nearest its centre, and Scene order breaks a tie. The
+  host logs each limit once per run.
+- The grid uses the interpolated camera and the physical output size.
+- Point lights cast no shadow. The Sun keeps its cascaded shadows.
+- Headless runs build no clusters. The build has its own Span,
+  `cluster_build`, apart from `render_submit`.
+- `docs/SHADER-CONTRACT.md` holds the block sizes, storage slots and limits.
 
-A larger per-Draw list still drops lamps on large meshes.
-A GPU grid build adds compute scheduling and synchronization before measurements establish a need.
-The CPU build preserves the three required graphics backends.
-Measurements can justify a GPU build later.
+## Considered options
 
-The renderer reuses unchanged mesh bindings and Material uniforms until the pipeline changes.
-This avoids repeated storage bindings for repeated mesh parts.
-[The benchmark evidence](../BENCHMARKS.md#clustered-point-lights) records the resulting CPU cost and its measurement limits.
+- A light list per Draw: the Sun, the other Directionals, then the nearest
+  Point lights in reach of the Draw's world box, with a fixed count per
+  Draw. Rejected: it was the earlier rule, and a large mesh still drops most
+  lamps and pops. A longer list only moves the limit, and every pixel of the
+  Draw pays for every listed light.
+- Raise the light cap per Scene. Rejected: every pixel pays for every light,
+  and a cap per Scene stays.
+- Build the grid on the GPU with compute. Rejected for now: it adds compute
+  scheduling and synchronization before any measurement shows the CPU build
+  is the bottleneck. Measurements can justify it later.
+
+## Consequences
+
+- The renderer needs storage buffers in the fragment stage. Metal, GL 4.3
+  and D3D11 all have them.
+- The renderer reuses unchanged mesh bindings and Material uniforms until
+  the pipeline changes, so repeated mesh parts do not rebind the storage
+  buffers.
+- `docs/BENCHMARKS.md` records the CPU cost of the build.

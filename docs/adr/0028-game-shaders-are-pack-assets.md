@@ -1,79 +1,69 @@
 # 0028: Game shaders are Pack assets
 
-Status: accepted design, 2026-11-05. Not implemented.
+Status: accepted, 2026-11-05.
 
-The immersive village needs game-authored shaders that work with a published platform bundle.
-Generating engine source for each shader would require an engine build for each game's shader changes.
+## Context
 
-The game asset build compiles shaders.
-The engine loads Shader assets through Packs and owns their GPU resources.
-Adding a compatible Shader asset requires no engine source change or engine rebuild.
-The game selects appearance through plain values, consistent with the Seam and ADR 0003.
+The immersive village needs game-authored shaders, such as wind on grass
+and a selection outline, that work with a published platform bundle. If the
+engine generated source for each shader, every shader change in a game
+would need an engine build.
 
-The immersive scene lane must demonstrate Shader reload before completion.
-A failed reload keeps the last valid shader active and reports the error.
-The initial shader implementation may require a restart while reload support follows.
+## Decision
 
-Core scene features must work on Metal, GL 4.3, and D3D11.
-Optional effects can use documented fallbacks.
-This requires a shader contract that the asset build can validate against the published platform.
+- The game's asset build compiles shaders. Authors write GLSL hooks, and
+  the compiler in `platform/shader-tools` ships with the platform and
+  compiles them through sokol-shdc for every backend. Invalid source stops
+  the build.
+- The engine loads Shader assets through Packs and owns their GPU
+  resources (ADR 0003). A new Shader asset needs no engine rebuild.
+- Each Shader asset records the version of the shader contract it targets
+  and its binding layout. The engine rejects an incompatible asset with a
+  clear log. `docs/SHADER-CONTRACT.md` is the contract.
+- There are two kinds. A Surface shader sets vertex movement, normals,
+  material properties and the light response. A Post shader runs at a
+  declared stage: in HDR before bloom, or after the tone map before the UI.
+- The engine supplies transforms, lights, shadows and the pass variants.
+  Default hooks keep the built-in PBR look. A Surface shader inherits the
+  imported material unless the game overrides it.
+- A game picks the look through plain values in the Scene, consistent with
+  the Seam. The game build generates typed Roc helpers from shader
+  declarations. A value has Scene, Material or Draw scope, and an omitted
+  value takes its declared default.
+- Meshes keep named Material slots. A Draw can override one slot or its
+  whole material, and other slots keep their imported material.
+- A shader declares its largest vertex displacement, and culling bounds
+  grow by it.
+- Colour, shadow and selection passes share one render time derived from
+  the simulation, so fixed Bridge steps repeat the same shader pose.
+- The engine gives a Post shader the Selection input only when an enabled
+  effect asks for it. The Post shader owns the outline style and whether
+  hidden parts show.
+- Shader reload replaces the colour, shadow and selection variants
+  together at a Frame boundary. It accepts only changes that keep the
+  shader interface. An interface change needs a game rebuild and restart.
+  A failed reload keeps the last valid shader and logs the error.
+- A Shader asset that fails to load logs clearly. The engine substitutes no
+  fallback: it omits the affected Mesh parts from every pass, or skips the
+  Post effect.
 
-The first extension types are Surface shaders and Post shaders.
-Surface shaders control vertex movement, normals, material properties, and custom lighting response.
-Post shaders operate at defined points around bloom and tone mapping.
-The initial sky uses a cubemap for its background and environment lighting.
-Custom sky shaders and arbitrary render passes remain outside this lane's required scope.
-These boundaries cover the reference scene while limiting resource and scheduling complexity.
+## Considered options
 
-Authors write GLSL hooks compiled through sokol-shdc.
-The engine supplies transforms, lights, shadows, and related pass variants.
-Default hooks preserve built-in PBR behaviour.
-Surface hooks inherit imported material textures and properties unless the game overrides them.
-The importer preserves vertex colours for inputs such as grass weights.
-Deforming assets keep their geometry around an authored local root, with scene placement separate.
-Shaders declare their maximum vertex displacement so culling bounds can include the movement.
-Colour, shadow, and selection passes share one simulation-derived render time.
-Fixed Bridge steps reproduce the same shader animation pose.
-The game build generates typed Roc helpers from shader declarations.
-Values can have Scene, material, or per-Draw scope, with declared defaults for omitted values.
+- Generate engine source for each game shader. Rejected: each shader change
+  would need an engine build, so a game could not ship against a published
+  platform.
+- A fallback shader or material on failure. Rejected: a wrong look hides
+  the error. A clear log line and a missing part make it plain.
+- Engine-drawn outlines, visible-only or through walls. Rejected: the
+  engine supplies selection coverage and depth, and the game's Post shader
+  chooses the policy.
+- Custom sky shaders and arbitrary render passes. Rejected for now: they
+  add resource and scheduling cost the reference scene does not need. The
+  sky stays a cubemap.
 
-Meshes preserve named Material slots for game overrides.
-A Draw can override individual slots or its whole material assignment.
-Unspecified slots keep their imported materials.
-Generated helpers expose slot names and typed shader parameters to the game.
-The importer must preserve source material identity before merging or reordering Mesh parts.
+## Consequences
 
-Post effects run in declared order before bloom in HDR or after tone mapping before UI.
-They can declare scene colour, depth, and selection-mask inputs.
-The selection outline is a game-authored Post shader.
-The engine provides selection data; the shader owns outline style and occlusion policy.
-Selection data includes the selected geometry's coverage and nearest depth, including geometry hidden behind other objects.
-The Post shader can compare selected depth with scene depth or ignore that comparison.
-The engine does not force visible-only or through-wall outlines.
-The engine produces extra inputs only when enabled effects require them.
-Normal buffers, motion vectors, and frame history require later extensions.
-
-Shader reload accepts changes that preserve the shader interface.
-Interface changes initially require rebuilding the game and restarting.
-The engine replaces related colour, shadow, and selection variants together.
-A development command watches shader dependencies and compiles outside the game.
-Successful builds replace their loaded variants at a frame boundary.
-Errors appear in the development log.
-
-A shader load failure must produce a clear log entry.
-The engine must not substitute a fallback shader or material.
-Without a valid Surface shader, the engine omits the affected Mesh parts from colour, shadow, and selection passes.
-Without a valid Post shader, the engine skips that effect.
-Invalid shader source stops the asset build.
-
-Shader assets target a versioned platform contract.
-Each asset records its contract version and binding layout.
-The asset build emits backend code and metadata for Metal, GL, and D3D.
-CI checks each backend on its target platform.
-The engine rejects incompatible assets with a clear log.
-
-[Shader contract version 1](../SHADER-CONTRACT.md) records the package encoding, resource limits, and reproducible backend proof.
-The contract distinguishes cross-compilation from native execution.
-
-Before full village integration, a small example must prove named slots, game-authored wind, matching shadows, and a game-authored outline.
-It must also prove successful reload, failed-reload recovery, published-platform loading, and all three desktop backends.
+- Normal buffers, motion vectors and frame history need later contract
+  versions.
+- The importer must keep source material identity before it merges or
+  reorders Mesh parts.

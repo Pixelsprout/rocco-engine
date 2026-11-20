@@ -1,14 +1,15 @@
 # 0027: Alpha modes and Blend frame order
 
-Status: accepted, 2026-11-05. Milestone 38.
-The temporary MASK shadow rule is superseded by [ADR 0031](0031-cutout-shadow-coverage.md).
+Status: accepted, 2026-11-05.
+Supersedes: ADR 0031 (cutout shadow coverage).
 
 ## Context
 
-The host drew every glTF material as Opaque. An Alpha below 1 did not show
-the Draws behind it, and glass cast a solid shadow. Cutout materials also
-drew as solid parts. The Main pass needed an order that kept the sky behind
-glass and kept the existing Opaque path fast.
+The host drew every glTF material as Opaque. An Alpha mode of Blend did not
+show the Draws behind it, glass cast a solid shadow, and cutout materials
+drew as solid parts. Foliage in the immersive village needs shadows that
+match its visible cutouts. The Main pass needed an order that kept the sky
+behind glass and kept the Opaque path fast.
 
 ## Decision
 
@@ -22,22 +23,28 @@ glass and kept the existing Opaque path fast.
 - The Main pass draws Opaque and Mask parts in Scene order, then the sky,
   then Blend parts. Blend parts sort back to front by the centre of each
   Draw's world box. Ties keep Scene order, and parts of one Draw keep file
-  order. The host selects lights once per Draw.
+  order.
 - Blend pipelines test depth without writing it. They use premultiplied
-  alpha with ONE and ONE_MINUS_SRC_ALPHA. Diffuse and fog scale by Alpha;
-  specular and emissive keep their strength. A double-sided Blend part
-  draws back faces, then front faces, and costs two submits.
-- The shadow pass draws one range per Draw over its Opaque and Mask parts.
-  Blend parts cast no shadow. Mask shadows use the whole triangle shape
-  from faces that point at the Sun.
-- `Launch.capacity.draws` counts Main pass submits. A double-sided Blend
-  part costs two. Skin blocks count each pipeline used by a skinned Draw
-  before the sky and each pipeline run among its Blend submits.
-- A pipeline change drops sokol's lights uniform block. Sorted Blend
-  submits can change pipeline on each submit, so `uniform_buffer_size`
-  reserves MAIN + max(cascades * SHADOW, LIGHTS) slots per submit. At two
-  or more cascades, this does not change the size or `DRAW_LIMIT`. At one
-  cascade, the uniform buffer grows by 25%.
+  alpha. Diffuse and fog scale by alpha; specular and emissive keep their
+  strength. A double-sided Blend part draws back faces, then front faces.
+- The shadow pass draws Opaque parts first with a position-only shader. It
+  then draws each Mask part with its base texture, vertex alpha and cutoff,
+  so a cutout shadow matches the visible cutout. Mask parts keep their face
+  culling in the shadow pass. Blend parts cast no shadow.
+- The shadow shader reads the same vertex colour as the Main pass, so the
+  base factor and `COLOR_0` apply once.
+- Mask mip levels keep the base level's alpha coverage at the cutoff when
+  the vertex alpha is constant. Distant thin cutouts stay visible.
+- Surface shaders share deformation and alpha rules across the colour,
+  shadow and selection passes.
+
+## Considered options
+
+- Mask shadows from the whole triangle. Rejected: the shadow fills the
+  texture's holes and omits leaf faces that point away from the Sun.
+- Keep coverage in the mips for variable vertex alpha. Rejected: one
+  texture threshold cannot hold every interpolated cutoff, so those
+  textures keep ordinary mips.
 
 ## Consequences
 
@@ -45,8 +52,8 @@ glass and kept the existing Opaque path fast.
   `.glb` keeps its earlier look and draw cost.
 - Sorting is per Draw. Intersecting Blend triangles in one Draw can appear
   in the wrong order. Authors can split glass into separate Draws.
-- Mask cutouts do not cut their shadows. Cutout shadows need another
-  shadow path.
-- A double-sided Blend part consumes two units of draw capacity. A Scene
-  with many skinned pipeline changes can reach its skin block limit sooner.
-- The Vocabulary and Bridge protocol do not change.
+- A double-sided Blend part costs two submits of draw capacity.
+- Mask parts add submits, texture reads and discard work to each shadow
+  cascade they cover. Opaque parts keep their cheap shadow path.
+- A texture variant includes its cutoff, so materials that share a texture
+  with another cutoff keep their own mips.
