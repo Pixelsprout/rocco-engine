@@ -138,7 +138,7 @@ How do modern engines cast shadows from alpha-tested (glTF MASK) materials, and 
 - Add (c2), so a mesh without real holes keeps 1 shadow draw per cascade.
 - Keep the cutoff in `Shadow_Vs_Params`, and use `Placed.parts`. Then the uniform buffer, `DRAW_LIMIT` and the skin-block count need no change.
 - Add (c4) for Mask base textures as a separate, small task. Hashed alpha and alpha to coverage can wait.
-- Measure the shadow pass before and after on an Apple silicon Mac with the `examples/mask` scene, and record the result in `docs/BENCHMARKS.md`.
+- Measure the shadow pass before and after on an Apple silicon Mac with the `examples/mask` scene, and record the result in `docs/guides/benchmarks.md`.
 
 ## Method and limits
 

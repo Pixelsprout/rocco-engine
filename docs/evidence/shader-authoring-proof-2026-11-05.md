@@ -128,4 +128,4 @@ They then poll the rendered frame until the expected generation appears.
 Time elapsed alone does not establish reload completion.
 
 Use the commands in the [fixture instructions](../../examples/authoring/README.md) to reproduce the checks.
-The [game shader guide](../GAME-SHADERS.md) explains the author contract and watcher behaviour.
+The [game shader guide](../guides/game-shaders.md) explains the author contract and watcher behaviour.

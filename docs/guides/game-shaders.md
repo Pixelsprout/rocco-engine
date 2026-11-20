@@ -7,7 +7,7 @@ It needs no Odin compiler, engine source, or running game.
 The Python code uses only the standard library.
 
 Put `shaders.json` beside the game's `main.roc`.
-Use [the authoring example](../scripts/shader_assets/example/shaders.json) as a starting point.
+Use [the authoring example](../../scripts/shader_assets/example/shaders.json) as a starting point.
 Source paths refer to the declaration folder.
 Run the tool from the game folder:
 
@@ -36,7 +36,7 @@ Each shader produces a package, a JSON manifest, raw compiler sources, reflectio
 Repeated builds preserve equivalent package bytes and unchanged output timestamps.
 Raw reflection uses stable temporary filenames rather than game paths.
 
-The [complete authoring proof](evidence/shader-authoring-proof-2026-11-05.md) combines named slots, wind, cutout shadows, Selection, outlines, and reload.
+The [complete authoring proof](../evidence/shader-authoring-proof-2026-11-05.md) combines named slots, wind, cutout shadows, Selection, outlines, and reload.
 Its clean CI jobs consume the checksummed candidate SDK without an engine checkout or Odin.
 
 ## Live shader development
@@ -100,8 +100,8 @@ Its asset key is `shader/NAME`.
 Its file is `assets/shaders/NAME.shaderpack`.
 A mesh helper uses the existing Mesh asset key: the source file stem.
 The Surface loader exposes the `shader/` asset namespace through Packs.
-See [runtime Surface materials](SURFACE-RUNTIME.md) for assignments and resource ownership.
-See [runtime Post effects](POST-RUNTIME.md) for ordered effect instances and optional inputs.
+See [runtime Surface materials](surface-runtime.md) for assignments and resource ownership.
+See [runtime Post effects](post-runtime.md) for ordered effect instances and optional inputs.
 
 A Surface requires `kind: "surface"` and finite, nonnegative `max_displacement`.
 The bound measures maximum displacement vector length in mesh-local units.
@@ -188,7 +188,7 @@ draw_values = Foliage.draw("trees", { ..Foliage.draw_default, phase: 0.5 })
 
 These records reject unknown fields and wrong value types during the Roc build.
 Texture helpers also reject the wrong texture dimension.
-The public value shapes live in [Shader.roc](../platform/Shader.roc).
+The public value shapes live in [Shader.roc](../../platform/Shader.roc).
 The Scene, Material, Draw, and Post APIs must consume these shapes.
 The host must validate scope, duplicate assignments, finite values, and asset compatibility before upload.
 
@@ -264,7 +264,7 @@ Rigid instancing uses thirteen attributes without additional storage bindings.
 Skinned instancing is outside version 1.
 The host may batch only identical parameter, texture, material, and Draw-data assignments.
 Per-instance model, inverse-transpose normal, and linear tint data can differ.
-See [the loader handoff](SHADER-LOADER-HANDOFF.md) for exact bindings.
+See [the loader handoff](shader-loader-handoff.md) for exact bindings.
 
 Run independent compiler checks:
 

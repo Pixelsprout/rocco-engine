@@ -103,7 +103,7 @@ The source uses ambient sky energy 0.6, while its sky shader uses energy 1.
 The current Environment has no separate intensity for sky lighting.
 The prepared cube uses energy 1 for both paths.
 Combined appearance review must judge this shared-intensity approximation.
-Sky filtering uses the existing deterministic diffuse and specular preparation described in `docs/ENVIRONMENT-LIGHTING.md`.
+Sky filtering uses the existing deterministic diffuse and specular preparation described in `docs/guides/environment-lighting.md`.
 This is an LDR environment approximation, not an HDR radiance reconstruction.
 
 The ground hook ports the source's mask coordinates, three noise scales, wear, palette, and tree shade.

@@ -51,4 +51,4 @@ and out as the camera and the lamps move.
 - The renderer reuses unchanged mesh bindings and Material uniforms until
   the pipeline changes, so repeated mesh parts do not rebind the storage
   buffers.
-- `docs/BENCHMARKS.md` records the CPU cost of the build.
+- `docs/guides/benchmarks.md` records the CPU cost of the build.

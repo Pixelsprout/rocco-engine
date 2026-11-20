@@ -1,7 +1,7 @@
 # Environment lighting evidence
 
 Date: 2026-11-05.
-The implementation uses the [documented lighting contract](../ENVIRONMENT-LIGHTING.md).
+The implementation uses the [documented lighting contract](../guides/environment-lighting.md).
 The [numeric evidence](environment-lighting-2026-11-05.json) records all measured runs.
 
 ![Warm cubemap: dielectric spheres above metallic spheres](environment-warm.png)

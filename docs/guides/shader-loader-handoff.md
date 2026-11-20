@@ -1,6 +1,6 @@
 # Shader loader handoff
 
-Read [the authoring guide](GAME-SHADERS.md) and [package contract](SHADER-CONTRACT.md).
+Read [the authoring guide](game-shaders.md) and [package contract](../SHADER-CONTRACT.md).
 Use `platform/shader-tools/contract-v1/` as the published production wrapper.
 The reference proof is a separate binding fixture.
 The production compiler does not depend on the proof parser or engine source.
@@ -149,7 +149,7 @@ The specular mip roughness is `mip / specular_max_lod`.
 Bind black cubemaps and zero metadata when the Sky is absent or unloaded.
 The `rocco_environment(direction, lod)` hook helper samples the specular cubemap at an explicit mip.
 
-Surface uploads must preserve the [shadow appearance lanes](SHADER-CONTRACT.md#shadow-appearance-lanes) in the existing 512-byte lighting block.
+Surface uploads must preserve the [shadow appearance lanes](../SHADER-CONTRACT.md#shadow-appearance-lanes) in the existing 512-byte lighting block.
 
 | Lane | Live shadow value |
 | --- | --- |

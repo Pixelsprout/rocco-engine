@@ -220,4 +220,4 @@ Sources: [D3D11 GetData](https://learn.microsoft.com/en-us/windows/win32/api/d3d
 [PresentMon 2.6.0](https://github.com/GameTechDev/PresentMon/releases/tag/v2.6.0),
 [PresentMon console options](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md),
 [PresentMon scheduling limits](https://github.com/GameTechDev/PresentMon#tracking-gpu-work-with-hardware-accelerated-gpu-scheduling-enabled),
-and [the village acceptance contract](IMMERSIVE-SCENE.md#performance-and-reviews).
+and [the village acceptance contract](../IMMERSIVE-SCENE.md#performance-and-reviews).

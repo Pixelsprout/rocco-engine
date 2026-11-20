@@ -37,7 +37,7 @@ Primary Rocco evidence:
 - [Vocabulary](../../platform/Vocabulary.roc), [Launch defaults](../../platform/Launch.roc), and [Environment defaults](../../platform/Environment.roc).
 - [Frame render](../../engine/frame_render.odin), [renderer](../../engine/render.odin), and [render targets](../../engine/render_target.odin).
 - [Built-in shaders](../../engine/shaders/basic.glsl), [cascades](../../engine/cascade.odin), [glTF loader](../../engine/gltf.odin), and [image processing](../../engine/image.odin).
-- [Roadmap](../ROADMAP.md), dex task descriptions, and [benchmarks](../BENCHMARKS.md).
+- [Roadmap](../ROADMAP.md), dex task descriptions, and [benchmarks](../guides/benchmarks.md).
 - [Design](../DESIGN.md) and ADRs [0003](../adr/0003-packs-own-asset-lifetimes.md), [0033](../adr/0033-clustered-forward-lights.md), [0025](../adr/0025-a-normal-map-uses-the-file-tangents.md), [0026](../adr/0026-the-look-lives-in-scene-environment.md), and [0027](../adr/0027-alpha-modes-and-blend-frame-order.md).
 
 ## Gap analysis

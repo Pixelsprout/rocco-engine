@@ -2,7 +2,7 @@ name: CI
 
 # A push that changes only these files starts no run, so it cannot cancel a
 # running one. Keep out every path that a check reads, such as guide/ for
-# docs --check and docs/VILLAGE-CAPTURE.md for the village package test.
+# docs --check and docs/guides/village-capture.md for the village package test.
 on:
   push:
     branches: [main]

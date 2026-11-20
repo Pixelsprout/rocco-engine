@@ -82,7 +82,7 @@ Built and running:
   bundles. v0.10.0 is the latest release. A tag with a hyphen stays a
   pre-release.
 - `ROCCO_HEADLESS` and `ROCCO_LOCKSTEP` give a fixed workload per run. The
-  bench games in `bench/` measure the cost of each Span. `docs/BENCHMARKS.md`
+  bench games in `bench/` measure the cost of each Span. `docs/guides/benchmarks.md`
   gives the method.
 - Web builds for demos (ADR 0036). `roc scripts/build.roc web <game>` writes
   a page and an itch.io zip that draw through WebGPU. The web host and
@@ -853,7 +853,7 @@ Check: clone the Kula repo on a machine with Roc and nothing else, run
 
 ## Milestone 16: Benchmarks (done)
 
-Done when `docs/BENCHMARKS.md` states the headline figure from a reference
+Done when `docs/guides/benchmarks.md` states the headline figure from a reference
 run. The full spec is the dex task zbygy2an.
 
 Built: true `--release` builds, `Config.args`, the Headless and Lockstep run
@@ -862,7 +862,7 @@ Model size and UI, the Odin twins, the Roc heap A/B and the mixed bench game.
 The method document is merged.
 
 Results: the 2026-10-21 reference run gives the headline figure N = 8,192.
-`docs/BENCHMARKS.md` names the result directory.
+`docs/guides/benchmarks.md` names the result directory.
 
 ## Milestone 17: Launch (done)
 
@@ -1506,7 +1506,7 @@ pixels, so the halo is the same at 1x and 2x. `examples/glow` turns bloom on
 at strength 0.2. B toggles bloom and T cycles the tone map. The Bridge check
 finds a halo ring around the window, no halo on a far floor patch, and a
 difference between each pair of tone maps, on macOS, Linux and Windows. The
-user compared the tone maps on 2026-11-04. `docs/BENCHMARKS.md` records
+user compared the tone maps on 2026-11-04. `docs/guides/benchmarks.md` records
 0.74 ms of GPU bloom work in glow. `guide/scene.md` explains
 `Scene.environment`. ADR 0026 records that the look lives in
 `Scene.environment`. v0.10.0 is published.
@@ -1564,7 +1564,7 @@ key toggles bloom. Bridge screenshots on macOS, Linux and Windows show a
 ring of pixels around the window brighter with bloom on than off, each pair
 of tone maps differ by more than `MIN_CHANGED_PIXELS`, and the teal check
 still passes. A person compares the tone map screenshots.
-`docs/BENCHMARKS.md` records one GPU frame time with bloom on and off. Kula
+`docs/guides/benchmarks.md` records one GPU frame time with bloom on and off. Kula
 adopts fog in its own repo after the release.
 
 Later: shadow knobs in `Scene.environment`, exponential fog, an RG11B10F
@@ -1630,7 +1630,7 @@ Span), and 200 lamps over a tiled floor show no popping as the camera moves.
 4. ADR 0033 supersedes the per-Draw light list. The Draw world-box light selection goes.
 
 Check: the lamps example in CI, and a bench run recorded in
-`docs/BENCHMARKS.md`.
+`docs/guides/benchmarks.md`.
 
 ## Milestone 40: Selection outline
 
@@ -1746,7 +1746,7 @@ Dex task suo91olp.
    1. It needs motion vectors, a jittered projection and history.
 
 Check: Bridge screenshots compare full scale, upscaled and bilinear, and
-`docs/BENCHMARKS.md` records the GPU time at each scale.
+`docs/guides/benchmarks.md` records the GPU time at each scale.
 
 ## Milestone 47: Rocco Editor
 

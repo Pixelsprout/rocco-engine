@@ -8,12 +8,12 @@ the Game calls, with a new Scene from every fixed step. The second question
 is capacity: how far each axis scales before a Frame misses its budget.
 
 The terms Lockstep, Headless, Bench game, Odin twin, Span and Args have the
-meanings in [GLOSSARY.md](../GLOSSARY.md).
+meanings in [GLOSSARY.md](../../GLOSSARY.md).
 
 ## Results
 
 - Reference result directory:
-  [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
+  [`bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/`](../../bench/results/2026-10-21-intel-r-core-tm-i7-9700f-cpu-3-00ghz/),
   at commit `e1eb378`.
 - Reference headline before rigid instancing: N = 8,192 on the reference machine. The p99 Frame CPU time
   of `mixed` is 12.8 ms at N = 8,192 and 25.7 ms at N = 16,384. See
@@ -89,9 +89,9 @@ The final implementation reuses batch scratch, caches compatible runs, and share
 The scratch test peaks at 11,696,448 bytes for 32,768 Draws and four shadow cascades.
 The arena returns to zero used bytes after each of its 15 pipeline calls.
 
-The [CPU report](evidence/rigid-instancing-cpu-2026-11-05.json) includes percentiles, process medians, spread, machine data, commands, and binary hashes.
-The [raw sample archive](evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
-The [Metal report](evidence/rigid-instancing-metal-2026-11-05.json) records all 22 example/tutorial comparisons and Surface checks.
+The [CPU report](../evidence/rigid-instancing-cpu-2026-11-05.json) includes percentiles, process medians, spread, machine data, commands, and binary hashes.
+The [raw sample archive](../evidence/rigid-instancing-cpu-2026-11-05.tar.gz) includes every CSV, log, protocol, and measurement script.
+The [Metal report](../evidence/rigid-instancing-metal-2026-11-05.json) records all 22 example/tutorial comparisons and Surface checks.
 Eighteen screenshots match exactly after 60 Bridge steps.
 Three differ by at most one byte in six channels or fewer.
 The village mean difference is 0.00124 per RGB channel, with no visible difference in the inspected comparison.
@@ -137,7 +137,7 @@ ms, and their changes in either direction are mostly noise.
 
 ### Clustered Point lights
 
-[ADR 0033](adr/0033-clustered-forward-lights.md) replaces per-Draw Point selection with a CPU cluster build.
+[ADR 0033](../adr/0033-clustered-forward-lights.md) replaces per-Draw Point selection with a CPU cluster build.
 The renderer also reuses equal Material uniforms and unchanged mesh bindings until its pipeline changes.
 The CPU target passes in three paired runs with explicit macOS application resource policies.
 Runs with inherited agent policies remain unstable.
@@ -201,7 +201,7 @@ ROCCO_NO_GAMEPADS=1 ROCCO_SPANS_CSV=/absolute/path/run.csv \
 taskpolicy -a /absolute/path/lights.bin N
 ```
 
-[The evidence JSON](../bench/results/2026-11-05-apple-m5/clustered-lights.json) records every process, p99, build flags, binary checksums, and machine data.
+[The evidence JSON](../../bench/results/2026-11-05-apple-m5/clustered-lights.json) records every process, p99, build flags, binary checksums, and machine data.
 It links every compressed raw CSV with its checksum.
 The evidence preserves five uncontrolled pairs, three application-policy pairs, and four excluded exploratory runs.
 The baseline source is the recorded `baseline_commit`; the candidate uses this change's renderer cache and clustered lighting.

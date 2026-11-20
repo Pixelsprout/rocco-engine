@@ -41,7 +41,7 @@ Order every hand-written `.odin` file, tests included, in four groups. Finish ea
 Move a declaration's comment and attributes with it. The generated files `engine/roc_platform_abi.odin` and `engine/shader_basic.odin` keep their generator's order.
 
 # Roc style
-- Follow `docs/roc-style.md`, a copy of Luke Boswell's Roc Style Guide (https://gist.github.com/lukewilliamboswell/241a4e8adb7c89c7e0e02f1d303a8fa1).
+- Follow `docs/guides/roc-style.md`, a copy of Luke Boswell's Roc Style Guide (https://gist.github.com/lukewilliamboswell/241a4e8adb7c89c7e0e02f1d303a8fa1).
 - Call a method on its receiver: write `messages.last()`, not `List.last(messages)`.
 - Build a list from parts with one `List.join([...])`, one sub-list per part in order. Do not chain `.concat` calls.
 

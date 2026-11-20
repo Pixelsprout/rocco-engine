@@ -69,6 +69,6 @@ Godot has three renderers with different limits. Source: [Godot 4 lights and sha
 - Which target games need more than 8 lights in view at once?
   Answer: Agent Town needs one Point light per carried orb, and Kula and the Zelda-style demo need more than 8 in a Scene.
 - Is the cost of raising `MAX_LIGHTS` acceptable on the target hardware?
-  Answer: not needed. `MAX_LIGHTS` stays 8 per Draw, and a Scene has no cap. `docs/BENCHMARKS.md` records the cost of the selection.
+  Answer: not needed. `MAX_LIGHTS` stays 8 per Draw, and a Scene has no cap. `docs/guides/benchmarks.md` records the cost of the selection.
 - Should lights be chosen per draw, or per screen cluster?
   Answer: per Draw, so every backend stays on uniform blocks. ADR 0033 later replaced this.

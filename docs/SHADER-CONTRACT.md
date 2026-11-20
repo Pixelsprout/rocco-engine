@@ -8,8 +8,8 @@ Status: executable package reference and public compiler; engine integration fol
 The compiler, Surface integration, Post integration, and reload work must use this contract.
 The reference code lives in `scripts/shader_contract/`.
 The public compiler lives in `platform/shader-tools/`.
-[The authoring guide](GAME-SHADERS.md) defines its supported declarations and hooks.
-[The loader handoff](SHADER-LOADER-HANDOFF.md) records its production layouts.
+[The authoring guide](guides/game-shaders.md) defines its supported declarations and hooks.
+[The loader handoff](guides/shader-loader-handoff.md) records its production layouts.
 It does not add a Shader loader to the engine.
 
 ## Reproduce the proof
@@ -469,7 +469,7 @@ The hook cannot create render passes or access undeclared buffers.
 A resolved Material begins with its imported textures and scalar properties.
 An explicit game override replaces only the named property or texture.
 Named Material slots remain stable through import, Material merging, and Mesh part sorting.
-[The import contract](GLTF-MATERIAL-SLOTS.md) defines source identities, name errors, raw colours, and metadata lifetime.
+[The import contract](guides/gltf-material-slots.md) defines source identities, name errors, raw colours, and metadata lifetime.
 A whole-Draw assignment supplies the Draw's Material override.
 A named slot assignment takes precedence for that slot.
 Unspecified slots keep their imported Materials.

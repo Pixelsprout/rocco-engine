@@ -278,7 +278,7 @@ and pong, then checks that the host library and the glue did not change.
 
 ### Benchmarks
 
-[docs/BENCHMARKS.md](docs/BENCHMARKS.md) is the single source for the
+[docs/guides/benchmarks.md](docs/guides/benchmarks.md) is the single source for the
 benchmarks: the run modes, the Spans, the build flags, the bench games, the
 protocol, the headline figure, the hardware rules and the reference run.
 
@@ -575,7 +575,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `bench/chart.py` | Draws one SVG curve per bench game from the summaries. |
 | `bench/machine.py` | Prints the machine, the OS and the power state of a sweep as JSON. `--check` fails unless the machine is ready for a reference run. |
 | `bench/realclock.py` | Summarises one real-clock run of an example with the Spans. |
-| `bench/reference-run.sh` | Runs the reference run in `docs/BENCHMARKS.md`: every bench game and Odin twin, the real-clock run, the charts and the headline figure. |
+| `bench/reference-run.sh` | Runs the reference run in `docs/guides/benchmarks.md`: every bench game and Odin twin, the real-clock run, the charts and the headline figure. |
 | `bench/results/` | The committed summaries of the reference runs, one directory per date and machine. |
 | `bench/compare_chart.py` | Draws the `step` Span of several bench games against N on one SVG: `twin`, `tuned` or `colliders`. |
 | `bench/check.sh` | Runs `roc check` and `roc test` on every bench game and `odin test` on every Odin twin. |
@@ -619,7 +619,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `miniaudio/` | Submodule: mackron/miniaudio at `0.11.24`. `scripts/miniaudio/rocco_miniaudio.c` compiles it. |
 | `docs/DESIGN.md` | The design. Read first. |
 | `docs/ROADMAP.md` | Milestones and what is out of scope. |
-| `docs/BENCHMARKS.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
+| `docs/guides/benchmarks.md` | How the benchmarks measure, how to repeat a run, and the reference results. |
 | `GLOSSARY.md` | The domain glossary: the words rocco uses and the ones it avoids. |
 | `docs/CONCEPTS.md` | The general graphics and memory concepts the engine is built from. |
 
