@@ -508,20 +508,29 @@ _Avoid_: mesh handle (the engine's internal GPU handle), mesh name, asset id
 
 **Manifest**:
 The name-to-id list the host hands `loaded` for one Pack. It holds every name
-the Load asked for. A name that did not load has id 0. A skinned mesh's
+the Load asked for, and every asset and Prefab those Prefabs name, each
+once. A name that did not load has id 0. A skinned mesh's
 entry also lists its Clips, and an Image's entry carries its size in pixels.
 The game keeps the ids it needs in its Model.
 _Avoid_: mesh table, catalogue, registry, asset list
 
 **Pack**:
 A named set of assets that load and unload together. A game names its
-assets in Roc and sends Load. Any number of packs can be loaded at once, and
+assets and Prefabs in Roc and sends Load; an author describes content as
+Prefabs, and there is no Pack file. Any number of packs can be loaded at once, and
 each unloads by name in any order. An asset named by two loaded packs loads
 once, keeps one id, and unloads with its last pack. A pack is a list of
 names, not a directory. `docs/adr/0003-packs-own-asset-lifetimes.md`
-records the decision.
+records the decision, and ADR 0044 how an author makes one.
 _Avoid_: level, bundle, asset group, scene, chunk (a game's word for what a
 pack can hold)
+
+**Asset name**:
+The name a Load, a Manifest and a Prefab use for one asset: its kind, a
+`/`, then its file stem, such as `sound/jump`. The kind is the text before
+the first `/`. Meshes take the `mesh/` prefix (ADR 0044); until that
+rename lands, a mesh takes its bare stem.
+_Avoid_: path, file name, asset id, key
 
 **Mesh table**:
 The engine's table from mesh id to GPU resources. The game never sees it; it
@@ -957,6 +966,19 @@ places in its Scene once or many times. The host draws a placed Prefab as
 authored. A Prefab can hold other Prefabs. "Level" is a game's word for a
 large one. See ADR 0043.
 _Avoid_: scene (the Description), NodePack, blueprint, template, level
+
+**Import setting**:
+A choice about how the host reads one source asset, such as a mesh scale
+or a font size. None exists yet. The first one goes in a sidecar file
+named after its asset. A choice made per draw, such as the image filter,
+is not an import setting; it stays in the Vocabulary. See ADR 0044.
+_Avoid_: asset option, import flag, .import file
+
+**Bake**:
+An optional step in `scripts/build.roc` that turns a source asset into a
+faster form in the shipped output only. The host always reads the source
+form too. See ADR 0044.
+_Avoid_: import, compile, cook, convert
 
 **Marker**:
 A Prefab node with a name, a Pose, tags and properties, which draws
