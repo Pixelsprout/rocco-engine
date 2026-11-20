@@ -408,8 +408,8 @@ fragment block, and the limit of 8 is the size of its light arrays. A large
 Draw with more than 8 lights in reach keeps the nearest, so lights can pop
 on a large mesh. The host drops a second ambient, a Directional with a zero
 `dir` and a Point with a range <= 0. It logs each reason once per run, and
-it logs once per run when a Draw loses a light in reach. ADR 0023 records
-the decision.
+it logs once per run when a Draw loses a light in reach. ADR 0033 replaced
+this rule.
 
 The host gathers the current `Scene`'s lights once per frame and picks each
 Draw's list from them. Lights have

@@ -2,7 +2,7 @@
 
 Date: 2026-11-04
 
-Implementation: [ADR 0031](adr/0031-cutout-shadow-coverage.md) replaces the temporary rule below.
+Implementation: [ADR 0027](adr/0027-alpha-modes-and-blend-frame-order.md) replaces the temporary rule below.
 [Validation](CUTOUT-SHADOW-VALIDATION.md) records the implementation, mip evaluation, and reference Mac measurements.
 
 ## Question

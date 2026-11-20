@@ -6,7 +6,7 @@ Status: accepted, 2026-11-20. Grilled for Milestone 47 (bcpqrlof).
 
 A game types a `U64` id on every Draw and Group, and on each Collider,
 Speaker, Emitter and Panel. The host pairs Draws and Groups with the
-previous Scene only to interpolate (ADR 0013, ADR 0014). The other ids are
+previous Scene only to interpolate (ADR 0014). The other ids are
 names the game reads or addresses: Contacts and hits report Collider ids,
 Speakers start and stop by id, a Burst names an Emitter, and Panel ids feed
 the UI hit test, where id 0 already means "not tagged".

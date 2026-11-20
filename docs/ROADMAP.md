@@ -977,7 +977,7 @@ decisions and the tasks. Closes dex tasks 79n12xde and x7mwcd0w.
    the decision.
 2. One Vocabulary change: the `Play` Command, `Scene.loops`, the place
    `[Here, At({ pos, range })]`, and `Capacity.sounds` and
-   `Capacity.voices`. `docs/adr/0012-a-play-is-a-command-a-loop-is-a-description.md`
+   `Capacity.voices`. `docs/adr/0017-sounds-the-game-controls-are-speaker-nodes.md`
    records the decision.
 3. Sounds are `.wav` and `.ogg` files in `assets/sound/`, named
    `sound/<stem>` in a Pack, decoded at load. Headless has no device, and a
@@ -1007,7 +1007,7 @@ builds its HUD as a tree from the v0.4.0 bundles.
 Done when the UI crosses the seam as a tree, every game in this repo and
 Kula builds it with the tags, and v0.4.0 is published. Grilled 2026-10-22.
 The dex milestone task holds the decisions and the tasks.
-`docs/adr/0013-the-scene-crosses-the-seam-as-a-tree.md` records the
+`docs/adr/0014-the-scene-crosses-the-seam-as-a-tree.md` records the
 decision. It comes before Gamepad, because every later guide page and game
 then writes its UI as a tree.
 
@@ -1304,7 +1304,7 @@ screenshot at dpi 1 shows sharp stems.
 ## Milestone 31: Pointer and devices (done)
 
 Results, 2026-10-31: T4 gave the game `Input.pointer`, tagged Boxes,
-overflow and `QueryResults.ui` (ADR 0020). T6 lets a Driver opt in to the
+overflow and `QueryResults.ui` (ADR 0004). T6 lets a Driver opt in to the
 real devices on `hello`, and adds the `inject` test op (ADR 0021). The
 Bridge protocol is 7. The Bridge check clicks bridge-echo's button through
 the real devices merge and reads the `Tell`.
@@ -1316,7 +1316,7 @@ of the Agent Town design. Closes dex tasks 5rxq8tn7 and ihjsa50n.
 1. One Vocabulary change: `Input.pointer`, `BoxConfig.id`,
    `BoxConfig.overflow` with Clip and Scroll, a floating Box on its parent,
    and `QueryResults.ui`. The host hit tests with Clay, and the game owns
-   every scroll offset. ADR 0020 amends ADR 0004. The Bridge protocol is 4.
+   every scroll offset. ADR 0004 records it. The Bridge protocol is 4.
 2. A Driver opts in to real devices on `hello`. The host merges them with
    the Driver's Input. ADR 0021 amends ADR 0009. The Bridge protocol is 7.
 
@@ -1345,7 +1345,7 @@ pointer requests.
 
 Results, 2026-10-31: PR #22 reads emissive from glTF and adds `Draw.glow`
 (ADR 0022). The Bridge protocol is 6. PR #30 gives each Draw a list of at
-most 8 lights (ADR 0023), and `bench/lights` records the cost of 40 Point
+most 8 lights (since replaced by ADR 0033), and `bench/lights` records the cost of 40 Point
 lights. PR #31 adds `Launch.shadow_cascades`: up to 4 sun cascades, with 1
 as the default.
 
@@ -1355,7 +1355,7 @@ of Lights, and sun shadows hold across a large world. Closes dex tasks
 
 1. Emissive from glTF and `Draw.glow`. Emissive casts no light. ADR 0022.
 2. A light list of at most 8 per Draw replaces the 8 per Scene cap.
-   ADR 0023.
+   ADR 0033 later replaced it.
 3. Up to 4 sun cascades, set in Launch, with 1 as the default.
 
 Check: a Scene with 40 Point lights draws each one, and the bench records
@@ -1627,7 +1627,7 @@ Span), and 200 lamps over a tiled floor show no popping as the camera moves.
    Sun in slot 0. Point lights go only through the clusters.
 3. Limits: 1,024 Point lights per frame and 64 per cluster. A full cluster
    keeps its nearest lights and logs once per run.
-4. A new ADR supersedes ADR 0023. The Draw world-box light selection goes.
+4. ADR 0033 supersedes the per-Draw light list. The Draw world-box light selection goes.
 
 Check: the lamps example in CI, and a bench run recorded in
 `docs/BENCHMARKS.md`.

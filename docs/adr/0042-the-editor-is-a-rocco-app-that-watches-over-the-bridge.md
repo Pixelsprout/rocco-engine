@@ -6,7 +6,7 @@ Status: accepted, 2026-11-20. Grilled for Milestone 47.
 
 Milestone 47 starts a Rocco Editor, with a level editor as the end goal.
 The Scene is a Description that the game rebuilds each step, and the host
-keeps no Node from one Scene to the next (ADR 0013, ADR 0014). The Bridge
+keeps no Node from one Scene to the next (ADR 0014). The Bridge
 already drives any game with no change to the game (ADR 0009), but it
 serves one Driver, in lockstep, and has no way to watch a live run.
 

@@ -23,7 +23,7 @@ The reference PC headline needs a new full sweep after rigid instancing.
 The local Mac comparison below tests three sizes and does not replace that reference.
 
 The first reference run, at commit `a8fd5c0`, gave N = 4,096. The grid of
-ADR 0008 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
+ADR 0005 then cut the `queries` Span of `colliders` from 15.5 ms to 1.1 ms at
 N = 16,384. Git history keeps that run's summaries. At that reference point,
 `render_submit` took the largest part of the `mixed` Frame.
 
@@ -101,7 +101,8 @@ OpenGL and D3D11 execution remain pending CI.
 
 ### The light list per Draw
 
-ADR 0023 moved the light list from the frame to each Draw. These runs
+A per-Draw light list, since replaced by ADR 0033, moved the lights from
+the frame to each Draw. These runs
 measure its CPU cost. Apple M5 (Mac17,2), macOS 26.5.1, on AC power,
 2026-10-31, windowed Lockstep, 5 processes per N. Before: commit `8dcf0b1`.
 After: commit `1eee26a`. Both ran before a rebase that changed no renderer

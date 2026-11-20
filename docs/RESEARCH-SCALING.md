@@ -185,7 +185,7 @@ Three homes were considered:
   ([Godot command line](https://docs.godotengine.org/en/stable/tutorials/editor/command_line_tutorial.html)).
   The host calls `launch`, opens nothing yet, sizes its tables, then calls
   `init`. The game can read `Config.args`, so `--fullscreen` or
-  `--size 1280x720` is the game's decision, as ADR 0006 intends.
+  `--size 1280x720` is the game's decision, as ADR 0007 intends.
 
   A `requires` entry may also be a plain value, `launch : Launch`, wrapped
   for the host as `launch_for_host : () -> Launch`. The compiler's tests do
@@ -752,9 +752,9 @@ what the design predicts. Do not build this before a game asks.
 
 ### A view against a tree
 
-Note, 2026-10-22: ADR 0013 and Milestone 21 adopt the UI half of this
-section. Milestone 22 holds the 3D half until its grilling. ADR 0013
-records two changes to the sketch below: `packages/ui` keeps defaults and
+Note, 2026-10-22: ADR 0014 and Milestone 21 adopt the UI half of this
+section. Milestone 22 holds the 3D half until its grilling. Its ADR
+recorded two changes to the sketch below: `packages/ui` keeps defaults and
 small helpers, not constructors, and Box ids wait for pointer input.
 
 Note, 2026-10-23: ADR 0014 records the 3D half, with changes to the sketch

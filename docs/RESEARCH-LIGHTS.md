@@ -48,14 +48,14 @@ Godot has three renderers with different limits. Source: [Godot 4 lights and sha
 | Godot Mobile | Per mesh | 8 omni and 8 spot per mesh |
 | Godot Compatibility | Per mesh | 8 omni and 8 spot per mesh, configurable |
 | raylib example | Global list | 4 (sample only) |
-| This engine, after ADR 0023 | Per Draw | 8 per Draw, no cap per Scene |
+| This engine, with a per-Draw list (since replaced by ADR 0033) | Per Draw | 8 per Draw, no cap per Scene |
 
 ## Findings
 
 - Our 8-light cap is low for a scene with many lights in view.
 - Our model is closest to Godot Mobile and Compatibility. Those also cap lights per mesh, but they pick lights for each mesh. Ours picks one list for the whole frame.
 - Bevy and Godot Forward+ avoid one global list by clustering. This is the usual route to large light counts.
-- Update, 2026-10-31: the engine now picks the lights for each Draw, like Godot Mobile and Compatibility (ADR 0023). It does not cluster.
+- Update, 2026-10-31: the engine now picks the lights for each Draw, like Godot Mobile and Compatibility. ADR 0033 later replaced this with clustered lights.
 
 ## Method and limits
 
@@ -69,4 +69,4 @@ Godot has three renderers with different limits. Source: [Godot 4 lights and sha
 - Is the cost of raising `MAX_LIGHTS` acceptable on the target hardware?
   Answer: not needed. `MAX_LIGHTS` stays 8 per Draw, and a Scene has no cap. `docs/BENCHMARKS.md` records the cost of the selection.
 - Should lights be chosen per draw, or per screen cluster?
-  Answer: per Draw, so every backend stays on uniform blocks (ADR 0023).
+  Answer: per Draw, so every backend stays on uniform blocks. ADR 0033 later replaced this.

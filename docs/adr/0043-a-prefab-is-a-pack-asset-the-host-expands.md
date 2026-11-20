@@ -5,7 +5,7 @@ Status: accepted, 2026-11-20. Grilled for Milestone 47.
 ## Context
 
 The Editor's end goal is a level editor (ADR 0042). A game rebuilds its
-Scene every step, and the host keeps no Node (ADR 0013, ADR 0014). ADR 0003
+Scene every step, and the host keeps no Node (ADR 0014). ADR 0003
 says the engine has no level.
 
 `examples/village` is the precedent. `source/prepare.py` turns a Godot

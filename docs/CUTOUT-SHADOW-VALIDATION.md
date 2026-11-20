@@ -1,7 +1,7 @@
 # Cutout shadow validation
 
 Date: 2026-11-05.
-Decision: [ADR 0031](adr/0031-cutout-shadow-coverage.md).
+Decision: [ADR 0027](adr/0027-alpha-modes-and-blend-frame-order.md).
 
 ## Coverage and capacity
 
