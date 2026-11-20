@@ -162,7 +162,6 @@ The engine checks used CI-pinned Odin `902106f`.
 The two-run particle fixture also passed, including sprite orientation.
 The shader compiler suite passed all 35 tests.
 The ABI and built-in shaders regenerated without byte changes.
-Local native artifacts are in `/tmp/rocco-surface-particles-merged`.
 Surface OpenGL and D3D11 acceptance remains pending CI.
 
 Post integration can call `renderer_surface` with `Surface_Pass.Selection`.

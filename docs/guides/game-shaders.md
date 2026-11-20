@@ -309,4 +309,3 @@ The integration checks passed 48 compiler, package, helper, and release tests.
 The original eight-program golden proof remained unchanged and passed Metal execution.
 The production Metal proof passed all eleven variants and both outline occlusion policies.
 An extracted platform bundle compiled Surface and Post packages and three Roc helpers without engine source.
-The bundle and native readback evidence are in `/tmp/rocco-compiler-merged/`.
