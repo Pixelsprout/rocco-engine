@@ -1,6 +1,8 @@
 # Research: how rocco scales
 
-Date: 2026-10-20
+Date: 2026-10-20.
+Status: historical. Several steps of "A proposed order" have shipped. The ADRs record each decision: Launch (0007), the Bridge (0009), audio (0011), the Scene tree (0014), Ports (0018), the look (0026), game shaders (0028) and web builds (0036).
+[The roadmap](../ROADMAP.md) tracks the rest. Dated notes in the body record later changes.
 
 ## Question
 
@@ -72,7 +74,7 @@ exists. The host just does not read any of them yet.
 
 ### The cost of a Vocabulary change
 
-A Vocabulary change rebuilds the host and every game (CONTEXT.md). A game
+A Vocabulary change rebuilds the host and every game (GLOSSARY.md). A game
 on a published bundle keeps its old URL and keeps working, so the change
 costs nothing for old games. It costs every game that moves to the new
 bundle one edit per changed record. A game builds `Scene` as a record
@@ -200,7 +202,7 @@ Recommendation: the fifth function. A Launch and a Model have different
 lifetimes, the run and the step, and `init` already returns two things. The
 cost is one line per game, `launch = |_config| Launch.default`, with
 `pf.Launch` giving the default as `pf.Light` gives lights. The name avoids
-"setup" and "start", which CONTEXT.md reserves against `init`.
+"setup" and "start", which GLOSSARY.md reserves against `init`.
 
 A first Launch:
 
@@ -740,7 +742,7 @@ what the design predicts. Do not build this before a game asks.
   start-up, as Elm gives flags to `init`. The game encodes its own Model.
 - **Hot reload across a Model change.** `docs/NOTES.md` proposes a layout
   fingerprint. As games grow, this is the ergonomics limit of `roc run`.
-- **The light cap and clustering.** `docs/RESEARCH-LIGHTS.md` covers it.
+- **The light cap and clustering.** `docs/research/lights.md` covers it.
 - **Web.** Out of scope while the glue is 64-bit only and sokol and Odin
   have no shared web path.
 - **The bundle for game authors.** Linux has no path for a game outside the
@@ -895,7 +897,7 @@ the grilling:
   Colliders inside a Group are composed by the host too, and the game reads
   contacts by id as now.
 
-This reopens the Milestone 5 decision and ADR 0004. CONTEXT.md would need
+This reopens the Milestone 5 decision and ADR 0004. GLOSSARY.md would need
 to say that a tree-shaped Scene is still a Description, not a retained
 scene graph, which the Scene entry's avoid list names for that reason.
 
@@ -996,7 +998,7 @@ milestone or a task beside the milestones.
 10. **Physics queries** (section 5c) as games ask; bodies only when one
     needs them.
 
-## Terms this would add to CONTEXT.md
+## Terms this would add to GLOSSARY.md
 
 - **Launch**: what the game decides once before the window opens.
 - **Look**: the Scene record for the tone map, exposure, fog and post effects.
@@ -1008,7 +1010,7 @@ milestone or a task beside the milestones.
   Note, 2026-10-22: Milestone 19 reversed this order. ADR 0009 makes the
   Bridge a host module that a Driver uses to control the host, outside the
   Vocabulary. A Port, when Ports arrive, reaches the Driver through the
-  Bridge. CONTEXT.md holds the current definition.
+  Bridge. GLOSSARY.md holds the current definition.
 - **Emitter**, **Sound**, **Body**: the Scene records of sections 5a to 5c.
 
 ## Method and limits

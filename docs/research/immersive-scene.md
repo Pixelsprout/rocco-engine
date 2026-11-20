@@ -1,55 +1,9 @@
 # Research: an immersive 3D scene for Rocco
 
 Date: 2026-11-05. Code reviewed: `6a436bf`.
-Status: original analysis with subsequent scoping notes.
-[The consolidated scope](IMMERSIVE-SCENE.md) records the confirmed decisions and implementation authorization.
-Recommendations below can be superseded by that scope and ADR 0028.
-
-Scoping update, 2026-11-05: the user accepted the reference appearance, first-person walking, and shader assets compiled by the game build.
-Shader assets must work with published platform bundles.
-Shader reload must work before the lane finishes.
-Appearance changes apply live; allocation-heavy settings may initially require a restart.
-Core features must work on all three desktop backends.
-The final check includes the user's desktop PC from the benchmark records.
-[ADR 0028](adr/0028-game-shaders-are-pack-assets.md) records the shader ownership decision.
-Other architecture details below remain proposals until scoping settles them.
-
-Round 2 accepts Surface shaders and Post shaders as the initial extension types.
-The sky begins as a cubemap for its background and environment lighting.
-The scene lives in `examples/village`, with a separate published-platform compatibility proof.
-Ordinary builds use prepared assets; regeneration uses a repeatable conversion process.
-Walking uses flat ground and building collisions, with no required jumping, stairs, or interiors.
-Both the M5 and the benchmark desktop must reach 60 FPS at 1080p.
-Each machine may use a documented quality preset that preserves core features and overall appearance.
-The agreed gate uses warm-run p95 CPU and GPU frame work within 16.67 ms.
-Record p99 spikes and inspect real-clock frame pacing separately.
-Human reviews occur at baseline composition, foliage and lighting, and the complete scene.
-The required contents are village layout, ground variation, moving foliage, correct shadows, sky lighting, haze, lamps, smoke, dust, and outlines.
-Animated villagers, depth of field, TAA, volumetric fog, and a specific GI technique remain optional.
-
-Round 3 accepts GLSL hooks, generated typed Roc helpers, and Scene, material, and per-Draw value scopes.
-Post effects run before bloom in HDR or after tone mapping before UI.
-They can request scene colour, depth, and selection masks.
-Interface-preserving shader changes reload live; interface changes initially require rebuilding the game and restarting.
-The user rejected shader fallback substitution.
-Load failures must log clearly; rendering without an initial valid shader still needs a decision.
-Named material slots and generated helpers were accepted after a concrete authoring example.
-The accepted quality controls cover shadow distance, bias, splits, blend, filtering, per-Draw casting, and example vegetation density and distance.
-Quality presets allow overrides and use measurements from both machines.
-
-Round 4 accepts shader watch mode, versioned assets, and backend code generation for all three desktop targets.
-Invalid source stops the asset build.
-A first-load Surface shader failure logs and omits affected parts from colour, shadow, and selection passes.
-A first-load Post shader failure logs and skips the effect.
-Failed reloads keep the last valid shader.
-The outline remains a game-authored Post shader; its style and occlusion policy belong to the game.
-Round 5 accepts selected coverage and nearest depth even behind other objects.
-It also accepts inherited material inputs, imported vertex colours, local roots, declared displacement, and shared simulation-derived render time.
-A small shader workflow proof must pass before full village integration.
-
-Tracking: the separate dex parent, **Immersive scene lane**, owns scene work and acceptance evidence.
-Its index links to reusable engine tasks under **rocco roadmap**.
-The lane contains research, scoping, the baseline, three integration tasks, and final validation.
+Status: historical gap analysis. [The village scope](../IMMERSIVE-SCENE.md) holds the confirmed decisions, and [ADR 0028](../adr/0028-game-shaders-are-pack-assets.md) records the shader decision.
+Where this note and the scope differ, the scope applies.
+The roadmap table and the gap table describe the code and dex on the research date.
 
 ## Proposed goal
 
@@ -73,18 +27,18 @@ The [Coding Quests guide](https://codingquests.io/blog/how-to-make-godot-3d-look
 Its useful method is to isolate each change and measure its cost.
 Its reported frame rates are not predictions for Rocco.
 
-[The source investigation](RESEARCH-GODOT-SCENE.md) records the guide, official Godot documentation, and the downloadable project.
+[The source investigation](godot-scene.md) records the guide, official Godot documentation, and the downloadable project.
 That note covers asset provenance, shader source, and differences between the article and project.
 This note compares those findings with Rocco's code and roadmap.
 No renderer changes or scene benchmarks ran during this analysis.
 
 Primary Rocco evidence:
 
-- [Vocabulary](../platform/Vocabulary.roc), [Launch defaults](../platform/Launch.roc), and [Environment defaults](../platform/Environment.roc).
-- [Frame render](../engine/frame_render.odin), [renderer](../engine/render.odin), and [render targets](../engine/render_target.odin).
-- [Built-in shaders](../engine/shaders/basic.glsl), [cascades](../engine/cascade.odin), [glTF loader](../engine/gltf.odin), and [image processing](../engine/image.odin).
-- [Roadmap](ROADMAP.md), dex task descriptions, and [benchmarks](BENCHMARKS.md).
-- [Design](DESIGN.md) and ADRs [0003](adr/0003-packs-own-asset-lifetimes.md), [0033](adr/0033-clustered-forward-lights.md), [0025](adr/0025-a-normal-map-uses-the-file-tangents.md), [0026](adr/0026-the-look-lives-in-scene-environment.md), and [0027](adr/0027-alpha-modes-and-blend-frame-order.md).
+- [Vocabulary](../../platform/Vocabulary.roc), [Launch defaults](../../platform/Launch.roc), and [Environment defaults](../../platform/Environment.roc).
+- [Frame render](../../engine/frame_render.odin), [renderer](../../engine/render.odin), and [render targets](../../engine/render_target.odin).
+- [Built-in shaders](../../engine/shaders/basic.glsl), [cascades](../../engine/cascade.odin), [glTF loader](../../engine/gltf.odin), and [image processing](../../engine/image.odin).
+- [Roadmap](../ROADMAP.md), dex task descriptions, and [benchmarks](../BENCHMARKS.md).
+- [Design](../DESIGN.md) and ADRs [0003](../adr/0003-packs-own-asset-lifetimes.md), [0033](../adr/0033-clustered-forward-lights.md), [0025](../adr/0025-a-normal-map-uses-the-file-tangents.md), [0026](../adr/0026-the-look-lives-in-scene-environment.md), and [0027](../adr/0027-alpha-modes-and-blend-frame-order.md).
 
 ## Gap analysis
 

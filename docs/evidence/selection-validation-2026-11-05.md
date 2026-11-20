@@ -3,7 +3,7 @@
 Date: 2026-11-05.
 Local backend: Metal.
 The complete native matrix passed at Off, X2, X4, and X8.
-[Metal evidence](evidence/selection/metal.json) records the binary and pixel checksums.
+[Metal evidence](selection/metal.json) records the binary and pixel checksums.
 GL and D3D11 acceptance remains pending until the native CI jobs pass.
 
 `Group.selected` supplies generic membership only.
@@ -12,9 +12,9 @@ The game-authored `Outline` shader runs before bloom and chooses its occlusion p
 
 | Image | Content |
 | --- | --- |
-| [Coverage](evidence/selection/metal-coverage.png) | Red coverage, green selected depth, and blue scene depth |
-| [Visible-only](evidence/selection/metal-visible.png) | HDR outline compares selected depth with scene depth |
-| [Through-wall](evidence/selection/metal-through.png) | The same shader ignores the depth comparison |
+| [Coverage](selection/metal-coverage.png) | Red coverage, green selected depth, and blue scene depth |
+| [Visible-only](selection/metal-visible.png) | HDR outline compares selected depth with scene depth |
+| [Through-wall](selection/metal-through.png) | The same shader ignores the depth comparison |
 
 The selected Group contains overlapping cubes, a nested Group, cutout foliage, transparent glass, and skinned Pip.
 Every selected Draw disables shadow casting.

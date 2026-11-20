@@ -1,9 +1,9 @@
 # Research: shadows from cutout materials
 
-Date: 2026-11-04
-
-Implementation: [ADR 0027](adr/0027-alpha-modes-and-blend-frame-order.md) replaces the temporary rule below.
-[Validation](CUTOUT-SHADOW-VALIDATION.md) records the implementation, mip evaluation, and reference Mac measurements.
+Date: 2026-11-04.
+Status: implemented. [ADR 0027](../adr/0027-alpha-modes-and-blend-frame-order.md) records the decision.
+[Validation](../evidence/cutout-shadow-validation-2026-11-05.md) records the implementation, the mip evaluation and the reference Mac measurements.
+"This engine today" describes the engine on the research date.
 
 ## Question
 

@@ -124,7 +124,7 @@ Performance capture must explicitly select an instrumented host and its output p
 
 Keep the source archive outside the repository.
 Its SHA-256 is `2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d`.
-Read [the source investigation](../../docs/RESEARCH-GODOT-SCENE.md).
+Read [the source investigation](../../docs/research/godot-scene.md).
 The complete converter requires Pillow only for the two source JPEG images.
 Read [the preparation instructions](source/README-FOLIAGE.md) before regenerating assets.
 The converter preserves original PNG payloads, decoded JPEG pixels, mesh units, material names, colours, and tangents.

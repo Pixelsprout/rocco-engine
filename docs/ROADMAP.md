@@ -892,7 +892,7 @@ later guide page and game writes its UI as a tree. Milestone 22, the 3D
 tree, follows it. ADR 0014 records its decisions.
 On 2026-10-27 Environment moved after the announcement release, and Kula
 took the first three levels of the original in its place.
-`docs/RESEARCH-SCALING.md` holds the research behind each milestone.
+`docs/research/scaling.md` holds the research behind each milestone.
 
 Check for the arc: Kula plays the first three levels of the original with a
 gamepad and a landing sound, from the release URLs. A person with only Roc installed follows the tutorial

@@ -1,12 +1,13 @@
 # Research: the Godot village reference
 
-Date: 2026-11-05
+Date: 2026-11-05.
+Status: reference evidence for `examples/village`. [The village scope](../IMMERSIVE-SCENE.md) holds the decisions.
 
 ## Purpose
 
 Use one reference scene to test Rocco's rendering features, developer controls, and performance.
 This note records external evidence.
-The companion gap analysis compares that evidence with Rocco's source and roadmap.
+The companion [gap analysis](immersive-scene.md) compares that evidence with Rocco's source and roadmap.
 
 ## The reference scene
 
@@ -38,7 +39,6 @@ Compare each effect separately, with fixed content and camera positions.
 The public [village archive](https://codingquests.io/api/downloads/blog-godot-3d-village-look) downloaded successfully.
 Its size is 243,669,141 bytes.
 Its SHA-256 is `2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d`.
-The inspected copy remains at `/tmp/cq-godot-3d-village-look.zip`.
 
 The archive contains 106 `.gltf` files, 108 `.bin` files, two `.glb` files, seven shaders, and five scenes.
 External textures accompany the glTF files.

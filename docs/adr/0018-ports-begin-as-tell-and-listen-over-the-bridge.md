@@ -9,7 +9,7 @@ Agent Town design is the first consumer. Its stage shows agents as
 characters, and it needs messages both ways: a Driver tells the stage what
 the agents do, and the stage tells the Driver what the person selects.
 
-`docs/RESEARCH-SCALING.md` section 4b proposed the shape, after Elm's ports:
+`docs/research/scaling.md` section 4b proposed the shape, after Elm's ports:
 `Tell` as a Command, `Ask` and `Listen` as Queries, and the answers in
 `QueryResults.ports`. Each port is one named channel with a `Str` payload.
 

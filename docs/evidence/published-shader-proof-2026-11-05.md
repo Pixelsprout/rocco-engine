@@ -62,5 +62,5 @@ Earlier local unpublished proof does not satisfy this published gate.
 These CI results establish compatibility and authoring evidence, not reference-PC performance or final village acceptance.
 Independent review also verified D3D11 timing and world-direction evidence.
 
-The complete record is [the published proof JSON](evidence/published-shader-authoring-2026-11-05.json).
+The complete record is [the published proof JSON](published-shader-authoring-2026-11-05.json).
 The original downloaded archives and selected JSON, logs, and PNGs remain in `/tmp/rocco-candidate-review/`.

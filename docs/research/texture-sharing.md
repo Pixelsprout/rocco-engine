@@ -1,7 +1,9 @@
-# Texture sharing before atlases
+# Research: texture sharing before atlases
 
-Research date: 2026-11-06.
-Status: recommendation only; no cache or atlas implementation.
+Date: 2026-11-06.
+Status: the first step is implemented. `engine/texture_cache.odin` shares compatible images across meshes.
+[The implementation evidence](../evidence/texture-sharing-implementation-2026-11-06.md) records the result.
+No atlas exists.
 
 ## Recommendation
 
@@ -18,9 +20,9 @@ It does not assume that texture memory caused the reported stutter.
 The two grass meshes upload matching 512-by-512 images with ten matching mip levels.
 Metal reports distinct native objects, each with 1,425,408 allocated bytes.
 Sharing this compatible pair could avoid one such allocation.
-The [native check](evidence/texture-sharing-2026-11-06.md) uses the real loader and uploader without launching the village.
+The [native check](../evidence/texture-sharing-2026-11-06.md) uses the real loader and uploader without launching the village.
 
-The [village audit](evidence/village-camera-resumed-2026-11-06.md) found 320 embedded PNG records across 93 GLBs.
+The [village audit](../evidence/village-camera-resumed-2026-11-06.md) found 320 embedded PNG records across 93 GLBs.
 Those records contain 53 distinct encoded PNG hashes.
 One RGBA8 mip chain per record gives a theoretical 6,217,151,824-byte total.
 Counting each encoded hash once gives 971,359,860 bytes under the same calculation.
@@ -115,7 +117,7 @@ A shared image cache directly removes matching uploads while preserving UVs.
 An atlas combines different images and changes how materials address them.
 It can reduce texture binding changes when the renderer can batch compatible draws.
 Rocco's batch key also contains mesh identity and index range.
-An atlas alone therefore does not merge draws from different meshes. [Rocco allocation evidence](evidence/texture-sharing-2026-11-06.md)
+An atlas alone therefore does not merge draws from different meshes. [Rocco allocation evidence](../evidence/texture-sharing-2026-11-06.md)
 
 An atlas design must preserve glTF UV coordinates, repeat behaviour, filtering, and material transforms.
 It must isolate each region at every mip level to prevent colour bleeding.

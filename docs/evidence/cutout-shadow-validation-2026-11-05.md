@@ -1,7 +1,7 @@
 # Cutout shadow validation
 
 Date: 2026-11-05.
-Decision: [ADR 0027](adr/0027-alpha-modes-and-blend-frame-order.md).
+Decision: [ADR 0027](../adr/0027-alpha-modes-and-blend-frame-order.md).
 
 ## Coverage and capacity
 
@@ -41,11 +41,11 @@ Every process exited after the Bridge sent `quit`.
 
 | Capture | Observation |
 | --- | --- |
-| [Original, step 120](evidence/cutout-shadows/before-front.png) | Solid fence slabs, square leaf shadow, solid Pip shadow. |
-| [Cutout, step 120](evidence/cutout-shadows/cutout-front.png) | Fence holes, leaf silhouette, and holes in the skinned shadow. |
-| [Cutout, step 520](evidence/cutout-shadows/cutout-back.png) | Rotated leaf still casts from its back face. |
-| [Far, step 120](evidence/cutout-shadows/far-front.png) | Leaf shadow and fence coverage remain visible. |
-| [Far, step 520](evidence/cutout-shadows/far-back.png) | Camera motion retains leaf and skinned coverage. Fine fence detail aliases at this resolution. |
+| [Original, step 120](cutout-shadows/before-front.png) | Solid fence slabs, square leaf shadow, solid Pip shadow. |
+| [Cutout, step 120](cutout-shadows/cutout-front.png) | Fence holes, leaf silhouette, and holes in the skinned shadow. |
+| [Cutout, step 520](cutout-shadows/cutout-back.png) | Rotated leaf still casts from its back face. |
+| [Far, step 120](cutout-shadows/far-front.png) | Leaf shadow and fence coverage remain visible. |
+| [Far, step 520](cutout-shadows/far-back.png) | Camera motion retains leaf and skinned coverage. Fine fence detail aliases at this resolution. |
 
 The far captures show the expected loss of subtexel detail under PCF.
 They do not establish temporal stability for every foliage asset or camera route.

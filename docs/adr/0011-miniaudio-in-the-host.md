@@ -6,7 +6,7 @@ Status: accepted, 2026-10-22.
 
 Milestone 20 gives the engine sound. The host needs a device, a mixer,
 decoders for wav and ogg, a rate change for pitch, and a falloff with
-distance. `docs/RESEARCH-SCALING.md` section 5a weighed three backends:
+distance. `docs/research/scaling.md` section 5a weighed three backends:
 sokol `saudio`, miniaudio and FMOD Studio. Each native library costs an
 archive per target and entries in the link catalogs: the macOS sysroot,
 the Linux stubs and the Windows import libraries.

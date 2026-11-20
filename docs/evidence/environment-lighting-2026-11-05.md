@@ -1,12 +1,12 @@
 # Environment lighting evidence
 
 Date: 2026-11-05.
-The implementation uses the [documented lighting contract](ENVIRONMENT-LIGHTING.md).
-The [numeric evidence](evidence/environment-lighting-2026-11-05.json) records all measured runs.
+The implementation uses the [documented lighting contract](../ENVIRONMENT-LIGHTING.md).
+The [numeric evidence](environment-lighting-2026-11-05.json) records all measured runs.
 
-![Warm cubemap: dielectric spheres above metallic spheres](evidence/environment-warm.png)
+![Warm cubemap: dielectric spheres above metallic spheres](environment-warm.png)
 
-![Cool cubemap: the same materials and camera](evidence/environment-cool.png)
+![Cool cubemap: the same materials and camera](environment-cool.png)
 
 Roughness increases from left to right: 0.05, 0.25, 0.5, and 1.
 The white square uses an unlit material.
@@ -21,7 +21,7 @@ Standalone Image loads also release their temporary decode memory after each loa
 The existing Pack tests check shared references and missing Sky faces.
 The frame test selects one Sky for both environment lighting and background rendering before surface submission.
 
-The [Bridge image check](evidence/environment-metal-images.json) passed on Metal.
+The [Bridge image check](environment-metal-images.json) passed on Metal.
 Both dielectric and metallic rows follow the cubemap colour.
 The unlit reference retains its colour when the cubemap changes.
 Exposure affects the reference through the shared tone-map pass.
@@ -31,7 +31,7 @@ The roughness check requires a decreasing reflection peak across the metallic ro
 
 The published shader compiler tests and built-in shader generator tests passed: 17 tests.
 All shaders cross-compile for Metal, GL 4.3, and D3D11.
-The [production native proof](evidence/environment-native-metal.json) created, bound, and drew eleven shader variants on Metal.
+The [production native proof](environment-native-metal.json) created, bound, and drew eleven shader variants on Metal.
 Both environment inputs use actual RGBA16F cube views in that proof.
 The wrapper keeps its Sun comparison sample before the hook-controlled unlit branch.
 The native GL and D3D image checks remain pending CI.

@@ -1,6 +1,8 @@
 # Research: light limits in other engines
 
-Date: 2026-10-15
+Date: 2026-10-15.
+Status: superseded. [ADR 0033](../adr/0033-clustered-forward-lights.md) replaced the 8-light cap with clustered forward lights.
+"This engine today" describes the engine on the research date.
 
 ## Question
 

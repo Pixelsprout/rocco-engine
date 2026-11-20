@@ -26,8 +26,8 @@ Preserve a repeatable source conversion process, archive checksum, credits, and 
 Keep units, textures, tangents, material names, and vertex colours through conversion.
 Prepare deforming meshes around their own roots, with scene placement separate.
 
-The [source investigation](RESEARCH-GODOT-SCENE.md) identifies the archive and its terms.
-The [gap analysis](RESEARCH-IMMERSIVE-SCENE.md) records the original renderer evidence.
+The [source investigation](research/godot-scene.md) identifies the archive and its terms.
+The [gap analysis](research/immersive-scene.md) records the original renderer evidence.
 
 ## Shader authoring
 

@@ -1,6 +1,6 @@
 # External shader authoring proof
 
-The small [authoring game](../examples/authoring/README.md) implements the required shader workflow.
+The small [authoring game](../../examples/authoring/README.md) implements the required shader workflow.
 The game contains a two-slot tree, ground, an occluder, and a selected Group.
 The game owns the Surface hooks and both outline policies.
 The candidate wind hook converts world displacement through the resolved inverse direction basis.
@@ -24,27 +24,27 @@ Keep full village integration blocked until all three candidate jobs pass.
 The local host uses ordinary release settings.
 The verification uses Odin `dev-2026-08-nightly:902106f` to build that host.
 The standalone game and shader compiler use no Odin calls.
-The [local evidence](evidence/shader-authoring/local-metal/evidence.json) records toolchain versions, package hashes, exact commands, and checks.
+The [local evidence](shader-authoring/local-metal/evidence.json) records toolchain versions, package hashes, exact commands, and checks.
 It records `local preparation` to distinguish this run from published-artifact evidence.
-A second [local archive replay](evidence/shader-authoring/local-metal/bundle-replay.json) passed from an external folder with Odin absent.
+A second [local archive replay](shader-authoring/local-metal/bundle-replay.json) passed from an external folder with Odin absent.
 That replay uses locally bundled Mac SDK archives.
 It does not satisfy the published three-target candidate gate.
 
-The [merged SDK replay](evidence/shader-authoring/merged-metal/sdk-replay.json) passed 169 checks with Odin absent.
-The [merged checks](evidence/shader-authoring/merged-metal/summary.json) include the inverse direction input and Windows publication correction.
+The [merged SDK replay](shader-authoring/merged-metal/sdk-replay.json) passed 169 checks with Odin absent.
+The [merged checks](shader-authoring/merged-metal/summary.json) include the inverse direction input and Windows publication correction.
 The candidate uses amplitude 0.2 so fixed steps do not reach the same 0.25 local clamp.
 This replay remains unpublished.
 
-![Visible-only outline](evidence/shader-authoring/local-metal/outline-visible.png)
+![Visible-only outline](shader-authoring/local-metal/outline-visible.png)
 
-![Through-wall outline](evidence/shader-authoring/local-metal/outline-through.png)
+![Through-wall outline](shader-authoring/local-metal/outline-through.png)
 
 The two frames use the same selected Group and scene.
 The game changes only the Post shader's `visible_only` parameter.
 
-![Inherited tree material and cutout shadow](evidence/shader-authoring/local-metal/material-inherited.png)
+![Inherited tree material and cutout shadow](shader-authoring/local-metal/material-inherited.png)
 
-![Selection coverage and depth inputs](evidence/shader-authoring/local-metal/selection-inputs.png)
+![Selection coverage and depth inputs](shader-authoring/local-metal/selection-inputs.png)
 
 The Selection image shows coverage in red, selected depth in green, and scene depth in blue.
 The occluder does not remove selected coverage or selected depth.
@@ -127,5 +127,5 @@ Reload checks wait for a complete `build.json` whose package hashes match.
 They then poll the rendered frame until the expected generation appears.
 Time elapsed alone does not establish reload completion.
 
-Use the commands in the [fixture instructions](../examples/authoring/README.md) to reproduce the checks.
-The [game shader guide](GAME-SHADERS.md) explains the author contract and watcher behaviour.
+Use the commands in the [fixture instructions](../../examples/authoring/README.md) to reproduce the checks.
+The [game shader guide](../GAME-SHADERS.md) explains the author contract and watcher behaviour.
