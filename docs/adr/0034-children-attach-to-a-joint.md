@@ -15,7 +15,7 @@ poses each Skin once per Frame, after the game's `view`.
   children's Poses are local to the named Joint of the Draw with that draw
   id.
 - The children take the Joint's world position and rot, never its scale.
-  This is the rule a Group follows (ADR 0002). A game scales the child's
+  This is the rule a Group follows (ADR 0001). A game scales the child's
   own Draw.
 - The Attach can sit anywhere in the tree. The parent of the Attach does not
   move it; the Joint does.
@@ -44,7 +44,7 @@ poses each Skin once per Frame, after the game's `view`.
 
 ## Consequences
 
-- A Vocabulary change. The host and every game rebuild (ADR 0012).
+- A Vocabulary change. The host and every game rebuild.
 - The host must place attached children after skin posing and before it
   draws them. Attached Lights, Colliders and Speakers move with the Joint as
   well.

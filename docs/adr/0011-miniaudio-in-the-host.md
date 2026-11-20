@@ -13,7 +13,7 @@ the Linux stubs and the Windows import libraries.
 
 ## Decision
 
-- miniaudio 0.11.24 goes in the host as a submodule, built into one archive
+- miniaudio goes in the host as a submodule, built into one archive
   per target by our own scripts, in the same way as sokol. The Windows
   build uses `/Zl /GS-`, as sokol does.
 - The engine binds the few `ma_engine` and `ma_sound` calls it needs in its
@@ -22,6 +22,9 @@ the Linux stubs and the Windows import libraries.
 - miniaudio opens CoreAudio, ALSA, PulseAudio and WASAPI at run time. The
   catalogs gain `dlopen` and the thread symbols miniaudio calls, and no
   audio library.
+- The web host builds the same miniaudio source with emcc and plays
+  through Web Audio. `rocco.js` unlocks it on the first click, touch or
+  key.
 - The host always creates an `ma_engine`. In Headless it has no device. If
   the device does not open, the host logs once and the run is silent.
 

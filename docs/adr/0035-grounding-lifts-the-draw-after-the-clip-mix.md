@@ -43,7 +43,7 @@ Clip marks its foot contacts.
 
 ## Consequences
 
-- A Vocabulary change. The host and every game rebuild (ADR 0012).
+- A Vocabulary change. The host and every game rebuild.
 - Each grounded Draw sends a few short strings across the seam in every
   Scene.
 - A rig must bind with its feet on the ground for Grounding to work.
