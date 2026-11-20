@@ -19,10 +19,10 @@ picture that is not a Description.
 ## Decision
 
 - The Scene holds one record, `environment : Environment`, with the sky, a
-  sky blend, the clear colour, the tone map, exposure, fog and bloom.
+  Sky blend, the clear colour, the tone map, exposure, fog and bloom.
   `Scene.empty` holds `Environment.default`: no sky, a black clear colour,
   ACES, exposure 1, and every effect off.
-- Fog, fog on the sky, the sky blend and bloom are plain records, not
+- Fog, fog on the sky, the Sky blend and bloom are plain records, not
   `[None, Fog(...)]` unions. The default value of one field turns each off:
   an amount or a strength of 0. Their other defaults are a starting point,
   so a game turns one on by raising that field alone.
@@ -35,7 +35,7 @@ picture that is not a Description.
   encodes sRGB.
 - The UI draws after the tone map in the Post pass, so the Environment
   never changes a UI colour.
-- A sky blend renders both skies' light into blend cubes, so the Surface
+- A Sky blend renders both skies' light into blend cubes, so the Surface
   shader contract keeps its slots.
 - The host corrects a bad value and logs it once per run. The Bridge
   `scene` op shows the record as the game wrote it.

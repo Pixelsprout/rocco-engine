@@ -70,6 +70,10 @@ The order the three parts of a [model matrix](#model-matrix) are multiplied in: 
 
 The box in [clip space](#clip-space) that survives to the rasteriser. Primitives entirely outside it are discarded silently, with no warning from any layer. Measured on Metal: x and y from −1 to +1, z from 0 to 1, inclusive at both ends. OpenGL keeps z from −1 to +1; Direct3D and Vulkan match Metal. See Transforms.
 
+## Clustered lighting {#clustered-lighting}
+
+A forward-rendering technique that splits the view frustum into a grid of cells, called clusters, by screen tile and depth slice. The CPU or GPU lists the lights that reach each cluster, and each fragment shades only with the lights of its own cluster. A scene can then hold many local lights while each fragment pays only for the few that reach it. ADR 0033 records why this engine builds the grid on the CPU.
+
 ## Coalescing (mouse events) {#coalescing}
 
 The window system merging several mouse-move events into one before the application sees them. On macOS it is **on by default** (`NSEvent.h:409`), so a locked camera usually sees about one `MOUSE_MOVE` per frame. Windows raw input does not coalesce. Because the ratio belongs to the player's hardware, mouse deltas must be *accumulated* per frame, never assigned.

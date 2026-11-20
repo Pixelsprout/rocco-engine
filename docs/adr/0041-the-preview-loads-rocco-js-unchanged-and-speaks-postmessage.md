@@ -23,10 +23,10 @@ and `rocco_start()` are a public contract for game authors.
   cannot start `main` before the image is there. The Tour host's `main`
   pulls the image through an `EM_JS` call.
 - One message carries every image. The first image starts the Tour host and
-  becomes the baseline. A later image is a hot reload that keeps the Model.
+  becomes the Baseline image. A later image is a hot reload that keeps the Model.
 - Each image carries an identity: the image's host boundary digests, its
   erased-callable count, and a build id. The Preview loader compares each
-  later identity with the baseline, never with the last swapped image,
+  later identity with the Baseline image, never with the last swapped image,
   because the Model still comes from the first image's `init`. If they
   differ, the Preview refuses the image and the page starts a new Preview.
 - CI writes one build id into the compile worker and the Tour host in the

@@ -97,6 +97,16 @@ _Avoid_: Tour bridge, shim
 A Run that gives the running Preview a new game and keeps its Model.
 _Avoid_: hot swap, live reload
 
+**Baseline image**:
+The first game image a Preview starts with. A later image hot reloads only if
+its identity matches this one.
+_Avoid_: base image, last image, baseline
+
+**Build id**:
+The id one CI build writes into both its Compile worker and its Tour host, so
+a Preview can refuse a pair from different builds.
+_Avoid_: version, FORMAT_VERSION, build number
+
 **Compile worker**:
 The part of the Tour page that checks the reader's game and lowers it for the
 Tour host.
@@ -219,6 +229,10 @@ A Gamepad's number from 0 to 3, which it keeps while connected. Not the Slot
 of a Query.
 _Avoid_: player index, port, controller id, XInput index
 
+**Gamepad reader**:
+The host code for one OS that reads its pads into Gamepads each Frame.
+_Avoid_: driver (a Bridge client), backend, input plugin
+
 **Pointer**:
 The mouse's position, buttons and wheel in `Input.pointer`, for pointing at
 the UI. The mouse delta is for mouse look.
@@ -289,6 +303,11 @@ _Avoid_: view (the call), viewport, camera target
 The Scene field that sets the look of the 3D view: sky, clear colour, tone
 map, exposure, fog and bloom. See ADR 0026.
 _Avoid_: look, post settings, render settings
+
+**Sky blend**:
+The Environment field that blends the sky and its light toward a second sky
+by an amount.
+_Avoid_: sky fade, sky transition, skybox lerp
 
 ## The UI
 
@@ -411,36 +430,53 @@ _Avoid_: texture (the engine's GPU word), sprite, icon, picture
 An Image that the host draws from a Scene, rather than one a Pack loads.
 _Avoid_: render target, canvas, framebuffer, viewport
 
-**Shader asset** (planned):
+**Shader asset**:
 A Pack asset that supplies game-authored GPU programs for the Scene's appearance.
 _Avoid_: engine plugin, shader script, shader bundle
 
-**Shader reload** (planned):
+**Shader reload**:
 A development update to a loaded Shader asset.
 _Avoid_: game reload, Model reload
 
-**Surface shader** (planned):
+**Surface shader**:
 A Shader asset that defines how a surface moves, what its normal and material
 are, and how light reaches it.
 _Avoid_: mesh shader, material script
 
-**Post shader** (planned):
+**Post shader**:
 A Shader asset that changes the rendered scene image at a declared stage.
 _Avoid_: screen shader, post script, render pass
 
-**Material slot** (planned):
+**Material slot**:
 A named material assignment in a mesh that a game can override, owned by the
 authored mesh rather than the order of Mesh parts.
 _Avoid_: part index, submesh index
 
-**Material override** (planned):
+**Material override**:
 A game-authored surface choice for a Draw or one of its Material slots.
 _Avoid_: replacement mesh, shader patch
 
-**Selection input** (planned):
+**Selection input**:
 The selected geometry's coverage and nearest depth, hidden parts included, for
 a Post shader to read.
 _Avoid_: outline image, outline style
+
+## Drawing
+
+**Main pass**:
+The pass that draws the Scene's mesh parts and the sky, lit, into the HDR
+image.
+_Avoid_: forward pass, colour pass, opaque pass
+
+**Shadow pass**:
+The pass that draws the shadow-casting mesh parts from the Sun into the shadow
+map.
+_Avoid_: depth pass, shadow render
+
+**Post pass**:
+The pass after the Main pass that applies exposure, the tone map, bloom and
+any Post shaders, then draws the UI.
+_Avoid_: post-processing, final pass, composite
 
 ## Time
 

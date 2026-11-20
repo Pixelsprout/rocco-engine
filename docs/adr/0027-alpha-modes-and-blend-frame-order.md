@@ -27,10 +27,10 @@ behind glass and kept the Opaque path fast.
 - Blend pipelines test depth without writing it. They use premultiplied
   alpha. Diffuse and fog scale by alpha; specular and emissive keep their
   strength. A double-sided Blend part draws back faces, then front faces.
-- The shadow pass draws Opaque parts first with a position-only shader. It
+- The Shadow pass draws Opaque parts first with a position-only shader. It
   then draws each Mask part with its base texture, vertex alpha and cutoff,
   so a cutout shadow matches the visible cutout. Mask parts keep their face
-  culling in the shadow pass. Blend parts cast no shadow.
+  culling in the Shadow pass. Blend parts cast no shadow.
 - The shadow shader reads the same vertex colour as the Main pass, so the
   base factor and `COLOR_0` apply once.
 - Mask mip levels keep the base level's alpha coverage at the cutoff when
