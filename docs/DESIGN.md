@@ -176,7 +176,7 @@ OverlapHit : { owner : U64, slot : U32, id : U64 }
 QueryResults : { contacts : List(Contact), rays : List(RayHit), overlaps : List(OverlapHit), ports : List({ port : Str, msg : Str }), ui : { over : List(U64), scroll : List({ id : U64, view : { width : F32, height : F32 }, content : { width : F32, height : F32 } }) } }
 Query    : [ContactsOf(U64), Raycast({ owner : U64, slot : U32, origin : Vec3, dir : Vec3, max_distance : F32, exclude : List(U64) }), Overlap({ owner : U64, slot : U32, shape : [Box(Vec3), Sphere(F32)], pos : Vec3, exclude : List(U64) }), Listen(Str)]
 Light    : [Ambient(Rgb), Directional({ dir : Vec3, color : Rgb, shadow : Bool }), Point({ pos : Vec3, color : Rgb, range : F32 })]
-Node     := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
+Node     := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Attach({ draw : U64, joint : Str }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)]
 Cursor   : [Free, Locked]
 Sizing   : [Fit({ min : F32, max : F32 }), Grow({ min : F32, max : F32 }), Fixed(F32), Percent(F32)]
 Align    : [Start, Center, End]
@@ -186,7 +186,7 @@ Text     : { str : Str, size : F32, color : Rgba, wrap : [Words, None] }
 Element  := [Panel(PanelConfig, List(Element)), Text(Text)]
 Scene    : { camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
 Shadow   : { distance : F32, normal_bias : F32, depth_bias : F32, distribution : F32, blend : F32, filter : [Hard, Pcf3, Pcf5] }
-Environment : { sky : U32, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
+Environment : { sky : U32, sky_blend : { to : U32, amount : F32 }, clear : Rgb, tone_map : [Aces, AgX, Neutral], exposure : F32, fog : { color : Rgb, start : F32, end : F32, amount : F32, sky : F32 }, bloom : { strength : F32, threshold : F32, knee : F32 } }
 Place    : [Here, At({ pos : Vec3, range : F32 })]
 Speaker  : { id : U64, sound : U32, gain : F32, pitch : F32, at : Place, repeat : [Loop, Once] }
 Command  : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, assets : List(Str) }), Unload(Str), Play({ sound : U32, gain : F32, pitch : F32, at : Place }), Tell({ port : Str, msg : Str }), Log(Str)]
@@ -196,7 +196,7 @@ Command  : [Burst({ emitter : U64, count : U32 }), Quit, Load({ pack : Str, asse
 |---|---|---|
 | `Config` | a seed; the asset names found on disk, with no ids; the Args | how many pickups a round has; an id |
 | `Launch` | the window size, title, fullscreen, `high_dpi`, MSAA and vsync; the fixed step rate; the shadow map size; the shadow cascade count; the table capacities | anything that changes after the window opens |
-| `Manifest` | each name one `Load` asked for, with its id or 0, a Sound's length in seconds and an Image's size in pixels | a name the `Load` did not ask for |
+| `Manifest` | each name one `Load` asked for, with its id or 0, a Sound's length in seconds and an Image's size in pixels | a name the `Load` did not ask for. ADR 0044 plans Prefab loading, which widens this |
 | `Input` | sokol key codes held (levels) and pressed (edges); mouse delta; one `Gamepad` for each connected pad, at most 4: its slot, the GamepadButton codes held and pressed, the sticks and the triggers after the host's dead zones; the window size in logical pixels; the Pointer: position, inside, buttons, wheel | a movement vector; a jump flag; a pad's brand or button labels; a dead zone setting |
 | `QueryResults` | one list for each kind of Query in the last `Scene`. `contacts` holds each overlapping pair that involves an asking owner, once. Each pair has `a < b`, the normal from a to b and the depth. The list is sorted by `(a, b)`. `rays` holds one RayHit for each Raycast that hits, for the nearest Collider, in Query order. `overlaps` holds one OverlapHit for each Collider that an Overlap touches, in Query order and then id order. `ports` holds the messages for each port that a Listen names, in arrival order. `ui` holds the tagged Panels under the Pointer and the Scroll sizes, with no Query | what the Contact means; a time of impact; a Contact that no Query asked for |
 | `Scene` | a camera eye, target, up and field of view; the 3D tree of Nodes as a list of roots: Groups by a stable Group id, Draws by mesh id with a stable draw id, the Lights, the Colliders that can touch and the Speakers by a stable Speaker id; the cursor mode; a sky id; a clear colour; the UI as a list of root Elements, each a tree; the Queries | an entity kind; a score; a mesh catalogue; quit; a physics body; the window size |
@@ -339,16 +339,21 @@ once. Decision.
 The host draws the Sun's shadow maps before the main pass, one per cascade.
 `Launch.shadow_cascades` sets the count, from 1 to 4, and the default is 1.
 
-With one cascade, the host draws one map over the box of every Draw at its
-interpolated pose. The host snaps that box outward to whole units, so the
+The host takes `Scene.shadow` from the current Scene, with no interpolation.
+It replaces an invalid field with its `Shadow.default` value and logs once
+per field. No field changes the map size or the cascade count.
+
+With one cascade and a `Scene.shadow.distance` of 0, the default, the host
+draws one map over the box of every Draw at its interpolated pose. The host snaps that box outward to whole units, so the
 map changes size in steps. A skinned mesh's box is padded at load by 25% of
 its largest side, so the view also covers its posed limbs.
 
-With two to four cascades, the host splits the camera's view from the near
-plane to `SHADOW_DISTANCE`, 150 metres, with the practical split scheme: a
-mix of the log and the linear split with a weight of 0.5. The camera has no
-far plane, and a far end fitted to the Draws would move the splits as the
-camera moves, so the distance is a host constant. Decision.
+Otherwise, the host splits the camera's view from the near plane to
+`Scene.shadow.distance`. A distance of 0 with two to four cascades means 150
+metres. The split is the practical scheme: a mix of the log and the linear
+split, weighted by `Scene.shadow.distribution`, 0.5 by default. The camera
+has no far plane, and a far end fitted to the Draws would move the splits
+as the camera moves, so the game sets the distance. Decision.
 
 The host fits each cascade to a sphere around its slice of the view. The
 radius depends only on the depths, the field of view and the aspect, so the
@@ -364,18 +369,20 @@ Each cascade is one layer of the shadow texture array, at the Launch
 limit assumes 4 cascades for every game.
 
 The shader picks a cascade by the depth along the view. It blends into the
-next cascade over the last 10% of each cascade, and the last cascade fades
-to no shadow. It samples both cascades every time, because D3D needs uniform
-control flow around the comparison sample. Past `SHADOW_DISTANCE`, nothing
-casts a shadow.
+next cascade over the last `Scene.shadow.blend` of each cascade, 10% by
+default, and the last cascade fades to no shadow. It samples both cascades every time, because D3D needs uniform
+control flow around the comparison sample. Past the shadow distance,
+nothing casts a shadow.
 
 The shadow darkens only the Sun's own light. Unlit meshes cast a shadow but
 do not receive one, and the sky does neither.
 
-The shader moves each sample point `SHADOW_NORMAL_OFFSET` along its normal, and the shadow
-pipeline adds a slope-scaled depth bias. A 3 x 3 PCF filter softens each edge
-through the hardware comparison sampler. The Launch sets the map size, 2048
-by default, and host constants set the bias.
+The shader moves each sample point `Scene.shadow.normal_bias` along its
+normal, and the shadow pipeline adds a slope-scaled depth bias.
+`Scene.shadow.depth_bias` offsets the comparison depth. `Scene.shadow.filter`
+softens each edge through the hardware comparison sampler: `Hard` takes one
+sample, `Pcf3`, the default, takes 3 x 3, and `Pcf5` takes 5 x 5. The Launch
+sets the map size, 2048 by default.
 
 Each mesh has a glTF metallic-roughness material. The BRDF is the glTF 2.0
 Appendix B model with Filament's terms: GGX distribution with
@@ -399,20 +406,15 @@ normal-mapped primitive with no `TANGENT` gets Lengyel tangents and the note
 `Generated_Tangents`. ADR 0025 records the tangent decision.
 
 The host takes the first ambient, in the depth-first, pre-order walk of the
-tree. A Scene may hold any number of directional and point lights. Each Draw
-gets at most 8 of them: the Sun in slot 0, the other directionals in walk
-order, then the point lights whose range reaches the Draw's world box,
-nearest to the box first. A tie goes to the light nearer the box centre,
-then to walk order. An unlit Draw gets none. The list goes in the per-draw
-fragment block, and the limit of 8 is the size of its light arrays. A large
-Draw with more than 8 lights in reach keeps the nearest, so lights can pop
-on a large mesh. The host drops a second ambient, a Directional with a zero
-`dir` and a Point with a range <= 0. It logs each reason once per run, and
-it logs once per run when a Draw loses a light in reach. ADR 0033 replaced
-this rule.
+tree. The host accepts four Directionals and 1024 Points, in Scene order. The Sun
+always keeps the first Directional slot. Each Frame the host builds a
+cluster grid over the camera view and lists the Points that reach each
+cluster, so a fragment shades only with the Points of its own cluster. A
+full cluster keeps its nearest 64 Points. The host drops a second ambient,
+a Directional with a zero `dir` and a Point with a range <= 0. It logs each
+reason and each limit once per run. ADR 0033 records the decision.
 
-The host gathers the current `Scene`'s lights once per frame and picks each
-Draw's list from them. Lights have
+The host gathers the current `Scene`'s lights once per frame. Lights have
 no id, and a Light's own Pose does not interpolate. A Light in a Group
 follows the Group's interpolated Pose: the Group moves a Point and turns a
 Directional `dir`, and does not change an Ambient. A Light that moves inside
@@ -692,8 +694,8 @@ game's assets from any working directory. `ROCCO_ASSETS` replaces the
 such as `sprout`, in sorted order. Names are case-sensitive. A `Load` reads
 each named file that is not loaded yet. Ids follow the order of the Loads,
 so the same Loads give the same ids. The primitives are named
-`primitive/fallback`, `primitive/cube`, `primitive/sphere` and
-`primitive/plane`. A file stem cannot contain `/`, so a file never takes
+`primitive/fallback`, `primitive/cube`, `primitive/sphere`,
+`primitive/plane` and `primitive/cylinder`. A file stem cannot contain `/`, so a file never takes
 the name of a primitive. A name that is not on disk, or a file that does
 not load, gets id 0 in the Manifest and one log line per run.
 
