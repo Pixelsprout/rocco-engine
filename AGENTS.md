@@ -33,6 +33,9 @@ To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the
 
 `scene` returns the QueryResults that the next `step` gets. So the game acts on a Contact one step after `scene` shows it.
 
+# Spikes
+A spike in `spikes/` is temporary. When its question has an answer, record the answer in dex and delete the folder in the same commit. CI never builds a spike. `spikes/README.md` gives the rules.
+
 # Evidence
 Write raw captures, such as tarballs, CSV sets, logs and screenshots, to `docs/evidence/raw/`. Git ignores it. Commit only the Markdown report and a small JSON summary. `docs/evidence/README.md` gives the rules.
 

@@ -42,6 +42,12 @@ touches() {
 	grep -Eq "$1" "$changed"
 }
 
+# A spike is temporary, so CI must not build it. spikes/README.md gives the rule.
+if grep -n 'spikes/' .github/workflows/*.yml >&2; then
+	echo "pre-push: a CI workflow names spikes/. Move the check out of the spike first." >&2
+	exit 1
+fi
+
 # Raw evidence belongs in a release asset, not in git. docs/evidence/README.md
 # gives the rule.
 evidence_limit=1048576
@@ -74,16 +80,6 @@ if touches '\.odin$'; then
 			targets=windows_amd64
 			defines=-define:ROCCO_D3D_GPU_TIMING=true
 			;;
-		# The web host assumes 32-bit Roc layouts.
-		spikes/web-link/host | spikes/web-arenas/host) targets=freestanding_wasm32 ;;
-		# Only build.sh adds the generated ABI file. The CI web job builds it.
-		spikes/web-pong/host) targets= ;;
-		# These packages compile only inside the engine slice that
-		# spikes/web-ui/build.sh writes. The web host superseded the slice.
-		spikes/web-ui/*) targets= ;;
-		# These name the engine through the slice collection, which
-		# spikes/web-lit/build.sh sets. The web host superseded the slice.
-		spikes/web-lit/*) targets= ;;
 		# The web host builds these for wasm32, so check that target too.
 		engine | engine/arenas | engine/system) targets="$targets freestanding_wasm32" ;;
 		esac
