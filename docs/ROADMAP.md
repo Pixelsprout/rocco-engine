@@ -1402,7 +1402,7 @@ Out of this arc: screen-space ambient occlusion, depth of field, soft
 particles and fur strands. Instancing and frustum culling (dex task
 cqz1zbne) wait until the town's Draw count measures over budget.
 
-Agreed design, 2026-11-05: [the immersive village scope](IMMERSIVE-SCENE.md)
+Agreed design, 2026-11-05: [the immersive village scope](../examples/village/SCOPE.md)
 defines a separate lane for the supplied village, moving foliage, and game-authored shaders.
 Both the Apple M5 and the benchmark desktop must reach 60 FPS at 1080p.
 The separate dex parent, **Immersive scene lane**, owns scene work and acceptance evidence.

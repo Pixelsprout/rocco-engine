@@ -1,7 +1,7 @@
 # Research: the Godot village reference
 
 Date: 2026-11-05.
-Status: reference evidence for `examples/village`. [The village scope](../IMMERSIVE-SCENE.md) holds the decisions.
+Status: reference evidence for `examples/village`. [The village scope](../../examples/village/SCOPE.md) holds the decisions.
 
 ## Purpose
 

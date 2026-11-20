@@ -1,7 +1,7 @@
 # Research: an immersive 3D scene for Rocco
 
 Date: 2026-11-05. Code reviewed: `6a436bf`.
-Status: historical gap analysis. [The village scope](../IMMERSIVE-SCENE.md) holds the confirmed decisions, and [ADR 0028](../adr/0028-game-shaders-are-pack-assets.md) records the shader decision.
+Status: historical gap analysis. [The village scope](../../examples/village/SCOPE.md) holds the confirmed decisions, and [ADR 0028](../adr/0028-game-shaders-are-pack-assets.md) records the shader decision.
 Where this note and the scope differ, the scope applies.
 The roadmap table and the gap table describe the code and dex on the research date.
 

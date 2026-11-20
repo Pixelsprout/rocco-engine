@@ -26,13 +26,13 @@ Preserve a repeatable source conversion process, archive checksum, credits, and 
 Keep units, textures, tangents, material names, and vertex colours through conversion.
 Prepare deforming meshes around their own roots, with scene placement separate.
 
-The [source investigation](research/godot-scene.md) identifies the archive and its terms.
-The [gap analysis](research/immersive-scene.md) records the original renderer evidence.
+The [source investigation](../../docs/research/godot-scene.md) identifies the archive and its terms.
+The [gap analysis](../../docs/research/immersive-scene.md) records the original renderer evidence.
 
 ## Shader authoring
 
-[ADR 0028](adr/0028-game-shaders-are-pack-assets.md) defines the planned engine contract.
-[Shader contract version 1](SHADER-CONTRACT.md) defines the package, bindings, capacities, and reproducible backend proof.
+[ADR 0028](../../docs/adr/0028-game-shaders-are-pack-assets.md) defines the planned engine contract.
+[Shader contract version 1](../../docs/guides/shader-contract.md) defines the package, bindings, capacities, and reproducible backend proof.
 
 | Area | Agreed behaviour |
 | --- | --- |
@@ -129,7 +129,7 @@ Record warmup, power state, build mode, settings, sample counts, and instrumenta
 Require warm-run p95 CPU frame work and p95 GPU frame work each within 16.67 ms.
 Report p99 spikes and inspect real-clock frame pacing separately.
 CPU submit time alone does not establish GPU performance.
-[Opt-in D3D11 timestamps](guides/d3d11-gpu-timing.md) provide frame and actual pass intervals for the PC check.
+[Opt-in D3D11 timestamps](../../docs/guides/d3d11-gpu-timing.md) provide frame and actual pass intervals for the PC check.
 Native CI proves diagnostic operation only.
 The reference PC still supplies performance evidence.
 

@@ -2,14 +2,14 @@
 
 Date: 2026-11-05.
 Status: executable package reference and public compiler; engine integration follows.
-[ADR 0028](adr/0028-game-shaders-are-pack-assets.md) owns the authoring decisions.
-[The immersive scope](IMMERSIVE-SCENE.md) owns the village requirements.
+[ADR 0028](../adr/0028-game-shaders-are-pack-assets.md) owns the authoring decisions.
+[The immersive scope](../../examples/village/SCOPE.md) owns the village requirements.
 
 The compiler, Surface integration, Post integration, and reload work must use this contract.
 The reference code lives in `scripts/shader_contract/`.
 The public compiler lives in `platform/shader-tools/`.
-[The authoring guide](guides/game-shaders.md) defines its supported declarations and hooks.
-[The loader handoff](guides/shader-loader-handoff.md) records its production layouts.
+[The authoring guide](game-shaders.md) defines its supported declarations and hooks.
+[The loader handoff](shader-loader-handoff.md) records its production layouts.
 It does not add a Shader loader to the engine.
 
 ## Reproduce the proof
@@ -279,7 +279,7 @@ The package fingerprint and checksum cover the transformed layout and code.
 
 ## Production clustered PBR layout
 
-[ADR 0033](adr/0033-clustered-forward-lights.md) replaces the per-Draw Point list.
+[ADR 0033](../adr/0033-clustered-forward-lights.md) replaces the per-Draw Point list.
 The built-in shader uses the following exact engine fragment blocks.
 Every member starts at a 16-byte boundary.
 
@@ -469,7 +469,7 @@ The hook cannot create render passes or access undeclared buffers.
 A resolved Material begins with its imported textures and scalar properties.
 An explicit game override replaces only the named property or texture.
 Named Material slots remain stable through import, Material merging, and Mesh part sorting.
-[The import contract](guides/gltf-material-slots.md) defines source identities, name errors, raw colours, and metadata lifetime.
+[The import contract](gltf-material-slots.md) defines source identities, name errors, raw colours, and metadata lifetime.
 A whole-Draw assignment supplies the Draw's Material override.
 A named slot assignment takes precedence for that slot.
 Unspecified slots keep their imported Materials.

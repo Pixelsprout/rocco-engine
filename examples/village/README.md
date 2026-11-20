@@ -10,6 +10,7 @@ The game keeps geometry hidden until every mesh, image, Sky, and Shader Pack res
 A failed asset keeps the loading error visible.
 The original baseline composition approval remains recorded in [EVIDENCE.md](EVIDENCE.md).
 Combined appearance and final performance acceptance remain open.
+[SCOPE.md](SCOPE.md) holds the agreed scope and acceptance criteria.
 
 Read [COMBINED-EVIDENCE.md](COMBINED-EVIDENCE.md), [LIGHTING.md](LIGHTING.md), [source/README-FOLIAGE.md](source/README-FOLIAGE.md), and [EFFECTS.md](EFFECTS.md) for contracts and limitations.
 
