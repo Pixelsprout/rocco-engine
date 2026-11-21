@@ -10,6 +10,7 @@ The game keeps geometry hidden until every mesh, image, Sky, and Shader Pack res
 A failed asset keeps the loading error visible.
 The original baseline composition approval remains recorded in [EVIDENCE.md](EVIDENCE.md).
 Combined appearance and final performance acceptance remain open.
+[SCOPE.md](SCOPE.md) holds the agreed scope and acceptance criteria.
 
 Read [COMBINED-EVIDENCE.md](COMBINED-EVIDENCE.md), [LIGHTING.md](LIGHTING.md), [source/README-FOLIAGE.md](source/README-FOLIAGE.md), and [EFFECTS.md](EFFECTS.md) for contracts and limitations.
 
@@ -114,6 +115,8 @@ Human appearance review and native backend acceptance remain open for the combin
 Controlled optimized CPU runs reduced p95 from 48.41–51.94 ms to 27.94–29.12 ms.
 Frame-local Surface resolution reuse preserves the full scene and seven exact comparison images.
 Read the [CPU evidence](../../docs/evidence/surface-reuse-cpu-2026-11-06.json).
+The [View cache evidence](../../docs/evidence/village-view-cpu-2026-11-06.md) records the Step plus View p95 drop from 8.443 ms to 0.424 ms.
+The [scene depth batching summary](../../docs/evidence/scene-depth-batching-metal-2026-11-06.json) records the Metal batching run.
 Real-clock CPU, GPU, pacing, per-effect, and reference PC acceptance remain open.
 No density or texture reduction establishes a performance preset in this checkpoint.
 
@@ -124,7 +127,7 @@ Performance capture must explicitly select an instrumented host and its output p
 
 Keep the source archive outside the repository.
 Its SHA-256 is `2f766abd37bc15c19053eaa99f3eec49790724315f7e486f5e08a1bc5c8eff2d`.
-Read [the source investigation](../../docs/RESEARCH-GODOT-SCENE.md).
+Read [the source investigation](../../docs/research/godot-scene.md).
 The complete converter requires Pillow only for the two source JPEG images.
 Read [the preparation instructions](source/README-FOLIAGE.md) before regenerating assets.
 The converter preserves original PNG payloads, decoded JPEG pixels, mesh units, material names, colours, and tangents.

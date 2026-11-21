@@ -194,7 +194,7 @@ A later resolution comparison could test pixel-work sensitivity, but would not s
 
 ## Retained evidence
 
-The [resumed evidence archive](village-camera-resumed-2026-11-06.tar.gz) retains both complete captures and summaries.
+The [resumed evidence archive](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/village-camera-resumed-2026-11-06.tar.gz) retains both complete captures and summaries.
 It includes CPU Spans, boundary files, command records, metadata, memory monitors, footprint output, scripts, and the static texture audit.
 It also records a failed sampling attempt that ran after the lightweight process exited.
 Archive SHA-256: `7fa7d69f137b3ff7d90b24d390668b65783be7d3257d2a1ce981a16a38d9a8f4`.

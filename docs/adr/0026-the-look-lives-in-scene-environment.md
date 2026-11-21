@@ -54,7 +54,7 @@ picture that is not a Description.
 - Keep the UI under the tone map. Rejected: a UI colour would not show as
   authored, and an exposure change would dim the UI.
 - `fog : [None, Fog({ color, start, end })]` and the same for bloom.
-  Rejected: `docs/roc-style.md` rules out `None` as an empty case, and a
+  Rejected: `docs/guides/roc-style.md` rules out `None` as an empty case, and a
   game would rebuild every field to turn an effect on.
 - `fog : [Off, Linear({...})]`, which leaves room for exponential fog.
   Rejected: fog would be the one effect whose default is not an ordinary

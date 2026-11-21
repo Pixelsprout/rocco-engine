@@ -6,9 +6,13 @@
 #
 #   sh scripts/toolchain.sh run sh scripts/web/build-host.sh [debug|release]
 #
-# The steps follow spikes/web-link/README.md: emcc writes the JS loader for a
-# reference link of the host, and wasm-ld -r packs the host and the members of
-# the emscripten system libraries that it uses into one relocatable object.
+# emcc writes the JS loader for a reference link of the host, and wasm-ld -r
+# packs the host and the members of the emscripten system libraries that it
+# uses into one relocatable object. Roc does the final link. The loader works
+# with Roc's wasm only while two rules hold: every import of the Roc wasm is an
+# import of the reference wasm, and every export of the reference wasm is an
+# export of the Roc wasm. The exports list in platform/main.roc names them. A
+# new emsdk pin can change the loader, so check both rules after a pin move.
 set -eu
 mode=${1:-debug}
 root=$(pwd)

@@ -3,6 +3,8 @@
 # Project Management
 We use *dex* for project management to track tasks and issues. The `tasks.jsonl` is commited to the repo.
 
+dex is the source of truth for milestones: scope, "Done when", status and results. `docs/ROADMAP.md` holds only the destination, the order of the arcs and what is out of scope. Do not copy a task or its status into the roadmap. Change the roadmap only when the direction changes.
+
 # Workflow
 We use matt-pocock skills to work through tasks:
 - `/implement` - Implement a task.
@@ -31,6 +33,12 @@ To play a game, drive it with `scripts/bridge.py`. See `guide/bridge.md` for the
 
 `scene` returns the QueryResults that the next `step` gets. So the game acts on a Contact one step after `scene` shows it.
 
+# Spikes
+A spike in `spikes/` is temporary. When its question has an answer, record the answer in dex and delete the folder in the same commit. CI never builds a spike. `spikes/README.md` gives the rules.
+
+# Evidence
+Write raw captures, such as tarballs, CSV sets, logs and screenshots, to `docs/evidence/raw/`. Git ignores it. Commit only the Markdown report and a small JSON summary. `docs/evidence/README.md` gives the rules.
+
 # Odin file layout
 Order every hand-written `.odin` file, tests included, in four groups. Finish each group before the next starts:
 1. Imports.
@@ -41,7 +49,7 @@ Order every hand-written `.odin` file, tests included, in four groups. Finish ea
 Move a declaration's comment and attributes with it. The generated files `engine/roc_platform_abi.odin` and `engine/shader_basic.odin` keep their generator's order.
 
 # Roc style
-- Follow `docs/roc-style.md`, a copy of Luke Boswell's Roc Style Guide (https://gist.github.com/lukewilliamboswell/241a4e8adb7c89c7e0e02f1d303a8fa1).
+- Follow `docs/guides/roc-style.md`, a copy of Luke Boswell's Roc Style Guide (https://gist.github.com/lukewilliamboswell/241a4e8adb7c89c7e0e02f1d303a8fa1).
 - Call a method on its receiver: write `messages.last()`, not `List.last(messages)`.
 - Build a list from parts with one `List.join([...])`, one sub-list per part in order. Do not chain `.concat` calls.
 

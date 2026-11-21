@@ -42,6 +42,28 @@ touches() {
 	grep -Eq "$1" "$changed"
 }
 
+# A spike is temporary, so CI must not build it. spikes/README.md gives the rule.
+if grep -n 'spikes/' .github/workflows/*.yml >&2; then
+	echo "pre-push: a CI workflow names spikes/. Move the check out of the spike first." >&2
+	exit 1
+fi
+
+# Raw evidence belongs in a release asset, not in git. docs/evidence/README.md
+# gives the rule.
+evidence_limit=1048576
+too_big=
+for file in $(grep '^docs/evidence/' "$changed" | sort -u); do
+	[ -f "$file" ] || continue
+	if [ "$(wc -c <"$file")" -gt "$evidence_limit" ]; then
+		too_big="$too_big $file"
+	fi
+done
+if [ -n "$too_big" ]; then
+	echo "pre-push: these evidence files are over 1 MiB:$too_big" >&2
+	echo "pre-push: upload them as a release asset and link them. See docs/evidence/README.md." >&2
+	exit 1
+fi
+
 if touches '\.odin$'; then
 	# A file such as platform_linux.odin compiles only for its own OS, so check
 	# every package for every CI target.
@@ -58,16 +80,6 @@ if touches '\.odin$'; then
 			targets=windows_amd64
 			defines=-define:ROCCO_D3D_GPU_TIMING=true
 			;;
-		# The web host assumes 32-bit Roc layouts.
-		spikes/web-link/host | spikes/web-arenas/host) targets=freestanding_wasm32 ;;
-		# Only build.sh adds the generated ABI file. The CI web job builds it.
-		spikes/web-pong/host) targets= ;;
-		# These packages compile only inside the engine slice that
-		# spikes/web-ui/build.sh writes. The web host superseded the slice.
-		spikes/web-ui/*) targets= ;;
-		# These name the engine through the slice collection, which
-		# spikes/web-lit/build.sh sets. The web host superseded the slice.
-		spikes/web-lit/*) targets= ;;
 		# The web host builds these for wasm32, so check that target too.
 		engine | engine/arenas | engine/system) targets="$targets freestanding_wasm32" ;;
 		esac

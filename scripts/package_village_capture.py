@@ -36,7 +36,7 @@ def package_files(output, presentmon, python_archive, source, builds, toolchain,
         shutil.copy2(ROOT/'scripts'/name, scripts/name)
     for name in ['Capture-Village.ps1', 'Capture-BenchSweeps.ps1', 'Summarize-VillageCapture.ps1', 'machine.example.json']:
         shutil.copy2(ROOT/'scripts/village-capture'/name, output/name)
-    shutil.copy2(ROOT/'docs/VILLAGE-CAPTURE.md', output/'README.md')
+    shutil.copy2(ROOT/'docs/guides/village-capture.md', output/'README.md')
     credits = output/'credits'
     credits.mkdir()
     for name in ['LICENSE_CC0_Quaternius.txt', 'UPSTREAM-README.md']:

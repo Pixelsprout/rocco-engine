@@ -19,7 +19,7 @@ would need an engine build.
   resources (ADR 0003). A new Shader asset needs no engine rebuild.
 - Each Shader asset records the version of the shader contract it targets
   and its binding layout. The engine rejects an incompatible asset with a
-  clear log. `docs/SHADER-CONTRACT.md` is the contract.
+  clear log. `docs/guides/shader-contract.md` is the contract.
 - There are two kinds. A Surface shader sets vertex movement, normals,
   material properties and the light response. A Post shader runs at a
   declared stage: in HDR before bloom, or after the tone map before the UI.

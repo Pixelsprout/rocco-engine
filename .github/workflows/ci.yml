@@ -2,7 +2,7 @@ name: CI
 
 # A push that changes only these files starts no run, so it cannot cancel a
 # running one. Keep out every path that a check reads, such as guide/ for
-# docs --check and docs/VILLAGE-CAPTURE.md for the village package test.
+# docs --check and docs/guides/village-capture.md for the village package test.
 on:
   push:
     branches: [main]
@@ -288,8 +288,8 @@ jobs:
       - name: Check bounded capture storage
         run: odin test engine -debug -vet -strict-style -linker:msvc -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=test_capture_requires_explicit_bounded_real_clock_options,test_capture_without_a_path_allocates_nothing,test_capture_copies_commands_before_builder_reuse_and_bounds_storage,test_capture_builder_detects_failed_growth_without_allocating,test_capture_records_zero_multiple_steps_and_skips_after_the_frame_limit,test_capture_frame_overflow_preserves_existing_rows,test_capture_counts_source_field_and_supplement_ranges_separately
 
-  # Builds games for the web and the wasm32 pages of the web spikes, and
-  # screenshots pong in headless Chrome.
+  # Builds the web host and games for the web, and screenshots pong in
+  # headless Chrome.
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -314,15 +314,6 @@ jobs:
         run: |
           sh scripts/toolchain.sh install
           sh scripts/toolchain.sh install-emsdk
-
-      - name: Build the wasm32 link
-        run: sh scripts/toolchain.sh run sh spikes/web-link/build.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-link-page
-          path: spikes/web-link/build/page/
-          if-no-files-found: error
 
       # The release web host goes into the candidate SDK as the wasm32 target.
       - name: Build the web host
@@ -405,13 +396,6 @@ jobs:
         run: |
           sh scripts/toolchain.sh run odin test engine/arenas -debug -vet -strict-style
           sh scripts/toolchain.sh run odin test engine/arenas -debug -vet -strict-style -define:ROCCO_ARENAS_HEAP=true
-
-      - name: Build the wasm32 arenas page
-        run: sh scripts/toolchain.sh run sh spikes/web-arenas/build.sh
-
-      # The page build checks the 32-bit asserts of engine/roc_platform_abi.odin.
-      - name: Build the wasm32 pong page
-        run: sh scripts/toolchain.sh run sh spikes/web-pong/build.sh
 
   # Compares the web pong frame with the native Linux one.
   web-pixels:

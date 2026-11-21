@@ -250,7 +250,7 @@ class RunnerTests(unittest.TestCase):
     def test_package_has_named_executables_and_one_shared_assets_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)/'source'
-            for path in ['examples/village/assets/meshes/tree.glb', 'docs/VILLAGE-CAPTURE.md',
+            for path in ['examples/village/assets/meshes/tree.glb', 'docs/guides/village-capture.md',
                          'examples/village/source/LICENSE_CC0_Quaternius.txt', 'examples/village/source/UPSTREAM-README.md',
                          *['scripts/'+name for name in ['village_capture.py', 'village_capture_summary.py',
                                                         'village_metal_summary.py', 'village_bench_capture.py']],

@@ -116,7 +116,7 @@ valid, the game prints the rule and exits with code 1. `ROCCO_DEBUG_CAMERA`,
 `ROCCO_SPANS_CSV` is only for a host that an engine developer builds with
 Spans. A release host stops with exit code 1 if it is set.
 
-Engine developers can build [D3D11 GPU timestamp diagnostics](../docs/D3D11-GPU-TIMING.md) for Windows performance checks.
+Engine developers can build [D3D11 GPU timestamp diagnostics](../docs/guides/d3d11-gpu-timing.md) for Windows performance checks.
 Ordinary builds compile out those hooks.
 
 [Config]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Config

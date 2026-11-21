@@ -1,0 +1,3 @@
+# Raw captures: tarballs, CSV sets, logs and screenshots. A report cites a
+# commit link or a release asset, never this folder.
+/raw/

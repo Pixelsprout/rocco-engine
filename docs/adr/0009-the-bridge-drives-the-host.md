@@ -5,7 +5,7 @@ Status: accepted, 2026-10-22.
 ## Context
 
 Milestone 19 makes the engine drivable by a script, a CI test or an agent.
-`docs/RESEARCH-SCALING.md` section 4 proposed Ports first: `Tell`, `Ask`
+`docs/research/scaling.md` section 4 proposed Ports first: `Tell`, `Ask`
 and `Listen` in the Vocabulary, with a Bridge as "a Port whose far end is a
 socket". No game needs a Port yet. Audio arrives as a host module with
 `Play` and `Scene.sounds`, and the first real Port user is the extension ABI

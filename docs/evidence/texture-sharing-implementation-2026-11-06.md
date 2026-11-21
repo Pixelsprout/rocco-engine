@@ -274,7 +274,7 @@ The archive includes the exact guarded probe scripts and their commands.
 Each run records its binary hash, effective environment, exit status, and fresh output directory.
 The archive excludes binaries and unchanged source assets.
 Their hashes and the existing baseline archives identify those inputs.
-The [raw archive](texture-sharing-implementation-2026-11-06.tar.gz) contains 183 files plus the tracked implementation patch and manifest.
+The [raw archive](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/texture-sharing-implementation-2026-11-06.tar.gz) contains 183 files plus the tracked implementation patch and manifest.
 The archive uses hard links for byte-identical files.
 Archive size: 37,043,800 bytes.
 Archive SHA-256: `b8518c0eeacb4dd3e263dc49cb47a0ec08cac0b420490f283e96fd62f67446ce`.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs the reference run of docs/BENCHMARKS.md: the sweep of every bench game
+# Runs the reference run of docs/guides/benchmarks.md: the sweep of every bench game
 # and Odin twin, then one real-clock run of entity-game. Then it draws the
 # charts and prints the headline figure.
 #
@@ -51,7 +51,7 @@ esac
 
 if ! $python bench/machine.py --check; then
 	if [ "${REFERENCE_FORCE:-0}" != 1 ]; then
-		echo "reference-run: the machine is not ready. See docs/BENCHMARKS.md, \"Reference run\"." >&2
+		echo "reference-run: the machine is not ready. See docs/guides/benchmarks.md, \"Reference run\"." >&2
 		exit 1
 	fi
 	echo "reference-run: REFERENCE_FORCE=1, so the run starts anyway." >&2

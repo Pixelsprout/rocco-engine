@@ -29,7 +29,7 @@ and out as the camera and the lamps move.
 - Point lights cast no shadow. The Sun keeps its cascaded shadows.
 - Headless runs build no clusters. The build has its own Span,
   `cluster_build`, apart from `render_submit`.
-- `docs/SHADER-CONTRACT.md` holds the block sizes, storage slots and limits.
+- `docs/guides/shader-contract.md` holds the block sizes, storage slots and limits.
 
 ## Considered options
 
@@ -51,4 +51,4 @@ and out as the camera and the lamps move.
 - The renderer reuses unchanged mesh bindings and Material uniforms until
   the pipeline changes, so repeated mesh parts do not rebind the storage
   buffers.
-- `docs/BENCHMARKS.md` records the CPU cost of the build.
+- `docs/guides/benchmarks.md` records the CPU cost of the build.

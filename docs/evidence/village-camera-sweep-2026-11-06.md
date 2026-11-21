@@ -75,7 +75,7 @@ It did not report a memory warning state.
 
 ## Retained files
 
-The [raw evidence archive](village-camera-sweep-2026-11-06.tar.gz) contains 19 files.
+The [raw evidence archive](https://github.com/Pixelsprout/rocco-engine/blob/82b7b17d93495131d079de8e46470b402fed09a7/docs/evidence/village-camera-sweep-2026-11-06.tar.gz) contains 19 files.
 It contains every boundary CSV, command record, metadata record, and CPU CSV from four launches.
 It also contains the summaries for the three complete captures.
 The first launch could not load assets from its temporary app path.

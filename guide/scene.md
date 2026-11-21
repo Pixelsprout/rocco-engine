@@ -158,7 +158,7 @@ The host supplies coverage and nearest selected depth, including geometry behind
 A Post shader compares selected depth with independent scene depth to choose its occlusion policy.
 Blend materials cover their full shape, including alpha-zero glass.
 Mask materials preserve their cutoff and deformation.
-See [Runtime Post effects](../docs/POST-RUNTIME.md) for the shader inputs and example policies.
+See [Runtime Post effects](../docs/guides/post-runtime.md) for the shader inputs and example policies.
 
 Group ids and draw ids are apart. A Group pairs only with a Group, so an
 entity can use its own id for both its Group and its Draw. Keep a Group's
