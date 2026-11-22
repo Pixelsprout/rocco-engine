@@ -7,8 +7,8 @@
         // scripts/test_tour_worker.py checks that this commit is ROC_COMMIT in
         // scripts/linux/Dockerfile. Move both with `zig fetch --save=roc <url>`.
         .roc = .{
-            .url = "https://codeload.github.com/roc-lang/roc/tar.gz/262206271cf05db948eef2b96fae88a1aca07b19",
-            .hash = "roc-0.0.0-NAC9wwaB7APAJ0gk4CrtkWAQEratqsCqqrfqh_WpvD6s",
+            .url = "https://codeload.github.com/roc-lang/roc/tar.gz/15177e91f62cafddf5336c455e00e9f05427ac16",
+            .hash = "roc-0.0.0-NAC9w5OhkQOFw5MBykl8Ol0y7dgwo6QUWq-12U7ebO0J",
         },
     },
     .paths = .{

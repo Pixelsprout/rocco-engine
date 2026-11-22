@@ -80,13 +80,13 @@ Scroll :: { id : U64, thumb : U64, line : F32, offset : F32, seen : F32, content
 			} else {
 				wheeled
 			}
-		offset = keyed.max(0.0).min(max)
+		clamped = keyed.max(0.0).min(max)
 		stick = match sized.stick {
 			NoStick => NoStick
-			Stuck => if (offset >= max) Stuck else Loose
-			Loose => if (offset >= max) Stuck else Loose
+			Stuck => if (clamped >= max) Stuck else Loose
+			Loose => if (clamped >= max) Stuck else Loose
 		}
-		{ ..sized, offset, drag, stick }
+		{ ..sized, offset: clamped, drag, stick }
 	}
 
 	## The pixels scrolled down from the top.

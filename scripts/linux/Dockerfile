@@ -4,10 +4,14 @@
 FROM ubuntu:24.04
 
 ARG ODIN_RELEASE=dev-2026-11
-ARG ROC_NIGHTLY=2026-11-04-2622062
-# The roc-lang/roc commit of ROC_NIGHTLY. scripts/roc_patches.py applies the
+# The Roc release tag. `roc version` prints it.
+ARG ROC_RELEASE=0.1.0_RC1
+# ROC_RELEASE as the `roc` entry of a .roc header spells it. The header
+# parser does not accept the tag form.
+ARG ROC_PIN=0.1.0-rc1
+# The roc-lang/roc commit of ROC_RELEASE. scripts/roc_patches.py applies the
 # carried Roc patches to it.
-ARG ROC_COMMIT=262206271cf05db948eef2b96fae88a1aca07b19
+ARG ROC_COMMIT=15177e91f62cafddf5336c455e00e9f05427ac16
 # The Zig that builds the Tour compile worker (scripts/tour_worker.py). Roc's
 # build.zig.zon asks for it.
 ARG ZIG_VERSION=0.17.0
@@ -25,7 +29,7 @@ RUN mkdir -p /opt/odin && curl -fsSL \
     | tar xz -C /opt/odin --strip-components=1
 
 RUN mkdir -p /opt/roc && curl -fsSL \
-        "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-linux_x86_64-${ROC_NIGHTLY}.tar.gz" \
+        "https://github.com/roc-lang/roc/releases/download/${ROC_RELEASE}/roc-linux_x86_64-${ROC_RELEASE}.tar.gz" \
     | tar xz -C /opt/roc --strip-components=1
 
 ENV PATH="/opt/odin:/opt/roc:${PATH}"

@@ -21,14 +21,14 @@ jobs:
 
       # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
       - name: Read the toolchain pins
-        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_RELEASE)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
 
       - name: Install Odin and Roc
         run: |
           mkdir -p "$RUNNER_TEMP/odin" "$RUNNER_TEMP/roc"
           curl -fsSL "https://github.com/odin-lang/Odin/releases/download/${ODIN_RELEASE}/odin-macos-arm64-${ODIN_RELEASE}.tar.gz" \
             | tar xz -C "$RUNNER_TEMP/odin" --strip-components=1
-          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-macos_apple_silicon-${ROC_NIGHTLY}.tar.gz" \
+          curl -fsSL "https://github.com/roc-lang/roc/releases/download/${ROC_RELEASE}/roc-macos_apple_silicon-${ROC_RELEASE}.tar.gz" \
             | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
           echo "$RUNNER_TEMP/odin" >> "$GITHUB_PATH"
           echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
@@ -94,20 +94,20 @@ jobs:
 
       # scripts/linux/Dockerfile holds the one copy of the Odin and Roc pins.
       - name: Read the toolchain pins
-        run: grep -E '^ARG (ODIN_RELEASE|ROC_NIGHTLY)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
+        run: grep -E '^ARG (ODIN_RELEASE|ROC_RELEASE)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
 
-      # The Odin zip holds dist/. The Roc zip holds one folder named after the nightly.
+      # The Odin zip holds dist/. The Roc zip holds one folder named after the release.
       - name: Install Odin and Roc
         shell: pwsh
         run: |
           $odin = "$env:RUNNER_TEMP\odin"
           $roc = "$env:RUNNER_TEMP\roc"
           Invoke-WebRequest "https://github.com/odin-lang/Odin/releases/download/$env:ODIN_RELEASE/odin-windows-amd64-$env:ODIN_RELEASE.zip" -OutFile "$env:RUNNER_TEMP\odin.zip"
-          Invoke-WebRequest "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/roc_nightly-windows_x86_64-$env:ROC_NIGHTLY.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
+          Invoke-WebRequest "https://github.com/roc-lang/roc/releases/download/$env:ROC_RELEASE/roc-windows_x86_64-$env:ROC_RELEASE.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
           Expand-Archive "$env:RUNNER_TEMP\odin.zip" -DestinationPath $odin
           Expand-Archive "$env:RUNNER_TEMP\roc.zip" -DestinationPath $roc
           "$odin\dist" >> $env:GITHUB_PATH
-          "$roc\roc_nightly-windows_x86_64-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+          "$roc\roc-windows_x86_64-$env:ROC_RELEASE" >> $env:GITHUB_PATH
 
       - name: Build the sokol D3D11 libraries and the miniaudio library
         shell: cmd
@@ -191,21 +191,22 @@ jobs:
     env:
       RELEASE_BASE: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
     outputs:
-      roc_nightly: ${{ steps.pins.outputs.roc_nightly }}
+      roc_release: ${{ steps.pins.outputs.roc_release }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Read the Roc pin
         id: pins
         run: |
-          nightly=$(sed -n 's/^ARG ROC_NIGHTLY=//p' scripts/linux/Dockerfile)
-          echo "ROC_NIGHTLY=$nightly" >> "$GITHUB_ENV"
-          echo "roc_nightly=$nightly" >> "$GITHUB_OUTPUT"
+          release=$(sed -n 's/^ARG ROC_RELEASE=//p' scripts/linux/Dockerfile)
+          echo "ROC_RELEASE=$release" >> "$GITHUB_ENV"
+          echo "roc_release=$release" >> "$GITHUB_OUTPUT"
+          sed -n 's/^ARG ROC_PIN=/ROC_PIN=/p' scripts/linux/Dockerfile >> "$GITHUB_ENV"
 
       - name: Install Roc
         run: |
           mkdir -p "$RUNNER_TEMP/roc"
-          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/roc_nightly-linux_x86_64-${ROC_NIGHTLY}.tar.gz" \
+          curl -fsSL "https://github.com/roc-lang/roc/releases/download/${ROC_RELEASE}/roc-linux_x86_64-${ROC_RELEASE}.tar.gz" \
             | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
           echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
 
@@ -254,7 +255,7 @@ jobs:
         run: |
           roc scripts/build.roc docs --check
           mapfile -t urls < "$RUNNER_TEMP/urls"
-          python3 scripts/release.py docs build/docs "$RUNNER_TEMP/docs.tar.gz" "nightly-${ROC_NIGHTLY}" "${urls[@]}"
+          python3 scripts/release.py docs build/docs "$RUNNER_TEMP/docs.tar.gz" "${ROC_PIN}" "${urls[@]}"
           echo "$RUNNER_TEMP/docs.tar.gz" >> "$RUNNER_TEMP/assets"
 
       # The source bundle mounts the same URLs as release.py docs, so a
@@ -284,7 +285,7 @@ jobs:
         run: |
           mapfile -t urls < "$RUNNER_TEMP/urls"
           mapfile -t assets < "$RUNNER_TEMP/assets"
-          python3 scripts/release.py notes "${{ github.ref_name }}" "nightly-${ROC_NIGHTLY}" "${urls[@]}" > "$RUNNER_TEMP/notes.md"
+          python3 scripts/release.py notes "${{ github.ref_name }}" "${ROC_PIN}" "${urls[@]}" > "$RUNNER_TEMP/notes.md"
           gh release create "${{ github.ref_name }}" --verify-tag --prerelease \
             --title "${{ github.ref_name }}" --notes-file "$RUNNER_TEMP/notes.md" "${assets[@]}"
 
@@ -312,24 +313,24 @@ jobs:
       matrix:
         include:
           - os: macos-15
-            roc: roc_nightly-macos_apple_silicon
+            roc: roc-macos_apple_silicon
           - os: ubuntu-24.04
-            roc: roc_nightly-linux_x86_64
+            roc: roc-linux_x86_64
           - os: windows-2022
-            roc: roc_nightly-windows_x86_64
+            roc: roc-windows_x86_64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
       run:
         shell: bash
     env:
-      ROC_NIGHTLY: ${{ needs.bundle.outputs.roc_nightly }}
+      ROC_RELEASE: ${{ needs.bundle.outputs.roc_release }}
     steps:
       - name: Install Roc
         if: runner.os != 'Windows'
         run: |
           mkdir -p "$RUNNER_TEMP/roc"
-          curl -fsSL "https://github.com/roc-lang/nightlies/releases/download/nightly-${ROC_NIGHTLY}/${{ matrix.roc }}-${ROC_NIGHTLY}.tar.gz" \
+          curl -fsSL "https://github.com/roc-lang/roc/releases/download/${ROC_RELEASE}/${{ matrix.roc }}-${ROC_RELEASE}.tar.gz" \
             | tar xz -C "$RUNNER_TEMP/roc" --strip-components=1
           echo "$RUNNER_TEMP/roc" >> "$GITHUB_PATH"
 
@@ -338,9 +339,9 @@ jobs:
         shell: pwsh
         run: |
           $roc = "$env:RUNNER_TEMP\roc"
-          Invoke-WebRequest "https://github.com/roc-lang/nightlies/releases/download/nightly-$env:ROC_NIGHTLY/${{ matrix.roc }}-$env:ROC_NIGHTLY.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
+          Invoke-WebRequest "https://github.com/roc-lang/roc/releases/download/$env:ROC_RELEASE/${{ matrix.roc }}-$env:ROC_RELEASE.zip" -OutFile "$env:RUNNER_TEMP\roc.zip"
           Expand-Archive "$env:RUNNER_TEMP\roc.zip" -DestinationPath $roc
-          "$roc\${{ matrix.roc }}-$env:ROC_NIGHTLY" >> $env:GITHUB_PATH
+          "$roc\${{ matrix.roc }}-$env:ROC_RELEASE" >> $env:GITHUB_PATH
 
       # The game needs an X server and a GL driver to run, not to link.
       - name: Install the X server and Mesa

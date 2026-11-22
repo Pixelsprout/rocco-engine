@@ -27,9 +27,9 @@ If you get lost, compare your file with it.
 ## Before you start
 
 Install Roc as [Install and first run](../install.md) explains, and use the
-Roc nightly that the release names.
+Roc version that the release names.
 
-If you read this page on GitHub, the Roc nightly and the bundle URLs show as
+If you read this page on GitHub, the Roc version and the bundle URLs show as
 markers in double braces. You can find the values in the notes of the
 [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
 

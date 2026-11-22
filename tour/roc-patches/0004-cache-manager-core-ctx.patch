@@ -5,10 +5,9 @@ Upstream: not proposed.
 Source: research/tour-compile-worker-build (cache_manager.patch).
 
 diff --git a/src/compile/cache_manager.zig b/src/compile/cache_manager.zig
-index 0e3382a..3b4afae 100644
 --- a/src/compile/cache_manager.zig
 +++ b/src/compile/cache_manager.zig
-@@ -21,6 +21,8 @@ const artifacts = @import("artifact_store.zig");
+@@ -21,6 +21,8 @@
  /// Public `CacheManager` declaration.
  pub const CacheManager = struct {
      config: CacheConfig,
@@ -17,8 +16,8 @@ index 0e3382a..3b4afae 100644
      roc_ctx: CoreCtx = undefined,
      allocator: Allocator,
      stats: CacheStats,
-@@ -185,8 +187,17 @@ pub const CacheManager = struct {
-     const EntrySource = union(enum) { bytes: []const u8, stream: CoreCtx.FileStream };
+@@ -208,8 +210,20 @@
+     };
  
      fn storeEntry(self: *Self, allocator: Allocator, kind: Kind, family: artifacts.Family, key: [32]u8, source: EntrySource, size: usize, scope: []const u8, name: []const u8) void {
 -        if (comptime threading.is_freestanding) return;
@@ -26,7 +25,10 @@ index 0e3382a..3b4afae 100644
 +        if (self.storage == .core_ctx) {
 +            const path = self.coreCtxPath(allocator, family, key, scope) orelse return self.recordStoreFailureFor(kind);
 +            defer allocator.free(path);
-+            (switch (source) {
++            const framed: FramedEntry = .{ .prefix = artifacts.lengthPrefix(size), .source = source, .trailer = artifacts.lengthTrailer(size) };
++            (if (family.framed())
++                self.roc_ctx.writeFileStream(path, .{ .context = &framed, .write = FramedEntry.write })
++            else switch (source) {
 +                .bytes => |bytes| self.roc_ctx.writeFile(path, bytes),
 +                .stream => |stream| self.roc_ctx.writeFileStream(path, stream),
 +            }) catch return self.recordStoreFailureFor(kind);
@@ -36,16 +38,18 @@ index 0e3382a..3b4afae 100644
          const store = self.storeHandle() orelse {
              self.recordStoreFailureFor(kind);
              return;
-@@ -336,9 +347,30 @@ pub const CacheManager = struct {
-         return artifact;
-     }
- 
+@@ -404,11 +418,35 @@
+         }
+         self.recordHitFor(kind, data.file().len);
+         return data;
++    }
++
 +    fn coreCtxPath(self: *const Self, allocator: Allocator, family: artifacts.Family, key: [32]u8, scope: []const u8) ?[]u8 {
 +        var store = self.openStore(allocator) catch return null;
 +        defer store.deinit();
 +        return store.entryPath(allocator, identity(family, key, scope)) catch null;
-+    }
-+
+     }
+ 
 +    fn loadCoreCtx(self: *const Self, allocator: Allocator, family: artifacts.Family, key: [32]u8, scope: []const u8) ?[]align(CacheModule.SERIALIZATION_ALIGNMENT.toByteUnits()) u8 {
 +        const path = self.coreCtxPath(allocator, family, key, scope) orelse return null;
 +        defer allocator.free(path);
@@ -56,15 +60,18 @@ index 0e3382a..3b4afae 100644
 +        return null;
 +    }
 +
-     fn loadMapped(self: *Self, allocator: Allocator, kind: Kind, family: artifacts.Family, key: [32]u8, scope: []const u8, counted: bool) ?CacheModule.CacheData {
+     fn mapFamily(self: *Self, allocator: Allocator, kind: Kind, family: artifacts.Family, key: [32]u8, scope: []const u8) ?CacheModule.CacheData {
 -        if (comptime threading.is_freestanding) return null;
          if (!self.config.enabled) return null;
 +        if (self.storage == .core_ctx) {
-+            const bytes = self.loadCoreCtx(allocator, family, key, scope);
-+            if (counted) if (bytes) |data| self.recordHitFor(kind, data.len) else self.recordMissFor(kind);
-+            return if (bytes) |data| .{ .allocated = data } else null;
++            const bytes = self.loadCoreCtx(allocator, family, key, scope) orelse {
++                self.recordMissFor(kind);
++                return null;
++            };
++            // No inode exists without a file system. Only the native store's discard reads it.
++            return .{ .storage = .{ .allocated = bytes }, .stamp = .{ .inode = std.mem.zeroes(std.Io.File.INode), .size = bytes.len } };
 +        }
 +        if (comptime threading.is_freestanding) return null;
          const store = self.storeHandle() orelse {
-             if (counted) self.recordMissFor(kind);
+             self.recordMissFor(kind);
              return null;

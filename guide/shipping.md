@@ -1,6 +1,6 @@
 ---
 title: Shipping a game
-summary: Pin the bundle URLs and the Roc nightly, build a binary on each target OS, and ship it with its assets.
+summary: Pin the bundle URLs and the Roc version, build a binary on each target OS, and ship it with its assets.
 order: 14
 ---
 
@@ -13,13 +13,13 @@ bundled package, and each bundle has a fixed URL. Your game names those
 URLs in its header, and `roc` downloads them, so Roc is all you need to
 build. The binary you build holds the engine and your game together.
 
-If you read this page on GitHub, the bundle URLs and the Roc nightly show
+If you read this page on GitHub, the bundle URLs and the Roc version show
 as markers in double braces. You can find the values in the notes of the
 [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
 
 ## The header
 
-This header names every bundle and the Roc nightly:
+This header names every bundle and the Roc version:
 
 ```roc
 app [init, launch, loaded, step, view] { cam: "{{camera_url}}", linalg: "{{linalg_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}", ui: "{{ui_url}}" }
@@ -40,12 +40,12 @@ behind a URL cannot change. Take all of the URLs from one release. The ui
 package copies the UI types of the platform, so URLs from two releases can
 have types that don't match.
 
-## The Roc nightly
+## The Roc version
 
-Roc changes from one nightly to the next. The `roc` field of the header
-names the nightly that the release was built with, so install that nightly
-and run `roc version` to check it. To move to a new release, change the
-nightly and all of the URLs at the same time.
+Roc can change from one version to the next. The `roc` field of the header
+names the Roc version that the release was built with, so install that
+version and run `roc version` to check it. To move to a new release, change
+the Roc version and all of the URLs at the same time.
 
 ## Build for each target
 

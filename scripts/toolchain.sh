@@ -21,17 +21,17 @@ pin() {
 }
 
 odin_release=$(pin ODIN_RELEASE)
-roc_nightly=$(pin ROC_NIGHTLY)
+roc_release=$(pin ROC_RELEASE)
 emsdk_version=$(pin EMSDK_VERSION)
 
 case "$(uname -s)-$(uname -m)" in
 Darwin-arm64)
 	odin_asset=odin-macos-arm64-$odin_release
-	roc_asset=roc_nightly-macos_apple_silicon-$roc_nightly
+	roc_asset=roc-macos_apple_silicon-$roc_release
 	;;
 Linux-x86_64)
 	odin_asset=odin-linux-amd64-$odin_release
-	roc_asset=roc_nightly-linux_x86_64-$roc_nightly
+	roc_asset=roc-linux_x86_64-$roc_release
 	;;
 *)
 	echo "toolchain.sh: no pinned download for $(uname -s)-$(uname -m). See CONTRIBUTING.md." >&2
@@ -67,7 +67,7 @@ install() {
 	[ -x "$odin_dir/odin" ] ||
 		download "https://github.com/odin-lang/Odin/releases/download/$odin_release/$odin_asset.tar.gz" "$odin_dir"
 	[ -x "$roc_dir/roc" ] ||
-		download "https://github.com/roc-lang/nightlies/releases/download/nightly-$roc_nightly/$roc_asset.tar.gz" "$roc_dir"
+		download "https://github.com/roc-lang/roc/releases/download/$roc_release/$roc_asset.tar.gz" "$roc_dir"
 	"$odin_dir/odin" version
 	"$roc_dir/roc" version
 }
@@ -102,9 +102,9 @@ check() {
 	esac
 	have_roc=$(roc version 2>/dev/null || echo "roc: not on PATH")
 	case "$have_roc" in
-	*"$roc_nightly"*) echo "roc ok: $have_roc" ;;
+	*"$roc_release"*) echo "roc ok: $have_roc" ;;
 	*)
-		echo "roc MISMATCH: PATH has '$have_roc', CI uses nightly-$roc_nightly" >&2
+		echo "roc MISMATCH: PATH has '$have_roc', CI uses $roc_release" >&2
 		status=1
 		;;
 	esac

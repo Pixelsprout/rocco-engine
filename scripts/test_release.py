@@ -31,7 +31,7 @@ BUNDLE_URLS = {
     "camera": f"{BASE}/camera-EEE.tar.zst",
     "rocco_web": f"{BASE}/rocco_web.py",
 }
-NIGHTLY = "nightly-2026-11-04-2622062"
+ROC_PIN = "0.1.0-rc1"
 
 
 def write_api_docs(api_dir, names=release.DOCS_BUNDLES):
@@ -101,9 +101,9 @@ class PrepareAppTest(unittest.TestCase):
 
 
 class NotesTest(unittest.TestCase):
-    def test_names_the_roc_nightly_and_every_bundle_url(self):
-        notes = release.notes("v0.1.0", "nightly-2026-11-04-2622062", URLS)
-        self.assertIn("nightly-2026-11-04-2622062", notes)
+    def test_names_the_roc_pin_and_every_bundle_url(self):
+        notes = release.notes("v0.1.0", "0.1.0-rc1", URLS)
+        self.assertIn("0.1.0-rc1", notes)
         self.assertIn("https://example.com/p.tar.zst", notes)
         self.assertIn("https://example.com/l.tar.zst", notes)
         self.assertLess(notes.index("platform"), notes.index("linalg"))
@@ -116,7 +116,7 @@ class PackDocsTest(unittest.TestCase):
             write_api_docs(api)
             out = Path(tmp) / "docs.tar.gz"
 
-            release.pack_docs(api, out, NIGHTLY, BUNDLE_URLS)
+            release.pack_docs(api, out, ROC_PIN, BUNDLE_URLS)
 
             with tarfile.open(out) as tar:
                 names = set(tar.getnames())
@@ -133,7 +133,7 @@ class PackDocsTest(unittest.TestCase):
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
                     "camera_url": f"{BASE}/camera-EEE.tar.zst",
                     "rocco_web_url": f"{BASE}/rocco_web.py",
-                    "roc_nightly": "nightly-2026-11-04-2622062",
+                    "roc_nightly": "0.1.0-rc1",
                 },
             )
 
@@ -143,14 +143,14 @@ class PackDocsTest(unittest.TestCase):
             write_api_docs(api)
             urls = {name: url for name, url in BUNDLE_URLS.items() if name != "mesh"}
             with self.assertRaisesRegex(ValueError, "mesh"):
-                release.pack_docs(api, Path(tmp) / "docs.tar.gz", NIGHTLY, urls)
+                release.pack_docs(api, Path(tmp) / "docs.tar.gz", ROC_PIN, urls)
 
     def test_rejects_a_bundle_with_no_api_html(self):
         with tempfile.TemporaryDirectory() as tmp:
             api = Path(tmp) / "docs"
             write_api_docs(api, names=("platform", "linalg", "mesh", "ui"))
             with self.assertRaisesRegex(ValueError, "camera"):
-                release.pack_docs(api, Path(tmp) / "docs.tar.gz", NIGHTLY, BUNDLE_URLS)
+                release.pack_docs(api, Path(tmp) / "docs.tar.gz", ROC_PIN, BUNDLE_URLS)
 
 
 class CheckDocsTest(unittest.TestCase):
@@ -160,7 +160,7 @@ class CheckDocsTest(unittest.TestCase):
         api = Path(tmp) / "docs"
         write_api_docs(api)
         out = Path(tmp) / "docs.tar.gz"
-        release.pack_docs(api, out, NIGHTLY, urls)
+        release.pack_docs(api, out, ROC_PIN, urls)
         return out
 
     def test_passes_when_every_url_names_an_asset_of_the_release(self):
@@ -184,7 +184,7 @@ class CheckDocsTest(unittest.TestCase):
     def test_names_a_missing_or_unknown_key_in_the_urls(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = self.pack(tmp)
-            markers = release.docs_markers(NIGHTLY, BUNDLE_URLS)
+            markers = release.docs_markers(ROC_PIN, BUNDLE_URLS)
             del markers["roc_nightly"]
             markers["sound_url"] = f"{BASE}/sound.tar.zst"
             repack(out, {"urls.json": json.dumps(markers)})

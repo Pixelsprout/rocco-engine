@@ -27,9 +27,9 @@ def candidate(out):
         for name in FIXTURE_FILES:
             archive.add(fixture / name, arcname="authoring/" + name)
     pin = next(line.split("=", 1)[1] for line in (ROOT / "scripts/linux/Dockerfile").read_text().splitlines()
-               if line.startswith("ARG ROC_NIGHTLY="))
+               if line.startswith("ARG ROC_RELEASE="))
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    metadata = dict(kind="draft-PR candidate; not a stable release", commit=commit, roc_nightly=pin,
+    metadata = dict(kind="draft-PR candidate; not a stable release", commit=commit, roc_release=pin,
                     run_id=os.environ.get("GITHUB_RUN_ID"), run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
                     repository=os.environ.get("GITHUB_REPOSITORY"),
                     run_url=f"https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",

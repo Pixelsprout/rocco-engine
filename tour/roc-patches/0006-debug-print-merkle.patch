@@ -1,7 +1,7 @@
 Change: procFingerprint prints the bytes of string and bytes literals as a
-hash, and procFingerprintResolved names each callee by a hash the caller
-supplies. The compile worker builds the Merkle hashes of init, loaded and
-launch from it.
+hash, and procFingerprintResolved names each callee and each static data slot
+by a hash the caller supplies. The compile worker builds the Merkle hashes of
+init, loaded and launch from it.
 Upstream: not proposed.
 Source: research/tour-init-identity (debug-print-merkle.patch).
 
@@ -19,15 +19,10 @@ Source: research/tour-init-identity (debug-print-merkle.patch).
                          .proc_ref => |p| try writer.print("literal proc_ref p{d}", .{@backingInt(p)}),
                      }
                      const extra = self.store.literalExtra(s.value);
-@@ -562,10 +562,31 @@
- /// of first appearance, each in its own namespace. The object cache's
- /// diagnostics compare these across programs.
- pub fn procFingerprint(
-+    gpa: std.mem.Allocator,
-+    store: *const LirStore,
-+    layouts: *const layout_mod.Store,
-+    proc_id: LIR.LirProcSpecId,
-+) Error!u64 {
+@@ -554,6 +554,30 @@
+     layouts: *const layout_mod.Store,
+     proc_id: LIR.LirProcSpecId,
+ ) Error!u64 {
 +    return procFingerprintResolved(gpa, store, layouts, proc_id, null);
 +}
 +
@@ -39,19 +34,23 @@ Source: research/tour-init-identity (debug-print-merkle.patch).
 +    self_id: u64,
 +    hashes: *const std.AutoHashMap(u64, u64),
 +    callees: *std.ArrayList(u64),
-     gpa: std.mem.Allocator,
++    gpa: std.mem.Allocator,
++    /// Static data slots named by the hash of their content. A slot not in
++    /// the map is renumbered like a local.
++    static_hashes: ?*const std.AutoHashMap(u64, u64) = null,
 +};
 +
 +pub fn procFingerprintResolved(
 +    gpa: std.mem.Allocator,
-     store: *const LirStore,
-     layouts: *const layout_mod.Store,
-     proc_id: LIR.LirProcSpecId,
++    store: *const LirStore,
++    layouts: *const layout_mod.Store,
++    proc_id: LIR.LirProcSpecId,
 +    resolver: ?Resolver,
- ) Error!u64 {
++) Error!u64 {
      var text: std.Io.Writer.Allocating = .init(gpa);
      defer text.deinit();
-@@ -585,7 +606,7 @@
+     try writeProc(gpa, store, layouts, proc_id, &text.writer);
+@@ -572,7 +596,7 @@
      while (index < source.len) {
          const at_boundary = index == 0 or !isIdentByte(source[index - 1]);
          if (at_boundary) {
@@ -60,7 +59,7 @@ Source: research/tour-init-identity (debug-print-merkle.patch).
                  index = next;
                  continue;
              }
-@@ -615,6 +636,7 @@
+@@ -602,6 +626,7 @@
      start: usize,
      names: *std.StringHashMap(std.AutoHashMap(u64, u32)),
      writer: *std.Io.Writer,
@@ -68,7 +67,7 @@ Source: research/tour-init-identity (debug-print-merkle.patch).
  ) Error!?usize {
      // `l12`, `j3`, `p7`, and `static_data s4`.
      const letter = source[start];
-@@ -624,7 +646,15 @@
+@@ -611,7 +636,17 @@
          const end = digitsEnd(source, start + 1);
          if (end > start + 1 and (end == source.len or !isIdentByte(source[end]))) {
              const value = std.fmt.parseInt(u64, source[start + 1 .. end], 10) catch return null;
@@ -81,6 +80,8 @@ Source: research/tour-init-identity (debug-print-merkle.patch).
 +                    try r.callees.append(r.gpa, value);
 +                    if (r.hashes.get(value)) |h| try writer.print("m{x:0>16}", .{h}) else try writer.writeAll("pcycle");
 +                }
++            } else if (letter == 's' and resolver != null and resolver.?.static_hashes != null and resolver.?.static_hashes.?.contains(value)) {
++                try writer.print("d{x:0>16}", .{resolver.?.static_hashes.?.get(value).?});
 +            } else if (letter == 'p') {
                  const identity = store.getProcSpecImmediate(@fromBackingInt(@intCast(@as(u32, @intCast(value))))).identity;
                  try writer.print("p{s}", .{&identity.symbolHex()});

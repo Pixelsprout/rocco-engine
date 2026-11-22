@@ -4,9 +4,9 @@ Run from the repository root:
   python3 scripts/release.py app <app dir> <out dir> --url platform=<url> --url linalg=<url> ...
       writes the app's .roc files to <out dir> with its header on the bundle URLs.
       A package with no URL is copied beside the app.
-  python3 scripts/release.py notes <tag> <roc nightly> --url platform=<url> ...
+  python3 scripts/release.py notes <tag> <roc pin> --url platform=<url> ...
       prints the release notes.
-  python3 scripts/release.py docs <api dir> <out file> <roc nightly> --url platform=<url> ...
+  python3 scripts/release.py docs <api dir> <out file> <roc pin> --url platform=<url> ...
       writes docs.tar.gz: the API HTML of each bundle and urls.json.
   python3 scripts/release.py check-docs <docs.tar.gz> <release download URL> <asset name>...
       fails if the tarball is malformed or a URL in urls.json names no asset of the release.
@@ -63,11 +63,11 @@ def prepare_app(app_dir, out_dir, urls, packages_dir):
         (out_dir / path.name).write_text(text)
 
 
-def notes(tag, nightly, urls):
+def notes(tag, roc_pin, urls):
     lines = [
         f"rocco {tag}",
         "",
-        f"Built with the Roc nightly `{nightly}`. Use the same nightly to run an app on these bundles.",
+        f"Built with Roc `{roc_pin}`. Use the same Roc to run an app on these bundles.",
         "",
         "| Bundle | URL |",
         "| --- | --- |",
@@ -76,12 +76,13 @@ def notes(tag, nightly, urls):
     return "\n".join(lines) + "\n"
 
 
-def docs_markers(nightly, urls):
+def docs_markers(roc_pin, urls):
     missing = [name for name in DOCS_BUNDLES + DOCS_TOOLS if name not in urls]
     if missing:
         raise ValueError(f"no URL for {', '.join(missing)}")
     markers = {f"{name}_url": urls[name] for name in DOCS_BUNDLES + DOCS_TOOLS}
-    markers["roc_nightly"] = nightly
+    # The site reads this key, so it keeps its nightly-era name.
+    markers["roc_nightly"] = roc_pin
     return markers
 
 
@@ -91,8 +92,8 @@ def add_bytes(tar, name, data):
     tar.addfile(info, io.BytesIO(data))
 
 
-def pack_docs(api_dir, out_file, nightly, urls):
-    data = json.dumps(docs_markers(nightly, urls), indent=2).encode() + b"\n"
+def pack_docs(api_dir, out_file, roc_pin, urls):
+    data = json.dumps(docs_markers(roc_pin, urls), indent=2).encode() + b"\n"
     missing = [name for name in DOCS_BUNDLES if not (api_dir / name / "index.html").is_file()]
     if missing:
         raise ValueError(f"no API HTML for {', '.join(missing)} in {api_dir}")
@@ -144,12 +145,12 @@ def main():
     app.add_argument("--url", action="append", default=[])
     note = commands.add_parser("notes")
     note.add_argument("tag")
-    note.add_argument("nightly")
+    note.add_argument("roc_pin")
     note.add_argument("--url", action="append", default=[])
     docs = commands.add_parser("docs")
     docs.add_argument("api_dir", type=Path)
     docs.add_argument("out_file", type=Path)
-    docs.add_argument("nightly")
+    docs.add_argument("roc_pin")
     docs.add_argument("--url", action="append", default=[])
     check = commands.add_parser("check-docs")
     check.add_argument("docs_file", type=Path)
@@ -166,9 +167,9 @@ def main():
     if args.command == "app":
         prepare_app(args.app_dir, args.out_dir, urls, ROOT / "packages")
     elif args.command == "docs":
-        pack_docs(args.api_dir, args.out_file, args.nightly, urls)
+        pack_docs(args.api_dir, args.out_file, args.roc_pin, urls)
     else:
-        sys.stdout.write(notes(args.tag, args.nightly, urls))
+        sys.stdout.write(notes(args.tag, args.roc_pin, urls))
 
 
 if __name__ == "__main__":

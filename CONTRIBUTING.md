@@ -30,7 +30,7 @@ In an existing clone, run `git submodule update --init`.
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
 | Odin | `dev-2026-11`, on `PATH` | In the Docker image | `dev-2026-11` windows-amd64 release, on `PATH` |
-| Roc | `nightly-2026-11-04-2622062`, on `PATH` | In the Docker image | `nightly-2026-11-04-2622062` windows_x86_64 zip, on `PATH` |
+| Roc | `0.1.0_RC1` release, on `PATH` | In the Docker image | `0.1.0_RC1` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
@@ -46,13 +46,16 @@ The pre-push hook checks every Odin package for each CI target and links a
 game on macOS. See `scripts/pre-push.sh`.
 
 The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
-in `scripts/build.roc`. A different compiler warns and builds anyway. Fix the
-`PATH`, never the pin.
+in `scripts/build.roc`. Each header writes `ROC_PIN` from
+`scripts/linux/Dockerfile`. `roc version` prints `ROC_RELEASE`, the release
+tag. A header cannot use the tag form. A nightly compiler warns about the pin
+and builds anyway. `0.1.0_RC1` does not warn, because it cannot parse its own
+tag. Fix the `PATH`, never the pin.
 
 The Tour builds from a copy of the pinned Roc with rocco's patches applied.
 `tour/roc-patches/` holds one `.patch` file per change, applied in name order.
 The header of each patch states its upstream status. `ARG ROC_COMMIT` in
-`scripts/linux/Dockerfile` names the Roc commit of `ROC_NIGHTLY`. When you move
+`scripts/linux/Dockerfile` names the Roc commit of `ROC_RELEASE`. When you move
 the Roc pin, change both. Then run `python3 scripts/roc_patches.py check`. If a
 patch does not apply, update the patch before you move the pin. CI runs the
 same check on every push. `python3 scripts/roc_patches.py apply <dir>` writes
@@ -196,7 +199,7 @@ Linux job runs `roc bundle` for the platform and for `packages/linalg`,
 `packages/mesh`, `packages/ui` and `packages/camera`. It publishes each
 bundle in a prerelease, named `<name>-<hash>.tar.zst`. Roc takes URLs that
 differ only in the hash as one package, so the name must stay in front. The
-notes name each bundle URL and the Roc nightly. Next, a job on each OS
+notes name each bundle URL and the Roc version. Next, a job on each OS
 installs only Roc and runs cards from the bundle URLs. If all three pass, the last job
 marks the release final and latest. If one fails, the release stays a
 prerelease. A tag with a hyphen, such as `v0.2.0-rc.1`, also stays a
@@ -208,7 +211,8 @@ The bundle job also runs `roc scripts/build.roc docs --check` and attaches
 `docs.tar.gz` to the release. The tarball holds the API HTML of each bundle
 and `urls.json`. `urls.json` gives the value of each marker in the guide
 pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url`, `camera_url` and
-`roc_nightly`. `scripts/release.py docs` makes the tarball. After the
+`roc_nightly`. The `roc_nightly` key keeps its old name because the site
+reads it, but its value is `ROC_PIN`. `scripts/release.py docs` makes the tarball. After the
 publish, `scripts/release.py check-docs` reads the published tarball. It
 fails if a URL names no asset of the release. When the release workflow
 passes, `.github/workflows/grow-site.yml` asks Vercel to rebuild
