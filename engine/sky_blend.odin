@@ -4,6 +4,11 @@ import sg "../sokol-odin/sokol/gfx"
 
 SKY_BLEND_SPECULAR_MIPS :: 8
 
+// Three RGBA16F faces make 24 bytes a sample, inside WebGPU's default
+// maxColorAttachmentBytesPerSample of 32. Six would make 48.
+SKY_BLEND_FACES_PER_PASS :: 3
+SKY_BLEND_PASSES :: 6 / SKY_BLEND_FACES_PER_PASS
+
 #assert(1 << (SKY_BLEND_SPECULAR_MIPS - 1) == SKY_SPECULAR_SIDE)
 
 // The image-based light the mesh shaders read in this Frame.
@@ -12,12 +17,13 @@ Environment_Light :: struct {
 	params:            [4]f32,
 }
 
-// Each mip's attachments hold its six faces as colour targets 0 to 5.
+// Each mip has two attachments, faces 0 to 2 and faces 3 to 5, each as
+// colour targets 0 to 2.
 Sky_Blend_Cube :: struct {
 	texture: Mesh_Texture,
 	side:    int,
 	mips:    int,
-	mip_faces: [SKY_BLEND_SPECULAR_MIPS]sg.Attachments,
+	mip_faces: [SKY_BLEND_SPECULAR_MIPS][SKY_BLEND_PASSES]sg.Attachments,
 }
 
 // The targets are made on the first blend. from, to and amount are the last
@@ -61,8 +67,8 @@ sky_blend_make :: proc(b: ^Sky_Blend_Target) {
 		{
 			shader = sg.make_shader(cube_blend_shader_desc(sg.query_backend())),
 			sample_count = 1,
-			color_count = 6,
-			colors = {0 = {pixel_format = .RGBA16F}, 1 = {pixel_format = .RGBA16F}, 2 = {pixel_format = .RGBA16F}, 3 = {pixel_format = .RGBA16F}, 4 = {pixel_format = .RGBA16F}, 5 = {pixel_format = .RGBA16F}},
+			color_count = SKY_BLEND_FACES_PER_PASS,
+			colors = {0 = {pixel_format = .RGBA16F}, 1 = {pixel_format = .RGBA16F}, 2 = {pixel_format = .RGBA16F}},
 			depth = {pixel_format = .NONE},
 			cull_mode = .NONE,
 			label = "sky-blend",
@@ -91,7 +97,7 @@ sky_blend_cube_make :: proc(cube: ^Sky_Blend_Cube, side, mips: int) {
 	cube^ = {texture = {image = image, view = sg.make_view({texture = {image = image}}), sampler = sampler}, side = side, mips = mips}
 	for mip in 0 ..< mips {
 		for face in 0 ..< 6 {
-			cube.mip_faces[mip].colors[face] = sg.make_view({color_attachment = {image = image, mip_level = i32(mip), slice = i32(face)}})
+			cube.mip_faces[mip][face / SKY_BLEND_FACES_PER_PASS].colors[face % SKY_BLEND_FACES_PER_PASS] = sg.make_view({color_attachment = {image = image, mip_level = i32(mip), slice = i32(face)}})
 		}
 	}
 }
@@ -101,21 +107,23 @@ sky_blend_cube_make :: proc(cube: ^Sky_Blend_Cube, side, mips: int) {
 @(private = "file")
 sky_blend_cube :: proc(b: ^Sky_Blend_Target, cube: ^Sky_Blend_Cube, from, to: Mesh_Texture, from_lod, to_lod, amount: f32) {
 	action: sg.Pass_Action
-	for i in 0 ..< 6 {
+	for i in 0 ..< SKY_BLEND_FACES_PER_PASS {
 		action.colors[i].load_action = .DONTCARE
 	}
 	for mip in 0 ..< cube.mips {
 		roughness := f32(mip) / f32(max(cube.mips - 1, 1))
-		gfx_begin_pass({action = action, attachments = cube.mip_faces[mip], label = "sky-blend"})
-		sg.apply_pipeline(b.pip)
-		sg.apply_bindings({views = {VIEW_blend_from_tex = from.view, VIEW_blend_to_tex = to.view}, samplers = {SMP_blend_from_smp = from.sampler, SMP_blend_to_smp = to.sampler}})
-		params := Cube_Blend_Params {
-			face_side = {0, f32(max(cube.side >> uint(mip), 1)), 0, 0},
-			lods   = {roughness * from_lod, roughness * to_lod, 0, 0},
-			amount = {amount, 0, 0, 0},
+		for pass in 0 ..< SKY_BLEND_PASSES {
+			gfx_begin_pass({action = action, attachments = cube.mip_faces[mip][pass], label = "sky-blend"})
+			sg.apply_pipeline(b.pip)
+			sg.apply_bindings({views = {VIEW_blend_from_tex = from.view, VIEW_blend_to_tex = to.view}, samplers = {SMP_blend_from_smp = from.sampler, SMP_blend_to_smp = to.sampler}})
+			params := Cube_Blend_Params {
+				face_side = {f32(pass * SKY_BLEND_FACES_PER_PASS), f32(max(cube.side >> uint(mip), 1)), 0, 0},
+				lods      = {roughness * from_lod, roughness * to_lod, 0, 0},
+				amount    = {amount, 0, 0, 0},
+			}
+			sg.apply_uniforms(UB_cube_blend_params, {ptr = &params, size = size_of(Cube_Blend_Params)})
+			sg.draw(0, 3, 1)
+			gfx_end_pass()
 		}
-		sg.apply_uniforms(UB_cube_blend_params, {ptr = &params, size = size_of(Cube_Blend_Params)})
-		sg.draw(0, 3, 1)
-		gfx_end_pass()
 	}
 }

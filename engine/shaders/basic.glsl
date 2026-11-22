@@ -710,7 +710,9 @@ void main() {
 @program blit blit_vs blit_fs
 
 @fs cube_blend_fs
-// Writes one mip of all six faces of a cubemap, face i to colour target i.
+// Writes one mip of three faces of a cubemap, face first + i to colour
+// target i, so a mip takes two passes. Six RGBA16F targets would need 48
+// bytes a sample, past WebGPU's default limit of 32.
 // Each texel's direction must match sky_face_direction in
 // engine/sky_lighting.odin. gl_FragCoord rows run in upload order on every
 // backend, as blit_fs relies on.
@@ -719,7 +721,8 @@ layout(binding = 0) uniform sampler blend_from_smp;
 layout(binding = 1) uniform textureCube blend_to_tex;
 layout(binding = 1) uniform sampler blend_to_smp;
 
-// face_side.y is the side in texels. lods holds the mip to read from each
+// face_side.x is the first face, 0 or 3, and face_side.y is the side in
+// texels. lods holds the mip to read from each
 // source. amount.x is the share of blend_to_tex.
 layout(binding = 0) uniform cube_blend_params {
     vec4 face_side;
@@ -727,12 +730,9 @@ layout(binding = 0) uniform cube_blend_params {
     vec4 amount;
 };
 
-layout(location = 0) out vec4 face_px;
-layout(location = 1) out vec4 face_nx;
-layout(location = 2) out vec4 face_py;
-layout(location = 3) out vec4 face_ny;
-layout(location = 4) out vec4 face_pz;
-layout(location = 5) out vec4 face_nz;
+layout(location = 0) out vec4 face_0;
+layout(location = 1) out vec4 face_1;
+layout(location = 2) out vec4 face_2;
 
 vec3 face_direction(float face, vec2 uv) {
     if (face < 0.5) { return vec3(1.0, -uv.y, -uv.x); }
@@ -752,12 +752,9 @@ vec4 blend_face(float face, vec2 uv) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / face_side.y * 2.0 - 1.0;
-    face_px = blend_face(0.0, uv);
-    face_nx = blend_face(1.0, uv);
-    face_py = blend_face(2.0, uv);
-    face_ny = blend_face(3.0, uv);
-    face_pz = blend_face(4.0, uv);
-    face_nz = blend_face(5.0, uv);
+    face_0 = blend_face(face_side.x, uv);
+    face_1 = blend_face(face_side.x + 1.0, uv);
+    face_2 = blend_face(face_side.x + 2.0, uv);
 }
 @end
 
