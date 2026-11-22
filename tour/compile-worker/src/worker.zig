@@ -297,6 +297,12 @@ fn writeIdentity(
         const id: lir.LIR.CFStmtId = @fromBackingInt(@intCast(i));
         if (result.store.getCFStmtImmediate(id).* == .assign_packed_erased_fn) erased += 1;
     }
+    // A constant such as init's Model stores its erased callables in static data.
+    for (static_data) |e| {
+        for (e.relocations) |r| {
+            if (r.kind == .function_pointer and r.procedure.get() != null) erased += 1;
+        }
+    }
     try w.writer.print(",\"erasedCallables\":{d},\"buildId\":\"{s}\"}}", .{ erased, build_info.build_id });
 }
 
