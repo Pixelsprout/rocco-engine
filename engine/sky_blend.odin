@@ -110,7 +110,7 @@ sky_blend_cube :: proc(b: ^Sky_Blend_Target, cube: ^Sky_Blend_Cube, from, to: Me
 		sg.apply_pipeline(b.pip)
 		sg.apply_bindings({views = {VIEW_blend_from_tex = from.view, VIEW_blend_to_tex = to.view}, samplers = {SMP_blend_from_smp = from.sampler, SMP_blend_to_smp = to.sampler}})
 		params := Cube_Blend_Params {
-			target = {0, f32(max(cube.side >> uint(mip), 1)), 0, 0},
+			face_side = {0, f32(max(cube.side >> uint(mip), 1)), 0, 0},
 			lods   = {roughness * from_lod, roughness * to_lod, 0, 0},
 			amount = {amount, 0, 0, 0},
 		}

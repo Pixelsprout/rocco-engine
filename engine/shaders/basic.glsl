@@ -719,10 +719,10 @@ layout(binding = 0) uniform sampler blend_from_smp;
 layout(binding = 1) uniform textureCube blend_to_tex;
 layout(binding = 1) uniform sampler blend_to_smp;
 
-// target.y is the side in texels. lods holds the mip to read from each
+// face_side.y is the side in texels. lods holds the mip to read from each
 // source. amount.x is the share of blend_to_tex.
 layout(binding = 0) uniform cube_blend_params {
-    vec4 target;
+    vec4 face_side;
     vec4 lods;
     vec4 amount;
 };
@@ -751,7 +751,7 @@ vec4 blend_face(float face, vec2 uv) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / target.y * 2.0 - 1.0;
+    vec2 uv = gl_FragCoord.xy / face_side.y * 2.0 - 1.0;
     face_px = blend_face(0.0, uv);
     face_nx = blend_face(1.0, uv);
     face_py = blend_face(2.0, uv);
