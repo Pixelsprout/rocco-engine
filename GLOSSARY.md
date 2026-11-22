@@ -59,6 +59,12 @@ The HTML document that loads a Web build and shows everything outside the
 canvas. A game that supplies none gets the **Default page**.
 _Avoid_: web shell, shell, HTML wrapper, index, stock page, template
 
+**Site**:
+rocco's public website: its landing page, the Guide, the Tour, the API
+reference and the roadmap. The devlog is not part of it. Its landing page is
+not a **Page**.
+_Avoid_: docs site, homepage, project page
+
 **Tour**:
 The interactive, in-browser form of the Tutorial, where a reader edits a
 game's source beside the lesson text and runs it in a Preview, with assets
