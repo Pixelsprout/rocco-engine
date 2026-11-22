@@ -63,7 +63,7 @@ def check_tag(tag):
         raise BuildError(f'The tag {tag} is not a safe folder name for the site')
 
 
-def build(out, build_id, tag, roc_nightly, urls,
+def build(out, build_id, tag, roc_pin, urls,
           build_worker=tour_worker.build_worker, build_host=tour_host.build):
     check_tag(tag)
     if os.path.exists(out):
@@ -74,7 +74,7 @@ def build(out, build_id, tag, roc_nightly, urls,
     build_host(os.path.join(out, 'preview'), build_id)
     check_build_id(out, build_id)
     with open(os.path.join(out, 'manifest.json'), 'w') as f:
-        json.dump({'buildId': build_id, 'tag': tag, 'rocNightly': f'nightly-{roc_nightly}'}, f, indent=2)
+        json.dump({'buildId': build_id, 'tag': tag, 'rocNightly': roc_pin}, f, indent=2)
         f.write('\n')
 
 
@@ -156,7 +156,7 @@ def main(argv):
     try:
         if args.command == 'build':
             build(os.path.abspath(args.out), build_id=tour_worker.build_id(), tag=args.tag or default_tag(),
-                  roc_nightly=roc_patches.pin('ROC_NIGHTLY'), urls=release.parse_urls(args.url))
+                  roc_pin=roc_patches.pin('ROC_PIN'), urls=release.parse_urls(args.url))
             print(f'== {args.out}')
         elif args.command == 'pack':
             pack(os.path.abspath(args.dir), args.tar_file, args.tag, release.parse_urls(args.url))

@@ -20,7 +20,7 @@ index 2179ca0..4cdb508 100755
 +    // linked into an emscripten host that supplies memalign and free.
 +    if (!b.top_level_steps.contains("tour-shim-wasm32-freestanding")) {
 +        const tour_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
-+        const tour_builtins = addBuiltinsObject(b, roc_modules, "roc_builtins_tour_freestanding", "src/builtins/static_lib.zig", tour_target, optimize, false);
++        const tour_builtins = addBuiltinsObject(b, roc_modules, "roc_builtins_tour_freestanding", "src/builtins/static_lib.zig", tour_target, optimize, false, false);
 +        const tour_shim = b.addLibrary(.{
 +            .name = "roc_interpreter_shim_wasm32_freestanding",
 +            .root_module = b.createModule(.{

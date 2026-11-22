@@ -151,19 +151,19 @@ export fn tw_compile(path_ptr: [*]const u8, path_len: usize) u32 {
 
 fn compileApp(app_path: []const u8) !void {
     compiled_builtins.decompress() catch return error.CorruptEmbeddedBuiltins;
-    if (builtin_modules == null) builtin_modules = try eval.BuiltinModules.init(gpa);
+    const std_io: std.Io = std.Io.failing;
+    if (builtin_modules == null) builtin_modules = try eval.BuiltinModules.init(gpa, std_io);
 
     var arena_state = std.heap.ArenaAllocator.init(gpa);
     defer arena_state.deinit();
     const a = arena_state.allocator();
 
-    const std_io: std.Io = std.Io.failing;
     const fs = vfs.io(std_io);
     const cwd = std.fs.path.dirnamePosix(app_path) orelse "/";
 
     // A new BuildEnv for each compile. Only the cache under /cache carries
     // over, so a warm compile gives the same image as a cold one.
-    var build_env = compile.BuildEnv.initBorrowingBuiltinModules(a, .single_threaded, 1, .wasm32, cwd, std_io, &builtin_modules.?);
+    var build_env = compile.BuildEnv.initBorrowingBuiltinModules(a, .single_threaded, 1, .wasm32, cwd, std_io, &builtin_modules.?, .lss);
     defer build_env.deinit();
     build_env.filesystem = fs;
     const cache = try a.create(compile.CacheManager);
@@ -188,7 +188,7 @@ fn compileApp(app_path: []const u8) !void {
     const root_artifact = root_semantic.checked_artifact orelse return error.NoExecutableRoot;
     const import_views = try build_env.collectImportedArtifactViews(a, root_artifact);
     const relation_views = try build_env.collectRelationArtifactViews(a, root_artifact);
-    const lir_roots = try lir.CheckedPipeline.selectPlatformEntrypointRoots(a, root_artifact.root_requests.runtime_requests);
+    const lir_roots = try lir.CheckedPipeline.selectPlatformEntrypointRoots(a, root_artifact.root_requests.runtime_requests.items());
     const views: lir.CheckedPipeline.CheckedModuleSet = .{
         .root = check.CheckedArtifact.loweringViewWithRelations(root_artifact, relation_views),
         .imports = import_views,
@@ -205,7 +205,7 @@ fn compileApp(app_path: []const u8) !void {
     setStat(.lower_ms, js.js_now() - t);
 
     t = js.js_now();
-    try writeIdentity(a, &lowered.lir_result, entrypoints, try lowered.platformEntrypointNames(a, root_artifact));
+    try writeIdentity(a, &lowered.lir_result, entrypoints, try lowered.platformEntrypointNames(a, root_artifact), static_data);
     setStat(.identity_ms, js.js_now() - t);
 
     t = js.js_now();
@@ -270,7 +270,9 @@ fn writeIdentity(
     result: *lir.Program.Result,
     entrypoints: []const lir.LirImage.PlatformEntrypoint,
     names: []const []const u8,
+    static_data: []const lir.Program.StaticDataExport,
 ) !void {
+    const static_hashes = try staticDataHashes(a, static_data);
     var w: std.Io.Writer.Allocating = .fromArrayList(gpa, &identity_json);
     defer identity_json = w.toArrayList();
     try w.writer.writeAll("{\"digests\":[");
@@ -287,13 +289,19 @@ fn writeIdentity(
             if (std.mem.eql(u8, names[ep.ordinal], symbol)) break ep;
         } else return error.NoKeptEntrypoint;
         var done = std.AutoHashMap(u64, u64).init(a);
-        const hash = try merkleHash(a, &result.store, &result.layouts, @backingInt(ep.root_proc), &done);
+        const hash = try merkleHash(a, &result.store, &result.layouts, @backingInt(ep.root_proc), &done, &static_hashes);
         try w.writer.print(",\"{s}\":\"{x:0>16}\"", .{ key, hash });
     }
     var erased: usize = 0;
     for (0..result.store.cfStmtCount()) |i| {
         const id: lir.LIR.CFStmtId = @fromBackingInt(@intCast(i));
         if (result.store.getCFStmtImmediate(id).* == .assign_packed_erased_fn) erased += 1;
+    }
+    // A constant such as init's Model stores its erased callables in static data.
+    for (static_data) |e| {
+        for (e.relocations) |r| {
+            if (r.kind == .function_pointer and r.procedure.get() != null) erased += 1;
+        }
     }
     try w.writer.print(",\"erasedCallables\":{d},\"buildId\":\"{s}\"}}", .{ erased, build_info.build_id });
 }
@@ -306,9 +314,49 @@ fn merkleHash(
     layouts: *const layout.Store,
     proc: u64,
     done: *std.AutoHashMap(u64, u64),
+    static_hashes: *const std.AutoHashMap(u64, u64),
 ) !u64 {
     var in_progress = std.AutoHashMap(u64, void).init(a);
-    return merkleVisit(a, store, layouts, proc, done, &in_progress);
+    return merkleVisit(a, store, layouts, proc, done, &in_progress, static_hashes);
+}
+
+/// Names each static data slot by the hash of its bytes and of what its
+/// relocations point at. Roc folds constants such as a record of literals into
+/// static data, so an edit to one changes only the slot's content.
+fn staticDataHashes(a: std.mem.Allocator, exports: []const lir.Program.StaticDataExport) !std.AutoHashMap(u64, u64) {
+    var memo = std.AutoHashMap(usize, u64).init(a);
+    var slots = std.AutoHashMap(u64, u64).init(a);
+    for (exports, 0..) |e, i| {
+        const slot = e.value_id orelse continue;
+        try slots.put(@backingInt(slot), try exportHash(a, exports, i, &memo));
+    }
+    return slots;
+}
+
+fn exportHash(a: std.mem.Allocator, exports: []const lir.Program.StaticDataExport, index: usize, memo: *std.AutoHashMap(usize, u64)) !u64 {
+    if (memo.get(index)) |h| return h;
+    // A cycle back to this export hashes as 0.
+    try memo.put(index, 0);
+    const e = exports[index];
+    var h = std.hash.Wyhash.init(0);
+    h.update(e.bytes);
+    h.update(std.mem.asBytes(&e.symbol_offset));
+    h.update(std.mem.asBytes(&e.alignment));
+    for (e.relocations) |r| {
+        h.update(std.mem.asBytes(&r.offset));
+        h.update(std.mem.asBytes(&r.addend));
+        h.update(@tagName(r.kind));
+        switch (r.target) {
+            .named => h.update(r.target_symbol_name),
+            .data_symbol => |id| {
+                const target = try exportHash(a, exports, @backingInt(id), memo);
+                h.update(std.mem.asBytes(&target));
+            },
+        }
+    }
+    const result = h.final();
+    try memo.put(index, result);
+    return result;
 }
 
 fn merkleVisit(
@@ -318,19 +366,20 @@ fn merkleVisit(
     proc: u64,
     done: *std.AutoHashMap(u64, u64),
     in_progress: *std.AutoHashMap(u64, void),
+    static_hashes: *const std.AutoHashMap(u64, u64),
 ) !u64 {
     if (done.get(proc)) |h| return h;
     try in_progress.put(proc, {});
     var callees: std.ArrayList(u64) = .empty;
     const id: lir.LIR.LirProcSpecId = @fromBackingInt(@intCast(proc));
     // The first pass only finds the callees.
-    _ = try merkle_print.procFingerprintResolved(a, store, layouts, id, .{ .self_id = proc, .hashes = done, .callees = &callees, .gpa = a });
+    _ = try merkle_print.procFingerprintResolved(a, store, layouts, id, .{ .self_id = proc, .hashes = done, .callees = &callees, .gpa = a, .static_hashes = static_hashes });
     for (callees.items) |c| {
         if (c == proc or in_progress.contains(c) or done.contains(c)) continue;
-        _ = try merkleVisit(a, store, layouts, c, done, in_progress);
+        _ = try merkleVisit(a, store, layouts, c, done, in_progress, static_hashes);
     }
     callees.clearRetainingCapacity();
-    const h = try merkle_print.procFingerprintResolved(a, store, layouts, id, .{ .self_id = proc, .hashes = done, .callees = &callees, .gpa = a });
+    const h = try merkle_print.procFingerprintResolved(a, store, layouts, id, .{ .self_id = proc, .hashes = done, .callees = &callees, .gpa = a, .static_hashes = static_hashes });
     _ = in_progress.remove(proc);
     try done.put(proc, h);
     return h;

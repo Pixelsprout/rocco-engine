@@ -29,19 +29,19 @@ Seam := [].{
 	}
 
 	is_key_held : { held : List(U16), ..input }, Key -> Bool
-	is_key_held = |input, key| input.held.contains(key_code(key))
+	is_key_held = |frame, key| frame.held.contains(key_code(key))
 
 	is_key_pressed : { pressed : List(U16), ..input }, Key -> Bool
-	is_key_pressed = |input, key| input.pressed.contains(key_code(key))
+	is_key_pressed = |frame, key| frame.pressed.contains(key_code(key))
 
 	is_button_held : { pointer : { held : List(U8), ..pointer }, ..input }, MouseButton -> Bool
-	is_button_held = |input, button| input.pointer.held.contains(button_code(button))
+	is_button_held = |frame, button| frame.pointer.held.contains(button_code(button))
 
 	is_button_pressed : { pointer : { pressed : List(U8), ..pointer }, ..input }, MouseButton -> Bool
-	is_button_pressed = |input, button| input.pointer.pressed.contains(button_code(button))
+	is_button_pressed = |frame, button| frame.pointer.pressed.contains(button_code(button))
 
 	is_button_released : { pointer : { released : List(U8), ..pointer }, ..input }, MouseButton -> Bool
-	is_button_released = |input, button| input.pointer.released.contains(button_code(button))
+	is_button_released = |frame, button| frame.pointer.released.contains(button_code(button))
 
 	TestInput : { held : List(U16), pressed : List(U16), pointer : { x : F32, y : F32, held : List(U8), pressed : List(U8), released : List(U8), wheel : { dx : F32, dy : F32 } } }
 

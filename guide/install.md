@@ -14,10 +14,10 @@ You only need Roc. Each rocco release comes with the engine prebuilt for
 macOS arm64, Linux x64 and Windows x64, so you don't need Odin, sokol or a C
 compiler.
 
-If you read this page on GitHub, the Roc nightly and the bundle URLs show as
+If you read this page on GitHub, the Roc version and the bundle URLs show as
 markers in double braces. You can find the values in the notes of the
 [latest release](https://github.com/Pixelsprout/rocco-engine/releases/latest).
-The notes give the Roc nightly and the URL of each bundle.
+The notes give the Roc version and the URL of each bundle.
 
 ## Is rocco right for you?
 
@@ -33,21 +33,24 @@ start a game with it:
 - **No physics.** The engine answers questions about shapes, such as "what
   does this ray hit?", but it moves nothing and pushes nothing apart. See
   [Collisions and Queries](collisions.md).
-- **Roc changes quickly.** Roc changes from one nightly to the next. Each
-  rocco release pins one nightly, and you use that exact nightly.
+- **Roc changes quickly.** Roc is not at 1.0 yet, and each version can
+  change the language. Each rocco release pins one Roc version, and you use
+  that exact version.
 
 If those limits are fine for your game, read on.
 
 ## Install Roc
 
-Use the nightly that the release names. A different nightly may not build
-the game.
+Use the Roc version that the release names. A different version may not
+build the game.
 
-1. Download the Roc nightly `{{roc_nightly}}` for your OS from the
-   [Roc nightlies](https://github.com/roc-lang/nightlies/releases).
+1. Download Roc `{{roc_nightly}}` for your OS from the
+   [Roc releases](https://github.com/roc-lang/roc/releases).
 2. Extract the archive.
 3. Add the folder that holds `roc` to your `PATH`.
-4. Run `roc version`. It should print `{{roc_nightly}}`.
+4. Run `roc version`. It should print the same version. The release tag
+   writes it with an underscore and capitals, so `0.1.0-rc1` prints as
+   `0.1.0_RC1`.
 
 On Linux, the game needs an X11 desktop and an OpenGL driver. On Windows,
 run `roc` in a shell where `LIB` is not set. A Visual Studio developer

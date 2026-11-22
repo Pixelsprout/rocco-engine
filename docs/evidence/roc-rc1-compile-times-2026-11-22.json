@@ -1,0 +1,147 @@
+{
+  "machine": "Apple M5, 10 cores, macOS 26.7.2",
+  "runs": 3,
+  "statistic": "median",
+  "rows": [
+    {
+      "game": "primitives",
+      "step": "check (cold)",
+      "nightly_s": 0.051,
+      "rc1_s": 0.03,
+      "change_pct": -40
+    },
+    {
+      "game": "primitives",
+      "step": "test (cold)",
+      "nightly_s": 0.119,
+      "rc1_s": 0.042,
+      "change_pct": -64
+    },
+    {
+      "game": "primitives",
+      "step": "build speed (cold)",
+      "nightly_s": 0.233,
+      "rc1_s": 0.186,
+      "change_pct": -20
+    },
+    {
+      "game": "primitives",
+      "step": "build speed (cached)",
+      "nightly_s": 0.251,
+      "rc1_s": 0.167,
+      "change_pct": -34
+    },
+    {
+      "game": "primitives",
+      "step": "build dev (cold)",
+      "nightly_s": 0.071,
+      "rc1_s": 0.056,
+      "change_pct": -21
+    },
+    {
+      "game": "pong",
+      "step": "check (cold)",
+      "nightly_s": 0.068,
+      "rc1_s": 0.041,
+      "change_pct": -40
+    },
+    {
+      "game": "pong",
+      "step": "test (cold)",
+      "nightly_s": 0.17,
+      "rc1_s": 0.056,
+      "change_pct": -67
+    },
+    {
+      "game": "pong",
+      "step": "build speed (cold)",
+      "nightly_s": 0.433,
+      "rc1_s": 0.331,
+      "change_pct": -24
+    },
+    {
+      "game": "pong",
+      "step": "build speed (cached)",
+      "nightly_s": 0.374,
+      "rc1_s": 0.307,
+      "change_pct": -18
+    },
+    {
+      "game": "pong",
+      "step": "build dev (cold)",
+      "nightly_s": 0.102,
+      "rc1_s": 0.073,
+      "change_pct": -28
+    },
+    {
+      "game": "widgets",
+      "step": "check (cold)",
+      "nightly_s": 0.082,
+      "rc1_s": 0.046,
+      "change_pct": -44
+    },
+    {
+      "game": "widgets",
+      "step": "test (cold)",
+      "nightly_s": 0.206,
+      "rc1_s": 0.065,
+      "change_pct": -68
+    },
+    {
+      "game": "widgets",
+      "step": "build speed (cold)",
+      "nightly_s": 0.728,
+      "rc1_s": 0.555,
+      "change_pct": -24
+    },
+    {
+      "game": "widgets",
+      "step": "build speed (cached)",
+      "nightly_s": 0.655,
+      "rc1_s": 0.535,
+      "change_pct": -18
+    },
+    {
+      "game": "widgets",
+      "step": "build dev (cold)",
+      "nightly_s": 0.136,
+      "rc1_s": 0.086,
+      "change_pct": -37
+    },
+    {
+      "game": "village",
+      "step": "check (cold)",
+      "nightly_s": 2.049,
+      "rc1_s": 1.052,
+      "change_pct": -49
+    },
+    {
+      "game": "village",
+      "step": "test (cold)",
+      "nightly_s": 15.04,
+      "rc1_s": 7.477,
+      "change_pct": -50
+    },
+    {
+      "game": "village",
+      "step": "build speed (cold)",
+      "nightly_s": 4.696,
+      "rc1_s": 3.343,
+      "change_pct": -29
+    },
+    {
+      "game": "village",
+      "step": "build speed (cached)",
+      "nightly_s": 2.674,
+      "rc1_s": 2.233,
+      "change_pct": -16
+    },
+    {
+      "game": "village",
+      "step": "build dev (cold)",
+      "nightly_s": 2.202,
+      "rc1_s": 3.474,
+      "change_pct": 58
+    }
+  ]
+}

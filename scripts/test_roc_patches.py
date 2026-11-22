@@ -74,11 +74,12 @@ class CarriedPatchesTest(unittest.TestCase):
         names = roc_patches.patches(roc_patches.PATCH_DIR)
         self.assertGreater(len(names), 0)
 
-    def test_the_roc_commit_matches_the_roc_nightly(self):
-        commit = roc_patches.pin('ROC_COMMIT')
-        nightly = roc_patches.pin('ROC_NIGHTLY')
-        self.assertRegex(commit, r'^[0-9a-f]{40}$')
-        self.assertTrue(commit.startswith(nightly.rsplit('-', 1)[1]), (commit, nightly))
+    def test_the_roc_commit_is_a_full_hash(self):
+        self.assertRegex(roc_patches.pin('ROC_COMMIT'), r'^[0-9a-f]{40}$')
+
+    def test_the_platform_header_pins_roc_pin(self):
+        with open(os.path.join(roc_patches.ROOT, 'platform', 'main.roc')) as f:
+            self.assertIn(f'roc: "{roc_patches.pin("ROC_PIN")}"', f.read())
 
 
 if __name__ == '__main__':

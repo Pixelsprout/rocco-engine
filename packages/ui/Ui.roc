@@ -61,10 +61,10 @@ Ui := [].{
 		## it the Element tags to get an Element:
 		## `node.build({ panel: |config, children| Panel(config, children), text: |text| Text(text) })`.
 		build : Node, { panel : PanelConfig, List(el) -> el, text : Text -> el } -> el
-		build = |node, { panel, text }|
+		build = |node, { panel: make_panel, text: make_text }|
 			match node {
-				Panel(config, children) => panel(config, children.map(|child| child.build({ panel, text })))
-				Text(str) => text(str)
+				Panel(config, children) => make_panel(config, children.map(|child| child.build({ panel: make_panel, text: make_text })))
+				Text(str) => make_text(str)
 			}
 	}
 

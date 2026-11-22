@@ -33,8 +33,8 @@ macOS arm64, Linux x64, Windows x64 and the web.
 
 rocco is in the early stages of development. Important features are
 missing, there is no physics, and a new release can break the API. Each
-release pins one Roc nightly, and Roc itself changes from one nightly to the
-next. Read [Is rocco right for you?](https://pixelsprout.dev/projects/rocco/docs/install/)
+release pins one Roc version, and Roc itself can change from one version to
+the next. Read [Is rocco right for you?](https://pixelsprout.dev/projects/rocco/docs/install/)
 before you start a game with it.
 
 ## Design goals

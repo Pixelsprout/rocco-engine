@@ -13,11 +13,11 @@ Dropdown :: { button : U64, menu : U64, items : List({ id : U64, label : Str }),
 	## and each item's `id` tags its row. `selected` is the index of the item
 	## that the button shows. It crashes when `selected` is past the last item.
 	new : { button : U64, menu : U64, items : List({ id : U64, label : Str }), selected : U64 } -> Dropdown
-	new = |{ button, menu, items, selected }|
-		if selected >= items.len() {
+	new = |{ button, menu, items, selected: index }|
+		if index >= items.len() {
 			crash "Dropdown.new: selected is past the last item"
 		} else {
-			{ button, menu, items, selected, shown: Closed }
+			{ button, menu, items, selected: index, shown: Closed }
 		}
 
 	## Acts on each event in order. A click on the button opens or closes the

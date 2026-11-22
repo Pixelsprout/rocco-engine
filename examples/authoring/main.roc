@@ -1,7 +1,7 @@
 app [init, launch, loaded, step, view] {
 	mesh: "../../packages/mesh/main.roc",
 	pf: platform "../../platform/main.roc",
-	roc: "nightly-2026-11-04-2622062",
+	roc: "0.1.0-rc1",
 }
 
 import Foliage

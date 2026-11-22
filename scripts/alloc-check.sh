@@ -18,6 +18,7 @@
 # tutorial/10-animation expects 10 allocs and 4 reallocs: its view builds the
 # Nodes, the pickup Draws and Colliders, the HUD with its count text, the door
 # Group's children and the door's Speakers, and each concat grows a list.
+# Under --opt=dev, Roc 0.1.0_RC1 makes one more, so it expects 11.
 # The script rebuilds the host library with the host tracking allocator, and
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must
@@ -40,7 +41,7 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 failed=0
 
-for entry in cards:2:2:1 entity-game:42:33:0 pong:6:6:1 tutorial/10-animation:10:10:4; do
+for entry in cards:2:2:1 entity-game:42:33:0 pong:6:6:1 tutorial/10-animation:11:10:4; do
 	game=${entry%%:*}
 	rest=${entry#*:}
 	want_dev=${rest%%:*}

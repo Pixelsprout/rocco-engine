@@ -11,13 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tour_artifacts
 
 BUILD = 'v0.14.1-44-gabc1234-dirty'
-NIGHTLY = '2026-11-04-2622062'
+ROC_PIN = '0.1.0-rc1'
 LAYOUT = sorted(tour_artifacts.LAYOUT)
 PREVIEW = [name.removeprefix('preview/') for name in LAYOUT if name.startswith('preview/')]
 
 
 def manifest():
-    return {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': f'nightly-{NIGHTLY}'}
+    return {'buildId': BUILD, 'tag': 'v0.15.0', 'rocNightly': ROC_PIN}
 
 
 def write(path, data):
@@ -47,7 +47,7 @@ class BuildTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def build(self, worker=fake_worker, host=fake_host, tag='v0.15.0'):
-        tour_artifacts.build(self.out, build_id=BUILD, tag=tag, roc_nightly=NIGHTLY,
+        tour_artifacts.build(self.out, build_id=BUILD, tag=tag, roc_pin=ROC_PIN,
                              urls={}, build_worker=worker, build_host=host)
 
     def files(self):
@@ -60,7 +60,7 @@ class BuildTest(unittest.TestCase):
         self.build()
         self.assertEqual(self.files(), LAYOUT)
 
-    def test_the_manifest_names_the_build_the_tag_and_the_roc_nightly(self):
+    def test_the_manifest_names_the_build_the_tag_and_the_roc_pin(self):
         self.build()
         with open(os.path.join(self.out, 'manifest.json')) as f:
             self.assertEqual(json.load(f), manifest())
@@ -105,7 +105,7 @@ class PackTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.out = os.path.join(self.tmp.name, 'tour')
         self.tar = os.path.join(self.tmp.name, 'tour.tar.gz')
-        tour_artifacts.build(self.out, build_id=BUILD, tag='v0.15.0', roc_nightly=NIGHTLY,
+        tour_artifacts.build(self.out, build_id=BUILD, tag='v0.15.0', roc_pin=ROC_PIN,
                              urls={}, build_worker=fake_worker, build_host=fake_host)
 
     def tearDown(self):
