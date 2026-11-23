@@ -710,7 +710,7 @@ void main() {
 @program blit blit_vs blit_fs
 
 @fs cube_blend_fs
-// Writes one mip of three faces of a cubemap, face first + i to colour
+// Writes one mip of three faces of a cubemap, face_side.x + i to colour
 // target i, so a mip takes two passes. Six RGBA16F targets would need 48
 // bytes a sample, past WebGPU's default limit of 32.
 // Each texel's direction must match sky_face_direction in
