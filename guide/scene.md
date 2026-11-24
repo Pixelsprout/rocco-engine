@@ -86,6 +86,16 @@ The source seed controls its random velocity offsets.
 The host interpolates position, size and colour for each frame.
 Size uses world units; colour uses linear HDR values.
 
+Four fields shape outdoor effects, each 0 for none.
+`acceleration` adds to each particle's velocity every second: gravity for spray, a lift for smoke.
+`spawn_radius` starts each particle on a level disc round `position`.
+`swirl` turns each particle about the upright line through `position`, in radians a second, counter-clockwise seen from above.
+`outward` moves each particle away from that line in metres a second, or toward it when negative.
+A dust devil is a source that moves with a swirl, a lift and a little outward drift.
+
+`time_scale` is the source's clock against the host's step.
+Use 0 to hold a source's particles still while the game pauses, and other values for a game's own tempo.
+
 Use `Alpha` for smoke and dust.
 The host sorts Alpha sources with Blend Draws by source position.
 Use `Add` for sparks.

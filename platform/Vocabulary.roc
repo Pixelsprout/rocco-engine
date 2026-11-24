@@ -454,7 +454,23 @@ Vocabulary := [].{
 	## Position and velocity clamp to +/-1000000; spread, size and drag to 0..1000000.
 	## Rate clamps to 0..8192; lifetime to 0.001..3600; colour channels to 0..65504.
 	## Alpha clamps to 0..1. Settings changes also affect particles already alive.
-	Emitter : { id : U64, position : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, seed : U64, image : U32, blend : [Alpha, Add] }
+	##
+	## The outdoor fields, each 0 for none:
+	## - `acceleration` is added to every particle's velocity each second, before
+	##   drag: gravity for falling dust or spray, a lift for rising smoke.
+	## - `spawn_radius` starts each new particle at an even random place on a
+	##   level disc of that radius round `position`, not at `position` itself.
+	## - `swirl` turns every particle about the upright line through the
+	##   source's current `position`, in radians a second, counter-clockwise
+	##   seen from above: a dust devil, a whirlpool, leaves in an eddy.
+	## - `outward` moves every particle straight away from that line, in metres
+	##   a second (negative: in toward it), never past it.
+	## `time_scale` is the source's own clock against the host's step: 1 runs
+	## at the host's pace, 0 holds its particles still and emits none, so a game
+	## with its own pause or tempo keeps its particles on its clock.
+	## Acceleration and outward clamp to +/-1000000, spawn radius to
+	## 0..1000000, swirl to +/-1000 and time scale to 0..100.
+	Emitter : { id : U64, position : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, acceleration : Vec3, spawn_radius : F32, swirl : F32, outward : F32, time_scale : F32, seed : U64, image : U32, blend : [Alpha, Add] }
 
 	## Live shadow appearance. The host uses the current Scene without interpolation.
 	## Invalid fields use their Shadow.default values and log once per field.
