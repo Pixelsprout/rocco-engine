@@ -596,5 +596,5 @@ The example Post shader implements visible-only and through-wall policies before
 Selection reuses the existing coverage shaders, pipelines, target credits, and per-part uniform reservation.
 Its grouped individual submissions add no resource credits or instance bytes.
 The instance stride remains 116 bytes.
-`python3 scripts/post_check.py` runs selected-Group checks in each native backend CI job.
+`python3 scripts/post_check.py` runs the selected-Group checks. CI does not run it.
 Local Metal results do not establish GL or D3D11 acceptance.

@@ -155,8 +155,7 @@ The combined Draw limit is 278653.
 
 Build `examples/surface` and run `python3 scripts/surface_check.py`.
 The script checks deterministic wind, named changes, cutout shadows, casting, Pack invalidation, invalid versions, and default PBR parity.
-The desktop CI jobs run the same native check on Metal, GL, and D3D11.
-A configured CI job is not native execution evidence until that job passes.
+CI does not run the check.
 The merged Metal fixture passed with both 820-test engine suites on 2026-11-05.
 The engine checks used CI-pinned Odin `902106f`.
 The two-run particle fixture also passed, including sprite orientation.
