@@ -180,15 +180,15 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-all.sh`. It regenerates the macOS
+pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check, `roc test` on the village and `odin test engine`. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
 check under xvfb. The Windows job
 builds sokol with `scripts\windows\build_sokol.cmd` and miniaudio with
 `scripts\windows\build_miniaudio.cmd`, then builds with
-`--release`, runs the same games, the Bridge check and
-`scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
+`--release`, runs the same games and the Bridge check, and runs
+`make_windows_import_libs.py --check`. Only
 the sokol and miniaudio step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
 and fails on a diff.
@@ -419,7 +419,7 @@ Docker image in `scripts/linux/`. In the Docker image, it builds the sokol GL
 archives and the miniaudio archive. Then it runs the `all` command of the build script. Then it runs
 each game under `xvfb-run` with software GL and `ROCCO_EXIT_AFTER_FRAMES=120`.
 Each run passes on exit code 0 and one `Frame Count: 120` line. Then it runs
-`scripts/test-all.sh`, the host check and the alloc check. The script builds
+the Bridge check, the host check and `bench/check.sh`. The script builds
 the debug and the release sokol archives. `./scripts/linux/check.sh --release` checks the
 release build.
 
