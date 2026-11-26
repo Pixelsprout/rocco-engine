@@ -30,7 +30,7 @@ In an existing clone, run `git submodule update --init`.
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
 | Odin | `dev-2026-11`, on `PATH` | In the Docker image | `dev-2026-11` windows-amd64 release, on `PATH` |
-| Roc | `0.1.0_RC1` release, on `PATH` | In the Docker image | `0.1.0_RC1` windows_x86_64 zip, on `PATH` |
+| Roc | `0.1.0-RC2` release, on `PATH` | In the Docker image | `0.1.0-RC2` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
@@ -48,9 +48,9 @@ game on macOS. See `scripts/pre-push.sh`.
 The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. Each header writes `ROC_PIN` from
 `scripts/linux/Dockerfile`. `roc version` prints `ROC_RELEASE`, the release
-tag. A header cannot use the tag form. A nightly compiler warns about the pin
-and builds anyway. `0.1.0_RC1` does not warn, because it cannot parse its own
-tag. Fix the `PATH`, never the pin.
+tag. From `0.1.0-RC2`, `ROC_PIN` and `ROC_RELEASE` are the same string. A
+compiler of another version reports a "roc version mismatch" on the pin. Fix
+the `PATH`, never the pin.
 
 The Tour builds from a copy of the pinned Roc with rocco's patches applied.
 `tour/roc-patches/` holds one `.patch` file per change, applied in name order.

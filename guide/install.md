@@ -48,9 +48,7 @@ build the game.
    [Roc releases](https://github.com/roc-lang/roc/releases).
 2. Extract the archive.
 3. Add the folder that holds `roc` to your `PATH`.
-4. Run `roc version`. It should print the same version. The release tag
-   writes it with an underscore and capitals, so `0.1.0-rc1` prints as
-   `0.1.0_RC1`.
+4. Run `roc version`. It should print the same version.
 
 On Linux, the game needs an X11 desktop and an OpenGL driver. On Windows,
 run `roc` in a shell where `LIB` is not set. A Visual Studio developer

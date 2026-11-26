@@ -5,13 +5,13 @@ FROM ubuntu:24.04
 
 ARG ODIN_RELEASE=dev-2026-11
 # The Roc release tag. `roc version` prints it.
-ARG ROC_RELEASE=0.1.0_RC1
-# ROC_RELEASE as the `roc` entry of a .roc header spells it. The header
-# parser does not accept the tag form.
-ARG ROC_PIN=0.1.0-rc1
+ARG ROC_RELEASE=0.1.0-RC2
+# ROC_RELEASE as the `roc` entry of a .roc header spells it. From RC2 the two
+# match. RC1 and earlier tags needed a different header spelling.
+ARG ROC_PIN=0.1.0-RC2
 # The roc-lang/roc commit of ROC_RELEASE. scripts/roc_patches.py applies the
 # carried Roc patches to it.
-ARG ROC_COMMIT=15177e91f62cafddf5336c455e00e9f05427ac16
+ARG ROC_COMMIT=ee835686f9eae076bee7422c26e7cf8deb20aa0e
 # The Zig that builds the Tour compile worker (scripts/tour_worker.py). Roc's
 # build.zig.zon asks for it.
 ARG ZIG_VERSION=0.17.0

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-rc1" }
+app [init, launch, loaded, step, view] { mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-RC2" }
 
 import Foliage
 import DefaultSurface
