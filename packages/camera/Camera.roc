@@ -33,6 +33,116 @@ Camera := [].{
 		fov_y: default_fov_y,
 	}
 
+	## A third-person camera that orbits a character. `yaw` is the angle the
+	## camera looks along in x/z, with 0 along `+z` and forward at
+	## `(sin yaw, cos yaw)`, as for a heading. `pitch` tilts the eye up above
+	## the character. `look_y` is the height the camera looks at; it trails
+	## the character so a jump does not shake the view.
+	Orbit : {
+		yaw : F32,
+		pitch : F32,
+		look_y : F32,
+		tuning : Camera.OrbitTuning,
+	}
+
+	## How an Orbit moves. `distance` is metres from the look point to the
+	## eye. `height` is how far above the character's position the camera
+	## looks. `turn` and `tilt` are the right stick's yaw and pitch rates in
+	## radians per second. While the right stick rests, the yaw swings toward
+	## the heading at `follow` per second, scaled by speed up to
+	## `swing_speed`. A zero `follow` turns the swing off.
+	OrbitTuning : {
+		distance : F32,
+		height : F32,
+		turn : F32,
+		tilt : F32,
+		follow : F32,
+		swing_speed : F32,
+	}
+
+	## What `orbit_step` reads from the character each step. A game whose
+	## character glides gives `Air` while it glides.
+	Character : {
+		pos : Camera.Vec3,
+		heading : F32,
+		speed : F32,
+		footing : [Ground, Air],
+	}
+
+	## A gamepad stick or its world direction, each axis from -1 to 1.
+	Stick : { x : F32, y : F32 }
+
+	## A camera 7 metres back that swings fully behind a character at
+	## 8 metres per second.
+	default_orbit_tuning : Camera.OrbitTuning
+	default_orbit_tuning = {
+		distance: 7.0,
+		height: 1.2,
+		turn: 2.5,
+		tilt: 1.2,
+		follow: 2.5,
+		swing_speed: 8.0,
+	}
+
+	## An Orbit behind a character at `pos` that faces `heading`, tilted a
+	## little above it.
+	orbit : Camera.OrbitTuning, { pos : Camera.Vec3, heading : F32 } -> Camera.Orbit
+	orbit = |tuning, { pos, heading }| {
+		yaw: heading,
+		pitch: start_pitch,
+		look_y: pos.y + tuning.height,
+		tuning,
+	}
+
+	## Moves an Orbit by one step of `dt` seconds. The right stick `look`
+	## turns it: `+x` turns the view right and `+y` lowers the eye. The
+	## pitch stays between 0.05 and 1.1. The look height eases toward the
+	## character at 5 per second on the Ground and 1.5 per second in the Air.
+	orbit_step : Camera.Orbit, { character : Camera.Character, look : Camera.Stick, dt : F32 } -> Camera.Orbit
+	orbit_step = |state, { character, look, dt }| {
+		tuning = state.tuning
+		swing =
+			if look.x.abs() > stick_rest or tuning.follow <= 0.0 {
+				0.0
+			} else {
+				pace = if (tuning.swing_speed <= 0.0) 1.0 else F32.min(character.speed / tuning.swing_speed, 1.0)
+				F32.min(dt * tuning.follow * pace, 1.0)
+			}
+		yaw = wrap(state.yaw - look.x * tuning.turn * dt + wrap(character.heading - state.yaw) * swing)
+		pitch = F32.max(lowest_pitch, F32.min(highest_pitch, state.pitch - look.y * tuning.tilt * dt))
+		rate = match character.footing {
+			Ground => ground_look_rate
+			Air => air_look_rate
+		}
+		look_y = state.look_y + (character.pos.y + tuning.height - state.look_y) * F32.min(dt * rate, 1.0)
+		{ ..state, yaw, pitch, look_y }
+	}
+
+	## The View of an Orbit around a character at `pos`. The eye stays at
+	## least 0.4 above `y` 0.
+	orbit_view : Camera.Orbit, Camera.Vec3 -> Camera.View
+	orbit_view = |state, pos| {
+		distance = state.tuning.distance
+		target = { x: pos.x, y: state.look_y, z: pos.z }
+		back = distance * state.pitch.cos()
+		eye = {
+			x: target.x - state.yaw.sin() * back,
+			y: F32.max(target.y + distance * state.pitch.sin(), lowest_eye),
+			z: target.z - state.yaw.cos() * back,
+		}
+		look_at(eye, target)
+	}
+
+	## Turns a stick relative to a camera with `yaw` into a world direction:
+	## `x` is world `x` and `y` is world `z`, the shape of `Intent.move` in the
+	## controller package. Stick `+y` moves along the view and stick `+x`
+	## moves to the screen's right. The length stays the same.
+	to_world : Camera.Stick, F32 -> Camera.Stick
+	to_world = |stick, yaw| {
+		x: yaw.sin() * stick.y - yaw.cos() * stick.x,
+		y: yaw.cos() * stick.y + yaw.sin() * stick.x,
+	}
+
 	## Where `point` lands in a window of `size`, in logical pixels: `x` from 0
 	## at the left edge to `width`, `y` from 0 at the top edge to `height`. It
 	## uses the host's lens, so `+y` is up and the aspect is `width / height`.
@@ -106,6 +216,32 @@ basis = |view| {
 		Ok({ forward, right, true_up: cross(right, forward) })
 	}
 }
+
+start_pitch : F32
+start_pitch = 0.32
+
+lowest_pitch : F32
+lowest_pitch = 0.05
+
+highest_pitch : F32
+highest_pitch = 1.1
+
+ground_look_rate : F32
+ground_look_rate = 5.0
+
+air_look_rate : F32
+air_look_rate = 1.5
+
+lowest_eye : F32
+lowest_eye = 0.4
+
+# A right stick tilted less than this along x lets the Orbit swing.
+stick_rest : F32
+stick_rest = 0.05
+
+# The same angle in -pi to pi.
+wrap : F32 -> F32
+wrap = |angle| F32.atan2({ x: angle.cos(), y: angle.sin() })
 
 focal : F32 -> F32
 focal = |fov_y| {
@@ -291,3 +427,172 @@ expect {
 		Err(_) => Bool.False
 	}
 }
+
+## The right stick turns the yaw and leaves the pitch.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 })
+	next = Camera.orbit_step(start, { character: standing, look: { x: 1.0, y: 0.0 }, dt: 0.1 })
+	actual =
+		\\yaw: ${Str.inspect(near_to(next.yaw, -0.25))}
+		\\pitch: ${Str.inspect(next.pitch == start.pitch)}
+	expected =
+		\\yaw: True
+		\\pitch: True
+	actual == expected
+}
+
+## At rest the yaw swings toward the heading, scaled by speed up to
+## swing_speed.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 })
+	swung = |speed| {
+		character = { ..standing, heading: 1.0, speed }
+		Camera.orbit_step(start, { character, look: rest, dt: 0.1 }).yaw
+	}
+	actual =
+		\\full: ${Str.inspect(near_to(swung(8.0), 0.25))}
+		\\faster: ${Str.inspect(near_to(swung(20.0), 0.25))}
+		\\half: ${Str.inspect(near_to(swung(4.0), 0.125))}
+		\\standing: ${Str.inspect(swung(0.0) == 0.0)}
+	expected =
+		\\full: True
+		\\faster: True
+		\\half: True
+		\\standing: True
+	actual == expected
+}
+
+## The swing takes the short way across the turn from pi to -pi.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 3.0 })
+	character = { ..standing, heading: -3.0, speed: 8.0 }
+	next = Camera.orbit_step(start, { character, look: rest, dt: 0.1 })
+	(next.yaw - 3.0708).abs() < 0.001
+}
+
+## The right stick stops the swing.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 })
+	character = { ..standing, heading: 1.0, speed: 8.0 }
+	next = Camera.orbit_step(start, { character, look: { x: 0.5, y: 0.0 }, dt: 0.1 })
+	near_to(next.yaw, -0.125)
+}
+
+## A zero follow turns the swing off.
+expect {
+	start = Camera.orbit({ ..Camera.default_orbit_tuning, follow: 0.0 }, { pos: origin, heading: 0.0 })
+	character = { ..standing, heading: 1.0, speed: 8.0 }
+	Camera.orbit_step(start, { character, look: rest, dt: 0.1 }).yaw == 0.0
+}
+
+## The pitch stays between 0.05 and 1.1.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 })
+	low = Camera.orbit_step(start, { character: standing, look: { x: 0.0, y: 1.0 }, dt: 1.0 })
+	high = Camera.orbit_step(start, { character: standing, look: { x: 0.0, y: -1.0 }, dt: 1.0 })
+	actual =
+		\\low: ${Str.inspect(low.pitch)}
+		\\high: ${Str.inspect(high.pitch)}
+	expected =
+		\\low: 0.05
+		\\high: 1.1
+	actual == expected
+}
+
+## The look height eases toward 1.2 above the character, faster on the
+## Ground than in the Air, and never past it.
+expect {
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 })
+	eased = |footing, dt| {
+		character = { ..standing, pos: { x: 0.0, y: 2.0, z: 0.0 }, footing }
+		Camera.orbit_step(start, { character, look: rest, dt }).look_y
+	}
+	actual =
+		\\ground: ${Str.inspect(near_to(eased(Ground, 0.1), 2.2))}
+		\\air: ${Str.inspect(near_to(eased(Air, 0.1), 1.5))}
+		\\long: ${Str.inspect(near_to(eased(Ground, 1.0), 3.2))}
+	expected =
+		\\ground: True
+		\\air: True
+		\\long: True
+	actual == expected
+}
+
+## The eye sits distance back along the yaw and up along the pitch, and looks
+## at the look height above the character.
+expect {
+	state = { ..Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.0 }), pitch: 0.5235988 }
+	view = Camera.orbit_view(state, { x: 1.0, y: 0.0, z: 2.0 })
+	actual =
+		\\eye: ${Str.inspect(near_to(view.eye.x, 1.0) and near_to(view.eye.y, 4.7) and near_to(view.eye.z, -4.0622))}
+		\\target: ${Str.inspect(view.target == { x: 1.0, y: 1.2, z: 2.0 })}
+		\\up: ${Str.inspect(view.up == Camera.world_up)}
+	expected =
+		\\eye: True
+		\\target: True
+		\\up: True
+	actual == expected
+}
+
+## Looking along +x from a low point, the eye stays at least 0.4 high.
+expect {
+	low = { x: 0.0, y: -3.2, z: 0.0 }
+	start = Camera.orbit(Camera.default_orbit_tuning, { pos: low, heading: 1.5707964 })
+	view = Camera.orbit_view({ ..start, pitch: 0.05 }, low)
+	actual =
+		\\y: ${Str.inspect(view.eye.y)}
+		\\x: ${Str.inspect(near_to(view.eye.x, -6.9913))}
+		\\z: ${Str.inspect(near_to(view.eye.z, 0.0))}
+	expected =
+		\\y: 0.4
+		\\x: True
+		\\z: True
+	actual == expected
+}
+
+## Stick up moves along the view and stick right moves to the screen's right.
+## Looking along +z, screen right is -x. Looking along +x, it is +z.
+expect {
+	quarter = 1.5707964
+	actual =
+		\\up at 0: ${Str.inspect(stick_near(Camera.to_world({ x: 0.0, y: 1.0 }, 0.0), { x: 0.0, y: 1.0 }))}
+		\\right at 0: ${Str.inspect(stick_near(Camera.to_world({ x: 1.0, y: 0.0 }, 0.0), { x: -1.0, y: 0.0 }))}
+		\\up at quarter: ${Str.inspect(stick_near(Camera.to_world({ x: 0.0, y: 1.0 }, quarter), { x: 1.0, y: 0.0 }))}
+		\\right at quarter: ${Str.inspect(stick_near(Camera.to_world({ x: 1.0, y: 0.0 }, quarter), { x: 0.0, y: 1.0 }))}
+		\\mixed at quarter: ${Str.inspect(stick_near(Camera.to_world({ x: 0.3, y: 0.4 }, quarter), { x: 0.4, y: 0.3 }))}
+	expected =
+		\\up at 0: True
+		\\right at 0: True
+		\\up at quarter: True
+		\\right at quarter: True
+		\\mixed at quarter: True
+	actual == expected
+}
+
+## A stick pushed right moves a point right on the screen of the Orbit's View.
+expect {
+	state = Camera.orbit(Camera.default_orbit_tuning, { pos: origin, heading: 0.7 })
+	view = Camera.orbit_view(state, origin)
+	move = Camera.to_world({ x: 1.0, y: 0.0 }, state.yaw)
+	here = Camera.project(view, test_size, { x: 0.0, y: 1.2, z: 0.0 })
+	there = Camera.project(view, test_size, { x: move.x, y: 1.2, z: move.y })
+	match (here, there) {
+		(Ok(a), Ok(b)) => b.x > a.x + 1.0 and (b.y - a.y).abs() < 1.0
+		_ => Bool.False
+	}
+}
+
+origin : Camera.Vec3
+origin = { x: 0.0, y: 0.0, z: 0.0 }
+
+rest : Camera.Stick
+rest = { x: 0.0, y: 0.0 }
+
+standing : Camera.Character
+standing = { pos: origin, heading: 0.0, speed: 0.0, footing: Ground }
+
+near_to : F32, F32 -> Bool
+near_to = |a, b| (a - b).abs() < 0.001
+
+stick_near : Camera.Stick, Camera.Stick -> Bool
+stick_near = |a, b| near_to(a.x, b.x) and near_to(a.y, b.y)
