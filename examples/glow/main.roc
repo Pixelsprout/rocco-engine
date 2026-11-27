@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-rc1" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-RC2" }
 
 # A dark Scene with a glowing window and two orbs. The window glows with no
 # Light of its own. Each orb lights the floor around it. Between the orbs

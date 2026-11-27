@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-rc1", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-RC2", shared: "../shared/main.roc", ui: "../../packages/ui/main.roc" }
 
 import shared.Bench
 import cam.Camera as Cam
