@@ -258,7 +258,7 @@ _Avoid_: world, level, frame, render state, render list, scene graph
 
 **Node**:
 One part of the Scene's 3D tree: a Group or an Attach, which holds children,
-or a leaf: a Draw, a Light, a Collider or a Speaker.
+or a leaf: a Draw, a Light, a Collider, a Speaker or an Emitter.
 _Avoid_: scene node, game object, entity, object
 
 **Group**:
@@ -295,6 +295,15 @@ _Avoid_: glow (for the material), emission map
 A leaf Node: `Ambient`, `Directional` or `Point`. A Scene with no Light draws
 black.
 _Avoid_: lamp, light source, colour (for intensity)
+
+**Emitter**:
+A leaf Node that the host turns into particles: smoke, dust or sparks. The
+game never reads a particle.
+_Avoid_: source, particle system, effect
+
+**Particle**:
+One billboard that an Emitter spawns. It lives in the world after it spawns.
+_Avoid_: sprite, quad, Draw
 
 **Sun**:
 The first Directional Light that sets `shadow`: the only Light that casts a
@@ -370,6 +379,11 @@ _Avoid_: handle, key, index, entity id (when the draw is scenery)
 A stable number on a Group that pairs it as a Draw id pairs a Draw. Group ids
 and Draw ids are apart.
 _Avoid_: parent id, node id, draw id
+
+**Emitter id**:
+A stable number on an Emitter that pairs it with the Emitter of the same id
+anywhere in the previous Scene. A Burst names it.
+_Avoid_: source id, slot
 
 **Position key**:
 How the host pairs a Draw or Group with id 0: its nearest ancestor Group with

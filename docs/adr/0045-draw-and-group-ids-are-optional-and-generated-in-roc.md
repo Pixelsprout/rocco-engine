@@ -1,6 +1,7 @@
 # 0045: Draw and Group ids are optional and generated in Roc
 
 Status: accepted, 2026-11-20. Grilled for Milestone 47 (bcpqrlof).
+Amended by: ADR 0047 (Emitters are Nodes), for Emitter ids.
 
 ## Context
 
@@ -28,7 +29,8 @@ ids.
   nearest ancestor Group with a non-zero id, or the Scene root. The
   position counts only siblings of the same kind that also have id 0.
 - A placed Prefab node has its hash id, so it never pairs by position.
-- Collider, Speaker, Emitter and Panel ids stay explicit, because the game
+- Collider, Speaker, Emitter and Panel ids stay explicit (ADR 0047 lets an
+  id-0 Emitter pair by Position key), because the game
   names them.
 - An Attach must name a non-zero draw id. An Attach to id 0 logs once and
   does nothing. A Collider with id 0 collides and reports id 0.
