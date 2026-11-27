@@ -22,7 +22,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui", "camera"]
+DOCS_BUNDLES = ["platform", "linalg", "mesh", "ui", "camera", "collide", "controller"]
 # Release assets that the guide links but that have no API pages.
 DOCS_TOOLS = ["rocco_web"]
 # The keys of urls.json are the marker names in the guide pages, such as {{platform_url}}.

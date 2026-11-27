@@ -16,6 +16,11 @@ import bundle_sdk
 import candidate_sdk
 
 
+# Stands in for roc unbundle, which unpacks <hash>.tar.zst into the folder <hash>.
+def unbundle(command, cwd):
+    (Path(cwd) / command[2].removesuffix('.tar.zst')).mkdir()
+
+
 class BundleTests(unittest.TestCase):
     def test_platform_explicitly_carries_tools_and_targets_without_debug_outputs(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -33,10 +38,12 @@ class BundleTests(unittest.TestCase):
                 folder.mkdir(parents=True)
                 (folder / 'main.roc').write_text('package [] {}')
             commands = []
-            def run(command, cwd, check):
+            def run(command, cwd, check, env):
+                if command[1] == 'unbundle':
+                    return unbundle(command, cwd)
                 commands.append((command, cwd))
                 out = Path(command[command.index('--output-dir') + 1])
-                (out / 'HASH.tar.zst').write_bytes(b'archive')
+                (out / (Path(cwd).name.upper() + '.tar.zst')).write_bytes(b'archive')
             with patch.object(bundle_sdk, 'ROOT', root), patch.object(bundle_sdk.subprocess, 'run', run):
                 result = bundle_sdk.bundle(root / 'out')
             inputs = commands[0][0]
@@ -48,6 +55,41 @@ class BundleTests(unittest.TestCase):
             self.assertNotIn('shader-tools/__pycache__/build.pyc', inputs)
             self.assertEqual(set(result), set(bundle_sdk.PACKAGES))
             self.assertTrue(all(path.is_file() for path in result.values()))
+
+    def test_a_sibling_import_names_the_release_url_of_the_sibling_bundle(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'platform').mkdir()
+            (root / 'platform/main.roc').write_text('platform ""')
+            headers = {
+                'linalg': 'package [Vec3] {}',
+                'collide': 'package [Ground] { linalg: "../linalg/main.roc" }',
+                'controller': 'package [Controller] { collide: "../collide/main.roc", linalg: "../linalg/main.roc" }',
+            }
+            for name, header in headers.items():
+                (root / 'packages' / name).mkdir(parents=True)
+                (root / 'packages' / name / 'main.roc').write_text(header)
+            bundled = {}
+            def run(command, cwd, check, env):
+                if command[1] == 'unbundle':
+                    return unbundle(command, cwd)
+                bundled[Path(cwd).name] = (Path(cwd) / 'main.roc').read_text()
+                out = Path(command[command.index('--output-dir') + 1])
+                (out / (Path(cwd).name.upper() + '.tar.zst')).write_bytes(b'archive')
+            packages = ('platform', 'linalg', 'collide', 'controller')
+            with patch.object(bundle_sdk, 'ROOT', root), patch.object(bundle_sdk, 'PACKAGES', packages), \
+                 patch.object(bundle_sdk.subprocess, 'run', run):
+                with_base = bundle_sdk.bundle(root / 'release', 'https://example.com/v1')
+                bundled_with_base = dict(bundled)
+                without_base = bundle_sdk.bundle(root / 'candidate')
+            self.assertEqual(bundled_with_base['collide'],
+                             'package [Ground] { linalg: "https://example.com/v1/linalg-LINALG.tar.zst" }')
+            self.assertEqual(bundled_with_base['controller'],
+                             'package [Controller] { collide: "https://example.com/v1/collide-COLLIDE.tar.zst", '
+                             'linalg: "https://example.com/v1/linalg-LINALG.tar.zst" }')
+            self.assertEqual(headers['collide'], (root / 'packages/collide/main.roc').read_text())
+            self.assertEqual(set(with_base), set(packages))
+            self.assertEqual(set(without_base), {'platform', 'linalg'})
 
     def test_candidate_fixture_has_no_repo_dependencies_or_built_outputs(self):
         fixture = candidate_sdk.ROOT / 'examples/authoring'

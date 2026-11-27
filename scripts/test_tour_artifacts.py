@@ -83,7 +83,7 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn('roc/build.zig', self.files())
 
 
-URLS = {name: f'https://example.com/v0.15.0/{name}-HASH{name}.tar.zst' for name in ('platform', 'linalg', 'mesh', 'ui', 'camera')}
+URLS = {name: f'https://example.com/v0.15.0/{name}-HASH{name}.tar.zst' for name in ('platform', 'linalg', 'mesh', 'ui', 'camera', 'collide', 'controller')}
 RELEASE_URLS = {**URLS, 'rocco_web': 'https://example.com/v0.15.0/rocco_web.py'}
 
 
@@ -123,13 +123,14 @@ class PackTest(unittest.TestCase):
         self.pack()
         self.assertEqual(json.loads(read_member(self.tar, 'manifest.json')), manifest())
 
-    def test_the_source_bundle_mounts_the_five_docs_urls(self):
+    def test_the_source_bundle_mounts_the_docs_urls(self):
         self.pack()
         bundle = json.loads(read_member(self.tar, 'compile-worker/source-bundle.json'))
         self.assertEqual(bundle['urls'], {
             URLS['platform']: '/rocco/platform', URLS['linalg']: '/rocco/packages/linalg',
             URLS['mesh']: '/rocco/packages/mesh', URLS['ui']: '/rocco/packages/ui',
-            URLS['camera']: '/rocco/packages/camera'})
+            URLS['camera']: '/rocco/packages/camera', URLS['collide']: '/rocco/packages/collide',
+            URLS['controller']: '/rocco/packages/controller'})
         self.assertIn('/rocco/packages/ui/main.roc', bundle['files'])
 
     def test_a_missing_docs_url_fails(self):

@@ -239,8 +239,8 @@ jobs:
       - name: Bundle the platform and the packages
         run: |
           out="$RUNNER_TEMP/bundles"
-          python3 scripts/bundle_sdk.py "$out"
-          for name in platform linalg mesh ui camera; do
+          python3 scripts/bundle_sdk.py "$out" --base "$RELEASE_BASE"
+          for name in platform linalg mesh ui camera collide controller; do
             file=$(ls "$out/$name-"*.tar.zst)
             echo "$file" >> "$RUNNER_TEMP/assets"
             echo "--url=$name=$RELEASE_BASE/$(basename "$file")" >> "$RUNNER_TEMP/urls"
