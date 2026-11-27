@@ -513,7 +513,7 @@ _Avoid_: interpolation factor, t, blend, remainder
 **Description**:
 A value that says what should exist now, returned every step, which the host
 reconciles against the last one. A Scene is one.
-_Avoid_: command, request, event, intent
+_Avoid_: command, request, event
 
 **Command**:
 A value that says do this once, for what a Description cannot say: `Quit`,
@@ -585,6 +585,19 @@ _Avoid_: floor, terrain (one kind of Ground), heightmap, ground check
 Keeping a walking character's foot on the Ground as it goes down a slope or a
 low step, instead of letting it fall. Not Grounding.
 _Avoid_: ground snap, snap down, Grounding (the host lifting a skinned Draw)
+
+**Intent**:
+What the player asks a character to do this step: a `move` direction in world
+x/z, and whether jump was pressed or is held. The game builds it from Input;
+`packages/controller` reads it. Not a Description.
+_Avoid_: input (the host's record), command, action
+
+**Tuning**:
+The numbers that set how a character moves: speeds, turn rate, jump height,
+gravity, glide, coyote time, jump buffer, step-up, slope limit and the body
+size. A zero field turns off glide, coyote time, jump buffer, step-up or the
+slope limit.
+_Avoid_: settings, config, params
 
 ## Sound
 
