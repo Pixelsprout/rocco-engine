@@ -206,9 +206,12 @@ jobs:
           "$odin\dist" >> $env:GITHUB_PATH
           "$roc\roc-windows_x86_64-$env:ROC_RELEASE" >> $env:GITHUB_PATH
 
+      # setup-zig can save a broken cache from a cancelled run.
+      # This job gains nothing from a Zig cache.
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+          use-cache: false
 
       - name: Print the toolchain versions
         run: |
@@ -429,9 +432,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # setup-zig can save a broken cache from a cancelled run.
+      # This job gains nothing from a Zig cache.
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+          use-cache: false
 
       # Discovery runs every test_*.py, so a new test needs no edit here.
       - name: Test the generators
