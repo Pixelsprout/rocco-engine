@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check native particle replay, bursts, image unload, and draining sources."""
+"""Check native particle replay, bursts, image unload, and draining Emitters."""
 
 import json
 import sys
@@ -29,11 +29,12 @@ def drive(b, out):
     initial = Path(out).with_name(Path(out).stem + '-initial.png')
     b.screenshot(str(initial))
     _, _, pixels = bridge.png_rgba(initial.read_bytes())
-    check(sum(pixels[i] > 180 and pixels[i] > pixels[i+2] * 2 for i in range(0, len(pixels), 4)) > 10, 'init Burst resolves the initial Scene source')
+    check(sum(pixels[i] > 180 and pixels[i] > pixels[i+2] * 2 for i in range(0, len(pixels), 4)) > 10, 'init Burst resolves the initial Scene Emitter')
     b.step(240)
     scene = b.scene()['scene']
-    check(len(scene['emitters']) == 4, 'smoke, dust, sparks, and the dust devil are declared')
-    check(scene['emitters'][1]['image'] != 0, 'the dust Pack image loaded')
+    emitters = bridge.scene_emitters(scene['nodes'])
+    check(len(emitters) == 5, 'smoke, dust, sparks, the dust devil and the cart exhaust are declared')
+    check(emitters[1]['image'] != 0, 'the dust Pack image loaded')
     reply = b.step(1, tap=['B'])
     check({'Burst': {'emitter': 3, 'count': 180}} in reply['commands'], 'the burst reaches the host and Bridge')
     b.step(24)
@@ -45,9 +46,9 @@ def drive(b, out):
     b.step(1, tap=['U'])
     b.screenshot(str(image.with_name(image.stem + '-unloaded.png')))
     b.step(1, tap=['L'])
-    check(b.scene()['scene']['emitters'][1]['image'] != scene['emitters'][1]['image'], 'reload uses a new image generation')
+    check(bridge.scene_emitters(b.scene()['scene']['nodes'])[1]['image'] != emitters[1]['image'], 'reload uses a new image generation')
     b.step(1, tap=['R'])
-    check(b.scene()['scene']['emitters'] == [], 'removal stops all sources')
+    check(bridge.scene_emitters(b.scene()['scene']['nodes']) == [], 'removal stops all Emitters')
     b.step(600)
     drained = image.with_name(image.stem + '-drained.png')
     b.screenshot(str(drained))
@@ -55,7 +56,7 @@ def drive(b, out):
     b.step(120)
     empty = image.with_name(image.stem + '-empty.png')
     b.screenshot(str(empty))
-    check(drained.read_bytes() == empty.read_bytes(), 'removed sources drain completely')
+    check(drained.read_bytes() == empty.read_bytes(), 'removed Emitters drain completely')
     b.step(1, tap=['O'])
     orientation = image.with_name(image.stem + '-orientation.png')
     b.screenshot(str(orientation))

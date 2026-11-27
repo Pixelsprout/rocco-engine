@@ -1,7 +1,9 @@
 package engine
 
 import "core:math"
+import "core:math/linalg"
 import "core:mem"
+import "system"
 
 PARTICLE_LIMIT :: 8192
 EMITTER_LIMIT :: 128
@@ -12,12 +14,42 @@ Particle :: struct {
 	emitter: int,
 }
 
+// An Emitter with a non-zero id pairs by id alone. One with id 0 pairs by its
+// anchor and its index among the id-0 Emitters under that anchor.
+Emitter_Key :: struct {
+	id:     u64,
+	anchor: Parent_Id,
+	index:  int,
+}
+
+// config holds the Emitter at its world place. rot is its world rot, which
+// turns velocity and velocity_spread. from is the world place of the previous
+// step, the start of the line that continuous spawns spread along.
 Particle_Source :: struct {
 	config: Emitter,
+	key:    Emitter_Key,
+	rot:    quaternion128,
+	from:   [3]f32,
 	random: u64,
 	credit: f64,
-	live, present: bool,
+	live, present, was_present: bool,
 	count: int,
+}
+
+Placed_Emitter :: struct {
+	emitter: Emitter,
+	key:     Emitter_Key,
+	world:   Pose,
+}
+
+Emitter_Gather :: struct {
+	placed:         [dynamic]Placed_Emitter,
+	zero_id_counts: [dynamic]Zero_Id_Count,
+}
+
+Zero_Id_Count :: struct {
+	anchor: Parent_Id,
+	count:  int,
 }
 
 Particle_Instance :: struct {
@@ -38,6 +70,7 @@ Particles :: struct {
 	count: int,
 	bursts: [EMITTER_LIMIT]Burst_Command,
 	burst_count: int,
+	duplicate_logged: bool,
 	allocator: mem.Allocator,
 }
 
@@ -67,23 +100,41 @@ particles_burst :: proc(p: ^Particles, burst: Burst_Command) {
 	}
 }
 
-particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
+// Runs after each view on the current Scene's Nodes. The world places come
+// from the walked Scene, with no interpolation.
+particles_step :: proc(p: ^Particles, nodes: []Node, meshes: ^Mesh_Table, dt: f32) {
 	if p == nil || len(p.sources) == 0 { return }
-	for &source in p.sources { source.present = false; source.count = 0 }
-	for emitter in emitters {
+	for &source in p.sources {
+		source.was_present = source.present
+		source.present = false
+		source.count = 0
+	}
+	for placed in emitters_gather(nodes, meshes) {
 		slot := -1
 		for source, i in p.sources {
-			if source.live && source.config.id == emitter.id { slot = i; break }
+			if source.live && source.key == placed.key { slot = i; break }
 		}
 		if slot < 0 {
 			for source, i in p.sources {
 				if !source.live { slot = i; break }
 			}
 		}
-		if slot < 0 || p.sources[slot].present { continue }
+		if slot < 0 { continue }
 		source := &p.sources[slot]
-		if !source.live || source.config.seed != emitter.seed { source.random = emitter.seed }
-		source.config = particle_emitter_clamp(emitter)
+		if source.present {
+			if !p.duplicate_logged {
+				p.duplicate_logged = true
+				system.eprintfln("two emitters share id %v; the first one emits", placed.key.id)
+			}
+			continue
+		}
+		if !source.live || source.config.seed != placed.emitter.seed { source.random = placed.emitter.seed }
+		config := particle_emitter_clamp(placed.emitter)
+		config.pos = particle_vector_clamp(to_vec3(placed.world.pos), {}, -1000000)
+		source.from = vec3_array(source.config.pos if source.was_present else config.pos)
+		source.config = config
+		source.key = placed.key
+		source.rot = placed.world.rot
 		source.live = true
 		source.present = true
 	}
@@ -107,9 +158,10 @@ particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
 	}
 	p.count = write
 	for burst in p.bursts[:p.burst_count] {
+		if burst.emitter == 0 { continue }
 		for &source, slot in p.sources {
-			if source.present && source.config.id == burst.emitter {
-				particles_spawn(p, slot, int(burst.count))
+			if source.present && source.key.id == burst.emitter {
+				particles_spawn(p, slot, int(burst.count), along_line = false)
 				break
 			}
 		}
@@ -121,7 +173,7 @@ particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
 			source.credit += f64(source.config.rate) * f64(dt * source.config.time_scale)
 			count := int(math.floor(source.credit))
 			source.credit -= f64(count)
-			particles_spawn(p, slot, count)
+			particles_spawn(p, slot, count, along_line = true)
 		} else {
 			source.credit = 0
 			if source.count == 0 { source = {} }
@@ -129,15 +181,19 @@ particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
 	}
 }
 
-particles_spawn :: proc(p: ^Particles, slot, count: int) {
+// Along the line from the previous world place, a fast Emitter leaves an even
+// trail and not a clump at each step.
+particles_spawn :: proc(p: ^Particles, slot, count: int, along_line: bool) {
 	source := &p.sources[slot]
 	e := source.config
 	spawn_count := min(count, len(p.particles) - p.count)
-	for _ in 0 ..< spawn_count {
-		velocity := [3]f32{e.velocity.x, e.velocity.y, e.velocity.z}
-		spread := [3]f32{e.velocity_spread.x, e.velocity_spread.y, e.velocity_spread.z}
+	for k in 0 ..< spawn_count {
+		velocity := vec3_array(e.velocity)
+		spread := vec3_array(e.velocity_spread)
 		for axis in 0 ..< 3 { velocity[axis] += particle_random(&source.random) * spread[axis] }
-		position := [3]f32{e.position.x, e.position.y, e.position.z}
+		velocity = linalg.quaternion128_mul_vector3(source.rot, velocity)
+		position := vec3_array(e.pos)
+		if along_line { position = linalg.lerp(source.from, position, f32(k + 1) / f32(spawn_count)) }
 		if e.spawn_radius > 0 {
 			angle := (particle_random(&source.random) + 1) * math.PI
 			reach := e.spawn_radius * math.sqrt((particle_random(&source.random) + 1) / 2)
@@ -150,20 +206,74 @@ particles_spawn :: proc(p: ^Particles, slot, count: int) {
 	}
 }
 
+// Each Emitter of the Scene at its world Pose, in walk order, in the Frame
+// allocator.
+emitters_gather :: proc(nodes: []Node, meshes: ^Mesh_Table) -> []Placed_Emitter {
+	gather := Emitter_Gather {
+		placed         = make([dynamic]Placed_Emitter, 0, 8, context.temp_allocator),
+		zero_id_counts = make([dynamic]Zero_Id_Count, 0, 4, context.temp_allocator),
+	}
+	joints := Scene_Joints{meshes, nodes}
+	walk := Tree_Walk {
+		visit           = emitter_visit,
+		data            = &gather,
+		joint_pose      = scene_attach_joint,
+		joint_pose_data = &joints,
+	}
+	root := WALK_ROOT
+	for &node, i in nodes {
+		#partial switch node.tag {
+		case .Emitter:
+			emitter_place(&gather, node.payload.emitter, &root)
+		case .Group, .Attach:
+			tree_walk(&walk, nodes[i:i + 1], &root)
+		}
+	}
+	tree_walk_attached(&walk)
+	return gather.placed[:]
+}
+
+@(private = "file")
+emitter_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
+	if node.tag == .Emitter {
+		emitter_place((^Emitter_Gather)(walk.data), node.payload.emitter, parent)
+	}
+}
+
+@(private = "file")
+emitter_place :: proc(gather: ^Emitter_Gather, e: Emitter, parent: ^Walk_Parent) {
+	key := Emitter_Key{id = e.id}
+	if e.id == 0 {
+		key.anchor = parent.anchor
+		found := false
+		for &zero in gather.zero_id_counts {
+			if zero.anchor == parent.anchor {
+				key.index = zero.count
+				zero.count += 1
+				found = true
+				break
+			}
+		}
+		if !found { append(&gather.zero_id_counts, Zero_Id_Count{anchor = parent.anchor, count = 1}) }
+	}
+	world := pose_under(parent.id.grouped, parent.scene_world, {pos = vec3_array(e.pos), rot = 1})
+	append(&gather.placed, Placed_Emitter{emitter = e, key = key, world = world})
+}
+
 // The swirl and the outward drift: the particle's place turned about the
-// upright line through the source's position by `swirl` radians a second,
+// upright line through the Emitter's world place by `swirl` radians a second,
 // counter-clockwise seen from above, and moved `outward` metres a second away
 // from that line, never past it.
 particle_about_axis :: proc(position: [3]f32, e: Emitter, step: f32) -> [3]f32 {
 	if e.swirl == 0 && e.outward == 0 { return position }
-	offset := [2]f32{position.x - e.position.x, position.z - e.position.z}
+	offset := [2]f32{position.x - e.pos.x, position.z - e.pos.z}
 	reach := math.sqrt(offset.x * offset.x + offset.y * offset.y)
 	if reach == 0 { return position }
 	turn := e.swirl * step
 	c, s := math.cos(turn), math.sin(turn)
 	turned := [2]f32{offset.x * c + offset.y * s, -offset.x * s + offset.y * c}
 	moved := turned * (max(0, reach + e.outward * step) / reach)
-	return {e.position.x + moved.x, position.y, e.position.z + moved.y}
+	return {e.pos.x + moved.x, position.y, e.pos.z + moved.y}
 }
 
 // SplitMix64 accepts every seed, including zero, without a zero-state trap.
@@ -186,7 +296,7 @@ particle_emitter_clamp :: proc(input: Emitter) -> Emitter {
 	e.end_size = particle_finite(e.end_size, 1, 0, 1000000)
 	e.start_colour = particle_colour_clamp(e.start_colour, 0.5)
 	e.end_colour = particle_colour_clamp(e.end_colour, 0)
-	e.position = particle_vector_clamp(e.position, {}, -1000000)
+	e.pos = particle_vector_clamp(e.pos, {}, -1000000)
 	e.velocity = particle_vector_clamp(e.velocity, {y = 1}, -1000000)
 	e.velocity_spread = particle_vector_clamp(e.velocity_spread, {x = 0.2, y = 0.2, z = 0.2}, 0)
 	e.acceleration = particle_vector_clamp(e.acceleration, {}, -1000000)
@@ -219,7 +329,7 @@ particles_frame :: proc(p: ^Particles, alpha: f32) -> ([]Particle_Instance, []Pa
 		if source.count == 0 { continue }
 		e := source.config
 		offsets[slot] = write
-		append(&batches, Particle_Batch{position = {e.position.x, e.position.y, e.position.z}, start = write, count = source.count, image = e.image, blend = e.blend})
+		append(&batches, Particle_Batch{position = {e.pos.x, e.pos.y, e.pos.z}, start = write, count = source.count, image = e.image, blend = e.blend})
 		write += source.count
 	}
 	for particle in p.particles[:p.count] {

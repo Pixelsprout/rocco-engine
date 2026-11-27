@@ -66,7 +66,7 @@ Quat :: Roc_VocabularyNode_Collider_Rot
 Rgb :: Roc_VocabularyNode_Draw_Glow
 Scene_Camera :: Roc_View_Camera
 Cursor :: Roc_View_Cursor
-Rgba :: Roc_View_Emitters_EndColour
+Rgba :: Roc_VocabularyNode_Emitter_EndColour
 Element :: Roc_VocabularyElement
 Element_Tag :: Roc_VocabularyElement_Tag
 Panel_Config :: Roc_VocabularyElement_Panel_0
@@ -97,6 +97,6 @@ Image_Fit :: Roc_VocabularyElement_Panel_0_Image_Show_1
 Text :: Roc_VocabularyElement_Text
 Text_Wrap :: Roc_VocabularyElement_Text_Wrap
 
-Emitter :: Roc_View_Emitters
-Particle_Blend :: Roc_View_Emitters_Blend
+Emitter :: Roc_VocabularyNode_Emitter
+Particle_Blend :: Roc_VocabularyNode_Emitter_Blend
 Burst_Command :: Roc_Init_Commands_Burst

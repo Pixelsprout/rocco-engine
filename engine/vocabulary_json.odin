@@ -86,8 +86,6 @@ json_write_commands :: proc(b: ^strings.Builder, commands: Roc_List(Command)) {
 json_write_scene :: proc(b: ^strings.Builder, scene: ^Scene) {
 	json_key(b, "camera", first = true)
 	json_write_camera(b, &scene.camera)
-	json_key(b, "emitters")
-	json_write_list(b, scene.emitters, json_write_emitter)
 	json_key(b, "nodes")
 	json_write_list(b, scene.nodes, json_write_node)
 	json_key(b, "cursor")
@@ -241,6 +239,9 @@ json_write_node :: proc(b: ^strings.Builder, node: ^Node) {
 	case .Speaker:
 		json_key(b, "Speaker", first = true)
 		json_write_speaker(b, &node.payload.speaker)
+	case .Emitter:
+		json_key(b, "Emitter", first = true)
+		json_write_emitter(b, &node.payload.emitter)
 	}
 	strings.write_byte(b, '}')
 }
@@ -739,8 +740,8 @@ json_write_emitter :: proc(b: ^strings.Builder, e: ^Emitter) {
 	strings.write_u64(b, e.id)
 	json_key(b, "seed")
 	strings.write_u64(b, e.seed)
-	json_key(b, "position")
-	json_write_vec3(b, e.position)
+	json_key(b, "pos")
+	json_write_vec3(b, e.pos)
 	json_key(b, "velocity")
 	json_write_vec3(b, e.velocity)
 	json_key(b, "velocity_spread")

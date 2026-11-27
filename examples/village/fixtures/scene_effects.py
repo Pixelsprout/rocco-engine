@@ -13,7 +13,7 @@ from capture import GAME, STEP_CHUNK, advance, launch
 from diagnostics import compare_probe, preserve, progress, scene_checkpoint, write_json
 from foliage import draws
 sys.path.insert(0, str(GAME.parents[1] / 'scripts'))
-from bridge import Bridge, png_rgba
+from bridge import Bridge, png_rgba, scene_emitters
 
 
 def capture(bridge, out, name, report):
@@ -94,10 +94,11 @@ def run(out, retina=False, seed=0, seed_only=False, movie=False, hosted=False, c
             assert all(d['mesh'] for d in placed)
             assert [n['Group']['id'] for n in scene['nodes'] if 'Group' in n] == [10, 20, 30, 40, 1, 2]
             assert len([n for n in scene['nodes'] if 'Collider' in n]) == 6
-            assert len(scene['emitters']) == 41
-            assert all(e['image'] > 0 for e in scene['emitters'])
-            assert {e['blend'] for e in scene['emitters']} == {'Alpha', 'Add'}
-            report.update(ready_step=ready_step, emitters=scene['emitters'], environment=scene['environment'], shadow=scene['shadow'])
+            emitters = scene_emitters(scene['nodes'])
+            assert len(emitters) == 41
+            assert all(e['image'] > 0 for e in emitters)
+            assert {e['blend'] for e in emitters} == {'Alpha', 'Add'}
+            report.update(ready_step=ready_step, emitters=emitters, environment=scene['environment'], shadow=scene['shadow'])
             if seed_only:
                 bridge.step(2)
                 report['images']['seed'] = capture(bridge, out, 'seed', report)
@@ -170,15 +171,15 @@ def run(out, retina=False, seed=0, seed_only=False, movie=False, hosted=False, c
                     assert changed(out, 'ui', 'ui-no-colour', physical) > minimum_changed
                     bridge.tell('effects', 'smoke')
                     bridge.step(1)
-                    assert len(bridge.scene()['scene']['emitters']) == 40
+                    assert len(scene_emitters(bridge.scene()['scene']['nodes'])) == 40
                     bridge.tell('effects', 'dust')
                     bridge.step(1)
-                    assert not bridge.scene()['scene']['emitters']
+                    assert not scene_emitters(bridge.scene()['scene']['nodes'])
                     bridge.tell('effects', 'none')
                     bridge.step(1)
                     bridge.tell('effects', 'all')
                     bridge.step(1)
-                    assert len(bridge.scene()['scene']['emitters']) == 41
+                    assert len(scene_emitters(bridge.scene()['scene']['nodes'])) == 41
                     bridge.tell('vegetation', 'field')
                     bridge.tell('vegetation', 'casting')
                     bridge.step(1)

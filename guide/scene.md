@@ -63,9 +63,8 @@ host to do one thing once.
 
 | Field | Holds | Page |
 |---|---|---|
-| `emitters` | host-simulated smoke, dust and sparks | [Particles](#particles) |
 | `camera` | the [Camera] | this page |
-| `nodes` | the root [Node]s of the 3D tree: Groups, Draws, Lights, Colliders and Speakers | this page |
+| `nodes` | the root [Node]s of the 3D tree: Groups, Draws, Lights, Colliders, Speakers and Emitters | this page |
 | `environment` | the [Environment]: the sky id, the colour behind the 3D view, the tone map, the exposure, fog and bloom | this page and [Assets and Packs](assets.md) |
 | `queries` | the [Query]s for the next step | [Collisions and Queries](collisions.md) |
 | `cursor` | the [Cursor] | [Input](input.md) |
@@ -73,33 +72,43 @@ host to do one thing once.
 
 ## Particles
 
-Add sources to `Scene.emitters` to draw smoke, dust or sparks.
-Start each source from `Emitter.default`.
-Use a stable `id` for each source.
-Set `rate` in particles per second.
+Put an [Emitter] in the Node tree to draw smoke, dust or sparks.
+Start each Emitter from `Emitter.default` and set `rate` in particles per second.
 Call `Emitter.burst(id, count)` from `init` or `step` for a single burst.
 The host resolves bursts against the Scene from that same call.
 
+An Emitter's `pos` is local to its Group, as a Draw's `pos` is.
+An Emitter at the root is at a world place.
+Put an Emitter in a Group to carry it on a moving object: a torch on the player or exhaust on a cart.
+Under an Attach, an Emitter follows the Joint.
+The host takes the world place from the current Scene, with no interpolation.
+
+A particle lives in the world after it spawns, so a moving Emitter leaves a trail.
+The particles of one step spawn along the line from the previous world place to the current one, so a fast Emitter leaves an even trail.
+A burst spawns at the current world place.
+
 The host simulates particles at the fixed step rate.
-The source seed controls its random velocity offsets.
+The Emitter's seed controls its random velocity offsets.
 `velocity_spread` sets the uniform offset range for each velocity axis.
+`velocity` and `velocity_spread` turn with the Group, so exhaust points out of the back of a turning cart.
 The host interpolates position, size and colour for each frame.
 Size uses world units; colour uses linear HDR values.
 
 Four fields shape outdoor effects, each 0 for none.
+They stay in the world under any Group, because they stand for gravity, lift and wind.
 `acceleration` adds to each particle's velocity every second: gravity for spray, a lift for smoke.
-`spawn_radius` starts each particle on a level disc round `position`.
-`swirl` turns each particle about the upright line through `position`, in radians a second, counter-clockwise seen from above.
+`spawn_radius` starts each particle on a level disc round the world place.
+`swirl` turns each particle about the upright line through the world place, in radians a second, counter-clockwise seen from above.
 `outward` moves each particle away from that line in metres a second, or toward it when negative.
-A dust devil is a source that moves with a swirl, a lift and a little outward drift.
+A dust devil is an Emitter that moves with a swirl, a lift and a little outward drift.
 
-`time_scale` is the source's clock against the host's step.
-Use 0 to hold a source's particles still while the game pauses, and other values for a game's own tempo.
+`time_scale` is the Emitter's clock against the host's step.
+Use 0 to hold an Emitter's particles still while the game pauses, and other values for a game's own tempo.
 
 Use `Alpha` for smoke and dust.
-The host sorts Alpha sources with Blend Draws by source position.
+The host sorts Alpha Emitters with Blend Draws by world place.
 Use `Add` for sparks.
-The host draws Add sources after that sort.
+The host draws Add Emitters after that sort.
 Particles test opaque depth and write no depth.
 
 Image id `0` selects the built-in soft round sprite.
@@ -107,31 +116,37 @@ A nonzero `image` id selects a Pack image.
 If that image is missing or unloaded, the host omits those particles and logs once.
 Particles keep no Pack reference.
 
-Removing a source stops new emission.
-Existing particles drain with its last settings.
+The host pairs an Emitter with the Emitter of the same id anywhere in the previous Scene.
+An Emitter that moves to another Group keeps its particles and its random sequence.
+If two Emitters share an id, the first in a depth-first walk wins and the host logs once.
+Give an id to an Emitter that you burst.
+An Emitter with id 0 pairs by its place among the id-0 Emitters under its nearest Group with an id.
+So a torch Group that you repeat needs no Emitter ids, and a burst cannot name id 0.
+
+Removing an Emitter, or the Group that holds it, stops new emission.
+Existing particles drain where they are, with its last world place and settings.
 Reusing a draining id keeps its random sequence.
 A changed seed resets the sequence for future particles.
-After a removed source drains, its id starts a new sequence.
+After a removed Emitter drains, its id starts a new sequence.
 Settings changes also affect particles already alive.
 
-The host accepts 128 sources, including draining sources, and 8192 particles.
-The first duplicate source id wins.
-Sources keep their host slot until they drain.
-New sources take the first free slot.
-Continuous emission fills free particle slots in source slot order.
+The host accepts 128 Emitters, including draining Emitters, and 8192 particles.
+Emitters keep their host slot until they drain.
+New Emitters take the first free slot.
+Continuous emission fills free particle slots in slot order.
 Bursts fill free particle slots in command order.
 Bursts run before continuous emission.
 Dropped emissions do not queue for later steps.
 The first 128 distinct burst ids per step are accepted.
 Repeated burst ids combine up to 8192 particles.
 
-Run the `particles` example for smoke, a Pack-image dust source and additive sparks.
-Press B for sparks, R to remove or restore sources, U to unload the image, and L to reload it.
+Run the `particles` example for smoke, a Pack-image dust Emitter, additive sparks and a cart that trails exhaust.
+Press B for sparks, R to remove or restore the Emitters, U to unload the image, and L to reload it.
 
 ## The tree of Nodes
 
 `Scene.nodes` holds the 3D part of the Scene as a tree. A [Node] is one of
-six tags, and your game writes the tags directly:
+seven tags, and your game writes the tags directly:
 
 - `Draw(draw)`: a [Draw], a mesh to draw. See [Pairing by id](#pairing-by-id).
 - `Light(light)`: a [Light]. See [Lights](#lights).
@@ -139,6 +154,8 @@ six tags, and your game writes the tags directly:
   [Collisions and Queries](collisions.md).
 - `Speaker(speaker)`: a [Speaker], a Sound that plays while the Scene holds
   it. See [Sound](sound.md#speakers).
+- `Emitter(emitter)`: an [Emitter], a place the host spawns particles from.
+  See [Particles](#particles).
 - `Group({ id, pos, rot, selected }, children)`: a Group id, a Pose and a list of
   child Nodes. See [Groups](#groups).
 - `Attach({ draw, joint }, children)`: a draw id, the name of a Joint in
@@ -221,7 +238,7 @@ lag. The children take the Joint's position and rot, never its scale. To
 size an attached mesh, set the `scale` of its own Draw.
 
 The Attach can sit anywhere in the tree. Its parent Group does not move
-it; only the Joint does. Draws, Lights, Colliders and Speakers under an
+it; only the Joint does. Draws, Lights, Colliders, Speakers and Emitters under an
 Attach all move with the Joint.
 
 If no Draw has that id, the Draw's mesh has no Skin, or the Skin has no
@@ -525,7 +542,7 @@ with a record update, and set only the fields that you need.
 |---|---|---|
 | Scene | [`Scene.empty`][Scene.empty] | the start of each Scene in `view` |
 | Environment | [`Environment.default`][Environment.default] | the start of `Scene.environment`. Set `sky`, `tone_map`, `fog` or `bloom`. |
-| Emitter | [`Emitter.default`][Emitter.default] | the start of each source. Set `id` and `rate`. |
+| Emitter | [`Emitter.default`][Emitter.default] | the start of each Emitter. Set `rate`, and `id` to burst it. |
 | Draw | [`Draw.default`][Draw.default] | the start of each Draw. Set `id` and `mesh`. |
 | Speaker | [`Speaker.default`][Speaker.default] | the start of each Speaker. Set `id` and `sound`. |
 | Launch | [`Launch.default`][Launch.default] | the value of `launch`, or the start of it |
@@ -543,6 +560,7 @@ with a record update, and set only the fields that you need.
 [Node]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Node
 [Collider]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Collider
 [Speaker]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Speaker
+[Emitter]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Emitter
 [Query]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Query
 [Cursor]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Cursor
 [Element]: https://pixelsprout.dev/projects/rocco/api/platform/Vocabulary/#Vocabulary.Element

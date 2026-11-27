@@ -32,9 +32,11 @@ Parent_Id :: struct {
 // walked Scene, before interpolation. unpaired is set by the pairing build
 // for a duplicate Group id or a Group past the capacity. no_world marks the
 // Nodes under an Attach in a walk with no joint proc, whose world Pose is
-// not known.
+// not known. anchor is the nearest enclosing Group with a non-zero id, or
+// the Attach, and is zero at the root.
 Walk_Parent :: struct {
 	id:          Parent_Id,
+	anchor:      Parent_Id,
 	unpaired:    bool,
 	no_world:    bool,
 	selected:    bool,
@@ -119,12 +121,16 @@ tree_walk :: proc(walk: ^Tree_Walk, nodes: []Node, parent: ^Walk_Parent) {
 		local := pose_of(g.pos, g.rot)
 		child := Walk_Parent {
 			id          = {id = g.id, grouped = true},
+			anchor      = parent.anchor,
 			unpaired    = walk.group_unpaired,
 			no_world    = parent.no_world,
 			selected    = parent.selected || g.selected,
 			scene_world = pose_under(parent.id.grouped, parent.scene_world, local),
 		}
 		walk.group_unpaired = false
+		if g.id != 0 {
+			child.anchor = child.id
+		}
 		if walk.pairing == nil {
 			child.world = child.scene_world
 		} else {
@@ -317,7 +323,7 @@ pairing_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) {
 		}
 		local := pose_of(g.pos, g.rot)
 		p.groups[g.id] = {parent = parent.id, local = local, world = pose_under(parent.id.grouped, parent.scene_world, local), no_world = parent.no_world}
-	case .Attach, .Light, .Collider, .Speaker:
+	case .Attach, .Light, .Collider, .Speaker, .Emitter:
 	}
 }
 

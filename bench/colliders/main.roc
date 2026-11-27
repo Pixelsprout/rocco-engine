@@ -122,7 +122,6 @@ view = |m| {
 		cursor: Free,
 		environment: Environment.default,
 		shadow: Shadow.default,
-		emitters: [],
 		post: [],
 		shader_values: [],
 		ui: [],

@@ -280,7 +280,7 @@ view = |model| if (!ready(model)) loading_view(model) else {
 	}
 	nodes = scene_nodes(model, parts)
 	environment = Lighting.environment(model.manifest, model.lighting)
-	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	{ ..Scene.empty, camera: cam_view, nodes: List.join([nodes, Effects.emitters(model.manifest, model.seed, model.effects)]), environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect blocked({ x: -6.4, y: 1.7, z: 1.0 }) and blocked({ x: 6.6, y: 1.7, z: 5.0 }) and !blocked({ x: 0.0, y: 1.7, z: 5.0 })
@@ -365,7 +365,7 @@ reference_view = |model| if (!ready(model)) loading_view(model) else {
 	boxes = Layout.colliders.map(|box| Collider(Collider.box(box.id, box.pos, box.rot, box.half)))
 	nodes = List.join([[Lighting.ground(model.lighting)], buildings, [Group(identity(1), source(0)), Group(identity(2), Vegetation.field_nodes(model.prepared, model.vegetation))], boxes, Lighting.nodes(model.lighting)])
 	environment = Lighting.environment(model.manifest, model.lighting)
-	{ ..Scene.empty, camera: cam_view, nodes, environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), emitters: Effects.emitters(model.manifest, model.seed, model.effects), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
+	{ ..Scene.empty, camera: cam_view, nodes: List.join([nodes, Effects.emitters(model.manifest, model.seed, model.effects)]), environment, shadow: model.shadow, shader_values: Vegetation.scene_values(model.vegetation, cam_view.eye), cursor: if (model.captured) Locked else Free, post: Effects.post(model.effects, model.selected), ui: effects_ui(model.effects), queries: [Port.listen("view"), Port.listen("lighting"), Port.listen("vegetation"), Port.listen("quality"), Port.listen("effects"), Query.ray(900, cam_view.eye, V.normalize(V.sub(cam_view.target, cam_view.eye)), 80.0)] }
 }
 
 expect {

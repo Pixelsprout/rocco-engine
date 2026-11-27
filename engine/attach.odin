@@ -58,8 +58,10 @@ tree_walk_attached :: proc(walk: ^Tree_Walk) {
 	for i := 0; i < len(walk.attaches); i += 1 {
 		pending := walk.attaches[i]
 		config := &pending.attach._0
+		id := attach_parent_id(config)
 		parent := Walk_Parent {
-			id       = attach_parent_id(config),
+			id       = id,
+			anchor   = id,
 			selected = pending.selected,
 			world    = POSE_IDENTITY,
 		}

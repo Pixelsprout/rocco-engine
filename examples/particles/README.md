@@ -4,27 +4,29 @@ Build the host with `roc scripts/build.roc host`.
 Build the example with `roc scripts/build.roc game particles`.
 Start `particles.bin` from this folder.
 
-The left source emits Alpha smoke with the built-in round sprite.
-The right source emits Alpha dust with a Pack image.
-The centre source emits Add sparks.
-The back source is a dust devil: its particles start on a small disc, rise, swirl about the source and drift outward.
+The left Emitter makes Alpha smoke with the built-in round sprite.
+The right Emitter makes Alpha dust with a Pack image.
+The centre Emitter makes Add sparks.
+The back Emitter is a dust devil: its particles start on a small disc, rise, swirl about the Emitter and drift outward.
+A cart drives in a circle with an exhaust Emitter in its Group.
+The Group turns the exhaust velocity, and the trail stays in the world behind the cart.
 The orientation sprite has a red top and a blue bottom.
 
 - Press B to emit sparks.
-- Press R to remove or restore all sources.
+- Press R to remove or restore all Emitters.
 - Press U to unload the dust image.
 - Press L to load the dust image again.
 - Press O to show or hide the sprite orientation check.
 - Press P to pause or resume the particles with `time_scale`.
 
-Removed sources drain their particles.
+Removed Emitters drain their particles.
 Unloaded images omit their particles and log once.
 The seed controls velocity spread.
 The host never sends particle state across the game boundary.
 
 Run `python3 scripts/particle_check.py` from the repository root for two native Bridge replays.
 The check saves screenshots and compares their bytes.
-It also checks initial bursts, source removal, image unload, image reload, particle drain and sprite orientation.
+It also checks initial bursts, Emitter removal, image unload, image reload, particle drain and sprite orientation.
 
 Run `python3 examples/particles/source/make_dust.py` to rebuild the dust and orientation sprites.
 
