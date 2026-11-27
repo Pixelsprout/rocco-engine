@@ -225,6 +225,7 @@ speaker_start :: proc(audio: ^Audio, entry: ^Speaker_Voice) {
 		return
 	}
 	speaker := entry.speaker
+	audio_open_device(audio)
 	if voice_start(&audio.voices, index, &audio.engine, sound, speaker.sound, speaker.gain, speaker.pitch, speaker.at, looping = speaker.repeat == .Loop) {
 		entry.voice = index
 		entry.taken = audio.voices.voices[index].taken

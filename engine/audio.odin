@@ -4,41 +4,58 @@ import "core:fmt"
 import "core:mem"
 import "system"
 
-// The mix format when no device chooses one.
+// The mix format of the engine, with a device or without one.
 AUDIO_CHANNELS :: 2
 AUDIO_SAMPLE_RATE :: 48000
 // The frames that audio_advance mixes per read.
 AUDIO_ADVANCE_FRAMES :: 1024
 
-// The host always has an ma_engine, so no other code checks for one. If the
-// device does not open, the engine has no device and the run is silent.
+// The host always has an ma_engine, so no other code checks for one. A run
+// with a device starts with an engine that has none and opens the device at
+// the first voice, so a game that plays nothing opens no device. On the web
+// a device is an AudioContext, and a browser warns about one that starts
+// before the player clicks. If the device does not open, the engine has no
+// device and the run is silent.
 Audio :: struct {
-	engine:       Ma_Engine,
-	engine_ready: bool,
-	device:       bool,
-	sounds:       Sound_Table,
-	voices:       Voice_Pool,
-	speakers:     Speaker_Pairing,
+	engine:        Ma_Engine,
+	engine_ready:  bool,
+	device:        bool,
+	// The run may open a device and has not tried yet.
+	device_wanted: bool,
+	sounds:        Sound_Table,
+	voices:        Voice_Pool,
+	speakers:      Speaker_Pairing,
 	// The part of a frame that audio_advance has not mixed yet.
-	advance_left: f64,
+	advance_left:  f64,
 }
 
 // device is false in a Headless run. audio must not move until
 // audio_shutdown, because miniaudio keeps pointers into the engine.
 audio_init :: proc(audio: ^Audio, device: bool) {
-	if device {
-		result := audio_engine_init(&audio.engine, device = true)
-		if result == MA_SUCCESS {
-			audio.engine_ready = true
-			audio.device = true
-			return
-		}
-		system.eprintfln("the audio device did not open: %v. The run has no sound.", ma_result_description(result))
-	}
 	// With no device, only a failed allocation fails.
 	result := audio_engine_init(&audio.engine, device = false)
 	fmt.assertf(result == MA_SUCCESS, "the audio engine did not start: %v", ma_result_description(result))
 	audio.engine_ready = true
+	audio.device_wanted = device
+}
+
+// Runs before each voice starts. The first time, no voice has started, so
+// nothing holds the engine with no device, and it is swapped for one with a
+// device. Both mix at AUDIO_SAMPLE_RATE, the rate each Sound decoded to.
+audio_open_device :: proc(audio: ^Audio) {
+	if !audio.device_wanted {
+		return
+	}
+	audio.device_wanted = false
+	ma_engine_uninit(&audio.engine)
+	result := audio_engine_init(&audio.engine, device = true)
+	if result == MA_SUCCESS {
+		audio.device = true
+		return
+	}
+	system.eprintfln("the audio device did not open: %v. The run has no sound.", ma_result_description(result))
+	result = audio_engine_init(&audio.engine, device = false)
+	fmt.assertf(result == MA_SUCCESS, "the audio engine did not start: %v", ma_result_description(result))
 }
 
 // Runs after launch, because the capacities come from the Launch. Each Sound
@@ -71,6 +88,7 @@ audio_play :: proc(audio: ^Audio, play: Play_Command) {
 	if !taken {
 		return
 	}
+	audio_open_device(audio)
 	voice_start(&audio.voices, index, &audio.engine, sound, play.sound, play.gain, play.pitch, play.at, looping = false)
 }
 
@@ -112,13 +130,12 @@ audio_sound_remove :: proc(audio: ^Audio, slot: int) {
 	sound_table_remove(&audio.sounds, slot)
 }
 
+// A device converts from the mix format to its own.
 @(private = "file")
 audio_engine_init :: proc(engine: ^Ma_Engine, device: bool) -> Ma_Result {
 	config := ma_engine_config_init()
 	config.no_device = b32(!device)
-	if !device {
-		config.channels = AUDIO_CHANNELS
-		config.sample_rate = AUDIO_SAMPLE_RATE
-	}
+	config.channels = AUDIO_CHANNELS
+	config.sample_rate = AUDIO_SAMPLE_RATE
 	return ma_engine_init(&config, engine)
 }
