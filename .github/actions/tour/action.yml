@@ -17,14 +17,22 @@ runs:
         grep -E '^ARG (ZIG_VERSION|ROC_COMMIT|EMSDK_VERSION)=' scripts/linux/Dockerfile | sed 's/^ARG //' >> "$GITHUB_ENV"
         echo "ROCCO_TOOLS=$RUNNER_TEMP/tools" >> "$GITHUB_ENV"
 
-    # The worker and shim caches of one Roc pin are about 1.9 GiB together.
-    # ci.yml and release.yml share this cache key, so a release restores the
-    # Zig cache that main saved for its Roc pin.
+    # setup-zig saves its cache even when a run is cancelled while zig still
+    # writes it, and later runs restore the broken cache. The steps below save
+    # the Zig cache only after a good build.
     - uses: mlugg/setup-zig@v2
       with:
         version: ${{ env.ZIG_VERSION }}
-        cache-key: roc-${{ env.ROC_COMMIT }}
-        cache-size-limit: 3072
+        use-cache: false
+
+    # The worker and shim caches of one Roc pin are about 1.9 GiB together.
+    # ci.yml and release.yml share this cache key, so a release restores the
+    # Zig cache that main saved for its Roc pin.
+    - uses: actions/cache/restore@v4
+      with:
+        path: .zig-cache
+        key: tour-zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-roc-${{ env.ROC_COMMIT }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: tour-zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-roc-${{ env.ROC_COMMIT }}-
 
     - uses: actions/cache@v4
       with:
@@ -55,6 +63,17 @@ runs:
       env:
         TAG: ${{ inputs.tag }}
       run: sh scripts/toolchain.sh run python3 scripts/tour_artifacts.py build ${TAG:+--tag "$TAG"}
+
+    # Above 3 GiB the job keeps the restored cache and saves no new one.
+    - id: zig-cache-size
+      shell: bash
+      run: echo "mib=$(du -sm .zig-cache | cut -f1)" >> "$GITHUB_OUTPUT"
+
+    - if: fromJSON(steps.zig-cache-size.outputs.mib) <= 3072
+      uses: actions/cache/save@v4
+      with:
+        path: .zig-cache
+        key: tour-zig-${{ runner.os }}-${{ env.ZIG_VERSION }}-roc-${{ env.ROC_COMMIT }}-${{ github.run_id }}-${{ github.run_attempt }}
 
     - name: Lower every Tour step source and run the warm-against-cold stale check
       shell: bash
