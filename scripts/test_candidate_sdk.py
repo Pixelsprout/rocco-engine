@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tarfile
 import tempfile
@@ -14,6 +15,7 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import bundle_sdk
 import candidate_sdk
+import release
 
 
 # Stands in for roc unbundle, which unpacks <hash>.tar.zst into the folder <hash>.
@@ -114,7 +116,9 @@ class BundleTests(unittest.TestCase):
                 candidate_sdk.candidate(Path(temporary) / 'out')
 
     def test_candidate_records_hashes_commit_and_every_fixture_file(self):
-        def fake_bundle(out):
+        bases = []
+        def fake_bundle(out, base):
+            bases.append(base)
             out.mkdir(parents=True)
             archive = out / 'platform-HASH.tar.zst'
             archive.write_bytes(b'actual archive bytes')
@@ -127,6 +131,7 @@ class BundleTests(unittest.TestCase):
                  patch.dict(os.environ, {'GITHUB_RUN_ID': '42', 'GITHUB_REPOSITORY': 'owner/repo'}):
                 candidate_sdk.candidate(out)
             metadata = json.loads((out / 'candidate.json').read_text())
+            self.assertNotIn(None, bases, 'a base bundles the packages with sibling imports too')
             self.assertEqual(metadata['commit'], 'abcdef')
             self.assertEqual(metadata['run_id'], '42')
             self.assertIn('not a stable release', metadata['kind'])
@@ -137,6 +142,18 @@ class BundleTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((out / name).read_bytes()).hexdigest(), digest)
             with tarfile.open(out / 'authoring-fixture.tar.gz') as archive:
                 self.assertEqual(set(archive.getnames()), {'authoring/' + name for name in candidate_sdk.FIXTURE_FILES})
+
+
+class PackageListTests(unittest.TestCase):
+    def test_every_package_is_bundled_documented_and_released(self):
+        root = bundle_sdk.ROOT
+        folders = ['platform'] + sorted(path.name for path in (root / 'packages').iterdir() if (path / 'main.roc').is_file())
+        workflow = (root / '.github/workflows/release.yml').read_text()
+        released = re.search(r'for name in ([a-z ]+); do', workflow).group(1).split()
+        api = re.findall(r'\{ name: "([a-z]+)", main: ', (root / 'scripts/build.roc').read_text())
+        for listed, where in ((bundle_sdk.PACKAGES, 'bundle_sdk.PACKAGES'), (release.DOCS_BUNDLES, 'release.DOCS_BUNDLES'),
+                              (released, 'the release.yml bundle loop'), (api, 'build.roc api_packages')):
+            self.assertEqual(sorted(listed), sorted(folders), where)
 
 
 class ProvenanceTests(unittest.TestCase):

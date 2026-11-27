@@ -206,7 +206,9 @@ the package folder, so in a package that imports a sibling, such as
 `../linalg/main.roc`, `bundle_sdk.py --base` points the import at the
 sibling's release URL. The release is not published yet, so the script
 unpacks each bundle into a private Roc cache, where `roc bundle` finds it by
-hash. The CI candidate has no release URL, so it skips those packages. Roc takes URLs that
+hash. The CI candidate passes a placeholder base, so each PR bundles every
+package. A test in `scripts/test_candidate_sdk.py` fails if `packages/`, the
+bundle list, the docs list, the release loop and `api_packages` disagree. Roc takes URLs that
 differ only in the hash as one package, so the name must stay in front. The
 notes name each bundle URL and the Roc version. Next, a job on each OS
 installs only Roc and runs cards from the bundle URLs. If all three pass, the last job

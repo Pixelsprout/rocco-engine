@@ -15,13 +15,17 @@ FIXTURE_FILES = (
     "proof.py", "bridge.py", "README.md", "assets/meshes/tree.glb", "source/make_tree.py",
 )
 
+# A candidate has no release URL. Bundling still needs a base, so CI bundles
+# every package on each PR and a broken one fails before a release tag.
+CANDIDATE_BASE = "https://candidate.invalid"
+
 
 def candidate(out):
     for target, host in (('arm64mac', 'libhost.a'), ('x64glibc', 'libhost.a'), ('x64win', 'host.lib'), ('wasm32', 'host.o')):
         path = ROOT / 'platform/targets' / target / host
         if not path.is_file():
             raise FileNotFoundError('candidate requires ordinary release target: ' + str(path))
-    archives = bundle(out)
+    archives = bundle(out, CANDIDATE_BASE)
     fixture = ROOT / "examples/authoring"
     with tarfile.open(out / "authoring-fixture.tar.gz", "w:gz") as archive:
         for name in FIXTURE_FILES:
