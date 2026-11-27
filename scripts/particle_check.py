@@ -32,7 +32,7 @@ def drive(b, out):
     check(sum(pixels[i] > 180 and pixels[i] > pixels[i+2] * 2 for i in range(0, len(pixels), 4)) > 10, 'init Burst resolves the initial Scene source')
     b.step(240)
     scene = b.scene()['scene']
-    check(len(scene['emitters']) == 3, 'smoke, dust, and sparks are declared')
+    check(len(scene['emitters']) == 4, 'smoke, dust, sparks, and the dust devil are declared')
     check(scene['emitters'][1]['image'] != 0, 'the dust Pack image loaded')
     reply = b.step(1, tap=['B'])
     check({'Burst': {'emitter': 3, 'count': 180}} in reply['commands'], 'the burst reaches the host and Bridge')

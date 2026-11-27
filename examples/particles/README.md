@@ -7,6 +7,7 @@ Start `particles.bin` from this folder.
 The left source emits Alpha smoke with the built-in round sprite.
 The right source emits Alpha dust with a Pack image.
 The centre source emits Add sparks.
+The back source is a dust devil: its particles start on a small disc, rise, swirl about the source and drift outward.
 The orientation sprite has a red top and a blue bottom.
 
 - Press B to emit sparks.
@@ -14,6 +15,7 @@ The orientation sprite has a red top and a blue bottom.
 - Press U to unload the dust image.
 - Press L to load the dust image again.
 - Press O to show or hide the sprite orientation check.
+- Press P to pause or resume the particles with `time_scale`.
 
 Removed sources drain their particles.
 Unloaded images omit their particles and log once.

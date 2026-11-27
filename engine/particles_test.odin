@@ -176,7 +176,7 @@ test_particle_image_unload_omits_draining_particles_and_zero_uses_round :: proc(
 }
 
 particle_test_emitter :: proc(id: u64) -> Emitter {
-	return {id = id, seed = 1, lifetime = 1, start_size = 0.2, end_size = 1, start_colour = {r = 1, g = 1, b = 1, a = 0.5}, end_colour = {r = 1, g = 1, b = 1}, velocity = {y = 1}, velocity_spread = {x = 0.2, y = 0.2, z = 0.2}, blend = .Alpha}
+	return {id = id, seed = 1, lifetime = 1, start_size = 0.2, end_size = 1, start_colour = {r = 1, g = 1, b = 1, a = 0.5}, end_colour = {r = 1, g = 1, b = 1}, velocity = {y = 1}, velocity_spread = {x = 0.2, y = 0.2, z = 0.2}, time_scale = 1, blend = .Alpha}
 }
 
 @(test)
@@ -231,4 +231,96 @@ test_particles_scene_reorder_preserves_identity_and_live_settings_apply :: proc(
 	testing.expect_value(t, p.sources[0].config.id, u64(5))
 	testing.expect_value(t, p.sources[0].random, random)
 	testing.expect_value(t, instances[0].position_size.w, f32(4))
+}
+
+@(test)
+test_particles_acceleration_and_time_scale :: proc(t: ^testing.T) {
+	p: Particles
+	particles_init(&p, context.allocator)
+	defer particles_destroy(&p)
+	e := particle_test_emitter(1)
+	e.velocity = {}
+	e.velocity_spread = {}
+	e.acceleration = {y = -2}
+	e.lifetime = 10
+	particles_burst(&p, {emitter = 1, count = 1})
+	particles_step(&p, []Emitter{e}, 0)
+	particles_step(&p, []Emitter{e}, 1)
+	testing.expect_value(t, p.particles[0].velocity.y, f32(-2))
+	testing.expect_value(t, p.particles[0].position.y, f32(-2))
+	// A time scale of 0 holds the particle and emits nothing, however much
+	// the host steps.
+	e.time_scale = 0
+	e.rate = 100
+	particles_step(&p, []Emitter{e}, 1)
+	testing.expect_value(t, p.count, 1)
+	testing.expect_value(t, p.particles[0].position.y, f32(-2))
+	testing.expect_value(t, p.particles[0].age, f32(1))
+	instances, _ := particles_frame(&p, 0.5)
+	testing.expect_value(t, instances[0].position_size.y, f32(-2))
+	// A time scale of 2 runs the source's clock twice as fast.
+	e.time_scale = 2
+	e.rate = 0
+	particles_step(&p, []Emitter{e}, 0.5)
+	testing.expect_value(t, p.particles[0].age, f32(2))
+	testing.expect_value(t, p.particles[0].velocity.y, f32(-4))
+}
+
+@(test)
+test_particles_spawn_on_a_disc_round_the_source :: proc(t: ^testing.T) {
+	p: Particles
+	particles_init(&p, context.allocator)
+	defer particles_destroy(&p)
+	e := particle_test_emitter(1)
+	e.position = {x = 10, y = 2, z = -4}
+	e.spawn_radius = 3
+	particles_burst(&p, {emitter = 1, count = 400})
+	particles_step(&p, []Emitter{e}, 0)
+	testing.expect_value(t, p.count, 400)
+	far := f32(0)
+	for particle in p.particles[:p.count] {
+		dx, dz := particle.position.x - 10, particle.position.z + 4
+		reach := math.sqrt(dx * dx + dz * dz)
+		testing.expect(t, reach <= 3.0001)
+		testing.expect_value(t, particle.position.y, f32(2))
+		far = max(far, reach)
+	}
+	testing.expect(t, far > 2.5)
+}
+
+@(test)
+test_particles_swirl_turns_about_the_source_and_outward_stops_at_it :: proc(t: ^testing.T) {
+	p: Particles
+	particles_init(&p, context.allocator)
+	defer particles_destroy(&p)
+	e := particle_test_emitter(1)
+	e.position = {x = 5, z = 5}
+	e.velocity = {}
+	e.velocity_spread = {}
+	e.spawn_radius = 0
+	e.lifetime = 100
+	particles_burst(&p, {emitter = 1, count = 1})
+	particles_step(&p, []Emitter{e}, 0)
+	p.particles[0].position = {6, 1, 5}
+	// A quarter turn counter-clockwise seen from above takes +x to -z.
+	e.swirl = math.PI / 2
+	particles_step(&p, []Emitter{e}, 1)
+	got := p.particles[0].position
+	testing.expect(t, abs(got.x - 5) < 1e-5 && abs(got.z - 4) < 1e-5 && got.y == 1)
+	// Outward moves it straight off the line; inward stops at the line.
+	e.swirl = 0
+	e.outward = 2
+	particles_step(&p, []Emitter{e}, 1)
+	testing.expect(t, abs(p.particles[0].position.z - 2) < 1e-5)
+	e.outward = -10
+	particles_step(&p, []Emitter{e}, 1)
+	testing.expect(t, abs(p.particles[0].position.z - 5) < 1e-5 && abs(p.particles[0].position.x - 5) < 1e-5)
+	// The new fields clamp, and a non-finite time scale runs at 1.
+	e.swirl = 5000
+	e.time_scale = math.nan_f32()
+	e.spawn_radius = -1
+	c := particle_emitter_clamp(e)
+	testing.expect_value(t, c.swirl, f32(1000))
+	testing.expect_value(t, c.time_scale, f32(1))
+	testing.expect_value(t, c.spawn_radius, f32(0))
 }

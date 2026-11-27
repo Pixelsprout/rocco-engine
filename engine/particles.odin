@@ -91,12 +91,16 @@ particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
 	for item in p.particles[:p.count] {
 		particle := item
 		source := &p.sources[particle.emitter]
+		e := source.config
+		step := dt * e.time_scale
 		particle.previous = particle.position
 		particle.previous_age = particle.age
-		particle.age += dt
-		if particle.age >= source.config.lifetime { continue }
-		particle.velocity *= 1 / (1 + source.config.drag * dt)
-		particle.position += particle.velocity * dt
+		particle.age += step
+		if particle.age >= e.lifetime { continue }
+		particle.velocity += [3]f32{e.acceleration.x, e.acceleration.y, e.acceleration.z} * step
+		particle.velocity *= 1 / (1 + e.drag * step)
+		particle.position += particle.velocity * step
+		particle.position = particle_about_axis(particle.position, e, step)
 		p.particles[write] = particle
 		write += 1
 		source.count += 1
@@ -114,7 +118,7 @@ particles_step :: proc(p: ^Particles, emitters: []Emitter, dt: f32) {
 	for &source, slot in p.sources {
 		if !source.live { continue }
 		if source.present {
-			source.credit += f64(source.config.rate) * f64(dt)
+			source.credit += f64(source.config.rate) * f64(dt * source.config.time_scale)
 			count := int(math.floor(source.credit))
 			source.credit -= f64(count)
 			particles_spawn(p, slot, count)
@@ -134,10 +138,32 @@ particles_spawn :: proc(p: ^Particles, slot, count: int) {
 		spread := [3]f32{e.velocity_spread.x, e.velocity_spread.y, e.velocity_spread.z}
 		for axis in 0 ..< 3 { velocity[axis] += particle_random(&source.random) * spread[axis] }
 		position := [3]f32{e.position.x, e.position.y, e.position.z}
+		if e.spawn_radius > 0 {
+			angle := (particle_random(&source.random) + 1) * math.PI
+			reach := e.spawn_radius * math.sqrt((particle_random(&source.random) + 1) / 2)
+			position.x += reach * math.cos(angle)
+			position.z += reach * math.sin(angle)
+		}
 		p.particles[p.count] = {position = position, previous = position, velocity = velocity, emitter = slot}
 		p.count += 1
 		source.count += 1
 	}
+}
+
+// The swirl and the outward drift: the particle's place turned about the
+// upright line through the source's position by `swirl` radians a second,
+// counter-clockwise seen from above, and moved `outward` metres a second away
+// from that line, never past it.
+particle_about_axis :: proc(position: [3]f32, e: Emitter, step: f32) -> [3]f32 {
+	if e.swirl == 0 && e.outward == 0 { return position }
+	offset := [2]f32{position.x - e.position.x, position.z - e.position.z}
+	reach := math.sqrt(offset.x * offset.x + offset.y * offset.y)
+	if reach == 0 { return position }
+	turn := e.swirl * step
+	c, s := math.cos(turn), math.sin(turn)
+	turned := [2]f32{offset.x * c + offset.y * s, -offset.x * s + offset.y * c}
+	moved := turned * (max(0, reach + e.outward * step) / reach)
+	return {e.position.x + moved.x, position.y, e.position.z + moved.y}
 }
 
 // SplitMix64 accepts every seed, including zero, without a zero-state trap.
@@ -163,6 +189,11 @@ particle_emitter_clamp :: proc(input: Emitter) -> Emitter {
 	e.position = particle_vector_clamp(e.position, {}, -1000000)
 	e.velocity = particle_vector_clamp(e.velocity, {y = 1}, -1000000)
 	e.velocity_spread = particle_vector_clamp(e.velocity_spread, {x = 0.2, y = 0.2, z = 0.2}, 0)
+	e.acceleration = particle_vector_clamp(e.acceleration, {}, -1000000)
+	e.spawn_radius = particle_finite(e.spawn_radius, 0, 0, 1000000)
+	e.swirl = particle_finite(e.swirl, 0, -1000, 1000)
+	e.outward = particle_finite(e.outward, 0, -1000000, 1000000)
+	e.time_scale = particle_finite(e.time_scale, 1, 0, 100)
 	return e
 }
 

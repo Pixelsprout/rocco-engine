@@ -741,51 +741,67 @@ Roc_View :: struct {
 Roc_View_Emitters :: struct {
 	id: u64,
 	seed: u64,
+	acceleration: Roc_Init_Commands_Play_At_At_Pos,
 	drag: f32,
 	end_colour: Roc_View_Emitters_EndColour,
 	end_size: f32,
 	image: u32,
 	lifetime: f32,
+	outward: f32,
 	position: Roc_Init_Commands_Play_At_At_Pos,
 	rate: f32,
+	spawn_radius: f32,
 	start_colour: Roc_View_Emitters_EndColour,
 	start_size: f32,
+	swirl: f32,
+	time_scale: f32,
 	velocity: Roc_Init_Commands_Play_At_At_Pos,
 	velocity_spread: Roc_Init_Commands_Play_At_At_Pos,
 	blend: Roc_View_Emitters_Blend,
 }
 
-#assert(size_of(Roc_View_Emitters) == 112)
+#assert(size_of(Roc_View_Emitters) == 144)
 #assert(align_of(Roc_View_Emitters) == 8)
 #assert(offset_of(Roc_View_Emitters, id) == 0)
 #assert(size_of(type_of(Roc_View_Emitters{}.id)) == 8)
 #assert(offset_of(Roc_View_Emitters, seed) == 8)
 #assert(size_of(type_of(Roc_View_Emitters{}.seed)) == 8)
-#assert(offset_of(Roc_View_Emitters, drag) == 16)
+#assert(offset_of(Roc_View_Emitters, acceleration) == 16)
+#assert(size_of(type_of(Roc_View_Emitters{}.acceleration)) == 12)
+#assert(offset_of(Roc_View_Emitters, drag) == 28)
 #assert(size_of(type_of(Roc_View_Emitters{}.drag)) == 4)
-#assert(offset_of(Roc_View_Emitters, end_colour) == 20)
+#assert(offset_of(Roc_View_Emitters, end_colour) == 32)
 #assert(size_of(type_of(Roc_View_Emitters{}.end_colour)) == 16)
-#assert(offset_of(Roc_View_Emitters, end_size) == 36)
+#assert(offset_of(Roc_View_Emitters, end_size) == 48)
 #assert(size_of(type_of(Roc_View_Emitters{}.end_size)) == 4)
-#assert(offset_of(Roc_View_Emitters, image) == 40)
+#assert(offset_of(Roc_View_Emitters, image) == 52)
 #assert(size_of(type_of(Roc_View_Emitters{}.image)) == 4)
-#assert(offset_of(Roc_View_Emitters, lifetime) == 44)
+#assert(offset_of(Roc_View_Emitters, lifetime) == 56)
 #assert(size_of(type_of(Roc_View_Emitters{}.lifetime)) == 4)
-#assert(offset_of(Roc_View_Emitters, position) == 48)
+#assert(offset_of(Roc_View_Emitters, outward) == 60)
+#assert(size_of(type_of(Roc_View_Emitters{}.outward)) == 4)
+#assert(offset_of(Roc_View_Emitters, position) == 64)
 #assert(size_of(type_of(Roc_View_Emitters{}.position)) == 12)
-#assert(offset_of(Roc_View_Emitters, rate) == 60)
+#assert(offset_of(Roc_View_Emitters, rate) == 76)
 #assert(size_of(type_of(Roc_View_Emitters{}.rate)) == 4)
-#assert(offset_of(Roc_View_Emitters, start_colour) == 64)
+#assert(offset_of(Roc_View_Emitters, spawn_radius) == 80)
+#assert(size_of(type_of(Roc_View_Emitters{}.spawn_radius)) == 4)
+#assert(offset_of(Roc_View_Emitters, start_colour) == 84)
 #assert(size_of(type_of(Roc_View_Emitters{}.start_colour)) == 16)
-#assert(offset_of(Roc_View_Emitters, start_size) == 80)
+#assert(offset_of(Roc_View_Emitters, start_size) == 100)
 #assert(size_of(type_of(Roc_View_Emitters{}.start_size)) == 4)
-#assert(offset_of(Roc_View_Emitters, velocity) == 84)
+#assert(offset_of(Roc_View_Emitters, swirl) == 104)
+#assert(size_of(type_of(Roc_View_Emitters{}.swirl)) == 4)
+#assert(offset_of(Roc_View_Emitters, time_scale) == 108)
+#assert(size_of(type_of(Roc_View_Emitters{}.time_scale)) == 4)
+#assert(offset_of(Roc_View_Emitters, velocity) == 112)
 #assert(size_of(type_of(Roc_View_Emitters{}.velocity)) == 12)
-#assert(offset_of(Roc_View_Emitters, velocity_spread) == 96)
+#assert(offset_of(Roc_View_Emitters, velocity_spread) == 124)
 #assert(size_of(type_of(Roc_View_Emitters{}.velocity_spread)) == 12)
-#assert(offset_of(Roc_View_Emitters, blend) == 108)
+#assert(offset_of(Roc_View_Emitters, blend) == 136)
 #assert(size_of(type_of(Roc_View_Emitters{}.blend)) == 1)
 
+Roc_View_Emitters_Acceleration :: Roc_Init_Commands_Play_At_At_Pos
 Roc_View_Emitters_EndColour :: struct {
 	a: f32,
 	b: f32,
