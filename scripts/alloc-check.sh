@@ -18,7 +18,7 @@
 # tutorial/10-animation expects 10 allocs and 4 reallocs: its view builds the
 # Nodes, the pickup Draws and Colliders, the HUD with its count text, the door
 # Group's children and the door's Speakers, and each concat grows a list.
-# Under --opt=dev, Roc 0.1.0_RC1 makes one more, so it expects 11.
+# Under --opt=dev, Roc 0.1.0-RC2 makes one more, so it expects 11.
 # The script rebuilds the host library with the host tracking allocator, and
 # fails on a LEAK or BAD Free line in its report. It leaves that host library
 # in place. The sokol and Clay inputs must

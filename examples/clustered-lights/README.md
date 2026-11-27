@@ -13,7 +13,7 @@ The CPU cluster grid preserves every visible lamp contribution below its density
 
 Run `python3 scripts/cluster_check.py build/bridge-check/clustered.png` from the repository root for deterministic Bridge checks.
 The check saves screenshots and numeric evidence.
-CI runs the check on all three graphics backends.
+CI does not run the check.
 
 The floor needs no external asset tool.
 Run `python3 examples/clustered-lights/source/make_floor.py` to rebuild its committed GLB.

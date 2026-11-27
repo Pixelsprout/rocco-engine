@@ -89,7 +89,8 @@ The lighting uses two blend cubes that the renderer makes on the first blend.
 The diffuse blend cube has six 16 by 16 RGBA16F faces.
 The specular blend cube has six 128 by 128 RGBA16F faces and eight mips.
 Mip `m` reads each source at `m / 7` of that source's last mip.
-One pass per mip writes the mix into all six faces at once, 9 passes in all.
+Two passes per mip write the mix, three faces each, 18 passes in all.
+Six RGBA16F faces in one pass would need 48 bytes a sample, past WebGPU's default limit of 32.
 The passes run before the shadow pass, only when the skies or the amount change.
 A blend that holds still draws no passes.
 

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "0.1.0-rc1" }
+app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "0.1.0-RC2" }
 
 # The starting source of the first Tour step: an empty window. Chapter 1 adds the cube.
 

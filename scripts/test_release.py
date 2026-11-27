@@ -31,7 +31,7 @@ BUNDLE_URLS = {
     "camera": f"{BASE}/camera-EEE.tar.zst",
     "rocco_web": f"{BASE}/rocco_web.py",
 }
-ROC_PIN = "0.1.0-rc1"
+ROC_PIN = "0.1.0-RC2"
 
 
 def write_api_docs(api_dir, names=release.DOCS_BUNDLES):
@@ -102,8 +102,8 @@ class PrepareAppTest(unittest.TestCase):
 
 class NotesTest(unittest.TestCase):
     def test_names_the_roc_pin_and_every_bundle_url(self):
-        notes = release.notes("v0.1.0", "0.1.0-rc1", URLS)
-        self.assertIn("0.1.0-rc1", notes)
+        notes = release.notes("v0.1.0", "0.1.0-RC2", URLS)
+        self.assertIn("0.1.0-RC2", notes)
         self.assertIn("https://example.com/p.tar.zst", notes)
         self.assertIn("https://example.com/l.tar.zst", notes)
         self.assertLess(notes.index("platform"), notes.index("linalg"))
@@ -133,7 +133,7 @@ class PackDocsTest(unittest.TestCase):
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
                     "camera_url": f"{BASE}/camera-EEE.tar.zst",
                     "rocco_web_url": f"{BASE}/rocco_web.py",
-                    "roc_nightly": "0.1.0-rc1",
+                    "roc_nightly": "0.1.0-RC2",
                 },
             )
 

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-rc1", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-RC2", ui: "../../packages/ui/main.roc" }
 
 # The guide pages copy the regions in this file. Run roc scripts/build.roc docs after a change.
 

@@ -23,6 +23,7 @@ from package import BACKEND_MASK, FORMAT, HEADER, canonical, digest, fingerprint
 EXAMPLE = ROOT / "scripts/shader_assets/example"
 SHDC = os.environ.get("ROCCO_SHDC") or shutil.which("sokol-shdc")
 ROC = shutil.which("roc")
+ROC_PIN = re.search(r"^ARG ROC_PIN=(\S+)$", (ROOT / "scripts/linux/Dockerfile").read_text(), re.M).group(1)
 
 
 def target_input_filenames(source):
@@ -353,10 +354,10 @@ class PublishedCompilerTests(unittest.TestCase):
         (self.game / "tree.gltf").write_text(json.dumps({"materials": [{"name": "Bark"}, {}, {"name": "Leaves"}]}))
         (self.game / "shaders.json").write_text(json.dumps(source))
         self.run_build()
-        formatting = subprocess.run([ROC, "fmt", "--check", str(self.game / "Foliage.roc"), str(self.game / "Outline.roc"), str(self.game / "Tree.roc")], cwd=self.game, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        formatting = subprocess.run([ROC, "fmt", "--check", str(self.game / "Foliage.roc"), str(self.game / "Outline.roc"), str(self.game / "Tree.roc")], cwd=self.game, text=True, encoding="utf-8", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.assertEqual(formatting.returncode, 0, formatting.stdout)
         main = self.game / "main.roc"
-        valid = '''app [init, launch, loaded, step, view] { pf: platform "../published-platform/main.roc", roc: "nightly-2026-11-04-2622062" }
+        valid = '''app [init, launch, loaded, step, view] { pf: platform "../published-platform/main.roc", roc: "ROC_PIN" }
 import pf.Vocabulary exposing [Command, Manifest]
 import pf.Scene
 import pf.Launch
@@ -382,13 +383,13 @@ expect Tree.slot_leaves("trees").source_material == 2
 expect Foliage.material_with_textures("trees", Foliage.material_default, { ..Foliage.material_textures_default, detail: Image2D({ pack: "textures", asset: "image/detail" }) }).textures.len() == 1
 expect Tree.bark("trees", Foliage.material_with_textures("trees", Foliage.material_default, { ..Foliage.material_textures_default, detail: Image2D({ pack: "textures", asset: "detail.png" }) })).slot.source_material == 0
 expect Foliage.scene_with_textures("trees", Foliage.scene_default, { noise: Image2D({ pack: "textures", asset: "noise.png" }) }).scope == Scene
-'''
+'''.replace("ROC_PIN", ROC_PIN)
         main.write_text(valid)
-        result = subprocess.run([ROC, "test", str(main)], cwd=self.game, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        result = subprocess.run([ROC, "test", str(main)], cwd=self.game, text=True, encoding="utf-8", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.assertEqual(result.returncode, 0, result.stdout)
         for old, new in (("wind: 0.5", 'wind: "bad"'), ("wind: 0.5", "wind: Bool.True"), ("wind: 0.5", "phase: 0.5"), ('Image2D({ pack: "textures"', 'Cubemap({ pack: "textures"')):
             main.write_text(valid.replace(old, new))
-            result = subprocess.run([ROC, "build", str(main)], cwd=self.game, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = subprocess.run([ROC, "build", str(main)], cwd=self.game, text=True, encoding="utf-8", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertTrue("type mismatch" in result.stdout or "record" in result.stdout, result.stdout)
 
