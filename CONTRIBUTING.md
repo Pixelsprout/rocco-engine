@@ -181,8 +181,10 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-packages.sh`, the village tests and the engine tests. It regenerates the macOS
-sysroot, fails on a diff and runs the audit. The Linux job runs
+pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one
+frame, runs the Bridge check and runs `scripts/test-packages.sh`, the village
+tests and the engine tests. It regenerates the macOS sysroot, fails on a
+diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
 check under xvfb. The Windows job

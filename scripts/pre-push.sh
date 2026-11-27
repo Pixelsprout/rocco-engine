@@ -112,7 +112,9 @@ if [ "$(uname -s)" = Darwin ] &&
 	}
 fi
 
-if touches '^packages/'; then
+# The Dockerfile holds the Roc pin, and the text corpus test writes
+# packages/ui/TextCorpus.roc.
+if touches '^(packages/|scripts/linux/Dockerfile$|engine/text_corpus_test\.odin$)'; then
 	sh scripts/test-packages.sh
 fi
 

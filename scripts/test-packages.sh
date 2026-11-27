@@ -1,6 +1,5 @@
 #!/bin/sh
-# Type-checks and tests each package. CI runs it in the Linux image, and
-# pre-push runs it when a file under packages/ changes.
+# Type-checks and tests each package.
 set -eu
 cd "$(dirname "$0")/.."
 
