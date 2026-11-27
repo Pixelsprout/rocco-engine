@@ -97,7 +97,7 @@ all_steps : Mode -> List(Step)
 all_steps = |mode| [Glue, FontTable, Host(mode, default_host_alloc(mode), NoSpans), Inputs(mode)].concat(example_games.map(|name| Game(name)))
 
 example_games : List(Str)
-example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "particles", "environment-lighting", "village", "attach", "primitives", "animation", "tutorial/00-start", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
+example_games = ["cards", "entity-game", "pong", "bridge-echo", "glow", "mask", "widgets", "clustered-lights", "particles", "environment-lighting", "village", "attach", "primitives", "animation", "third-person", "tutorial/00-start", "tutorial/01-window", "tutorial/02-character", "tutorial/03-moving", "tutorial/04-lights", "tutorial/05-pickups", "tutorial/06-door", "tutorial/07-hud", "tutorial/08-sound", "tutorial/09-gamepad", "tutorial/10-animation"]
 
 default_host_alloc : Mode -> HostAlloc
 default_host_alloc = |mode| match mode {
@@ -253,6 +253,8 @@ api_packages = [
 	{ name: "mesh", main: "packages/mesh/main.roc" },
 	{ name: "ui", main: "packages/ui/main.roc" },
 	{ name: "camera", main: "packages/camera/main.roc" },
+	{ name: "collide", main: "packages/collide/main.roc" },
+	{ name: "controller", main: "packages/controller/main.roc" },
 ]
 
 api_docs_run : ApiPackage -> Run
@@ -486,7 +488,7 @@ usage =
 	\\  font-table      regenerate packages/ui/Font.roc from engine/font_baked.odin
 	\\  keys            regenerate platform/Key.roc from the sokol Keycode enum
 	\\  target          print the Roc target, the binary suffix and the host library for this machine
-	\\  docs [--check]  write the API HTML for the platform, linalg, mesh, ui and camera
+	\\  docs [--check]  write the API HTML for the platform and each package
 	\\                  into build/docs/, fail if an item in it has no ## comment, then
 	\\                  copy each region into the guide/ pages. --check writes no
 	\\                  guide page and fails if a page differs from its source
@@ -893,8 +895,8 @@ expect parse(["host", "--release", "--spans"]) == Ok([Host(Release, Untracked, S
 expect parse(["host", "--release", "--track-alloc"]) == Ok([Host(Release, Tracked, NoSpans)])
 expect parse(["game", "cards"]) == Ok([Game("cards")])
 expect parse(["shaders"]) == Ok([Shaders])
-expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/00-start"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
-expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("tutorial/00-start"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all"]) == Ok([Glue, FontTable, Host(Debug, Tracked, NoSpans), Inputs(Debug), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("third-person"), Game("tutorial/00-start"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
+expect parse(["all", "--release"]) == Ok([Glue, FontTable, Host(Release, Untracked, NoSpans), Inputs(Release), Game("cards"), Game("entity-game"), Game("pong"), Game("bridge-echo"), Game("glow"), Game("mask"), Game("widgets"), Game("clustered-lights"), Game("particles"), Game("environment-lighting"), Game("village"), Game("attach"), Game("primitives"), Game("animation"), Game("third-person"), Game("tutorial/00-start"), Game("tutorial/01-window"), Game("tutorial/02-character"), Game("tutorial/03-moving"), Game("tutorial/04-lights"), Game("tutorial/05-pickups"), Game("tutorial/06-door"), Game("tutorial/07-hud"), Game("tutorial/08-sound"), Game("tutorial/09-gamepad"), Game("tutorial/10-animation")])
 expect game_binary("pong") == "pong"
 expect target_for(mac).map_ok(|target| web_package_run(target, "tutorial/08-sound").args) == Ok(["scripts/rocco_web.py", "examples/tutorial/08-sound", "--out", "build/web/08-sound"])
 expect game_binary("tutorial/01-window") == "01-window"
@@ -1194,4 +1196,6 @@ expect
 			["docs", "packages/mesh/main.roc", "--output=build/docs/mesh"],
 			["docs", "packages/ui/main.roc", "--output=build/docs/ui"],
 			["docs", "packages/camera/main.roc", "--output=build/docs/camera"],
+			["docs", "packages/collide/main.roc", "--output=build/docs/collide"],
+			["docs", "packages/controller/main.roc", "--output=build/docs/controller"],
 		]

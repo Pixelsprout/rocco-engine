@@ -22,7 +22,7 @@ as markers in double braces. You can find the values in the notes of the
 This header names every bundle and the Roc version:
 
 ```roc
-app [init, launch, loaded, step, view] { cam: "{{camera_url}}", linalg: "{{linalg_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}", ui: "{{ui_url}}" }
+app [init, launch, loaded, step, view] { cam: "{{camera_url}}", collide: "{{collide_url}}", controller: "{{controller_url}}", linalg: "{{linalg_url}}", mesh: "{{mesh_url}}", pf: platform "{{platform_url}}", roc: "{{roc_nightly}}", ui: "{{ui_url}}" }
 ```
 
 Name only the packages that your game imports:
@@ -33,7 +33,9 @@ Name only the packages that your game imports:
 | `mesh` | `{{mesh_url}}` | the [mesh package][Mesh]: `Mesh.primitive` and `Mesh.resolve` |
 | `ui` | `{{ui_url}}` | the [ui package][Ui]: `Ui.default_panel`, `Ui.label` and `Ui.panel` |
 | `linalg` | `{{linalg_url}}` | the [linalg package][Linalg]: `Vec3`, `Quat` and `Pose` |
-| `cam` | `{{camera_url}}` | the [camera package][Camera]: `Cam.look_at` and `Cam.follow` |
+| `cam` | `{{camera_url}}` | the [camera package][Camera]: `Cam.look_at`, `Cam.follow` and `Cam.orbit` |
+| `collide` | `{{collide_url}}` | the [collide package][Collide]: `Ground` and `Solids` |
+| `controller` | `{{controller_url}}` | the [controller package][Controller]: a third-person `Controller` |
 
 Each URL ends with a hash of the bundle. Roc checks the hash, so the files
 behind a URL cannot change. Take all of the URLs from one release. The ui
@@ -92,3 +94,5 @@ The binary loads some libraries of the OS when it starts:
 [Ui]: https://pixelsprout.dev/projects/rocco/api/ui/
 [Linalg]: https://pixelsprout.dev/projects/rocco/api/linalg/
 [Camera]: https://pixelsprout.dev/projects/rocco/api/camera/
+[Collide]: https://pixelsprout.dev/projects/rocco/api/collide/
+[Controller]: https://pixelsprout.dev/projects/rocco/api/controller/

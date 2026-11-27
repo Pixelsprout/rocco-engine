@@ -29,6 +29,8 @@ BUNDLE_URLS = {
     "mesh": f"{BASE}/mesh-CCC.tar.zst",
     "ui": f"{BASE}/ui-DDD.tar.zst",
     "camera": f"{BASE}/camera-EEE.tar.zst",
+    "collide": f"{BASE}/collide-FFF.tar.zst",
+    "controller": f"{BASE}/controller-GGG.tar.zst",
     "rocco_web": f"{BASE}/rocco_web.py",
 }
 ROC_PIN = "0.1.0-RC2"
@@ -121,7 +123,7 @@ class PackDocsTest(unittest.TestCase):
             with tarfile.open(out) as tar:
                 names = set(tar.getnames())
                 urls = json.load(tar.extractfile("urls.json"))
-            for name in ["platform", "linalg", "mesh", "ui", "camera"]:
+            for name in ["platform", "linalg", "mesh", "ui", "camera", "collide", "controller"]:
                 self.assertIn(f"{name}/index.html", names)
                 self.assertIn(f"{name}/Module/index.html", names)
             self.assertEqual(
@@ -132,6 +134,8 @@ class PackDocsTest(unittest.TestCase):
                     "mesh_url": f"{BASE}/mesh-CCC.tar.zst",
                     "ui_url": f"{BASE}/ui-DDD.tar.zst",
                     "camera_url": f"{BASE}/camera-EEE.tar.zst",
+                    "collide_url": f"{BASE}/collide-FFF.tar.zst",
+                    "controller_url": f"{BASE}/controller-GGG.tar.zst",
                     "rocco_web_url": f"{BASE}/rocco_web.py",
                     "roc_nightly": "0.1.0-RC2",
                 },
@@ -148,13 +152,13 @@ class PackDocsTest(unittest.TestCase):
     def test_rejects_a_bundle_with_no_api_html(self):
         with tempfile.TemporaryDirectory() as tmp:
             api = Path(tmp) / "docs"
-            write_api_docs(api, names=("platform", "linalg", "mesh", "ui"))
-            with self.assertRaisesRegex(ValueError, "camera"):
+            write_api_docs(api, names=("platform", "linalg", "mesh", "ui", "camera", "collide"))
+            with self.assertRaisesRegex(ValueError, "controller"):
                 release.pack_docs(api, Path(tmp) / "docs.tar.gz", ROC_PIN, BUNDLE_URLS)
 
 
 class CheckDocsTest(unittest.TestCase):
-    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "camera-EEE.tar.zst", "rocco_web.py", "docs.tar.gz"]
+    ASSETS = ["platform-AAA.tar.zst", "linalg-BBB.tar.zst", "mesh-CCC.tar.zst", "ui-DDD.tar.zst", "camera-EEE.tar.zst", "collide-FFF.tar.zst", "controller-GGG.tar.zst", "rocco_web.py", "docs.tar.gz"]
 
     def pack(self, tmp, urls=BUNDLE_URLS):
         api = Path(tmp) / "docs"

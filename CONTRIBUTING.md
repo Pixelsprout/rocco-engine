@@ -141,7 +141,7 @@ The target is the machine it runs on. Odin and Roc come from `PATH`.
 | `font` | When the bake tool or the font changes. | `odin run scripts/font_bake`, which writes `engine/font_baked.odin` from `scripts/fonts/AtkinsonHyperlegible-Regular.ttf`. Keeps the committed file if `odin` is not on `PATH` or the tool fails. On Linux, build Odin's stb libraries first with `"$(odin root)/vendor/stb/src/build_stb.sh"`. Then runs `font-table`. |
 | `font-table` | When `engine/font_baked.odin` changes. | Writes `packages/ui/Font.roc`, the advances and the kern pairs that `Ui.measure` reads, from `engine/font_baked.odin`. `all` runs it, so CI fails on a stale file. |
 | `keys` | After a `sokol-odin` update. | Writes `platform/Key.roc` and `engine/key_tags.odin` from the `Keycode` enum in `sokol-odin/sokol/app/app.odin`. `scripts/host-check.sh` fails if either file is stale. |
-| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh`, `packages/ui` and `packages/camera`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
+| `docs` | When a guide page, a region in its source or a `##` comment changes. | `roc docs` for `platform/main.roc`, `packages/linalg`, `packages/mesh`, `packages/ui`, `packages/camera`, `packages/collide` and `packages/controller`, each into `build/docs/<name>/`. It fails if an item in the API pages has no `##` comment. Then it copies each region into the `guide/` pages. With `--check`, it writes no guide page and fails if a page differs from its source. See "Docs". |
 | `target` | When a check script runs. | Prints `target=`, `suffix=` and `host_lib=` lines for this machine. `scripts/alloc-check.sh` and `scripts/host-check.sh` read them. |
 | `bench <game>[,<game>...] [n...] [--windowed]` | To measure one or more bench games. | `host --release --spans`, `inputs --release` and `roc build` in each `bench/<game>/`. Then it runs one sweep over N from 64 to 16,384 in powers of two, or only the N given, with all games and N in one shuffled order. See "Benchmarks". A Spans host stops any run without `ROCCO_SPANS_CSV` and `ROCCO_EXIT_AFTER_FRAMES`, so run `all` again before you run the examples. |
 | `all` | From a fresh checkout. | `glue`, `font-table`, `host`, `inputs`, `game cards`, `game entity-game`, `game pong`, `game bridge-echo`, `game glow`, `game mask`, `game widgets`, then `game` for each tutorial chapter, such as `game tutorial/01-window`. With `--release`, it passes `--release` to `host` and `inputs`. |
@@ -198,9 +198,15 @@ and fails on a diff.
 
 `.github/workflows/release.yml` runs on each `v*` tag. Each OS builds its
 host and inputs with `--release` and uploads `platform/targets/<target>/`. A
-Linux job runs `roc bundle` for the platform and for `packages/linalg`,
-`packages/mesh`, `packages/ui` and `packages/camera`. It publishes each
-bundle in a prerelease, named `<name>-<hash>.tar.zst`. Roc takes URLs that
+Linux job runs `scripts/bundle_sdk.py`, which runs `roc bundle` for the platform
+and for `packages/linalg`, `packages/mesh`, `packages/ui`, `packages/camera`,
+`packages/collide` and `packages/controller`. It publishes each bundle in a
+prerelease, named `<name>-<hash>.tar.zst`. `roc bundle` takes no file outside
+the package folder, so in a package that imports a sibling, such as
+`../linalg/main.roc`, `bundle_sdk.py --base` points the import at the
+sibling's release URL. The release is not published yet, so the script
+unpacks each bundle into a private Roc cache, where `roc bundle` finds it by
+hash. The CI candidate has no release URL, so it skips those packages. Roc takes URLs that
 differ only in the hash as one package, so the name must stay in front. The
 notes name each bundle URL and the Roc version. Next, a job on each OS
 installs only Roc and runs cards from the bundle URLs. If all three pass, the last job
@@ -213,8 +219,8 @@ unittest scripts/test_release.py` runs its tests.
 The bundle job also runs `roc scripts/build.roc docs --check` and attaches
 `docs.tar.gz` to the release. The tarball holds the API HTML of each bundle
 and `urls.json`. `urls.json` gives the value of each marker in the guide
-pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url`, `camera_url` and
-`roc_nightly`. The `roc_nightly` key keeps its old name because the site
+pages: `platform_url`, `linalg_url`, `mesh_url`, `ui_url`, `camera_url`,
+`collide_url`, `controller_url` and `roc_nightly`. The `roc_nightly` key keeps its old name because the site
 reads it, but its value is `ROC_PIN`. `scripts/release.py docs` makes the tarball. After the
 publish, `scripts/release.py check-docs` reads the published tarball. It
 fails if a URL names no asset of the release. When the release workflow
@@ -376,7 +382,7 @@ fails.
 A page cannot hold the bundle URLs of its own release, because the URLs come
 from the bundle hashes. The header block of a page holds markers instead:
 `{{platform_url}}`, `{{linalg_url}}`, `{{mesh_url}}`, `{{ui_url}}`,
-`{{camera_url}}` and `{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
+`{{camera_url}}`, `{{collide_url}}`, `{{controller_url}}` and `{{roc_nightly}}`. The site replaces them. On GitHub, the page tells the
 reader to get the values from the latest release.
 
 Each Tutorial page is also the text of one Tour step. Two kinds of marker
@@ -560,6 +566,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/attach/` | Pip walks on the spot with an orb on its head and a lantern in its right hand. Each is an Attach to a Joint of Pip's Skin, so it follows the Walk Clip. Its `pip.glb` is a copy of the tutorial's. The Bridge check screenshots it half a Clip apart and checks that the lantern moved. |
 | `examples/animation/` | Pip walks on the spot, and SPACE fades it into the Run Clip and back. `Mesh.synced_time` keeps Run at Walk's phase. The camera looks from the side, so the feet show against the ground. Its `ground.feet` turns on Grounding, so the fade does not sink Pip's feet. The Bridge check screenshots it mid-fade. `make_meshes.py` writes its `pip.glb`, the only copy with Run. |
 | `examples/primitives/` | The four Primitives: a plane for the ground, a cube, a sphere and a cylinder, with a cylinder stretched into a post and one squashed into a disc by the Draw scale. The Bridge check screenshots it and checks each cylinder's tint at points on its axis, so a missing cylinder, which draws the magenta Fallback mesh, fails. |
+| `examples/third-person/` | A third-person character from the collide, controller and camera packages: a height-grid field with a slope, boxes, a yawed box, a sphere, a thin platform and a gap that only a glide crosses. WASD or the left stick moves, Space or South jumps and glides, and the arrows or the right stick turn the Orbit. `guide/third-person.md` copies its regions. |
 | `examples/widgets/` | A game for the Bridge check: a button, a dropdown, an accordion, focus and a scrolling log from the widget modules of `packages/ui`. It Tells each click on the port `widgets`. |
 | `examples/tutorial/00-start/` | The starting source of Tour step 1: an app that opens an empty window. It is not a chapter. |
 | `examples/tutorial/<nn>-<name>/` | One app for each tutorial chapter in `guide/tutorial/`. Each chapter starts from the one before it, so `git diff --no-index` of two `main.roc` files shows the change. |
