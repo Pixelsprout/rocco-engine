@@ -1,6 +1,6 @@
 Change: Hot reload in the interpreter shim. A call with a new image makes a new
 state and retires the old one. A retired image is freed, except its literal
-table, once no erased callable holds its interpreter.
+table and static data, once no erased callable holds its interpreter.
 Upstream: not proposed.
 Source: research/tour-native-hot-reload (hot-swap.patch and swap-free.patch,
 without the spike's poison, count and stats exports).
@@ -86,9 +86,9 @@ index bc8e811..5bc3b47 100644
 +    return next;
 +}
 +
-+/// Frees each retired image except its literal table. A kept Model and the
-+/// host's kept Scenes may point into the literal table. The image bytes
-+/// belong to the host, which frees them.
++/// Frees each retired image except its literal table and static data. A kept
++/// Model and the host's kept Scenes may point into both. The image bytes
++/// belong to the host.
 +fn tourFreeRetired() void {
 +    var kept: usize = 0;
 +    for (tour_retired[0..tour_retired_count]) |old| {
@@ -97,7 +97,7 @@ index bc8e811..5bc3b47 100644
 +            kept += 1;
 +            continue;
 +        }
-+        old.state.static_data.deinit();
++        allocator().free(old.state.static_data.addresses);
 +        allocator().free(old.state.entrypoints.entries);
 +        allocator().free(old.state.entrypoints.arg_layouts);
 +        old.state.view.deinit();
