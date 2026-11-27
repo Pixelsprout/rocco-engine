@@ -14,7 +14,8 @@ We use matt-pocock skills to work through tasks:
 - `/wait-what` - The human uses when confused by the AI.
 
 # Worktrees, toolchain and CI
-- Prepare a new worktree with `sh scripts/worktree.sh new <path> <branch>`, or run `sh scripts/worktree.sh setup` inside one. It fills the submodules and builds the archives that the host links.
+- Prepare a new worktree with `sh scripts/worktree.sh new <path> <branch> [<base>] [--task <id>]`, or run `sh scripts/worktree.sh setup` inside one. Both fill the submodules and build the archives that the host links.
+- `new` fetches origin and starts from origin/main unless you give a base. It stops if a local base is behind its upstream. With `--task <id>`, it stops if the base does not have the dex task.
 - After a rebase or pull that moves a submodule pin, run `sh scripts/worktree.sh setup` again. A link error such as `undefined symbol: _sg_...` means the archives are stale.
 - If `sh scripts/toolchain.sh check` reports a mismatch, prefix each `odin` and `roc` command with `sh scripts/toolchain.sh run`. CI uses the pinned compilers.
 - The pre-push hook runs `scripts/pre-push.sh`. Run it yourself before a push from a clone without the hook.
