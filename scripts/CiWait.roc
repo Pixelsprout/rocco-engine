@@ -37,99 +37,131 @@ CiWait := [].{
 			Err(Exit(2))
 		}
 	}
+}
 
-	Step : { name : Str, status : Str }
+# The JSON that gh prints. decode_run turns a GhRun into a RunState.
+GhStep : { name : Str, status : Str }
 
-	Job : { name : Str, status : Str, conclusion : Str, databaseId : U64, url : Str, steps : List(Step) }
+GhJob : { name : Str, status : Str, conclusion : Str, databaseId : U64, url : Str, steps : List(GhStep) }
 
-	RunSummary : { databaseId : U64, workflowName : Str }
+GhRun : { status : Str, conclusion : Str, url : Str, jobs : List(GhJob) }
 
-	Pending : { id : U64, workflow : Str }
+RunSummary : { databaseId : U64, workflowName : Str }
 
-	RunView : { status : Str, conclusion : Str, url : Str, jobs : List(Job) }
+# Failed has a failed step to show. Stopped, such as a cancelled job, has none.
+Outcome : [Passed, Failed, Stopped]
 
-	# What the wait has printed so far. seen holds the last state printed for
-	# each job, and reported the jobs whose failure was printed.
-	Watch : { seen : Dict(Str, Str), reported : List(Str), verdict : [Passing, Failing] }
+# label is the state as the wait prints it, such as "in_progress (Build)".
+Job : { name : Str, databaseId : U64, url : Str, label : Str, progress : [Running, Finished(Outcome)] }
 
-	Event : [Line(Str), JobFailed(Job)]
+RunState : { conclusion : Str, url : Str, progress : [Running, Finished([Passed, Failed])], jobs : List(Job) }
 
-	start : Watch
-	start = { seen: Dict.empty(), reported: [], verdict: Passing }
+WatchedRun : { id : U64, workflow : Str }
 
-	# Takes one poll of a run and gives what to print, in order.
-	observe : Watch, Pending, RunView -> { watch : Watch, events : List(Event), run : [Running, Completed] }
-	observe = |watch, pending, view| {
-		var $seen = watch.seen
-		var $reported = watch.reported
-		var $verdict = watch.verdict
-		var $events = []
-		for job in view.jobs {
-			key = "${pending.id.to_str()}/${job.name}"
-			state = job_state(job)
-			if $seen.get(key) != Ok(state) {
-				$seen = $seen.insert(key, state)
-				$events = $events.append(Line("${pending.workflow} / ${job.name}: ${state}"))
-			}
-			if job.status == "completed" and !["success", "skipped"].contains(job.conclusion) {
+# What the wait has printed so far. seen holds the last label printed for
+# each job, and reported the jobs whose failure was printed.
+Watch : { seen : Dict(Str, Str), reported : List(Str), verdict : [Passing, Failing] }
+
+Event : [Line(Str), JobFailed(Job)]
+
+start : Watch
+start = { seen: Dict.empty(), reported: [], verdict: Passing }
+
+# Takes one poll of a run and gives what to print, in order.
+observe : Watch, { run : WatchedRun, state : RunState } -> { watch : Watch, events : List(Event) }
+observe = |watch, { run, state }| {
+	var $seen = watch.seen
+	var $reported = watch.reported
+	var $verdict = watch.verdict
+	var $events = []
+	for job in state.jobs {
+		key = "${run.id.to_str()}/${job.name}"
+		if $seen.get(key) != Ok(job.label) {
+			$seen = $seen.insert(key, job.label)
+			$events = $events.append(Line("${run.workflow} / ${job.name}: ${job.label}"))
+		}
+		match job.progress {
+			Finished(Failed) => {
 				$verdict = Failing
-				# A cancelled job stopped because of another job or a newer push.
-				if ["failure", "timed_out", "startup_failure"].contains(job.conclusion) and !$reported.contains(key) {
+				if !$reported.contains(key) {
 					$reported = $reported.append(key)
 					$events = $events.append(JobFailed(job))
 				}
 			}
+			Finished(Stopped) => {
+				$verdict = Failing
+			}
+			Finished(Passed) | Running => {}
 		}
-		run = if (view.status == "completed") Completed else Running
-		if run == Completed {
-			$events = $events.append(Line("${pending.workflow}: ${view.conclusion} ${view.url}"))
-			if view.conclusion != "success" {
+	}
+	match state.progress {
+		Finished(outcome) => {
+			$events = $events.append(Line("${run.workflow}: ${state.conclusion} ${state.url}"))
+			if outcome == Failed {
 				$verdict = Failing
 			}
 		}
-		{ watch: { seen: $seen, reported: $reported, verdict: $verdict }, events: $events, run }
+		Running => {}
 	}
+	{ watch: { seen: $seen, reported: $reported, verdict: $verdict }, events: $events }
+}
 
-	runs_to_wait_for : List(RunSummary) -> Try(List(Pending), [CiNotStarted])
-	runs_to_wait_for = |runs|
-		if (runs.any(|run| run.workflowName == ci_workflow))
-			Ok(runs.map(|run| { id: run.databaseId, workflow: run.workflowName }))
-		else
-			Err(CiNotStarted)
+decode_run : GhRun -> RunState
+decode_run = |gh_run| {
+	progress = if (gh_run.status != "completed") Running else if (gh_run.conclusion == "success") Finished(Passed) else Finished(Failed)
+	{ conclusion: gh_run.conclusion, url: gh_run.url, progress, jobs: gh_run.jobs.map(decode_job) }
+}
 
-	job_state : Job -> Str
-	job_state = |job| {
-		if job.status == "completed" {
-			return if (job.conclusion == "") "completed" else job.conclusion
-		}
-		match job.steps.find_first(|step| step.status == "in_progress") {
-			Ok(step) => "${job.status} (${step.name})"
-			Err(_) => job.status
-		}
-	}
-
-	# The first failed step of a job log: its name and the last tail lines of
-	# its output.
-	failure_excerpt : Str, { tail : U64 } -> Try(Str, [NoErrorLine])
-	failure_excerpt = |log, { tail }| {
-		var $step = "unknown"
-		var $output = []
-		for line in Str.split_on(log, "\n").map(clean_log_line) {
-			if line.starts_with(step_start) {
-				$step = line.drop_prefix(step_start)
-				$output = []
-			} else if line.starts_with(group_end) {
-				$output = []
-			} else if line.starts_with(error_start) {
-				kept = $output.keep_if(|text| text.trim() != "")
-				body = kept.take_last(tail).append(line.drop_prefix(error_start))
-				return Ok(Str.join_with(List.join([["Failed step: ${$step}"], body.map(|text| "  ${text}")]), "\n"))
-			} else {
-				$output = $output.append(line)
+decode_job : GhJob -> Job
+decode_job = |gh_job| {
+	(label, progress) =
+		if gh_job.status == "completed" {
+			(if (gh_job.conclusion == "") "completed" else gh_job.conclusion, Finished(job_outcome(gh_job.conclusion)))
+		} else {
+			match gh_job.steps.find_first(|step| step.status == "in_progress") {
+				Ok(step) => ("${gh_job.status} (${step.name})", Running)
+				Err(_) => (gh_job.status, Running)
 			}
 		}
-		Err(NoErrorLine)
+	{ name: gh_job.name, databaseId: gh_job.databaseId, url: gh_job.url, label, progress }
+}
+
+# A cancelled job stopped because of another job or a newer push.
+job_outcome : Str -> Outcome
+job_outcome = |conclusion| match conclusion {
+	"success" | "skipped" => Passed
+	"failure" | "timed_out" | "startup_failure" => Failed
+	_ => Stopped
+}
+
+runs_to_wait_for : List(RunSummary) -> Try(List(WatchedRun), [CiNotStarted])
+runs_to_wait_for = |runs|
+	if (runs.any(|run| run.workflowName == ci_workflow))
+		Ok(runs.map(|run| { id: run.databaseId, workflow: run.workflowName }))
+	else
+		Err(CiNotStarted)
+
+# The first failed step of a job log: its name and the last tail lines of
+# its output.
+failure_excerpt : Str, { tail : U64 } -> Try(Str, [NoErrorLine])
+failure_excerpt = |log, { tail }| {
+	var $step = "unknown"
+	var $output = []
+	for line in log.split_on("\n").map(clean_log_line) {
+		if line.starts_with(step_start) {
+			$step = line.drop_prefix(step_start)
+			$output = []
+		} else if line.starts_with(group_end) {
+			$output = []
+		} else if line.starts_with(error_start) {
+			kept = $output.keep_if(|text| text.trim() != "")
+			body = kept.take_last(tail).append(line.drop_prefix(error_start))
+			return Ok(Str.join_with(List.join([["Failed step: ${$step}"], body.map(|text| "  ${text}")]), "\n"))
+		} else {
+			$output = $output.append(line)
+		}
 	}
+	Err(NoErrorLine)
 }
 
 # The name in .github/workflows/ci.yml. Other workflows, such as "Grow the
@@ -151,20 +183,21 @@ wait! : CiWait.Options => Try([Passing, Failing], _)
 wait! = |options| {
 	var $pending = match options.target {
 		Run(id) => {
-			named : { workflowName : Str }
-			named = Json.parse(gh_text!(["run", "view", id.to_str(), "--json", "workflowName"])?) ? |_| GhFailed("gh run view ${id.to_str()}: unexpected JSON")
-			[{ id, workflow: named.workflowName }]
+			summary : { workflowName : Str }
+			summary = Json.parse(read_gh_text!(["run", "view", id.to_str(), "--json", "workflowName"])?) ? |_| GhFailed("gh run view ${id.to_str()}: unexpected JSON")
+			[{ id, workflow: summary.workflowName }]
 		}
-		Head => runs_for_head!(options.start_wait)?
+		Head => find_head_runs!(options.start_wait)?
 	}
-	var $watch = CiWait.start
+	var $watch = start
 	while !$pending.is_empty() {
 		var $running = []
-		for pending in $pending {
-			id = pending.id.to_str()
-			view : CiWait.RunView
-			view = Json.parse(gh_text!(["run", "view", id, "--json", "status,conclusion,url,jobs"])?) ? |_| GhFailed("gh run view ${id}: unexpected JSON")
-			polled = CiWait.observe($watch, pending, view)
+		for run in $pending {
+			id = run.id.to_str()
+			gh_run : GhRun
+			gh_run = Json.parse(read_gh_text!(["run", "view", id, "--json", "status,conclusion,url,jobs"])?) ? |_| GhFailed("gh run view ${id}: unexpected JSON")
+			state = decode_run(gh_run)
+			polled = observe($watch, { run, state })
 			$watch = polled.watch
 			for event in polled.events {
 				match event {
@@ -172,8 +205,8 @@ wait! = |options| {
 					JobFailed(job) => print_failure!(job)?
 				}
 			}
-			if polled.run == Running {
-				$running = $running.append(pending)
+			if state.progress == Running {
+				$running = $running.append(run)
 			}
 		}
 		$pending = $running
@@ -184,29 +217,29 @@ wait! = |options| {
 	Ok($watch.verdict)
 }
 
-runs_for_head! : U64 => Try(List(CiWait.Pending), _)
-runs_for_head! = |start_wait| {
+find_head_runs! : U64 => Try(List(WatchedRun), _)
+find_head_runs! = |start_wait| {
 	sha = Cmd.new("git").args(["rev-parse", "HEAD"]).capture!()?.trim()
 	var $waited = 0
 	while $waited <= start_wait {
-		runs : List(CiWait.RunSummary)
-		runs = Json.parse(gh_text!(["run", "list", "--commit", sha, "--json", "databaseId,workflowName"])?) ? |_| GhFailed("gh run list: unexpected JSON")
-		match CiWait.runs_to_wait_for(runs) {
+		runs : List(RunSummary)
+		runs = Json.parse(read_gh_text!(["run", "list", "--commit", sha, "--json", "databaseId,workflowName"])?) ? |_| GhFailed("gh run list: unexpected JSON")
+		match runs_to_wait_for(runs) {
 			Ok(pending) => return Ok(pending)
 			Err(CiNotStarted) => {}
 		}
 		Sleep.millis!(head_poll_seconds * 1000)?
 		$waited = $waited + head_poll_seconds
 	}
-	short_sha = Str.from_utf8_lossy(Str.to_utf8(sha).take_first(7))
+	short_sha = Str.from_utf8_lossy(sha.to_utf8().take_first(7))
 	Err(GhFailed("no ${ci_workflow} run started for ${short_sha} within ${start_wait.to_str()}s. Was it pushed?"))
 }
 
-print_failure! : CiWait.Job => Try({}, _)
+print_failure! : Job => Try({}, _)
 print_failure! = |job| {
 	Stdout.line!("--- ${job.name} failed: ${job.url}")?
-	match gh!(["api", "--allow-escape-sequences", "repos/{owner}/{repo}/actions/jobs/${job.databaseId.to_str()}/logs"]) {
-		Ok(output) => match CiWait.failure_excerpt(output.stdout_utf8_lossy(), { tail: 40 }) {
+	match run_gh!(["api", "--allow-escape-sequences", "repos/{owner}/{repo}/actions/jobs/${job.databaseId.to_str()}/logs"]) {
+		Ok(output) => match failure_excerpt(output.stdout_utf8_lossy(), { tail: 40 }) {
 			Ok(excerpt) => Stdout.line!(excerpt)
 			Err(NoErrorLine) => Stdout.line!("The log has no ##[error] line.")
 		}
@@ -214,8 +247,8 @@ print_failure! = |job| {
 	}
 }
 
-gh! : List(Str) => Try(Cmd.Output, [GhFailed(Str)])
-gh! = |args| {
+run_gh! : List(Str) => Try(Cmd.Output, [GhFailed(Str)])
+run_gh! = |args| {
 	command = "gh ${Str.join_with(args, " ")}"
 	output = Cmd.new("gh").args(args.map(OsStr.from_str)).run!() ? |err| GhFailed("${command}: ${Str.inspect(err)}")
 	match output.status {
@@ -224,8 +257,8 @@ gh! = |args| {
 	}
 }
 
-gh_text! : List(Str) => Try(Str, [GhFailed(Str)])
-gh_text! = |args| match gh!(args)?.stdout_utf8() {
+read_gh_text! : List(Str) => Try(Str, [GhFailed(Str)])
+read_gh_text! = |args| match run_gh!(args)?.stdout_utf8() {
 	Ok(text) => Ok(text)
 	Err(BadUtf8(_)) => Err(GhFailed("gh ${Str.join_with(args, " ")}: the output is not UTF-8"))
 }
@@ -244,7 +277,7 @@ clean_log_line = |line| strip_ansi(drop_timestamp(line.drop_suffix("\r")))
 # Drops a leading "2026-11-06T21:14:59.5800020Z " that GitHub puts on each line.
 drop_timestamp : Str -> Str
 drop_timestamp = |line| {
-	bytes = Str.to_utf8(line)
+	bytes = line.to_utf8()
 	stamp_length = match bytes {
 		[y1, y2, y3, y4, '-', m1, m2, '-', d1, d2, 'T', .. as rest] if [y1, y2, y3, y4, m1, m2, d1, d2].all(is_digit) => {
 			clock = rest.find_first_index(|byte| !(is_digit(byte) or byte == ':' or byte == '.')) ?? rest.len()
@@ -262,10 +295,10 @@ drop_timestamp = |line| {
 # Drops each ANSI sequence of the form ESC [ digits-and-semicolons letter.
 strip_ansi : Str -> Str
 strip_ansi = |text| {
-	pieces = Str.split_on(text, csi)
+	pieces = text.split_on(csi)
 	after_escapes = pieces.drop_first(1).map(
 		|piece| {
-			bytes = Str.to_utf8(piece)
+			bytes = piece.to_utf8()
 			params = bytes.find_first_index(|byte| !(is_digit(byte) or byte == ';')) ?? bytes.len()
 			match bytes.get(params) {
 				Ok(final) if is_letter(final) => Str.from_utf8_lossy(bytes.drop_first(params + 1))
@@ -282,7 +315,6 @@ is_digit = |byte| byte >= '0' and byte <= '9'
 is_letter : U8 -> Bool
 is_letter = |byte| (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z')
 
-# Trimmed from a failed macOS job of PR 47.
 sample_log =
 	\\2026-11-06T21:14:59.5800020Z ##[group]Run sh scripts/macos/build-miniaudio.sh
 	\\2026-11-06T21:14:59.5844440Z ##[endgroup]
@@ -313,7 +345,7 @@ expect {
 		\\  >>> did you mean: _vsnprintf
 		\\  build: roc exited with 1
 		\\  Process completed with exit code 1.
-	CiWait.failure_excerpt(sample_log, { tail: 40 }) == Ok(expected)
+	failure_excerpt(sample_log, { tail: 40 }) == Ok(expected)
 }
 
 ## The excerpt keeps only the tail of a long step.
@@ -322,15 +354,15 @@ expect {
 		\\Failed step: roc scripts/build.roc all --release
 		\\  build: roc exited with 1
 		\\  Process completed with exit code 1.
-	CiWait.failure_excerpt(sample_log, { tail: 1 }) == Ok(expected)
+	failure_excerpt(sample_log, { tail: 1 }) == Ok(expected)
 }
 
 ## A log with no error line has no excerpt.
-expect CiWait.failure_excerpt(Str.replace_each(sample_log, "##[error]", ""), { tail: 40 }) == Err(NoErrorLine)
+expect failure_excerpt(sample_log.replace_each("##[error]", ""), { tail: 40 }) == Err(NoErrorLine)
 
-## A running job names its active step.
+## A running job is labelled with its active step.
 expect {
-	job = {
+	gh_job = {
 		name: "macos",
 		status: "in_progress",
 		conclusion: "",
@@ -338,52 +370,86 @@ expect {
 		url: "",
 		steps: [{ name: "Build", status: "completed" }, { name: "Run the games", status: "in_progress" }],
 	}
-	CiWait.job_state(job) == "in_progress (Run the games)"
+	decode_job(gh_job).label == "in_progress (Run the games)"
 }
 
-## A finished job shows its conclusion.
-expect CiWait.job_state({ name: "macos", status: "completed", conclusion: "failure", databaseId: 1, url: "", steps: [] }) == "failure"
+## A finished job is labelled with its conclusion.
+expect decode_job({ name: "macos", status: "completed", conclusion: "failure", databaseId: 1, url: "u", steps: [] }) == { name: "macos", databaseId: 1, url: "u", label: "failure", progress: Finished(Failed) }
+
+## Only failure, timed_out and startup_failure have a failed step to show.
+expect {
+	actual =
+		\\success: ${Str.inspect(job_outcome("success"))}
+		\\skipped: ${Str.inspect(job_outcome("skipped"))}
+		\\failure: ${Str.inspect(job_outcome("failure"))}
+		\\timed_out: ${Str.inspect(job_outcome("timed_out"))}
+		\\startup_failure: ${Str.inspect(job_outcome("startup_failure"))}
+		\\cancelled: ${Str.inspect(job_outcome("cancelled"))}
+		\\neutral: ${Str.inspect(job_outcome("neutral"))}
+	expected =
+		\\success: Passed
+		\\skipped: Passed
+		\\failure: Failed
+		\\timed_out: Failed
+		\\startup_failure: Failed
+		\\cancelled: Stopped
+		\\neutral: Stopped
+	actual == expected
+}
+
+## A run passes only when its conclusion is success.
+expect {
+	finished = |conclusion| decode_run({ status: "completed", conclusion, url: "", jobs: [] }).progress
+	actual =
+		\\success: ${Str.inspect(finished("success"))}
+		\\skipped: ${Str.inspect(finished("skipped"))}
+		\\running: ${Str.inspect(decode_run({ status: "in_progress", conclusion: "", url: "", jobs: [] }).progress)}
+	expected =
+		\\success: Finished(Passed)
+		\\skipped: Finished(Failed)
+		\\running: Running
+	actual == expected
+}
 
 ## Waits for the CI run when another workflow starts first.
-expect CiWait.runs_to_wait_for([{ databaseId: 1, workflowName: "Grow the site" }]) == Err(CiNotStarted)
+expect runs_to_wait_for([{ databaseId: 1, workflowName: "Grow the site" }]) == Err(CiNotStarted)
 
 ## Waits for every run once the CI run has started.
 expect {
 	runs = [{ databaseId: 1, workflowName: "Grow the site" }, { databaseId: 2, workflowName: "CI" }]
-	CiWait.runs_to_wait_for(runs) == Ok([{ id: 1, workflow: "Grow the site" }, { id: 2, workflow: "CI" }])
+	runs_to_wait_for(runs) == Ok([{ id: 1, workflow: "Grow the site" }, { id: 2, workflow: "CI" }])
 }
 
 ## Waits while no run has started.
-expect CiWait.runs_to_wait_for([]) == Err(CiNotStarted)
+expect runs_to_wait_for([]) == Err(CiNotStarted)
 
-job : Str, Str, Str -> CiWait.Job
-job = |name, status, conclusion| { name, status, conclusion, databaseId: 7, url: "https://jobs/7", steps: [] }
+sample_job : { name : Str, label : Str, progress : [Running, Finished(Outcome)] } -> Job
+sample_job = |{ name, label, progress }| { name, label, progress, databaseId: 7, url: "https://jobs/7" }
 
-running_run : List(CiWait.Job) -> CiWait.RunView
-running_run = |jobs| { status: "in_progress", conclusion: "", url: "https://runs/2", jobs }
+running_run : List(Job) -> RunState
+running_run = |jobs| { conclusion: "", url: "https://runs/2", progress: Running, jobs }
 
 ci_run = { id: 2, workflow: "CI" }
 
-## A poll prints a line for each job whose state changed since the last poll.
+## A poll prints a line for each job whose label changed since the last poll.
 expect {
-	first = CiWait.observe(CiWait.start, ci_run, running_run([job("macos", "in_progress", ""), job("linux", "queued", "")]))
-	second = CiWait.observe(first.watch, ci_run, running_run([job("macos", "in_progress", ""), job("linux", "in_progress", "")]))
+	macos = sample_job({ name: "macos", label: "in_progress", progress: Running })
+	first = observe(start, { run: ci_run, state: running_run([macos, sample_job({ name: "linux", label: "queued", progress: Running })]) })
+	second = observe(first.watch, { run: ci_run, state: running_run([macos, sample_job({ name: "linux", label: "in_progress", progress: Running })]) })
 	actual =
 		\\first: ${Str.inspect(first.events)}
 		\\second: ${Str.inspect(second.events)}
-		\\run: ${Str.inspect(second.run)}
 	expected =
 		\\first: [Line("CI / macos: in_progress"), Line("CI / linux: queued")]
 		\\second: [Line("CI / linux: in_progress")]
-		\\run: Running
 	actual == expected
 }
 
 ## A failed job is reported once and fails the wait.
 expect {
-	failed = job("macos", "completed", "failure")
-	first = CiWait.observe(CiWait.start, ci_run, running_run([failed]))
-	second = CiWait.observe(first.watch, ci_run, running_run([failed]))
+	failed = sample_job({ name: "macos", label: "failure", progress: Finished(Failed) })
+	first = observe(start, { run: ci_run, state: running_run([failed]) })
+	second = observe(first.watch, { run: ci_run, state: running_run([failed]) })
 	actual =
 		\\first: ${Str.inspect(first.events)}
 		\\second: ${Str.inspect(second.events)}
@@ -395,9 +461,9 @@ expect {
 	actual == expected
 }
 
-## A cancelled job fails the wait, but has no failed step to report.
+## A stopped job fails the wait, but has no failed step to report.
 expect {
-	polled = CiWait.observe(CiWait.start, ci_run, running_run([job("macos", "completed", "cancelled")]))
+	polled = observe(start, { run: ci_run, state: running_run([sample_job({ name: "macos", label: "cancelled", progress: Finished(Stopped) })]) })
 	actual =
 		\\events: ${Str.inspect(polled.events)}
 		\\verdict: ${Str.inspect(polled.watch.verdict)}
@@ -407,20 +473,18 @@ expect {
 	actual == expected
 }
 
-## A skipped job does not fail the wait.
-expect CiWait.observe(CiWait.start, ci_run, running_run([job("tour", "completed", "skipped")])).watch.verdict == Passing
+## A passed job does not fail the wait.
+expect observe(start, { run: ci_run, state: running_run([sample_job({ name: "tour", label: "skipped", progress: Finished(Passed) })]) }).watch.verdict == Passing
 
-## A completed run prints its conclusion, and its conclusion decides the verdict.
+## A finished run prints its conclusion, and its outcome decides the verdict.
 expect {
-	view = { status: "completed", conclusion: "failure", url: "https://runs/2", jobs: [] }
-	polled = CiWait.observe(CiWait.start, ci_run, view)
+	state = { conclusion: "failure", url: "https://runs/2", progress: Finished(Failed), jobs: [] }
+	polled = observe(start, { run: ci_run, state })
 	actual =
 		\\events: ${Str.inspect(polled.events)}
-		\\run: ${Str.inspect(polled.run)}
 		\\verdict: ${Str.inspect(polled.watch.verdict)}
 	expected =
 		\\events: [Line("CI: failure https://runs/2")]
-		\\run: Completed
 		\\verdict: Failing
 	actual == expected
 }
