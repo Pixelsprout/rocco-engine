@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "0.1.0-rc1" }
+app [init, launch, loaded, step, view] { cam: "../../../packages/camera/main.roc", linalg: "../../../packages/linalg/main.roc", mesh: "../../../packages/mesh/main.roc", pf: platform "../../../platform/main.roc", roc: "0.1.0-RC2" }
 
 # guide/tutorial/03-moving.md copies the regions in this file. Run roc scripts/build.roc docs after a change.
 

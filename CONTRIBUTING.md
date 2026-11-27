@@ -30,7 +30,7 @@ In an existing clone, run `git submodule update --init`.
 | | macOS arm64 | Linux x64 | Windows x64 |
 |---|---|---|---|
 | Odin | `dev-2026-11`, on `PATH` | In the Docker image | `dev-2026-11` windows-amd64 release, on `PATH` |
-| Roc | `0.1.0_RC1` release, on `PATH` | In the Docker image | `0.1.0_RC1` windows_x86_64 zip, on `PATH` |
+| Roc | `0.1.0-RC2` release, on `PATH` | In the Docker image | `0.1.0-RC2` windows_x86_64 zip, on `PATH` |
 | System tools | Xcode command line tools | Docker | Visual Studio Build Tools with the Desktop development with C++ workload and its Windows SDK, for the sokol build. Python 3 and Zig 0.16.0, only to change an import library |
 | sokol archives | `sh build_clibs_macos.sh` in `sokol-odin/sokol/`, once | The Linux check builds them | `scripts\windows\build_sokol.cmd` from the repo root, once |
 | miniaudio archive | `sh scripts/macos/build-miniaudio.sh`, once | The Linux check builds it | `scripts\windows\build_miniaudio.cmd` from the repo root, once |
@@ -42,15 +42,16 @@ build of the same tag can report another commit and compile differently.
 `~/tools`, and `sh scripts/toolchain.sh check` compares them with `PATH`.
 
 Enable the hooks once per clone with `git config core.hooksPath .githooks`.
-The pre-push hook checks every Odin package for each CI target and links a
-game on macOS. See `scripts/pre-push.sh`.
+The pre-push hook checks every Odin package for each CI target, links a
+game on macOS and runs the package tests when a file under `packages/`
+changes. See `scripts/pre-push.sh`.
 
 The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. Each header writes `ROC_PIN` from
 `scripts/linux/Dockerfile`. `roc version` prints `ROC_RELEASE`, the release
-tag. A header cannot use the tag form. A nightly compiler warns about the pin
-and builds anyway. `0.1.0_RC1` does not warn, because it cannot parse its own
-tag. Fix the `PATH`, never the pin.
+tag. From `0.1.0-RC2`, `ROC_PIN` and `ROC_RELEASE` are the same string. A
+compiler of another version reports a "roc version mismatch" on the pin. Fix
+the `PATH`, never the pin.
 
 The Tour builds from a copy of the pinned Roc with rocco's patches applied.
 `tour/roc-patches/` holds one `.patch` file per change, applied in name order.
@@ -180,8 +181,10 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check, `roc test` on the village and `odin test engine`. It regenerates the macOS
-sysroot, fails on a diff and runs the audit. The Linux job runs
+pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one
+frame, runs the Bridge check, `scripts/test-packages.sh`, `roc test` on the
+village and `odin test engine`. It regenerates the macOS sysroot, fails on a
+diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
 check under xvfb. The Windows job
@@ -563,6 +566,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `examples/tutorial/source/make_meshes.py` | Builds `pip.glb`, the tutorial character with a 12-Joint Skin and the Clips Idle and Walk, into each chapter in its `CHAPTERS` list. It then keys a Run Clip and writes `pip.glb` with Idle, Walk and Run into `examples/animation`, so the chapter files do not change. It also writes `engine/testdata/skinned.glb`, the small skinned fixture for the loader tests. Run it from the repository root with `/Applications/Blender.app/Contents/MacOS/Blender --background --python examples/tutorial/source/make_meshes.py`. Tested with Blender 5.2.1. A rerun writes the same bytes. |
 | `examples/tutorial/source/make_sounds.py` | Writes the tutorial Sounds `blip.wav`, `hum.wav` and `music.wav` into the `assets/sound/` folder of each chapter in its `CHAPTERS` list. Python standard library only: `python3 examples/tutorial/source/make_sounds.py`. A rerun writes the same bytes. |
 | `packages/camera/` | The camera package: `look_at` and `follow`, `project` from the world to the window, and `unproject` from the pointer to a world ray. Games import it as `import cam.Camera as Cam`. |
+| `packages/collide/` | The collide package for same-step collision in `step`. `Solids` files boxes and spheres in a grid and pushes a capsule out of them. `Ground` answers the surface under a point from a plane, a height grid or the tops of Solids. It imports `packages/linalg`. Games import it as `import collide.Solids` and `import collide.Ground`. |
 | `packages/mesh/` | The mesh package resolves mesh ids from the manifest with `primitive` and `resolve`, Clip ids and durations with `clip` and `clip_duration`, and a fade Clip's time at the main Clip's phase with `synced_time`. Games import it as `import mesh.Mesh as Mesh`. |
 | `packages/ui/` | The UI package for the `Scene.ui` tree. Games write `Panel(config, [...])` and `Text(...)` themselves and take the configs from here: `default_panel` holds Clay's defaults, `default_text` the Text defaults, and `float_at`, `panel`, `label` and `pad_all` are small helpers. `measure`, `fit` and `wrap` measure, cut and wrap text with the host's font numbers. Games import it as `import ui.Ui`. The widget modules `Button`, `Focus`, `Dropdown`, `Accordion` and `Scroll`, with `Widget` for their shared types, keep their state in the game's Model and return a `Ui.Node`. The game turns it into an Element with `Node.build`. |
 | `bench/model-size/` | The idiomatic Model size bench game: `step` moves N entities, N from the first Arg, and `view` always returns 100 Draws. The Seed places the entities. |
@@ -602,6 +606,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
+| `scripts/test-packages.sh` | Runs `roc check` and `roc test` on every package. CI's macOS job and pre-push run it. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game, pong and tutorial chapter 10. |
 | `scripts/host-check.sh` | Checks that linking cards, entity-game and pong does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |

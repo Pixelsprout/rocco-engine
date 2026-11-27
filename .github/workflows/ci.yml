@@ -108,6 +108,7 @@ jobs:
 
       - name: Test
         run: |
+          sh scripts/test-packages.sh
           roc test examples/village/main.roc
           odin test engine -debug
 

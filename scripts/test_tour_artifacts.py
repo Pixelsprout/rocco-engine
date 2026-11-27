@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tour_artifacts
 
 BUILD = 'v0.14.1-44-gabc1234-dirty'
-ROC_PIN = '0.1.0-rc1'
+ROC_PIN = '0.1.0-RC2'
 LAYOUT = sorted(tour_artifacts.LAYOUT)
 PREVIEW = [name.removeprefix('preview/') for name in LAYOUT if name.startswith('preview/')]
 

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { pf: platform "../../platform/main.roc", roc: "0.1.0-rc1", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { pf: platform "../../platform/main.roc", roc: "0.1.0-RC2", ui: "../../packages/ui/main.roc" }
 
 # A game for the Bridge check: a button, a dropdown, an accordion, focus and a
 # scrolling log, all from the widget modules of packages/ui, and Image Panels

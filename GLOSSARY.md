@@ -564,6 +564,28 @@ What the host gives `step` each Fixed step: one flat list per kind of Query,
 such as `contacts` and `rays`, plus the UI hits.
 _Avoid_: Answer, Answers, Result, Response, Event, RayHit list
 
+## Same-step collision
+
+`docs/adr/0046-same-step-collision-lives-in-roc-packages.md` records the
+decision. The game asks `packages/collide` in `step`; the host takes no part.
+
+**Solids**:
+The static boxes and spheres that a character collides with in the same step,
+filed once in a grid on x and z. A box turns only by a yaw. Not Colliders,
+which the host tests one step late.
+_Avoid_: colliders (the host's), level geometry, static bodies, obstacles
+
+**Ground**:
+A function from `x`, `z` and a height to the highest surface at or below that
+height, with its normal, or a miss. Built from a flat plane, a grid of heights
+or the tops of Solids.
+_Avoid_: floor, terrain (one kind of Ground), heightmap, ground check
+
+**Stick to ground**:
+Keeping a walking character's foot on the Ground as it goes down a slope or a
+low step, instead of letting it fall. Not Grounding.
+_Avoid_: ground snap, snap down, Grounding (the host lifting a skinned Draw)
+
 ## Sound
 
 **Sound**:
@@ -627,7 +649,7 @@ _Avoid_: pose (for this value), anim, animation state, blend tree
 
 **Grounding**:
 The host lifting a skinned Draw so no named foot Joint sinks below its bind
-height. See ADR 0035.
+height. See ADR 0035. Not Stick to ground.
 _Avoid_: foot lock, foot IK (the later task that pins a foot), ground snap
 
 ## Benchmarks

@@ -1,4 +1,4 @@
-app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-rc1", ui: "../../packages/ui/main.roc" }
+app [init, launch, loaded, step, view] { cam: "../../packages/camera/main.roc", linalg: "../../packages/linalg/main.roc", mesh: "../../packages/mesh/main.roc", pf: platform "../../platform/main.roc", roc: "0.1.0-RC2", ui: "../../packages/ui/main.roc" }
 
 import ui.Ui
 import Layout
