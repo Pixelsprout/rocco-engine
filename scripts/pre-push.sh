@@ -112,4 +112,8 @@ if [ "$(uname -s)" = Darwin ] &&
 	}
 fi
 
+if touches '^packages/'; then
+	sh scripts/test-packages.sh
+fi
+
 echo "pre-push: checks passed"

@@ -42,8 +42,9 @@ build of the same tag can report another commit and compile differently.
 `~/tools`, and `sh scripts/toolchain.sh check` compares them with `PATH`.
 
 Enable the hooks once per clone with `git config core.hooksPath .githooks`.
-The pre-push hook checks every Odin package for each CI target and links a
-game on macOS. See `scripts/pre-push.sh`.
+The pre-push hook checks every Odin package for each CI target, links a
+game on macOS and runs the package tests when a file under `packages/`
+changes. See `scripts/pre-push.sh`.
 
 The Roc pin lives in `platform/main.roc`, in every app under `examples/` and
 in `scripts/build.roc`. Each header writes `ROC_PIN` from
@@ -180,15 +181,15 @@ runs the tests of the bench scripts.
 
 `.github/workflows/ci.yml` runs on each push to `main` and on each pull
 request. The macOS job builds with `--release`, runs cards, entity-game,
-pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-all.sh`. It regenerates the macOS
+pong, bridge-echo, glow, mask, widgets and each tutorial chapter for one frame, runs the Bridge check and runs `scripts/test-packages.sh`, the village tests and the engine tests. It regenerates the macOS
 sysroot, fails on a diff and runs the audit. The Linux job runs
 `scripts/linux/in-container.sh --release` in the Docker image and runs the
 stub audit. The container script also runs `docs --check` and the Bridge
 check under xvfb. The Windows job
 builds sokol with `scripts\windows\build_sokol.cmd` and miniaudio with
 `scripts\windows\build_miniaudio.cmd`, then builds with
-`--release`, runs the same games, the Bridge check and
-`scripts/test-all.sh`, and runs `make_windows_import_libs.py --check`. Only
+`--release`, runs the Bridge check and the D3D11 engine tests, and runs
+`make_windows_import_libs.py --check`. Only
 the sokol and miniaudio step runs `vcvars64.bat`, so the Roc link runs with `LIB` unset. A
 fourth job runs the generator tests, regenerates the Linux stubs
 and fails on a diff.
@@ -602,6 +603,7 @@ does not call it again. After a change to `launch`, restart the game.
 | `scripts/roc_patches.py` | Downloads the pinned Roc into `build/roc-src/`, copies it and applies every patch in `tour/roc-patches/`. `check` fails if a patch does not apply. |
 | `scripts/run-games.sh` | Runs each named game for FRAMES frames and checks its exit code and its `Frame Count` line. |
 | `scripts/test-all.sh` | Runs `roc check` and `roc test` on every app, every package and the build scripts, then `odin test engine -debug`. |
+| `scripts/test-packages.sh` | Runs `roc check` and `roc test` on every package. CI's macOS job and pre-push run it. |
 | `scripts/alloc-check.sh` | Checks the allocations per fixed step of cards, entity-game, pong and tutorial chapter 10. |
 | `scripts/host-check.sh` | Checks that linking cards, entity-game and pong does not change the host library or the glue. |
 | `scripts/make_macos_sysroot.py` | Writes `platform/targets/macos-sysroot/` from `scripts/macos-sysroot/interfaces.json`. `--audit` lists the archive references that the catalog does not cover. |
