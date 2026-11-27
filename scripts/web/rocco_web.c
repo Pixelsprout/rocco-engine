@@ -37,6 +37,18 @@ EM_JS(void, rocco_web_location, (char *host, int host_size, char *bridge, int br
 	stringToUTF8(new URLSearchParams(location.search).get("bridge") || "", bridge, bridge_size);
 });
 
+// Writes the page's URL query as the game's Config.args, one word a
+// parameter in the URL's order, each word ended by a newline: "?msaa=1&grass=0"
+// gives "msaa=1\ngrass=0\n", and a parameter with no value gives its name
+// alone. Words past size are cut.
+EM_JS(void, rocco_web_query, (char *out, int size), {
+	var words = "";
+	new URLSearchParams(location.search).forEach(function (value, name) {
+		words += (value === "" ? name : name + "=" + value) + "\n";
+	});
+	stringToUTF8(words, out, size);
+});
+
 // The page decides what the player sees after the run ends.
 EM_JS(void, rocco_web_dispatch_quit, (void), {
 	window.dispatchEvent(new Event("rocco:quit"));

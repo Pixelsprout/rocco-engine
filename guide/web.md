@@ -224,9 +224,12 @@ window.addEventListener("rocco:quit", function () { show("Thanks for playing!");
   web, and `Off` draws with 1.
 - **Gamepads.** The web host reports no connected gamepad yet. The game's
   `gamepads` list is always empty.
-- **Environment.** A page has no environment variables and no command line.
-  `Config.args` is empty, the Seed is 0, and the `ROCCO_*` switches such as
-  `ROCCO_HEADLESS` and `ROCCO_EXIT_AFTER_FRAMES` do nothing.
+- **Environment.** A page has no environment variables. Its URL query is its
+  command line: `Config.args` holds one word a parameter, in the URL's
+  order, so `index.html?msaa=1&grass=0` gives `["msaa=1", "grass=0"]`, and a
+  parameter with no value gives its name alone. The Seed is 0, and the
+  `ROCCO_*` switches such as `ROCCO_HEADLESS` and `ROCCO_EXIT_AFTER_FRAMES`
+  do nothing.
 - **The Bridge.** A page cannot listen on a socket, so it connects out to
   a Relay. The next section shows how.
 - **Vsync.** The browser draws on its own refresh, so the page ignores a

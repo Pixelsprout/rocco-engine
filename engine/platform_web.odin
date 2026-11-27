@@ -16,6 +16,7 @@ foreign env {
 	rocco_web_read_texture :: proc(device, texture: rawptr, width, height: i32, done: Read_Done, user: rawptr) ---
 	rocco_web_dispatch_quit :: proc() ---
 	rocco_web_dispatch_ready :: proc() ---
+	rocco_web_query :: proc(out: [^]u8, size: i32) ---
 }
 
 shader_open_file :: proc(path: string) -> (^system.File, system.Error) {

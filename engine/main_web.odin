@@ -2,6 +2,8 @@
 package engine
 
 import "core:mem"
+import "core:strings"
+import "system"
 
 import "base:runtime"
 
@@ -27,8 +29,28 @@ web_main :: proc "c" () -> i32 {
 	// Odin's own wasm allocator grows memory beside emscripten's sbrk, so
 	// every allocation goes through libc.
 	context.allocator = {libc_allocator_proc, nil}
+	system.args = web_args()
 	run(ROC_GAME)
 	return 0
+}
+
+WEB_QUERY_LIMIT :: 4096
+
+// The page's URL query is its command line: one word a parameter
+// (rocco_web_query), which reach the game as Config.args. The program's own
+// name is left empty, so the assets stay in the default folder.
+web_args :: proc() -> []string {
+	query := make([]u8, WEB_QUERY_LIMIT)
+	rocco_web_query(raw_data(query), WEB_QUERY_LIMIT)
+	text := string(cstring(raw_data(query)))
+	words := make([dynamic]string)
+	append(&words, "")
+	for word in strings.split_lines_iterator(&text) {
+		if word != "" {
+			append(&words, word)
+		}
+	}
+	return words[:]
 }
 
 // libc's realloc does not keep the alignment, so a resize allocates and copies.
