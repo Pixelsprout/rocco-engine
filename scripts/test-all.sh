@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 sh scripts/test-packages.sh
 
-for file in examples/*/main.roc examples/tutorial/*/main.roc scripts/build.roc scripts/Keys.roc scripts/FontTable.roc scripts/Regions.roc scripts/DocCheck.roc; do
+for file in examples/*/main.roc examples/tutorial/*/main.roc scripts/build.roc scripts/tools.roc scripts/Keys.roc scripts/FontTable.roc scripts/Regions.roc scripts/DocCheck.roc; do
 	[ -f "$file" ] || continue
 	echo "== roc check $file"
 	roc check "$file"

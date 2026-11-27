@@ -110,6 +110,7 @@ jobs:
         run: |
           sh scripts/test-packages.sh
           roc test examples/village/main.roc
+          roc test scripts/tools.roc
           odin test engine -debug
 
       - name: Regenerate the macOS sysroot
@@ -259,6 +260,9 @@ jobs:
         env:
           ROCCO_SHDC: ${{ github.workspace }}/build/shader-tools/sokol-shdc.exe
         run: roc scripts/build.roc all --release
+
+      - name: Test the tools
+        run: roc test scripts/tools.roc
 
       # Capture the ordinary release host before benchmarks enable Spans.
       - uses: actions/upload-artifact@v4

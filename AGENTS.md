@@ -18,7 +18,7 @@ We use matt-pocock skills to work through tasks:
 - After a rebase or pull that moves a submodule pin, run `sh scripts/worktree.sh setup` again. A link error such as `undefined symbol: _sg_...` means the archives are stale.
 - If `sh scripts/toolchain.sh check` reports a mismatch, prefix each `odin` and `roc` command with `sh scripts/toolchain.sh run`. CI uses the pinned compilers.
 - The pre-push hook runs `scripts/pre-push.sh`. Run it yourself before a push from a clone without the hook.
-- After a push, run `python3 scripts/ci_wait.py`. It waits for CI and prints the output of each failed step.
+- After a push, run `roc scripts/tools.roc ci-wait`. It waits for CI and prints the output of each failed step.
 
 # Seeing a frame
 To check a visual change yourself, build the game with `roc scripts/build.roc game <game>`, run `scripts/screenshot.sh <game> <out.png> [steps]` and read the PNG. It drives the game over the Bridge, so it works on macOS, Linux and Windows and needs no Screen Recording permission. See "Screenshots" in `CONTRIBUTING.md`.
