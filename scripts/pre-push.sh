@@ -112,4 +112,10 @@ if [ "$(uname -s)" = Darwin ] &&
 	}
 fi
 
+# The Dockerfile holds the Roc pin, and the text corpus test writes
+# packages/ui/TextCorpus.roc.
+if touches '^(packages/|scripts/linux/Dockerfile$|engine/text_corpus_test\.odin$)'; then
+	sh scripts/test-packages.sh
+fi
+
 echo "pre-push: checks passed"
