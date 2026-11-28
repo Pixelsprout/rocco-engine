@@ -107,7 +107,9 @@ message in place of the game.
 ## Sound
 
 Browsers start a page's audio only after the player clicks, taps or
-presses a key. Until then the game runs silently. A title screen that waits
+presses a key. Until then the game runs silently. The page opens its audio
+at that first input, or at the first sound if that comes sooner, so a game
+that stays silent never starts any. A title screen that waits
 for a key press gives the player that first input. So does a page with a
 Click to play screen, as in the example under [Your own page](#your-own-page).
 
@@ -225,10 +227,11 @@ window.addEventListener("rocco:quit", function () { show("Thanks for playing!");
 - **Gamepads.** The web host reports no connected gamepad yet. The game's
   `gamepads` list is always empty.
 - **Environment.** A page has no environment variables. Its URL query is its
-  command line: `Config.args` holds one word a parameter, in the URL's
-  order, so `index.html?msaa=1&grass=0` gives `["msaa=1", "grass=0"]`, and a
-  parameter with no value gives its name alone. The Seed is 0, and the
-  `ROCCO_*` switches such as `ROCCO_HEADLESS` and `ROCCO_EXIT_AFTER_FRAMES`
+  command line: `Config.args` holds the decoded text between each `&`, in
+  order, so `index.html?msaa=1&grass=0` gives `["msaa=1", "grass=0"]`. The
+  `bridge` value is the host's own and does not reach the game. A query over
+  4 KB loses its last words, and the page's console says so. The Seed is 0,
+  and the `ROCCO_*` switches such as `ROCCO_HEADLESS` and `ROCCO_EXIT_AFTER_FRAMES`
   do nothing.
 - **The Bridge.** A page cannot listen on a socket, so it connects out to
   a Relay. The next section shows how.

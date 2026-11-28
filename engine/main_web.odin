@@ -7,6 +7,8 @@ import "system"
 
 import "base:runtime"
 
+WEB_ARGS_LIMIT :: 4096
+
 // The "env.o" name makes the wasm import module "env". emcc resolves these
 // against emscripten's libc.
 foreign import libc "env.o"
@@ -34,21 +36,15 @@ web_main :: proc "c" () -> i32 {
 	return 0
 }
 
-WEB_QUERY_LIMIT :: 4096
-
-// The page's URL query is its command line: one word a parameter
-// (rocco_web_query), which reach the game as Config.args. The program's own
-// name is left empty, so the assets stay in the default folder.
+// The program's own name is empty, so the assets stay in the default folder.
 web_args :: proc() -> []string {
-	query := make([]u8, WEB_QUERY_LIMIT)
-	rocco_web_query(raw_data(query), WEB_QUERY_LIMIT)
-	text := string(cstring(raw_data(query)))
+	buffer := make([]u8, WEB_ARGS_LIMIT)
+	rocco_web_args(raw_data(buffer), WEB_ARGS_LIMIT)
+	text := string(cstring(raw_data(buffer)))
 	words := make([dynamic]string)
 	append(&words, "")
 	for word in strings.split_lines_iterator(&text) {
-		if word != "" {
-			append(&words, word)
-		}
+		append(&words, word)
 	}
 	return words[:]
 }
