@@ -73,10 +73,18 @@ void __wrap_roc_crashed(const uint8_t *bytes, size_t len) {
 }
 
 static void *image;
-static size_t image_len;
-// The bytes of the image before the last swap, freed after the first call on
-// the new image. The shim reads them until that call retires the old state.
+static size_t image_len, image_cap;
+// The bytes of the image before the last swap. The shim reads them until the
+// first call on the new image retires the old state; then they become spare.
 static void *retired;
+static size_t retired_cap;
+// The next image goes into the spare buffer when it fits. The shim keeps each
+// image's small static data for good, and a new buffer per image would let
+// those blocks split the freed image holes, so the heap grows with each edit.
+static void *spare;
+static size_t spare_cap;
+
+#define IMAGE_ROUND (64 * 1024)
 
 // The shim keeps views into the image, so the bytes live as long as the run.
 // The LIR header needs 8-byte alignment; the Roc CLI uses 16.
@@ -86,11 +94,20 @@ static void pull_image(void) {
 		fprintf(stderr, "Tour host: no image in globalThis.tourImage\n");
 		abort();
 	}
-	image = memalign(16, image_len);
-	if (!image) {
-		fprintf(stderr, "Tour host: no memory for a %zu byte image\n", image_len);
-		abort();
+	if (spare && spare_cap >= image_len) {
+		image = spare;
+		image_cap = spare_cap;
+	} else {
+		free(spare);
+		image_cap = (image_len + IMAGE_ROUND - 1) / IMAGE_ROUND * IMAGE_ROUND;
+		image = memalign(16, image_cap);
+		if (!image) {
+			fprintf(stderr, "Tour host: no memory for a %zu byte image\n", image_len);
+			abort();
+		}
 	}
+	spare = NULL;
+	spare_cap = 0;
 	tour_image_take(image);
 }
 
@@ -104,6 +121,7 @@ EM_JS(void, tour_swapped, (void), {
 EMSCRIPTEN_KEEPALIVE int tour_swap_image(void) {
 	if (!image || retired) return 0;
 	retired = image;
+	retired_cap = image_cap;
 	pull_image();
 	return 1;
 }
@@ -113,7 +131,8 @@ static void call(uint32_t entry, void *ret, void *args) {
 	if (!image) pull_image();
 	roc_entrypoint_from_image(entry, roc_shim_get_ops(), ret, args, image, image_len);
 	if (retired) {
-		free(retired);
+		spare = retired;
+		spare_cap = retired_cap;
 		retired = NULL;
 		tour_swapped();
 	}
