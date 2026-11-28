@@ -2,8 +2,12 @@
 package engine
 
 import "core:mem"
+import "core:strings"
+import "system"
 
 import "base:runtime"
+
+WEB_ARGS_LIMIT :: 4096
 
 // The "env.o" name makes the wasm import module "env". emcc resolves these
 // against emscripten's libc.
@@ -27,8 +31,22 @@ web_main :: proc "c" () -> i32 {
 	// Odin's own wasm allocator grows memory beside emscripten's sbrk, so
 	// every allocation goes through libc.
 	context.allocator = {libc_allocator_proc, nil}
+	system.args = web_args()
 	run(ROC_GAME)
 	return 0
+}
+
+// The program's own name is empty, so the assets stay in the default folder.
+web_args :: proc() -> []string {
+	buffer := make([]u8, WEB_ARGS_LIMIT)
+	rocco_web_args(raw_data(buffer), WEB_ARGS_LIMIT)
+	text := string(cstring(raw_data(buffer)))
+	words := make([dynamic]string)
+	append(&words, "")
+	for word in strings.split_lines_iterator(&text) {
+		append(&words, word)
+	}
+	return words[:]
 }
 
 // libc's realloc does not keep the alignment, so a resize allocates and copies.

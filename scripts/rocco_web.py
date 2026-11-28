@@ -260,10 +260,12 @@ def find_target(dirs):
 
 
 def asset_files(assets):
-    """The folders and files under assets as FS paths below /assets, without dotfiles."""
+    """The folders and files under assets as FS paths below /assets, without dotfiles.
+    The engine never reads a shaders/<name>.sources folder, so a page leaves it out."""
     dirs, files = [], []
+    shaders = os.path.join(assets, 'shaders')
     for root, names, file_names in os.walk(assets):
-        names[:] = sorted(name for name in names if not name.startswith('.'))
+        names[:] = sorted(name for name in names if not name.startswith('.') and not (root == shaders and name.endswith('.sources')))
         parent = '/' + os.path.relpath(root, os.path.dirname(assets)).replace(os.sep, '/')
         dirs += [(parent, name) for name in names]
         files += [(f'{parent}/{name}', os.path.join(root, name)) for name in sorted(file_names) if not name.startswith('.')]

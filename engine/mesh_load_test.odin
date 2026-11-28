@@ -4,17 +4,35 @@ package engine
 import "core:fmt"
 import "core:os"
 import "core:slice"
+import "core:strings"
 import "core:testing"
 
 // Each file path is relative to the new directory. Remove it with os.remove_all.
-temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte) -> string {
+temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte, loc := #caller_location) -> string {
 	dir, err := os.make_directory_temp("", "rocco-assets-*", context.temp_allocator)
-	testing.expect_value(t, err, nil)
+	if err != nil {
+		testing.fail_now(t, fmt.tprintf("temp_assets_dir: the temp directory: %v", err), loc)
+	}
 	for path, bytes in files {
+		parts := strings.split(path, "/", context.temp_allocator)
+		// Not make_directory_all: it starts at the root, and some sandboxes
+		// refuse a mkdir of an existing folder above the ones they allow.
+		folder := dir
+		for part in parts[:len(parts) - 1] {
+			folder, _ = os.join_path({folder, part}, context.temp_allocator)
+			if os.exists(folder) {
+				continue
+			}
+			if mkdir_err := os.make_directory(folder); mkdir_err != nil {
+				_ = os.remove_all(dir)
+				testing.fail_now(t, fmt.tprintf("temp_assets_dir: %v: %v", folder, mkdir_err), loc)
+			}
+		}
 		full, _ := os.join_path({dir, path}, context.temp_allocator)
-		parent, _ := os.split_path(full)
-		_ = os.make_directory_all(parent)
-		testing.expect_value(t, os.write_entire_file(full, bytes), nil)
+		if write_err := os.write_entire_file(full, bytes); write_err != nil {
+			_ = os.remove_all(dir)
+			testing.fail_now(t, fmt.tprintf("temp_assets_dir: %v: %v", full, write_err), loc)
+		}
 	}
 	return dir
 }

@@ -345,6 +345,13 @@ class AssetFilesTest(unittest.TestCase):
             self.assertEqual(dirs, [('/', 'assets'), ('/assets', 'sky')])
             self.assertEqual([path for path, _ in files], ['/assets/a.txt', '/assets/b.txt', '/assets/sky/x.png'])
 
+    def test_leaves_out_the_compiled_shader_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(tmp, {'assets/shaders/Grass.shaderpack': 'p', 'assets/shaders/Grass.manifest.json': '{}', 'assets/shaders/Grass.sources/input.glsl': 'g'})
+            dirs, files = asset_files(os.path.join(tmp, 'assets'))
+            self.assertEqual(dirs, [('/', 'assets'), ('/assets', 'shaders')])
+            self.assertEqual([path for path, _ in files], ['/assets/shaders/Grass.manifest.json', '/assets/shaders/Grass.shaderpack'])
+
 
 class PackAssetsTest(unittest.TestCase):
     def test_joins_the_files_and_lists_each_one_with_its_offsets(self):

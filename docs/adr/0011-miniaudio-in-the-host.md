@@ -23,8 +23,9 @@ the Linux stubs and the Windows import libraries.
   catalogs gain `dlopen` and the thread symbols miniaudio calls, and no
   audio library.
 - The web host builds the same miniaudio source with emcc and plays
-  through Web Audio. `rocco.js` unlocks it on the first click, touch or
-  key.
+  through Web Audio. It opens the device at the player's first click,
+  touch or key, or at the first voice if that comes sooner, so a silent
+  page starts no AudioContext. `rocco.js` unlocks it on a later key.
 - The host always creates an `ma_engine`. In Headless it has no device. If
   the device does not open, the host logs once and the run is silent.
 

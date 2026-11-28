@@ -96,10 +96,16 @@ render_target_init :: proc(t: ^Render_Target, samples: i32) {
 }
 
 // Remakes the images when the swapchain changes size, such as on a window
-// resize, so the copy stays one texel per pixel. A dpi change, such as a move
-// to another display, remakes them too, for the bloom mips.
+// resize, so the copy stays one texel per pixel. A dpi change alone, such as a
+// move to another display, sizes only the bloom mips, so it remakes only the
+// mips whose size changed.
 render_target_fit :: proc(t: ^Render_Target, size: [2]i32, dpi: f32) {
 	if (size == t.size && dpi == t.dpi) || size.x <= 0 || size.y <= 0 {
+		return
+	}
+	if size == t.size {
+		bloom_mips_fit(&t.bloom, size, t.dpi, dpi)
+		t.dpi = dpi
 		return
 	}
 	render_target_destroy(t)
@@ -109,10 +115,24 @@ render_target_fit :: proc(t: ^Render_Target, size: [2]i32, dpi: f32) {
 	t.color = target_layer_make(size, t.samples, TARGET_COLOR_FORMAT, "target-color", "target-msaa", readable = true)
 	t.depth = sg.make_image({usage = {depth_stencil_attachment = true}, width = size.x, height = size.y, pixel_format = TARGET_DEPTH_FORMAT, sample_count = t.samples, label = "target-depth"})
 	t.hdr.attachments.depth_stencil = sg.make_view({depth_stencil_attachment = {image = t.depth}})
-	t.bloom.count = bloom_mip_count(size, dpi)
-	for i in 0 ..< t.bloom.count {
-		t.bloom.mips[i] = target_layer_make(bloom_mip_size(size, dpi, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
+	bloom_mips_fit(&t.bloom, size, 0, dpi)
+}
+
+// Makes each mip whose size at dpi differs from its size at old_dpi, or that
+// the chain lacks, and destroys the mips past the new count. A chain with no
+// mips, such as after render_target_destroy, gets every mip.
+bloom_mips_fit :: proc(c: ^Bloom_Chain, size: [2]i32, old_dpi, dpi: f32) {
+	count := bloom_mip_count(size, dpi)
+	for i in 0 ..< BLOOM_MIP_LIMIT {
+		if i < count && i < c.count && bloom_mip_size(size, old_dpi, i) == bloom_mip_size(size, dpi, i) {
+			continue
+		}
+		target_layer_destroy(&c.mips[i])
+		if i < count {
+			c.mips[i] = target_layer_make(bloom_mip_size(size, dpi, i), 1, HDR_COLOR_FORMAT, "target-bloom", "")
+		}
 	}
+	c.count = count
 }
 
 // Makes the black image, the sampler and the pipelines. render_target_fit

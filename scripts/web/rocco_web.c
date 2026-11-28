@@ -37,6 +37,28 @@ EM_JS(void, rocco_web_location, (char *host, int host_size, char *bridge, int br
 	stringToUTF8(new URLSearchParams(location.search).get("bridge") || "", bridge, bridge_size);
 });
 
+// Writes the Args from the page's URL query, each ended by a newline. An Arg
+// is the decoded text between two "&", so "?a=1&b=" gives "a=1\nb=\n", as a
+// command line would. The bridge word is the host's, and a word with a newline
+// would split, so neither reaches the game. A word that does not fit stops the
+// list, so no word arrives cut.
+EM_JS(void, rocco_web_args, (char *out, int size), {
+	var words = "";
+	var encoder = new TextEncoder();
+	var parts = location.search.slice(1).split("&");
+	for (var i = 0; i < parts.length; i++) {
+		var word = parts[i].split("+").join(" ");
+		try { word = decodeURIComponent(word); } catch (e) {}
+		if (word === "" || word.indexOf("\n") >= 0 || word.split("=")[0] === "bridge") { continue; }
+		if (encoder.encode(words + word + "\n").length >= size) {
+			console.warn("rocco: the URL query is too long, so the game gets only the words before " + JSON.stringify(word));
+			break;
+		}
+		words += word + "\n";
+	}
+	stringToUTF8(words, out, size);
+});
+
 // The page decides what the player sees after the run ends.
 EM_JS(void, rocco_web_dispatch_quit, (void), {
 	window.dispatchEvent(new Event("rocco:quit"));

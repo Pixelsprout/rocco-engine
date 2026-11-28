@@ -13,6 +13,18 @@ test_audio_without_a_device_opens_none :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_audio_with_a_later_device_waits_for_the_first_voice :: proc(t: ^testing.T) {
+	audio: Audio
+	audio_init(&audio, device = true, later = true)
+	defer audio_shutdown(&audio)
+	testing.expect(t, audio.engine_ready)
+	testing.expect(t, audio.device_wanted)
+	testing.expect(t, !audio.device)
+	testing.expect(t, ma_engine_get_device(&audio.engine) == nil)
+	testing.expect_value(t, ma_engine_get_sample_rate(&audio.engine), AUDIO_SAMPLE_RATE)
+}
+
+@(test)
 test_audio_shutdown_uninits_once :: proc(t: ^testing.T) {
 	audio: Audio
 	audio_init(&audio, device = false)
