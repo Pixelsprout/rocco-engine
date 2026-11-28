@@ -273,6 +273,14 @@ event_cb :: proc "c" (event: ^sapp.Event) {
 	context = g_state.ctx
 
 	if g_state.capture.on && event.type == .ICONIFIED { g_state.capture.failed = "window minimized" }
+	// sokol calls this inside the browser's own event, and only there does a
+	// new AudioContext start without waiting for the next input.
+	when AUDIO_DEVICE_LATER {
+		#partial switch event.type {
+		case .MOUSE_DOWN, .KEY_DOWN, .TOUCHES_BEGAN:
+			audio_open_device(&g_state.audio)
+		}
+	}
 	input_on_event(&g_state.input, event)
 }
 
