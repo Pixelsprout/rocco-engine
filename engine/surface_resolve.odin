@@ -230,15 +230,14 @@ surface_values_resolve :: proc(p: ^Packs, part: ^Mesh_Part, material: ^Shader_Va
 		} else { return {}, "required shader texture has no source" }
 		resolved.textures[index].sampler = s.samplers[index]
 	}
-	// Each pass a material draws in gets its pipeline here, before the first
-	// frame, so a browser compiles none mid-game. Selection is the exception:
-	// it draws only for a Post effect that reads the selection, so it gets
-	// its pipeline on first use (surface_render), and a game with no such
-	// effect has the browser compile none.
+	// On the web, Selection gets its pipeline on first use in surface_render.
+	// Only a Post effect that reads the selection or Scene_Depth draws it.
+	// The desktop makes it here, so a broken program fails the load and shader
+	// hot reload checks it.
 	if p.shaders.uploaded && !post {
 		layout := Shader_Layout.Skinned if skinned else .Rigid
 		for pass in Surface_Pass {
-			if pass == .Selection { continue }
+			if ODIN_OS == .Freestanding && pass == .Selection { continue }
 			cull := surface_cull(part.material, pass, .Blend if part.material.alpha_mode == .Blend else .Opaque)
 			if _, ok := shader_pipeline(&p.shaders, s, {pass, layout, part.material.alpha_mode, cull}); !ok { return {}, "Surface pipeline creation or capacity failed" }
 		}
