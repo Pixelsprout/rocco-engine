@@ -1,6 +1,6 @@
 # Village effects
 
-`Effects.roc` owns the village Post chain and particle sources.
+`Effects.roc` owns the village Post chain and Emitters.
 `effects-shaders.json` contains the effects declarations for shared-file integration.
 The ordinary build uses the combined `shaders.json`.
 The hooks require no engine source changes.
@@ -39,19 +39,19 @@ Use `width:1`, `width:2`, `width:3`, or `width:4` for physical-pixel outline wid
 All changes apply live.
 The controls panel starts hidden.
 
-Removing an emitter stops new particles.
+Removing an Emitter stops new particles.
 Existing particles drain with the previous settings.
-Restoring a source during its drain keeps its random sequence.
-Restoring a fully drained source starts its sequence again.
+Restoring an Emitter during its drain keeps its random sequence.
+Restoring a fully drained Emitter starts its sequence again.
 These behaviours follow the existing Emitter contract.
 
 ## Smoke and dust
 
-The smoke source uses `HouseA/Prop_Chimney2` from Layout.
+The smoke Emitter uses `HouseA/Prop_Chimney2` from Layout.
 The source mesh root is below its mouth.
 The brick mouth corners lie at local Y 3.0.
 The stone rim reaches local Y 3.177875.
-The emitter uses local `(0, 3.20, 0)` after the placement rotation and scale.
+The Emitter uses local `(0, 3.20, 0)` after the placement rotation and scale.
 Its world position is approximately `(-5.6, 8.6, 2.6)`.
 The source manifest records the inspected corners and cumulative transform.
 
@@ -129,7 +129,7 @@ Set each building Group's `selected` field from its existing selected Group ID.
 Keep the original Draw tint when constructing selected children.
 
 Set `Scene.post` to `Effects.post(settings, selected_group)`.
-Set `Scene.emitters` to `Effects.emitters(manifest, seed, settings)`.
+Append `Effects.emitters(manifest, seed, settings)` to the root `Scene.nodes`.
 Add `Port.listen("effects")` to the existing queries.
 Keep UI in `Scene.ui`.
 The baseline integration includes an optional opaque controls panel for UI parity checks.

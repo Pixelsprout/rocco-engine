@@ -68,3 +68,11 @@ They assume a world up.
   the glue and `guide/scene.md` change in one step.
 - A game that wants a world-fixed Emitter puts it at the root.
 - A game that bursts an Emitter gives it a non-zero id.
+- Until the Position key for Draws exists, the host keys an id-0 Emitter
+  by the nearest Group with an id (or the Attach) and its order among all
+  id-0 Emitters under it, not among its siblings. An id-0 Emitter added in
+  an earlier id-0 sub-Group shifts the later ones, which restart their
+  Particles and random sequence.
+- The host tree walk visits the children of an Attach after the rest of
+  the tree. Until that order changes, a duplicate id under an Attach can
+  lose to a later Emitter elsewhere. Speakers share this gap.

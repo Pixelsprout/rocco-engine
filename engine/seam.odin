@@ -55,7 +55,7 @@ seam_init :: proc(s: ^Seam, run_command: Command_Runner, config: Config, packs: 
 	_, plays := seam_run_commands(s, started.commands)
 	s.curr = seam_view(s)
 	seam_sound(s, plays)
-	particles_step(s.particles, s.curr.emitters.elements[:s.curr.emitters.length], 0)
+	particles_step(s.particles, s.curr.nodes.elements[:s.curr.nodes.length], seam_meshes(s), 0)
 }
 
 // The Spans split the work finer than step_time and view_time, which the
@@ -102,7 +102,7 @@ seam_step :: proc(s: ^Seam, step_input: Step_Input, dt: f32, spans: ^Span_Sink =
 	s.has_prev = true
 	s.curr = seam_view(s)
 	seam_sound(s, plays)
-	particles_step(s.particles, s.curr.emitters.elements[:s.curr.emitters.length], dt)
+	particles_step(s.particles, s.curr.nodes.elements[:s.curr.nodes.length], seam_meshes(s), dt)
 	span = span_close(spans, .View, span)
 	viewed := time.tick_now()
 	answers := seam_query_search(s)

@@ -151,6 +151,18 @@ class Bridge:
         return self.request({"op": "inject", "events": list(events)})
 
 
+# The Emitters of a `scene` reply's Node tree, depth first.
+def scene_emitters(nodes):
+    found = []
+    for node in nodes:
+        if "Emitter" in node:
+            found.append(node["Emitter"])
+        for parent in ("Group", "Attach"):
+            if parent in node:
+                found.extend(scene_emitters(node[parent]["children"]))
+    return found
+
+
 # Another process can take the port before the game opens it. That is rare
 # enough for scripts and CI.
 def free_port():

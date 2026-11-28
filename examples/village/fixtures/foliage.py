@@ -9,7 +9,7 @@ import sys
 
 from capture import GAME, launch
 sys.path.insert(0, str(GAME.parents[1] / 'scripts'))
-from bridge import Bridge
+from bridge import Bridge, scene_emitters
 
 
 def draws(nodes):

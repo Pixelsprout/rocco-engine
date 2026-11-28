@@ -220,7 +220,8 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 	feet := []Roc_Str{roc_str_from_slice("foot.L"), roc_str_from_slice("foot.R")}
 	draw.ground.feet = json_test_list(feet)
 	hum := Speaker{id = 10, sound = 3, gain = 1, pitch = 2, at = {tag = .At, payload = {at = {pos = {0, 1, 0}, range = 4}}}, repeat = .Loop}
-	children := []Node{node_draw(draw), node_light(light_ambient({r = 1})), node_speaker(hum)}
+	smoke := Emitter{id = 5, seed = 1, pos = {0, 2, 0}, velocity = {y = 1}, rate = 8, lifetime = 2, start_size = 0.5, end_size = 1, time_scale = 1, start_colour = {r = 1, g = 1, b = 1, a = 0.5}, blend = .Add}
+	children := []Node{node_draw(draw), node_light(light_ambient({r = 1})), node_speaker(hum), node_emitter(smoke)}
 	music := Speaker{id = 9, sound = 2, gain = 0.5, pitch = 1, at = {tag = .Here}, repeat = .Once}
 	nodes := []Node{node_group(4, {0, 1, 0}, {w = 1}, children), node_collider(test_sphere(2, {1, 0, 0}, 0.5)), node_speaker(music)}
 	scene := Scene {
@@ -237,12 +238,15 @@ test_json_write_scene_writes_every_field_with_the_vocabulary_names :: proc(t: ^t
 		t,
 		&b,
 		`{"camera":{"eye":{"x":0,"y":2,"z":5},"target":{"x":0,"y":0,"z":0},"up":{"x":0,"y":1,"z":0},"fov_y":1},` +
-		`"emitters":[],"nodes":[{"Group":{"id":4,"selected":false,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
+		`"nodes":[{"Group":{"id":4,"selected":false,"pose":{"pos":{"x":0,"y":1,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1}},"children":[` +
 		`{"Draw":{"id":7,"mesh":3,"pos":{"x":1,"y":2,"z":3},"scale":{"x":1,"y":1,"z":1},` +
 		`"rot":{"x":0,"y":0,"z":0,"w":1},"scale_rot":{"x":0,"y":0,"z":0,"w":1},"tint":{"r":1,"g":0.5,"b":0.25},"glow":{"r":3,"g":1.5,"b":0},"casts_shadow":false,` +
 		`"pose":{"clip":2,"time":0.5,"fade_clip":1,"fade_time":0.25,"fade":0.75},"ground":{"feet":["foot.L","foot.R"]}}},` +
 		`{"Light":{"Ambient":{"r":1,"g":0,"b":0}}},` +
-		`{"Speaker":{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}},"repeat":"Loop"}}]}},` +
+		`{"Speaker":{"id":10,"sound":3,"gain":1,"pitch":2,"at":{"At":{"pos":{"x":0,"y":1,"z":0},"range":4}},"repeat":"Loop"}},` +
+		`{"Emitter":{"id":5,"seed":1,"pos":{"x":0,"y":2,"z":0},"velocity":{"x":0,"y":1,"z":0},"velocity_spread":{"x":0,"y":0,"z":0},"rate":8,"lifetime":2,` +
+		`"start_size":0.5,"end_size":1,"drag":0,"acceleration":{"x":0,"y":0,"z":0},"spawn_radius":0,"swirl":0,"outward":0,"time_scale":1,` +
+		`"start_colour":{"r":1,"g":1,"b":1,"a":0.5},"end_colour":{"r":0,"g":0,"b":0,"a":0},"image":0,"blend":"Add"}}]}},` +
 		`{"Collider":{"id":2,"pos":{"x":1,"y":0,"z":0},"rot":{"x":0,"y":0,"z":0,"w":1},"shape":{"Sphere":0.5}}},` +
 		`{"Speaker":{"id":9,"sound":2,"gain":0.5,"pitch":1,"at":"Here","repeat":"Once"}}],` +
 		`"cursor":"Locked","environment":{"sky":2,"sky_blend":{"to":3,"amount":0.5},"clear":{"r":0.25,"g":0.5,"b":1},"tone_map":"Neutral","exposure":2,` +

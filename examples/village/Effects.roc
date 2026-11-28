@@ -58,7 +58,8 @@ Effects := [].{
 		if (settings.colour) [Post.after_tone_map(VillageColour.draw("effects", VillageColour.draw_default))] else [],
 	])
 
-	emitters : Vocabulary.Manifest, U64, Settings -> List(Vocabulary.Emitter)
+	# Root Emitters, so their places are in the world.
+	emitters : Vocabulary.Manifest, U64, Settings -> List(Vocabulary.Node)
 	emitters = |manifest, seed, settings| {
 		smoke = if (settings.smoke) match Layout.placements.find_first(|p| p.name == "HouseA/Prop_Chimney2") {
 			Err(_) => []
@@ -66,7 +67,7 @@ Effects := [].{
 				{
 					..Emitter.default,
 					id: 70001,
-					position: V.add(chimney.pos, Quat.rotate({ x: 0.0, y: 3.20 * chimney.scale.y, z: 0.0 }, chimney.rot)),
+					pos: V.add(chimney.pos, Quat.rotate({ x: 0.0, y: 3.20 * chimney.scale.y, z: 0.0 }, chimney.rot)),
 					rate: 5.0,
 					lifetime: 7.0,
 					start_size: 0.38,
@@ -91,7 +92,7 @@ Effects := [].{
 				{
 					..Emitter.default,
 					id: 70002 + i,
-					position: { x: -5.0 + (x + 0.25 + jitter * 0.5) * 2.0, y: 0.3 + jitter * 2.6, z: -10.0 + (z + 0.25 + jitter * 0.5) * 3.5 },
+					pos: { x: -5.0 + (x + 0.25 + jitter * 0.5) * 2.0, y: 0.3 + jitter * 2.6, z: -10.0 + (z + 0.25 + jitter * 0.5) * 3.5 },
 					rate: 160.0 / 14.0 / 40.0,
 					lifetime: 14.0,
 					start_size: 0.014,
@@ -106,6 +107,6 @@ Effects := [].{
 				}
 			},
 		) else []
-		List.join([smoke, dust])
+		List.join([smoke, dust]).map(|e| Emitter(e))
 	}
 }

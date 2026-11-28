@@ -22,7 +22,7 @@ CAPTURE_SUPPLEMENT_BEGIN :: u64(200_000)
 CAPTURE_SUPPLEMENT_END :: u64(200_160)
 
 Capture_Draw_Kind :: enum { Source, Field, Supplement, Other }
-Capture_Contents :: struct { source_draws, field_draws, supplement_draws, other_draws: int, selected: [dynamic]u64 }
+Capture_Contents :: struct { source_draws, field_draws, supplement_draws, other_draws, emitters: int, selected: [dynamic]u64 }
 Capture_Frame :: struct {
 	frame: int,
 	before, after, prev: u64,
@@ -153,7 +153,7 @@ capture_sink_write :: proc(c: ^Capture_Sink, s: ^State) -> system.Error {
 	contents: Capture_Contents
 	contents.selected = make([dynamic]u64, context.temp_allocator)
 	capture_contents(&contents, s.seam.curr.nodes)
-	fmt.sbprintf(&b, `,"source_draws":%v,"field_draws":%v,"supplement_draws":%v,"other_draws":%v,"post_count":%v,"emitter_count":%v,"selected_groups":[`, contents.source_draws, contents.field_draws, contents.supplement_draws, contents.other_draws, s.seam.curr.post.length, s.seam.curr.emitters.length)
+	fmt.sbprintf(&b, `,"source_draws":%v,"field_draws":%v,"supplement_draws":%v,"other_draws":%v,"post_count":%v,"emitter_count":%v,"selected_groups":[`, contents.source_draws, contents.field_draws, contents.supplement_draws, contents.other_draws, s.seam.curr.post.length, contents.emitters)
 	for id, i in contents.selected {
 		if i > 0 { strings.write_byte(&b, ',') }
 		strings.write_u64(&b, id)
@@ -181,6 +181,8 @@ capture_contents :: proc(contents: ^Capture_Contents, nodes: Roc_List(Node)) {
 			capture_contents(contents, node.payload.attach._1)
 		} else if node.tag == .Draw {
 			capture_count_draw(contents, node.payload.draw.id)
+		} else if node.tag == .Emitter {
+			contents.emitters += 1
 		}
 	}
 }

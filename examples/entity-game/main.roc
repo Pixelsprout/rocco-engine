@@ -971,6 +971,7 @@ leaves_under = |parent, node| match node {
 		At(a) => [Speaker({ ..s, at: At({ ..a, pos: Pose.compose(parent, { pos: a.pos, rot: Quat.identity }).pos }) })]
 		Here => [Speaker(s)]
 	}
+	Emitter(e) => [Emitter({ ..e, pos: Pose.compose(parent, { pos: e.pos, rot: Quat.identity }).pos })]
 }
 
 # A leaf with its pos and rot moved from its parent's space to the world.

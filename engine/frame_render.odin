@@ -614,7 +614,7 @@ frame_render_visit :: proc(walk: ^Tree_Walk, node: ^Node, parent: ^Walk_Parent) 
 		}
 	case .Light:
 		light_gather(fw.fr, &fw.lights, light_under(node.payload.light, parent))
-	case .Group, .Attach, .Collider, .Speaker:
+	case .Group, .Attach, .Collider, .Speaker, .Emitter:
 	}
 }
 

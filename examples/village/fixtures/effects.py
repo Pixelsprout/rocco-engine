@@ -12,7 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 GAME = ROOT / 'examples/village'
 sys.path.insert(0, str(ROOT / 'scripts'))
-from bridge import Bridge, png_rgba
+from bridge import Bridge, png_rgba, scene_emitters
 
 
 def capture(out, name, switches, seed, view, steps, selected, retina):
@@ -79,7 +79,7 @@ def capture(out, name, switches, seed, view, steps, selected, retina):
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=30)
-    return dict(name=name, seed=seed, switches=switches, view=view, selected=20 if selected else 0, ready_step=ready_step, steps_after_view=steps, physical=result['physical'], binary_sha256=binary_hash, camera=scene['camera'], emitters=scene['emitters'], png_sha256=hashlib.sha256(image.read_bytes()).hexdigest())
+    return dict(name=name, seed=seed, switches=switches, view=view, selected=20 if selected else 0, ready_step=ready_step, steps_after_view=steps, physical=result['physical'], binary_sha256=binary_hash, camera=scene['camera'], emitters=scene_emitters(scene['nodes']), png_sha256=hashlib.sha256(image.read_bytes()).hexdigest())
 
 
 def pixels(path):

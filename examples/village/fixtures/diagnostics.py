@@ -12,7 +12,7 @@ import sys
 import time
 
 from capture import GAME, ROOT
-from foliage import draws
+from foliage import draws, scene_emitters
 
 
 def write_json(path, value):
@@ -92,7 +92,7 @@ def scene_checkpoint(out, name, reply):
     summary = dict(steps=reply['steps'], camera=scene['camera'], environment=scene['environment'],
                    shadow=scene['shadow'], draws=len(placed), meshes=dict(Counter(str(d['mesh']) for d in placed)),
                    root_nodes=dict(Counter(next(iter(node)) for node in scene['nodes'])),
-                   emitters=len(scene['emitters']), first_draws=placed[:3],
+                   emitters=len(scene_emitters(scene['nodes'])), first_draws=placed[:3],
                    source_draws=sum(100 <= d['id'] < 100000 for d in placed),
                    field_draws=sum(d['id'] >= 100000 for d in placed))
     write_json(out / (name + '-scene.json'), summary)

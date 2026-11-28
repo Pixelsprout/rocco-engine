@@ -389,14 +389,14 @@ Vocabulary := [].{
 	##   does not move it. The joint is the node name in the .glb. If the Draw,
 	##   its Skin or the Joint is missing, the host logs once and omits the
 	##   children.
-	## - `Draw`, `Light`, `Collider`, `Speaker`: the leaves.
+	## - `Draw`, `Light`, `Collider`, `Speaker`, `Emitter`: the leaves.
 	##
 	## The host interpolates a Node's local Pose and then composes it, if its
 	## parent Group id is the same in both Scenes. If the parent changed, it
 	## interpolates between the two world Poses. A game with no Groups writes a
 	## flat list of leaves. The type is nominal, because only a nominal
 	## recursive union crosses the seam.
-	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Attach({ draw : U64, joint : Str }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker)].{
+	Node := [Group({ id : U64, pos : Vec3, rot : Quat, selected : Bool }, List(Node)), Attach({ draw : U64, joint : Str }, List(Node)), Draw(Draw), Light(Light), Collider(Collider), Speaker(Speaker), Emitter(Emitter)].{
 
 		## Two Nodes are equal when their tags, payloads and children are
 		## equal. A nominal type gets no `==` of its own.
@@ -409,6 +409,7 @@ Vocabulary := [].{
 				(Light(light_a), Light(light_b)) => light_a == light_b
 				(Collider(collider_a), Collider(collider_b)) => collider_a == collider_b
 				(Speaker(speaker_a), Speaker(speaker_b)) => speaker_a == speaker_b
+				(Emitter(emitter_a), Emitter(emitter_b)) => emitter_a == emitter_b
 				_ => Bool.False
 			}
 	}
@@ -420,7 +421,6 @@ Vocabulary := [].{
 	## What `view` returns each fixed step. Start from `Scene.empty` and set only
 	## the fields you decide.
 	##
-	## - `emitters`: host-simulated billboard sources; `[]` stops new emission.
 	## - `nodes`: the root Nodes of the 3D tree. A root Node's Pose is in the
 	##   world.
 	## - `environment`: the look of the 3D view. `Scene.empty` has
@@ -432,45 +432,61 @@ Vocabulary := [].{
 	##   `step` gets their QueryResults.
 	## - `post`: ordered world effects. Disabled or invalid effects allocate no extra inputs.
 	## - `shader_values`: generated Scene-scope values. Omitted parameters use their Shader defaults.
-	Scene : { post : List(Post), shader_values : List(Shader.Values), camera : Camera, emitters : List(Emitter), nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
+	Scene : { post : List(Post), shader_values : List(Shader.Values), camera : Camera, nodes : List(Node), cursor : Cursor, environment : Environment, shadow : Shadow, ui : List(Element), queries : List(Query) }
 
-	## A host-simulated billboard source. Start from `Emitter.default`.
-	## `id` identifies a source independently of Draw ids. The first duplicate wins.
-	## Removal stops emission; existing particles drain with the last settings.
-	## Reappearing ids retain their seed sequence until the source drains completely.
-	## A changed seed restarts the random sequence for future particles.
-	## Velocity spread gives independent uniform offsets on each axis.
-	## Size and colour interpolate across each particle's lifetime, in world units
-	## and linear HDR colour. Rate is particles per second; drag is per second.
+	## A leaf Node that the host turns into Particles. Start from `Emitter.default`.
+	##
+	## - `id`: the Emitter id. The host pairs an Emitter with the Emitter of the
+	##   same id anywhere in the previous Scene, so an Emitter that moves to
+	##   another Group keeps its Particles and its random sequence. If two share
+	##   an id, the first in a depth-first walk wins and the host logs once. An
+	##   Emitter with id 0 pairs by its place among the id-0 Emitters under its
+	##   nearest Group with an id, and a Burst cannot name it.
+	## - `pos`: local to the parent Group, as a Draw's `pos` is. A root Emitter's
+	##   `pos` is in the world. The host takes the world place from the current
+	##   Scene, with no interpolation.
+	## - `velocity` and `velocity_spread` turn with the Group. The spread gives
+	##   independent uniform offsets on each axis before the turn.
+	##
+	## A Particle lives in the world after it spawns, so a moving Emitter leaves
+	## a trail. Particles of one step spawn along the line from the Emitter's
+	## previous world place to the current one. A Burst spawns at the current
+	## one. An Emitter that leaves the Scene stops emitting. Its Particles drain
+	## with its last world place and settings. A reappearing id keeps its seed
+	## sequence until its Particles drain. A changed seed restarts the random
+	## sequence for future Particles.
+	##
+	## Size and colour interpolate across each Particle's lifetime, in world units
+	## and linear HDR colour. Rate is Particles per second; drag is per second.
 	## Image 0 uses a soft round sprite. Missing or unloaded Pack images omit their
-	## particles and log once per image id. Particles never retain a Pack reference.
-	## Alpha sources sort by source position with Blend Draws. Add sources draw last.
-	## The host accepts 128 sources, including draining sources, and 8192 particles.
-	## New sources take the first free host slot.
-	## Bursts fill particle slots in command order before continuous emission.
-	## Continuous emission fills remaining particle slots in source slot order.
+	## Particles and log once per image id. Particles never retain a Pack reference.
+	## Alpha Emitters sort by world place with Blend Draws. Add Emitters draw last.
+	## The host accepts 128 Emitters, including draining ones, and 8192 Particles.
+	## New Emitters take the first free host slot.
+	## Bursts fill Particle slots in command order before continuous emission.
+	## Continuous emission fills remaining Particle slots in host slot order.
 	## Dropped emissions do not queue for later steps.
 	## Non-finite fields use Emitter.default values. Finite values clamp to the documented limits.
-	## Position and velocity clamp to +/-1000000; spread, size and drag to 0..1000000.
+	## Pos and velocity clamp to +/-1000000; spread, size and drag to 0..1000000.
 	## Rate clamps to 0..8192; lifetime to 0.001..3600; colour channels to 0..65504.
-	## Alpha clamps to 0..1. Settings changes also affect particles already alive.
+	## Alpha clamps to 0..1. Settings changes also affect Particles already alive.
 	##
-	## The outdoor fields, each 0 for none:
-	## - `acceleration` is added to every particle's velocity each second, before
+	## The outdoor fields stay in the world under any Group, each 0 for none:
+	## - `acceleration` is added to every Particle's velocity each second, before
 	##   drag: gravity for falling dust or spray, a lift for rising smoke.
-	## - `spawn_radius` starts each new particle at an even random place on a
-	##   level disc of that radius round `position`, not at `position` itself.
-	## - `swirl` turns every particle about the upright line through the
-	##   source's current `position`, in radians a second, counter-clockwise
+	## - `spawn_radius` starts each new Particle at an even random place on a
+	##   level disc of that radius round the world place, not at the place itself.
+	## - `swirl` turns every Particle about the upright line through the
+	##   Emitter's current world place, in radians a second, counter-clockwise
 	##   seen from above: a dust devil, a whirlpool, leaves in an eddy.
-	## - `outward` moves every particle straight away from that line, in metres
+	## - `outward` moves every Particle straight away from that line, in metres
 	##   a second (negative: in toward it), never past it.
-	## `time_scale` is the source's own clock against the host's step: 1 runs
-	## at the host's pace, 0 holds its particles still and emits none, so a game
-	## with its own pause or tempo keeps its particles on its clock.
+	## `time_scale` is the Emitter's own clock against the host's step: 1 runs
+	## at the host's pace, 0 holds its Particles still and emits none, so a game
+	## with its own pause or tempo keeps its Particles on its clock.
 	## Acceleration and outward clamp to +/-1000000, spawn radius to
 	## 0..1000000, swirl to +/-1000 and time scale to 0..100.
-	Emitter : { id : U64, position : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, acceleration : Vec3, spawn_radius : F32, swirl : F32, outward : F32, time_scale : F32, seed : U64, image : U32, blend : [Alpha, Add] }
+	Emitter : { id : U64, pos : Vec3, rate : F32, lifetime : F32, start_size : F32, end_size : F32, start_colour : Rgba, end_colour : Rgba, velocity : Vec3, velocity_spread : Vec3, drag : F32, acceleration : Vec3, spawn_radius : F32, swirl : F32, outward : F32, time_scale : F32, seed : U64, image : U32, blend : [Alpha, Add] }
 
 	## Live shadow appearance. The host uses the current Scene without interpolation.
 	## Invalid fields use their Shadow.default values and log once per field.
