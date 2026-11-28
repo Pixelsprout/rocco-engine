@@ -47,7 +47,7 @@ EM_JS(void, rocco_web_args, (char *out, int size), {
 	var encoder = new TextEncoder();
 	var parts = location.search.slice(1).split("&");
 	for (var i = 0; i < parts.length; i++) {
-		var word = parts[i].replace(/\+/g, " ");
+		var word = parts[i].split("+").join(" ");
 		try { word = decodeURIComponent(word); } catch (e) {}
 		if (word === "" || word.indexOf("\n") >= 0 || word.split("=")[0] === "bridge") { continue; }
 		if (encoder.encode(words + word + "\n").length >= size) {
