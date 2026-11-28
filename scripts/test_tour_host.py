@@ -108,11 +108,11 @@ class GlueAbiTest(unittest.TestCase):
     def test_a_glue_type_with_another_size_fails(self):
         with open(self.GLUE) as f:
             glue = f.read()
-        self.assertIn('ROC_TYPE(Roc_View, 212)', glue)
+        self.assertIn('ROC_TYPE(Roc_View, 200)', glue)
         with tempfile.TemporaryDirectory() as tmp:
             changed = os.path.join(tmp, 'tour_glue.c')
-            write(changed, glue.replace('ROC_TYPE(Roc_View, 212)', 'ROC_TYPE(Roc_View, 216)').encode())
-            with self.assertRaisesRegex(tour_host.BuildError, 'Roc_View is 216 bytes.*212'):
+            write(changed, glue.replace('ROC_TYPE(Roc_View, 200)', 'ROC_TYPE(Roc_View, 216)').encode())
+            with self.assertRaisesRegex(tour_host.BuildError, 'Roc_View is 216 bytes.*200'):
                 tour_host.check_glue_abi(changed, self.ABI)
 
 

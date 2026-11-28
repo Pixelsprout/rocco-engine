@@ -20,7 +20,7 @@ ROC_TYPE(Roc_Str, 12);
 ROC_TYPE(Roc_List, 12);
 ROC_TYPE(Roc_Step_Arg1, 108);
 ROC_TYPE(Roc_Step_Arg2, 72);
-ROC_TYPE(Roc_View, 212);
+ROC_TYPE(Roc_View, 200);
 
 extern void roc_entrypoint_from_image(uint32_t entry, void *ops, void *ret, void *args, void *image, size_t image_len);
 extern void *roc_shim_get_ops(void);
