@@ -261,9 +261,7 @@ def find_target(dirs):
 
 def asset_files(assets):
     """The folders and files under assets as FS paths below /assets, without dotfiles.
-    It leaves out each shaders/<name>.sources folder: the shader build keeps the
-    compiled sources there for people to read, and the engine loads only the
-    packs and their manifests, so a page need not download them."""
+    The engine never reads a shaders/<name>.sources folder, so a page leaves it out."""
     dirs, files = [], []
     shaders = os.path.join(assets, 'shaders')
     for root, names, file_names in os.walk(assets):

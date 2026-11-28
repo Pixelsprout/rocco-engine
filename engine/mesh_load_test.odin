@@ -8,8 +8,6 @@ import "core:strings"
 import "core:testing"
 
 // Each file path is relative to the new directory. Remove it with os.remove_all.
-// A folder or file it cannot make ends the test at once, since every test that
-// uses it reads these files.
 temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte, loc := #caller_location) -> string {
 	dir, err := os.make_directory_temp("", "rocco-assets-*", context.temp_allocator)
 	if err != nil {
@@ -17,9 +15,8 @@ temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte, loc := #caller_
 	}
 	for path, bytes in files {
 		parts := strings.split(path, "/", context.temp_allocator)
-		// Each folder below dir in turn. make_directory_all starts at the
-		// root, and some sandboxes refuse a mkdir of an existing folder above
-		// the ones they allow.
+		// Not make_directory_all: it starts at the root, and some sandboxes
+		// refuse a mkdir of an existing folder above the ones they allow.
 		folder := dir
 		for part in parts[:len(parts) - 1] {
 			folder, _ = os.join_path({folder, part}, context.temp_allocator)
@@ -27,11 +24,13 @@ temp_assets_dir :: proc(t: ^testing.T, files: map[string][]byte, loc := #caller_
 				continue
 			}
 			if mkdir_err := os.make_directory(folder); mkdir_err != nil {
+				_ = os.remove_all(dir)
 				testing.fail_now(t, fmt.tprintf("temp_assets_dir: %v: %v", folder, mkdir_err), loc)
 			}
 		}
 		full, _ := os.join_path({dir, path}, context.temp_allocator)
 		if write_err := os.write_entire_file(full, bytes); write_err != nil {
+			_ = os.remove_all(dir)
 			testing.fail_now(t, fmt.tprintf("temp_assets_dir: %v: %v", full, write_err), loc)
 		}
 	}
